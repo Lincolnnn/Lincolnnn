@@ -77,8 +77,8 @@
                                 </select>
                             </label>
                             <label class="lbl">Nom de l'unité *<input name="name" type="text" maxlength="30" placeholder="ex : Patrouille Centre"></label>
-                            <label class="lbl">Tag *<input name="tag" type="text" maxlength="10" class="upper" placeholder="ex : 1-ADAM-12"></label>
-                            <div class="lbl">Couleur du tag *
+                            <label class="lbl">Tag (facultatif)<input name="tag" type="text" maxlength="10" class="upper" placeholder="ex : 1-ADAM-12"></label>
+                            <div class="lbl">Couleur *
                                 <div class="swatches" id="tagColors">
                                     <label class="swatch" title="Vert foncé"><input type="radio" name="color" value="green" checked><span class="swatch-box tag-green"></span></label>
                                     <label class="swatch" title="Violet foncé"><input type="radio" name="color" value="purple"><span class="swatch-box tag-purple"></span></label>
@@ -90,7 +90,7 @@
                                     <label class="swatch" title="Gris foncé"><input type="radio" name="color" value="gray"><span class="swatch-box tag-gray"></span></label>
                                 </div>
                             </div>
-                            <div class="lbl">Aperçu<span class="unit-tag tag-green" id="tagPreview">TAG</span></div>
+                            <div class="lbl">Aperçu<span class="unit-tag tag-green" id="tagPreview">Aucun tag</span></div>
                             <div class="unit-form-actions">
                                 <button type="button" class="btn" id="unitCancelEdit">Annuler</button>
                                 <button type="submit" class="btn btn-default" id="unitSubmit">Créer l'unité</button>
@@ -264,6 +264,7 @@
                                 <label class="lbl">Intervention / incident lié *
                                     <select id="reportCallSelect"></select>
                                 </label>
+                                <div class="hint-text" id="reportCallHint"></div>
                             </div>
                             <div class="report-form" id="reportForm"></div>
                             <div class="form-actions">

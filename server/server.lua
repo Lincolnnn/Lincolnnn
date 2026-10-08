@@ -842,8 +842,9 @@ local function findUnit(id)
     return nil
 end
 
+-- Nom affiché dans la console : "[TAG] Nom" (ou "Nom" si l'unité n'a pas de tag)
 local function unitLabel(unit)
-    return ('[%s] %s'):format(unit.tag, unit.name)
+    return unit.tag ~= '' and ('[%s] %s'):format(unit.tag, unit.name) or unit.name
 end
 
 local function unitView(unit)
@@ -877,9 +878,8 @@ end
 
 local function buildUnit(p)
     local name = clean(p.name, 30)
-    local tag = clean(p.tag, 10):upper()
+    local tag = clean(p.tag, 10):upper() -- facultatif
     if name == '' then return nil, 'Le nom de l\'unité est obligatoire.' end
-    if tag == '' then return nil, 'Le tag est obligatoire.' end
     if not TAG_COLORS[p.color] then return nil, 'Choisissez la couleur du tag.' end
     if not DEPARTMENTS[p.dept] then return nil, 'Choisissez le service de police de l\'unité.' end
     return { name = name, tag = tag, color = p.color, dept = p.dept }

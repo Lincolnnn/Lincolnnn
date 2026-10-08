@@ -345,7 +345,8 @@
     // =====================================================================
     const TAG_COLORS = ['green', 'purple', 'blue', 'orange', 'red', 'yellow', 'pink', 'gray'];
     const tagColor = (color) => (TAG_COLORS.includes(color) ? color : 'gray');
-    const unitTag = (u) => `<span class="unit-tag tag-${tagColor(u.color)}">${esc(u.tag)}</span>`;
+    // Tag facultatif : rien n'est affiché si l'unité n'en a pas
+    const unitTag = (u) => (u.tag ? `<span class="unit-tag tag-${tagColor(u.color)}">${esc(u.tag)}</span>` : '');
     // Nom de l'unité précédé d'un carré de la couleur de son tag (appels, notes)
     const unitChip = (u) => `<span class="call-unit"><span class="unit-dot tag-${tagColor(u.color)}"></span>${esc(u.name)}</span>`;
 
@@ -406,7 +407,7 @@
             return `
             <tr class="${isMine ? 'me' : ''}">
                 <td><b>${esc(u.name)}</b></td>
-                <td>${unitTag(u)}</td>
+                <td>${unitTag(u) || '<span class="muted">Aucun</span>'}</td>
                 <td>${members.length ? members.map((m) => esc(m.name)).join(', ') : '<span class="muted">Aucun membre</span>'}</td>
                 <td><span class="badge"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</span></td>
                 <td class="col-actions">
@@ -439,7 +440,7 @@
     function updateTagPreview() {
         const data = new FormData(unitForm);
         const preview = $('#tagPreview');
-        preview.textContent = String(data.get('tag') || '').trim().toUpperCase() || 'TAG';
+        preview.textContent = String(data.get('tag') || '').trim().toUpperCase() || 'Aucun tag';
         preview.className = `unit-tag tag-${data.get('color') || 'green'}`;
     }
 
@@ -2028,8 +2029,9 @@
     }
 
     // Première ligne : intervention / incident lié, en cours ou terminé
+    // "12-3456 — [Incident] Course-poursuite — Route 68 (14:32)"
     const callOption = (c, selected) =>
-        `<option value="${esc(c.id)}" ${selected ? 'selected' : ''}>${esc(c.number)} — ${esc(c.title)}${c.kind === 'incident' ? ' (incident)' : ''}</option>`;
+        `<option value="${esc(c.id)}" ${selected ? 'selected' : ''}>${esc(c.number)} — ${c.kind === 'incident' ? '[Incident] ' : ''}${esc(c.title)} — ${esc(c.address)} (${esc(formatTime(c.createdAt))})</option>`;
 
     function renderCallSelect() {
         const draft = reports.draft;
@@ -2042,7 +2044,10 @@
                 ? `${esc(draft.call.number)} — ${esc(draft.call.title)} (lien actuel, intervention archivée)`
                 : 'Aucune (rapport rédigé avant les liens)'}</option>`
             : '';
-        select.innerHTML = `<option value="">— Choisir l'intervention ou l'incident —</option>${keep}
+        $('#reportCallHint').textContent = state.interventions.length
+            ? 'Interventions et incidents en cours ou terminés : le rapport apparaîtra dans leur déroulé.'
+            : 'Aucune intervention ni aucun incident pour le moment : déclarez un incident (onglet Interventions) ou créez une intervention (Créations).';
+        select.innerHTML = `<option value="">— Choisir dans la liste —</option>${keep}
             ${open.length ? `<optgroup label="En attente / en cours">${open.map((c) => callOption(c, draft.callRef === String(c.id))).join('')}</optgroup>` : ''}
             ${closed.length ? `<optgroup label="Terminées">${closed.map((c) => callOption(c, draft.callRef === String(c.id))).join('')}</optgroup>` : ''}`;
         // Intervention choisie disparue de la liste : on revient au choix vide
