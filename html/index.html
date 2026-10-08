@@ -14,7 +14,7 @@
         <div class="titlebar" id="titlebar">
             <div class="title">
                 <span class="title-icon">MDC</span>
-                <span>Mobile Data Computer — Département de Police</span>
+                <span>Mobile Data Computer</span>
             </div>
             <div class="win-buttons">
                 <button class="win-btn" id="btnReset" title="Réinitialiser la position et la taille">&#8634;</button>
@@ -37,31 +37,23 @@
                 <div class="group profile-group">
                     <!-- Nom RP affiché en haut à gauche, uniquement une fois créé -->
                     <div class="rp-display hidden" id="rpDisplay">
-                        <div class="rp-text">
-                            <span class="rp-name" id="rpNameText"></span>
-                            <span class="rp-callsign" id="rpCallsignText"></span>
-                        </div>
+                        <span class="rp-name" id="rpNameText"></span>
                         <button class="btn btn-icon" id="rpEdit" title="Modifier le nom RP">&#9998;</button>
                     </div>
                     <div class="inline" id="rpForm">
                         <input id="rpNameInput" type="text" maxlength="40" placeholder="NOM RP" autocomplete="off">
                         <button id="rpSave" class="btn">OK</button>
                     </div>
-                    <div class="inline">
-                        <input id="callsignInput" type="text" maxlength="12" placeholder="MATRICULE" autocomplete="off" class="upper">
-                        <button id="callsignSave" class="btn">OK</button>
-                    </div>
                 </div>
 
                 <div class="group">
-                    <span class="legend">Statut</span>
-                    <div class="status-list">
+                    <span class="legend">Statut de l'unité</span>
+                    <div class="my-unit" id="myUnit">Aucune unité</div>
+                    <div class="status-list" id="statusList">
                         <button class="status-btn" data-status="available"><span class="sq"></span>Disponible</button>
-                        <button class="status-btn" data-status="unavailable"><span class="sq"></span>Indisponible</button>
-                        <button class="status-btn" data-status="traffic_stop"><span class="sq"></span>Contrôle Routier</button>
-                        <button class="status-btn" data-status="busy"><span class="sq"></span>Occupé</button>
-                        <button class="status-btn" data-status="on_scene"><span class="sq"></span>Sur Place</button>
                         <button class="status-btn" data-status="en_route"><span class="sq"></span>En route</button>
+                        <button class="status-btn" data-status="on_scene"><span class="sq"></span>Sur place</button>
+                        <button class="status-btn" data-status="unavailable"><span class="sq"></span>Indisponible</button>
                     </div>
                 </div>
             </aside>
@@ -71,19 +63,45 @@
 
                 <!-- ============ UNITÉS ============ -->
                 <section class="page active" id="page-units">
+                    <div class="group">
+                        <span class="legend" id="unitFormLegend">Créer une unité</span>
+                        <form class="unit-form" id="unitForm" autocomplete="off" novalidate>
+                            <label class="lbl">Nom de l'unité *<input name="name" type="text" maxlength="30" placeholder="ex : Patrouille Centre"></label>
+                            <label class="lbl">Tag *<input name="tag" type="text" maxlength="10" class="upper" placeholder="ex : 1-ADAM-12"></label>
+                            <div class="lbl">Couleur du tag *
+                                <div class="swatches" id="tagColors">
+                                    <label class="swatch" title="Vert foncé"><input type="radio" name="color" value="green" checked><span class="swatch-box tag-green"></span></label>
+                                    <label class="swatch" title="Violet foncé"><input type="radio" name="color" value="purple"><span class="swatch-box tag-purple"></span></label>
+                                    <label class="swatch" title="Bleu foncé"><input type="radio" name="color" value="blue"><span class="swatch-box tag-blue"></span></label>
+                                    <label class="swatch" title="Orange foncé"><input type="radio" name="color" value="orange"><span class="swatch-box tag-orange"></span></label>
+                                    <label class="swatch" title="Rouge foncé"><input type="radio" name="color" value="red"><span class="swatch-box tag-red"></span></label>
+                                    <label class="swatch" title="Jaune foncé"><input type="radio" name="color" value="yellow"><span class="swatch-box tag-yellow"></span></label>
+                                    <label class="swatch" title="Rose foncé"><input type="radio" name="color" value="pink"><span class="swatch-box tag-pink"></span></label>
+                                    <label class="swatch" title="Gris foncé"><input type="radio" name="color" value="gray"><span class="swatch-box tag-gray"></span></label>
+                                </div>
+                            </div>
+                            <div class="lbl">Aperçu<span class="unit-tag tag-green" id="tagPreview">TAG</span></div>
+                            <div class="unit-form-actions">
+                                <button type="button" class="btn hidden" id="unitCancelEdit">Annuler</button>
+                                <button type="submit" class="btn btn-default" id="unitSubmit">Créer l'unité</button>
+                            </div>
+                        </form>
+                    </div>
+
                     <div class="group fill">
-                        <span class="legend">Unités en service</span>
+                        <span class="legend">Unités <span id="unitsCount"></span></span>
                         <div class="toolbar">
                             <button class="btn" id="refreshUnits">Actualiser</button>
+                            <span class="hint-text">Rejoignez une unité pour définir son statut et prendre des appels.</span>
                         </div>
                         <div class="well">
                             <table class="grid">
                                 <thead>
-                                    <tr><th>Matricule</th><th>Agent</th><th>Statut</th><th>Mis à jour</th></tr>
+                                    <tr><th>Tag</th><th>Unité</th><th>Membres</th><th>Statut</th><th class="col-actions">Actions</th></tr>
                                 </thead>
                                 <tbody id="unitsBody"></tbody>
                             </table>
-                            <div class="empty hidden" id="unitsEmpty">Aucune unité en service.</div>
+                            <div class="empty" id="unitsEmpty">Aucune unité. Créez-en une ci-dessus.</div>
                         </div>
                     </div>
                 </section>
@@ -116,9 +134,14 @@
                     <div class="split">
                         <div class="group">
                             <span class="legend">Résultats <span id="searchCount"></span></span>
+                            <div class="toolbar">
+                                <span class="hint-text">Les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous.</span>
+                                <span class="grow"></span>
+                                <button type="button" class="btn btn-small" id="clearSearch">Vider l'historique</button>
+                            </div>
                             <div class="well">
                                 <table class="grid selectable">
-                                    <thead id="searchHead"></thead>
+                                    <thead><tr><th>Type</th><th>Résultat</th><th>Informations</th><th>Statut</th></tr></thead>
                                     <tbody id="searchBody"></tbody>
                                 </table>
                                 <div class="empty" id="searchEmpty">Lancez une recherche.</div>
@@ -135,13 +158,29 @@
 
                 <!-- ============ INTERVENTIONS ============ -->
                 <section class="page" id="page-interventions">
-                    <div class="group fill">
-                        <span class="legend">Interventions en cours</span>
-                        <div class="toolbar">
-                            <button class="btn" id="refreshInterventions">Actualiser</button>
-                            <span class="hint-text">Les interventions sont effacées au redémarrage du serveur.</span>
+                    <div class="split split-list">
+                        <div class="group">
+                            <span class="legend">Interventions et incidents <span id="interventionsCount"></span></span>
+                            <div class="toolbar">
+                                <button class="btn btn-default" id="newIncident">+ Nouvel incident</button>
+                                <span class="grow"></span>
+                                <button class="btn" id="refreshInterventions">Actualiser</button>
+                            </div>
+                            <div class="well">
+                                <table class="grid selectable">
+                                    <thead><tr><th>Titre</th></tr></thead>
+                                    <tbody id="interventionsBody"></tbody>
+                                </table>
+                                <div class="empty" id="interventionsEmpty">Aucune intervention.</div>
+                            </div>
+                            <div class="hint-text list-hint">Effacées au redémarrage du serveur.</div>
                         </div>
-                        <div class="cards" id="interventionsList"></div>
+                        <div class="group">
+                            <span class="legend" id="interventionPanelTitle">Détails</span>
+                            <div class="well detail" id="interventionDetail">
+                                <div class="empty">Sélectionnez une intervention dans la liste.</div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -388,20 +427,31 @@
                     <form class="view" id="view-intervention" data-kind="intervention" autocomplete="off" novalidate>
                         <div class="group">
                             <span class="legend">Nouvelle intervention</span>
-                            <div class="form-grid">
-                                <label class="lbl span-2">Titre *<input name="title" type="text" maxlength="80"></label>
-                                <label class="lbl">Localisation<input name="location" type="text" maxlength="80" placeholder="ex : Legion Square"></label>
-                                <label class="lbl">Priorité
+                            <div class="toolbar"><span class="hint-text">* champs obligatoires — l'intervention apparaîtra dans l'onglet « Interventions ».</span></div>
+                            <div class="form-grid cols-3">
+                                <label class="lbl">Type d'intervention *<input name="title" type="text" maxlength="60" placeholder="ex : Cambriolage en cours"></label>
+                                <label class="lbl">Requérant *<input name="caller" type="text" maxlength="60" placeholder="Nom de la personne qui appelle"></label>
+                                <label class="lbl">N° de téléphone du requérant *
+                                    <span class="inline">
+                                        <input name="phone" type="text" maxlength="20">
+                                        <button type="button" class="btn btn-icon regen" data-regen="phone" title="Générer un nouveau numéro">&#8635;</button>
+                                    </span>
+                                </label>
+                                <label class="lbl">Priorité de l'urgence *
                                     <select name="priority">
-                                        <option value="low">Basse</option>
-                                        <option value="medium" selected>Moyenne</option>
-                                        <option value="high">Haute</option>
+                                        <option value="">— Choisir —</option>
+                                        <option value="nonurgent">Non-Urgent</option>
+                                        <option value="p1">Priorité 1</option>
+                                        <option value="p2">Priorité 2</option>
+                                        <option value="p3">Priorité 3</option>
                                     </select>
                                 </label>
-                                <label class="lbl span-2">Description<textarea name="description" rows="6" maxlength="2000"></textarea></label>
+                                <label class="lbl">Adresse *<input name="address" type="text" maxlength="80"></label>
+                                <label class="lbl">Bloc *<input name="block" type="text" maxlength="40"></label>
+                                <label class="lbl span-3">Description *<textarea name="description" rows="6" maxlength="2000"></textarea></label>
                             </div>
                             <div class="form-actions">
-                                <button type="reset" class="btn">Effacer</button>
+                                <button type="button" class="btn btn-clear">Effacer</button>
                                 <button type="submit" class="btn btn-default">Enregistrer</button>
                             </div>
                         </div>
@@ -470,7 +520,7 @@
         <!-- ================= BARRE D'ÉTAT ================= -->
         <div class="statusbar">
             <span class="sb-cell grow"></span>
-            <span class="sb-cell" id="sbStatus"><span class="sq"></span><span>-</span></span>
+            <span class="sb-cell" id="sbStatus"><span class="sq"></span><span>Hors unité</span></span>
             <span class="sb-cell" id="sbClock">--:--</span>
         </div>
 

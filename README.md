@@ -17,17 +17,19 @@ Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), in
 
 ## Barre latérale
 
-- **NOM RP** : à saisir une fois ; il s'affiche alors en haut à gauche et dans l'onglet Unités (le pseudo Steam/FiveM n'est jamais affiché).
-- **MATRICULE** et **statut** de l'agent. Le nom RP et le matricule sont mémorisés chez le joueur.
+- **NOM RP** : à saisir une fois ; il s'affiche alors en haut à gauche et dans les unités (le pseudo Steam/FiveM n'est jamais affiché). Mémorisé chez le joueur.
+- **Statut de l'unité** : Disponible (vert), En route (jaune), Sur place (orange), Indisponible (gris). Le statut est celui de l'unité rejointe.
 
 ## Onglets
 
 | Onglet | Rôle |
 |---|---|
-| Unités | Agents en service (nom RP, matricule, statut) en temps réel |
-| Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN |
-| Interventions | Interventions en cours : prendre l'appel, se retirer, clôturer (effacées au redémarrage) |
-| Créations | Identité, véhicule, intervention. Bouton **Registre** : vos identités et véhicules, modifiables |
+| Unités | Vide par défaut. Bouton pour créer une unité (nom, tag, couleur du tag). Chacun peut rejoindre, quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur) |
+| Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous |
+| Interventions | Liste des interventions (civils) et incidents (unités) ; cliquer pour le détail. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Bouton **Nouvel incident** pour les unités |
+| Créations | Identité, véhicule, intervention (requérant, téléphone généré, priorité, adresse, bloc, description). Bouton **Registre** : vos identités et véhicules, modifiables |
+
+Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
 
 ### Identités
 

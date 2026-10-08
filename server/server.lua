@@ -17,8 +17,8 @@
       Si un fichier est illisible (JSON invalide), le script refuse de l'écraser
       pour ne rien perdre, et affiche une erreur dans la console.
 
-    Les INTERVENTIONS, elles, sont gardées en mémoire uniquement : elles
-    disparaissent au redémarrage du serveur.
+    Les UNITÉS, INTERVENTIONS et INCIDENTS sont gardés en mémoire uniquement :
+    ils disparaissent au redémarrage du serveur.
 
     ⚠ Lors d'une mise à jour du script, NE remplacez PAS le dossier data/.
 
@@ -45,14 +45,12 @@ local Config = {
 
 local RESOURCE = GetCurrentResourceName()
 
--- Statuts : clé technique -> libellé (doit correspondre à client.lua et index.html)
+-- Statuts d'une unité : clé technique -> libellé (doit correspondre à index.html)
 local Statuses = {
-    available    = 'Disponible',
-    unavailable  = 'Indisponible',
-    traffic_stop = 'Contrôle Routier',
-    busy         = 'Occupé',
-    on_scene     = 'Sur Place',
-    en_route     = 'En route',
+    available   = 'Disponible',
+    en_route    = 'En route',
+    on_scene    = 'Sur place',
+    unavailable = 'Indisponible',
 }
 
 -- =========================================================================
@@ -191,14 +189,15 @@ RegisterCommand('mdc_reload', function(source)
 end, true)
 
 -- =========================================================================
--- ÉTAT EN MÉMOIRE (non persistant)
+-- ÉTAT EN MÉMOIRE (non persistant : remis à zéro au redémarrage du serveur)
 -- =========================================================================
-local Units = {}            -- [source] = { id, rpName, callsign, status, updatedAt }
+local Profiles = {}         -- [source] = { rpName }
 local Viewers = {}          -- [source] = true (joueurs ayant le MDC ouvert)
-local Interventions = {}    -- interventions en cours (perdues au redémarrage, c'est voulu)
-local NextInterventionId = 1
-local lastStatusChange = {}
+local Units = {}            -- unités créées par les joueurs (section UNITÉS)
+local PlayerUnit = {}       -- [source] = id de l'unité rejointe par le joueur
+local Interventions = {}    -- interventions (civils) et incidents (police)
 local lastWrite = {}
+local createIntervention    -- défini dans la section INTERVENTIONS
 
 -- =========================================================================
 -- OUTILS
@@ -234,25 +233,10 @@ local function findBy(storeName, field, value, exceptId)
     return nil
 end
 
-local function ensureUnit(src)
-    if not Units[src] then
-        Units[src] = { id = src, rpName = '', callsign = '', status = 'available', updatedAt = os.time() }
-    end
-    return Units[src]
-end
-
---- Nom affiché de l'agent : son nom RP (jamais le pseudo Steam/FiveM).
+--- Nom affiché d'un joueur : son nom RP (jamais le pseudo Steam/FiveM).
 local function agentName(src)
-    local unit = ensureUnit(src)
-    local name = unit.rpName ~= '' and unit.rpName or 'Agent sans nom RP'
-    return unit.callsign ~= '' and ('%s (%s)'):format(name, unit.callsign) or name
-end
-
-local function unitsList()
-    local list = {}
-    for _, unit in pairs(Units) do list[#list + 1] = unit end
-    table.sort(list, function(a, b) return a.id < b.id end)
-    return list
+    local profile = Profiles[src]
+    return profile and profile.rpName ~= '' and profile.rpName or 'Agent sans nom RP'
 end
 
 local function pushToViewers(kind, payload)
@@ -292,74 +276,6 @@ RegisterNetEvent('mdc:server:request', function(name, id, payload)
     end
 
     TriggerClientEvent('mdc:client:response', src, id, result)
-end)
-
--- =========================================================================
--- UNITÉS : profil (nom RP / matricule) et statut
--- =========================================================================
-RegisterNetEvent('mdc:server:setProfile', function(rpName, callsign)
-    local src = source
-    if not hasAccess(src) then return end
-
-    local unit = ensureUnit(src)
-    unit.rpName = clean(rpName, 40)
-    unit.callsign = (clean(callsign, 12):upper():gsub('[^%w%-]', ''))
-    pushToViewers('units', unitsList())
-end)
-
-RegisterNetEvent('mdc:server:setStatus', function(status)
-    local src = source
-    if not hasAccess(src) then return end
-    if type(status) ~= 'string' or not Statuses[status] then return end
-
-    local unit = ensureUnit(src)
-    local oldStatus = unit.status
-    if status == oldStatus then return end
-
-    local now = GetGameTimer()
-    if lastStatusChange[src] and now - lastStatusChange[src] < Config.StatusCooldown then return end
-    lastStatusChange[src] = now
-
-    unit.status = status
-    unit.updatedAt = os.time()
-
-    -- Notification console (le pseudo FiveM y figure pour les cadres)
-    print(('^5[MDC]^0 %s [%s] (ID %d) : ^3%s^0 -> ^2%s^0'):format(
-        agentName(src), GetPlayerName(src) or '?', src, Statuses[oldStatus] or oldStatus, Statuses[status]))
-
-    pushToViewers('units', unitsList())
-end)
-
-RegisterNetEvent('mdc:server:viewer', function(isViewing)
-    local src = source
-    if isViewing and hasAccess(src) then
-        Viewers[src] = true
-        ensureUnit(src)
-        pushToViewers('units', unitsList())
-    else
-        Viewers[src] = nil
-    end
-end)
-
-RegisterMDCCallback('getUnits', function()
-    return { ok = true, units = unitsList() }
-end)
-
-AddEventHandler('playerDropped', function()
-    local src = source
-    local wasUnit = Units[src] ~= nil
-    Units[src], Viewers[src], lastStatusChange[src], lastWrite[src] = nil, nil, nil, nil
-
-    local key, changed = tostring(src), false
-    for _, intervention in ipairs(Interventions) do
-        if intervention.units[key] then
-            intervention.units[key] = nil
-            changed = true
-        end
-    end
-
-    if wasUnit then pushToViewers('units', unitsList()) end
-    if changed then pushToViewers('interventions', Interventions) end
 end)
 
 -- =========================================================================
@@ -544,7 +460,6 @@ local INSURERS = {
     ['USAA'] = true, ['Auto-Owners Assurance'] = true, ['Liberty Mutual'] = true, ['Farmers'] = true,
 }
 local HISTORY_TYPES = { administrative = true, parking = true }
-local PRIORITIES = { low = true, medium = true, high = true }
 
 -- =========================================================================
 -- CONSTRUCTION / VALIDATION DES FICHES
@@ -735,26 +650,7 @@ end
 -- CRÉATIONS
 -- =========================================================================
 RegisterMDCCallback('create', function(src, payload)
-    if payload.kind == 'intervention' then
-        local title = clean(payload.title, 80)
-        if title == '' then return { ok = false, error = 'Le titre est obligatoire.' } end
-        if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
-
-        local intervention = {
-            id            = NextInterventionId,
-            title         = title,
-            location      = clean(payload.location, 80),
-            priority      = PRIORITIES[payload.priority] and payload.priority or 'medium',
-            description   = cleanMultiline(payload.description, 2000),
-            units         = {},
-            createdAt     = os.time(),
-            createdByName = agentName(src),
-        }
-        NextInterventionId = NextInterventionId + 1
-        Interventions[#Interventions + 1] = intervention
-        pushToViewers('interventions', Interventions)
-        return { ok = true, id = intervention.id }
-    end
+    if payload.kind == 'intervention' then return createIntervention(src, payload) end
 
     local storeName = KIND_TO_STORE[payload.kind]
     if not storeName then return { ok = false, error = 'Type de création invalide.' } end
@@ -897,36 +793,421 @@ RegisterMDCCallback('search', function(_, payload)
 end)
 
 -- =========================================================================
--- INTERVENTIONS (en mémoire : effacées au redémarrage du serveur)
+-- UNITÉS
+-- Une unité n'est liée à aucun joueur : n'importe qui peut la créer, la
+-- rejoindre, la quitter, la modifier ou la supprimer. Un joueur fait partie
+-- d'une seule unité à la fois. Le statut (barre latérale) est celui de l'unité.
 -- =========================================================================
-RegisterMDCCallback('getInterventions', function()
-    return { ok = true, interventions = Interventions }
+local TAG_COLORS = { green = true, purple = true, blue = true, orange = true, red = true, yellow = true, pink = true, gray = true }
+local NextUnitId = 1
+local lastStatusChange = {}
+local pushInterventions -- défini dans la section INTERVENTIONS
+
+local function findUnit(id)
+    id = tonumber(id)
+    for index, unit in ipairs(Units) do
+        if unit.id == id then return unit, index end
+    end
+    return nil
+end
+
+local function unitLabel(unit)
+    return ('[%s] %s'):format(unit.tag, unit.name)
+end
+
+local function unitView(unit)
+    local members = {}
+    for key in pairs(unit.members) do
+        local member = tonumber(key)
+        members[#members + 1] = { id = member, name = agentName(member) }
+    end
+    table.sort(members, function(a, b) return a.name < b.name end)
+    return {
+        id = unit.id, name = unit.name, tag = unit.tag, color = unit.color,
+        status = unit.status, updatedAt = unit.updatedAt, members = members,
+    }
+end
+
+local function unitsList()
+    local list = {}
+    for _, unit in ipairs(Units) do list[#list + 1] = unitView(unit) end
+    return list
+end
+
+local function pushUnits()
+    pushToViewers('units', unitsList())
+end
+
+local function leaveCurrentUnit(src)
+    local unit = findUnit(PlayerUnit[src])
+    if unit then unit.members[tostring(src)] = nil end
+    PlayerUnit[src] = nil
+end
+
+local function buildUnit(p)
+    local name = clean(p.name, 30)
+    local tag = clean(p.tag, 10):upper()
+    if name == '' then return nil, 'Le nom de l\'unité est obligatoire.' end
+    if tag == '' then return nil, 'Le tag est obligatoire.' end
+    if not TAG_COLORS[p.color] then return nil, 'Choisissez la couleur du tag.' end
+    return { name = name, tag = tag, color = p.color }
+end
+
+RegisterMDCCallback('getUnits', function()
+    return { ok = true, units = unitsList() }
 end)
 
-RegisterMDCCallback('updateIntervention', function(src, payload)
-    local id = tonumber(payload.id)
-    local action = payload.action
+RegisterMDCCallback('createUnit', function(src, payload)
+    local unit, err = buildUnit(payload)
+    if not unit then return { ok = false, error = err } end
+    if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
 
-    for index, intervention in ipairs(Interventions) do
-        if intervention.id == id then
-            local unit = ensureUnit(src)
-            local key = tostring(src)
+    unit.id = NextUnitId
+    unit.status = 'available'
+    unit.members = {}
+    unit.createdAt = os.time()
+    unit.updatedAt = os.time()
+    NextUnitId = NextUnitId + 1
+    Units[#Units + 1] = unit
 
-            if action == 'attach' then
-                intervention.units[key] = unit.callsign ~= '' and unit.callsign or agentName(src)
-            elseif action == 'detach' then
-                intervention.units[key] = nil
-            elseif action == 'close' then
-                table.remove(Interventions, index)
-                print(('^5[MDC]^0 Intervention #%d clôturée par %s'):format(id, agentName(src)))
-            else
-                return { ok = false, error = 'Action invalide.' }
+    print(('^5[MDC]^0 Unité créée : %s par %s [%s]'):format(unitLabel(unit), agentName(src), GetPlayerName(src) or '?'))
+    pushUnits()
+    return { ok = true, id = unit.id }
+end)
+
+RegisterMDCCallback('updateUnit', function(_, payload)
+    local unit = findUnit(payload.id)
+    if not unit then return { ok = false, error = 'Unité introuvable.' } end
+    local data, err = buildUnit(payload)
+    if not data then return { ok = false, error = err } end
+
+    unit.name, unit.tag, unit.color = data.name, data.tag, data.color
+    unit.updatedAt = os.time()
+    pushUnits()
+    pushInterventions()
+    return { ok = true }
+end)
+
+RegisterMDCCallback('joinUnit', function(src, payload)
+    local unit = findUnit(payload.id)
+    if not unit then return { ok = false, error = 'Unité introuvable.' } end
+    leaveCurrentUnit(src) -- une seule unité à la fois
+    unit.members[tostring(src)] = true
+    PlayerUnit[src] = unit.id
+    pushUnits()
+    return { ok = true }
+end)
+
+RegisterMDCCallback('leaveUnit', function(src)
+    leaveCurrentUnit(src)
+    pushUnits()
+    return { ok = true }
+end)
+
+RegisterMDCCallback('deleteUnit', function(src, payload)
+    local unit, index = findUnit(payload.id)
+    if not unit then return { ok = false, error = 'Unité introuvable.' } end
+
+    for key in pairs(unit.members) do PlayerUnit[tonumber(key)] = nil end
+    for _, intervention in ipairs(Interventions) do intervention.units[tostring(unit.id)] = nil end
+    table.remove(Units, index)
+
+    print(('^5[MDC]^0 Unité supprimée : %s par %s'):format(unitLabel(unit), agentName(src)))
+    pushUnits()
+    pushInterventions()
+    return { ok = true }
+end)
+
+-- Statut de l'unité du joueur (barre latérale)
+RegisterMDCCallback('setStatus', function(src, payload)
+    local unit = findUnit(PlayerUnit[src])
+    if not unit then return { ok = false, error = 'Rejoignez une unité (onglet Unités) pour définir son statut.' } end
+    if not Statuses[payload.status] then return { ok = false, error = 'Statut invalide.' } end
+    if unit.status == payload.status then return { ok = true } end
+
+    local now = GetGameTimer()
+    if lastStatusChange[src] and now - lastStatusChange[src] < Config.StatusCooldown then
+        return { ok = false, error = 'Patientez un instant.' }
+    end
+    lastStatusChange[src] = now
+
+    -- Notification console
+    print(('^5[MDC]^0 %s : ^3%s^0 -> ^2%s^0 (par %s [%s])'):format(unitLabel(unit),
+        Statuses[unit.status] or unit.status, Statuses[payload.status], agentName(src), GetPlayerName(src) or '?'))
+
+    unit.status = payload.status
+    unit.updatedAt = os.time()
+    pushUnits()
+    return { ok = true }
+end)
+
+-- =========================================================================
+-- PROFIL (nom RP) ET OUVERTURE DU MDC
+-- =========================================================================
+RegisterNetEvent('mdc:server:setProfile', function(rpName)
+    local src = source
+    if not hasAccess(src) then return end
+    Profiles[src] = { rpName = clean(rpName, 40) }
+    if PlayerUnit[src] then pushUnits() end
+end)
+
+RegisterNetEvent('mdc:server:viewer', function(isViewing)
+    local src = source
+    Viewers[src] = (isViewing and hasAccess(src)) or nil
+end)
+
+-- =========================================================================
+-- INTERVENTIONS (créées par les civils dans "Créations") et
+-- INCIDENTS (créés par les unités dans "Interventions").
+-- En mémoire uniquement : effacés au redémarrage du serveur.
+-- Déroulé : "En attente" (aucune unité), "En cours" (au moins une unité),
+-- "Terminée" (bouton "Intervention terminée", grisée dans la liste).
+-- =========================================================================
+local PRIORITIES = { nonurgent = true, p1 = true, p2 = true, p3 = true }
+local NextInterventionId = 1
+
+-- Les notes sont toujours écrites en MAJUSCULES (accents compris)
+local ACCENTS = {
+    ['à'] = 'À', ['â'] = 'Â', ['ä'] = 'Ä', ['é'] = 'É', ['è'] = 'È', ['ê'] = 'Ê', ['ë'] = 'Ë',
+    ['î'] = 'Î', ['ï'] = 'Ï', ['ô'] = 'Ô', ['ö'] = 'Ö', ['ù'] = 'Ù', ['û'] = 'Û', ['ü'] = 'Ü',
+    ['ç'] = 'Ç', ['ÿ'] = 'Ÿ', ['œ'] = 'Œ', ['æ'] = 'Æ',
+}
+local function upperFr(str)
+    return (str:upper():gsub('[\195\197][\128-\191]', ACCENTS))
+end
+
+-- N° de téléphone du requérant : 555-XXX-XXXX
+local function genPhone()
+    return ('555-%03d-%04d'):format(math.random(100, 999), math.random(0, 9999))
+end
+
+local function findIntervention(id)
+    id = tonumber(id)
+    for _, intervention in ipairs(Interventions) do
+        if intervention.id == id then return intervention end
+    end
+    return nil
+end
+
+local function interventionStatus(intervention)
+    if intervention.closed then return 'closed' end
+    return next(intervention.units) and 'ongoing' or 'pending'
+end
+
+local function interventionView(intervention)
+    local view = {}
+    for k, v in pairs(intervention) do view[k] = v end
+
+    local units = {}
+    for key in pairs(intervention.units) do
+        local unit = findUnit(key)
+        if unit then units[#units + 1] = { id = unit.id, name = unit.name, tag = unit.tag, color = unit.color } end
+    end
+    table.sort(units, function(a, b) return a.tag < b.tag end)
+
+    view.units = units
+    view.status = interventionStatus(intervention)
+    return view
+end
+
+-- En cours / en attente en haut (les plus récentes d'abord), terminées en bas
+local function interventionsList()
+    local list = {}
+    for _, intervention in ipairs(Interventions) do list[#list + 1] = interventionView(intervention) end
+    table.sort(list, function(a, b)
+        if a.closed ~= b.closed then return not a.closed end
+        return a.id > b.id
+    end)
+    return list
+end
+
+pushInterventions = function()
+    pushToViewers('interventions', interventionsList())
+end
+
+--- Valide les champs d'une intervention ('intervention') ou d'un incident ('incident').
+local function buildCall(p, kind)
+    local r = {
+        title       = clean(p.title, 60),
+        address     = clean(p.address, 80),
+        block       = clean(p.block, 40),
+        description = cleanMultiline(p.description, 2000),
+    }
+
+    if r.title == '' then
+        return nil, kind == 'incident' and 'Le type d\'incident est obligatoire.' or 'Le type d\'intervention est obligatoire.'
+    end
+
+    if kind == 'intervention' then
+        r.caller = clean(p.caller, 60)
+        if r.caller == '' then return nil, 'Le requérant est obligatoire.' end
+
+        r.phone = clean(p.phone, 20)
+        if r.phone == '' then r.phone = genPhone() end
+        if not r.phone:match('^[%d%s%-%+%(%)%.]+$') then return nil, 'Numéro de téléphone invalide.' end
+
+        if not PRIORITIES[p.priority] then return nil, 'Choisissez la priorité de l\'urgence.' end
+        r.priority = p.priority
+    end
+
+    if r.address == '' then return nil, 'L\'adresse est obligatoire.' end
+    if r.block == '' then return nil, 'Le bloc est obligatoire.' end
+    if r.description == '' then return nil, 'La description est obligatoire.' end
+    return r
+end
+
+local function addCall(src, call, kind, unit)
+    call.id = NextInterventionId
+    call.number = ('INC-%s-%04d'):format(os.date('%Y'), call.id)
+    call.kind = kind
+    call.units = {}
+    call.notes = {}
+    call.nextNoteId = 1
+    call.closed = false
+    call.createdAt = os.time()
+    call.createdByName = agentName(src)
+    if unit then call.units[tostring(unit.id)] = true end -- l'unité qui déclare un incident est sur l'appel
+
+    NextInterventionId = NextInterventionId + 1
+    Interventions[#Interventions + 1] = call
+
+    print(('^5[MDC]^0 Nouvel(le) %s %s "%s" par %s [%s]'):format(kind, call.number, call.title, agentName(src), GetPlayerName(src) or '?'))
+    pushInterventions()
+    return { ok = true, id = call.id, number = call.number }
+end
+
+-- Intervention créée par un civil (onglet "Créations")
+createIntervention = function(src, payload)
+    local call, err = buildCall(payload, 'intervention')
+    if not call then return { ok = false, error = err } end
+    if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
+    return addCall(src, call, 'intervention')
+end
+
+-- Incident déclaré par une unité (onglet "Interventions")
+RegisterMDCCallback('createIncident', function(src, payload)
+    local unit = findUnit(PlayerUnit[src])
+    if not unit then return { ok = false, error = 'Vous devez faire partie d\'une unité pour déclarer un incident.' } end
+
+    local call, err = buildCall(payload, 'incident')
+    if not call then return { ok = false, error = err } end
+    if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
+
+    call.unitName = unitLabel(unit) -- nom de l'unité déclarante (automatique)
+    return addCall(src, call, 'incident', unit)
+end)
+
+RegisterMDCCallback('getInterventions', function()
+    return { ok = true, interventions = interventionsList() }
+end)
+
+-- Rejoindre / quitter l'appel, y mettre fin (réservé aux unités)
+RegisterMDCCallback('interventionAction', function(src, payload)
+    local call = findIntervention(payload.id)
+    if not call then return { ok = false, error = 'Intervention introuvable.' } end
+    if call.closed then return { ok = false, error = 'Cette intervention est terminée.' } end
+
+    local unit = findUnit(PlayerUnit[src])
+    if not unit then
+        return { ok = false, error = 'Seules les unités peuvent agir sur un appel : rejoignez d\'abord une unité (onglet Unités).' }
+    end
+    local key = tostring(unit.id)
+
+    if payload.action == 'join' then
+        call.units[key] = true
+        unit.status = 'en_route' -- rejoindre un appel passe l'unité "En route"
+        unit.updatedAt = os.time()
+        pushUnits()
+    elseif payload.action == 'leave' then
+        call.units[key] = nil
+    elseif payload.action == 'end' then
+        if not call.units[key] then return { ok = false, error = 'Seules les unités sur l\'appel peuvent y mettre fin.' } end
+        call.closed = true
+        call.closedAt = os.time()
+        call.closedByName = unitLabel(unit)
+        print(('^5[MDC]^0 %s terminé(e) par %s'):format(call.number, unitLabel(unit)))
+    else
+        return { ok = false, error = 'Action invalide.' }
+    end
+
+    pushInterventions()
+    return { ok = true }
+end)
+
+-- Modification des informations d'une intervention / d'un incident
+RegisterMDCCallback('editIntervention', function(src, payload)
+    local call = findIntervention(payload.id)
+    if not call then return { ok = false, error = 'Intervention introuvable.' } end
+    if call.closed then return { ok = false, error = 'Une intervention terminée ne peut plus être modifiée.' } end
+
+    local data, err = buildCall(payload, call.kind)
+    if not data then return { ok = false, error = err } end
+
+    for k, v in pairs(data) do call[k] = v end
+    call.updatedAt = os.time()
+    call.updatedByName = agentName(src)
+    pushInterventions()
+    return { ok = true }
+end)
+
+-- Notes : écrites en majuscules par les unités présentes sur l'appel, modifiables par leur unité
+RegisterMDCCallback('addNote', function(src, payload)
+    local call = findIntervention(payload.id)
+    if not call then return { ok = false, error = 'Intervention introuvable.' } end
+    if call.closed then return { ok = false, error = 'Cette intervention est terminée.' } end
+
+    local unit = findUnit(PlayerUnit[src])
+    if not unit or not call.units[tostring(unit.id)] then
+        return { ok = false, error = 'Seules les unités sur l\'appel peuvent ajouter une note.' }
+    end
+
+    local text = upperFr(cleanMultiline(payload.text, 500))
+    if text == '' then return { ok = false, error = 'La note est vide.' } end
+
+    call.notes[#call.notes + 1] = {
+        id = call.nextNoteId,
+        unitId = unit.id,
+        unitTag = unit.tag,
+        unitName = unit.name,
+        unitColor = unit.color,
+        authorName = agentName(src),
+        text = text,
+        createdAt = os.time(),
+    }
+    call.nextNoteId = call.nextNoteId + 1
+    pushInterventions()
+    return { ok = true }
+end)
+
+RegisterMDCCallback('editNote', function(src, payload)
+    local call = findIntervention(payload.id)
+    if not call then return { ok = false, error = 'Intervention introuvable.' } end
+    if call.closed then return { ok = false, error = 'Cette intervention est terminée.' } end
+
+    local noteId = tonumber(payload.noteId)
+    for _, note in ipairs(call.notes) do
+        if note.id == noteId then
+            if note.unitId ~= PlayerUnit[src] then
+                return { ok = false, error = 'Seule l\'unité qui a écrit la note peut la modifier.' }
             end
-
-            pushToViewers('interventions', Interventions)
+            local text = upperFr(cleanMultiline(payload.text, 500))
+            if text == '' then return { ok = false, error = 'La note est vide.' } end
+            note.text = text
+            note.updatedAt = os.time()
+            pushInterventions()
             return { ok = true }
         end
     end
+    return { ok = false, error = 'Note introuvable.' }
+end)
 
-    return { ok = false, error = 'Intervention introuvable ou déjà clôturée.' }
+-- =========================================================================
+-- DÉCONNEXION
+-- =========================================================================
+AddEventHandler('playerDropped', function()
+    local src = source
+    local hadUnit = PlayerUnit[src] ~= nil
+    leaveCurrentUnit(src)
+    Profiles[src], Viewers[src], lastStatusChange[src], lastWrite[src] = nil, nil, nil, nil
+    if hadUnit then pushUnits() end
 end)

@@ -14,15 +14,13 @@
     // ---------------------------------------------------------------------
     // Libellés (clés identiques à server.lua)
     // ---------------------------------------------------------------------
+    // Statuts d'une unité, dans l'ordre d'affichage
     const STATUS_LABELS = {
         available: 'Disponible',
-        unavailable: 'Indisponible',
-        traffic_stop: 'Contrôle Routier',
-        busy: 'Occupé',
-        on_scene: 'Sur Place',
         en_route: 'En route',
+        on_scene: 'Sur place',
+        unavailable: 'Indisponible',
     };
-    const PRIORITY_LABELS = { low: 'Basse', medium: 'Moyenne', high: 'Haute' };
     const KIND_LABELS = { identity: 'Identité', vehicle: 'Véhicule', intervention: 'Intervention' };
     const KIND_SAVED = { identity: 'Identité enregistrée', vehicle: 'Véhicule enregistré', intervention: 'Intervention enregistrée' };
 
@@ -47,11 +45,15 @@
     const state = {
         open: false,
         page: 'units',
-        status: 'available',
         serverId: null,
         rpName: '',
-        callsign: '',
         editingRpName: false,
+        units: [],             // unités (temps réel)
+        unitEdit: null,        // id de l'unité en cours de modification
+        interventions: [],     // interventions + incidents (temps réel)
+        callPanel: { mode: 'view', id: null }, // panneau de droite : view | edit | new
+        noteDraft: '',         // note en cours de rédaction
+        noteEdit: null,        // { id, text } note en cours de modification
         layout: null,          // { x, y, w, h, maximized }
         createView: 'identity',
         editing: null,         // { kind, id } lorsqu'une fiche du registre est en cours de modification
@@ -238,19 +240,19 @@
         state.open = true;
         state.serverId = data.serverId ?? null;
         state.rpName = data.rpName || '';
-        state.callsign = data.callsign || '';
         state.editingRpName = false;
 
         state.layout = data.layout ? clampLayout(data.layout) : defaultLayout();
         applyLayout();
 
         renderProfile();
-        setActiveStatus(data.status || 'available');
+        renderSidebarUnit();
         win.classList.remove('hidden');
 
         updateClock();
         state.clockTimer = setInterval(updateClock, 1000);
 
+        refreshUnits(); // statut de l'unité du joueur (barre latérale)
         loadPage(state.page);
     }
 
@@ -300,38 +302,30 @@
     $$('.tab').forEach((tab) => tab.addEventListener('click', () => showPage(tab.dataset.page)));
 
     // =====================================================================
-    // PROFIL : nom RP (affiché seulement une fois créé) et matricule
+    // PROFIL : nom RP (affiché en haut à gauche seulement une fois créé)
     // =====================================================================
     function renderProfile() {
         const showName = state.rpName !== '' && !state.editingRpName;
         $('#rpDisplay').classList.toggle('hidden', !showName);
         $('#rpForm').classList.toggle('hidden', showName);
         $('#rpNameText').textContent = state.rpName;
-        $('#rpCallsignText').textContent = state.callsign ? `Matricule ${state.callsign}` : '';
         $('#rpNameInput').value = state.rpName;
-        $('#callsignInput').value = state.callsign;
     }
 
-    async function saveProfile(changes) {
-        const res = await post('setProfile', changes);
+    async function saveRpName() {
+        const res = await post('setProfile', { rpName: $('#rpNameInput').value });
         if (res && res.ok) {
-            state.rpName = res.rpName ?? state.rpName;
-            state.callsign = res.callsign ?? state.callsign;
+            state.rpName = res.rpName;
             state.editingRpName = false;
             renderProfile();
-            toast('Profil enregistré.', 'success');
+            toast('Nom RP enregistré.', 'success');
         } else {
             toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error');
         }
     }
 
-    const saveRpName = () => saveProfile({ rpName: $('#rpNameInput').value });
-    const saveCallsign = () => saveProfile({ callsign: $('#callsignInput').value });
-
     $('#rpSave').addEventListener('click', saveRpName);
     $('#rpNameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveRpName(); });
-    $('#callsignSave').addEventListener('click', saveCallsign);
-    $('#callsignInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveCallsign(); });
     $('#rpEdit').addEventListener('click', () => {
         state.editingRpName = true;
         renderProfile();
@@ -339,53 +333,177 @@
     });
 
     // =====================================================================
-    // STATUTS (barre latérale)
+    // UNITÉS : indépendantes des joueurs, qui peuvent les rejoindre / quitter
     // =====================================================================
-    function setActiveStatus(status) {
-        state.status = status;
-        $$('.status-btn').forEach((b) => b.classList.toggle('active', b.dataset.status === status));
+    const TAG_COLORS = ['green', 'purple', 'blue', 'orange', 'red', 'yellow', 'pink', 'gray'];
+    const unitTag = (u) => `<span class="unit-tag tag-${TAG_COLORS.includes(u.color) ? u.color : 'gray'}">${esc(u.tag)}</span>`;
+
+    // Unité dont le joueur fait partie (ou null)
+    const myUnit = () => state.units.find((u) => toArray(u.members).some((m) => m.id === state.serverId)) || null;
+
+    // ---- Barre latérale : le statut affiché est celui de l'unité du joueur ----
+    function renderSidebarUnit() {
+        const unit = myUnit();
+        $('#myUnit').innerHTML = unit
+            ? `${unitTag(unit)} <span>${esc(unit.name)}</span>`
+            : '<span class="muted">Aucune unité — rejoignez-en une dans l\'onglet Unités.</span>';
+        $('#statusList').classList.toggle('no-unit', !unit);
+        $$('.status-btn').forEach((b) => b.classList.toggle('active', !!unit && b.dataset.status === unit.status));
+
         const cell = $('#sbStatus');
-        cell.querySelector('.sq').dataset.status = status;
-        cell.lastElementChild.textContent = `Statut : ${STATUS_LABELS[status] || status}`;
+        cell.querySelector('.sq').dataset.status = unit ? unit.status : '';
+        cell.lastElementChild.textContent = unit ? `${unit.tag} — ${STATUS_LABELS[unit.status] || unit.status}` : 'Hors unité';
     }
 
     async function changeStatus(status) {
-        if (status === state.status) return;
-        const previous = state.status;
-        setActiveStatus(status);
+        const unit = myUnit();
+        if (!unit) {
+            toast('Rejoignez une unité (onglet Unités) pour définir son statut.', 'error');
+            return;
+        }
+        if (unit.status === status) return;
 
         const res = await post('setStatus', { status });
         if (res && res.ok) {
-            toast(`Statut : ${STATUS_LABELS[status]}`, 'success');
+            unit.status = status;
+            renderUnits();
+            toast(`${unit.tag} : ${STATUS_LABELS[status]}`, 'success');
         } else {
-            setActiveStatus(previous);
             toast(res?.error || 'Impossible de changer de statut.', 'error');
         }
     }
 
     $$('.status-btn').forEach((btn) => btn.addEventListener('click', () => changeStatus(btn.dataset.status)));
 
-    // =====================================================================
-    // UNITÉS (nom RP uniquement, jamais le pseudo du joueur)
-    // =====================================================================
-    function renderUnits(units) {
-        units = toArray(units);
+    // ---- Liste des unités ----
+    function renderUnits() {
+        const units = state.units;
+        const mine = myUnit();
+        $('#unitsCount').textContent = `(${units.length})`;
         $('#unitsEmpty').classList.toggle('hidden', units.length > 0);
-        $('#unitsBody').innerHTML = units.map((u) => `
-            <tr class="${u.id === state.serverId ? 'me' : ''}">
-                <td>${esc(u.callsign || '-')}</td>
-                <td>${u.rpName ? esc(u.rpName) : '<span class="muted">Nom RP non renseigné</span>'}</td>
+        $('#unitsBody').innerHTML = units.map((u) => {
+            const members = toArray(u.members);
+            const isMine = !!mine && mine.id === u.id;
+            return `
+            <tr class="${isMine ? 'me' : ''}">
+                <td>${unitTag(u)}</td>
+                <td>${esc(u.name)}</td>
+                <td>${members.length ? members.map((m) => esc(m.name)).join(', ') : '<span class="muted">Aucun membre</span>'}</td>
                 <td><span class="badge"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</span></td>
-                <td>${esc(formatTime(u.updatedAt))}</td>
-            </tr>`).join('');
+                <td class="col-actions">
+                    ${isMine
+                        ? `<button class="btn btn-small" data-unit-action="leave" data-id="${esc(u.id)}">Quitter</button>`
+                        : `<button class="btn btn-small btn-default" data-unit-action="join" data-id="${esc(u.id)}">Rejoindre</button>`}
+                    <button class="btn btn-small" data-unit-action="edit" data-id="${esc(u.id)}">Modifier</button>
+                    <button class="btn btn-small btn-danger" data-unit-action="delete" data-id="${esc(u.id)}">Supprimer</button>
+                </td>
+            </tr>`;
+        }).join('');
+        renderSidebarUnit();
+    }
+
+    function setUnits(units) {
+        state.units = toArray(units);
+        renderUnits();
+        if (state.callPanel.mode === 'view') renderInterventionDetail(); // boutons "Rejoindre l'appel"
     }
 
     async function refreshUnits() {
         const res = await post('getUnits');
-        if (res && res.ok) renderUnits(res.units);
+        if (res && res.ok) setUnits(res.units);
     }
 
     $('#refreshUnits').addEventListener('click', refreshUnits);
+
+    // ---- Création / modification d'une unité (nom, tag, couleur du tag) ----
+    const unitForm = $('#unitForm');
+
+    function updateTagPreview() {
+        const data = new FormData(unitForm);
+        const preview = $('#tagPreview');
+        preview.textContent = String(data.get('tag') || '').trim().toUpperCase() || 'TAG';
+        preview.className = `unit-tag tag-${data.get('color') || 'green'}`;
+    }
+
+    function resetUnitForm() {
+        state.unitEdit = null;
+        unitForm.reset();
+        updateTagPreview();
+        $('#unitFormLegend').textContent = 'Créer une unité';
+        $('#unitSubmit').textContent = 'Créer l\'unité';
+        $('#unitCancelEdit').classList.add('hidden');
+    }
+
+    function startUnitEdit(unit) {
+        state.unitEdit = unit.id;
+        unitForm.elements.name.value = unit.name;
+        unitForm.elements.tag.value = unit.tag;
+        const color = unitForm.querySelector(`input[name="color"][value="${TAG_COLORS.includes(unit.color) ? unit.color : 'gray'}"]`);
+        color.checked = true;
+        updateTagPreview();
+        $('#unitFormLegend').textContent = `Modifier l'unité ${unit.tag}`;
+        $('#unitSubmit').textContent = 'Enregistrer';
+        $('#unitCancelEdit').classList.remove('hidden');
+        unitForm.elements.name.focus();
+    }
+
+    unitForm.addEventListener('input', updateTagPreview);
+    unitForm.addEventListener('change', updateTagPreview);
+    $('#unitCancelEdit').addEventListener('click', resetUnitForm);
+
+    unitForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = Object.fromEntries(new FormData(unitForm).entries());
+        const editing = state.unitEdit;
+        const res = await post(editing ? 'updateUnit' : 'createUnit', editing ? { ...payload, id: editing } : payload);
+        if (!res || !res.ok) {
+            toast(res?.error || 'Erreur lors de l\'enregistrement de l\'unité.', 'error');
+            return;
+        }
+        toast(editing ? 'Unité modifiée.' : 'Unité créée.', 'success');
+        resetUnitForm();
+        refreshUnits();
+    });
+
+    // ---- Rejoindre / quitter / modifier / supprimer ----
+    const UNIT_ACTIONS = { join: 'joinUnit', leave: 'leaveUnit', delete: 'deleteUnit' };
+    const UNIT_DONE = { join: 'Unité rejointe.', leave: 'Vous avez quitté l\'unité.', delete: 'Unité supprimée.' };
+
+    $('#unitsBody').addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-unit-action]');
+        if (!btn) return;
+        const id = Number(btn.dataset.id);
+        const action = btn.dataset.unitAction;
+
+        if (action === 'edit') {
+            const unit = state.units.find((u) => u.id === id);
+            if (unit) startUnitEdit(unit);
+            return;
+        }
+
+        // Suppression : deuxième clic pour confirmer
+        if (action === 'delete' && !btn.dataset.confirm) {
+            btn.dataset.confirm = '1';
+            btn.textContent = 'Confirmer ?';
+            setTimeout(() => {
+                if (!btn.isConnected) return;
+                delete btn.dataset.confirm;
+                btn.textContent = 'Supprimer';
+            }, 3000);
+            return;
+        }
+
+        btn.disabled = true;
+        const res = await post(UNIT_ACTIONS[action], { id });
+        btn.disabled = false;
+        if (!res || !res.ok) {
+            toast(res?.error || 'Action impossible.', 'error');
+            return;
+        }
+        toast(UNIT_DONE[action], 'success');
+        if (action === 'delete' && state.unitEdit === id) resetUnitForm();
+        refreshUnits();
+    });
 
     // =====================================================================
     // FICHES (affichage détaillé, commun à Recherches et Registre)
@@ -434,11 +552,6 @@
                 <span>${esc(title)}</span>
                 ${editable ? `<button type="button" class="btn btn-small" data-edit-kind="${esc(record.kind)}" data-edit-id="${esc(record.id)}">Modifier</button>` : ''}
             </div>`;
-    }
-
-    function sheetFoot(r) {
-        const updated = r.updatedAt ? ` — modifiée le ${esc(formatDate(r.updatedAt))} par ${esc(r.updatedByName || '-')}` : '';
-        return `<div class="sheet-foot">Fiche n°${esc(r.id)} — créée le ${esc(formatDate(r.createdAt))} par ${esc(r.createdByName || '-')}${updated}</div>`;
     }
 
     function conditionAlert(r) {
@@ -492,7 +605,7 @@
             ${fold('Antécédents', records.length
                 ? entriesHtml(records, (e) => e.offense)
                 : foldEmpty('Aucun antécédent connu.'), records.length)}
-            ${sheetFoot(r)}`;
+            `;
     }
 
     function renderVehicle(r, editable) {
@@ -536,7 +649,7 @@
             ${fold('Historique', history.length
                 ? entriesHtml(history, (e) => HISTORY_LABELS[e.type] || e.type)
                 : foldEmpty('Aucune infraction connue pour ce véhicule.'), history.length)}
-            ${sheetFoot(r)}`;
+            `;
     }
 
     const renderRecord = (r, editable = false) => r.kind === 'vehicle' ? renderVehicle(r, editable) : renderIdentity(r, editable);
@@ -554,7 +667,8 @@
     }
 
     // =====================================================================
-    // RECHERCHES
+    // RECHERCHES (avec historique : les nouveaux résultats s'ajoutent en haut,
+    // les résultats des recherches précédentes restent en dessous)
     // =====================================================================
     const searchType = () => $('input[name="searchType"]:checked').value;
 
@@ -565,36 +679,37 @@
         $(identity ? '#searchIdentityForm input' : '#searchVehicleForm input').focus();
     }));
 
-    function renderSearchResults(type, results) {
-        state.searchResults = results;
-        $('#searchCount').textContent = `(${results.length})`;
-        $('#searchDetail').innerHTML = '<div class="empty">Sélectionnez un résultat.</div>';
-        $('#searchEmpty').classList.toggle('hidden', results.length > 0);
-        $('#searchEmpty').textContent = 'Aucun résultat.';
-
-        if (type === 'identity') {
-            $('#searchHead').innerHTML = '<tr><th>Nom</th><th>Prénom</th><th>Naissance</th><th>SSN</th><th>Condition</th></tr>';
-            $('#searchBody').innerHTML = results.map((r, i) => `
+    function resultRow(r, i) {
+        if (r.kind === 'identity') {
+            return `
                 <tr data-index="${i}" class="${r.condition === 'wanted' ? 'row-wanted' : ''}">
-                    <td>${esc(String(r.lastname).toUpperCase())}</td>
-                    <td>${esc([r.firstname, r.middlename].filter(Boolean).join(' '))}</td>
-                    <td>${esc(r.dob)}</td>
-                    <td>${esc(r.ssn || '-')}</td>
+                    <td>Identité</td>
+                    <td><b>${esc(String(r.lastname).toUpperCase())}</b> ${esc([r.firstname, r.middlename].filter(Boolean).join(' '))}</td>
+                    <td>${esc(r.dob)} — SSN ${esc(r.ssn || '-')}</td>
                     <td>${conditionFlag(r.condition)}</td>
-                </tr>`).join('');
-        } else {
-            $('#searchHead').innerHTML = '<tr><th>Immatriculation</th><th>Véhicule</th><th>Propriétaire</th><th>Statut</th></tr>';
-            $('#searchBody').innerHTML = results.map((r, i) => `
-                <tr data-index="${i}" class="${r.stolen ? 'row-wanted' : ''}">
-                    <td><b>${esc(r.plate)}</b></td>
-                    <td>${esc([r.make, r.model].filter(Boolean).join(' '))}</td>
-                    <td>${esc(r.ownerIdentity ? fullName(r.ownerIdentity) : (r.ownerName || '-'))}</td>
-                    <td>${regFlag(r.regStatus)}${r.stolen ? ` ${flag('c-red', 'Volé')}` : ''}</td>
-                </tr>`).join('');
+                </tr>`;
         }
+        const owner = r.ownerIdentity ? fullName(r.ownerIdentity) : (r.ownerName || 'Propriétaire inconnu');
+        return `
+            <tr data-index="${i}" class="${r.stolen ? 'row-wanted' : ''}">
+                <td>Véhicule</td>
+                <td><b>${esc(r.plate)}</b></td>
+                <td>${esc([r.make, r.model].filter(Boolean).join(' '))} — ${esc(owner)}</td>
+                <td>${regFlag(r.regStatus)}${r.stolen ? ` ${flag('c-red', 'Volé')}` : ''}</td>
+            </tr>`;
+    }
 
-        // Un seul résultat : on ouvre directement la fiche
-        if (results.length === 1) $('#searchBody tr').click();
+    function renderSearchResults(selectIndex) {
+        const list = state.searchResults;
+        $('#searchCount').textContent = list.length ? `(${list.length})` : '';
+        $('#searchEmpty').classList.toggle('hidden', list.length > 0);
+        $('#searchBody').innerHTML = list.map(resultRow).join('');
+
+        if (selectIndex != null && list[selectIndex]) {
+            $(`#searchBody tr[data-index="${selectIndex}"]`).click(); // nouveau résultat : sélectionné (bleu) en haut
+        } else {
+            $('#searchDetail').innerHTML = '<div class="empty">Sélectionnez un résultat.</div>';
+        }
     }
 
     async function runSearch(type, payload) {
@@ -603,7 +718,18 @@
             toast(res?.error || 'Erreur de recherche.', 'error');
             return;
         }
-        renderSearchResults(type, toArray(res.results));
+
+        const results = toArray(res.results);
+        if (!results.length) {
+            toast('Aucun résultat pour cette recherche.', 'info');
+            return;
+        }
+
+        // Nouveaux résultats en haut ; une fiche déjà présente remonte au lieu d'être dupliquée
+        const key = (r) => `${r.kind}:${r.id}`;
+        const fresh = new Set(results.map(key));
+        state.searchResults = [...results, ...state.searchResults.filter((r) => !fresh.has(key(r)))].slice(0, 100);
+        renderSearchResults(0);
     }
 
     $('#searchIdentityForm').addEventListener('submit', (e) => {
@@ -621,76 +747,336 @@
         runSearch('vehicle', { query: e.currentTarget.elements.query.value.trim() });
     });
 
+    $('#clearSearch').addEventListener('click', () => {
+        state.searchResults = [];
+        renderSearchResults();
+    });
+
     bindSelectable($('#searchBody'), () => state.searchResults, $('#searchDetail'), false);
 
     // =====================================================================
-    // INTERVENTIONS
+    // INTERVENTIONS (appels créés par les civils) ET INCIDENTS (déclarés par
+    // les unités). Liste de titres à gauche, détails à droite.
+    // Déroulé : En Attente (aucune unité) -> En Cours (unité sur l'appel) -> Terminée
     // =====================================================================
-    function renderInterventions(list) {
-        list = toArray(list);
-        const container = $('#interventionsList');
+    const CALL_PRIORITY = {
+        nonurgent: ['c-purple', 'Non-Urgent'],
+        p1: ['c-red', 'Priorité 1'],
+        p2: ['c-orange', 'Priorité 2'],
+        p3: ['c-yellow', 'Priorité 3'],
+    };
+    const CALL_STATUS = {
+        pending: ['c-blue', 'En Attente'],
+        ongoing: ['c-green', 'En Cours'],
+        closed: ['c-gray', 'Terminée'],
+    };
+    const callFlag = (map, key) => (map[key] ? flag(map[key][0], map[key][1]) : '-');
+    const findCall = (id) => state.interventions.find((c) => c.id === id) || null;
 
-        if (!list.length) {
-            container.innerHTML = '<div class="empty">Aucune intervention en cours. Créez-en une depuis l\'onglet « Créations ».</div>';
+    function renderInterventionList() {
+        const list = state.interventions;
+        const selected = state.callPanel.id;
+        $('#interventionsCount').textContent = `(${list.length})`;
+        $('#interventionsEmpty').classList.toggle('hidden', list.length > 0);
+        $('#interventionsBody').innerHTML = list.map((c) => `
+            <tr data-id="${esc(c.id)}" class="${c.closed ? 'row-closed' : ''} ${c.id === selected ? 'selected' : ''}">
+                <td>${esc(c.title)}</td>
+            </tr>`).join('');
+    }
+
+    function noteHtml(note, call, unit) {
+        const mine = !!unit && note.unitId === unit.id && !call.closed;
+        const editing = state.noteEdit && state.noteEdit.id === note.id;
+        const head = `
+            <div class="note-head">
+                ${unitTag({ tag: note.unitTag, color: note.unitColor })}
+                <span>${esc(note.unitName)} — ${esc(formatTime(note.createdAt))}${note.updatedAt ? ' (modifiée)' : ''}</span>
+                <span class="grow"></span>
+                ${mine && !editing ? `<button type="button" class="btn btn-small" data-note-edit="${esc(note.id)}">Modifier</button>` : ''}
+            </div>`;
+        const body = editing
+            ? `<textarea id="noteEditText" class="upper-text" rows="3" maxlength="500">${esc(state.noteEdit.text)}</textarea>
+               <div class="toolbar note-toolbar">
+                   <span class="grow"></span>
+                   <button type="button" class="btn btn-small" data-note-cancel>Annuler</button>
+                   <button type="button" class="btn btn-small btn-default" data-note-save="${esc(note.id)}">Enregistrer</button>
+               </div>`
+            : `<div class="note-text">${esc(note.text)}</div>`;
+        return `<div class="note">${head}${body}</div>`;
+    }
+
+    function callViewHtml(c) {
+        const unit = myUnit();
+        const units = toArray(c.units);
+        const notes = toArray(c.notes);
+        const onCall = !!unit && units.some((u) => u.id === unit.id);
+        const incident = c.kind === 'incident';
+
+        let actions = '';
+        if (!c.closed) {
+            actions = `
+                ${unit ? '' : '<div class="hint-box">Seules les unités peuvent rejoindre un appel : rejoignez d\'abord une unité (onglet Unités).</div>'}
+                <div class="toolbar call-actions">
+                    ${unit ? (onCall
+                        ? '<button type="button" class="btn" data-call-action="leave">Quitter l\'appel</button>'
+                        : `<button type="button" class="btn btn-default" data-call-action="join">Rejoindre l'appel (${esc(unit.tag)})</button>`) : ''}
+                    <button type="button" class="btn" data-call-action="edit">Modifier</button>
+                    <span class="grow"></span>
+                    ${onCall ? '<button type="button" class="btn btn-danger" data-call-action="end">Intervention terminée</button>' : ''}
+                </div>`;
+        }
+
+        return `
+            <div class="sheet-title"><span>${esc(c.number)} — ${esc(c.title)}</span>${callFlag(CALL_STATUS, c.status)}</div>
+            ${actions}
+            <dl class="sheet">
+                ${row('N° d\'incident', c.number)}
+                ${row('Catégorie', incident ? 'Incident (déclaré par une unité)' : 'Intervention (appel)')}
+                ${dd('Déroulé', callFlag(CALL_STATUS, c.status))}
+                ${row(incident ? 'Type d\'incident' : 'Type d\'intervention', c.title)}
+                ${incident
+                    ? row('Unité déclarante', c.unitName)
+                    : row('Requérant', c.caller) + row('Téléphone du requérant', c.phone) + dd('Priorité de l\'urgence', callFlag(CALL_PRIORITY, c.priority))}
+                ${row('Adresse', c.address)}
+                ${row('Bloc', c.block)}
+                ${row(incident ? 'Description de l\'incident' : 'Description', c.description)}
+                ${row('Émise le', formatDate(c.createdAt))}
+                ${c.closed ? row('Terminée le', `${formatDate(c.closedAt)} par ${c.closedByName || '-'}`) : ''}
+            </dl>
+            <div class="sheet-sub">Unités sur l'appel (${units.length})</div>
+            <div class="call-units">${units.length
+                ? units.map((u) => `<span class="call-unit">${unitTag(u)} ${esc(u.name)}</span>`).join('')
+                : '<span class="muted">Aucune unité.</span>'}</div>
+            <div class="sheet-sub">Notes (${notes.length})</div>
+            ${notes.length ? notes.map((n) => noteHtml(n, c, unit)).join('') : '<div class="muted">Aucune note.</div>'}
+            ${onCall && !c.closed ? `
+                <div class="note-new">
+                    <textarea id="noteDraft" class="upper-text" rows="3" maxlength="500" placeholder="AJOUTER UNE NOTE (EN MAJUSCULES)">${esc(state.noteDraft)}</textarea>
+                    <div class="toolbar note-toolbar">
+                        <span class="grow"></span>
+                        <button type="button" class="btn btn-default" data-call-action="addNote">Ajouter la note</button>
+                    </div>
+                </div>` : ''}`;
+    }
+
+    // Formulaire : nouvel incident (call absent) ou modification d'une intervention / d'un incident
+    function callFormHtml(c) {
+        const isNew = !c;
+        const kind = isNew ? 'incident' : c.kind;
+        const unit = myUnit();
+        const v = (key) => esc(c ? (c[key] ?? '') : '');
+        const unitName = isNew ? (unit ? `[${unit.tag}] ${unit.name}` : 'Aucune unité : rejoignez une unité pour déclarer un incident') : c.unitName;
+        const priorities = Object.entries(CALL_PRIORITY).map(([key, [, label]]) =>
+            `<option value="${key}" ${c && c.priority === key ? 'selected' : ''}>${label}</option>`).join('');
+
+        return `
+            <form id="callForm" class="call-form" autocomplete="off" novalidate>
+                <div class="toolbar"><span class="hint-text">* champs obligatoires${isNew ? ' — votre unité sera automatiquement placée sur l\'incident.' : ''}</span></div>
+                <div class="form-grid">
+                    <label class="lbl span-2">${kind === 'incident' ? 'Type d\'incident' : 'Type d\'intervention'} *<input name="title" type="text" maxlength="60" value="${v('title')}"></label>
+                    ${kind === 'incident' ? `<label class="lbl span-2">Nom de l'unité créant l'incident<input type="text" value="${esc(unitName)}" disabled></label>` : `
+                        <label class="lbl">Requérant *<input name="caller" type="text" maxlength="60" value="${v('caller')}"></label>
+                        <label class="lbl">N° de téléphone du requérant *
+                            <span class="inline">
+                                <input name="phone" type="text" maxlength="20" value="${v('phone')}">
+                                <button type="button" class="btn btn-icon" data-gen-phone title="Générer un nouveau numéro">&#8635;</button>
+                            </span>
+                        </label>
+                        <label class="lbl span-2">Priorité de l'urgence *<select name="priority">${priorities}</select></label>`}
+                    <label class="lbl">Adresse *<input name="address" type="text" maxlength="80" value="${v('address')}"></label>
+                    <label class="lbl">Bloc *<input name="block" type="text" maxlength="40" value="${v('block')}"></label>
+                    <label class="lbl span-2">${kind === 'incident' ? 'Description de l\'incident' : 'Description'} *<textarea name="description" rows="6" maxlength="2000">${v('description')}</textarea></label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" data-call-action="cancelForm">Annuler</button>
+                    <button type="submit" class="btn btn-default">${isNew ? 'Déclarer l\'incident' : 'Enregistrer les modifications'}</button>
+                </div>
+            </form>`;
+    }
+
+    function renderInterventionDetail() {
+        const el = $('#interventionDetail');
+        const panel = state.callPanel;
+        const call = findCall(panel.id);
+        const title = $('#interventionPanelTitle');
+
+        if (panel.mode === 'new') {
+            title.textContent = 'Nouvel incident';
+            el.innerHTML = callFormHtml(null);
+            return;
+        }
+        if (!call) {
+            title.textContent = 'Détails';
+            el.innerHTML = '<div class="empty">Sélectionnez une intervention dans la liste.</div>';
+            return;
+        }
+        if (panel.mode === 'edit') {
+            title.textContent = `Modifier ${call.number}`;
+            el.innerHTML = callFormHtml(call);
             return;
         }
 
-        const me = String(state.serverId);
+        // Vue détaillée : on conserve le texte en cours de saisie et le focus
+        const focused = document.activeElement && el.contains(document.activeElement) ? document.activeElement.id : '';
+        title.textContent = call.kind === 'incident' ? 'Détails de l\'incident' : 'Détails de l\'intervention';
+        el.innerHTML = callViewHtml(call);
+        const field = focused && el.querySelector(`#${focused}`);
+        if (field) {
+            field.focus();
+            field.setSelectionRange(field.value.length, field.value.length);
+        }
+    }
 
-        container.innerHTML = list.map((i) => {
-            const units = i.units || {};
-            const attached = Object.prototype.hasOwnProperty.call(units, me);
-            const unitNames = Object.values(units);
-            const prio = PRIORITY_LABELS[i.priority] ? i.priority : 'medium';
-
-            return `
-            <div class="card prio-${prio}">
-                <div class="card-head">
-                    <span>#${esc(i.id)} — ${esc(i.title)}</span>
-                    <span>${esc(formatTime(i.createdAt))}</span>
-                </div>
-                <div class="card-body">
-                    <div class="card-meta">Priorité : ${esc(PRIORITY_LABELS[prio])}${i.location ? ` — Lieu : ${esc(i.location)}` : ''}</div>
-                    <div class="card-meta">Créée par ${esc(i.createdByName || '-')}</div>
-                    ${i.description ? `<div class="card-desc">${esc(i.description)}</div>` : ''}
-                    <div class="card-meta">Unités : ${unitNames.length ? unitNames.map(esc).join(', ') : 'aucune'}</div>
-                </div>
-                <div class="card-actions">
-                    ${attached
-                        ? `<button class="btn" data-action="detach" data-id="${esc(i.id)}">Se retirer</button>`
-                        : `<button class="btn btn-default" data-action="attach" data-id="${esc(i.id)}">Prendre l'appel</button>`}
-                    <span class="grow"></span>
-                    <button class="btn btn-danger" data-action="close" data-id="${esc(i.id)}">Clôturer</button>
-                </div>
-            </div>`;
-        }).join('');
+    function setInterventions(list) {
+        state.interventions = toArray(list);
+        renderInterventionList();
+        // Les formulaires en cours de saisie ne sont pas écrasés par les mises à jour en temps réel
+        if (state.callPanel.mode === 'view') renderInterventionDetail();
     }
 
     async function refreshInterventions() {
         const res = await post('getInterventions');
-        if (res && res.ok) renderInterventions(res.interventions);
+        if (res && res.ok) setInterventions(res.interventions);
     }
 
-    $('#interventionsList').addEventListener('click', async (e) => {
-        const btn = e.target.closest('button[data-action]');
-        if (!btn) return;
-
-        btn.disabled = true;
-        const action = btn.dataset.action;
-        const res = await post('updateIntervention', { id: Number(btn.dataset.id), action });
-        btn.disabled = false;
-
-        if (!res || !res.ok) {
-            toast(res?.error || 'Action impossible.', 'error');
-            return;
+    function openCall(id, mode = 'view') {
+        if (state.callPanel.id !== id) {
+            state.noteDraft = '';
+            state.noteEdit = null;
         }
+        state.callPanel = { mode, id };
+        renderInterventionList();
+        renderInterventionDetail();
+    }
 
-        if (action === 'attach') changeStatus('en_route'); // prendre un appel = "En route"
-        if (action === 'close') toast('Intervention clôturée.', 'success');
-        refreshInterventions();
+    $('#interventionsBody').addEventListener('click', (e) => {
+        const tr = e.target.closest('tr[data-id]');
+        if (tr) openCall(Number(tr.dataset.id));
+    });
+
+    $('#newIncident').addEventListener('click', () => {
+        if (!myUnit()) toast('Rejoignez une unité (onglet Unités) pour déclarer un incident.', 'error');
+        state.callPanel = { mode: 'new', id: null };
+        renderInterventionList();
+        renderInterventionDetail();
     });
 
     $('#refreshInterventions').addEventListener('click', refreshInterventions);
+
+    // Texte des notes : saisie conservée entre deux mises à jour
+    $('#interventionDetail').addEventListener('input', (e) => {
+        if (e.target.id === 'noteDraft') state.noteDraft = e.target.value;
+        if (e.target.id === 'noteEditText' && state.noteEdit) state.noteEdit.text = e.target.value;
+    });
+
+    async function callRequest(name, payload, success) {
+        const res = await post(name, payload);
+        if (!res || !res.ok) {
+            toast(res?.error || 'Action impossible.', 'error');
+            return null;
+        }
+        if (success) toast(success, 'success');
+        return res;
+    }
+
+    $('#interventionDetail').addEventListener('click', async (e) => {
+        const call = findCall(state.callPanel.id);
+        const actionBtn = e.target.closest('[data-call-action]');
+
+        if (e.target.closest('[data-gen-phone]')) {
+            $('#callForm').elements.phone.value = Random.phone();
+            return;
+        }
+
+        if (actionBtn) {
+            const action = actionBtn.dataset.callAction;
+
+            if (action === 'cancelForm') {
+                state.callPanel = { mode: 'view', id: call ? call.id : null };
+                renderInterventionList();
+                renderInterventionDetail();
+                return;
+            }
+            if (!call) return;
+            if (action === 'edit') return openCall(call.id, 'edit');
+
+            // "Intervention terminée" : deuxième clic pour confirmer
+            if (action === 'end' && !actionBtn.dataset.confirm) {
+                actionBtn.dataset.confirm = '1';
+                actionBtn.textContent = 'Confirmer la fin ?';
+                setTimeout(() => {
+                    if (!actionBtn.isConnected) return;
+                    delete actionBtn.dataset.confirm;
+                    actionBtn.textContent = 'Intervention terminée';
+                }, 3000);
+                return;
+            }
+
+            if (action === 'addNote') {
+                const text = state.noteDraft.trim();
+                if (!text) return toast('La note est vide.', 'error');
+                if (await callRequest('addNote', { id: call.id, text }, 'Note ajoutée.')) {
+                    state.noteDraft = '';
+                    refreshInterventions();
+                }
+                return;
+            }
+
+            const messages = { join: 'Appel rejoint : unité « En route ».', leave: 'Vous avez quitté l\'appel.', end: 'Intervention terminée.' };
+            actionBtn.disabled = true;
+            const res = await callRequest('interventionAction', { id: call.id, action }, messages[action]);
+            actionBtn.disabled = false;
+            if (res) {
+                refreshInterventions();
+                if (action === 'join') refreshUnits();
+            }
+            return;
+        }
+
+        // Notes : modifier / annuler / enregistrer
+        const editBtn = e.target.closest('[data-note-edit]');
+        if (editBtn && call) {
+            const note = toArray(call.notes).find((n) => String(n.id) === editBtn.dataset.noteEdit);
+            state.noteEdit = note ? { id: note.id, text: note.text } : null;
+            renderInterventionDetail();
+            $('#noteEditText')?.focus();
+            return;
+        }
+        if (e.target.closest('[data-note-cancel]')) {
+            state.noteEdit = null;
+            renderInterventionDetail();
+            return;
+        }
+        const saveBtn = e.target.closest('[data-note-save]');
+        if (saveBtn && call && state.noteEdit) {
+            if (await callRequest('editNote', { id: call.id, noteId: state.noteEdit.id, text: state.noteEdit.text }, 'Note modifiée.')) {
+                state.noteEdit = null;
+                refreshInterventions();
+            }
+        }
+    });
+
+    // Enregistrement du formulaire (nouvel incident ou modification)
+    $('#interventionDetail').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const payload = Object.fromEntries(new FormData(form).entries());
+        const submit = form.querySelector('button[type="submit"]');
+        submit.disabled = true;
+
+        let res;
+        if (state.callPanel.mode === 'new') {
+            res = await callRequest('createIncident', payload, 'Incident déclaré.');
+            if (res) state.callPanel = { mode: 'view', id: res.id };
+        } else {
+            const id = state.callPanel.id;
+            res = await callRequest('editIntervention', { ...payload, id }, 'Modifications enregistrées.');
+            if (res) state.callPanel = { mode: 'view', id };
+        }
+
+        submit.disabled = false;
+        if (res) refreshInterventions();
+    });
 
     // =====================================================================
     // GÉNÉRATEURS ALÉATOIRES
@@ -756,6 +1142,7 @@
         const licenseNumber = () => `${letter()}${String(int(0, 9999999)).padStart(7, '0')}`;
         const vin = () => Array.from({ length: 17 }, () => VIN_CHARS[int(0, VIN_CHARS.length - 1)]).join('');
         const policyNumber = () => `${letter()}${letter()}${String(int(0, 99999999)).padStart(8, '0')}`;
+        const phone = () => `555-${int(100, 999)}-${String(int(0, 9999)).padStart(4, '0')}`;
 
         // Identité : prénom, middle name, nom, DoB, adresse, SSN et emploi uniquement
         function identity() {
@@ -787,7 +1174,7 @@
             };
         }
 
-        return { ssn, licenseNumber, vin, policyNumber, identity, vehicle };
+        return { ssn, licenseNumber, vin, policyNumber, phone, identity, vehicle };
     })();
 
     // =====================================================================
@@ -796,6 +1183,14 @@
     // =====================================================================
     document.addEventListener('input', (e) => {
         const input = e.target;
+
+        // Notes d'intervention : toujours en MAJUSCULES
+        if (input instanceof HTMLTextAreaElement && input.classList.contains('upper-text')) {
+            const pos = input.selectionStart;
+            input.value = input.value.toUpperCase();
+            input.setSelectionRange(pos, pos);
+            return;
+        }
         if (!(input instanceof HTMLInputElement)) return;
 
         if (input.classList.contains('date-input')) {
@@ -1049,7 +1444,7 @@
     // =====================================================================
     // BOUTONS "GÉNÉRER" (SSN, licence, VIN, police d'assurance)
     // =====================================================================
-    const GENERATORS = { ssn: Random.ssn, licenseNumber: Random.licenseNumber, vin: Random.vin, insurancePolicy: Random.policyNumber };
+    const GENERATORS = { ssn: Random.ssn, licenseNumber: Random.licenseNumber, vin: Random.vin, insurancePolicy: Random.policyNumber, phone: Random.phone };
 
     $$('.regen').forEach((btn) => btn.addEventListener('click', () => {
         btn.closest('form').elements.namedItem(btn.dataset.regen).value = GENERATORS[btn.dataset.regen]();
@@ -1149,16 +1544,26 @@
         submitForm(vehicleForm, { ...collectVehicle(), kind: 'vehicle' });
     });
 
-    // Intervention (non conservée au redémarrage, absente du registre)
-    $('#view-intervention').addEventListener('submit', async (e) => {
+    // Intervention (civils) : apparaît dans l'onglet "Interventions", absente du registre
+    const interventionForm = $('#view-intervention');
+
+    function resetInterventionForm() {
+        interventionForm.reset();
+        interventionForm.elements.phone.value = Random.phone(); // téléphone du requérant généré automatiquement
+    }
+
+    interventionForm.querySelector('.btn-clear').addEventListener('click', resetInterventionForm);
+
+    interventionForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const form = e.currentTarget;
-        const payload = { ...Object.fromEntries(new FormData(form).entries()), kind: 'intervention' };
+        const payload = { ...Object.fromEntries(new FormData(interventionForm).entries()), kind: 'intervention' };
+        const submit = interventionForm.querySelector('button[type="submit"]');
+        submit.disabled = true;
         const res = await post('create', payload);
+        submit.disabled = false;
         if (res && res.ok) {
-            toast(`${KIND_SAVED.intervention} (n°${res.id}).`, 'success');
-            form.reset();
-            showPage('interventions');
+            toast(`Intervention ${res.number} enregistrée.`, 'success');
+            resetInterventionForm();
         } else {
             toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error');
         }
@@ -1224,10 +1629,10 @@
                 closeUI(false);
                 break;
             case 'units':
-                renderUnits(data.data);
+                setUnits(data.data);
                 break;
             case 'interventions':
-                renderInterventions(data.data);
+                setInterventions(data.data);
                 break;
         }
     });
@@ -1235,5 +1640,8 @@
     // État initial des formulaires
     resetIdentityForm();
     resetVehicleForm();
+    resetInterventionForm();
     updateEditUI();
+    renderUnits();
+    renderSearchResults();
 })();

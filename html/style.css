@@ -20,12 +20,10 @@
     --danger:   #b32424;
 
     /* Couleurs des statuts au format "R, G, B" (utilisées avec rgb() / rgba()) */
-    --st-available:    34, 197, 94;   /* Vert   */
-    --st-unavailable:  220, 38, 38;   /* Rouge  */
-    --st-traffic_stop: 249, 115, 22;  /* Orange */
-    --st-busy:         128, 128, 128; /* Gris   */
-    --st-on_scene:     59, 130, 246;  /* Bleu   */
-    --st-en_route:     234, 179, 8;   /* Jaune  */
+    --st-available:    34, 197, 94;   /* Disponible   : vert   */
+    --st-en_route:     234, 179, 8;   /* En route     : jaune  */
+    --st-on_scene:     249, 115, 22;  /* Sur place    : orange */
+    --st-unavailable:  128, 128, 128; /* Indisponible : gris   */
     --st-default:      138, 138, 138;
 
     --font: Tahoma, Verdana, "Segoe UI", Arial, sans-serif;
@@ -453,10 +451,8 @@ select option:disabled { color: #555; }
    BARRE LATÉRALE : nom RP + statuts
    ========================================================================= */
 .profile-group { gap: 6px; padding-top: 10px; }
-.rp-display { display: flex; align-items: center; gap: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--lo); box-shadow: 0 1px 0 var(--hi-2); }
-.rp-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.rp-name { color: #fff; font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rp-callsign { font-size: 11px; color: var(--muted); }
+.rp-display { display: flex; align-items: center; gap: 6px; }
+.rp-name { flex: 1; min-width: 0; color: #fff; font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .muted { color: var(--muted); font-style: italic; }
 input::placeholder { color: #6a6a6a; }
 
@@ -501,11 +497,16 @@ input::placeholder { color: #6a6a6a; }
 }
 
 [data-status="available"]    { --c: var(--st-available); }
-[data-status="unavailable"]  { --c: var(--st-unavailable); }
-[data-status="traffic_stop"] { --c: var(--st-traffic_stop); }
-[data-status="busy"]         { --c: var(--st-busy); }
-[data-status="on_scene"]     { --c: var(--st-on_scene); }
 [data-status="en_route"]     { --c: var(--st-en_route); }
+[data-status="on_scene"]     { --c: var(--st-on_scene); }
+[data-status="unavailable"]  { --c: var(--st-unavailable); }
+
+/* Unité du joueur au-dessus des statuts ; statuts inactifs hors unité */
+.my-unit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-height: 22px; margin-bottom: 6px; font-weight: bold; color: #fff; }
+.my-unit .unit-tag { flex-shrink: 0; }
+.my-unit > span:not(.unit-tag) { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.my-unit .muted { font-weight: normal; white-space: normal; font-size: 12px; }
+.status-list.no-unit .status-btn { opacity: .45; }
 
 /* =========================================================================
    TABLEAUX (zone en creux)
@@ -551,6 +552,7 @@ input::placeholder { color: #6a6a6a; }
 .flag.c-orange { background: #a0520e; color: #fff0de; }
 .flag.c-blue   { background: #1f4e8c; color: #e3eeff; }
 .flag.c-purple { background: #5a1f5e; color: #f5dcf7; }
+.flag.c-gray   { background: #3a3a3a; color: #cfcfcf; }
 
 /* Ligne d'une personne recherchée dans les résultats */
 .grid tr.row-wanted td { color: #ff9a9a; }
@@ -620,48 +622,76 @@ input::placeholder { color: #6a6a6a; }
 .entry-view-text { white-space: pre-wrap; word-break: break-word; }
 
 /* =========================================================================
-   INTERVENTIONS (cases)
+   UNITÉS : formulaire, tags colorés
    ========================================================================= */
-.cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    align-content: start;
-    gap: 10px;
-    flex: 1 1 0;
-    min-height: 0;
-    overflow: auto;
-}
-.card {
-    --prio: 138, 138, 138;
-    display: flex;
-    flex-direction: column;
-    background: var(--face);
+.unit-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto auto; gap: 8px 14px; align-items: end; }
+.unit-form-actions { display: flex; gap: 6px; }
+.swatches { display: flex; gap: 4px; height: 26px; align-items: center; }
+.swatch { position: relative; cursor: pointer; }
+.swatch input { position: absolute; opacity: 0; pointer-events: none; }
+.swatch-box {
+    display: block;
+    width: 22px;
+    height: 22px;
     border: 2px solid;
     border-color: var(--hi) var(--lo) var(--lo) var(--hi);
 }
-.card.prio-low    { --prio: var(--st-available); }
-.card.prio-medium { --prio: var(--st-traffic_stop); }
-.card.prio-high   { --prio: var(--st-unavailable); }
-.card-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 4px 8px;
-    background: rgba(var(--prio), .35);
-    border-bottom: 1px solid #000;
+.swatch input:checked + .swatch-box { outline: 2px solid #fff; outline-offset: 1px; }
+
+.unit-tag {
+    display: inline-block;
+    min-width: 34px;
+    padding: 1px 7px;
+    color: #fff;
+    font-size: 11px;
     font-weight: bold;
-}
-.card-body { display: flex; flex-direction: column; gap: 6px; padding: 8px; flex: 1; }
-.card-meta { font-size: 12px; color: var(--muted); }
-.card-desc {
-    padding: 6px;
-    background: var(--well);
+    text-align: center;
+    letter-spacing: .4px;
     border: 1px solid #000;
-    white-space: pre-wrap;
-    word-break: break-word;
+    white-space: nowrap;
 }
-.card-actions { display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid #000; box-shadow: inset 0 1px 0 var(--hi-2); }
-.cards .empty { grid-column: 1 / -1; }
+.lbl > .unit-tag { align-self: flex-start; height: 26px; line-height: 22px; font-size: 12px; }
+
+/* Couleurs foncées des tags (unités) */
+.tag-green  { background: #1d5e33; }
+.tag-purple { background: #4b1f6e; }
+.tag-blue   { background: #1f3f7a; }
+.tag-orange { background: #8a4a0e; }
+.tag-red    { background: #7a1c1c; }
+.tag-yellow { background: #7a6a0c; }
+.tag-pink   { background: #7a1f55; }
+.tag-gray   { background: #3a3a3a; }
+
+.col-actions { width: 1%; white-space: nowrap; }
+.col-actions .btn + .btn { margin-left: 4px; }
+
+/* =========================================================================
+   INTERVENTIONS ET INCIDENTS
+   ========================================================================= */
+.split.split-list { grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); }
+.list-hint { margin-top: 6px; }
+.grid tr.row-closed td { color: #6a6a6a; background: #151515; }
+.grid.selectable tbody tr.row-closed.selected td { background: #3a3a3a; color: #bdbdbd; }
+
+.hint-box {
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: #10233f;
+    color: #cfe0ff;
+    border: 1px solid #000;
+}
+.call-actions { margin-bottom: 8px; }
+.call-units { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 6px 8px; border: 1px solid #262626; background: #161616; }
+.call-unit { display: inline-flex; align-items: center; gap: 6px; }
+
+.note { margin-top: 6px; padding: 6px 8px; border: 1px solid #262626; background: #161616; }
+.note-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.note-text { margin-top: 4px; white-space: pre-wrap; word-break: break-word; color: #fff; }
+.note textarea, .note-new textarea { margin-top: 6px; }
+.note-new { margin-top: 10px; }
+.note-toolbar { margin: 6px 0 0; }
+textarea.upper-text { text-transform: uppercase; }
+.call-form .form-grid { margin-top: 4px; }
 
 /* =========================================================================
    NOTIFICATIONS

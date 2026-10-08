@@ -6,7 +6,7 @@ Dossier de données du MDC (créé et rempli automatiquement par le serveur).
 Ces fiches sont PERMANENTES : elles survivent aux déconnexions et aux redémarrages,
 restent accessibles dans les recherches et dans le registre de leur créateur
 (retrouvé grâce à sa licence Rockstar, champ "createdBy").
-Les interventions ne sont pas enregistrées ici : elles disparaissent au redémarrage.
+Les unités, interventions et incidents ne sont pas enregistrés ici : ils disparaissent au redémarrage.
 
 Le script ne supprime JAMAIS d'entrée. Pour en retirer une (cadres uniquement) :
   1. Ouvrez le fichier et supprimez l'objet { ... } voulu (le fichier doit rester un JSON valide).

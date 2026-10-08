@@ -26,33 +26,20 @@ local Config = {
     RequestTimeout = 5000,
 }
 
--- Statuts autorisés (doivent correspondre aux data-status de index.html
--- et à la table Statuses de server.lua)
-local VALID_STATUSES = {
-    available    = true, -- Disponible
-    unavailable  = true, -- Indisponible
-    traffic_stop = true, -- Contrôle Routier
-    busy         = true, -- Occupé
-    on_scene     = true, -- Sur Place
-    en_route     = true, -- En route
-}
-
 -- =========================================================================
 -- ÉTAT LOCAL
 -- =========================================================================
 local isOpen = false
-local currentStatus = 'available'
 
 -- Position / taille de la fenêtre MDC ({ x, y, w, h, maximized }).
 -- Gardée en mémoire Lua UNIQUEMENT (pas de KVP) : elle est conservée d'une
 -- ouverture à l'autre, mais réinitialisée à chaque reconnexion au serveur.
 local windowLayout = nil
 
--- Nom RP et matricule : sauvegardés localement chez le joueur (KVP),
--- ils sont donc conservés après une reconnexion.
--- >>> BASE DE DONNÉES : si vous avez une table "officers", récupérez-les plutôt côté serveur.
+-- Nom RP : sauvegardé localement chez le joueur (KVP), il est donc conservé
+-- après une reconnexion.
+-- >>> BASE DE DONNÉES : si vous avez une table "officers", récupérez-le plutôt côté serveur.
 local rpName = GetResourceKvpString('mdc_rpname') or ''
-local callsign = GetResourceKvpString('mdc_callsign') or ''
 
 -- =========================================================================
 -- MINI-SYSTÈME DE "SERVER CALLBACKS" (standalone, remplace ESX.TriggerServerCallback)
@@ -103,16 +90,14 @@ local function openMDC()
     SendNUIMessage({
         action = 'open',
         data = {
-            status   = currentStatus,
             rpName   = rpName,
-            callsign = callsign,
             serverId = GetPlayerServerId(PlayerId()), -- non affiché : sert à repérer sa propre ligne
             layout   = windowLayout, -- nil = position par défaut (centrée)
         }
     })
 
-    -- Profil (nom RP / matricule) puis inscription aux mises à jour en temps réel
-    TriggerServerEvent('mdc:server:setProfile', rpName, callsign)
+    -- Profil (nom RP) puis inscription aux mises à jour en temps réel
+    TriggerServerEvent('mdc:server:setProfile', rpName)
     TriggerServerEvent('mdc:server:viewer', true)
 end
 
@@ -155,39 +140,22 @@ RegisterNUICallback('saveLayout', function(data, cb)
     cb({ ok = true })
 end)
 
--- Changement de statut
-RegisterNUICallback('setStatus', function(data, cb)
-    local status = type(data) == 'table' and data.status or nil
-
-    if type(status) ~= 'string' or not VALID_STATUSES[status] then
-        cb({ ok = false, error = 'Statut invalide.' })
+-- Nom RP
+RegisterNUICallback('setProfile', function(data, cb)
+    local value = type(data) == 'table' and data.rpName or nil
+    if type(value) ~= 'string' then
+        cb({ ok = false, error = 'Nom RP invalide.' })
         return
     end
 
-    currentStatus = status
-    TriggerServerEvent('mdc:server:setStatus', status)
-    cb({ ok = true, status = status })
-end)
+    -- Espaces superflus retirés, 40 caractères max (le serveur revérifie)
+    rpName = value:gsub('%c', ''):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+    local cutAt = utf8.offset(rpName, 41)
+    if cutAt then rpName = rpName:sub(1, cutAt - 1) end
+    SetResourceKvp('mdc_rpname', rpName)
 
--- Nom RP et matricule
-RegisterNUICallback('setProfile', function(data, cb)
-    data = type(data) == 'table' and data or {}
-
-    if type(data.rpName) == 'string' then
-        -- Espaces superflus retirés, 40 caractères max (le serveur revérifie)
-        rpName = data.rpName:gsub('%c', ''):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
-        rpName = rpName:sub(1, utf8.offset(rpName, 41) and utf8.offset(rpName, 41) - 1 or #rpName)
-        SetResourceKvp('mdc_rpname', rpName)
-    end
-
-    if type(data.callsign) == 'string' then
-        -- 12 caractères max, alphanumérique + tiret
-        callsign = data.callsign:gsub('[^%w%-]', ''):sub(1, 12):upper()
-        SetResourceKvp('mdc_callsign', callsign)
-    end
-
-    TriggerServerEvent('mdc:server:setProfile', rpName, callsign)
-    cb({ ok = true, rpName = rpName, callsign = callsign })
+    TriggerServerEvent('mdc:server:setProfile', rpName)
+    cb({ ok = true, rpName = rpName })
 end)
 
 -- =========================================================================
@@ -292,10 +260,25 @@ local function relay(nuiName, serverName)
     end)
 end
 
-relay('getUnits',          'getUnits')          -- Onglet "Unités"
+-- Unités (le statut de la barre latérale est celui de l'unité du joueur)
+relay('getUnits',           'getUnits')
+relay('createUnit',         'createUnit')
+relay('updateUnit',         'updateUnit')
+relay('joinUnit',           'joinUnit')
+relay('leaveUnit',          'leaveUnit')
+relay('deleteUnit',         'deleteUnit')
+relay('setStatus',          'setStatus')
+
+-- Interventions / incidents
+relay('getInterventions',   'getInterventions')
+relay('createIncident',     'createIncident')     -- Incident déclaré par une unité
+relay('interventionAction', 'interventionAction') -- Rejoindre / quitter / terminer
+relay('editIntervention',   'editIntervention')
+relay('addNote',            'addNote')
+relay('editNote',           'editNote')
+
+-- Recherches et créations
 relay('search',            'search')            -- Onglet "Recherches" (identités / immatriculations)
-relay('getInterventions',  'getInterventions')  -- Onglet "Interventions"
-relay('updateIntervention','updateIntervention')-- Prendre / clôturer une intervention
 relay('create',            'create')            -- Onglet "Créations" (identité, véhicule, intervention)
 relay('update',            'update')            -- Modification d'une identité / d'un véhicule
 relay('getRegistry',       'getRegistry')       -- Bouton "Registre" (mes créations)
