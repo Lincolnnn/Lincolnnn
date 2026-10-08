@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDC - Police</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Conteneur principal : masqué par défaut, affiché par script.js à l'ouverture -->
+    <div id="mdc" class="mdc hidden" role="application" aria-label="Mobile Data Computer">
+
+        <!-- ================= TOP BAR ================= -->
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-badge">MDC</div>
+                <div class="brand-text">
+                    <span class="brand-title">Mobile Data Computer</span>
+                    <span class="brand-sub">Département de Police</span>
+                </div>
+            </div>
+
+            <nav class="tabs" role="tablist">
+                <button class="tab active" data-page="units" role="tab">Unités</button>
+                <button class="tab" data-page="search" role="tab">Recherches</button>
+                <button class="tab" data-page="interventions" role="tab">Interventions</button>
+                <button class="tab" data-page="create" role="tab">Créations</button>
+            </nav>
+
+            <div class="topbar-right">
+                <span id="clock" class="clock">--:--</span>
+                <button id="closeBtn" class="close-btn" title="Fermer (Échap)" aria-label="Fermer">&times;</button>
+            </div>
+        </header>
+
+        <div class="body">
+            <!-- ================= SIDEBAR ================= -->
+            <aside class="sidebar">
+                <div class="profile">
+                    <div class="avatar" id="profileAvatar">?</div>
+                    <div class="profile-info">
+                        <span class="profile-name" id="profileName">Agent</span>
+                        <span class="profile-id" id="profileId">ID -</span>
+                    </div>
+                </div>
+
+                <label class="field-label" for="callsignInput">Matricule</label>
+                <div class="callsign">
+                    <input id="callsignInput" type="text" maxlength="12" placeholder="ex : 1-ADAM-12" autocomplete="off">
+                    <button id="callsignSave" class="btn btn-small">OK</button>
+                </div>
+
+                <span class="field-label">Statut</span>
+                <div class="status-list" id="statusList">
+                    <button class="status-btn" data-status="available"><span class="dot"></span>Disponible</button>
+                    <button class="status-btn" data-status="unavailable"><span class="dot"></span>Indisponible</button>
+                    <button class="status-btn" data-status="traffic_stop"><span class="dot"></span>Contrôle Routier</button>
+                    <button class="status-btn" data-status="busy"><span class="dot"></span>Occupé</button>
+                    <button class="status-btn" data-status="on_scene"><span class="dot"></span>Sur Place</button>
+                    <button class="status-btn" data-status="en_route"><span class="dot"></span>En route</button>
+                </div>
+
+                <div class="sidebar-footer">
+                    <span class="hint">Échap pour fermer</span>
+                </div>
+            </aside>
+
+            <!-- ================= PAGES ================= -->
+            <main class="content">
+
+                <!-- UNITÉS -->
+                <section class="page active" id="page-units">
+                    <div class="page-header">
+                        <h2>Unités en service</h2>
+                        <button class="btn btn-ghost" id="refreshUnits">Actualiser</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                                <tr><th>ID</th><th>Matricule</th><th>Agent</th><th>Statut</th><th>Mis à jour</th></tr>
+                            </thead>
+                            <tbody id="unitsBody"></tbody>
+                        </table>
+                        <div class="empty hidden" id="unitsEmpty">Aucune unité en service.</div>
+                    </div>
+                </section>
+
+                <!-- RECHERCHES -->
+                <section class="page" id="page-search">
+                    <div class="page-header"><h2>Recherches</h2></div>
+                    <form class="search-bar" id="searchForm" autocomplete="off">
+                        <div class="segmented" id="searchType">
+                            <button type="button" class="seg active" data-type="person">Personne</button>
+                            <button type="button" class="seg" data-type="vehicle">Véhicule</button>
+                        </div>
+                        <input id="searchInput" type="text" placeholder="Nom, prénom..." maxlength="64">
+                        <button type="submit" class="btn btn-primary">Rechercher</button>
+                    </form>
+                    <div class="results" id="searchResults">
+                        <div class="empty">Lancez une recherche pour afficher des résultats.</div>
+                    </div>
+                </section>
+
+                <!-- INTERVENTIONS -->
+                <section class="page" id="page-interventions">
+                    <div class="page-header">
+                        <h2>Interventions en cours</h2>
+                        <button class="btn btn-ghost" id="refreshInterventions">Actualiser</button>
+                    </div>
+                    <div class="cards" id="interventionsList"></div>
+                </section>
+
+                <!-- CRÉATIONS -->
+                <section class="page" id="page-create">
+                    <div class="page-header"><h2>Créations</h2></div>
+                    <div class="segmented segmented-wide" id="createType">
+                        <button type="button" class="seg active" data-kind="report">Rapport</button>
+                        <button type="button" class="seg" data-kind="bolo">Avis de recherche</button>
+                        <button type="button" class="seg" data-kind="intervention">Intervention</button>
+                    </div>
+
+                    <form class="form" id="createForm" autocomplete="off">
+                        <label class="field-label" for="createTitle">Titre *</label>
+                        <input id="createTitle" type="text" maxlength="80" required>
+
+                        <div class="intervention-only hidden">
+                            <div class="row">
+                                <div class="col">
+                                    <label class="field-label" for="createLocation">Localisation</label>
+                                    <input id="createLocation" type="text" maxlength="80" placeholder="ex : Legion Square">
+                                </div>
+                                <div class="col">
+                                    <label class="field-label" for="createPriority">Priorité</label>
+                                    <select id="createPriority">
+                                        <option value="low">Basse</option>
+                                        <option value="medium" selected>Moyenne</option>
+                                        <option value="high">Haute</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <label class="field-label" for="createDescription">Description</label>
+                        <textarea id="createDescription" rows="8" maxlength="2000"></textarea>
+
+                        <div class="form-actions">
+                            <button type="reset" class="btn btn-ghost">Effacer</button>
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Notifications (toasts) -->
+    <div id="toasts" class="toasts"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
