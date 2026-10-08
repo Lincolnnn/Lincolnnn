@@ -28,9 +28,28 @@ Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), in
 | Interventions | Liste des interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer pour le masquer. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. Bouton **Nouvel incident** pour les unités |
 | Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous |
 | Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation, Traffic Ticket, Ticket, Warning. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
+| Paramètres | Réglages du HUD (affichage, éléments visibles, taille, position) et du MDC (taille de l'interface, onglet à l'ouverture, fenêtre). Gardés chez le joueur, même après une reconnexion |
 | Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, adresse, bloc, description). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
+
+### HUD
+
+Deux affichages séparés, au thème du MDC (fond noir transparent, bordure grise fine et arrondie), visibles même MDC fermé
+lorsque le joueur fait partie d'une unité :
+
+- **PLD** (Player Localisation Display) : rue, croisement, direction (N / NE / E / SE / S / SW / W / NW) et bloc.
+  Les blocs se dessinent sur la carte dans **`config/blocks.json`** (cercles, rectangles, polygones, filtre par rue) :
+  voir `config/LISEZMOI.txt`. La commande `/mdc_pos` ou **Paramètres > Lire ma position** donne la ligne à copier.
+- **Display MDC** : nom de l'unité, tag, statut et n° d'incident de l'appel en cours.
+
+Onglet **Paramètres** : afficher / masquer chaque HUD et chacun de ses éléments, taille (50 à 200 %), et
+**Placer les HUD à l'écran** (glisser à la souris, molette = taille). Pour afficher le HUD en permanence (hors unité),
+passez `ShowWhen = 'always'` dans `client/hud.lua`.
+
+Performance : hors unité, aucune boucle (0.00ms). En unité, le PLD lit la position toutes les 500 ms
+(`Interval` dans `client/hud.lua`) et n'envoie que les changements ; le display MDC n'a aucune boucle (le serveur
+envoie les changements d'unité, de statut et d'appel).
 
 ### Rapports
 

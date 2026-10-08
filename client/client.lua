@@ -4,6 +4,8 @@
     Performance : ce fichier ne crée AUCUNE boucle (pas de CreateThread / Wait(0)).
     Tout fonctionne par événements (commande, key mapping, callbacks NUI, net events),
     ce qui garantit 0.00ms dans le resmon quand le MDC est fermé.
+    Le HUD (client/hud.lua) a une seule boucle lente, active uniquement quand le
+    joueur est dans une unité et que le PLD est affiché.
 
     La touche Échap est gérée côté NUI (script.js) qui appelle le callback "close"
     ci-dessous pour relâcher le focus (SetNuiFocus(false, false)).

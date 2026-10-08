@@ -30,6 +30,7 @@
             <button class="tab" data-page="search" role="tab">Recherches</button>
             <button class="tab" data-page="reports" role="tab">Rapports</button>
             <button class="tab" data-page="create" role="tab">Créations</button>
+            <button class="tab" data-page="settings" role="tab">Paramètres</button>
         </nav>
 
         <div class="frame-body">
@@ -605,6 +606,96 @@
                         <option value="West Virginia"></option><option value="Wisconsin"></option><option value="Wyoming"></option>
                     </datalist>
                 </section>
+
+                <!-- ============ PARAMÈTRES (HUD et MDC, gardés chez le joueur) ============ -->
+                <section class="page" id="page-settings">
+                    <div class="settings-grid">
+                        <div class="group">
+                            <span class="legend">HUD — Localisation (PLD)</span>
+                            <label class="check"><input type="checkbox" data-setting="pld.enabled"> Afficher le PLD</label>
+                            <div class="subgroup">
+                                <span class="subgroup-title">Éléments affichés</span>
+                                <div class="checks">
+                                    <label class="check"><input type="checkbox" data-setting="pld.street"> Rue</label>
+                                    <label class="check"><input type="checkbox" data-setting="pld.crossing"> Croisement</label>
+                                    <label class="check"><input type="checkbox" data-setting="pld.dir"> Direction</label>
+                                    <label class="check"><input type="checkbox" data-setting="pld.block"> Bloc</label>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="lbl-inline">Taille</span>
+                                <input type="range" min="50" max="200" step="5" data-setting="pld.scale">
+                                <span class="setting-value" data-setting-value="pld.scale"></span>
+                            </div>
+                            <div class="toolbar setting-actions">
+                                <button type="button" class="btn" data-hud-reset="pld">Réinitialiser position et taille</button>
+                            </div>
+                        </div>
+
+                        <div class="group">
+                            <span class="legend">HUD — Display MDC (unité)</span>
+                            <label class="check"><input type="checkbox" data-setting="unit.enabled"> Afficher le display MDC</label>
+                            <div class="subgroup">
+                                <span class="subgroup-title">Éléments affichés</span>
+                                <div class="checks">
+                                    <label class="check"><input type="checkbox" data-setting="unit.name"> Nom de l'unité</label>
+                                    <label class="check"><input type="checkbox" data-setting="unit.tag"> Tag</label>
+                                    <label class="check"><input type="checkbox" data-setting="unit.status"> Statut</label>
+                                    <label class="check"><input type="checkbox" data-setting="unit.call"> N° d'incident</label>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <span class="lbl-inline">Taille</span>
+                                <input type="range" min="50" max="200" step="5" data-setting="unit.scale">
+                                <span class="setting-value" data-setting-value="unit.scale"></span>
+                            </div>
+                            <div class="toolbar setting-actions">
+                                <button type="button" class="btn" data-hud-reset="unit">Réinitialiser position et taille</button>
+                            </div>
+                        </div>
+
+                        <div class="group">
+                            <span class="legend">Position des HUD</span>
+                            <p class="hint-text setting-text">Les HUD s'affichent lorsque vous faites partie d'une unité. Le mode placement masque le MDC :
+                                déplacez chaque HUD à la souris, la molette l'agrandit ou le rétrécit. Échap ou « Terminer » pour revenir.</p>
+                            <div class="toolbar setting-actions">
+                                <button type="button" class="btn btn-default" id="hudPlace">Placer les HUD à l'écran</button>
+                            </div>
+                        </div>
+
+                        <div class="group">
+                            <span class="legend">MDC</span>
+                            <div class="setting-row">
+                                <span class="lbl-inline">Taille de l'interface</span>
+                                <input type="range" min="80" max="130" step="5" data-setting="mdc.zoom">
+                                <span class="setting-value" data-setting-value="mdc.zoom"></span>
+                            </div>
+                            <label class="lbl setting-select">Onglet à l'ouverture
+                                <select data-setting="mdc.startTab">
+                                    <option value="last">Dernier onglet utilisé</option>
+                                    <option value="units">Unités</option>
+                                    <option value="interventions">Interventions</option>
+                                    <option value="search">Recherches</option>
+                                    <option value="reports">Rapports</option>
+                                    <option value="create">Créations</option>
+                                </select>
+                            </label>
+                            <div class="toolbar setting-actions">
+                                <button type="button" class="btn" id="mdcResetWindow">Réinitialiser la fenêtre</button>
+                                <button type="button" class="btn btn-danger" id="settingsReset">Réglages par défaut</button>
+                            </div>
+                        </div>
+
+                        <div class="group span-all">
+                            <span class="legend">Ma position (configuration des blocs : config/blocks.json)</span>
+                            <div class="toolbar">
+                                <button type="button" class="btn" id="getPosition">Lire ma position</button>
+                                <span class="hint-text" id="positionInfo">Rue, croisement et bloc détecté à votre position actuelle.</span>
+                            </div>
+                            <input type="text" id="positionOut" readonly placeholder="La ligne à copier dans config/blocks.json s'affichera ici.">
+                        </div>
+                    </div>
+                </section>
             </main>
         </div>
 
@@ -664,6 +755,33 @@
             </div>
         </div>
     </template>
+
+    <!-- ================= HUD (hors du MDC, visibles même MDC fermé) ================= -->
+    <!-- PLD : Player Localisation Display -->
+    <div class="hud hud-pld hidden" id="hudPld" data-hud="pld">
+        <div class="pld-dir" data-part="dir" id="pldDir">N</div>
+        <div class="pld-info">
+            <div class="pld-street" data-part="street" id="pldStreet"></div>
+            <div class="pld-line" data-part="crossing"><span class="hud-label">X</span><span id="pldCross"></span></div>
+            <div class="pld-line" data-part="block"><span class="hud-label">BLOC</span><span id="pldBlock"></span></div>
+        </div>
+    </div>
+
+    <!-- Display MDC : unité du joueur -->
+    <div class="hud hud-unit hidden" id="hudUnit" data-hud="unit">
+        <div class="hu-head">
+            <span class="hu-name" data-part="name" id="huName"></span>
+            <span class="unit-tag" data-part="tag" id="huTag"></span>
+        </div>
+        <div class="hu-line" data-part="status"><span class="sq" id="huSq"></span><span id="huStatus"></span></div>
+        <div class="hu-line" data-part="call"><span class="hud-label">APPEL</span><span id="huCall"></span></div>
+    </div>
+
+    <!-- Mode placement (onglet Paramètres) -->
+    <div class="hud-placebar hidden" id="hudPlacebar">
+        <span>Mode placement : glissez les HUD à la souris, molette = taille.</span>
+        <button type="button" class="btn btn-default" id="hudPlaceDone">Terminer</button>
+    </div>
 
     <!-- Rapports : liste déroulante de l'historique des recherches (nom de famille / immatriculation) -->
     <div id="suggestBox" class="suggest hidden"></div>

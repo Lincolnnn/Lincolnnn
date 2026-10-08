@@ -10,18 +10,20 @@ lua54 'yes'
 name 'mdc_standalone'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police 100% standalone - NUI Vanilla JS'
-version '1.7.0'
+version '1.8.0'
 
 ui_page 'html/index.html'
 
 files {
     'html/index.html',
     'html/style.css',
-    'html/script.js'
+    'html/script.js',
+    'config/blocks.json' -- blocs de localisation du HUD (lu par client/hud.lua)
 }
 
 client_scripts {
-    'client/client.lua'
+    'client/client.lua',
+    'client/hud.lua'
 }
 
 server_scripts {

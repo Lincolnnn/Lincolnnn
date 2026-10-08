@@ -65,6 +65,7 @@ body.dragging, body.dragging * { user-select: none !important; }
    ========================================================================= */
 .window {
     position: absolute;
+    z-index: 35;                          /* au-dessus des HUD (z-index 30) */
     display: flex;
     flex-direction: column;
     min-width: 760px;
@@ -786,6 +787,78 @@ input.invalid, select.invalid, textarea.invalid { border-color: #ff5a5a; backgro
 .view-group { margin: 8px 0 3px; font-weight: bold; color: #cfcfcf; }
 .entry-view .sheet { margin-top: 4px; }
 .view-total { margin-top: 4px; padding: 4px 8px; text-align: right; font-weight: bold; border: 1px solid #262626; background: #161616; }
+
+/* =========================================================================
+   PARAMÈTRES
+   ========================================================================= */
+/* Taille de l'interface du MDC (onglet Paramètres) */
+.window .titlebar, .window .tabbar, .window .frame-body, .window .statusbar { zoom: var(--ui-zoom, 1); }
+.window.placing-hidden { display: none !important; }
+
+#page-settings.active { overflow: auto; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; padding-top: 4px; }
+.settings-grid .span-all { grid-column: 1 / -1; }
+.settings-grid .group { gap: 8px; }
+.settings-grid .subgroup { margin-top: 10px; }
+.setting-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.setting-row .lbl-inline { min-width: 130px; }
+.setting-row input[type="range"] { flex: 1; max-width: 260px; accent-color: var(--select); }
+.setting-value { min-width: 48px; font-variant-numeric: tabular-nums; color: #fff; }
+.setting-actions { margin: 6px 0 0; }
+.setting-select { max-width: 300px; }
+.setting-text { line-height: 1.5; }
+
+/* =========================================================================
+   HUD (PLD + display MDC) : séparés, même thème que le MDC
+   Fond noir transparent (~62 %), bordure gris moyen fine et arrondie
+   ========================================================================= */
+.hud {
+    position: fixed;
+    z-index: 30;
+    transform-origin: top left;
+    background: rgba(0, 0, 0, .62);
+    border: 1.5px solid #7a7a7a;
+    border-radius: 8px;
+    color: #e6e6e6;
+    font: 13px var(--font);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .8);
+    pointer-events: none;
+    white-space: nowrap;
+}
+.hud .part-off, .hud .part-empty { display: none !important; }
+.hud-label { margin-right: 6px; font-size: 10px; font-weight: bold; letter-spacing: .6px; color: #9a9a9a; }
+
+/* PLD : direction à gauche, rue / croisement / bloc à droite */
+.hud-pld { display: flex; align-items: stretch; }
+.pld-dir {
+    display: flex; align-items: center; justify-content: center;
+    min-width: 46px; padding: 0 8px;
+    font-size: 20px; font-weight: bold; color: #fff;
+    border-right: 1px solid rgba(122, 122, 122, .55);
+}
+.pld-info { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 12px 6px 10px; }
+.pld-dir.part-off + .pld-info { padding-left: 12px; }
+.pld-street { font-size: 15px; font-weight: bold; color: #fff; }
+.pld-line { font-size: 12px; color: #cfcfcf; }
+
+/* Display MDC : unité, tag, statut, appel */
+.hud-unit { display: flex; flex-direction: column; gap: 3px; padding: 7px 12px; min-width: 150px; }
+.hu-head { display: flex; align-items: center; gap: 8px; }
+.hu-name { font-size: 14px; font-weight: bold; color: #fff; }
+.hud-unit .unit-tag { border-radius: 3px; }
+.hu-line { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.hu-line .sq { width: 10px; height: 10px; border-radius: 2px; }
+.hu-line.hu-idle #huCall { color: #8a8a8a; font-style: italic; }
+
+/* Mode placement : HUD déplaçables, MDC masqué */
+body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed rgba(255, 255, 255, .7); outline-offset: 4px; }
+.hud-placebar {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 40; display: flex; align-items: center; gap: 14px;
+    padding: 8px 10px 8px 16px;
+    background: rgba(0, 0, 0, .62); color: #fff;
+    border: 1.5px solid #7a7a7a; border-radius: 8px;
+}
 
 /* =========================================================================
    NOTIFICATIONS

@@ -259,11 +259,14 @@
         state.clockTimer = setInterval(updateClock, 1000);
 
         refreshUnits(); // statut de l'unité du joueur (barre latérale)
-        loadPage(state.page);
+        const startTab = hud.settings.mdc.startTab;
+        if (startTab && startTab !== 'last') showPage(startTab);
+        else loadPage(state.page);
     }
 
     function closeUI(notifyLua = true) {
         if (!state.open) return;
+        if (hud.placing) setPlacing(false);
         state.open = false;
         drag = null;
         document.body.classList.remove('dragging');
@@ -283,7 +286,8 @@
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && state.open) {
             e.preventDefault();
-            closeUI();
+            if (hud.placing) setPlacing(false);
+            else closeUI();
         }
     });
 
@@ -305,6 +309,7 @@
         else if (page === 'interventions') refreshInterventions();
         else if (page === 'reports') loadReportsPage();
         else if (page === 'create') loadCreateView(state.createView);
+        else if (page === 'settings') renderSettings();
     }
 
     $$('.tab').forEach((tab) => tab.addEventListener('click', () => showPage(tab.dataset.page)));
@@ -2604,6 +2609,252 @@
     });
 
     // =====================================================================
+    // HUD : PLD (localisation) et display MDC (unité), séparés et déplaçables.
+    // Les données viennent de client/hud.lua ; les réglages (onglet "Paramètres")
+    // sont gardés chez le joueur (KVP) via le callback "saveSettings".
+    // =====================================================================
+    // Positions en fraction de l'écran (0 à 1, coin haut-gauche), taille en facteur (0.5 à 2)
+    const HUD_DEFAULTS = {
+        pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true },
+        unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true },
+        mdc: { zoom: 1, startTab: 'last' },
+    };
+    const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
+    const clone = (obj) => JSON.parse(JSON.stringify(obj));
+
+    const hud = {
+        settings: clone(HUD_DEFAULTS),
+        active: false,      // joueur dans une unité (ou HUD toujours affiché : voir client/hud.lua)
+        unit: null,         // { name, tag, color, status, dept, callNumber, callTitle }
+        pld: null,          // { street, crossing, dir, block, paused }
+        placing: false,
+        drag: null,
+        saveTimer: null,
+    };
+
+    // Réglages enregistrés + valeurs par défaut pour les clés absentes ou invalides
+    function mergeSettings(saved) {
+        const out = clone(HUD_DEFAULTS);
+        if (!saved || typeof saved !== 'object') return out;
+        Object.keys(out).forEach((group) => {
+            const src = saved[group];
+            if (!src || typeof src !== 'object') return;
+            Object.keys(out[group]).forEach((key) => {
+                if (typeof src[key] === typeof out[group][key]) out[group][key] = src[key];
+            });
+        });
+        ['pld', 'unit'].forEach((kind) => {
+            const s = out[kind];
+            s.x = Math.min(Math.max(s.x, 0), 0.98);
+            s.y = Math.min(Math.max(s.y, 0), 0.98);
+            s.scale = Math.min(Math.max(s.scale, 0.5), 2);
+        });
+        out.mdc.zoom = Math.min(Math.max(out.mdc.zoom, 0.8), 1.3);
+        if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
+        return out;
+    }
+
+    function saveSettings() {
+        clearTimeout(hud.saveTimer);
+        hud.saveTimer = setTimeout(() => post('saveSettings', hud.settings), 300);
+    }
+
+    // Exemple affiché en mode placement quand il n'y a pas encore de données
+    const PLD_SAMPLE = { street: 'Nom de la rue', crossing: 'Croisement', dir: 'N', block: '100' };
+    const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', status: 'available', callNumber: '00-0000' };
+
+    function placeHud(el, cfg) {
+        el.style.left = `${Math.round(cfg.x * innerWidth)}px`;
+        el.style.top = `${Math.round(cfg.y * innerHeight)}px`;
+        el.style.transform = `scale(${cfg.scale})`;
+        el.querySelectorAll('[data-part]').forEach((part) => {
+            part.classList.toggle('part-off', cfg[part.dataset.part] === false);
+        });
+    }
+
+    function renderHud() {
+        const paused = !!(hud.pld && hud.pld.paused);
+        const pldEl = $('#hudPld');
+        const unitEl = $('#hudUnit');
+        const pldCfg = hud.settings.pld;
+        const unitCfg = hud.settings.unit;
+
+        // ---- PLD ----
+        const loc = hud.pld || (hud.placing ? PLD_SAMPLE : null);
+        const showPld = pldCfg.enabled && !!loc && (hud.placing || (hud.active && !paused));
+        pldEl.classList.toggle('hidden', !showPld);
+        if (showPld) {
+            $('#pldDir').textContent = loc.dir || '-';
+            $('#pldStreet').textContent = loc.street || '-';
+            $('#pldCross').textContent = loc.crossing || '';
+            $('#pldBlock').textContent = loc.block || '';
+            pldEl.querySelector('[data-part="crossing"]').classList.toggle('part-empty', !loc.crossing);
+            pldEl.querySelector('[data-part="block"]').classList.toggle('part-empty', !loc.block);
+            placeHud(pldEl, pldCfg);
+        }
+
+        // ---- Display MDC (unité) ----
+        const unit = hud.unit || (hud.placing ? UNIT_SAMPLE : null);
+        const showUnit = unitCfg.enabled && !!unit && (hud.placing || (hud.active && !paused));
+        unitEl.classList.toggle('hidden', !showUnit);
+        if (showUnit) {
+            $('#huName').textContent = unit.name;
+            const tag = $('#huTag');
+            tag.textContent = unit.tag || '';
+            tag.className = `unit-tag tag-${tagColor(unit.color)}`;
+            tag.classList.toggle('part-empty', !unit.tag);
+            $('#huSq').dataset.status = unit.status;
+            $('#huStatus').textContent = STATUS_LABELS[unit.status] || unit.status;
+            $('#huCall').textContent = unit.callNumber || 'Aucun';
+            unitEl.querySelector('[data-part="call"]').classList.toggle('hu-idle', !unit.callNumber);
+            placeHud(unitEl, unitCfg);
+        }
+    }
+
+    window.addEventListener('resize', renderHud);
+
+    // ---- Mode placement : déplacer (souris) et redimensionner (molette) ----
+    function setPlacing(on) {
+        hud.placing = on;
+        document.body.classList.toggle('hud-placing', on);
+        win.classList.toggle('placing-hidden', on);
+        $('#hudPlacebar').classList.toggle('hidden', !on);
+        renderHud();
+        if (!on) {
+            saveSettings();
+            renderSettings();
+        }
+    }
+
+    $('#hudPlace').addEventListener('click', () => setPlacing(true));
+    $('#hudPlaceDone').addEventListener('click', () => setPlacing(false));
+
+    $$('.hud').forEach((el) => {
+        el.addEventListener('mousedown', (e) => {
+            if (!hud.placing || e.button !== 0) return;
+            const cfg = hud.settings[el.dataset.hud];
+            hud.drag = { cfg, el, sx: e.clientX, sy: e.clientY, x: cfg.x, y: cfg.y };
+            e.preventDefault();
+        });
+        el.addEventListener('wheel', (e) => {
+            if (!hud.placing) return;
+            e.preventDefault();
+            const cfg = hud.settings[el.dataset.hud];
+            cfg.scale = Math.round(Math.min(Math.max(cfg.scale + (e.deltaY < 0 ? 0.05 : -0.05), 0.5), 2) * 100) / 100;
+            placeHud(el, cfg);
+        }, { passive: false });
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        const d = hud.drag;
+        if (!d) return;
+        const rect = d.el.getBoundingClientRect();
+        // Le HUD reste entièrement dans l'écran
+        const round = (v) => Math.round(v * 10000) / 10000;
+        d.cfg.x = round(Math.min(Math.max(d.x + (e.clientX - d.sx) / innerWidth, 0), Math.max(0, 1 - rect.width / innerWidth)));
+        d.cfg.y = round(Math.min(Math.max(d.y + (e.clientY - d.sy) / innerHeight, 0), Math.max(0, 1 - rect.height / innerHeight)));
+        placeHud(d.el, d.cfg);
+    });
+    document.addEventListener('mouseup', () => { hud.drag = null; });
+
+    // ---- Onglet "Paramètres" ----
+    const settingGet = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), hud.settings);
+    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'mdc.zoom'];
+
+    function renderSettings() {
+        $$('[data-setting]').forEach((input) => {
+            const value = settingGet(input.dataset.setting);
+            if (input.type === 'checkbox') input.checked = value !== false;
+            else if (PERCENT_SETTINGS.includes(input.dataset.setting)) input.value = Math.round(value * 100);
+            else input.value = value;
+        });
+        $$('[data-setting-value]').forEach((el) => {
+            el.textContent = `${Math.round(settingGet(el.dataset.settingValue) * 100)} %`;
+        });
+    }
+
+    function applyMdcSettings() {
+        win.style.setProperty('--ui-zoom', hud.settings.mdc.zoom);
+    }
+
+    $('#page-settings').addEventListener('input', (e) => {
+        const input = e.target;
+        const path = input.dataset && input.dataset.setting;
+        if (!path) return;
+        const [group, key] = path.split('.');
+        let value = input.value;
+        if (input.type === 'checkbox') value = input.checked;
+        else if (PERCENT_SETTINGS.includes(path)) value = Number(input.value) / 100;
+        hud.settings[group][key] = value;
+        renderSettings();
+        renderHud();
+        applyMdcSettings();
+        saveSettings();
+    });
+
+    $$('[data-hud-reset]').forEach((btn) => btn.addEventListener('click', () => {
+        const kind = btn.dataset.hudReset;
+        Object.assign(hud.settings[kind], { x: HUD_DEFAULTS[kind].x, y: HUD_DEFAULTS[kind].y, scale: 1 });
+        renderSettings();
+        renderHud();
+        saveSettings();
+        toast('Position et taille réinitialisées.', 'success');
+    }));
+
+    $('#mdcResetWindow').addEventListener('click', () => $('#btnReset').click());
+
+    $('#settingsReset').addEventListener('click', (e) => {
+        const btn = e.currentTarget;
+        if (!btn.dataset.confirm) {
+            btn.dataset.confirm = '1';
+            btn.textContent = 'Confirmer ?';
+            setTimeout(() => {
+                delete btn.dataset.confirm;
+                btn.textContent = 'Réglages par défaut';
+            }, 3000);
+            return;
+        }
+        delete btn.dataset.confirm;
+        btn.textContent = 'Réglages par défaut';
+        hud.settings = clone(HUD_DEFAULTS);
+        renderSettings();
+        renderHud();
+        applyMdcSettings();
+        saveSettings();
+        toast('Réglages par défaut rétablis.', 'success');
+    });
+
+    // Ma position : aide à la configuration de config/blocks.json
+    $('#getPosition').addEventListener('click', async () => {
+        const res = await post('getPosition');
+        if (!res || !res.ok) {
+            toast(res?.error || 'Position indisponible.', 'error');
+            return;
+        }
+        $('#positionInfo').textContent = `Rue : ${res.street} | Croisement : ${res.crossing || '-'} | Bloc détecté : ${res.block || 'aucun'} | z = ${res.z}`;
+        const out = $('#positionOut');
+        out.value = `{ "name": "A RENOMMER", "type": "circle", "center": [${res.x.toFixed(2)}, ${res.y.toFixed(2)}], "radius": 60 }`;
+        out.focus();
+        out.select();
+    });
+    $('#positionOut').addEventListener('focus', (e) => e.target.select());
+
+    // Au chargement du NUI : réglages et état du HUD (le client Lua peut démarrer un peu après)
+    async function initHud(attempt = 1) {
+        const res = await post('hudReady');
+        if (res && res.ok) {
+            hud.settings = mergeSettings(res.settings);
+            hud.active = !!res.active;
+            hud.unit = res.unit || null;
+        } else if (attempt < 5) {
+            setTimeout(() => initHud(attempt + 1), 1000);
+        }
+        renderSettings();
+        applyMdcSettings();
+        renderHud();
+    }
+
+    // =====================================================================
     // MESSAGES Lua -> NUI
     // =====================================================================
     window.addEventListener('message', ({ data }) => {
@@ -2622,6 +2873,15 @@
             case 'interventions':
                 setInterventions(data.data);
                 break;
+            case 'hudState': // client/hud.lua : HUD actif + unité du joueur
+                hud.active = !!(data.data && data.data.active);
+                hud.unit = (data.data && data.data.unit) || null;
+                renderHud();
+                break;
+            case 'pld': // client/hud.lua : localisation (uniquement quand elle change)
+                hud.pld = data.data || null;
+                renderHud();
+                break;
         }
     });
 
@@ -2632,4 +2892,5 @@
     updateEditUI();
     renderUnits();
     renderSearchResults();
+    initHud();
 })();

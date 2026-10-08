@@ -211,6 +211,7 @@ local Interventions = {}    -- interventions (civils) et incidents (police)
 local lastWrite = {}
 local createIntervention    -- défini dans la section INTERVENTIONS
 local reportLinks           -- défini dans la section RAPPORTS
+local pushHud               -- défini dans la section HUD
 
 -- Identifiant de cette session du serveur : un rapport n'est relié "en direct" à une
 -- intervention que si le lien date de la session en cours (les interventions sont
@@ -868,6 +869,7 @@ end
 
 local function pushUnits()
     pushToViewers('units', unitsList())
+    pushHud()
 end
 
 local function leaveCurrentUnit(src)
@@ -1074,6 +1076,7 @@ end
 
 pushInterventions = function()
     pushToViewers('interventions', interventionsList())
+    pushHud()
 end
 
 --- Valide les champs d'une intervention ('intervention') ou d'un incident ('incident').
@@ -1682,12 +1685,71 @@ RegisterMDCCallback('saveReport', function(src, payload)
 end)
 
 -- =========================================================================
+-- HUD : display MDC (nom de l'unité, tag, statut, n° d'incident de l'appel)
+-- Envoyé à chaque membre d'une unité, uniquement quand ses informations changent
+-- (aucune boucle). Le client (client/hud.lua) n'affiche le HUD que dans une unité.
+-- =========================================================================
+local HudCache = {} -- [source] = clé des dernières informations envoyées
+
+--- Informations du HUD pour un joueur (nil s'il ne fait partie d'aucune unité).
+local function hudFor(src)
+    local unit = findUnit(PlayerUnit[src])
+    if not unit then return nil end
+
+    -- Appel en cours de l'unité : le plus récent non terminé
+    local call
+    for _, intervention in ipairs(Interventions) do
+        if not intervention.closed and intervention.units[tostring(unit.id)]
+            and (not call or intervention.id > call.id) then
+            call = intervention
+        end
+    end
+
+    return {
+        name = unit.name, tag = unit.tag, color = unit.color, dept = unit.dept, status = unit.status,
+        callNumber = call and call.number or nil,
+        callTitle = call and call.title or nil,
+    }
+end
+
+local function hudKey(info)
+    if not info then return '' end
+    return table.concat({ info.name, info.tag, info.color, info.dept or '', info.status, info.callNumber or '', info.callTitle or '' }, '|')
+end
+
+local function sendHud(src, force)
+    local info = hudFor(src)
+    local key = hudKey(info)
+    if force or HudCache[src] ~= key then
+        HudCache[src] = key ~= '' and key or nil
+        TriggerClientEvent('mdc:client:hud', src, hasAccess(src), info)
+    end
+end
+
+pushHud = function()
+    local done = {}
+    for src in pairs(PlayerUnit) do
+        done[src] = true
+        sendHud(src)
+    end
+    -- Joueurs sortis d'une unité : HUD vidé
+    for src in pairs(HudCache) do
+        if not done[src] then sendHud(src) end
+    end
+end
+
+-- Demande du client au démarrage (accès au MDC + unité actuelle)
+RegisterNetEvent('mdc:server:hudSync', function()
+    sendHud(source, true)
+end)
+
+-- =========================================================================
 -- DÉCONNEXION
 -- =========================================================================
 AddEventHandler('playerDropped', function()
     local src = source
     local hadUnit = PlayerUnit[src] ~= nil
     leaveCurrentUnit(src)
-    Profiles[src], Viewers[src], lastStatusChange[src], lastWrite[src] = nil, nil, nil, nil
+    Profiles[src], Viewers[src], lastStatusChange[src], lastWrite[src], HudCache[src] = nil, nil, nil, nil, nil
     if hadUnit then pushUnits() end
 end)
