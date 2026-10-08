@@ -68,6 +68,14 @@
                     <div class="group hidden" id="unitFormGroup">
                         <span class="legend" id="unitFormLegend">Créer une unité</span>
                         <form class="unit-form" id="unitForm" autocomplete="off" novalidate>
+                            <!-- Services : doivent correspondre à DEPARTMENTS dans server.lua -->
+                            <label class="lbl">Service de police *
+                                <select name="dept">
+                                    <option value="">— Choisir —</option>
+                                    <option value="apd">Atlanta Police Department</option>
+                                    <option value="gsp">Georgia State Patrol</option>
+                                </select>
+                            </label>
                             <label class="lbl">Nom de l'unité *<input name="name" type="text" maxlength="30" placeholder="ex : Patrouille Centre"></label>
                             <label class="lbl">Tag *<input name="tag" type="text" maxlength="10" class="upper" placeholder="ex : 1-ADAM-12"></label>
                             <div class="lbl">Couleur du tag *
@@ -90,22 +98,42 @@
                         </form>
                     </div>
 
+                    <div class="toolbar units-toolbar">
+                        <span class="hint-text">Rejoignez une unité pour définir son statut et prendre des appels. Chacun voit les unités des deux services.</span>
+                        <span class="grow"></span>
+                        <button class="btn" id="refreshUnits">Actualiser</button>
+                    </div>
+
+                    <!-- Une liste par service de police -->
                     <div class="group fill">
-                        <span class="legend">Unités <span id="unitsCount"></span></span>
+                        <span class="legend">Atlanta Police Department (APD) <span class="units-count" data-dept="apd"></span></span>
                         <div class="toolbar">
-                            <button class="btn btn-default" id="newUnit">+ Créer une unité</button>
-                            <span class="hint-text">Rejoignez une unité pour définir son statut et prendre des appels.</span>
-                            <span class="grow"></span>
-                            <button class="btn" id="refreshUnits">Actualiser</button>
+                            <button class="btn btn-default" data-new-unit="apd">+ Créer une unité APD</button>
                         </div>
                         <div class="well">
                             <table class="grid">
                                 <thead>
                                     <tr><th>Unité</th><th>Tag</th><th>Membres</th><th>Statut</th><th class="col-actions">Actions</th></tr>
                                 </thead>
-                                <tbody id="unitsBody"></tbody>
+                                <tbody class="units-body" data-dept="apd"></tbody>
                             </table>
-                            <div class="empty" id="unitsEmpty">Aucune unité. Cliquez sur « Créer une unité ».</div>
+                            <div class="empty units-empty" data-dept="apd">Aucune unité APD.</div>
+                        </div>
+                    </div>
+
+                    <div class="group fill">
+                        <span class="legend">Georgia State Patrol (GSP) <span class="units-count" data-dept="gsp"></span></span>
+                        <div class="toolbar">
+                            <button class="btn btn-default" data-new-unit="gsp">+ Créer une unité GSP</button>
+                        </div>
+                        <div class="well">
+                            <table class="grid">
+                                <thead>
+                                    <tr><th>Unité</th><th>Tag</th><th>Membres</th><th>Statut</th><th class="col-actions">Actions</th></tr>
+                                </thead>
+                                <tbody class="units-body" data-dept="gsp"></tbody>
+                            </table>
+                            <div class="empty units-empty" data-dept="gsp">Aucune unité GSP.</div>
                         </div>
                     </div>
                 </section>
@@ -177,7 +205,6 @@
                                 </table>
                                 <div class="empty" id="interventionsEmpty">Aucune intervention.</div>
                             </div>
-                            <div class="hint-text list-hint">Effacées au redémarrage du serveur.</div>
                         </div>
                         <div class="group">
                             <span class="legend" id="interventionPanelTitle">Détails</span>
@@ -210,7 +237,7 @@
                                 </div>
                                 <div class="well">
                                     <table class="grid selectable">
-                                        <thead><tr><th>N°</th><th>Type</th><th>Résumé</th><th>Date</th></tr></thead>
+                                        <thead><tr><th>N°</th><th>Type</th><th>Intervention</th><th>Résumé</th><th>Date</th></tr></thead>
                                         <tbody id="reportsBody"></tbody>
                                     </table>
                                     <div class="empty" id="reportsEmpty">Aucun rapport.</div>
@@ -231,6 +258,12 @@
                             <span class="legend" id="reportEditorTitle">Nouveau rapport</span>
                             <div class="toolbar">
                                 <span class="hint-text">* champs obligatoires — les rapports sont conservés après un redémarrage.</span>
+                            </div>
+                            <!-- Première ligne : intervention / incident lié (en cours ou terminé) -->
+                            <div class="report-call">
+                                <label class="lbl">Intervention / incident lié *
+                                    <select id="reportCallSelect"></select>
+                                </label>
                             </div>
                             <div class="report-form" id="reportForm"></div>
                             <div class="form-actions">
@@ -630,6 +663,9 @@
             </div>
         </div>
     </template>
+
+    <!-- Rapports : liste déroulante de l'historique des recherches (nom de famille / immatriculation) -->
+    <div id="suggestBox" class="suggest hidden"></div>
 
     <!-- Notifications -->
     <div id="toasts" class="toasts"></div>

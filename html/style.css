@@ -625,7 +625,9 @@ input::placeholder { color: #6a6a6a; }
 /* =========================================================================
    UNITÉS : formulaire, tags colorés
    ========================================================================= */
-.unit-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto auto; gap: 8px 14px; align-items: end; }
+.unit-form { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1fr) auto auto auto; gap: 8px 14px; align-items: end; }
+.units-toolbar { margin: 0; }
+.dept-short { padding: 0 5px; font-size: 10px; font-weight: bold; color: #cfe0ff; border: 1px solid #3a5a8a; }
 .unit-form-actions { display: flex; gap: 6px; }
 .swatches { display: flex; gap: 4px; height: 26px; align-items: center; }
 .swatch { position: relative; cursor: pointer; }
@@ -681,7 +683,6 @@ input::placeholder { color: #6a6a6a; }
 .grid.selectable tbody tr.prio td:first-child { box-shadow: inset 4px 0 0 rgb(var(--prio)); }
 .grid.selectable tbody tr.prio:hover td { background: rgba(var(--prio), .34); }
 .grid.selectable tbody tr.prio.selected td { background: rgba(var(--prio), .58); color: #fff; }
-.list-hint { margin-top: 6px; }
 .grid tr.row-closed td { color: #6a6a6a; background: #151515; }
 .grid.selectable tbody tr.row-closed.selected td { background: #3a3a3a; color: #bdbdbd; }
 
@@ -702,6 +703,13 @@ input::placeholder { color: #6a6a6a; }
 .note-text { margin-top: 4px; white-space: pre-wrap; word-break: break-word; color: #fff; }
 .note textarea, .note-new textarea { margin-top: 6px; }
 .note-new { margin-top: 10px; }
+
+/* Rapport lié, dans le déroulé de l'intervention */
+.note.note-report { border-color: #1f3f6e; background: #111a28; }
+.note-report-title { color: #fff; }
+.note-meta { margin-top: 3px; font-size: 11px; color: var(--muted); }
+.report-starter { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid #262626; }
+.report-starter select { min-width: 260px; }
 .note-toolbar { margin: 6px 0 0; }
 textarea.upper-text { text-transform: uppercase; }
 .call-form .form-grid { margin-top: 4px; }
@@ -712,6 +720,33 @@ textarea.upper-text { text-transform: uppercase; }
 .page-body { display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0; }
 .report-types .btn { min-width: 110px; }
 .toolbar input.report-query { width: 150px; }
+
+/* Première ligne du formulaire : intervention / incident lié */
+.report-call { margin-bottom: 10px; padding: 8px; background: #10233f; border: 1px solid #000; }
+.report-call .lbl { color: #cfe0ff; font-weight: bold; }
+.report-link {
+    display: flex; align-items: center; gap: 8px; justify-content: space-between;
+    margin-bottom: 6px; padding: 5px 8px; background: #10233f; border: 1px solid #000;
+}
+
+/* Liste déroulante de l'historique des recherches (nom de famille / immatriculation) */
+.suggest-hint { font-size: 10px; color: #7fa7e0; }
+.suggest {
+    position: fixed;
+    z-index: 50;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--face);
+    border: 2px solid;
+    border-color: var(--hi) var(--lo) var(--lo) var(--hi);
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, .6);
+}
+.suggest-title { padding: 3px 8px; font-size: 11px; color: var(--muted); background: #202020; border-bottom: 1px solid var(--lo); }
+.suggest-item { padding: 5px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggest-item.active, .suggest-item:hover { background: var(--select); color: #fff; }
+.suggest-item.active .muted, .suggest-item:hover .muted { color: #cfe0ff; }
+.suggest-item .muted { font-style: normal; }
+.suggest-empty { padding: 8px; color: var(--muted); font-style: italic; white-space: normal; }
 
 /* Formulaire : zone qui défile, une case par section (0 - Amorce, 1 - Impliqués…) */
 .report-form { flex: 1 1 0; min-height: 0; overflow: auto; padding: 2px 6px 6px 0; }

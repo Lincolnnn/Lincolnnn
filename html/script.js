@@ -21,6 +21,11 @@
         on_scene: 'Sur place',
         unavailable: 'Indisponible',
     };
+    // Services de police (clés identiques à DEPARTMENTS dans server.lua)
+    const DEPARTMENTS = {
+        apd: { label: 'Atlanta Police Department', short: 'APD' },
+        gsp: { label: 'Georgia State Patrol', short: 'GSP' },
+    };
     const KIND_LABELS = { identity: 'Identité', vehicle: 'Véhicule', intervention: 'Intervention' };
     const KIND_SAVED = { identity: 'Identité enregistrée', vehicle: 'Véhicule enregistré', intervention: 'Intervention enregistrée' };
 
@@ -54,6 +59,7 @@
         callPanel: { mode: 'view', id: null }, // panneau de droite : view | edit | new
         noteDraft: '',         // note en cours de rédaction
         noteEdit: null,        // { id, text } note en cours de modification
+        callReportType: null,  // type de rapport choisi dans le détail d'une intervention
         layout: null,          // { x, y, w, h, maximized }
         createView: 'identity',
         editing: null,         // { kind, id } lorsqu'une fiche du registre est en cours de modification
@@ -288,6 +294,7 @@
     // =====================================================================
     function showPage(page) {
         state.page = page;
+        hideSuggest();
         $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.page === page));
         $$('.page').forEach((p) => p.classList.toggle('active', p.id === `page-${page}`));
         loadPage(page);
@@ -349,7 +356,7 @@
     function renderSidebarUnit() {
         const unit = myUnit();
         $('#myUnit').innerHTML = unit
-            ? `${unitTag(unit)} <span>${esc(unit.name)}</span>`
+            ? `${unitTag(unit)} <span>${esc(unit.name)}</span>${DEPARTMENTS[unit.dept] ? `<span class="dept-short">${DEPARTMENTS[unit.dept].short}</span>` : ''}`
             : '<span class="muted">Aucune unité — rejoignez-en une dans l\'onglet Unités.</span>';
         $('#statusList').classList.toggle('no-unit', !unit);
         $$('.status-btn').forEach((b) => b.classList.toggle('active', !!unit && b.dataset.status === unit.status));
@@ -380,12 +387,20 @@
     $$('.status-btn').forEach((btn) => btn.addEventListener('click', () => changeStatus(btn.dataset.status)));
 
     // ---- Liste des unités ----
+    // Une liste par service de police (APD / GSP)
     function renderUnits() {
-        const units = state.units;
+        Object.keys(DEPARTMENTS).forEach((dept) => {
+            const units = state.units.filter((u) => u.dept === dept);
+            $(`.units-count[data-dept="${dept}"]`).textContent = `(${units.length})`;
+            $(`.units-empty[data-dept="${dept}"]`).classList.toggle('hidden', units.length > 0);
+            $(`.units-body[data-dept="${dept}"]`).innerHTML = unitRowsHtml(units);
+        });
+        renderSidebarUnit();
+    }
+
+    function unitRowsHtml(units) {
         const mine = myUnit();
-        $('#unitsCount').textContent = `(${units.length})`;
-        $('#unitsEmpty').classList.toggle('hidden', units.length > 0);
-        $('#unitsBody').innerHTML = units.map((u) => {
+        return units.map((u) => {
             const members = toArray(u.members);
             const isMine = !!mine && mine.id === u.id;
             return `
@@ -403,7 +418,6 @@
                 </td>
             </tr>`;
         }).join('');
-        renderSidebarUnit();
     }
 
     function setUnits(units) {
@@ -439,8 +453,9 @@
         $('#unitFormGroup').classList.add('hidden');
     }
 
-    function openUnitForm() {
+    function openUnitForm(dept) {
         resetUnitForm();
+        unitForm.elements.dept.value = DEPARTMENTS[dept] ? dept : '';
         $('#unitFormGroup').classList.remove('hidden');
         unitForm.elements.name.focus();
     }
@@ -448,6 +463,7 @@
     function startUnitEdit(unit) {
         $('#unitFormGroup').classList.remove('hidden');
         state.unitEdit = unit.id;
+        unitForm.elements.dept.value = DEPARTMENTS[unit.dept] ? unit.dept : '';
         unitForm.elements.name.value = unit.name;
         unitForm.elements.tag.value = unit.tag;
         const color = unitForm.querySelector(`input[name="color"][value="${TAG_COLORS.includes(unit.color) ? unit.color : 'gray'}"]`);
@@ -461,7 +477,7 @@
     unitForm.addEventListener('input', updateTagPreview);
     unitForm.addEventListener('change', updateTagPreview);
     $('#unitCancelEdit').addEventListener('click', resetUnitForm);
-    $('#newUnit').addEventListener('click', openUnitForm);
+    $$('[data-new-unit]').forEach((btn) => btn.addEventListener('click', () => openUnitForm(btn.dataset.newUnit)));
 
     unitForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -481,7 +497,7 @@
     const UNIT_ACTIONS = { join: 'joinUnit', leave: 'leaveUnit', delete: 'deleteUnit' };
     const UNIT_DONE = { join: 'Unité rejointe.', leave: 'Vous avez quitté l\'unité.', delete: 'Unité supprimée.' };
 
-    $('#unitsBody').addEventListener('click', async (e) => {
+    $$('.units-body').forEach((tbody) => tbody.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-unit-action]');
         if (!btn) return;
         const id = Number(btn.dataset.id);
@@ -515,7 +531,7 @@
         toast(UNIT_DONE[action], 'success');
         if (action === 'delete' && state.unitEdit === id) resetUnitForm();
         refreshUnits();
-    });
+    }));
 
     // =====================================================================
     // FICHES (affichage détaillé, commun à Recherches et Registre)
@@ -824,10 +840,45 @@
         return `<div class="note">${head}${body}</div>`;
     }
 
+    // Rapport lié, affiché dans le déroulé avec les notes
+    function reportLinkHtml(r) {
+        return `
+            <div class="note note-report">
+                <div class="note-head">
+                    <span class="flag c-blue">RAPPORT</span>
+                    <b class="note-report-title">${esc(r.label)} — n°${esc(r.number)}</b>
+                    <span class="grow"></span>
+                    <button type="button" class="btn btn-small" data-report-open="${esc(r.id)}">Ouvrir</button>
+                    <button type="button" class="btn btn-small" data-report-modify="${esc(r.id)}">Modifier</button>
+                </div>
+                ${r.summary ? `<div class="note-text">${esc(r.summary)}</div>` : ''}
+                <div class="note-meta">Rédigé par ${esc(r.createdByName || '-')}${r.unitName ? ` (${esc(r.unitName)})` : ''} — ${esc(formatTime(r.createdAt))}${r.updatedAt ? ` (modifié à ${esc(formatTime(r.updatedAt))})` : ''}</div>
+            </div>`;
+    }
+
+    // Choix du type de rapport à rédiger depuis l'intervention
+    function reportStarterHtml() {
+        if (!reports.types.length) {
+            loadReportTypes().then((ok) => { if (ok && state.callPanel.mode === 'view') renderInterventionDetail(); });
+            return '';
+        }
+        return `
+            <div class="toolbar report-starter">
+                <span class="lbl-inline">Rapport lié :</span>
+                <select id="callReportType">${reports.types.map((t) => `<option value="${esc(t.id)}" ${t.id === state.callReportType ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
+                <button type="button" class="btn" data-call-action="writeReport">+ Rédiger un rapport</button>
+            </div>`;
+    }
+
     function callViewHtml(c) {
         const unit = myUnit();
         const units = toArray(c.units);
         const notes = toArray(c.notes);
+        const linked = toArray(c.reports);
+        const timeline = [
+            ...notes.map((n) => ({ at: n.createdAt || 0, html: () => noteHtml(n, c, unit) })),
+            ...linked.map((r) => ({ at: r.createdAt || 0, html: () => reportLinkHtml(r) })),
+        ].sort((a, b) => a.at - b.at);
         const onCall = !!unit && units.some((u) => u.id === unit.id);
         const incident = c.kind === 'incident';
 
@@ -866,8 +917,8 @@
             <div class="call-units">${units.length
                 ? units.map(unitChip).join('')
                 : '<span class="muted">Aucune unité.</span>'}</div>
-            <div class="sheet-sub">Notes (${notes.length})</div>
-            ${notes.length ? notes.map((n) => noteHtml(n, c, unit)).join('') : '<div class="muted">Aucune note.</div>'}
+            <div class="sheet-sub">Notes et rapports (${timeline.length})</div>
+            ${timeline.length ? timeline.map((entry) => entry.html()).join('') : '<div class="muted">Aucune note ni rapport.</div>'}
             ${onCall && !c.closed ? `
                 <div class="note-new">
                     <textarea id="noteDraft" class="upper-text" rows="3" maxlength="500" placeholder="AJOUTER UNE NOTE (EN MAJUSCULES)">${esc(state.noteDraft)}</textarea>
@@ -875,7 +926,8 @@
                         <span class="grow"></span>
                         <button type="button" class="btn btn-default" data-call-action="addNote">Ajouter la note</button>
                     </div>
-                </div>` : ''}`;
+                </div>` : ''}
+            ${reportStarterHtml()}`;
     }
 
     // Formulaire : nouvel incident (call absent) ou modification d'une intervention / d'un incident
@@ -951,6 +1003,7 @@
         renderInterventionList();
         // Les formulaires en cours de saisie ne sont pas écrasés par les mises à jour en temps réel
         if (state.callPanel.mode === 'view') renderInterventionDetail();
+        if (reports.draft) renderCallSelect(); // première ligne du rapport en cours de rédaction
     }
 
     async function refreshInterventions() {
@@ -968,9 +1021,20 @@
         renderInterventionDetail();
     }
 
+    // Clic sur une ligne : affiche ses détails ; nouveau clic sur la même ligne : les masque
     $('#interventionsBody').addEventListener('click', (e) => {
         const tr = e.target.closest('tr[data-id]');
-        if (tr) openCall(Number(tr.dataset.id));
+        if (!tr) return;
+        const id = Number(tr.dataset.id);
+        if (state.callPanel.id === id && state.callPanel.mode !== 'new') {
+            state.callPanel = { mode: 'view', id: null };
+            state.noteDraft = '';
+            state.noteEdit = null;
+            renderInterventionList();
+            renderInterventionDetail();
+            return;
+        }
+        openCall(id);
     });
 
     $('#newIncident').addEventListener('click', () => {
@@ -981,6 +1045,10 @@
     });
 
     $('#refreshInterventions').addEventListener('click', refreshInterventions);
+
+    $('#interventionDetail').addEventListener('change', (e) => {
+        if (e.target.id === 'callReportType') state.callReportType = e.target.value;
+    });
 
     // Texte des notes : saisie conservée entre deux mises à jour
     $('#interventionDetail').addEventListener('input', (e) => {
@@ -1007,6 +1075,17 @@
             return;
         }
 
+        const openBtn = e.target.closest('[data-report-open]');
+        if (openBtn) {
+            showReportFromCall(Number(openBtn.dataset.reportOpen));
+            return;
+        }
+        const modifyBtn = e.target.closest('[data-report-modify]');
+        if (modifyBtn) {
+            editReportFromCall(Number(modifyBtn.dataset.reportModify));
+            return;
+        }
+
         if (actionBtn) {
             const action = actionBtn.dataset.callAction;
 
@@ -1018,6 +1097,7 @@
             }
             if (!call) return;
             if (action === 'edit') return openCall(call.id, 'edit');
+            if (action === 'writeReport') return startReportForCall(call.id, $('#callReportType').value);
 
             // "Intervention terminée" : deuxième clic pour confirmer
             if (action === 'end' && !actionBtn.dataset.confirm) {
@@ -1161,7 +1241,9 @@
         const licenseNumber = () => `${letter()}${String(int(0, 9999999)).padStart(7, '0')}`;
         const vin = () => Array.from({ length: 17 }, () => VIN_CHARS[int(0, VIN_CHARS.length - 1)]).join('');
         const policyNumber = () => `${letter()}${letter()}${String(int(0, 99999999)).padStart(8, '0')}`;
-        const phone = () => `555-${int(100, 999)}-${String(int(0, 9999)).padStart(4, '0')}`;
+        // Indicatif régional de Géorgie compris entre 470 et 678 (identique à server.lua)
+        const GEORGIA_AREA_CODES = [470, 478, 678];
+        const phone = () => `${pick(GEORGIA_AREA_CODES)}-${int(200, 999)}-${String(int(0, 9999)).padStart(4, '0')}`;
 
         // Identité : prénom, middle name, nom, DoB, adresse, SSN et emploi uniquement
         function identity() {
@@ -1694,6 +1776,10 @@
         const now = new Date();
         if (f.def === 'today') return dateString(now);
         if (f.def === 'now') return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        if (f.def === 'unitDept') {
+            const unit = myUnit();
+            return unit && DEPARTMENTS[unit.dept] ? DEPARTMENTS[unit.dept].label : '';
+        }
         if (f.def != null) return String(f.def);
         if (f.t === 'check') return false;
         if (f.t === 'checks') return [];
@@ -1765,10 +1851,17 @@
         }
     }
 
-    function fieldHtml(f, obj, path) {
+    function fieldHtml(f, obj, path, suggestId) {
         const span = f.w > 1 ? ` span-${Math.min(f.w, 4)}` : '';
         const required = isRequired(f, obj) ? ' *' : '';
         const key = path + f.k;
+
+        // Nom de famille / immatriculation : liste déroulante de l'historique des recherches
+        if (suggestId != null) {
+            const input = inputHtml({ ...f, ph: 'Tapez ou choisissez dans l\'historique' }, obj[f.k], key)
+                .replace('<input ', `<input data-suggest="${suggestId}" `);
+            return `<label class="lbl${span}"><span>${esc(f.l)}${required} <span class="suggest-hint">&#9662; historique</span></span>${input}</label>`;
+        }
 
         if (f.t === 'check') {
             return `<label class="check rp-check${span}">${inputHtml(f, obj[f.k], key)} ${esc(f.l)}${required}</label>`;
@@ -1797,6 +1890,16 @@
             grid = '';
         };
 
+        // "lookup" : rien à afficher, mais le champ ancre (nom de famille ou immatriculation)
+        // de ce niveau ouvre la liste de l'historique des recherches
+        const anchors = {};
+        toArray(fields).forEach((f) => {
+            if (f.t !== 'lookup') return;
+            const source = f.kind === 'identity' ? 'lastname' : 'plate';
+            const anchor = Object.keys(f.map).find((key) => f.map[key] === source);
+            anchors[anchor] = reports.lookups.push({ f, ctx: path, keys: fieldKeys(fields) }) - 1;
+        });
+
         toArray(fields).forEach((f) => {
             if (!visible(f, obj)) return;
             if (f.t === 'group') {
@@ -1808,11 +1911,8 @@
             } else if (f.t === 'matrix' || f.t === 'perUnit') {
                 flush();
                 html += unitTableHtml(f);
-            } else if (f.t === 'lookup') {
-                const id = reports.lookups.push({ f, ctx: path, keys: fieldKeys(fields) }) - 1;
-                grid += `<div class="span-4 rp-lookup"><button type="button" class="btn btn-small" data-lookup="${id}">${esc(f.l)}</button></div>`;
-            } else {
-                grid += fieldHtml(f, obj, path);
+            } else if (f.t !== 'lookup') {
+                grid += fieldHtml(f, obj, path, anchors[f.k]);
             }
         });
         flush();
@@ -1892,23 +1992,107 @@
         scroller.scrollTop = top;
     }
 
-    function openReportEditor(typeId, report) {
+    // Intervention par défaut d'un nouveau rapport : la plus récente sur laquelle est l'unité du joueur
+    function defaultCallRef() {
+        const unit = myUnit();
+        const call = unit && state.interventions.find((c) => !c.closed && toArray(c.units).some((u) => u.id === unit.id));
+        return call ? String(call.id) : '';
+    }
+
+    // report : rapport existant (modification) ; callId : intervention choisie depuis l'onglet Interventions
+    function openReportEditor(typeId, report, callId) {
         const type = reports.byId[typeId];
         if (!type) return;
         const data = report ? reportData(type, report) : newObject(allFields(type));
+        let callRef = callId != null ? String(callId) : defaultCallRef();
+        if (report) callRef = report.callLive && report.call ? String(report.call.id) : 'keep';
 
-        reports.draft = { id: report ? report.id : null, type: typeId, data };
+        reports.draft = {
+            id: report ? report.id : null, type: typeId, data, callRef,
+            call: report && report.call && report.call.number ? report.call : null, // lien actuel (modification)
+        };
         $('#reportEditorTitle').textContent = report ? `Modification — ${type.label} n°${report.number}` : `Nouveau rapport — ${type.label}`;
         $('#reportsBrowse').classList.add('hidden');
         $('#reportEditor').classList.remove('hidden');
         $('#reportForm').scrollTop = 0;
+        renderCallSelect();
         renderReportForm();
+        refreshInterventions(); // liste à jour pour la première ligne
     }
 
     function closeReportEditor() {
         reports.draft = null;
+        hideSuggest();
         $('#reportEditor').classList.add('hidden');
         $('#reportsBrowse').classList.remove('hidden');
+    }
+
+    // Première ligne : intervention / incident lié, en cours ou terminé
+    const callOption = (c, selected) =>
+        `<option value="${esc(c.id)}" ${selected ? 'selected' : ''}>${esc(c.number)} — ${esc(c.title)}${c.kind === 'incident' ? ' (incident)' : ''}</option>`;
+
+    function renderCallSelect() {
+        const draft = reports.draft;
+        const select = $('#reportCallSelect');
+        if (!draft || document.activeElement === select) return; // ne pas fermer la liste ouverte
+        const open = state.interventions.filter((c) => !c.closed);
+        const closed = state.interventions.filter((c) => c.closed);
+        const keep = draft.id
+            ? `<option value="keep" ${draft.callRef === 'keep' ? 'selected' : ''}>${draft.call
+                ? `${esc(draft.call.number)} — ${esc(draft.call.title)} (lien actuel, intervention archivée)`
+                : 'Aucune (rapport rédigé avant les liens)'}</option>`
+            : '';
+        select.innerHTML = `<option value="">— Choisir l'intervention ou l'incident —</option>${keep}
+            ${open.length ? `<optgroup label="En attente / en cours">${open.map((c) => callOption(c, draft.callRef === String(c.id))).join('')}</optgroup>` : ''}
+            ${closed.length ? `<optgroup label="Terminées">${closed.map((c) => callOption(c, draft.callRef === String(c.id))).join('')}</optgroup>` : ''}`;
+        // Intervention choisie disparue de la liste : on revient au choix vide
+        if (select.value !== draft.callRef) draft.callRef = select.value;
+    }
+
+    $('#reportCallSelect').addEventListener('change', (e) => {
+        if (!reports.draft) return;
+        reports.draft.callRef = e.target.value;
+        e.target.classList.remove('invalid');
+    });
+
+    // Entrée dans un champ : ne doit pas enregistrer le rapport par erreur
+    $('#reportEditor').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target instanceof HTMLInputElement) e.preventDefault();
+    });
+
+    // Depuis l'onglet Interventions : rédiger / ouvrir / modifier un rapport lié
+    function draftInProgress() {
+        if (!reports.draft) return false;
+        showPage('reports');
+        toast('Un rapport est déjà en cours de rédaction : enregistrez-le ou annulez-le d\'abord.', 'error');
+        return true;
+    }
+
+    async function startReportForCall(callId, typeId) {
+        if (draftInProgress() || !(await loadReportTypes())) return;
+        showPage('reports');
+        openReportEditor(typeId, null, callId);
+    }
+
+    async function showReportFromCall(id) {
+        if (draftInProgress() || !(await loadReportTypes())) return;
+        showPage('reports');
+        openReport(id);
+    }
+
+    async function editReportFromCall(id) {
+        if (draftInProgress() || !(await loadReportTypes())) return;
+        const res = await post('getReport', { id });
+        if (!res || !res.ok) {
+            toast(res?.error || 'Rapport introuvable.', 'error');
+            return;
+        }
+        if (!res.report.mine) {
+            toast(`Seul l'auteur du rapport (${res.report.createdByName || '?'}) peut le modifier.`, 'error');
+            return;
+        }
+        showPage('reports');
+        openReportEditor(res.report.type, res.report);
     }
 
     // ---- Saisie : les champs texte mettent à jour les données sans tout redessiner ----
@@ -1918,6 +2102,7 @@
         if (!reports.draft || !el.dataset || !el.dataset.path || !el.closest('#reportForm')) return;
         el.classList.remove('invalid');
         if (el.type !== 'checkbox' && el.tagName !== 'SELECT') pathSet(reports.draft.data, el.dataset.path, el.value);
+        if (el.dataset.suggest != null) showSuggest(el);
     });
 
     // Cases / listes déroulantes : peuvent afficher ou masquer d'autres champs -> on redessine
@@ -1964,9 +2149,6 @@
             renderReportForm();
             return;
         }
-
-        const lookup = e.target.closest('[data-lookup]');
-        if (lookup) runLookup(reports.lookups[Number(lookup.dataset.lookup)], lookup);
     });
 
     // Retrouve la définition d'une liste à partir de son chemin (ex : "units.0.occupants")
@@ -1983,7 +2165,9 @@
         return spec;
     }
 
-    // ---- "Remplir depuis une fiche" : recherche dans les identités / véhicules enregistrés ----
+    // ---- Remplissage depuis l'historique de l'onglet "Recherches" ----
+    // Sur le nom de famille (identités) ou l'immatriculation (véhicules), une liste déroulante
+    // propose les fiches déjà recherchées ; en choisir une remplit tous les champs liés.
     function lookupValue(record, source) {
         switch (source) {
             case 'makeModel': return [record.make, record.model].filter(Boolean).join(' ');
@@ -1996,54 +2180,89 @@
         }
     }
 
-    async function runLookup(entry, button) {
+    const suggest = { input: null, entry: null, items: [], active: 0 };
+    const suggestBox = $('#suggestBox');
+
+    function suggestMatches(entry, text) {
+        const kind = entry.f.kind;
+        const query = text.trim().toLowerCase();
+        return state.searchResults.filter((r) => {
+            if (r.kind !== kind) return false;
+            if (!query) return true;
+            if (kind === 'vehicle') return String(r.plate || '').toLowerCase().includes(query.replace(/[^a-z0-9]/g, ''));
+            return String(r.lastname || '').toLowerCase().startsWith(query) || fullName(r).toLowerCase().includes(query);
+        }).slice(0, 8);
+    }
+
+    const suggestLabel = (r) => (r.kind === 'vehicle'
+        ? `<b>${esc(r.plate)}</b> — ${esc([r.make, r.model].filter(Boolean).join(' '))}<span class="muted"> — ${esc(r.ownerIdentity ? fullName(r.ownerIdentity) : (r.ownerName || 'propriétaire inconnu'))}</span>`
+        : `<b>${esc(String(r.lastname).toUpperCase())}</b> ${esc([r.firstname, r.middlename].filter(Boolean).join(' '))} — ${esc(r.dob)}<span class="muted"> — SSN ${esc(r.ssn || '-')}</span>`);
+
+    function showSuggest(input) {
+        const entry = reports.lookups[Number(input.dataset.suggest)];
         if (!entry) return;
-        const { f, ctx, keys } = entry;
+        suggest.input = input;
+        suggest.entry = entry;
+        suggest.items = suggestMatches(entry, input.value);
+        suggest.active = 0;
+
+        const hasHistory = state.searchResults.some((r) => r.kind === entry.f.kind);
+        suggestBox.innerHTML = `<div class="suggest-title">Historique des recherches — ${entry.f.kind === 'vehicle' ? 'véhicules' : 'identités'}</div>${
+            suggest.items.length
+                ? suggest.items.map((r, i) => `<div class="suggest-item ${i === 0 ? 'active' : ''}" data-index="${i}">${suggestLabel(r)}</div>`).join('')
+                : `<div class="suggest-empty">${hasHistory ? 'Aucune fiche correspondante dans l\'historique.' : 'Historique vide : recherchez d\'abord la fiche dans l\'onglet « Recherches ».'}</div>`}`;
+
+        const rect = input.getBoundingClientRect();
+        suggestBox.style.left = `${Math.round(rect.left)}px`;
+        suggestBox.style.top = `${Math.round(rect.bottom + 2)}px`;
+        suggestBox.style.width = `${Math.round(Math.max(rect.width, 360))}px`;
+        suggestBox.classList.remove('hidden');
+    }
+
+    function hideSuggest() {
+        suggestBox.classList.add('hidden');
+        suggest.input = null;
+        suggest.entry = null;
+    }
+
+    function applySuggestion(record) {
+        const { f, ctx, keys } = suggest.entry;
         const obj = ctx ? pathGet(reports.draft.data, ctx.slice(0, -1)) : reports.draft.data;
-        const target = (source) => Object.keys(f.map).find((key) => f.map[key] === source);
-        let res;
-
-        if (f.kind === 'identity') {
-            const lastname = String(obj[target('lastname')] || '').trim();
-            const dob = obj[target('dob')];
-            if (!lastname || !parseDate(dob)) {
-                toast('Saisissez d\'abord le nom de famille et la date de naissance.', 'error');
-                return;
-            }
-            button.disabled = true;
-            res = await post('search', { type: 'identity', lastname, dob, firstname: obj[target('firstname')] || '' });
-        } else {
-            const plate = String(obj[target('plate')] || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-            if (plate.length < 2) {
-                toast('Saisissez d\'abord l\'immatriculation.', 'error');
-                return;
-            }
-            button.disabled = true;
-            res = await post('search', { type: 'vehicle', query: plate });
-        }
-        button.disabled = false;
-
-        if (!res || !res.ok) {
-            toast(res?.error || 'Recherche impossible.', 'error');
-            return;
-        }
-        const results = toArray(res.results);
-        if (!results.length) {
-            toast(f.kind === 'identity' ? 'Aucune fiche d\'identité trouvée.' : 'Aucun véhicule enregistré avec cette immatriculation.', 'error');
-            return;
-        }
-        const record = f.kind === 'vehicle'
-            ? (results.find((r) => r.plate === String(obj[target('plate')] || '').toUpperCase()) || results[0])
-            : results[0];
-        if (f.kind === 'identity' && results.length > 1) toast(`${results.length} fiches trouvées : la première est utilisée (précisez le prénom).`, 'info');
-
         Object.entries(f.map).forEach(([to, from]) => {
             const value = lookupValue(record, from);
             if (keys.has(to) && value !== '' && value != null) obj[to] = typeof value === 'number' ? String(value) : value;
         });
+        hideSuggest();
         renderReportForm();
-        toast('Champs remplis depuis la fiche.', 'success');
+        toast(record.kind === 'vehicle' ? `Véhicule ${record.plate} repris de l'historique.` : `${fullName(record)} repris de l'historique.`, 'success');
     }
+
+    function moveSuggest(step) {
+        if (!suggest.items.length) return;
+        suggest.active = (suggest.active + step + suggest.items.length) % suggest.items.length;
+        suggestBox.querySelectorAll('.suggest-item').forEach((el, i) => el.classList.toggle('active', i === suggest.active));
+    }
+
+    $('#reportForm').addEventListener('focusin', (e) => {
+        if (e.target.dataset && e.target.dataset.suggest != null) showSuggest(e.target);
+    });
+    $('#reportForm').addEventListener('focusout', (e) => {
+        if (e.target === suggest.input) hideSuggest();
+    });
+    $('#reportForm').addEventListener('scroll', hideSuggest);
+    $('#reportForm').addEventListener('keydown', (e) => {
+        if (!suggest.input || e.target !== suggest.input || suggestBox.classList.contains('hidden')) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); moveSuggest(1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); moveSuggest(-1); }
+        else if (e.key === 'Enter' && suggest.items.length) { e.preventDefault(); applySuggestion(suggest.items[suggest.active]); }
+        else if (e.key === 'Escape') { e.stopPropagation(); hideSuggest(); } // Échap ferme la liste, pas le MDC
+    });
+    // mousedown (et non click) : le champ ne perd pas le focus avant le choix
+    suggestBox.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const item = e.target.closest('.suggest-item');
+        if (item && suggest.entry) applySuggestion(suggest.items[Number(item.dataset.index)]);
+    });
 
     // ---- Vérification avant envoi (le serveur revérifie avec les mêmes règles) ----
     const dateNum = (str) => {
@@ -2132,6 +2351,13 @@
         const draft = reports.draft;
         if (!draft) return;
 
+        if (!draft.callRef) {
+            toast('Choisissez l\'intervention ou l\'incident lié au rapport (première ligne).', 'error');
+            const select = $('#reportCallSelect');
+            select.classList.add('invalid');
+            select.focus();
+            return;
+        }
         const error = validateDraft();
         if (error) {
             showFieldError(error);
@@ -2140,7 +2366,7 @@
 
         const submit = $('#reportSubmit');
         submit.disabled = true;
-        const res = await post('saveReport', { id: draft.id, type: draft.type, data: draft.data });
+        const res = await post('saveReport', { id: draft.id, type: draft.type, data: draft.data, callRef: draft.callRef });
         submit.disabled = false;
         if (!res || !res.ok) {
             toast(res?.error || 'Erreur lors de l\'enregistrement du rapport.', 'error');
@@ -2268,6 +2494,12 @@
                 Rédigé par <b>${esc(r.createdByName || '-')}</b>${r.unitName ? ` (${esc(r.unitName)})` : ''} le ${esc(formatDate(r.createdAt))}
                 ${r.updatedAt ? `<br>Modifié le ${esc(formatDate(r.updatedAt))}` : ''}
             </div>
+            <div class="report-link">
+                <span>Intervention liée : ${r.call && r.call.number
+                    ? `<b>${esc(r.call.number)} — ${esc(r.call.title)}</b>${r.call.kind === 'incident' ? ' (incident)' : ''}${r.callLive ? '' : ' <span class="muted">(archivée)</span>'}`
+                    : '<span class="muted">aucune</span>'}</span>
+                ${r.callLive ? `<button type="button" class="btn btn-small" data-goto-call="${esc(r.call.id)}">Voir l'intervention</button>` : ''}
+            </div>
             ${sectionsOf(type).map((section) => {
                 const body = viewBlocks(section.f, data, data, type);
                 return body ? `<div class="report-section-title">${esc(section.title)}</div>${body}` : '';
@@ -2285,6 +2517,7 @@
             <tr data-id="${esc(r.id)}" class="${r.id === reports.selected ? 'selected' : ''}">
                 <td>${esc(r.number)}</td>
                 <td>${esc(reports.byId[r.type] ? reports.byId[r.type].short : r.type)}</td>
+                <td>${esc(r.callNumber || '-')}</td>
                 <td class="cell-ellipsis">${esc(r.summary || '-')}</td>
                 <td>${esc(formatDate(r.createdAt))}</td>
             </tr>`).join('');
@@ -2349,6 +2582,12 @@
         if (tr) openReport(Number(tr.dataset.id));
     });
     $('#reportDetail').addEventListener('click', (e) => {
+        const goto = e.target.closest('[data-goto-call]');
+        if (goto) {
+            showPage('interventions');
+            openCall(Number(goto.dataset.gotoCall));
+            return;
+        }
         if (e.target.closest('[data-report-edit]') && reports.current) openReportEditor(reports.current.type, reports.current);
     });
     $('#reportFilter').addEventListener('change', refreshReports);

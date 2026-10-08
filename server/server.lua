@@ -210,6 +210,12 @@ local PlayerUnit = {}       -- [source] = id de l'unité rejointe par le joueur
 local Interventions = {}    -- interventions (civils) et incidents (police)
 local lastWrite = {}
 local createIntervention    -- défini dans la section INTERVENTIONS
+local reportLinks           -- défini dans la section RAPPORTS
+
+-- Identifiant de cette session du serveur : un rapport n'est relié "en direct" à une
+-- intervention que si le lien date de la session en cours (les interventions sont
+-- effacées au redémarrage, leurs numéros internes repartent de 1).
+local SessionId = ('%d-%d'):format(os.time(), math.random(1000, 9999))
 
 -- =========================================================================
 -- OUTILS
@@ -817,6 +823,13 @@ end)
 -- d'une seule unité à la fois. Le statut (barre latérale) est celui de l'unité.
 -- =========================================================================
 local TAG_COLORS = { green = true, purple = true, blue = true, orange = true, red = true, yellow = true, pink = true, gray = true }
+
+-- Services de police (toujours présents ; doivent correspondre à index.html / script.js)
+local DEPARTMENTS = {
+    apd = 'Atlanta Police Department',
+    gsp = 'Georgia State Patrol',
+}
+
 local NextUnitId = 1
 local lastStatusChange = {}
 local pushInterventions -- défini dans la section INTERVENTIONS
@@ -841,7 +854,7 @@ local function unitView(unit)
     end
     table.sort(members, function(a, b) return a.name < b.name end)
     return {
-        id = unit.id, name = unit.name, tag = unit.tag, color = unit.color,
+        id = unit.id, name = unit.name, tag = unit.tag, color = unit.color, dept = unit.dept,
         status = unit.status, updatedAt = unit.updatedAt, members = members,
     }
 end
@@ -868,7 +881,8 @@ local function buildUnit(p)
     if name == '' then return nil, 'Le nom de l\'unité est obligatoire.' end
     if tag == '' then return nil, 'Le tag est obligatoire.' end
     if not TAG_COLORS[p.color] then return nil, 'Choisissez la couleur du tag.' end
-    return { name = name, tag = tag, color = p.color }
+    if not DEPARTMENTS[p.dept] then return nil, 'Choisissez le service de police de l\'unité.' end
+    return { name = name, tag = tag, color = p.color, dept = p.dept }
 end
 
 RegisterMDCCallback('getUnits', function()
@@ -888,7 +902,7 @@ RegisterMDCCallback('createUnit', function(src, payload)
     NextUnitId = NextUnitId + 1
     Units[#Units + 1] = unit
 
-    print(('^5[MDC]^0 Unité créée : %s par %s [%s]'):format(unitLabel(unit), agentName(src), GetPlayerName(src) or '?'))
+    print(('^5[MDC]^0 Unité créée : %s (%s) par %s [%s]'):format(unitLabel(unit), DEPARTMENTS[unit.dept], agentName(src), GetPlayerName(src) or '?'))
     pushUnits()
     return { ok = true, id = unit.id }
 end)
@@ -899,7 +913,7 @@ RegisterMDCCallback('updateUnit', function(_, payload)
     local data, err = buildUnit(payload)
     if not data then return { ok = false, error = err } end
 
-    unit.name, unit.tag, unit.color = data.name, data.tag, data.color
+    unit.name, unit.tag, unit.color, unit.dept = data.name, data.tag, data.color, data.dept
     unit.updatedAt = os.time()
     pushUnits()
     pushInterventions()
@@ -994,9 +1008,12 @@ local function upperFr(str)
     return (str:upper():gsub('[\195\197][\128-\191]', ACCENTS))
 end
 
--- N° de téléphone du requérant : 555-XXX-XXXX
+-- N° de téléphone du requérant : AAA-XXX-XXXX, où AAA est un indicatif régional de
+-- Géorgie compris entre 470 et 678 (doit correspondre à script.js, Random.phone)
+local GEORGIA_AREA_CODES = { 470, 478, 678 }
 local function genPhone()
-    return ('555-%03d-%04d'):format(math.random(100, 999), math.random(0, 9999))
+    local area = GEORGIA_AREA_CODES[math.random(1, #GEORGIA_AREA_CODES)]
+    return ('%d-%03d-%04d'):format(area, math.random(200, 999), math.random(0, 9999))
 end
 
 -- N° d'incident : XX-XXXX (chiffres aléatoires, sans lien avec la date)
@@ -1040,6 +1057,7 @@ local function interventionView(intervention)
 
     view.units = units
     view.status = interventionStatus(intervention)
+    view.reports = reportLinks(intervention) -- affichés avec les notes, dans le déroulé
     return view
 end
 
@@ -1095,6 +1113,7 @@ local function addCall(src, call, kind, unit)
     call.kind = kind
     call.units = {}
     call.notes = {}
+    call.reports = {} -- [id du rapport] = true (rapports liés, section RAPPORTS)
     call.nextNoteId = 1
     call.closed = false
     call.createdAt = os.time()
@@ -1507,11 +1526,41 @@ local function reportSearchText(data)
     return truncate(text, 4000)
 end
 
+-- ---- Lien rapport <-> intervention / incident ----
+-- Le rapport garde une copie du lien : report.call = { id, session, number, title, kind }.
+-- L'intervention garde la liste de ses rapports : intervention.reports[id] = true.
+
+--- Intervention encore présente à laquelle le rapport est relié (nil après un redémarrage).
+local function liveCall(link)
+    if type(link) ~= 'table' or link.session ~= SessionId then return nil end
+    return findIntervention(link.id)
+end
+
+-- Rapports affichés dans le déroulé d'une intervention (avec les notes)
+reportLinks = function(intervention)
+    local list = {}
+    for key in pairs(intervention.reports or {}) do
+        local report = findBy('reports', 'id', tonumber(key))
+        if report then
+            local reportType = ReportTypes[report.type]
+            list[#list + 1] = {
+                id = report.id, number = report.number, type = report.type,
+                label = reportType and reportType.label or report.type, summary = report.summary,
+                createdByName = report.createdByName, unitName = report.unitName,
+                createdAt = report.createdAt, updatedAt = report.updatedAt,
+            }
+        end
+    end
+    table.sort(list, function(a, b) return (a.createdAt or 0) < (b.createdAt or 0) end)
+    return list
+end
+
 local function reportListItem(report, me)
     return {
         id = report.id, number = report.number, type = report.type, summary = report.summary,
         createdAt = report.createdAt, createdByName = report.createdByName, unitName = report.unitName,
         updatedAt = report.updatedAt, mine = report.createdBy == me,
+        callNumber = type(report.call) == 'table' and report.call.number or nil,
     }
 end
 
@@ -1547,10 +1596,15 @@ RegisterMDCCallback('getReport', function(src, payload)
     local view = publicView(report, 'report')
     view.searchText = nil
     view.mine = report.createdBy == getIdentifier(src)
+    view.callLive = liveCall(report.call) ~= nil -- intervention liée encore présente
+    if type(view.call) == 'table' then view.call = { id = view.call.id, number = view.call.number, title = view.call.title, kind = view.call.kind } end
     return { ok = true, report = view }
 end, true)
 
--- Création (sans id) ou modification (id : uniquement par son auteur)
+-- Création (sans id) ou modification (id : uniquement par son auteur).
+-- payload.callRef : numéro de l'intervention / de l'incident lié (obligatoire),
+-- ou 'keep' lors d'une modification pour garder le lien actuel (même si l'intervention
+-- a disparu après un redémarrage).
 RegisterMDCCallback('saveReport', function(src, payload)
     if Locked.reports then
         return { ok = false, error = 'Enregistrement bloqué : fichier de données corrompu (voir console serveur).' }
@@ -1568,12 +1622,22 @@ RegisterMDCCallback('saveReport', function(src, payload)
     local reportType = ReportTypes[old and old.type or payload.type]
     if not reportType then return { ok = false, error = 'Type de rapport invalide.' } end
 
+    -- Intervention / incident lié (en cours ou terminé)
+    local link
+    if old and payload.callRef == 'keep' then
+        link = old.call
+    else
+        local call = findIntervention(payload.callRef)
+        if not call then return { ok = false, error = 'Choisissez l\'intervention ou l\'incident lié au rapport (première ligne).' } end
+        link = { id = call.id, session = SessionId, number = call.number, title = call.title, kind = call.kind }
+    end
+
     local data, err = buildReport(reportType, type(payload.data) == 'table' and payload.data or {})
     if not data then return { ok = false, error = err } end
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
 
     local record = {
-        type = reportType.id, data = data,
+        type = reportType.id, data = data, call = link,
         summary = reportSummary(reportType, data),
         searchText = reportSearchText(data),
     }
@@ -1604,8 +1668,16 @@ RegisterMDCCallback('saveReport', function(src, payload)
         NextId.reports = NextId.reports + 1
     end
 
-    print(('^5[MDC]^0 Rapport %s n°%s %s par %s [%s]'):format(reportType.short, record.number,
-        old and 'modifié' or 'créé', agentName(src), GetPlayerName(src) or '?'))
+    -- Mise à jour du déroulé des interventions (ancien et nouveau lien)
+    local key = tostring(record.id)
+    local previous = old and liveCall(old.call)
+    if previous then previous.reports[key] = nil end
+    local current = liveCall(record.call)
+    if current then current.reports[key] = true end
+    pushInterventions()
+
+    print(('^5[MDC]^0 Rapport %s n°%s %s par %s [%s] (intervention %s)'):format(reportType.short, record.number,
+        old and 'modifié' or 'créé', agentName(src), GetPlayerName(src) or '?', link and link.number or '-'))
     return { ok = true, id = record.id, number = record.number }
 end)
 

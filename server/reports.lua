@@ -5,6 +5,8 @@
       - à l'interface (envoyé au NUI, qui construit les formulaires et les fiches),
       - au serveur (server.lua valide chaque rapport reçu avec ces mêmes règles).
     Pour ajouter un champ ou une option, modifiez UNIQUEMENT ce fichier.
+    Chaque rapport est en plus lié à une intervention / un incident (choisi en première
+    ligne du formulaire) : ce lien est géré par server.lua, il n'a pas à figurer ici.
     ⚠ Deux champs d'un même niveau ne doivent jamais avoir la même clé (k) : les
       groupes ne créent pas de niveau, seules les listes en créent un (le serveur
       signale les doublons dans la console au démarrage).
@@ -22,12 +24,15 @@
           'checks' plusieurs cases   (o = { { valeur, libellé }, ... })
           'group'  sous-case         (f = champs ; les données restent au même niveau)
           'list'   liste répétable   (f = champs, item = nom d'un élément, add = bouton, min, max)
-          'lookup' bouton qui remplit des champs depuis une fiche de la base
-                   (kind = 'identity' | 'vehicle', map = { champ_du_rapport = champ_de_la_fiche })
+          'lookup' remplissage depuis l'historique de l'onglet "Recherches" : une liste déroulante
+                   s'ouvre sur le champ "nom de famille" (kind = 'identity') ou "immatriculation"
+                   (kind = 'vehicle') et remplit les champs indiqués
+                   (map = { champ_du_rapport = champ_de_la_fiche }, aucune donnée enregistrée)
           'note'   texte d'aide (aucune donnée)
           'matrix' tableau de cases par "Unit" (list = liste source, k = clé, groups = { { l, o } })
           'perUnit' tableau de champs par "Unit" (list = liste source, f = champs)
       ph    = texte                   exemple affiché dans un champ vide (texte d'aide pour 'checks')
+      def   = valeur par défaut       ('today', 'now', 'unitDept' = service de l'unité du joueur, ou une valeur)
       req   = true                    champ obligatoire (uniquement s'il est visible)
       reqIf = { condition }           obligatoire si la condition est vraie
       show  = { condition }           visible seulement si la condition est vraie
@@ -61,25 +66,21 @@ local VEHICLE_TYPES = {
 }
 
 -- Champs "date / heure / lieu" communs à tous les rapports
-local function whenWhere(withCall)
-    local fields = {
+local function whenWhere()
+    return {
         { k = 'date', t = 'date', l = 'Date', req = true, def = 'today', past = true },
         { k = 'time', t = 'time', l = 'Horaire', req = true, def = 'now' },
         { k = 'address', t = 'text', l = 'Adresse', req = true, max = 80, w = 2 },
         { k = 'block', t = 'text', l = 'Bloc', max = 40 },
     }
-    if withCall then
-        fields[#fields + 1] = { k = 'callNumber', t = 'text', l = 'N° d\'incident lié', max = 7, ph = 'XX-XXXX' }
-    end
-    return fields
 end
 
--- Personne : nom, prénom, DoB (+ domicile, licence) avec recherche dans les identités.
+-- Personne : nom, prénom, DoB (+ domicile, licence), remplissable depuis l'historique des recherches.
 -- Le domicile a sa propre clé (homeAddress) : "address" est l'adresse du lieu (whenWhere).
 local function person(opts)
     opts = opts or {}
     local fields = {
-        { t = 'lookup', kind = 'identity', l = 'Remplir depuis une fiche (nom + DoB)',
+        { t = 'lookup', kind = 'identity',
           map = { lastname = 'lastname', firstname = 'firstname', dob = 'dob', homeAddress = 'address',
                   dlNumber = 'licenseNumber', dlClass = 'licenseClass', dlState = 'licenseState' } },
         { k = 'lastname', t = 'text', l = 'Nom de famille', req = opts.req, reqIf = opts.reqIf, max = 40 },
@@ -99,11 +100,11 @@ local function person(opts)
     return fields
 end
 
--- Véhicule : avec recherche dans les véhicules enregistrés (par immatriculation)
+-- Véhicule : remplissable depuis l'historique des recherches (par immatriculation)
 local function vehicle(opts)
     opts = opts or {}
     return {
-        { t = 'lookup', kind = 'vehicle', l = 'Remplir depuis l\'immatriculation',
+        { t = 'lookup', kind = 'vehicle',
           map = { plate = 'plate', model = 'makeModel', color = 'color', owner = 'ownerFull', vin = 'vin', year = 'year', insurance = 'insurance' } },
         { k = 'plate', t = 'text', l = 'Immatriculation', req = opts.req, max = 8, upper = true },
         { k = 'plateState', t = 'text', l = 'État (plaque)', max = 40 },
@@ -156,9 +157,8 @@ local DOT523 = {
                     { 'gravel', 'Boue / gravier' }, { 'oil', 'Huile / débris' },
                 } },
                 { k = 'county', t = 'text', l = 'Comté', req = true, max = 60, ph = 'ex : Los Santos County' },
-                { k = 'agency', t = 'text', l = 'Service de police', req = true, max = 80, w = 2, ph = 'ex : Los Santos Police Department' },
+                { k = 'agency', t = 'text', l = 'Service de police', req = true, max = 80, w = 2, def = 'unitDept', ph = 'ex : Atlanta Police Department' },
                 { k = 'policeUnits', t = 'num', l = 'Nb d\'unités de police', req = true, min = 1, max = 50, def = 1 },
-                { k = 'callNumber', t = 'text', l = 'N° d\'incident lié', max = 7, ph = 'XX-XXXX' },
             },
         },
         {
@@ -171,7 +171,7 @@ local DOT523 = {
                         } },
                     } },
                     { t = 'group', l = 'B) Conducteur / piéton — identité et licence', f = {
-                        { t = 'lookup', kind = 'identity', l = 'Remplir depuis une fiche (nom + DoB)',
+                        { t = 'lookup', kind = 'identity',
                           map = { lastname = 'lastname', firstname = 'firstname', dob = 'dob', address = 'address',
                                   dlNumber = 'licenseNumber', dlClass = 'licenseClass', dlState = 'licenseState' } },
                         { k = 'lastname', t = 'text', l = 'Nom de famille', max = 40, reqIf = { k = 'types', none = { 'hit_run' } } },
@@ -210,7 +210,7 @@ local DOT523 = {
                         } },
                     } },
                     { t = 'group', l = 'E) Véhicule', show = VEHICLE_ISH, f = {
-                        { t = 'lookup', kind = 'vehicle', l = 'Remplir depuis l\'immatriculation',
+                        { t = 'lookup', kind = 'vehicle',
                           map = { plate = 'plate', vin = 'vin', model = 'makeModel', year = 'year', owner = 'ownerFull', insurance = 'insurance' } },
                         { k = 'owner', t = 'text', l = 'Propriétaire', max = 80, w = 2 },
                         { k = 'plate', t = 'text', l = 'Immatriculation', max = 8, upper = true },
@@ -313,23 +313,14 @@ local ARREST = {
     id = 'arrest',
     label = 'Arrest Report',
     short = 'Arrest',
-    summary = '{lastname} {firstname} — {#charges} chef(s)',
+    summary = '{lastname} {firstname}',
     sections = {
-        { title = 'Informations générales', f = whenWhere(true) },
+        { title = 'Informations générales', f = whenWhere() },
         { title = 'Personne arrêtée', f = (function()
             local fields = person({ req = true, license = true })
             fields[#fields + 1] = { k = 'marks', t = 'text', l = 'Signes distinctifs', max = 120, w = 4 }
             return fields
         end)() },
-        { title = 'Chefs d\'accusation', f = {
-            { k = 'charges', t = 'list', l = 'Chefs d\'accusation', item = 'Chef', add = '+ Ajouter un chef d\'accusation', min = 1, max = 20, f = {
-                { k = 'charge', t = 'text', l = 'Chef d\'accusation', req = true, max = 120, w = 2 },
-                { k = 'category', t = 'select', l = 'Catégorie', req = true, o = {
-                    { 'felony', 'Felony' }, { 'misdemeanor', 'Misdemeanor' }, { 'infraction', 'Infraction' },
-                } },
-                { k = 'counts', t = 'num', l = 'Nombre', min = 1, max = 99, def = 1 },
-            } },
-        } },
         { title = 'Arrestation', f = {
             { k = 'miranda', t = 'check', l = 'Droits Miranda lus' },
             { k = 'force', t = 'check', l = 'Usage de la force' },
@@ -338,7 +329,6 @@ local ARREST = {
             { k = 'injuryDetails', t = 'area', l = 'Détails des blessures', req = true, max = 1000, rows = 3, w = 4, show = { k = 'injuries', eq = true } },
             { k = 'seized', t = 'area', l = 'Objets saisis / preuves', max = 1500, rows = 3, w = 4 },
             { k = 'custody', t = 'text', l = 'Lieu de détention', max = 80, w = 2 },
-            { k = 'bail', t = 'num', l = 'Caution', min = 0, max = 100000000, money = true },
         } },
         { title = 'Rapport narratif', f = { narrative() } },
     },
@@ -351,7 +341,7 @@ local INCIDENT = {
     summary = '{nature} — {address}',
     sections = {
         { title = 'Informations générales', f = (function()
-            local fields = whenWhere(true)
+            local fields = whenWhere()
             table.insert(fields, 1, { k = 'nature', t = 'text', l = 'Nature de l\'incident', req = true, max = 80, w = 4 })
             return fields
         end)() },
@@ -379,7 +369,7 @@ local CITATION = {
     short = 'Citation',
     summary = '{lastname} {firstname} — {#violations} infraction(s)',
     sections = {
-        { title = 'Informations générales', f = whenWhere(true) },
+        { title = 'Informations générales', f = whenWhere() },
         { title = 'Contrevenant', f = person({ req = true, license = true }) },
         { title = 'Infractions', f = { violations(true) } },
         { title = 'Comparution', f = {
@@ -397,7 +387,7 @@ local TRAFFIC = {
     short = 'Traffic',
     summary = '{plate} — {lastname} {firstname}',
     sections = {
-        { title = 'Informations générales', f = whenWhere(true) },
+        { title = 'Informations générales', f = whenWhere() },
         { title = 'Conducteur', f = person({ req = true, license = true }) },
         { title = 'Véhicule', f = vehicle({ req = true }) },
         { title = 'Vitesse (si applicable)', f = {
@@ -422,7 +412,7 @@ local TICKET = {
     short = 'Ticket',
     summary = '{plate} — {address}',
     sections = {
-        { title = 'Informations générales', f = whenWhere(false) },
+        { title = 'Informations générales', f = whenWhere() },
         { title = 'Véhicule', f = vehicle({ req = true }) },
         { title = 'Infractions', f = { violations(true) } },
         { title = 'Paiement', f = {
@@ -438,7 +428,7 @@ local WARNING = {
     short = 'Warning',
     summary = '{lastname} {firstname} — {kind}',
     sections = {
-        { title = 'Informations générales', f = whenWhere(true) },
+        { title = 'Informations générales', f = whenWhere() },
         { title = 'Personne avertie', f = person({ req = true, license = true }) },
         { title = 'Véhicule (facultatif)', f = vehicle() },
         { title = 'Avertissement', f = {
