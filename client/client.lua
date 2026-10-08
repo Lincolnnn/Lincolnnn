@@ -43,9 +43,14 @@ local VALID_STATUSES = {
 local isOpen = false
 local currentStatus = 'available'
 
+-- Position / taille de la fenêtre MDC ({ x, y, w, h, maximized }).
+-- Gardée en mémoire Lua UNIQUEMENT (pas de KVP) : elle est conservée d'une
+-- ouverture à l'autre, mais réinitialisée à chaque reconnexion au serveur.
+local windowLayout = nil
+
 -- Le matricule (indicatif) est sauvegardé localement chez le joueur (KVP).
 -- >>> BASE DE DONNÉES : si vous avez une table "officers", récupérez plutôt
--- >>> le matricule côté serveur (voir server.lua > GetOfficerProfile).
+-- >>> le matricule côté serveur.
 local callsign = GetResourceKvpString('mdc_callsign') or ''
 
 -- =========================================================================
@@ -103,6 +108,7 @@ local function openMDC()
             callsign = callsign,
             name     = GetPlayerName(playerId),
             serverId = GetPlayerServerId(playerId),
+            layout   = windowLayout, -- nil = position par défaut (centrée)
         }
     })
 
@@ -133,6 +139,20 @@ RegisterKeyMapping(Config.Command, 'Ouvrir le MDC (Police)', 'keyboard', Config.
 -- Fermeture (touche Échap ou bouton de fermeture dans l'UI)
 RegisterNUICallback('close', function(_, cb)
     closeMDC()
+    cb({ ok = true })
+end)
+
+-- Sauvegarde de la position / taille de la fenêtre (après déplacement ou redimensionnement)
+RegisterNUICallback('saveLayout', function(data, cb)
+    if type(data) == 'table'
+        and type(data.x) == 'number' and type(data.y) == 'number'
+        and type(data.w) == 'number' and type(data.h) == 'number' then
+        windowLayout = {
+            x = math.floor(data.x), y = math.floor(data.y),
+            w = math.floor(data.w), h = math.floor(data.h),
+            maximized = data.maximized == true,
+        }
+    end
     cb({ ok = true })
 end)
 
@@ -173,10 +193,11 @@ local function relay(nuiName, serverName)
 end
 
 relay('getUnits',          'getUnits')          -- Onglet "Unités"
-relay('search',            'search')            -- Onglet "Recherches"
+relay('search',            'search')            -- Onglet "Recherches" (identités / plaques)
 relay('getInterventions',  'getInterventions')  -- Onglet "Interventions"
 relay('updateIntervention','updateIntervention')-- Prendre / clôturer une intervention
-relay('create',            'create')            -- Onglet "Créations"
+relay('create',            'create')            -- Onglet "Créations" (identité, véhicule, intervention)
+relay('getRegistry',       'getRegistry')       -- Bouton "Registre" (mes créations)
 
 -- =========================================================================
 -- PUSH SERVEUR -> NUI (uniquement si le MDC est ouvert)

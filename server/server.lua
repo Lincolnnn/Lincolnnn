@@ -1,13 +1,25 @@
 --[[
     MDC Standalone - Serveur
     ------------------------
-    Toutes les données sont stockées EN MÉMOIRE (tables Lua) : elles sont perdues
-    au redémarrage de la ressource. Chaque endroit où brancher votre propre base
-    de données (oxmysql, mysql-async, ghmattimysql, KVP, fichiers JSON...) est
-    signalé par un commentaire  ">>> BASE DE DONNÉES".
+    STOCKAGE PERSISTANT (sans base de données) :
+      Les identités, véhicules et interventions sont sauvegardés dans des fichiers
+      JSON à l'intérieur de la ressource :
+          data/identities.json
+          data/vehicles.json
+          data/interventions.json
 
-    Exemple avec oxmysql (à ajouter dans fxmanifest : server_script '@oxmysql/lib/MySQL.lua') :
-        local rows = MySQL.query.await('SELECT * FROM mdc_reports WHERE id = ?', { id })
+      Le script ne SUPPRIME JAMAIS une entrée de ces fichiers. Seuls les cadres
+      du serveur peuvent retirer une entrée, manuellement :
+          1. Ouvrez le fichier JSON voulu et supprimez l'objet { ... } concerné
+             (attention aux virgules : le fichier doit rester un JSON valide).
+          2. Tapez "mdc_reload" dans la console serveur (ou redémarrez la ressource).
+      Si un fichier est illisible (JSON invalide), le script refuse de l'écraser
+      pour ne rien perdre, et affiche une erreur dans la console.
+
+    ⚠ Lors d'une mise à jour du script, NE remplacez PAS le dossier data/.
+
+    BASE DE DONNÉES : pour passer à MySQL plus tard, remplacez uniquement les
+    fonctions loadStore() / saveStore() (voir les commentaires ">>> BASE DE DONNÉES").
 ]]
 
 -- =========================================================================
@@ -15,15 +27,18 @@
 -- =========================================================================
 local Config = {
     -- Permissions ACE (optionnel). Si true, seuls les joueurs ayant l'ACE
-    -- "mdc.use" peuvent utiliser le MDC côté serveur. Exemple dans server.cfg :
+    -- "mdc.use" peuvent utiliser le MDC. Exemple dans server.cfg :
     --   add_ace group.police mdc.use allow
     --   add_principal identifier.license:xxxxxxxx group.police
     UseAcePermission = false,
     AcePermission = 'mdc.use',
 
-    -- Anti-spam : délai minimum (ms) entre deux changements de statut d'un joueur
-    StatusCooldown = 500,
+    StatusCooldown = 500,   -- délai mini (ms) entre deux changements de statut
+    CreateCooldown = 1500,  -- délai mini (ms) entre deux créations
+    MaxSearchResults = 50,
 }
+
+local RESOURCE = GetCurrentResourceName()
 
 -- Statuts : clé technique -> libellé (doit correspondre à client.lua et index.html)
 local Statuses = {
@@ -36,15 +51,81 @@ local Statuses = {
 }
 
 -- =========================================================================
--- STOCKAGE EN MÉMOIRE
+-- STOCKAGE PERSISTANT (fichiers JSON)
 -- =========================================================================
-local Units = {}          -- [source] = { id, name, callsign, status, updatedAt }
-local Viewers = {}        -- [source] = true  (joueurs ayant le MDC ouvert)
-local Interventions = {}  -- liste des interventions
-local Reports = {}        -- rapports
-local Bolos = {}          -- avis de recherche
-local nextId = { intervention = 1, report = 1, bolo = 1 }
+local DATA_FILES = {
+    identities    = 'data/identities.json',
+    vehicles      = 'data/vehicles.json',
+    interventions = 'data/interventions.json',
+}
+
+local Store  = { identities = {}, vehicles = {}, interventions = {} }
+local NextId = { identities = 1, vehicles = 1, interventions = 1 }
+local Locked = {} -- [kind] = true si le fichier est corrompu (on ne l'écrase pas)
+
+--- Charge un fichier JSON en mémoire.
+local function loadStore(kind)
+    -- >>> BASE DE DONNÉES : remplacez par un SELECT * FROM mdc_<kind>
+    local raw = LoadResourceFile(RESOURCE, DATA_FILES[kind])
+    local list = {}
+    Locked[kind] = nil
+
+    if raw and raw:match('%S') then
+        local ok, decoded = pcall(json.decode, raw)
+        if ok and type(decoded) == 'table' then
+            for _, record in ipairs(decoded) do
+                if type(record) == 'table' then list[#list + 1] = record end
+            end
+        else
+            Locked[kind] = true
+            print(('^1[MDC] ERREUR : %s est illisible (JSON invalide). Les nouvelles créations de ce type ' ..
+                'sont bloquées pour ne pas écraser le fichier. Corrigez-le puis tapez mdc_reload.^0')
+                :format(DATA_FILES[kind]))
+        end
+    end
+
+    local maxId = 0
+    for _, record in ipairs(list) do
+        if type(record.id) == 'number' and record.id > maxId then maxId = record.id end
+        if kind == 'interventions' then record.units = {} end -- les unités assignées ne survivent pas à un reboot
+    end
+
+    Store[kind] = list
+    NextId[kind] = maxId + 1
+    print(('^5[MDC]^0 %d entrée(s) chargée(s) depuis %s'):format(#list, DATA_FILES[kind]))
+end
+
+--- Écrit un fichier JSON sur le disque (indenté pour rester lisible par les cadres).
+local function saveStore(kind)
+    if Locked[kind] then return false end
+    -- >>> BASE DE DONNÉES : remplacez par un INSERT / UPDATE ciblé
+    local ok = SaveResourceFile(RESOURCE, DATA_FILES[kind], json.encode(Store[kind], { indent = true }), -1)
+    if not ok then
+        print(('^1[MDC] ERREUR : impossible d\'écrire %s (le dossier data/ existe-t-il ?)^0'):format(DATA_FILES[kind]))
+    end
+    return ok
+end
+
+local function loadAll()
+    for kind in pairs(DATA_FILES) do loadStore(kind) end
+end
+
+loadAll()
+
+-- Rechargement manuel après modification des fichiers (console serveur uniquement)
+RegisterCommand('mdc_reload', function(source)
+    if source ~= 0 then return end
+    loadAll()
+    print('^5[MDC]^0 Fichiers de données rechargés.')
+end, true)
+
+-- =========================================================================
+-- ÉTAT EN MÉMOIRE (non persistant)
+-- =========================================================================
+local Units = {}            -- [source] = { id, name, callsign, status, updatedAt }
+local Viewers = {}          -- [source] = true (joueurs ayant le MDC ouvert)
 local lastStatusChange = {}
+local lastCreate = {}
 
 -- =========================================================================
 -- OUTILS
@@ -54,8 +135,8 @@ local function hasAccess(src)
     return IsPlayerAceAllowed(src, Config.AcePermission)
 end
 
+--- Identifiant stable du joueur : sert à retrouver "ses" créations dans le registre.
 local function getIdentifier(src)
-    -- Identifiant stable du joueur, utile comme clé en base de données.
     for _, id in ipairs(GetPlayerIdentifiers(src)) do
         if id:sub(1, 8) == 'license:' then return id end
     end
@@ -63,9 +144,36 @@ local function getIdentifier(src)
 end
 
 local function clean(str, maxLen)
-    if type(str) ~= 'string' then return '' end
-    str = str:gsub('^%s+', ''):gsub('%s+$', '')
+    if type(str) ~= 'string' then
+        if type(str) == 'number' then str = tostring(str) else return '' end
+    end
+    str = str:gsub('[%c]', ' '):gsub('^%s+', ''):gsub('%s+$', '')
     return str:sub(1, maxLen or 255)
+end
+
+-- Comme clean() mais conserve les retours à la ligne (zones de texte)
+local function cleanMultiline(str, maxLen)
+    if type(str) ~= 'string' then return '' end
+    str = str:gsub('\r', ''):gsub('[\1-\9\11-\31]', ''):gsub('^%s+', ''):gsub('%s+$', '')
+    return str:sub(1, maxLen or 2000)
+end
+
+local function normalizePlate(plate)
+    return clean(plate, 16):upper():gsub('[^%w]', ''):sub(1, 8)
+end
+
+local function normalizeName(str)
+    return (clean(str, 120):lower():gsub('%s+', ' '))
+end
+
+--- Copie d'un enregistrement sans les données privées (licence du créateur).
+local function publicView(record, kind)
+    local copy = {}
+    for k, v in pairs(record) do
+        if k ~= 'createdBy' then copy[k] = v end
+    end
+    copy.kind = kind
+    return copy
 end
 
 local function unitsList()
@@ -75,7 +183,14 @@ local function unitsList()
     return list
 end
 
---- Envoie une mise à jour à tous les joueurs ayant le MDC ouvert.
+local function openInterventions()
+    local list = {}
+    for _, intervention in ipairs(Store.interventions) do
+        if not intervention.closed then list[#list + 1] = publicView(intervention, 'intervention') end
+    end
+    return list
+end
+
 local function pushToViewers(kind, payload)
     for src in pairs(Viewers) do
         TriggerClientEvent('mdc:client:push', src, kind, payload)
@@ -95,14 +210,16 @@ local function ensureUnit(src)
     return Units[src]
 end
 
+local function authorName(src)
+    local unit = ensureUnit(src)
+    return unit.callsign ~= '' and ('%s (%s)'):format(unit.name, unit.callsign) or unit.name
+end
+
 -- =========================================================================
 -- SYSTÈME DE CALLBACKS (requête client -> réponse serveur)
 -- =========================================================================
 local Handlers = {}
 
---- Déclare un handler appelable depuis le client via serverRequest(name, ...)
----@param name string
----@param fn fun(src: number, payload: any): table
 local function RegisterMDCCallback(name, fn)
     Handlers[name] = fn
 end
@@ -149,7 +266,6 @@ RegisterNetEvent('mdc:server:setStatus', function(status, callsign)
         return
     end
 
-    -- Anti-spam sur les changements de statut
     local now = GetGameTimer()
     if lastStatusChange[src] and now - lastStatusChange[src] < Config.StatusCooldown then return end
     lastStatusChange[src] = now
@@ -157,7 +273,7 @@ RegisterNetEvent('mdc:server:setStatus', function(status, callsign)
     unit.status = status
     unit.updatedAt = os.time()
 
-    -- Notification console (demandée pour la version standalone)
+    -- Notification console
     print(('^5[MDC]^0 %s%s (ID %d) : ^3%s^0 -> ^2%s^0'):format(
         unit.name,
         unit.callsign ~= '' and (' [' .. unit.callsign .. ']') or '',
@@ -166,16 +282,11 @@ RegisterNetEvent('mdc:server:setStatus', function(status, callsign)
         Statuses[status]
     ))
 
-    -- >>> BASE DE DONNÉES : historiser le changement de statut, par ex. :
-    -- >>> MySQL.insert('INSERT INTO mdc_status_logs (identifier, status, date) VALUES (?, ?, NOW())',
-    -- >>>     { getIdentifier(src), status })
-
-    -- >>> DISCORD : vous pouvez aussi envoyer un webhook ici (PerformHttpRequest).
+    -- >>> BASE DE DONNÉES : historiser le changement de statut si besoin
 
     pushToViewers('units', unitsList())
 end)
 
--- Le client signale l'ouverture/fermeture du MDC
 RegisterNetEvent('mdc:server:viewer', function(isViewing)
     local src = source
     if isViewing and hasAccess(src) then
@@ -188,76 +299,93 @@ RegisterNetEvent('mdc:server:viewer', function(isViewing)
 end)
 
 RegisterMDCCallback('getUnits', function()
-    -- >>> BASE DE DONNÉES : vous pouvez enrichir chaque unité avec les infos de
-    -- >>> votre table d'agents (grade, nom RP, véhicule...) via getIdentifier(src).
     return { ok = true, units = unitsList() }
 end)
 
--- Nettoyage à la déconnexion
 AddEventHandler('playerDropped', function()
     local src = source
     local wasUnit = Units[src] ~= nil
-    Units[src], Viewers[src], lastStatusChange[src] = nil, nil, nil
+    Units[src], Viewers[src], lastStatusChange[src], lastCreate[src] = nil, nil, nil, nil
 
-    for _, intervention in ipairs(Interventions) do
-        intervention.units[tostring(src)] = nil
+    local key, changed = tostring(src), false
+    for _, intervention in ipairs(Store.interventions) do
+        if intervention.units and intervention.units[key] then
+            intervention.units[key] = nil
+            changed = true
+        end
     end
 
     if wasUnit then pushToViewers('units', unitsList()) end
+    if changed then pushToViewers('interventions', openInterventions()) end
 end)
 
 -- =========================================================================
--- RECHERCHES
+-- LIENS ENTRE IDENTITÉS ET VÉHICULES
+-- (le propriétaire d'un véhicule est saisi sous la forme "Prénom Nom")
+-- =========================================================================
+local function identityNames(identity)
+    local first, last = normalizeName(identity.firstname), normalizeName(identity.lastname)
+    return first .. ' ' .. last, last .. ' ' .. first
+end
+
+local function vehiclesOf(identity)
+    local a, b = identityNames(identity)
+    local list = {}
+    for _, vehicle in ipairs(Store.vehicles) do
+        local owner = normalizeName(vehicle.owner)
+        if owner ~= '' and (owner == a or owner == b) then
+            list[#list + 1] = publicView(vehicle, 'vehicle')
+        end
+    end
+    return list
+end
+
+local function ownerOf(vehicle)
+    local owner = normalizeName(vehicle.owner)
+    if owner == '' then return nil end
+    for _, identity in ipairs(Store.identities) do
+        local a, b = identityNames(identity)
+        if owner == a or owner == b then return publicView(identity, 'identity') end
+    end
+    return nil
+end
+
+-- =========================================================================
+-- RECHERCHES (identités et immatriculations enregistrées via "Créations")
 -- =========================================================================
 RegisterMDCCallback('search', function(_, payload)
-    local searchType = payload.type
     local query = clean(payload.query, 64):lower()
-
     if #query < 2 then
         return { ok = false, error = 'Saisissez au moins 2 caractères.' }
     end
 
     local results = {}
 
-    if searchType == 'person' then
-        -- >>> BASE DE DONNÉES : remplacez ce bloc par une recherche dans votre table
-        -- >>> de personnages / casiers judiciaires, par ex. :
-        -- >>> MySQL.query.await('SELECT firstname, lastname, dob FROM characters
-        -- >>>     WHERE CONCAT(firstname, " ", lastname) LIKE ?', { '%' .. query .. '%' })
-        --
-        -- Version standalone : on cherche parmi les joueurs connectés.
-        for _, playerId in ipairs(GetPlayers()) do
-            local name = GetPlayerName(playerId) or ''
-            if name:lower():find(query, 1, true) then
-                results[#results + 1] = {
-                    title = name,
-                    subtitle = ('Joueur connecté - ID %s'):format(playerId),
-                    tag = 'Citoyen',
-                }
+    if payload.type == 'identity' then
+        for _, identity in ipairs(Store.identities) do
+            local a, b = identityNames(identity)
+            if a:find(query, 1, true) or b:find(query, 1, true) or (identity.dob or ''):find(query, 1, true) then
+                local entry = publicView(identity, 'identity')
+                entry.vehicles = vehiclesOf(identity)
+                results[#results + 1] = entry
+                if #results >= Config.MaxSearchResults then break end
             end
         end
 
-    elseif searchType == 'vehicle' then
-        -- >>> BASE DE DONNÉES : recherche de plaque dans votre table de véhicules, par ex. :
-        -- >>> MySQL.query.await('SELECT plate, model, owner FROM vehicles WHERE plate LIKE ?',
-        -- >>>     { '%' .. query .. '%' })
-        --
-        -- Version standalone : aucune table de véhicules, on ne cherche que dans les avis de recherche.
+    elseif payload.type == 'vehicle' then
+        local plateQuery = normalizePlate(query)
+        for _, vehicle in ipairs(Store.vehicles) do
+            local plateMatch = plateQuery ~= '' and (vehicle.plate or ''):find(plateQuery, 1, true)
+            local modelMatch = (vehicle.model or ''):lower():find(query, 1, true)
+            if plateMatch or modelMatch then
+                local entry = publicView(vehicle, 'vehicle')
+                entry.ownerIdentity = ownerOf(vehicle)
+                results[#results + 1] = entry
+                if #results >= Config.MaxSearchResults then break end
+            end
+        end
     else
         return { ok = false, error = 'Type de recherche invalide.' }
-    end
-
-    -- Dans tous les cas, on remonte les avis de recherche (BOLO) correspondants.
-    for _, bolo in ipairs(Bolos) do
-        local haystack = (bolo.title .. ' ' .. bolo.description):lower()
-        if haystack:find(query, 1, true) then
-            results[#results + 1] = {
-                title = bolo.title,
-                subtitle = bolo.description,
-                tag = 'Avis de recherche',
-                danger = true,
-            }
-        end
     end
 
     return { ok = true, results = results }
@@ -267,92 +395,182 @@ end)
 -- INTERVENTIONS
 -- =========================================================================
 RegisterMDCCallback('getInterventions', function()
-    -- >>> BASE DE DONNÉES : SELECT * FROM mdc_interventions WHERE closed = 0
-    return { ok = true, interventions = Interventions }
+    return { ok = true, interventions = openInterventions() }
 end)
 
 RegisterMDCCallback('updateIntervention', function(src, payload)
     local id = tonumber(payload.id)
     local action = payload.action
 
-    for index, intervention in ipairs(Interventions) do
-        if intervention.id == id then
+    for _, intervention in ipairs(Store.interventions) do
+        if intervention.id == id and not intervention.closed then
             local unit = ensureUnit(src)
-            local key = tostring(src) -- clé string pour une sérialisation JSON propre
+            local key = tostring(src)
+            intervention.units = intervention.units or {}
 
             if action == 'attach' then
                 intervention.units[key] = unit.callsign ~= '' and unit.callsign or unit.name
             elseif action == 'detach' then
                 intervention.units[key] = nil
             elseif action == 'close' then
-                table.remove(Interventions, index)
+                -- Une intervention clôturée n'est PAS supprimée : elle reste dans le
+                -- fichier (et dans le registre de son créateur) avec closed = true.
+                intervention.closed = true
+                intervention.closedAt = os.time()
+                intervention.closedByName = authorName(src)
+                intervention.units = {}
+                saveStore('interventions')
                 print(('^5[MDC]^0 Intervention #%d clôturée par %s'):format(id, unit.name))
-                -- >>> BASE DE DONNÉES : UPDATE mdc_interventions SET closed = 1 WHERE id = ?
             else
                 return { ok = false, error = 'Action invalide.' }
             end
 
-            -- >>> BASE DE DONNÉES : sauvegarder les unités assignées si besoin
-            pushToViewers('interventions', Interventions)
+            pushToViewers('interventions', openInterventions())
             return { ok = true }
         end
     end
 
-    return { ok = false, error = 'Intervention introuvable.' }
+    return { ok = false, error = 'Intervention introuvable ou déjà clôturée.' }
 end)
 
 -- =========================================================================
--- CRÉATIONS (rapports, avis de recherche, interventions)
+-- CRÉATIONS (identités, véhicules, interventions)
 -- =========================================================================
-RegisterMDCCallback('create', function(src, payload)
-    local kind = payload.kind
-    local title = clean(payload.title, 80)
-    local description = clean(payload.description, 2000)
-    local author = ensureUnit(src)
+local GENDERS = { M = true, F = true, X = true }
+local VEHICLE_STATUSES = { valid = true, stolen = true, wanted = true }
+local PRIORITIES = { low = true, medium = true, high = true }
 
-    if title == '' then
-        return { ok = false, error = 'Le titre est obligatoire.' }
-    end
+local function validDob(dob)
+    local d, m, y = dob:match('^(%d%d)/(%d%d)/(%d%d%d%d)$')
+    d, m, y = tonumber(d), tonumber(m), tonumber(y)
+    return d and d >= 1 and d <= 31 and m >= 1 and m <= 12 and y >= 1900 and y <= 2100
+end
 
-    local entry = {
-        title = title,
-        description = description,
-        author = author.callsign ~= '' and author.callsign or author.name,
-        createdAt = os.time(),
+-- Chaque builder valide les données reçues et retourne (record) ou (nil, erreur)
+local Builders = {}
+
+Builders.identities = function(p)
+    local r = {
+        lastname    = clean(p.lastname, 40),
+        firstname   = clean(p.firstname, 40),
+        dob         = clean(p.dob, 10),
+        gender      = GENDERS[p.gender] and p.gender or 'X',
+        nationality = clean(p.nationality, 40),
+        height      = tonumber(p.height),
+        phone       = clean(p.phone, 20),
+        address     = clean(p.address, 80),
+        job         = clean(p.job, 40),
+        notes       = cleanMultiline(p.notes, 1000),
     }
 
-    -- Identifiant stable de l'auteur : à utiliser comme clé en BDD.
-    -- Volontairement NON stocké dans `entry` (qui est envoyé aux clients).
-    local authorIdentifier = getIdentifier(src) -- luacheck: ignore
+    if r.lastname == '' or r.firstname == '' then return nil, 'Le nom et le prénom sont obligatoires.' end
+    if not validDob(r.dob) then return nil, 'Date de naissance invalide (format JJ/MM/AAAA).' end
+    if r.height and (r.height < 50 or r.height > 250) then return nil, 'Taille invalide (50 à 250 cm).' end
+    if r.height then r.height = math.floor(r.height) end
 
-    if kind == 'report' then
-        entry.id = nextId.report
-        nextId.report = nextId.report + 1
-        Reports[#Reports + 1] = entry
-        -- >>> BASE DE DONNÉES :
-        -- >>> MySQL.insert('INSERT INTO mdc_reports (title, description, author, created_at)
-        -- >>>     VALUES (?, ?, ?, NOW())', { title, description, authorIdentifier })
-
-    elseif kind == 'bolo' then
-        entry.id = nextId.bolo
-        nextId.bolo = nextId.bolo + 1
-        Bolos[#Bolos + 1] = entry
-        -- >>> BASE DE DONNÉES : INSERT INTO mdc_bolos (...)
-
-    elseif kind == 'intervention' then
-        entry.id = nextId.intervention
-        nextId.intervention = nextId.intervention + 1
-        entry.location = clean(payload.location, 80)
-        entry.priority = (payload.priority == 'high' or payload.priority == 'low') and payload.priority or 'medium'
-        entry.units = {}
-        Interventions[#Interventions + 1] = entry
-        -- >>> BASE DE DONNÉES : INSERT INTO mdc_interventions (...)
-        pushToViewers('interventions', Interventions)
-    else
-        return { ok = false, error = 'Type de création invalide.' }
+    local a = normalizeName(r.firstname .. ' ' .. r.lastname)
+    for _, identity in ipairs(Store.identities) do
+        if identityNames(identity) == a and identity.dob == r.dob then
+            return nil, ('Cette identité existe déjà (fiche #%d).'):format(identity.id)
+        end
     end
 
-    print(('^5[MDC]^0 Nouvelle création [%s #%d] "%s" par %s'):format(kind, entry.id, title, author.name))
+    return r
+end
 
-    return { ok = true, id = entry.id }
+Builders.vehicles = function(p)
+    local r = {
+        plate  = normalizePlate(p.plate),
+        model  = clean(p.model, 40),
+        color  = clean(p.color, 30),
+        owner  = clean(p.owner, 80),
+        status = VEHICLE_STATUSES[p.status] and p.status or 'valid',
+        notes  = cleanMultiline(p.notes, 1000),
+    }
+
+    if r.plate == '' then return nil, 'La plaque est obligatoire (lettres et chiffres, 8 max).' end
+    if r.model == '' then return nil, 'Le modèle est obligatoire.' end
+
+    for _, vehicle in ipairs(Store.vehicles) do
+        if vehicle.plate == r.plate then
+            return nil, ('La plaque %s est déjà enregistrée (fiche #%d).'):format(r.plate, vehicle.id)
+        end
+    end
+
+    return r
+end
+
+Builders.interventions = function(p)
+    local r = {
+        title       = clean(p.title, 80),
+        location    = clean(p.location, 80),
+        priority    = PRIORITIES[p.priority] and p.priority or 'medium',
+        description = cleanMultiline(p.description, 2000),
+        closed      = false,
+        units       = {},
+    }
+    if r.title == '' then return nil, 'Le titre est obligatoire.' end
+    return r
+end
+
+local KIND_TO_STORE = { identity = 'identities', vehicle = 'vehicles', intervention = 'interventions' }
+
+RegisterMDCCallback('create', function(src, payload)
+    local storeName = KIND_TO_STORE[payload.kind]
+    if not storeName then return { ok = false, error = 'Type de création invalide.' } end
+
+    if Locked[storeName] then
+        return { ok = false, error = 'Enregistrement bloqué : fichier de données corrompu (voir console serveur).' }
+    end
+
+    local now = GetGameTimer()
+    if lastCreate[src] and now - lastCreate[src] < Config.CreateCooldown then
+        return { ok = false, error = 'Patientez un instant avant une nouvelle création.' }
+    end
+
+    local record, err = Builders[storeName](payload)
+    if not record then return { ok = false, error = err } end
+
+    lastCreate[src] = now
+    record.id = NextId[storeName]
+    record.createdAt = os.time()
+    record.createdByName = authorName(src)
+    record.createdBy = getIdentifier(src) -- privé : jamais envoyé aux clients (voir publicView)
+
+    NextId[storeName] = NextId[storeName] + 1
+    Store[storeName][#Store[storeName] + 1] = record
+
+    if not saveStore(storeName) then
+        return { ok = false, error = 'Erreur d\'écriture sur le serveur (voir console).' }
+    end
+
+    print(('^5[MDC]^0 Nouvelle création [%s #%d] par %s'):format(payload.kind, record.id, record.createdByName))
+
+    if storeName == 'interventions' then
+        pushToViewers('interventions', openInterventions())
+    end
+
+    return { ok = true, id = record.id }
+end)
+
+-- =========================================================================
+-- REGISTRE : uniquement les créations du joueur qui consulte
+-- =========================================================================
+RegisterMDCCallback('getRegistry', function(src)
+    local me = getIdentifier(src)
+    local records = {}
+
+    for storeName, kind in pairs({ identities = 'identity', vehicles = 'vehicle', interventions = 'intervention' }) do
+        for _, record in ipairs(Store[storeName]) do
+            if record.createdBy == me then
+                local entry = publicView(record, kind)
+                if kind == 'identity' then entry.vehicles = vehiclesOf(record) end
+                if kind == 'vehicle' then entry.ownerIdentity = ownerOf(record) end
+                records[#records + 1] = entry
+            end
+        end
+    end
+
+    table.sort(records, function(a, b) return (a.createdAt or 0) > (b.createdAt or 0) end)
+    return { ok = true, records = records }
 end)

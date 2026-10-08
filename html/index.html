@@ -7,153 +7,272 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Conteneur principal : masqué par défaut, affiché par script.js à l'ouverture -->
-    <div id="mdc" class="mdc hidden" role="application" aria-label="Mobile Data Computer">
+    <!-- Fenêtre principale : masquée par défaut, positionnée/redimensionnée par script.js -->
+    <div id="mdc" class="window hidden" role="application" aria-label="Mobile Data Computer">
 
-        <!-- ================= TOP BAR ================= -->
-        <header class="topbar">
-            <div class="brand">
-                <div class="brand-badge">MDC</div>
-                <div class="brand-text">
-                    <span class="brand-title">Mobile Data Computer</span>
-                    <span class="brand-sub">Département de Police</span>
-                </div>
+        <!-- ================= BARRE DE TITRE (déplacement + boutons fenêtre) ================= -->
+        <div class="titlebar" id="titlebar">
+            <div class="title">
+                <span class="title-icon">MDC</span>
+                <span>Mobile Data Computer — Département de Police</span>
             </div>
-
-            <nav class="tabs" role="tablist">
-                <button class="tab active" data-page="units" role="tab">Unités</button>
-                <button class="tab" data-page="search" role="tab">Recherches</button>
-                <button class="tab" data-page="interventions" role="tab">Interventions</button>
-                <button class="tab" data-page="create" role="tab">Créations</button>
-            </nav>
-
-            <div class="topbar-right">
-                <span id="clock" class="clock">--:--</span>
-                <button id="closeBtn" class="close-btn" title="Fermer (Échap)" aria-label="Fermer">&times;</button>
+            <div class="win-buttons">
+                <button class="win-btn" id="btnReset" title="Réinitialiser la position et la taille">&#8634;</button>
+                <button class="win-btn" id="btnMax" title="Agrandir">&#9633;</button>
+                <button class="win-btn win-close" id="btnClose" title="Fermer (Échap)">&#10005;</button>
             </div>
-        </header>
+        </div>
 
-        <div class="body">
-            <!-- ================= SIDEBAR ================= -->
+        <!-- ================= BARRE D'ONGLETS ================= -->
+        <nav class="tabbar" role="tablist">
+            <button class="tab active" data-page="units" role="tab">Unités</button>
+            <button class="tab" data-page="search" role="tab">Recherches</button>
+            <button class="tab" data-page="interventions" role="tab">Interventions</button>
+            <button class="tab" data-page="create" role="tab">Créations</button>
+        </nav>
+
+        <div class="frame-body">
+            <!-- ================= BARRE LATÉRALE ================= -->
             <aside class="sidebar">
-                <div class="profile">
-                    <div class="avatar" id="profileAvatar">?</div>
-                    <div class="profile-info">
-                        <span class="profile-name" id="profileName">Agent</span>
-                        <span class="profile-id" id="profileId">ID -</span>
+                <div class="group">
+                    <span class="legend">Agent</span>
+                    <div class="profile">
+                        <div class="avatar" id="profileAvatar">?</div>
+                        <div class="profile-info">
+                            <span class="profile-name" id="profileName">Agent</span>
+                            <span class="profile-id" id="profileId">ID -</span>
+                        </div>
+                    </div>
+                    <label class="lbl" for="callsignInput">Matricule</label>
+                    <div class="inline">
+                        <input id="callsignInput" type="text" maxlength="12" placeholder="1-ADAM-12" autocomplete="off">
+                        <button id="callsignSave" class="btn">OK</button>
                     </div>
                 </div>
 
-                <label class="field-label" for="callsignInput">Matricule</label>
-                <div class="callsign">
-                    <input id="callsignInput" type="text" maxlength="12" placeholder="ex : 1-ADAM-12" autocomplete="off">
-                    <button id="callsignSave" class="btn btn-small">OK</button>
-                </div>
-
-                <span class="field-label">Statut</span>
-                <div class="status-list" id="statusList">
-                    <button class="status-btn" data-status="available"><span class="dot"></span>Disponible</button>
-                    <button class="status-btn" data-status="unavailable"><span class="dot"></span>Indisponible</button>
-                    <button class="status-btn" data-status="traffic_stop"><span class="dot"></span>Contrôle Routier</button>
-                    <button class="status-btn" data-status="busy"><span class="dot"></span>Occupé</button>
-                    <button class="status-btn" data-status="on_scene"><span class="dot"></span>Sur Place</button>
-                    <button class="status-btn" data-status="en_route"><span class="dot"></span>En route</button>
-                </div>
-
-                <div class="sidebar-footer">
-                    <span class="hint">Échap pour fermer</span>
+                <div class="group">
+                    <span class="legend">Statut</span>
+                    <div class="status-list">
+                        <button class="status-btn" data-status="available"><span class="sq"></span>Disponible</button>
+                        <button class="status-btn" data-status="unavailable"><span class="sq"></span>Indisponible</button>
+                        <button class="status-btn" data-status="traffic_stop"><span class="sq"></span>Contrôle Routier</button>
+                        <button class="status-btn" data-status="busy"><span class="sq"></span>Occupé</button>
+                        <button class="status-btn" data-status="on_scene"><span class="sq"></span>Sur Place</button>
+                        <button class="status-btn" data-status="en_route"><span class="sq"></span>En route</button>
+                    </div>
                 </div>
             </aside>
 
             <!-- ================= PAGES ================= -->
             <main class="content">
 
-                <!-- UNITÉS -->
+                <!-- ============ UNITÉS ============ -->
                 <section class="page active" id="page-units">
-                    <div class="page-header">
-                        <h2>Unités en service</h2>
-                        <button class="btn btn-ghost" id="refreshUnits">Actualiser</button>
-                    </div>
-                    <div class="table-wrap">
-                        <table class="table">
-                            <thead>
-                                <tr><th>ID</th><th>Matricule</th><th>Agent</th><th>Statut</th><th>Mis à jour</th></tr>
-                            </thead>
-                            <tbody id="unitsBody"></tbody>
-                        </table>
-                        <div class="empty hidden" id="unitsEmpty">Aucune unité en service.</div>
-                    </div>
-                </section>
-
-                <!-- RECHERCHES -->
-                <section class="page" id="page-search">
-                    <div class="page-header"><h2>Recherches</h2></div>
-                    <form class="search-bar" id="searchForm" autocomplete="off">
-                        <div class="segmented" id="searchType">
-                            <button type="button" class="seg active" data-type="person">Personne</button>
-                            <button type="button" class="seg" data-type="vehicle">Véhicule</button>
+                    <div class="group fill">
+                        <span class="legend">Unités en service</span>
+                        <div class="toolbar">
+                            <button class="btn" id="refreshUnits">Actualiser</button>
                         </div>
-                        <input id="searchInput" type="text" placeholder="Nom, prénom..." maxlength="64">
-                        <button type="submit" class="btn btn-primary">Rechercher</button>
-                    </form>
-                    <div class="results" id="searchResults">
-                        <div class="empty">Lancez une recherche pour afficher des résultats.</div>
+                        <div class="well">
+                            <table class="grid">
+                                <thead>
+                                    <tr><th>ID</th><th>Matricule</th><th>Agent</th><th>Statut</th><th>Mis à jour</th></tr>
+                                </thead>
+                                <tbody id="unitsBody"></tbody>
+                            </table>
+                            <div class="empty hidden" id="unitsEmpty">Aucune unité en service.</div>
+                        </div>
                     </div>
                 </section>
 
-                <!-- INTERVENTIONS -->
+                <!-- ============ RECHERCHES ============ -->
+                <section class="page" id="page-search">
+                    <div class="group">
+                        <span class="legend">Critères de recherche</span>
+                        <form class="toolbar" id="searchForm" autocomplete="off">
+                            <label class="radio"><input type="radio" name="searchType" value="identity" checked> Identité</label>
+                            <label class="radio"><input type="radio" name="searchType" value="vehicle"> Immatriculation</label>
+                            <input id="searchInput" class="grow" type="text" maxlength="64" placeholder="Nom, prénom ou date de naissance (JJ/MM/AAAA)...">
+                            <button type="submit" class="btn btn-default">Rechercher</button>
+                        </form>
+                    </div>
+
+                    <div class="split">
+                        <div class="group">
+                            <span class="legend">Résultats <span id="searchCount"></span></span>
+                            <div class="well">
+                                <table class="grid selectable">
+                                    <thead id="searchHead"></thead>
+                                    <tbody id="searchBody"></tbody>
+                                </table>
+                                <div class="empty" id="searchEmpty">Lancez une recherche.</div>
+                            </div>
+                        </div>
+                        <div class="group">
+                            <span class="legend">Fiche</span>
+                            <div class="well detail" id="searchDetail">
+                                <div class="empty">Sélectionnez un résultat.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ============ INTERVENTIONS ============ -->
                 <section class="page" id="page-interventions">
-                    <div class="page-header">
-                        <h2>Interventions en cours</h2>
-                        <button class="btn btn-ghost" id="refreshInterventions">Actualiser</button>
+                    <div class="group fill">
+                        <span class="legend">Interventions en cours</span>
+                        <div class="toolbar">
+                            <button class="btn" id="refreshInterventions">Actualiser</button>
+                        </div>
+                        <div class="cards" id="interventionsList"></div>
                     </div>
-                    <div class="cards" id="interventionsList"></div>
                 </section>
 
-                <!-- CRÉATIONS -->
+                <!-- ============ CRÉATIONS ============ -->
                 <section class="page" id="page-create">
-                    <div class="page-header"><h2>Créations</h2></div>
-                    <div class="segmented segmented-wide" id="createType">
-                        <button type="button" class="seg active" data-kind="report">Rapport</button>
-                        <button type="button" class="seg" data-kind="bolo">Avis de recherche</button>
-                        <button type="button" class="seg" data-kind="intervention">Intervention</button>
+                    <div class="toolbar subtabs">
+                        <button class="btn subtab active" data-view="identity">Identité</button>
+                        <button class="btn subtab" data-view="vehicle">Véhicule</button>
+                        <button class="btn subtab" data-view="intervention">Intervention</button>
+                        <span class="grow"></span>
+                        <button class="btn subtab registry-btn" data-view="registry">Registre</button>
                     </div>
 
-                    <form class="form" id="createForm" autocomplete="off">
-                        <label class="field-label" for="createTitle">Titre *</label>
-                        <input id="createTitle" type="text" maxlength="80" required>
+                    <!-- Identité -->
+                    <form class="view active" id="view-identity" data-kind="identity" autocomplete="off" novalidate>
+                        <div class="group">
+                            <span class="legend">Nouvelle identité</span>
+                            <div class="form-grid">
+                                <label class="lbl">Nom *<input name="lastname" type="text" maxlength="40" required></label>
+                                <label class="lbl">Prénom *<input name="firstname" type="text" maxlength="40" required></label>
+                                <label class="lbl">Date de naissance *<input name="dob" type="text" maxlength="10" placeholder="JJ/MM/AAAA" pattern="\d{2}/\d{2}/\d{4}" required></label>
+                                <label class="lbl">Sexe
+                                    <select name="gender">
+                                        <option value="M">Homme</option>
+                                        <option value="F">Femme</option>
+                                        <option value="X">Autre</option>
+                                    </select>
+                                </label>
+                                <label class="lbl">Nationalité<input name="nationality" type="text" maxlength="40"></label>
+                                <label class="lbl">Taille (cm)<input name="height" type="number" min="50" max="250"></label>
+                                <label class="lbl">Téléphone<input name="phone" type="text" maxlength="20"></label>
+                                <label class="lbl">Profession<input name="job" type="text" maxlength="40"></label>
+                                <label class="lbl span-2">Adresse<input name="address" type="text" maxlength="80"></label>
+                                <label class="lbl span-2">Remarques<textarea name="notes" rows="4" maxlength="1000"></textarea></label>
+                            </div>
+                            <div class="form-actions">
+                                <button type="reset" class="btn">Effacer</button>
+                                <button type="submit" class="btn btn-default">Enregistrer</button>
+                            </div>
+                        </div>
+                    </form>
 
-                        <div class="intervention-only hidden">
-                            <div class="row">
-                                <div class="col">
-                                    <label class="field-label" for="createLocation">Localisation</label>
-                                    <input id="createLocation" type="text" maxlength="80" placeholder="ex : Legion Square">
-                                </div>
-                                <div class="col">
-                                    <label class="field-label" for="createPriority">Priorité</label>
-                                    <select id="createPriority">
+                    <!-- Véhicule -->
+                    <form class="view" id="view-vehicle" data-kind="vehicle" autocomplete="off" novalidate>
+                        <div class="group">
+                            <span class="legend">Nouveau véhicule</span>
+                            <div class="form-grid">
+                                <label class="lbl">Plaque *<input name="plate" type="text" maxlength="8" class="upper" required></label>
+                                <label class="lbl">Modèle *<input name="model" type="text" maxlength="40" required></label>
+                                <label class="lbl">Couleur<input name="color" type="text" maxlength="30"></label>
+                                <label class="lbl">Statut
+                                    <select name="status">
+                                        <option value="valid">En règle</option>
+                                        <option value="stolen">Volé</option>
+                                        <option value="wanted">Recherché</option>
+                                    </select>
+                                </label>
+                                <label class="lbl span-2">Propriétaire (Prénom Nom, tel qu'enregistré dans « Identité »)<input name="owner" type="text" maxlength="80"></label>
+                                <label class="lbl span-2">Remarques<textarea name="notes" rows="4" maxlength="1000"></textarea></label>
+                            </div>
+                            <div class="form-actions">
+                                <button type="reset" class="btn">Effacer</button>
+                                <button type="submit" class="btn btn-default">Enregistrer</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Intervention -->
+                    <form class="view" id="view-intervention" data-kind="intervention" autocomplete="off" novalidate>
+                        <div class="group">
+                            <span class="legend">Nouvelle intervention</span>
+                            <div class="form-grid">
+                                <label class="lbl span-2">Titre *<input name="title" type="text" maxlength="80" required></label>
+                                <label class="lbl">Localisation<input name="location" type="text" maxlength="80" placeholder="ex : Legion Square"></label>
+                                <label class="lbl">Priorité
+                                    <select name="priority">
                                         <option value="low">Basse</option>
                                         <option value="medium" selected>Moyenne</option>
                                         <option value="high">Haute</option>
                                     </select>
+                                </label>
+                                <label class="lbl span-2">Description<textarea name="description" rows="6" maxlength="2000"></textarea></label>
+                            </div>
+                            <div class="form-actions">
+                                <button type="reset" class="btn">Effacer</button>
+                                <button type="submit" class="btn btn-default">Enregistrer</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Registre : uniquement MES créations -->
+                    <div class="view" id="view-registry">
+                        <div class="group">
+                            <span class="legend">Registre — mes créations</span>
+                            <div class="toolbar">
+                                <label class="lbl-inline" for="registryFilter">Afficher :</label>
+                                <select id="registryFilter">
+                                    <option value="all">Tout</option>
+                                    <option value="identity">Identités</option>
+                                    <option value="vehicle">Véhicules</option>
+                                    <option value="intervention">Interventions</option>
+                                </select>
+                                <span class="grow"></span>
+                                <button class="btn" id="refreshRegistry">Actualiser</button>
+                            </div>
+                        </div>
+                        <div class="split">
+                            <div class="group">
+                                <span class="legend">Entrées <span id="registryCount"></span></span>
+                                <div class="well">
+                                    <table class="grid selectable">
+                                        <thead><tr><th>Type</th><th>N°</th><th>Référence</th><th>Créé le</th></tr></thead>
+                                        <tbody id="registryBody"></tbody>
+                                    </table>
+                                    <div class="empty hidden" id="registryEmpty">Aucune création.</div>
+                                </div>
+                            </div>
+                            <div class="group">
+                                <span class="legend">Fiche</span>
+                                <div class="well detail" id="registryDetail">
+                                    <div class="empty">Sélectionnez une entrée.</div>
                                 </div>
                             </div>
                         </div>
-
-                        <label class="field-label" for="createDescription">Description</label>
-                        <textarea id="createDescription" rows="8" maxlength="2000"></textarea>
-
-                        <div class="form-actions">
-                            <button type="reset" class="btn btn-ghost">Effacer</button>
-                            <button type="submit" class="btn btn-primary">Enregistrer</button>
-                        </div>
-                    </form>
+                    </div>
                 </section>
             </main>
         </div>
+
+        <!-- ================= BARRE D'ÉTAT ================= -->
+        <div class="statusbar">
+            <span class="sb-cell grow" id="sbAgent">Agent : -</span>
+            <span class="sb-cell" id="sbStatus"><span class="sq"></span><span>-</span></span>
+            <span class="sb-cell" id="sbClock">--:--</span>
+        </div>
+
+        <!-- Poignées de redimensionnement (bords + coins) -->
+        <div class="rz rz-n"  data-dir="n"></div>
+        <div class="rz rz-s"  data-dir="s"></div>
+        <div class="rz rz-e"  data-dir="e"></div>
+        <div class="rz rz-w"  data-dir="w"></div>
+        <div class="rz rz-ne" data-dir="ne"></div>
+        <div class="rz rz-nw" data-dir="nw"></div>
+        <div class="rz rz-se" data-dir="se"></div>
+        <div class="rz rz-sw" data-dir="sw"></div>
     </div>
 
-    <!-- Notifications (toasts) -->
+    <!-- Notifications -->
     <div id="toasts" class="toasts"></div>
 
     <script src="script.js"></script>

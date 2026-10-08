@@ -1,0 +1,14 @@
+Dossier de données du MDC (créé et rempli automatiquement par le serveur).
+
+  identities.json     -> identités enregistrées via "Créations"
+  vehicles.json       -> véhicules enregistrés via "Créations"
+  interventions.json  -> interventions (les clôturées restent avec "closed": true)
+
+Le script ne supprime JAMAIS d'entrée. Pour en retirer une (cadres uniquement) :
+  1. Ouvrez le fichier et supprimez l'objet { ... } voulu (le fichier doit rester un JSON valide).
+  2. Tapez  mdc_reload  dans la console serveur (ou redémarrez la ressource).
+
+Si un fichier devient illisible, le MDC bloque les nouvelles créations de ce type
+plutôt que de l'écraser : corrigez le JSON puis tapez mdc_reload.
+
+ATTENTION : lors d'une mise à jour du script, ne remplacez pas ce dossier.
