@@ -34,18 +34,21 @@
         <div class="frame-body">
             <!-- ================= BARRE LATÉRALE ================= -->
             <aside class="sidebar">
-                <div class="group">
-                    <span class="legend">Agent</span>
-                    <div class="profile">
-                        <div class="avatar" id="profileAvatar">?</div>
-                        <div class="profile-info">
-                            <span class="profile-name" id="profileName">Agent</span>
-                            <span class="profile-id" id="profileId">ID -</span>
+                <div class="group profile-group">
+                    <!-- Nom RP affiché en haut à gauche, uniquement une fois créé -->
+                    <div class="rp-display hidden" id="rpDisplay">
+                        <div class="rp-text">
+                            <span class="rp-name" id="rpNameText"></span>
+                            <span class="rp-callsign" id="rpCallsignText"></span>
                         </div>
+                        <button class="btn btn-icon" id="rpEdit" title="Modifier le nom RP">&#9998;</button>
                     </div>
-                    <label class="lbl" for="callsignInput">Matricule</label>
+                    <div class="inline" id="rpForm">
+                        <input id="rpNameInput" type="text" maxlength="40" placeholder="NOM RP" autocomplete="off">
+                        <button id="rpSave" class="btn">OK</button>
+                    </div>
                     <div class="inline">
-                        <input id="callsignInput" type="text" maxlength="12" placeholder="1-ADAM-12" autocomplete="off">
+                        <input id="callsignInput" type="text" maxlength="12" placeholder="MATRICULE" autocomplete="off" class="upper">
                         <button id="callsignSave" class="btn">OK</button>
                     </div>
                 </div>
@@ -76,7 +79,7 @@
                         <div class="well">
                             <table class="grid">
                                 <thead>
-                                    <tr><th>ID</th><th>Matricule</th><th>Agent</th><th>Statut</th><th>Mis à jour</th></tr>
+                                    <tr><th>Matricule</th><th>Agent</th><th>Statut</th><th>Mis à jour</th></tr>
                                 </thead>
                                 <tbody id="unitsBody"></tbody>
                             </table>
@@ -89,10 +92,23 @@
                 <section class="page" id="page-search">
                     <div class="group">
                         <span class="legend">Critères de recherche</span>
-                        <form class="toolbar" id="searchForm" autocomplete="off">
+                        <div class="toolbar">
                             <label class="radio"><input type="radio" name="searchType" value="identity" checked> Identité</label>
                             <label class="radio"><input type="radio" name="searchType" value="vehicle"> Immatriculation</label>
-                            <input id="searchInput" class="grow" type="text" maxlength="64" placeholder="Nom, prénom, date de naissance (JJ/MM/AAAA), SSN ou n° de licence...">
+                        </div>
+
+                        <!-- Identité : nom de famille et DoB obligatoires -->
+                        <form class="search-fields" id="searchIdentityForm" autocomplete="off" novalidate>
+                            <label class="lbl">Nom de famille *<input name="lastname" type="text" maxlength="40"></label>
+                            <label class="lbl">Prénom<input name="firstname" type="text" maxlength="40"></label>
+                            <label class="lbl">Date de naissance *<input name="dob" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
+                            <label class="lbl">Social Security Number<input name="ssn" type="text" maxlength="11" placeholder="XXX-XX-XXXX" class="ssn-input"></label>
+                            <button type="submit" class="btn btn-default">Rechercher</button>
+                        </form>
+
+                        <!-- Véhicule -->
+                        <form class="search-fields search-vehicle hidden" id="searchVehicleForm" autocomplete="off" novalidate>
+                            <label class="lbl">Immatriculation ou VIN *<input name="query" type="text" maxlength="17" class="upper"></label>
                             <button type="submit" class="btn btn-default">Rechercher</button>
                         </form>
                     </div>
@@ -123,6 +139,7 @@
                         <span class="legend">Interventions en cours</span>
                         <div class="toolbar">
                             <button class="btn" id="refreshInterventions">Actualiser</button>
+                            <span class="hint-text">Les interventions sont effacées au redémarrage du serveur.</span>
                         </div>
                         <div class="cards" id="interventionsList"></div>
                     </div>
@@ -138,15 +155,23 @@
                         <button class="btn subtab registry-btn" data-view="registry">Registre</button>
                     </div>
 
-                    <!-- Identité -->
+                    <!-- ================= IDENTITÉ ================= -->
                     <form class="view active" id="view-identity" data-kind="identity" autocomplete="off" novalidate>
                         <div class="group">
-                            <span class="legend">Nouvelle identité</span>
-                            <div class="toolbar">
-                                <span class="hint-text">* champs obligatoires — le SSN est généré automatiquement s'il est laissé vide.</span>
+                            <span class="legend" data-legend="Nouvelle identité">Nouvelle identité</span>
+
+                            <div class="edit-banner hidden">
+                                <span class="edit-text"></span>
                                 <span class="grow"></span>
-                                <button type="button" class="btn" id="randomIdentity" title="Remplir toutes les cases aléatoirement">&#9858; Remplissage aléatoire</button>
+                                <button type="button" class="btn cancel-edit">Annuler la modification</button>
                             </div>
+
+                            <div class="toolbar">
+                                <span class="hint-text">* champs obligatoires</span>
+                                <span class="grow"></span>
+                                <button type="button" class="btn" id="randomIdentity" title="Remplit le prénom, le middle name, le nom, la DoB, l'adresse, le SSN et l'emploi">&#9858; Remplissage aléatoire</button>
+                            </div>
+
                             <div class="form-grid cols-3">
                                 <label class="lbl">Prénom *<input name="firstname" type="text" maxlength="40"></label>
                                 <label class="lbl">Middle name<input name="middlename" type="text" maxlength="40"></label>
@@ -158,15 +183,15 @@
                                 <label class="lbl">Social Security Number *
                                     <span class="inline">
                                         <input name="ssn" type="text" maxlength="11" placeholder="XXX-XX-XXXX" class="ssn-input">
-                                        <button type="button" class="btn btn-icon" id="regenSSN" title="Générer un nouveau SSN">&#8635;</button>
+                                        <button type="button" class="btn btn-icon regen" data-regen="ssn" title="Générer un nouveau SSN">&#8635;</button>
                                     </span>
                                 </label>
                                 <label class="lbl span-2">Emploi<input name="job" type="text" maxlength="40"></label>
                             </div>
 
                             <div class="subgroup">
-                                <span class="subgroup-title">Permis de conduire</span>
-                                <div class="form-grid cols-3">
+                                <span class="subgroup-title">Licence de conduite</span>
+                                <div class="form-grid cols-4">
                                     <label class="lbl">Licence de conduite
                                         <select name="licenseClass">
                                             <option value="N/A">N/A</option>
@@ -177,13 +202,28 @@
                                             <option value="CDL A">CDL A</option>
                                             <option value="CDL B">CDL B</option>
                                             <option value="CDL C">CDL C</option>
-                                            <option value="Prob - Class CP">Prob - Class CP</option>
-                                            <option value="Prob - Class D">Prob - Class D</option>
-                                            <option value="Prob - Class MP">Prob - Class MP</option>
+                                            <option value="Probatoire - Class CP">Probatoire - Class CP</option>
+                                            <option value="Probatoire - Class D">Probatoire - Class D</option>
+                                            <option value="Probatoire - Class MP">Probatoire - Class MP</option>
                                         </select>
                                     </label>
-                                    <label class="lbl">Numéro de licence<input name="licenseNumber" type="text" maxlength="20" class="upper"></label>
-                                    <label class="lbl">État d'émission<input name="licenseState" type="text" maxlength="40" list="usStates"></label>
+                                    <!-- Visibles uniquement si une licence est choisie -->
+                                    <label class="lbl license-only hidden">Condition de la licence
+                                        <select name="licenseStatus">
+                                            <option value="valid">Valide</option>
+                                            <option value="suspended">Suspension</option>
+                                            <option value="revoked">Révocation</option>
+                                            <option value="cancelled">Annulation</option>
+                                            <option value="disqualified">Disqualification (CDL)</option>
+                                        </select>
+                                    </label>
+                                    <label class="lbl license-only hidden">N° de licence
+                                        <span class="inline">
+                                            <input name="licenseNumber" type="text" maxlength="20" class="upper">
+                                            <button type="button" class="btn btn-icon regen" data-regen="licenseNumber" title="Générer un nouveau numéro">&#8635;</button>
+                                        </span>
+                                    </label>
+                                    <label class="lbl license-only hidden">État d'émission<input name="licenseState" type="text" maxlength="40" list="usStates"></label>
                                 </div>
                             </div>
 
@@ -216,66 +256,140 @@
                                 </div>
                             </div>
 
+                            <!-- Antécédents : liste d'infractions déjà connues -->
+                            <div class="subgroup">
+                                <span class="subgroup-title">Antécédents</span>
+                                <div class="entries" id="identityRecords"></div>
+                                <div class="toolbar entries-toolbar">
+                                    <span class="hint-text entries-empty">Aucun antécédent.</span>
+                                    <span class="grow"></span>
+                                    <button type="button" class="btn add-entry" data-target="identityRecords">+ Ajouter</button>
+                                </div>
+                            </div>
+
                             <div class="form-actions">
-                                <button type="reset" class="btn">Effacer</button>
-                                <button type="submit" class="btn btn-default">Enregistrer</button>
+                                <button type="button" class="btn btn-clear">Effacer</button>
+                                <button type="submit" class="btn btn-default" data-label="Enregistrer">Enregistrer</button>
                             </div>
                         </div>
                     </form>
 
-                    <!-- États pour "État d'émission" (suggestions, saisie libre possible) -->
-                    <datalist id="usStates">
-                        <option value="San Andreas"></option>
-                        <option value="Alabama"></option><option value="Alaska"></option><option value="Arizona"></option>
-                        <option value="Arkansas"></option><option value="California"></option><option value="Colorado"></option>
-                        <option value="Connecticut"></option><option value="Delaware"></option><option value="Florida"></option>
-                        <option value="Georgia"></option><option value="Hawaii"></option><option value="Idaho"></option>
-                        <option value="Illinois"></option><option value="Indiana"></option><option value="Iowa"></option>
-                        <option value="Kansas"></option><option value="Kentucky"></option><option value="Louisiana"></option>
-                        <option value="Maine"></option><option value="Maryland"></option><option value="Massachusetts"></option>
-                        <option value="Michigan"></option><option value="Minnesota"></option><option value="Mississippi"></option>
-                        <option value="Missouri"></option><option value="Montana"></option><option value="Nebraska"></option>
-                        <option value="Nevada"></option><option value="New Hampshire"></option><option value="New Jersey"></option>
-                        <option value="New Mexico"></option><option value="New York"></option><option value="North Carolina"></option>
-                        <option value="North Dakota"></option><option value="North Yankton"></option><option value="Ohio"></option>
-                        <option value="Oklahoma"></option><option value="Oregon"></option><option value="Pennsylvania"></option>
-                        <option value="Rhode Island"></option><option value="South Carolina"></option><option value="South Dakota"></option>
-                        <option value="Tennessee"></option><option value="Texas"></option><option value="Utah"></option>
-                        <option value="Vermont"></option><option value="Virginia"></option><option value="Washington"></option>
-                        <option value="West Virginia"></option><option value="Wisconsin"></option><option value="Wyoming"></option>
-                    </datalist>
-
-                    <!-- Véhicule -->
+                    <!-- ================= VÉHICULE ================= -->
                     <form class="view" id="view-vehicle" data-kind="vehicle" autocomplete="off" novalidate>
                         <div class="group">
-                            <span class="legend">Nouveau véhicule</span>
-                            <div class="form-grid">
-                                <label class="lbl">Plaque *<input name="plate" type="text" maxlength="8" class="upper" required></label>
-                                <label class="lbl">Modèle *<input name="model" type="text" maxlength="40" required></label>
-                                <label class="lbl">Couleur<input name="color" type="text" maxlength="30"></label>
-                                <label class="lbl">Statut
-                                    <select name="status">
-                                        <option value="valid">En règle</option>
-                                        <option value="stolen">Volé</option>
-                                        <option value="wanted">Recherché</option>
+                            <span class="legend" data-legend="Nouveau véhicule">Nouveau véhicule</span>
+
+                            <div class="edit-banner hidden">
+                                <span class="edit-text"></span>
+                                <span class="grow"></span>
+                                <button type="button" class="btn cancel-edit">Annuler la modification</button>
+                            </div>
+
+                            <div class="toolbar">
+                                <span class="hint-text">* champs obligatoires</span>
+                                <span class="grow"></span>
+                                <button type="button" class="btn" id="currentVehicle" title="Reprend le modèle, la marque, la couleur et l'immatriculation du véhicule dans lequel vous êtes">Véhicule actuel</button>
+                                <button type="button" class="btn" id="randomVehicle" title="Remplit le statut de l'immatriculation, le contrôle technique et l'assurance">&#9858; Remplissage aléatoire</button>
+                            </div>
+
+                            <div class="form-grid cols-3">
+                                <label class="lbl">Immatriculation *<input name="plate" type="text" maxlength="8" class="upper"></label>
+                                <label class="lbl">Statut de l'immatriculation *
+                                    <select name="regStatus">
+                                        <option value="">— Choisir —</option>
+                                        <option value="valid">Valide</option>
+                                        <option value="invalid">Invalide</option>
+                                        <option value="suspended">Suspendue</option>
                                     </select>
                                 </label>
-                                <label class="lbl span-2">Propriétaire (Prénom Nom, tel qu'enregistré dans « Identité »)<input name="owner" type="text" maxlength="80"></label>
-                                <label class="lbl span-2">Remarques<textarea name="notes" rows="4" maxlength="1000"></textarea></label>
+                                <label class="lbl">Couleur *<input name="color" type="text" maxlength="40"></label>
+
+                                <label class="lbl">Marque *<input name="make" type="text" maxlength="40" placeholder="ex : Bravado"></label>
+                                <label class="lbl">Modèle *<input name="model" type="text" maxlength="40" placeholder="ex : Buffalo"></label>
+                                <label class="lbl">Année<input name="year" type="text" maxlength="4" placeholder="AAAA" class="digits"></label>
+
+                                <label class="lbl">Propriétaire
+                                    <select name="ownerId" id="ownerSelect">
+                                        <option value="">— Aucun —</option>
+                                    </select>
+                                </label>
+                                <label class="lbl">Numéro VIN *
+                                    <span class="inline">
+                                        <input name="vin" type="text" maxlength="17" class="upper">
+                                        <button type="button" class="btn btn-icon regen" data-regen="vin" title="Générer un nouveau VIN">&#8635;</button>
+                                    </span>
+                                </label>
+                                <label class="lbl">Dernier contrôle technique *<input name="inspectionDate" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
                             </div>
+
+                            <div class="subgroup">
+                                <span class="subgroup-title">Assurance</span>
+                                <div class="form-grid cols-3">
+                                    <label class="lbl">Statut de l'assurance *
+                                        <select name="insuranceStatus">
+                                            <option value="">— Choisir —</option>
+                                            <option value="valid">Valide</option>
+                                            <option value="invalid">Invalide</option>
+                                            <option value="cancelled">Résiliée</option>
+                                            <option value="none">Non-Assuré</option>
+                                        </select>
+                                    </label>
+                                    <!-- Visibles pour tous les statuts sauf "Non-Assuré" -->
+                                    <label class="lbl insured-only hidden">N° Police d'Assurance *
+                                        <span class="inline">
+                                            <input name="insurancePolicy" type="text" maxlength="20" class="upper">
+                                            <button type="button" class="btn btn-icon regen" data-regen="insurancePolicy" title="Générer un nouveau numéro">&#8635;</button>
+                                        </span>
+                                    </label>
+                                    <label class="lbl insured-only hidden">Compagnie d'assurance *
+                                        <select name="insuranceCompany">
+                                            <option value="">— Choisir —</option>
+                                            <option value="State Farm">State Farm</option>
+                                            <option value="GEICO">GEICO</option>
+                                            <option value="Progressive">Progressive</option>
+                                            <option value="Allstate">Allstate</option>
+                                            <option value="USAA">USAA</option>
+                                            <option value="Auto-Owners Assurance">Auto-Owners Assurance</option>
+                                            <option value="Liberty Mutual">Liberty Mutual</option>
+                                            <option value="Farmers">Farmers</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="subgroup">
+                                <span class="subgroup-title">Statut du véhicule</span>
+                                <div class="checks">
+                                    <label class="check"><input type="checkbox" name="stolen"> Véhicule volé</label>
+                                    <label class="check"><input type="checkbox" name="abandoned"> Véhicule abandonné</label>
+                                    <label class="check"><input type="checkbox" name="commercial"> Véhicule commercial</label>
+                                </div>
+                            </div>
+
+                            <!-- Historique : infractions déjà connues pour ce véhicule -->
+                            <div class="subgroup">
+                                <span class="subgroup-title">Historique</span>
+                                <div class="entries" id="vehicleHistory"></div>
+                                <div class="toolbar entries-toolbar">
+                                    <span class="hint-text entries-empty">Aucune entrée.</span>
+                                    <span class="grow"></span>
+                                    <button type="button" class="btn add-entry" data-target="vehicleHistory">+ Ajouter</button>
+                                </div>
+                            </div>
+
                             <div class="form-actions">
-                                <button type="reset" class="btn">Effacer</button>
-                                <button type="submit" class="btn btn-default">Enregistrer</button>
+                                <button type="button" class="btn btn-clear">Effacer</button>
+                                <button type="submit" class="btn btn-default" data-label="Enregistrer">Enregistrer</button>
                             </div>
                         </div>
                     </form>
 
-                    <!-- Intervention -->
+                    <!-- ================= INTERVENTION ================= -->
                     <form class="view" id="view-intervention" data-kind="intervention" autocomplete="off" novalidate>
                         <div class="group">
                             <span class="legend">Nouvelle intervention</span>
                             <div class="form-grid">
-                                <label class="lbl span-2">Titre *<input name="title" type="text" maxlength="80" required></label>
+                                <label class="lbl span-2">Titre *<input name="title" type="text" maxlength="80"></label>
                                 <label class="lbl">Localisation<input name="location" type="text" maxlength="80" placeholder="ex : Legion Square"></label>
                                 <label class="lbl">Priorité
                                     <select name="priority">
@@ -293,7 +407,7 @@
                         </div>
                     </form>
 
-                    <!-- Registre : uniquement MES créations -->
+                    <!-- ================= REGISTRE : mes identités et véhicules ================= -->
                     <div class="view" id="view-registry">
                         <div class="group">
                             <span class="legend">Registre — mes créations</span>
@@ -303,7 +417,6 @@
                                     <option value="all">Tout</option>
                                     <option value="identity">Identités</option>
                                     <option value="vehicle">Véhicules</option>
-                                    <option value="intervention">Interventions</option>
                                 </select>
                                 <span class="grow"></span>
                                 <button class="btn" id="refreshRegistry">Actualiser</button>
@@ -328,13 +441,35 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- États pour "État d'émission" (suggestions, saisie libre possible) -->
+                    <datalist id="usStates">
+                        <option value="San Andreas"></option>
+                        <option value="Alabama"></option><option value="Alaska"></option><option value="Arizona"></option>
+                        <option value="Arkansas"></option><option value="California"></option><option value="Colorado"></option>
+                        <option value="Connecticut"></option><option value="Delaware"></option><option value="Florida"></option>
+                        <option value="Georgia"></option><option value="Hawaii"></option><option value="Idaho"></option>
+                        <option value="Illinois"></option><option value="Indiana"></option><option value="Iowa"></option>
+                        <option value="Kansas"></option><option value="Kentucky"></option><option value="Louisiana"></option>
+                        <option value="Maine"></option><option value="Maryland"></option><option value="Massachusetts"></option>
+                        <option value="Michigan"></option><option value="Minnesota"></option><option value="Mississippi"></option>
+                        <option value="Missouri"></option><option value="Montana"></option><option value="Nebraska"></option>
+                        <option value="Nevada"></option><option value="New Hampshire"></option><option value="New Jersey"></option>
+                        <option value="New Mexico"></option><option value="New York"></option><option value="North Carolina"></option>
+                        <option value="North Dakota"></option><option value="North Yankton"></option><option value="Ohio"></option>
+                        <option value="Oklahoma"></option><option value="Oregon"></option><option value="Pennsylvania"></option>
+                        <option value="Rhode Island"></option><option value="South Carolina"></option><option value="South Dakota"></option>
+                        <option value="Tennessee"></option><option value="Texas"></option><option value="Utah"></option>
+                        <option value="Vermont"></option><option value="Virginia"></option><option value="Washington"></option>
+                        <option value="West Virginia"></option><option value="Wisconsin"></option><option value="Wyoming"></option>
+                    </datalist>
                 </section>
             </main>
         </div>
 
         <!-- ================= BARRE D'ÉTAT ================= -->
         <div class="statusbar">
-            <span class="sb-cell grow" id="sbAgent">Agent : -</span>
+            <span class="sb-cell grow"></span>
             <span class="sb-cell" id="sbStatus"><span class="sq"></span><span>-</span></span>
             <span class="sb-cell" id="sbClock">--:--</span>
         </div>
@@ -349,6 +484,45 @@
         <div class="rz rz-se" data-dir="se"></div>
         <div class="rz rz-sw" data-dir="sw"></div>
     </div>
+
+    <!-- Modèles des entrées ajoutées avec "+ Ajouter" -->
+    <template id="tplIdentityRecord">
+        <div class="entry-box">
+            <div class="entry-head">
+                <span class="entry-title" data-default="Nouvel antécédent">Nouvel antécédent</span>
+                <button type="button" class="win-btn entry-remove" title="Retirer cet antécédent">&#10005;</button>
+            </div>
+            <div class="form-grid cols-3">
+                <label class="lbl span-3">Infraction *<input data-f="offense" data-title type="text" maxlength="80"></label>
+                <label class="lbl">Date d'émission *<input data-f="date" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
+                <label class="lbl">Horaire *<input data-f="time" type="text" maxlength="5" placeholder="HH:MM" class="time-input"></label>
+                <label class="lbl">Adresse *<input data-f="address" type="text" maxlength="80"></label>
+                <label class="lbl span-3">Explication de l'infraction *<textarea data-f="details" rows="3" maxlength="1000"></textarea></label>
+            </div>
+        </div>
+    </template>
+
+    <template id="tplVehicleHistory">
+        <div class="entry-box">
+            <div class="entry-head">
+                <span class="entry-title" data-default="Nouvelle entrée">Nouvelle entrée</span>
+                <button type="button" class="win-btn entry-remove" title="Retirer cette entrée">&#10005;</button>
+            </div>
+            <div class="form-grid cols-3">
+                <label class="lbl span-3">Type d'infraction *
+                    <select data-f="type" data-title>
+                        <option value="">— Choisir —</option>
+                        <option value="administrative">Infraction administrative</option>
+                        <option value="parking">Infraction de stationnement</option>
+                    </select>
+                </label>
+                <label class="lbl">Date d'émission *<input data-f="date" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
+                <label class="lbl">Horaire *<input data-f="time" type="text" maxlength="5" placeholder="HH:MM" class="time-input"></label>
+                <label class="lbl">Adresse *<input data-f="address" type="text" maxlength="80"></label>
+                <label class="lbl span-3">Explication *<textarea data-f="details" rows="3" maxlength="1000"></textarea></label>
+            </div>
+        </div>
+    </template>
 
     <!-- Notifications -->
     <div id="toasts" class="toasts"></div>

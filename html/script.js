@@ -11,6 +11,9 @@
         ? GetParentResourceName()
         : 'mdc_standalone';
 
+    // ---------------------------------------------------------------------
+    // Libellés (clés identiques à server.lua)
+    // ---------------------------------------------------------------------
     const STATUS_LABELS = {
         available: 'Disponible',
         unavailable: 'Indisponible',
@@ -20,14 +23,22 @@
         en_route: 'En route',
     };
     const PRIORITY_LABELS = { low: 'Basse', medium: 'Moyenne', high: 'Haute' };
-    const VEHICLE_STATUS = { valid: 'En règle', stolen: 'Volé', wanted: 'Recherché' };
     const KIND_LABELS = { identity: 'Identité', vehicle: 'Véhicule', intervention: 'Intervention' };
     const KIND_SAVED = { identity: 'Identité enregistrée', vehicle: 'Véhicule enregistré', intervention: 'Intervention enregistrée' };
 
-    // Identité : condition et interdictions (clés identiques à server.lua)
+    // Identité
     const CONDITION_LABELS = { none: 'N/A', wanted: 'Recherché', missing: 'Personne disparue', deceased: 'Personne décédée' };
-    const CONDITION_FLAG = { wanted: 'flag-stolen', missing: 'flag-missing', deceased: 'flag-deceased' };
+    const CONDITION_COLOR = { wanted: 'c-red', missing: 'c-yellow', deceased: 'c-orange' };
     const RESTRICTION_LABELS = { weapon: 'Port d\'arme' };
+    const LICENSE_STATUS_LABELS = { valid: 'Valide', suspended: 'Suspension', revoked: 'Révocation', cancelled: 'Annulation', disqualified: 'Disqualification' };
+    const LICENSE_STATUS_COLOR = { valid: 'c-green', suspended: 'c-orange', revoked: 'c-red', cancelled: 'c-red', disqualified: 'c-red' };
+
+    // Véhicule
+    const REG_STATUS_LABELS = { valid: 'Valide', invalid: 'Invalide', suspended: 'Suspendue' };
+    const REG_STATUS_COLOR = { valid: 'c-green', invalid: 'c-red', suspended: 'c-orange' };
+    const INSURANCE_LABELS = { valid: 'Valide', invalid: 'Invalide', cancelled: 'Résiliée', none: 'Non-Assuré' };
+    const INSURANCE_COLOR = { valid: 'c-green', invalid: 'c-red', cancelled: 'c-orange', none: 'c-red' };
+    const HISTORY_LABELS = { administrative: 'Infraction administrative', parking: 'Infraction de stationnement' };
 
     // Taille de fenêtre (px)
     const MIN_W = 760, MIN_H = 480;
@@ -38,20 +49,23 @@
         page: 'units',
         status: 'available',
         serverId: null,
-        name: '',
+        rpName: '',
         callsign: '',
+        editingRpName: false,
         layout: null,          // { x, y, w, h, maximized }
         createView: 'identity',
+        editing: null,         // { kind, id } lorsqu'une fiche du registre est en cours de modification
         searchResults: [],
         registry: [],
+        registryView: [],
         clockTimer: null,
     };
 
     // ---------------------------------------------------------------------
     // Outils
     // ---------------------------------------------------------------------
-    const $ = (sel) => document.querySelector(sel);
-    const $$ = (sel) => document.querySelectorAll(sel);
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => root.querySelectorAll(sel);
     const win = $('#mdc');
 
     // Échappe le HTML (toutes les données affichées viennent des joueurs)
@@ -72,6 +86,11 @@
         if (!unix) return '-';
         const d = new Date(unix * 1000);
         return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    const dateString = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    const parseDate = (str) => {
+        const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str || '');
+        return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null;
     };
 
     async function post(name, data = {}) {
@@ -218,19 +237,15 @@
     function openUI(data = {}) {
         state.open = true;
         state.serverId = data.serverId ?? null;
-        state.name = data.name || 'Agent';
+        state.rpName = data.rpName || '';
         state.callsign = data.callsign || '';
+        state.editingRpName = false;
 
         state.layout = data.layout ? clampLayout(data.layout) : defaultLayout();
         applyLayout();
 
-        $('#profileName').textContent = state.name;
-        $('#profileId').textContent = `ID serveur : ${data.serverId ?? '-'}`;
-        $('#profileAvatar').textContent = state.name.trim().charAt(0).toUpperCase() || '?';
-        $('#callsignInput').value = state.callsign;
-
+        renderProfile();
         setActiveStatus(data.status || 'available');
-        updateAgentCell();
         win.classList.remove('hidden');
 
         updateClock();
@@ -257,10 +272,6 @@
         $('#sbClock').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    function updateAgentCell() {
-        $('#sbAgent').textContent = `Agent : ${state.name}${state.callsign ? ` [${state.callsign}]` : ''}`;
-    }
-
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && state.open) {
             e.preventDefault();
@@ -283,14 +294,52 @@
     function loadPage(page) {
         if (page === 'units') refreshUnits();
         else if (page === 'interventions') refreshInterventions();
-        else if (page === 'search') $('#searchInput').focus();
-        else if (page === 'create' && state.createView === 'registry') refreshRegistry();
+        else if (page === 'create') loadCreateView(state.createView);
     }
 
     $$('.tab').forEach((tab) => tab.addEventListener('click', () => showPage(tab.dataset.page)));
 
     // =====================================================================
-    // STATUTS + MATRICULE (barre latérale)
+    // PROFIL : nom RP (affiché seulement une fois créé) et matricule
+    // =====================================================================
+    function renderProfile() {
+        const showName = state.rpName !== '' && !state.editingRpName;
+        $('#rpDisplay').classList.toggle('hidden', !showName);
+        $('#rpForm').classList.toggle('hidden', showName);
+        $('#rpNameText').textContent = state.rpName;
+        $('#rpCallsignText').textContent = state.callsign ? `Matricule ${state.callsign}` : '';
+        $('#rpNameInput').value = state.rpName;
+        $('#callsignInput').value = state.callsign;
+    }
+
+    async function saveProfile(changes) {
+        const res = await post('setProfile', changes);
+        if (res && res.ok) {
+            state.rpName = res.rpName ?? state.rpName;
+            state.callsign = res.callsign ?? state.callsign;
+            state.editingRpName = false;
+            renderProfile();
+            toast('Profil enregistré.', 'success');
+        } else {
+            toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error');
+        }
+    }
+
+    const saveRpName = () => saveProfile({ rpName: $('#rpNameInput').value });
+    const saveCallsign = () => saveProfile({ callsign: $('#callsignInput').value });
+
+    $('#rpSave').addEventListener('click', saveRpName);
+    $('#rpNameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveRpName(); });
+    $('#callsignSave').addEventListener('click', saveCallsign);
+    $('#callsignInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveCallsign(); });
+    $('#rpEdit').addEventListener('click', () => {
+        state.editingRpName = true;
+        renderProfile();
+        $('#rpNameInput').focus();
+    });
+
+    // =====================================================================
+    // STATUTS (barre latérale)
     // =====================================================================
     function setActiveStatus(status) {
         state.status = status;
@@ -316,32 +365,16 @@
 
     $$('.status-btn').forEach((btn) => btn.addEventListener('click', () => changeStatus(btn.dataset.status)));
 
-    async function saveCallsign() {
-        const res = await post('setCallsign', { callsign: $('#callsignInput').value });
-        if (res && res.ok) {
-            state.callsign = res.callsign;
-            $('#callsignInput').value = res.callsign;
-            updateAgentCell();
-            toast('Matricule enregistré.', 'success');
-        } else {
-            toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error');
-        }
-    }
-
-    $('#callsignSave').addEventListener('click', saveCallsign);
-    $('#callsignInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveCallsign(); });
-
     // =====================================================================
-    // UNITÉS
+    // UNITÉS (nom RP uniquement, jamais le pseudo du joueur)
     // =====================================================================
     function renderUnits(units) {
         units = toArray(units);
         $('#unitsEmpty').classList.toggle('hidden', units.length > 0);
         $('#unitsBody').innerHTML = units.map((u) => `
             <tr class="${u.id === state.serverId ? 'me' : ''}">
-                <td>${esc(u.id)}</td>
                 <td>${esc(u.callsign || '-')}</td>
-                <td>${esc(u.name)}</td>
+                <td>${u.rpName ? esc(u.rpName) : '<span class="muted">Nom RP non renseigné</span>'}</td>
                 <td><span class="badge"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</span></td>
                 <td>${esc(formatTime(u.updatedAt))}</td>
             </tr>`).join('');
@@ -356,116 +389,180 @@
 
     // =====================================================================
     // FICHES (affichage détaillé, commun à Recherches et Registre)
+    // Les éléments fondamentaux sont affichés en premier, le reste dans des
+    // cases que l'on peut ouvrir / refermer.
     // =====================================================================
-    const row = (label, value) => `<dt>${esc(label)}</dt><dd>${value === '' || value == null ? '-' : esc(value)}</dd>`;
-    const vehicleFlag = (status) => `<span class="flag flag-${esc(status)}">${esc(VEHICLE_STATUS[status] || status)}</span>`;
-    const fullName = (i) => [i.firstname, i.middlename, String(i.lastname).toUpperCase()].filter(Boolean).join(' ');
-    const conditionFlag = (c) => (c && c !== 'none')
-        ? `<span class="flag ${CONDITION_FLAG[c] || ''}">${esc(CONDITION_LABELS[c] || c)}</span>`
-        : 'N/A';
+    const dd = (label, html) => `<dt>${esc(label)}</dt><dd>${html}</dd>`;
+    const row = (label, value) => dd(label, value === '' || value == null ? '-' : esc(value));
+    const flag = (color, text) => `<span class="flag ${color || ''}">${esc(text)}</span>`;
+    const fold = (title, body, count) => `
+        <details class="fold">
+            <summary>${esc(title)}${count != null ? ` (${count})` : ''}</summary>
+            <div class="fold-body">${body}</div>
+        </details>`;
+    const foldEmpty = (text) => `<div class="fold-empty">${esc(text)}</div>`;
+
+    const fullName = (i) => [i.firstname, i.middlename, String(i.lastname || '').toUpperCase()].filter(Boolean).join(' ');
+    const conditionFlag = (c) => (c && c !== 'none') ? flag(CONDITION_COLOR[c], CONDITION_LABELS[c] || c) : 'N/A';
     const restrictionFlags = (list) => {
         list = toArray(list);
-        return list.length
-            ? list.map((k) => `<span class="flag flag-${esc(k)}">${esc(RESTRICTION_LABELS[k] || k)}</span>`).join(' ')
-            : 'N/A';
+        return list.length ? list.map((k) => flag('c-purple', RESTRICTION_LABELS[k] || k)).join(' ') : 'N/A';
     };
+    const regFlag = (s) => flag(REG_STATUS_COLOR[s], REG_STATUS_LABELS[s] || s || '-');
+    const insuranceFlag = (s) => flag(INSURANCE_COLOR[s], INSURANCE_LABELS[s] || s || '-');
 
-    // Bandeau d'alerte en haut d'une fiche d'identité
+    // Contrôle technique : expiré au-delà d'un an
+    function inspectionHtml(date) {
+        const d = parseDate(date);
+        if (!d) return esc(date || '-');
+        const expired = Date.now() - d.getTime() > 365 * 86400000;
+        return `${esc(date)} ${expired ? flag('c-red', 'Expiré') : flag('c-green', 'À jour')}`;
+    }
+
+    function entriesHtml(entries, titleOf) {
+        return entries.map((e) => `
+            <div class="entry-view">
+                <div class="entry-view-title">${esc(titleOf(e))}</div>
+                <div class="entry-view-meta">Le ${esc(e.date)} à ${esc(e.time)} — ${esc(e.address)}</div>
+                <div class="entry-view-text">${esc(e.details)}</div>
+            </div>`).join('');
+    }
+
+    function sheetHead(title, record, editable) {
+        return `
+            <div class="sheet-title">
+                <span>${esc(title)}</span>
+                ${editable ? `<button type="button" class="btn btn-small" data-edit-kind="${esc(record.kind)}" data-edit-id="${esc(record.id)}">Modifier</button>` : ''}
+            </div>`;
+    }
+
+    function sheetFoot(r) {
+        const updated = r.updatedAt ? ` — modifiée le ${esc(formatDate(r.updatedAt))} par ${esc(r.updatedByName || '-')}` : '';
+        return `<div class="sheet-foot">Fiche n°${esc(r.id)} — créée le ${esc(formatDate(r.createdAt))} par ${esc(r.createdByName || '-')}${updated}</div>`;
+    }
+
     function conditionAlert(r) {
         if (r.condition === 'wanted') {
             return `<div class="sheet-alert">&#9888; PERSONNE RECHERCHÉE${r.wantedSince ? ` depuis le ${esc(r.wantedSince)}` : ''}${r.wantedReason ? ` — ${esc(r.wantedReason)}` : ''}</div>`;
         }
-        if (r.condition === 'missing') return '<div class="sheet-alert missing">&#9888; PERSONNE DISPARUE</div>';
-        if (r.condition === 'deceased') return '<div class="sheet-alert deceased">PERSONNE DÉCÉDÉE</div>';
+        if (r.condition === 'missing') return '<div class="sheet-alert yellow">&#9888; PERSONNE DISPARUE</div>';
+        if (r.condition === 'deceased') return '<div class="sheet-alert orange">PERSONNE DÉCÉDÉE</div>';
         return '';
     }
 
-    function renderRecord(r) {
-        const foot = `<div class="sheet-foot">Fiche n°${esc(r.id)} — créée le ${esc(formatDate(r.createdAt))} par ${esc(r.createdByName || '-')}</div>`;
-
-        if (r.kind === 'identity') {
-            const vehicles = toArray(r.vehicles);
-            return `
-                <div class="sheet-title">FICHE D'IDENTITÉ — ${esc(fullName(r))}</div>
-                ${conditionAlert(r)}
-                <dl class="sheet">
-                    ${row('Prénom', r.firstname)}
-                    ${row('Middle name', r.middlename)}
-                    ${row('Nom de famille', String(r.lastname).toUpperCase())}
-                    ${row('Date de naissance', r.dob)}
-                    ${row('Adresse', r.address)}
-                    ${row('SSN', r.ssn)}
-                    ${row('Emploi', r.job)}
-                    ${row('Licence de conduite', r.licenseClass || 'N/A')}
-                    ${row('N° de licence', r.licenseNumber)}
-                    ${row('État d\'émission', r.licenseState)}
-                    <dt>Interdictions</dt><dd>${restrictionFlags(r.restrictions)}</dd>
-                    <dt>Condition</dt><dd>${conditionFlag(r.condition)}</dd>
-                    ${r.condition === 'wanted' ? row('Raison si recherché', r.wantedReason) + row('Recherché depuis le', r.wantedSince) : ''}
-                </dl>
-                <div class="sheet-sub">Véhicules enregistrés (${vehicles.length})</div>
-                ${vehicles.length
-                    ? `<ul class="sheet-list">${vehicles.map((v) => `<li>${vehicleFlag(v.status)} <b>${esc(v.plate)}</b> — ${esc(v.model)}${v.color ? ` (${esc(v.color)})` : ''}</li>`).join('')}</ul>`
-                    : '<div class="card-meta">Aucun véhicule à ce nom.</div>'}
-                ${foot}`;
-        }
-
-        if (r.kind === 'vehicle') {
-            const o = r.ownerIdentity;
-            return `
-                <div class="sheet-title">FICHE VÉHICULE — ${esc(r.plate)}</div>
-                <dl class="sheet">
-                    ${row('Plaque', r.plate)}
-                    ${row('Modèle', r.model)}
-                    ${row('Couleur', r.color)}
-                    <dt>Statut</dt><dd>${vehicleFlag(r.status)}</dd>
-                    ${row('Propriétaire', r.owner)}
-                    ${row('Remarques', r.notes)}
-                </dl>
-                <div class="sheet-sub">Identité du propriétaire</div>
-                ${o
-                    ? `<ul class="sheet-list"><li><b>${esc(fullName(o))}</b> — né(e) le ${esc(o.dob)}${o.ssn ? ` — SSN ${esc(o.ssn)}` : ''}${o.condition && o.condition !== 'none' ? ` ${conditionFlag(o.condition)}` : ''}</li></ul>`
-                    : '<div class="card-meta">Aucune identité enregistrée ne correspond au propriétaire.</div>'}
-                ${foot}`;
-        }
-
-        // intervention
-        return `
-            <div class="sheet-title">INTERVENTION #${esc(r.id)} — ${esc(r.title)}</div>
-            <dl class="sheet">
-                ${row('Titre', r.title)}
-                ${row('Localisation', r.location)}
-                ${row('Priorité', PRIORITY_LABELS[r.priority] || r.priority)}
-                <dt>État</dt><dd>${r.closed
-                    ? `<span class="flag flag-closed">Clôturée</span> le ${esc(formatDate(r.closedAt))} par ${esc(r.closedByName || '-')}`
-                    : '<span class="flag flag-open">En cours</span>'}</dd>
-                ${row('Description', r.description)}
-            </dl>
-            ${foot}`;
+    function vehicleLine(v) {
+        const alerts = [v.stolen && flag('c-red', 'Volé'), v.abandoned && flag('c-orange', 'Abandonné')].filter(Boolean).join(' ');
+        return `<li>${regFlag(v.regStatus)} <b>${esc(v.plate)}</b> — ${esc([v.make, v.model].filter(Boolean).join(' '))}${v.color ? ` (${esc(v.color)})` : ''} ${alerts}</li>`;
     }
 
+    function renderIdentity(r, editable) {
+        const vehicles = toArray(r.vehicles);
+        const records = toArray(r.records);
+        const hasLicense = r.licenseClass && r.licenseClass !== 'N/A';
+
+        return `
+            ${sheetHead(`FICHE D'IDENTITÉ — ${fullName(r)}`, r, editable)}
+            ${conditionAlert(r)}
+            <dl class="sheet">
+                ${row('Prénom', r.firstname)}
+                ${row('Middle name', r.middlename)}
+                ${row('Nom de famille', String(r.lastname || '').toUpperCase())}
+                ${row('Date de naissance', r.dob)}
+                ${row('SSN', r.ssn)}
+                ${row('Adresse', r.address)}
+                ${row('Emploi', r.job)}
+                ${dd('Condition', conditionFlag(r.condition))}
+            </dl>
+            ${fold('Licence de conduite', hasLicense ? `
+                <dl class="sheet">
+                    ${row('Type de licence', r.licenseClass)}
+                    ${dd('Condition de la licence', flag(LICENSE_STATUS_COLOR[r.licenseStatus], LICENSE_STATUS_LABELS[r.licenseStatus] || 'Valide'))}
+                    ${row('N° de licence', r.licenseNumber)}
+                    ${row('État d\'émission', r.licenseState)}
+                </dl>` : foldEmpty('Aucune licence de conduite (N/A).'))}
+            ${fold('Véhicule(s)', vehicles.length
+                ? `<ul class="sheet-list">${vehicles.map(vehicleLine).join('')}</ul>`
+                : foldEmpty('Aucun véhicule enregistré au nom de cette personne.'), vehicles.length)}
+            ${fold('Conditions', `
+                <dl class="sheet">
+                    ${dd('Interdictions', restrictionFlags(r.restrictions))}
+                    ${dd('Condition', conditionFlag(r.condition))}
+                    ${r.condition === 'wanted' ? row('Raison de la recherche', r.wantedReason) + row('Date de début', r.wantedSince) : ''}
+                </dl>`)}
+            ${fold('Antécédents', records.length
+                ? entriesHtml(records, (e) => e.offense)
+                : foldEmpty('Aucun antécédent connu.'), records.length)}
+            ${sheetFoot(r)}`;
+    }
+
+    function renderVehicle(r, editable) {
+        const owner = r.ownerIdentity;
+        const history = toArray(r.history);
+        const alerts = [
+            r.stolen ? '<div class="sheet-alert">&#9888; VÉHICULE VOLÉ</div>' : '',
+            r.abandoned ? '<div class="sheet-alert orange">&#9888; VÉHICULE ABANDONNÉ</div>' : '',
+        ].join('');
+
+        return `
+            ${sheetHead(`FICHE VÉHICULE — ${r.plate}`, r, editable)}
+            ${alerts}
+            <dl class="sheet">
+                ${row('Immatriculation', r.plate)}
+                ${dd('Statut de l\'immatriculation', regFlag(r.regStatus))}
+                ${row('Marque', r.make)}
+                ${row('Modèle', r.model)}
+                ${row('Année', r.year)}
+                ${row('Couleur', r.color)}
+                ${row('Propriétaire', owner ? fullName(owner) : (r.ownerName || 'Non renseigné'))}
+                ${row('Numéro VIN', r.vin)}
+                ${dd('Dernier contrôle technique', inspectionHtml(r.inspectionDate))}
+                ${dd('Usage', r.commercial ? flag('c-blue', 'Véhicule commercial') : 'Particulier')}
+            </dl>
+            ${fold('Assurance', `
+                <dl class="sheet">
+                    ${dd('Statut de l\'assurance', insuranceFlag(r.insuranceStatus))}
+                    ${r.insuranceStatus && r.insuranceStatus !== 'none'
+                        ? row('N° Police d\'Assurance', r.insurancePolicy) + row('Compagnie d\'assurance', r.insuranceCompany)
+                        : ''}
+                </dl>`)}
+            ${fold('Propriétaire', owner ? `
+                <dl class="sheet">
+                    ${row('Nom complet', fullName(owner))}
+                    ${row('Date de naissance', owner.dob)}
+                    ${row('SSN', owner.ssn)}
+                    ${row('Adresse', owner.address)}
+                    ${dd('Condition', conditionFlag(owner.condition))}
+                </dl>` : foldEmpty('Aucune identité enregistrée comme propriétaire.'))}
+            ${fold('Historique', history.length
+                ? entriesHtml(history, (e) => HISTORY_LABELS[e.type] || e.type)
+                : foldEmpty('Aucune infraction connue pour ce véhicule.'), history.length)}
+            ${sheetFoot(r)}`;
+    }
+
+    const renderRecord = (r, editable = false) => r.kind === 'vehicle' ? renderVehicle(r, editable) : renderIdentity(r, editable);
+
     // Sélection d'une ligne dans un tableau -> affichage de la fiche
-    function bindSelectable(tbody, getList, detailEl) {
+    function bindSelectable(tbody, getList, detailEl, editable) {
         tbody.addEventListener('click', (e) => {
             const tr = e.target.closest('tr[data-index]');
             if (!tr) return;
             tbody.querySelectorAll('tr.selected').forEach((r) => r.classList.remove('selected'));
             tr.classList.add('selected');
             const record = getList()[Number(tr.dataset.index)];
-            if (record) detailEl.innerHTML = renderRecord(record);
+            if (record) detailEl.innerHTML = renderRecord(record, editable);
         });
     }
 
     // =====================================================================
-    // RECHERCHES (identités et immatriculations enregistrées)
+    // RECHERCHES
     // =====================================================================
     const searchType = () => $('input[name="searchType"]:checked').value;
 
     $$('input[name="searchType"]').forEach((radio) => radio.addEventListener('change', () => {
-        $('#searchInput').placeholder = searchType() === 'identity'
-            ? 'Nom, prénom, date de naissance (JJ/MM/AAAA), SSN ou n° de licence...'
-            : 'Plaque d\'immatriculation ou modèle...';
-        $('#searchInput').focus();
+        const identity = searchType() === 'identity';
+        $('#searchIdentityForm').classList.toggle('hidden', !identity);
+        $('#searchVehicleForm').classList.toggle('hidden', identity);
+        $(identity ? '#searchIdentityForm input' : '#searchVehicleForm input').focus();
     }));
 
     function renderSearchResults(type, results) {
@@ -486,13 +583,13 @@
                     <td>${conditionFlag(r.condition)}</td>
                 </tr>`).join('');
         } else {
-            $('#searchHead').innerHTML = '<tr><th>Plaque</th><th>Modèle</th><th>Propriétaire</th><th>Statut</th></tr>';
+            $('#searchHead').innerHTML = '<tr><th>Immatriculation</th><th>Véhicule</th><th>Propriétaire</th><th>Statut</th></tr>';
             $('#searchBody').innerHTML = results.map((r, i) => `
-                <tr data-index="${i}">
+                <tr data-index="${i}" class="${r.stolen ? 'row-wanted' : ''}">
                     <td><b>${esc(r.plate)}</b></td>
-                    <td>${esc(r.model)}</td>
-                    <td>${esc(r.owner || '-')}</td>
-                    <td>${vehicleFlag(r.status)}</td>
+                    <td>${esc([r.make, r.model].filter(Boolean).join(' '))}</td>
+                    <td>${esc(r.ownerIdentity ? fullName(r.ownerIdentity) : (r.ownerName || '-'))}</td>
+                    <td>${regFlag(r.regStatus)}${r.stolen ? ` ${flag('c-red', 'Volé')}` : ''}</td>
                 </tr>`).join('');
         }
 
@@ -500,19 +597,31 @@
         if (results.length === 1) $('#searchBody tr').click();
     }
 
-    $('#searchForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const type = searchType();
-        const res = await post('search', { type, query: $('#searchInput').value.trim() });
-
+    async function runSearch(type, payload) {
+        const res = await post('search', { type, ...payload });
         if (!res || !res.ok) {
             toast(res?.error || 'Erreur de recherche.', 'error');
             return;
         }
         renderSearchResults(type, toArray(res.results));
+    }
+
+    $('#searchIdentityForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const payload = Object.fromEntries(new FormData(e.currentTarget).entries());
+        if (!payload.lastname.trim() || !parseDate(payload.dob)) {
+            toast('Le nom de famille et la date de naissance (JJ/MM/AAAA) sont obligatoires.', 'error');
+            return;
+        }
+        runSearch('identity', payload);
     });
 
-    bindSelectable($('#searchBody'), () => state.searchResults, $('#searchDetail'));
+    $('#searchVehicleForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        runSearch('vehicle', { query: e.currentTarget.elements.query.value.trim() });
+    });
+
+    bindSelectable($('#searchBody'), () => state.searchResults, $('#searchDetail'), false);
 
     // =====================================================================
     // INTERVENTIONS
@@ -584,7 +693,7 @@
     $('#refreshInterventions').addEventListener('click', refreshInterventions);
 
     // =====================================================================
-    // GÉNÉRATEUR D'IDENTITÉS ALÉATOIRES (bouton "Remplissage aléatoire")
+    // GÉNÉRATEURS ALÉATOIRES
     // Ajoutez librement des entrées dans les listes ci-dessous.
     // =====================================================================
     const Random = (() => {
@@ -623,41 +732,36 @@
             'Électricien', 'Plombier', 'Vendeur', 'Agriculteur', 'Pêcheur', 'Routier', 'Comptable', 'Avocat', 'Journaliste',
             'Ouvrier du bâtiment', 'Agent de sécurité', 'Étudiant', 'Sans emploi', 'Garagiste', 'Coiffeur', 'Photographe',
             'Pilote', 'Docker', 'Mineur', 'Développeur', 'Enseignant', 'Médecin', 'Pompiste', 'Serveur', 'Caissier'];
-        const STATES = ['Alabama', 'Arizona', 'Colorado', 'Florida', 'Georgia', 'Illinois', 'Louisiana', 'Nevada',
-            'New Jersey', 'New York', 'North Yankton', 'Ohio', 'Oregon', 'Texas', 'Utah', 'Washington'];
-        const WANTED_REASONS = ['Vol à main armée', 'Délit de fuite', 'Agression', 'Trafic de stupéfiants',
-            'Non-présentation au tribunal', 'Vol de véhicule', 'Violation de probation', 'Fraude', 'Recel',
-            'Évasion', 'Port d\'arme illégal', 'Cambriolage'];
+        const INSURERS = ['State Farm', 'GEICO', 'Progressive', 'Allstate', 'USAA', 'Auto-Owners Assurance', 'Liberty Mutual', 'Farmers'];
         // [valeur, poids] : plus le poids est grand, plus la valeur sort souvent
-        const LICENSES = [['N/A', 10], ['Class C - Standard', 50], ['Class F - Lourd', 4], ['Class E - Combiné', 4],
-            ['Class M - Moto', 7], ['CDL A', 4], ['CDL B', 3], ['CDL C', 3], ['Prob - Class CP', 5],
-            ['Prob - Class D', 5], ['Prob - Class MP', 5]];
-        const CONDITIONS = [['none', 80], ['wanted', 12], ['missing', 5], ['deceased', 3]];
+        const REG_STATUSES = [['valid', 80], ['invalid', 10], ['suspended', 10]];
+        const INSURANCE_STATUSES = [['valid', 70], ['invalid', 10], ['cancelled', 8], ['none', 12]];
+        const VIN_CHARS = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789';
 
         const int = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
         const pick = (list) => list[int(0, list.length - 1)];
+        const letter = () => String.fromCharCode(65 + int(0, 25));
         const weighted = (list) => {
             let roll = Math.random() * list.reduce((sum, [, w]) => sum + w, 0);
             for (const [value, w] of list) { if ((roll -= w) < 0) return value; }
             return list[0][0];
         };
-        const dateString = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 
-        // SSN au format XXX-XX-XXXX (zone 001-899 hors 666, comme les vrais SSN)
+        // Formats identiques à ceux générés par server.lua
         function ssn() {
             let area;
             do { area = int(1, 899); } while (area === 666);
             return `${String(area).padStart(3, '0')}-${String(int(1, 99)).padStart(2, '0')}-${String(int(1, 9999)).padStart(4, '0')}`;
         }
+        const licenseNumber = () => `${letter()}${String(int(0, 9999999)).padStart(7, '0')}`;
+        const vin = () => Array.from({ length: 17 }, () => VIN_CHARS[int(0, VIN_CHARS.length - 1)]).join('');
+        const policyNumber = () => `${letter()}${letter()}${String(int(0, 99999999)).padStart(8, '0')}`;
 
+        // Identité : prénom, middle name, nom, DoB, adresse, SSN et emploi uniquement
         function identity() {
             const male = Math.random() < 0.5;
             const [street, city] = pick(STREETS);
-            const now = new Date();
-            const birth = new Date(now.getFullYear() - int(18, 75), int(0, 11), int(1, 28));
-            const licenseClass = weighted(LICENSES);
-            const condition = weighted(CONDITIONS);
-
+            const birth = new Date(new Date().getFullYear() - int(18, 75), int(0, 11), int(1, 28));
             return {
                 firstname: pick(male ? MALE : FEMALE),
                 middlename: pick(male ? MIDDLE_M : MIDDLE_F),
@@ -666,77 +770,112 @@
                 address: `${int(100, 9999)} ${street}, ${city}`,
                 ssn: ssn(),
                 job: pick(JOBS),
-                licenseClass,
-                licenseNumber: licenseClass === 'N/A' ? '' : `${String.fromCharCode(65 + int(0, 25))}${int(1000000, 9999999)}`,
-                licenseState: licenseClass === 'N/A' ? '' : (Math.random() < 0.85 ? 'San Andreas' : pick(STATES)),
-                restrictions: Math.random() < 0.15 ? ['weapon'] : [],
-                condition,
-                wantedReason: condition === 'wanted' ? pick(WANTED_REASONS) : '',
-                wantedSince: condition === 'wanted' ? dateString(new Date(now.getTime() - int(0, 90) * 86400000)) : '',
             };
         }
 
-        return { ssn, identity };
+        // Véhicule : statut d'immatriculation, contrôle technique et assurance uniquement
+        function vehicle() {
+            const insuranceStatus = weighted(INSURANCE_STATUSES);
+            const insured = insuranceStatus !== 'none';
+            return {
+                regStatus: weighted(REG_STATUSES),
+                // Jusqu'à ~2 ans en arrière : au-delà d'un an, le contrôle est expiré
+                inspectionDate: dateString(new Date(Date.now() - int(0, 730) * 86400000)),
+                insuranceStatus,
+                insurancePolicy: insured ? policyNumber() : '',
+                insuranceCompany: insured ? pick(INSURERS) : '',
+            };
+        }
+
+        return { ssn, licenseNumber, vin, policyNumber, identity, vehicle };
     })();
 
     // =====================================================================
-    // CRÉATIONS (identité / véhicule / intervention) + REGISTRE
+    // SAISIE : formats automatiques (dates, heures, SSN, majuscules, chiffres)
+    // (délégation : fonctionne aussi pour les antécédents ajoutés dynamiquement)
     // =====================================================================
-    function showCreateView(view) {
-        state.createView = view;
-        $$('.subtab').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
-        $$('.view').forEach((v) => v.classList.toggle('active', v.id === `view-${view}`));
-        if (view === 'registry') refreshRegistry();
+    document.addEventListener('input', (e) => {
+        const input = e.target;
+        if (!(input instanceof HTMLInputElement)) return;
+
+        if (input.classList.contains('date-input')) {
+            const digits = input.value.replace(/\D/g, '').slice(0, 8);
+            input.value = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
+        } else if (input.classList.contains('time-input')) {
+            const digits = input.value.replace(/\D/g, '').slice(0, 4);
+            input.value = [digits.slice(0, 2), digits.slice(2)].filter(Boolean).join(':');
+        } else if (input.classList.contains('ssn-input')) {
+            const digits = input.value.replace(/\D/g, '').slice(0, 9);
+            input.value = [digits.slice(0, 3), digits.slice(3, 5), digits.slice(5)].filter(Boolean).join('-');
+        } else if (input.classList.contains('digits')) {
+            input.value = input.value.replace(/\D/g, '');
+        } else if (input.name === 'plate' || input.name === 'vin') {
+            input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        }
+    });
+
+    // =====================================================================
+    // LISTES D'ENTRÉES (Antécédents d'une identité / Historique d'un véhicule)
+    // =====================================================================
+    const ENTRY_TEMPLATES = { identityRecords: '#tplIdentityRecord', vehicleHistory: '#tplVehicleHistory' };
+
+    function refreshEntries(container) {
+        const boxes = container.querySelectorAll('.entry-box');
+        container.closest('.subgroup').querySelector('.entries-empty').classList.toggle('hidden', boxes.length > 0);
     }
 
-    $$('.subtab').forEach((btn) => btn.addEventListener('click', () => showCreateView(btn.dataset.view)));
+    // Titre de l'entrée = infraction saisie (ou type choisi)
+    function updateEntryTitle(box) {
+        const source = box.querySelector('[data-title]');
+        const title = box.querySelector('.entry-title');
+        const text = source.tagName === 'SELECT'
+            ? (source.value ? source.selectedOptions[0].textContent : '')
+            : source.value.trim();
+        title.textContent = text || title.dataset.default;
+    }
 
-    $$('form.view').forEach((form) => form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const submit = form.querySelector('button[type="submit"]');
-        const formData = new FormData(form);
-        const payload = Object.fromEntries(formData.entries());
-        payload.kind = form.dataset.kind;
-        if (payload.kind === 'identity') {
-            // Choix multiples : on envoie la liste (sans "N/A")
-            payload.restrictions = formData.getAll('restrictions').filter((v) => v !== 'none');
-        }
+    function addEntry(containerId, values = {}) {
+        const container = $(`#${containerId}`);
+        const box = $(ENTRY_TEMPLATES[containerId]).content.firstElementChild.cloneNode(true);
+        box.querySelectorAll('[data-f]').forEach((el) => { el.value = values[el.dataset.f] ?? ''; });
+        container.appendChild(box);
+        updateEntryTitle(box);
+        refreshEntries(container);
+        return box;
+    }
 
-        submit.disabled = true;
-        const res = await post('create', payload);
-        submit.disabled = false;
+    const collectEntries = (container) => [...container.querySelectorAll('.entry-box')].map((box) =>
+        Object.fromEntries([...box.querySelectorAll('[data-f]')].map((el) => [el.dataset.f, el.value.trim()])));
 
-        if (res && res.ok) {
-            toast(`${KIND_SAVED[payload.kind]} (n°${res.id}).`, 'success');
-            form.reset();
-            if (payload.kind === 'intervention') showPage('interventions');
-        } else {
-            toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error');
-        }
+    function clearEntries(container) {
+        container.innerHTML = '';
+        refreshEntries(container);
+    }
+
+    $$('.add-entry').forEach((btn) => btn.addEventListener('click', () => {
+        const box = addEntry(btn.dataset.target);
+        box.querySelector('[data-f]').focus();
     }));
 
-    // Plaque : majuscules, lettres et chiffres uniquement
-    $('input[name="plate"]').addEventListener('input', (e) => {
-        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    });
-
-    // Dates (JJ/MM/AAAA) : insère automatiquement les "/"
-    $$('.date-input').forEach((input) => input.addEventListener('input', () => {
-        const digits = input.value.replace(/\D/g, '').slice(0, 8);
-        input.value = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
-    }));
-
-    // SSN (XXX-XX-XXXX) : insère automatiquement les "-"
-    $('.ssn-input').addEventListener('input', (e) => {
-        const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
-        e.target.value = [digits.slice(0, 3), digits.slice(3, 5), digits.slice(5)].filter(Boolean).join('-');
+    $$('.entries').forEach((container) => {
+        container.addEventListener('click', (e) => {
+            if (!e.target.closest('.entry-remove')) return;
+            e.target.closest('.entry-box').remove();
+            refreshEntries(container);
+        });
+        const onChange = (e) => {
+            const box = e.target.closest('.entry-box');
+            if (box && e.target.hasAttribute('data-title')) updateEntryTitle(box);
+        };
+        container.addEventListener('input', onChange);
+        container.addEventListener('change', onChange);
     });
 
     // =====================================================================
-    // FORMULAIRE IDENTITÉ : interdictions, condition, SSN, remplissage aléatoire
+    // FORMULAIRE IDENTITÉ
     // =====================================================================
     const identityForm = $('#view-identity');
-    const field = (name) => identityForm.elements.namedItem(name);
+    const idField = (name) => identityForm.elements.namedItem(name);
 
     // ---- Interdictions (menu déroulant à choix multiples) ----
     const multi = $('#restrictionsSelect');
@@ -774,47 +913,263 @@
     });
 
     // ---- Condition : cases supplémentaires si "Recherché" ----
-    const todayString = () => {
-        const d = new Date();
-        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-    };
-
     function updateWantedFields() {
-        const wanted = field('condition').value === 'wanted';
+        const wanted = idField('condition').value === 'wanted';
         identityForm.querySelectorAll('.wanted-only').forEach((el) => el.classList.toggle('hidden', !wanted));
-        if (wanted && !field('wantedSince').value) field('wantedSince').value = todayString();
+        if (wanted && !idField('wantedSince').value) idField('wantedSince').value = dateString(new Date());
     }
 
-    field('condition').addEventListener('change', updateWantedFields);
+    idField('condition').addEventListener('change', updateWantedFields);
 
-    // ---- SSN prérempli aléatoirement (le serveur en génère un aussi si vide) ----
-    $('#regenSSN').addEventListener('click', () => { field('ssn').value = Random.ssn(); });
+    // ---- Licence : numéro (généré), État et condition seulement si une licence est choisie ----
+    function updateLicenseFields() {
+        const licenseClass = idField('licenseClass').value;
+        const hasLicense = licenseClass !== 'N/A';
+        identityForm.querySelectorAll('.license-only').forEach((el) => el.classList.toggle('hidden', !hasLicense));
 
-    // Après "Effacer" / un enregistrement : on remet l'état par défaut
-    identityForm.addEventListener('reset', () => setTimeout(() => {
-        updateRestrictionsLabel();
+        // "Disqualification" uniquement pour les licences CDL
+        const cdl = licenseClass.startsWith('CDL');
+        const status = idField('licenseStatus');
+        status.querySelector('option[value="disqualified"]').disabled = !cdl;
+        if (!cdl && status.value === 'disqualified') status.value = 'valid';
+
+        if (hasLicense && !idField('licenseNumber').value) idField('licenseNumber').value = Random.licenseNumber();
+    }
+
+    idField('licenseClass').addEventListener('change', updateLicenseFields);
+
+    function resetIdentityForm() {
+        identityForm.reset();
+        clearEntries($('#identityRecords'));
+        setRestrictions([]);
         updateWantedFields();
-        field('ssn').value = Random.ssn();
-    }, 0));
+        updateLicenseFields();
+        idField('ssn').value = Random.ssn();
+    }
 
-    // ---- Remplissage aléatoire ----
+    function fillIdentityForm(r) {
+        resetIdentityForm();
+        ['firstname', 'middlename', 'lastname', 'dob', 'address', 'ssn', 'job', 'licenseClass',
+            'licenseStatus', 'licenseNumber', 'licenseState', 'condition', 'wantedReason', 'wantedSince']
+            .forEach((name) => { idField(name).value = r[name] ?? ''; });
+        if (!idField('licenseClass').value) idField('licenseClass').value = 'N/A';
+        if (!idField('licenseStatus').value) idField('licenseStatus').value = 'valid';
+        if (!idField('condition').value) idField('condition').value = 'none';
+        setRestrictions(toArray(r.restrictions));
+        updateLicenseFields();
+        updateWantedFields();
+        toArray(r.records).forEach((entry) => addEntry('identityRecords', entry));
+    }
+
+    function collectIdentity() {
+        const formData = new FormData(identityForm);
+        const payload = Object.fromEntries(formData.entries());
+        payload.restrictions = formData.getAll('restrictions').filter((v) => v !== 'none');
+        payload.records = collectEntries($('#identityRecords'));
+        return payload;
+    }
+
+    // Remplissage aléatoire : prénom, middle name, nom, DoB, adresse, SSN et emploi
     $('#randomIdentity').addEventListener('click', () => {
-        const id = Random.identity();
-        Object.entries(id).forEach(([name, value]) => {
-            if (name !== 'restrictions') field(name).value = value;
-        });
-        setRestrictions(id.restrictions);
-        updateWantedFields();
-        toast('Identité générée aléatoirement : vérifiez puis enregistrez.', 'info');
+        Object.entries(Random.identity()).forEach(([name, value]) => { idField(name).value = value; });
     });
 
-    field('ssn').value = Random.ssn();
+    // =====================================================================
+    // FORMULAIRE VÉHICULE
+    // =====================================================================
+    const vehicleForm = $('#view-vehicle');
+    const vField = (name) => vehicleForm.elements.namedItem(name);
 
-    const registryRef = (r) => {
-        if (r.kind === 'identity') return `${String(r.lastname).toUpperCase()} ${r.firstname} (${r.dob})`;
-        if (r.kind === 'vehicle') return `${r.plate} — ${r.model}`;
-        return `${r.title}${r.closed ? ' [clôturée]' : ''}`;
-    };
+    // ---- Assurance : police + compagnie pour tous les statuts sauf "Non-Assuré" ----
+    function updateInsuranceFields() {
+        const status = vField('insuranceStatus').value;
+        const insured = status !== '' && status !== 'none';
+        vehicleForm.querySelectorAll('.insured-only').forEach((el) => el.classList.toggle('hidden', !insured));
+        if (insured && !vField('insurancePolicy').value) vField('insurancePolicy').value = Random.policyNumber();
+    }
+
+    vField('insuranceStatus').addEventListener('change', updateInsuranceFields);
+
+    // ---- Propriétaire : liste des identités créées par le joueur ----
+    async function loadOwners(selectedId) {
+        const select = $('#ownerSelect');
+        const current = selectedId ?? select.value;
+        const res = await post('getMyIdentities');
+        const list = res && res.ok ? toArray(res.identities) : [];
+
+        select.innerHTML = `<option value="">${list.length ? '— Aucun —' : '— Aucun (créez d\'abord une identité) —'}</option>`
+            + list.map((i) => `<option value="${esc(i.id)}">${esc(i.label)}</option>`).join('');
+        select.value = list.some((i) => String(i.id) === String(current)) ? String(current) : '';
+    }
+
+    function resetVehicleForm() {
+        vehicleForm.reset();
+        clearEntries($('#vehicleHistory'));
+        updateInsuranceFields();
+        vField('vin').value = Random.vin();
+    }
+
+    async function fillVehicleForm(r) {
+        resetVehicleForm();
+        ['plate', 'regStatus', 'make', 'model', 'year', 'color', 'vin', 'inspectionDate',
+            'insuranceStatus', 'insurancePolicy', 'insuranceCompany']
+            .forEach((name) => { vField(name).value = r[name] ?? ''; });
+        ['stolen', 'abandoned', 'commercial'].forEach((name) => { vField(name).checked = !!r[name]; });
+        updateInsuranceFields();
+        toArray(r.history).forEach((entry) => addEntry('vehicleHistory', entry));
+        await loadOwners(r.ownerId ?? '');
+    }
+
+    function collectVehicle() {
+        const formData = new FormData(vehicleForm);
+        const payload = Object.fromEntries(formData.entries());
+        ['stolen', 'abandoned', 'commercial'].forEach((name) => { payload[name] = formData.has(name); });
+        payload.history = collectEntries($('#vehicleHistory'));
+        return payload;
+    }
+
+    // Véhicule actuel : modèle, marque, couleur et immatriculation du véhicule du joueur
+    $('#currentVehicle').addEventListener('click', async () => {
+        const res = await post('getCurrentVehicle');
+        if (!res || !res.ok) {
+            toast(res?.error || 'Impossible de lire le véhicule.', 'error');
+            return;
+        }
+        ['plate', 'model', 'make', 'color'].forEach((name) => { if (res[name]) vField(name).value = res[name]; });
+        vField('plate').value = vField('plate').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+        toast('Informations du véhicule récupérées.', 'success');
+    });
+
+    // Remplissage aléatoire : statut d'immatriculation, contrôle technique et assurance
+    $('#randomVehicle').addEventListener('click', () => {
+        Object.entries(Random.vehicle()).forEach(([name, value]) => { vField(name).value = value; });
+        updateInsuranceFields();
+    });
+
+    // =====================================================================
+    // BOUTONS "GÉNÉRER" (SSN, licence, VIN, police d'assurance)
+    // =====================================================================
+    const GENERATORS = { ssn: Random.ssn, licenseNumber: Random.licenseNumber, vin: Random.vin, insurancePolicy: Random.policyNumber };
+
+    $$('.regen').forEach((btn) => btn.addEventListener('click', () => {
+        btn.closest('form').elements.namedItem(btn.dataset.regen).value = GENERATORS[btn.dataset.regen]();
+    }));
+
+    // =====================================================================
+    // CRÉATIONS : navigation, enregistrement, modification
+    // =====================================================================
+    const FORMS = { identity: identityForm, vehicle: vehicleForm };
+
+    function showCreateView(view) {
+        state.createView = view;
+        $$('.subtab').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
+        $$('.view').forEach((v) => v.classList.toggle('active', v.id === `view-${view}`));
+        loadCreateView(view);
+    }
+
+    function loadCreateView(view) {
+        if (view === 'registry') refreshRegistry();
+        else if (view === 'vehicle' && !(state.editing && state.editing.kind === 'vehicle')) loadOwners();
+    }
+
+    $$('.subtab').forEach((btn) => btn.addEventListener('click', () => showCreateView(btn.dataset.view)));
+
+    // Affiche le mode "modification" (bandeau, titre, bouton) sur le bon formulaire
+    function updateEditUI() {
+        Object.entries(FORMS).forEach(([kind, form]) => {
+            const editing = state.editing && state.editing.kind === kind;
+            const legend = form.querySelector('.legend');
+            legend.textContent = editing ? `Modification — ${KIND_LABELS[kind]} n°${state.editing.id}` : legend.dataset.legend;
+            form.querySelector('.edit-banner').classList.toggle('hidden', !editing);
+            form.querySelector('.edit-text').textContent = editing
+                ? 'Vous modifiez une fiche de votre registre. Les changements seront enregistrés définitivement.'
+                : '';
+            form.querySelector('.btn-clear').classList.toggle('hidden', !!editing);
+            const submit = form.querySelector('button[type="submit"]');
+            submit.textContent = editing ? 'Enregistrer les modifications' : submit.dataset.label;
+        });
+    }
+
+    async function startEdit(record) {
+        state.editing = { kind: record.kind, id: record.id };
+        if (record.kind === 'identity') fillIdentityForm(record);
+        else await fillVehicleForm(record);
+        updateEditUI();
+        showCreateView(record.kind);
+    }
+
+    function stopEdit() {
+        const kind = state.editing && state.editing.kind;
+        state.editing = null;
+        if (kind === 'identity') resetIdentityForm();
+        if (kind === 'vehicle') resetVehicleForm();
+        updateEditUI();
+    }
+
+    $$('.cancel-edit').forEach((btn) => btn.addEventListener('click', () => {
+        stopEdit();
+        showCreateView('registry');
+    }));
+
+    // "Effacer" : on remet aussi les valeurs générées et les listes à zéro
+    identityForm.querySelector('.btn-clear').addEventListener('click', resetIdentityForm);
+    vehicleForm.querySelector('.btn-clear').addEventListener('click', resetVehicleForm);
+
+    async function submitForm(form, payload) {
+        const editing = state.editing && state.editing.kind === payload.kind ? state.editing : null;
+        const submit = form.querySelector('button[type="submit"]');
+
+        submit.disabled = true;
+        const res = await post(editing ? 'update' : 'create', editing ? { ...payload, id: editing.id } : payload);
+        submit.disabled = false;
+
+        if (!res || !res.ok) {
+            toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error');
+            return;
+        }
+
+        if (editing) {
+            toast(`Modifications enregistrées (n°${res.id}).`, 'success');
+            stopEdit();
+            showCreateView('registry');
+        } else {
+            toast(`${KIND_SAVED[payload.kind]} (n°${res.id}).`, 'success');
+            if (payload.kind === 'identity') resetIdentityForm();
+            if (payload.kind === 'vehicle') resetVehicleForm();
+        }
+    }
+
+    identityForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitForm(identityForm, { ...collectIdentity(), kind: 'identity' });
+    });
+
+    vehicleForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitForm(vehicleForm, { ...collectVehicle(), kind: 'vehicle' });
+    });
+
+    // Intervention (non conservée au redémarrage, absente du registre)
+    $('#view-intervention').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const payload = { ...Object.fromEntries(new FormData(form).entries()), kind: 'intervention' };
+        const res = await post('create', payload);
+        if (res && res.ok) {
+            toast(`${KIND_SAVED.intervention} (n°${res.id}).`, 'success');
+            form.reset();
+            showPage('interventions');
+        } else {
+            toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error');
+        }
+    });
+
+    // =====================================================================
+    // REGISTRE : mes identités et véhicules (permanents, modifiables)
+    // =====================================================================
+    const registryRef = (r) => r.kind === 'identity'
+        ? `${String(r.lastname).toUpperCase()} ${[r.firstname, r.middlename].filter(Boolean).join(' ')} (${r.dob})`
+        : `${r.plate} — ${[r.make, r.model].filter(Boolean).join(' ')}`;
 
     function renderRegistry() {
         const filter = $('#registryFilter').value;
@@ -845,7 +1200,15 @@
 
     $('#registryFilter').addEventListener('change', renderRegistry);
     $('#refreshRegistry').addEventListener('click', refreshRegistry);
-    bindSelectable($('#registryBody'), () => state.registryView || [], $('#registryDetail'));
+    bindSelectable($('#registryBody'), () => state.registryView, $('#registryDetail'), true);
+
+    // Bouton "Modifier" d'une fiche du registre
+    $('#registryDetail').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-edit-id]');
+        if (!btn) return;
+        const record = state.registry.find((r) => r.kind === btn.dataset.editKind && String(r.id) === btn.dataset.editId);
+        if (record) startEdit(record);
+    });
 
     // =====================================================================
     // MESSAGES Lua -> NUI
@@ -868,4 +1231,9 @@
                 break;
         }
     });
+
+    // État initial des formulaires
+    resetIdentityForm();
+    resetVehicleForm();
+    updateEditUI();
 })();

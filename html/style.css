@@ -326,6 +326,54 @@ input:invalid:not(:placeholder-shown) { color: #f08080; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
 .span-2 { grid-column: span 2; }
 .form-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.form-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.span-3 { grid-column: span 3; }
+select option:disabled { color: #555; }
+
+/* Recherche : un champ par critère */
+.search-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 8px; align-items: end; }
+.search-fields.search-vehicle { grid-template-columns: minmax(0, 1fr) auto; }
+
+/* Cases à cocher (statut du véhicule) */
+.checks { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.check input { width: 14px; height: 14px; accent-color: var(--select); }
+
+/* Bandeau "mode modification" */
+.edit-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: #2a2410;
+    color: #f3e3a6;
+    border: 2px solid;
+    border-color: #5e5222 #120f04 #120f04 #5e5222;
+}
+
+/* Antécédents / Historique : une case par entrée */
+.entries { display: flex; flex-direction: column; gap: 8px; }
+.entries:empty { display: none; }
+.entries-toolbar { margin: 8px 0 0; }
+.entry-box {
+    padding: 0 8px 8px;
+    background: #202020;
+    border: 2px solid;
+    border-color: var(--hi) var(--lo) var(--lo) var(--hi);
+}
+.entry-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 -8px 8px;
+    padding: 3px 4px 3px 8px;
+    background: var(--face);
+    border-bottom: 1px solid var(--lo);
+}
+.entry-title { font-weight: bold; color: #fff; }
+.entry-remove { width: 22px; height: 20px; font-size: 11px; }
+.entry-remove:hover { background: var(--danger); color: #fff; }
 .hint-text { font-size: 11px; color: var(--muted); }
 .btn-icon { padding: 0 8px; flex-shrink: 0; }
 
@@ -402,23 +450,15 @@ input:invalid:not(:placeholder-shown) { color: #f08080; }
 .view.active { display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0; overflow: auto; padding-top: 8px; }
 
 /* =========================================================================
-   BARRE LATÉRALE : agent + statuts
+   BARRE LATÉRALE : nom RP + statuts
    ========================================================================= */
-.profile { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.avatar {
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    background: var(--select);
-    color: #fff;
-    font-weight: bold;
-    border: 2px solid;
-    border-color: #4f7fc0 #0b2142 #0b2142 #4f7fc0;
-}
-.profile-info { display: flex; flex-direction: column; min-width: 0; }
-.profile-name { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.profile-id { font-size: 11px; color: var(--muted); }
+.profile-group { gap: 6px; padding-top: 10px; }
+.rp-display { display: flex; align-items: center; gap: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--lo); box-shadow: 0 1px 0 var(--hi-2); }
+.rp-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.rp-name { color: #fff; font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-callsign { font-size: 11px; color: var(--muted); }
+.muted { color: var(--muted); font-style: italic; }
+input::placeholder { color: #6a6a6a; }
 
 .status-list { display: flex; flex-direction: column; gap: 4px; }
 
@@ -503,15 +543,14 @@ input:invalid:not(:placeholder-shown) { color: #f08080; }
 
 .empty { padding: 24px; text-align: center; color: var(--muted); }
 
-/* Étiquettes de statut véhicule */
-.flag { padding: 1px 6px; border: 1px solid #000; font-size: 11px; font-weight: bold; }
-.flag-valid  { background: #1d5e33; color: #d8f5e1; }
-.flag-stolen { background: #7a1c1c; color: #ffdede; }
-.flag-wanted { background: #7a5a0c; color: #fff1cc; }
-.flag-open   { background: #1f4e8c; color: #fff; }
-.flag-missing  { background: #8a4b0f; color: #ffe7cc; }
-.flag-deceased { background: #2b2b2b; color: #bbb; }
-.flag-weapon   { background: #5a1f5e; color: #f5dcf7; }
+/* Étiquettes colorées (statuts, conditions) */
+.flag { display: inline-block; padding: 1px 6px; border: 1px solid #000; font-size: 11px; font-weight: bold; background: #3a3a3a; color: #ddd; }
+.flag.c-green  { background: #1d5e33; color: #d8f5e1; }
+.flag.c-red    { background: #8a1c1c; color: #ffe0e0; }
+.flag.c-yellow { background: #8f7d0a; color: #fffbd6; }
+.flag.c-orange { background: #a0520e; color: #fff0de; }
+.flag.c-blue   { background: #1f4e8c; color: #e3eeff; }
+.flag.c-purple { background: #5a1f5e; color: #f5dcf7; }
 
 /* Ligne d'une personne recherchée dans les résultats */
 .grid tr.row-wanted td { color: #ff9a9a; }
@@ -527,9 +566,8 @@ input:invalid:not(:placeholder-shown) { color: #f08080; }
     border: 2px solid;
     border-color: #8a2a2a #2a0707 #2a0707 #8a2a2a;
 }
-.sheet-alert.missing  { background: #6b3a0b; border-color: #9a5a1c #2e1803 #2e1803 #9a5a1c; }
-.sheet-alert.deceased { background: #2b2b2b; border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
-.flag-closed { background: #3a3a3a; color: #ccc; }
+.sheet-alert.yellow { background: #6e6008; border-color: #9c8a1c #2a2402 #2a2402 #9c8a1c; }
+.sheet-alert.orange { background: #7a3e0a; border-color: #a8601c #2e1803 #2e1803 #a8601c; }
 
 /* =========================================================================
    FICHE DÉTAILLÉE
@@ -537,6 +575,10 @@ input:invalid:not(:placeholder-shown) { color: #f08080; }
 .detail { padding: 10px; user-select: text; }
 .detail .empty { padding: 60px 10px; }
 .sheet-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 8px;
     padding: 4px 8px;
     background: var(--face);
@@ -544,7 +586,7 @@ input:invalid:not(:placeholder-shown) { color: #f08080; }
     border: 2px solid;
     border-color: var(--hi) var(--lo) var(--lo) var(--hi);
 }
-.sheet { display: grid; grid-template-columns: 150px 1fr; border: 1px solid #262626; }
+.sheet { display: grid; grid-template-columns: 190px 1fr; border: 1px solid #262626; }
 .sheet dt, .sheet dd { padding: 4px 8px; border-bottom: 1px solid #262626; }
 .sheet dt { color: var(--muted); background: #161616; border-right: 1px solid #262626; }
 .sheet dd { white-space: pre-wrap; word-break: break-word; }
@@ -552,6 +594,30 @@ input:invalid:not(:placeholder-shown) { color: #f08080; }
 .sheet-list { list-style: none; border: 1px solid #262626; }
 .sheet-list li { padding: 4px 8px; border-bottom: 1px solid #262626; }
 .sheet-foot { margin-top: 8px; font-size: 11px; color: var(--muted); }
+.btn-small { height: 22px; padding: 0 10px; font-size: 12px; }
+
+/* Cases à ouvrir / refermer dans une fiche */
+.fold { margin-top: 6px; border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); background: var(--face); }
+.fold > summary {
+    padding: 4px 8px;
+    font-weight: bold;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before { content: "+"; display: inline-block; width: 14px; color: var(--muted); }
+.fold[open] > summary::before { content: "\2212"; }
+.fold[open] > summary { border-bottom: 1px solid var(--lo); }
+.fold > summary:hover { background: #333; }
+.fold-body { padding: 6px; background: var(--well); }
+.fold-empty { padding: 6px 4px; color: var(--muted); font-style: italic; }
+
+.entry-view { padding: 6px 8px; border: 1px solid #262626; background: #161616; }
+.entry-view + .entry-view { margin-top: 6px; }
+.entry-view-title { font-weight: bold; color: #fff; }
+.entry-view-meta { margin: 2px 0 4px; font-size: 11px; color: var(--muted); }
+.entry-view-text { white-space: pre-wrap; word-break: break-word; }
 
 /* =========================================================================
    INTERVENTIONS (cases)

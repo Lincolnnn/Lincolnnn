@@ -48,9 +48,10 @@ local currentStatus = 'available'
 -- ouverture à l'autre, mais réinitialisée à chaque reconnexion au serveur.
 local windowLayout = nil
 
--- Le matricule (indicatif) est sauvegardé localement chez le joueur (KVP).
--- >>> BASE DE DONNÉES : si vous avez une table "officers", récupérez plutôt
--- >>> le matricule côté serveur.
+-- Nom RP et matricule : sauvegardés localement chez le joueur (KVP),
+-- ils sont donc conservés après une reconnexion.
+-- >>> BASE DE DONNÉES : si vous avez une table "officers", récupérez-les plutôt côté serveur.
+local rpName = GetResourceKvpString('mdc_rpname') or ''
 local callsign = GetResourceKvpString('mdc_callsign') or ''
 
 -- =========================================================================
@@ -94,26 +95,24 @@ local function openMDC()
     if isOpen then return end
 
     -- >>> PERMISSIONS : en standalone tout le monde peut ouvrir le MDC.
-    -- >>> Si vous ajoutez un système de métiers, vérifiez ici que le joueur
-    -- >>> est policier (ou faites-le côté serveur dans le handler "open").
+    -- >>> Si vous ajoutez un système de métiers, vérifiez ici que le joueur est policier.
 
     isOpen = true
     SetNuiFocus(true, true)
 
-    local playerId = PlayerId()
     SendNUIMessage({
         action = 'open',
         data = {
             status   = currentStatus,
+            rpName   = rpName,
             callsign = callsign,
-            name     = GetPlayerName(playerId),
-            serverId = GetPlayerServerId(playerId),
+            serverId = GetPlayerServerId(PlayerId()), -- non affiché : sert à repérer sa propre ligne
             layout   = windowLayout, -- nil = position par défaut (centrée)
         }
     })
 
-    -- Indique au serveur que ce joueur consulte le MDC
-    -- (il recevra alors les mises à jour des unités/interventions en temps réel)
+    -- Profil (nom RP / matricule) puis inscription aux mises à jour en temps réel
+    TriggerServerEvent('mdc:server:setProfile', rpName, callsign)
     TriggerServerEvent('mdc:server:viewer', true)
 end
 
@@ -166,26 +165,127 @@ RegisterNUICallback('setStatus', function(data, cb)
     end
 
     currentStatus = status
-    TriggerServerEvent('mdc:server:setStatus', status, callsign)
+    TriggerServerEvent('mdc:server:setStatus', status)
     cb({ ok = true, status = status })
 end)
 
--- Mise à jour du matricule
-RegisterNUICallback('setCallsign', function(data, cb)
-    local value = type(data) == 'table' and data.callsign or ''
-    if type(value) ~= 'string' then value = '' end
+-- Nom RP et matricule
+RegisterNUICallback('setProfile', function(data, cb)
+    data = type(data) == 'table' and data or {}
 
-    -- Nettoyage basique : 12 caractères max, alphanumérique + tiret
-    value = value:gsub('[^%w%-]', ''):sub(1, 12):upper()
+    if type(data.rpName) == 'string' then
+        -- Espaces superflus retirés, 40 caractères max (le serveur revérifie)
+        rpName = data.rpName:gsub('%c', ''):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+        rpName = rpName:sub(1, utf8.offset(rpName, 41) and utf8.offset(rpName, 41) - 1 or #rpName)
+        SetResourceKvp('mdc_rpname', rpName)
+    end
 
-    callsign = value
-    SetResourceKvp('mdc_callsign', value)
-    TriggerServerEvent('mdc:server:setStatus', currentStatus, callsign)
-    cb({ ok = true, callsign = value })
+    if type(data.callsign) == 'string' then
+        -- 12 caractères max, alphanumérique + tiret
+        callsign = data.callsign:gsub('[^%w%-]', ''):sub(1, 12):upper()
+        SetResourceKvp('mdc_callsign', callsign)
+    end
+
+    TriggerServerEvent('mdc:server:setProfile', rpName, callsign)
+    cb({ ok = true, rpName = rpName, callsign = callsign })
 end)
 
+-- =========================================================================
+-- BOUTON "VÉHICULE ACTUEL" : lit le véhicule dans lequel se trouve le joueur
+-- =========================================================================
+
+-- Couleurs GTA (index de GetVehicleColours) regroupées par teinte
+local COLOR_GROUPS = {
+    Noir   = { 0, 1, 2, 12, 15, 16, 21, 141, 142, 143, 147 },
+    Gris   = { 6, 10, 11, 13, 14, 17, 19, 20, 22, 23 },
+    Argent = { 3, 4, 5, 7, 8, 9, 18, 24, 25, 26, 117, 118, 119, 120, 156 },
+    Blanc  = { 111, 112, 121, 122, 131, 132, 134 },
+    Rouge  = { 27, 28, 29, 30, 31, 32, 33, 34, 35, 39, 40, 43, 44, 45, 46, 47, 48, 150 },
+    Orange = { 36, 38, 41, 104, 123, 124, 130, 138 },
+    Jaune  = { 42, 88, 89, 91, 126 },
+    Or     = { 37, 158, 159, 160 },
+    Vert   = { 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 92, 125, 128, 133, 139, 144, 151, 152, 155 },
+    Bleu   = { 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83,
+               84, 85, 86, 87, 127, 140, 146, 157 },
+    Marron = { 90, 96, 97, 98, 100, 101, 102, 103, 108, 109, 110, 114, 115, 129, 153 },
+    Beige  = { 93, 94, 95, 99, 105, 106, 107, 113, 116, 154 },
+    Rose   = { 135, 136, 137 },
+    Violet = { 145, 148, 149 },
+}
+
+local COLOR_BY_INDEX = {}
+for name, indexes in pairs(COLOR_GROUPS) do
+    for _, index in ipairs(indexes) do COLOR_BY_INDEX[index] = name end
+end
+
+-- Couleurs personnalisées (RGB) : on prend la teinte de référence la plus proche
+local COLOR_RGB = {
+    Noir = { 15, 15, 15 }, Gris = { 100, 100, 100 }, Argent = { 180, 180, 185 }, Blanc = { 240, 240, 240 },
+    Rouge = { 180, 20, 20 }, Orange = { 230, 110, 20 }, Jaune = { 230, 200, 30 }, Vert = { 30, 130, 50 },
+    Bleu = { 30, 60, 170 }, Marron = { 100, 60, 30 }, Beige = { 210, 190, 150 }, Rose = { 230, 110, 170 },
+    Violet = { 110, 40, 150 },
+}
+
+local function nearestColorName(r, g, b)
+    local best, bestDist = 'Autre', math.huge
+    for name, rgb in pairs(COLOR_RGB) do
+        local dist = (r - rgb[1]) ^ 2 + (g - rgb[2]) ^ 2 + (b - rgb[3]) ^ 2
+        if dist < bestDist then best, bestDist = name, dist end
+    end
+    return best
+end
+
+local function vehicleColorName(vehicle)
+    local primary, secondary = GetVehicleColours(vehicle)
+
+    local first = COLOR_BY_INDEX[primary] or 'Autre'
+    if GetIsVehiclePrimaryColourCustom(vehicle) then
+        first = nearestColorName(GetVehicleCustomPrimaryColour(vehicle))
+    end
+
+    local second = COLOR_BY_INDEX[secondary] or first
+    if GetIsVehicleSecondaryColourCustom(vehicle) then
+        second = nearestColorName(GetVehicleCustomSecondaryColour(vehicle))
+    end
+
+    return second ~= first and ('%s / %s'):format(first, second) or first
+end
+
+-- Texte localisé du jeu ("BUFFALO" -> "Buffalo"), avec repli si aucune traduction
+local function gameLabel(key)
+    if not key or key == '' then return '' end
+    local label = GetLabelText(key)
+    if label == 'NULL' or label == '' then
+        return (key:lower():gsub('^%l', string.upper))
+    end
+    return label
+end
+
+RegisterNUICallback('getCurrentVehicle', function(_, cb)
+    local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+    if vehicle == 0 then
+        cb({ ok = false, error = 'Vous devez être à bord d\'un véhicule.' })
+        return
+    end
+
+    local model = GetEntityModel(vehicle)
+
+    -- Marque : native disponible sur les builds récents du jeu (protégée par pcall)
+    local okMake, makeKey = pcall(GetMakeNameFromVehicleModel, model)
+
+    cb({
+        ok    = true,
+        plate = (GetVehicleNumberPlateText(vehicle) or ''):gsub('^%s+', ''):gsub('%s+$', ''),
+        model = gameLabel(GetDisplayNameFromVehicleModel(model)),
+        make  = okMake and gameLabel(makeKey) or '',
+        color = vehicleColorName(vehicle),
+    })
+end)
+
+-- =========================================================================
 -- Callbacks génériques relayés au serveur (requête -> réponse)
 -- Le NUI attend la réponse du serveur avant de résoudre son fetch.
+-- =========================================================================
 local function relay(nuiName, serverName)
     RegisterNUICallback(nuiName, function(data, cb)
         serverRequest(serverName, data, cb)
@@ -193,11 +293,13 @@ local function relay(nuiName, serverName)
 end
 
 relay('getUnits',          'getUnits')          -- Onglet "Unités"
-relay('search',            'search')            -- Onglet "Recherches" (identités / plaques)
+relay('search',            'search')            -- Onglet "Recherches" (identités / immatriculations)
 relay('getInterventions',  'getInterventions')  -- Onglet "Interventions"
 relay('updateIntervention','updateIntervention')-- Prendre / clôturer une intervention
 relay('create',            'create')            -- Onglet "Créations" (identité, véhicule, intervention)
+relay('update',            'update')            -- Modification d'une identité / d'un véhicule
 relay('getRegistry',       'getRegistry')       -- Bouton "Registre" (mes créations)
+relay('getMyIdentities',   'getMyIdentities')   -- Liste des propriétaires possibles (véhicule)
 
 -- =========================================================================
 -- PUSH SERVEUR -> NUI (uniquement si le MDC est ouvert)

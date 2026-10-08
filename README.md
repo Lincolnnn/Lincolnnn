@@ -15,24 +15,41 @@ Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), in
 - Agrandir / rétrécir : bouton ☐ ou double-clic sur la barre de titre. Bouton ↺ : position par défaut.
 - La position est gardée d'une ouverture à l'autre et réinitialisée à chaque reconnexion.
 
+## Barre latérale
+
+- **NOM RP** : à saisir une fois ; il s'affiche alors en haut à gauche et dans l'onglet Unités (le pseudo Steam/FiveM n'est jamais affiché).
+- **MATRICULE** et **statut** de l'agent. Le nom RP et le matricule sont mémorisés chez le joueur.
+
 ## Onglets
 
 | Onglet | Rôle |
 |---|---|
-| Unités | Agents en service et leur statut (temps réel) |
-| Recherches | Recherche d'identités (nom, prénom, middle name, date de naissance, SSN, n° de licence) et d'immatriculations |
-| Interventions | Interventions en cours : prendre l'appel, se retirer, clôturer |
-| Créations | Enregistrer une identité, un véhicule ou une intervention. Bouton **Registre** : vos propres créations |
+| Unités | Agents en service (nom RP, matricule, statut) en temps réel |
+| Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN |
+| Interventions | Interventions en cours : prendre l'appel, se retirer, clôturer (effacées au redémarrage) |
+| Créations | Identité, véhicule, intervention. Bouton **Registre** : vos identités et véhicules, modifiables |
 
 ### Identités
 
-Champs : prénom\*, middle name, nom de famille\*, date de naissance\*, adresse\*, SSN\* (`XXX-XX-XXXX`, généré automatiquement s'il est vide), emploi, licence de conduite (classe, numéro, État d'émission), interdictions (choix multiple), condition (N/A, Recherché, Personne disparue, Personne décédée). Si « Recherché » : raison et date de début.
-Le bouton **Remplissage aléatoire** remplit toutes les cases (listes de noms, rues, emplois… modifiables dans `html/script.js`, section « GÉNÉRATEUR D'IDENTITÉS ALÉATOIRES »).
+Prénom\*, middle name, nom de famille\*, date de naissance\*, adresse\*, SSN\* (généré), emploi ;
+licence de conduite (classe, condition : Suspension / Révocation / Annulation / Disqualification pour les CDL, n° généré, État d'émission) ;
+interdictions, condition (Recherché + raison et date de début) ; **Antécédents** (infraction, date, horaire, adresse, explication).
+**Remplissage aléatoire** : prénom, middle name, nom, DoB, adresse, SSN et emploi.
 
-## Données (persistantes)
+### Véhicules
 
-Les identités, véhicules et interventions sont enregistrés dans `data/*.json` sur le serveur.
-**Le script ne supprime jamais rien** : une intervention clôturée reste dans le fichier (`"closed": true`).
+Immatriculation\*, statut de l'immatriculation\*, marque\*, modèle\*, année, couleur\*, propriétaire (une de vos identités),
+VIN\* (généré), dernier contrôle technique\* (jamais après aujourd'hui) ; assurance (statut\*, n° de police\* généré et compagnie\* sauf « Non-Assuré ») ;
+véhicule volé / abandonné / commercial ; **Historique** (infraction administrative ou de stationnement).
+**Véhicule actuel** : reprend modèle, marque, couleur et plaque du véhicule où vous êtes.
+**Remplissage aléatoire** : statut d'immatriculation, contrôle technique et assurance.
+
+Les listes du générateur (noms, rues, emplois…) se modifient dans `html/script.js`, section « GÉNÉRATEURS ALÉATOIRES ».
+
+## Données (permanentes)
+
+Identités et véhicules : `data/identities.json` et `data/vehicles.json`, écrits à chaque création / modification.
+Ils survivent aux déconnexions et aux redémarrages. **Le script ne supprime jamais rien.**
 Pour retirer une entrée (cadres) : éditez le fichier puis tapez `mdc_reload` dans la console serveur.
 Voir `data/LISEZMOI.txt`. ⚠ Ne remplacez pas le dossier `data/` lors d'une mise à jour.
 
