@@ -18,18 +18,33 @@ Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), in
 ## Barre latérale
 
 - **NOM RP** : à saisir une fois ; il s'affiche alors en haut à gauche et dans les unités (le pseudo Steam/FiveM n'est jamais affiché). Mémorisé chez le joueur.
-- **Statut de l'unité** : Disponible (vert), En route (jaune), Sur place (orange), Indisponible (gris). Le statut est celui de l'unité rejointe.
+- **Statut de l'unité** : Disponible (vert), En route (jaune), Sur place (orange), Indisponible (rouge). Le statut est celui de l'unité rejointe.
 
 ## Onglets
 
 | Onglet | Rôle |
 |---|---|
-| Unités | Vide par défaut. Bouton pour créer une unité (nom, tag, couleur du tag). Chacun peut rejoindre, quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur) |
+| Unités | Vide par défaut. Bouton **Créer une unité** (nom, tag, couleur du tag). Chacun peut rejoindre, quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur) |
+| Interventions | Liste des interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour le détail. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Bouton **Nouvel incident** pour les unités |
 | Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous |
-| Interventions | Liste des interventions (civils) et incidents (unités) ; cliquer pour le détail. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Bouton **Nouvel incident** pour les unités |
-| Créations | Identité, véhicule, intervention (requérant, téléphone généré, priorité, adresse, bloc, description). Bouton **Registre** : vos identités et véhicules, modifiables |
+| Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation, Traffic Ticket, Ticket, Warning. Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
+| Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, adresse, bloc, description). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
+
+### Rapports
+
+Chaque rapport reçoit un n° `XX-XXXX`, l'auteur (nom RP) et son unité. Les boutons **Remplir depuis une fiche**
+reprennent une identité (nom + DoB) ou un véhicule (immatriculation) enregistrés via « Créations ».
+
+**DOT-523** : 0 - Amorce (date, horaire, météo, luminosité, chaussée, comté, service, nb d'unités de police) ;
+1 - Impliqués (autant d'« Units » que nécessaire : type Véhicule / Piéton / H&R / Commercial, conducteur et licence,
+DWI, occupants, véhicule, et partie commerciale si cochée : compagnie, USDOT, type d'unité, cargo body type, poids,
+surcharge → MCE, matières dangereuses, tests DWI obligatoires) ; 2 - Type de collision (lieu précis, causes à cocher
+pour chaque unit, vitesses et distances par unit, lieu) ; 3 - Partie narrative.
+
+Les formulaires sont décrits dans **`server/reports.lua`** : ajoutez un champ ou une option à cet endroit uniquement,
+l'interface et la validation serveur suivent automatiquement.
 
 ### Identités
 
@@ -50,7 +65,7 @@ Les listes du générateur (noms, rues, emplois…) se modifient dans `html/scri
 
 ## Données (permanentes)
 
-Identités et véhicules : `data/identities.json` et `data/vehicles.json`, écrits à chaque création / modification.
+Identités, véhicules et rapports : `data/identities.json`, `data/vehicles.json` et `data/reports.json`, écrits à chaque création / modification.
 Ils survivent aux déconnexions et aux redémarrages. **Le script ne supprime jamais rien.**
 Pour retirer une entrée (cadres) : éditez le fichier puis tapez `mdc_reload` dans la console serveur.
 Voir `data/LISEZMOI.txt`. ⚠ Ne remplacez pas le dossier `data/` lors d'une mise à jour.

@@ -2,14 +2,16 @@
     MDC Standalone - Serveur
     ------------------------
     STOCKAGE PERMANENT (sans base de données) :
-      Les IDENTITÉS et les VÉHICULES sont sauvegardés dans des fichiers JSON
-      à l'intérieur de la ressource, à chaque création / modification :
+      Les IDENTITÉS, les VÉHICULES et les RAPPORTS sont sauvegardés dans des
+      fichiers JSON à l'intérieur de la ressource, à chaque création / modification :
           data/identities.json
           data/vehicles.json
-      Ils survivent aux déconnexions et aux redémarrages du serveur, restent
-      accessibles via les recherches et dans le registre de leur créateur.
+          data/reports.json
+      Ils survivent aux déconnexions et aux redémarrages du serveur. Identités et
+      véhicules restent accessibles via les recherches et dans le registre de leur
+      créateur ; les rapports dans l'onglet "Rapports".
 
-      Le script ne SUPPRIME JAMAIS une identité ou un véhicule. Seuls les cadres
+      Le script ne SUPPRIME JAMAIS une identité, un véhicule ou un rapport. Seuls les cadres
       du serveur peuvent retirer une entrée, manuellement :
           1. Ouvrez le fichier JSON voulu et supprimez l'objet { ... } concerné
              (attention aux virgules : le fichier doit rester un JSON valide).
@@ -41,6 +43,11 @@ local Config = {
     CreateCooldown = 1500,  -- délai mini (ms) entre deux créations / modifications
     MaxSearchResults = 50,
     MaxEntries = 50,        -- nombre max d'antécédents / d'entrées d'historique par fiche
+    MaxReportResults = 200, -- nombre max de rapports affichés dans la liste
+
+    -- Débit (octets/s) des réponses "latentes" (modèles et contenu des rapports,
+    -- qui peuvent dépasser la taille d'un événement classique)
+    LatentBps = 200000,
 }
 
 local RESOURCE = GetCurrentResourceName()
@@ -95,10 +102,11 @@ end
 local DATA_FILES = {
     identities = 'data/identities.json',
     vehicles   = 'data/vehicles.json',
+    reports    = 'data/reports.json',
 }
 
-local Store  = { identities = {}, vehicles = {} }
-local NextId = { identities = 1, vehicles = 1 }
+local Store  = { identities = {}, vehicles = {}, reports = {} }
+local NextId = { identities = 1, vehicles = 1, reports = 1 }
 local Locked = {} -- [kind] = true si le fichier est corrompu (on ne l'écrase pas)
 
 -- Mise à niveau des fiches créées avec une version précédente du MDC
@@ -124,6 +132,10 @@ Migrations.vehicles = function(r)
     r.insuranceStatus = r.insuranceStatus or 'none'
     r.ownerName = r.ownerName or r.owner or ''
     if type(r.history) ~= 'table' then r.history = {} end
+end
+
+Migrations.reports = function(r)
+    if type(r.data) ~= 'table' then r.data = {} end
 end
 
 --- Charge un fichier JSON en mémoire. Retourne true si le fichier existait.
@@ -249,9 +261,11 @@ end
 -- SYSTÈME DE CALLBACKS (requête client -> réponse serveur)
 -- =========================================================================
 local Handlers = {}
+local LatentHandlers = {} -- réponses volumineuses : envoyées en événement "latent"
 
-local function RegisterMDCCallback(name, fn)
+local function RegisterMDCCallback(name, fn, latent)
     Handlers[name] = fn
+    LatentHandlers[name] = latent or nil
 end
 
 RegisterNetEvent('mdc:server:request', function(name, id, payload)
@@ -275,7 +289,11 @@ RegisterNetEvent('mdc:server:request', function(name, id, payload)
         end
     end
 
-    TriggerClientEvent('mdc:client:response', src, id, result)
+    if LatentHandlers[name] then
+        TriggerLatentClientEvent('mdc:client:response', src, Config.LatentBps, id, result)
+    else
+        TriggerClientEvent('mdc:client:response', src, id, result)
+    end
 end)
 
 -- =========================================================================
@@ -981,6 +999,21 @@ local function genPhone()
     return ('555-%03d-%04d'):format(math.random(100, 999), math.random(0, 9999))
 end
 
+-- N° d'incident : XX-XXXX (chiffres aléatoires, sans lien avec la date)
+local function genCaseNumber()
+    return ('%02d-%04d'):format(math.random(0, 99), math.random(0, 9999))
+end
+
+local function newInterventionNumber()
+    while true do
+        local number, used = genCaseNumber(), false
+        for _, intervention in ipairs(Interventions) do
+            if intervention.number == number then used = true break end
+        end
+        if not used then return number end
+    end
+end
+
 local function findIntervention(id)
     id = tonumber(id)
     for _, intervention in ipairs(Interventions) do
@@ -1003,7 +1036,7 @@ local function interventionView(intervention)
         local unit = findUnit(key)
         if unit then units[#units + 1] = { id = unit.id, name = unit.name, tag = unit.tag, color = unit.color } end
     end
-    table.sort(units, function(a, b) return a.tag < b.tag end)
+    table.sort(units, function(a, b) return a.name < b.name end)
 
     view.units = units
     view.status = interventionStatus(intervention)
@@ -1058,7 +1091,7 @@ end
 
 local function addCall(src, call, kind, unit)
     call.id = NextInterventionId
-    call.number = ('INC-%s-%04d'):format(os.date('%Y'), call.id)
+    call.number = newInterventionNumber()
     call.kind = kind
     call.units = {}
     call.notes = {}
@@ -1093,7 +1126,7 @@ RegisterMDCCallback('createIncident', function(src, payload)
     if not call then return { ok = false, error = err } end
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
 
-    call.unitName = unitLabel(unit) -- nom de l'unité déclarante (automatique)
+    call.unitName = unit.name -- nom de l'unité déclarante (automatique)
     return addCall(src, call, 'incident', unit)
 end)
 
@@ -1124,7 +1157,7 @@ RegisterMDCCallback('interventionAction', function(src, payload)
         if not call.units[key] then return { ok = false, error = 'Seules les unités sur l\'appel peuvent y mettre fin.' } end
         call.closed = true
         call.closedAt = os.time()
-        call.closedByName = unitLabel(unit)
+        call.closedByName = unit.name
         print(('^5[MDC]^0 %s terminé(e) par %s'):format(call.number, unitLabel(unit)))
     else
         return { ok = false, error = 'Action invalide.' }
@@ -1199,6 +1232,381 @@ RegisterMDCCallback('editNote', function(src, payload)
         end
     end
     return { ok = false, error = 'Note introuvable.' }
+end)
+
+-- =========================================================================
+-- RAPPORTS (onglet "Rapports") : DOT-523, Arrest Report, Incident Report,
+-- Citation, Traffic Ticket, Ticket, Warning.
+-- Permanents (data/reports.json), comme les identités et les véhicules.
+-- Les formulaires sont décrits dans server/reports.lua (MDC_REPORT_TYPES) :
+-- le serveur valide chaque rapport avec ces mêmes règles.
+-- Tout le monde peut lire les rapports ; seul l'auteur peut modifier le sien.
+-- =========================================================================
+local ReportTypes = {}   -- [id] = modèle
+local ReportFields = {}  -- [id] = { [clé] = champ } (premier niveau : résumés, listes)
+local OptionSets = {}    -- [liste d'options] = { [valeur] = libellé }
+
+local function indexFields(fields, index)
+    for _, f in ipairs(fields) do
+        if f.t == 'group' then
+            indexFields(f.f, index)
+        elseif f.k then
+            index[f.k] = f
+        end
+    end
+end
+
+-- Contrôle du modèle : deux champs d'un même niveau ne doivent pas partager une clé
+-- (les groupes ne créent pas de niveau ; les listes, si).
+local function checkDuplicateKeys(fields, seen, where)
+    for _, f in ipairs(fields) do
+        if f.t == 'group' then
+            checkDuplicateKeys(f.f, seen, where)
+        elseif f.k and f.t ~= 'matrix' then
+            if seen[f.k] then
+                print(('^1[MDC] ERREUR dans server/reports.lua : la clé "%s" est utilisée deux fois (%s).^0'):format(f.k, where))
+            end
+            seen[f.k] = true
+            if f.t == 'list' then checkDuplicateKeys(f.f, {}, where .. ' > ' .. f.k) end
+        end
+    end
+end
+
+for _, reportType in ipairs(MDC_REPORT_TYPES or {}) do
+    ReportTypes[reportType.id] = reportType
+    ReportFields[reportType.id] = {}
+    local seen = {}
+    for _, section in ipairs(reportType.sections) do
+        indexFields(section.f, ReportFields[reportType.id])
+        checkDuplicateKeys(section.f, seen, reportType.id)
+    end
+end
+
+if not MDC_REPORT_TYPES then
+    print('^1[MDC] ERREUR : server/reports.lua n\'est pas chargé (vérifiez fxmanifest.lua). Onglet "Rapports" indisponible.^0')
+end
+
+local function optionSet(options)
+    local set = OptionSets[options]
+    if not set then
+        set = {}
+        for _, option in ipairs(options) do set[option[1]] = option[2] end
+        OptionSets[options] = set
+    end
+    return set
+end
+
+-- Options d'un tableau "matrix" (toutes catégories confondues)
+local function matrixSet(f)
+    local set = OptionSets[f]
+    if not set then
+        set = {}
+        for _, group in ipairs(f.groups) do
+            for _, option in ipairs(group.o) do set[option[1]] = option[2] end
+        end
+        OptionSets[f] = set
+    end
+    return set
+end
+
+local function hasAny(list, values)
+    if type(list) ~= 'table' then return false end
+    for _, v in ipairs(list) do
+        for _, w in ipairs(values) do
+            if v == w then return true end
+        end
+    end
+    return false
+end
+
+--- Condition "show" / "reqIf" d'un champ, évaluée sur les données déjà validées.
+local function condMet(cond, obj)
+    local value = obj[cond.k]
+    if cond.any then return hasAny(value, cond.any) end
+    if cond.none then return not hasAny(value, cond.none) end
+    return value == cond.eq
+end
+
+local function pickOptions(list, set)
+    local out, seen = {}, {}
+    if type(list) ~= 'table' then return out end
+    for _, key in ipairs(list) do
+        if type(key) == 'string' and set[key] and not seen[key] then
+            seen[key] = true
+            out[#out + 1] = key
+        end
+    end
+    return out
+end
+
+local function fieldError(crumb, f, message)
+    local where = #crumb > 0 and (table.concat(crumb, ' › ') .. ' › ') or ''
+    return ('%s%s : %s'):format(where, f.l or f.k, message)
+end
+
+--- Valide une valeur simple et l'écrit dans `out`. Retourne un message d'erreur ou nil.
+local function readValue(f, v, out, crumb)
+    local required = f.req or (f.reqIf ~= nil and condMet(f.reqIf, out))
+    local value
+
+    if f.t == 'check' then
+        value = v == true
+        if required and not value then return fieldError(crumb, f, 'case obligatoire.') end
+        out[f.k] = value
+        return nil
+    elseif f.t == 'checks' then
+        value = pickOptions(v, optionSet(f.o))
+        if required and #value == 0 then return fieldError(crumb, f, 'cochez au moins une case.') end
+        out[f.k] = value
+        return nil
+    elseif f.t == 'text' then
+        value = clean(v, f.max or 80)
+        if f.upper then value = upperFr(value) end
+    elseif f.t == 'area' then
+        value = cleanMultiline(v, f.max or 2000)
+    elseif f.t == 'date' then
+        value = clean(v, 10)
+        if value ~= '' then
+            local key = dateKey(value)
+            if not key then return fieldError(crumb, f, 'date invalide (JJ/MM/AAAA).') end
+            if f.past and key > todayKey() then return fieldError(crumb, f, 'la date ne peut pas être dans le futur.') end
+        end
+    elseif f.t == 'time' then
+        value = clean(v, 5)
+        if value ~= '' and not validTime(value) then return fieldError(crumb, f, 'horaire invalide (HH:MM).') end
+    elseif f.t == 'num' then
+        local raw = type(v) == 'number' and v == math.floor(v) and ('%d'):format(v) or clean(v, 12)
+        value = ''
+        if raw ~= '' then
+            local n = raw:match('^%d+$') and tonumber(raw)
+            if not n or (f.min and n < f.min) or (f.max and n > f.max) then
+                return fieldError(crumb, f, ('nombre entier attendu (%d à %d).'):format(f.min or 0, f.max or 999999999))
+            end
+            value = n
+        end
+    elseif f.t == 'select' then
+        value = (type(v) == 'string' and optionSet(f.o)[v]) and v or ''
+    else
+        return nil
+    end
+
+    if required and value == '' then return fieldError(crumb, f, 'champ obligatoire.') end
+    out[f.k] = value
+    return nil
+end
+
+local sanitizeFields
+
+local function sanitizeList(f, rawList, out, ctx, crumb)
+    local items = {}
+    if type(rawList) == 'table' then
+        if #rawList > (f.max or 20) then return ('%s : %d maximum.'):format(f.l, f.max or 20) end
+        for i, rawItem in ipairs(rawList) do
+            local item = {}
+            crumb[#crumb + 1] = ('%s %d'):format(f.item, i)
+            local err = sanitizeFields(f.f, type(rawItem) == 'table' and rawItem or {}, item, ctx, crumb)
+            crumb[#crumb] = nil
+            if err then return err end
+            items[#items + 1] = item
+        end
+    end
+    if #items < (f.min or 0) then
+        return ('%s : ajoutez au moins %d %s.'):format(f.l, f.min, f.item:lower())
+    end
+    out[f.k] = items
+    return nil
+end
+
+--- Valide une liste de champs (récursif : groupes, listes, tableaux par "Unit").
+--- Les champs masqués (condition "show" fausse) sont ignorés et non enregistrés.
+sanitizeFields = function(fields, raw, out, ctx, crumb)
+    for _, f in ipairs(fields) do
+        if not f.show or condMet(f.show, out) then
+            local err
+            if f.t == 'group' then
+                err = sanitizeFields(f.f, raw, out, ctx, crumb)
+            elseif f.t == 'list' then
+                err = sanitizeList(f, raw[f.k], out, ctx, crumb)
+            elseif f.t == 'matrix' or f.t == 'perUnit' then
+                -- Données rangées dans chaque élément de la liste source (ex : units[i].causes)
+                local listSpec = ctx.fields[f.list]
+                local rawList = type(ctx.raw[f.list]) == 'table' and ctx.raw[f.list] or {}
+                for i, item in ipairs(ctx.out[f.list] or {}) do
+                    local rawItem = type(rawList[i]) == 'table' and rawList[i] or {}
+                    if f.t == 'matrix' then
+                        item[f.k] = pickOptions(rawItem[f.k], matrixSet(f))
+                    else
+                        crumb[#crumb + 1] = ('%s %d'):format(listSpec and listSpec.item or '', i)
+                        for _, sub in ipairs(f.f) do
+                            if not sub.show or condMet(sub.show, item) then
+                                err = err or readValue(sub, rawItem[sub.k], item, crumb)
+                            end
+                        end
+                        crumb[#crumb] = nil
+                    end
+                    if err then break end
+                end
+            elseif f.k then
+                err = readValue(f, raw[f.k], out, crumb)
+            end
+            if err then return err end
+        end
+    end
+    return nil
+end
+
+local function buildReport(reportType, raw)
+    local out = {}
+    local ctx = { raw = raw, out = out, fields = ReportFields[reportType.id] }
+    for _, section in ipairs(reportType.sections) do
+        local err = sanitizeFields(section.f, raw, out, ctx, { section.title })
+        if err then return nil, err end
+    end
+    return out
+end
+
+-- Retire les espaces et tirets "—" en trop au début / à la fin d'un résumé
+local function trimSummary(text)
+    text = text:gsub('%s+', ' ')
+    local changed = true
+    while changed do
+        changed = false
+        text = text:gsub('^%s+', ''):gsub('%s+$', '')
+        if text:sub(1, 3) == '—' then text, changed = text:sub(4), true end
+        if text:sub(-3) == '—' then text, changed = text:sub(1, -4), true end
+    end
+    return text
+end
+
+--- Résumé affiché dans la liste, d'après le modèle "summary" ({clé}, {#liste}).
+local function reportSummary(reportType, data)
+    local fields = ReportFields[reportType.id]
+    local text = (reportType.summary or ''):gsub('{(#?)([%w_]+)}', function(count, key)
+        local value = data[key]
+        if count == '#' then return tostring(type(value) == 'table' and #value or 0) end
+        local f = fields[key]
+        if f and f.t == 'select' then return optionSet(f.o)[value] or '' end
+        if type(value) == 'string' or type(value) == 'number' then return tostring(value) end
+        return ''
+    end)
+    return truncate(trimSummary(text), 120)
+end
+
+-- Texte de recherche : toutes les valeurs saisies (noms, plaques, adresses…), en minuscules
+local function reportSearchText(data)
+    local parts = {}
+    local function collect(value)
+        if type(value) == 'string' and value ~= '' then
+            parts[#parts + 1] = value
+        elseif type(value) == 'table' then
+            for _, v in pairs(value) do collect(v) end
+        end
+    end
+    collect(data)
+    local text = table.concat(parts, ' '):gsub('%c', ' '):lower():gsub('%s+', ' ')
+    return truncate(text, 4000)
+end
+
+local function reportListItem(report, me)
+    return {
+        id = report.id, number = report.number, type = report.type, summary = report.summary,
+        createdAt = report.createdAt, createdByName = report.createdByName, unitName = report.unitName,
+        updatedAt = report.updatedAt, mine = report.createdBy == me,
+    }
+end
+
+RegisterMDCCallback('getReportTypes', function()
+    return { ok = true, types = MDC_REPORT_TYPES or {} }
+end, true)
+
+-- Liste : filtres par type, par texte (n°, résumé, auteur, contenu) et "mes rapports"
+RegisterMDCCallback('getReports', function(src, payload)
+    local me = getIdentifier(src)
+    local typeFilter = ReportTypes[payload.type] and payload.type or nil
+    local query = normalizeName(payload.query)
+    local mineOnly = payload.mine == true
+    local list = {}
+
+    for i = #Store.reports, 1, -1 do -- les plus récents d'abord
+        local report = Store.reports[i]
+        if (not typeFilter or report.type == typeFilter) and (not mineOnly or report.createdBy == me)
+            and (query == '' or (report.number or ''):find(query, 1, true)
+                or normalizeName(report.summary):find(query, 1, true)
+                or normalizeName(report.createdByName):find(query, 1, true)
+                or (report.searchText or ''):find(query, 1, true)) then
+            list[#list + 1] = reportListItem(report, me)
+            if #list >= Config.MaxReportResults then break end
+        end
+    end
+    return { ok = true, reports = list }
+end)
+
+RegisterMDCCallback('getReport', function(src, payload)
+    local report = findBy('reports', 'id', tonumber(payload.id))
+    if not report then return { ok = false, error = 'Rapport introuvable.' } end
+    local view = publicView(report, 'report')
+    view.searchText = nil
+    view.mine = report.createdBy == getIdentifier(src)
+    return { ok = true, report = view }
+end, true)
+
+-- Création (sans id) ou modification (id : uniquement par son auteur)
+RegisterMDCCallback('saveReport', function(src, payload)
+    if Locked.reports then
+        return { ok = false, error = 'Enregistrement bloqué : fichier de données corrompu (voir console serveur).' }
+    end
+
+    local me = getIdentifier(src)
+    local id = tonumber(payload.id)
+    local old, index
+    if id then
+        old, index = findBy('reports', 'id', id)
+        if not old then return { ok = false, error = 'Rapport introuvable.' } end
+        if old.createdBy ~= me then return { ok = false, error = 'Vous ne pouvez modifier que vos propres rapports.' } end
+    end
+
+    local reportType = ReportTypes[old and old.type or payload.type]
+    if not reportType then return { ok = false, error = 'Type de rapport invalide.' } end
+
+    local data, err = buildReport(reportType, type(payload.data) == 'table' and payload.data or {})
+    if not data then return { ok = false, error = err } end
+    if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
+
+    local record = {
+        type = reportType.id, data = data,
+        summary = reportSummary(reportType, data),
+        searchText = reportSearchText(data),
+    }
+
+    if old then
+        record.id, record.number = old.id, old.number
+        record.createdAt, record.createdBy, record.createdByName, record.unitName = old.createdAt, old.createdBy, old.createdByName, old.unitName
+        record.updatedAt = os.time()
+        record.updatedByName = agentName(src)
+        Store.reports[index] = record
+        if not saveStore('reports') then
+            Store.reports[index] = old
+            return { ok = false, error = 'Erreur d\'écriture sur le serveur : modification annulée (voir console).' }
+        end
+    else
+        local unit = findUnit(PlayerUnit[src])
+        record.id = NextId.reports
+        record.number = uniqueValue('reports', 'number', genCaseNumber)
+        record.createdAt = os.time()
+        record.createdByName = agentName(src)
+        record.unitName = unit and unit.name or nil
+        record.createdBy = me -- privé : jamais envoyé aux clients (voir publicView)
+        Store.reports[#Store.reports + 1] = record
+        if not saveStore('reports') then
+            table.remove(Store.reports)
+            return { ok = false, error = 'Erreur d\'écriture sur le serveur : rien n\'a été enregistré (voir console).' }
+        end
+        NextId.reports = NextId.reports + 1
+    end
+
+    print(('^5[MDC]^0 Rapport %s n°%s %s par %s [%s]'):format(reportType.short, record.number,
+        old and 'modifié' or 'créé', agentName(src), GetPlayerName(src) or '?'))
+    return { ok = true, id = record.id, number = record.number }
 end)
 
 -- =========================================================================

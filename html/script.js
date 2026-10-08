@@ -296,6 +296,7 @@
     function loadPage(page) {
         if (page === 'units') refreshUnits();
         else if (page === 'interventions') refreshInterventions();
+        else if (page === 'reports') loadReportsPage();
         else if (page === 'create') loadCreateView(state.createView);
     }
 
@@ -336,7 +337,10 @@
     // UNITÉS : indépendantes des joueurs, qui peuvent les rejoindre / quitter
     // =====================================================================
     const TAG_COLORS = ['green', 'purple', 'blue', 'orange', 'red', 'yellow', 'pink', 'gray'];
-    const unitTag = (u) => `<span class="unit-tag tag-${TAG_COLORS.includes(u.color) ? u.color : 'gray'}">${esc(u.tag)}</span>`;
+    const tagColor = (color) => (TAG_COLORS.includes(color) ? color : 'gray');
+    const unitTag = (u) => `<span class="unit-tag tag-${tagColor(u.color)}">${esc(u.tag)}</span>`;
+    // Nom de l'unité précédé d'un carré de la couleur de son tag (appels, notes)
+    const unitChip = (u) => `<span class="call-unit"><span class="unit-dot tag-${tagColor(u.color)}"></span>${esc(u.name)}</span>`;
 
     // Unité dont le joueur fait partie (ou null)
     const myUnit = () => state.units.find((u) => toArray(u.members).some((m) => m.id === state.serverId)) || null;
@@ -352,7 +356,7 @@
 
         const cell = $('#sbStatus');
         cell.querySelector('.sq').dataset.status = unit ? unit.status : '';
-        cell.lastElementChild.textContent = unit ? `${unit.tag} — ${STATUS_LABELS[unit.status] || unit.status}` : 'Hors unité';
+        cell.lastElementChild.textContent = unit ? `${unit.name} — ${STATUS_LABELS[unit.status] || unit.status}` : 'Hors unité';
     }
 
     async function changeStatus(status) {
@@ -367,7 +371,7 @@
         if (res && res.ok) {
             unit.status = status;
             renderUnits();
-            toast(`${unit.tag} : ${STATUS_LABELS[status]}`, 'success');
+            toast(`${unit.name} : ${STATUS_LABELS[status]}`, 'success');
         } else {
             toast(res?.error || 'Impossible de changer de statut.', 'error');
         }
@@ -386,8 +390,8 @@
             const isMine = !!mine && mine.id === u.id;
             return `
             <tr class="${isMine ? 'me' : ''}">
+                <td><b>${esc(u.name)}</b></td>
                 <td>${unitTag(u)}</td>
-                <td>${esc(u.name)}</td>
                 <td>${members.length ? members.map((m) => esc(m.name)).join(', ') : '<span class="muted">Aucun membre</span>'}</td>
                 <td><span class="badge"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</span></td>
                 <td class="col-actions">
@@ -425,31 +429,39 @@
         preview.className = `unit-tag tag-${data.get('color') || 'green'}`;
     }
 
+    // Le formulaire n'est affiché qu'après un clic sur "Créer une unité" ou "Modifier"
     function resetUnitForm() {
         state.unitEdit = null;
         unitForm.reset();
         updateTagPreview();
         $('#unitFormLegend').textContent = 'Créer une unité';
         $('#unitSubmit').textContent = 'Créer l\'unité';
-        $('#unitCancelEdit').classList.add('hidden');
+        $('#unitFormGroup').classList.add('hidden');
+    }
+
+    function openUnitForm() {
+        resetUnitForm();
+        $('#unitFormGroup').classList.remove('hidden');
+        unitForm.elements.name.focus();
     }
 
     function startUnitEdit(unit) {
+        $('#unitFormGroup').classList.remove('hidden');
         state.unitEdit = unit.id;
         unitForm.elements.name.value = unit.name;
         unitForm.elements.tag.value = unit.tag;
         const color = unitForm.querySelector(`input[name="color"][value="${TAG_COLORS.includes(unit.color) ? unit.color : 'gray'}"]`);
         color.checked = true;
         updateTagPreview();
-        $('#unitFormLegend').textContent = `Modifier l'unité ${unit.tag}`;
+        $('#unitFormLegend').textContent = `Modifier l'unité ${unit.name}`;
         $('#unitSubmit').textContent = 'Enregistrer';
-        $('#unitCancelEdit').classList.remove('hidden');
         unitForm.elements.name.focus();
     }
 
     unitForm.addEventListener('input', updateTagPreview);
     unitForm.addEventListener('change', updateTagPreview);
     $('#unitCancelEdit').addEventListener('click', resetUnitForm);
+    $('#newUnit').addEventListener('click', openUnitForm);
 
     unitForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -778,10 +790,17 @@
         const selected = state.callPanel.id;
         $('#interventionsCount').textContent = `(${list.length})`;
         $('#interventionsEmpty').classList.toggle('hidden', list.length > 0);
-        $('#interventionsBody').innerHTML = list.map((c) => `
-            <tr data-id="${esc(c.id)}" class="${c.closed ? 'row-closed' : ''} ${c.id === selected ? 'selected' : ''}">
-                <td>${esc(c.title)}</td>
-            </tr>`).join('');
+        $('#interventionsBody').innerHTML = list.map((c) => {
+            // Ligne surlignée de la couleur de sa priorité (sauf terminée : grisée)
+            const prio = !c.closed && CALL_PRIORITY[c.priority] ? `prio prio-${c.priority}` : '';
+            return `
+            <tr data-id="${esc(c.id)}" class="${c.closed ? 'row-closed' : ''} ${prio} ${c.id === selected ? 'selected' : ''}">
+                <td class="cell-ellipsis"><b>${esc(c.title)}</b></td>
+                <td>${c.kind === 'incident' ? '<span class="muted">Incident</span>' : esc(CALL_PRIORITY[c.priority] ? CALL_PRIORITY[c.priority][1] : '-')}</td>
+                <td class="cell-ellipsis">${esc(c.address)}</td>
+                <td>${esc(c.block)}</td>
+            </tr>`;
+        }).join('');
     }
 
     function noteHtml(note, call, unit) {
@@ -789,8 +808,8 @@
         const editing = state.noteEdit && state.noteEdit.id === note.id;
         const head = `
             <div class="note-head">
-                ${unitTag({ tag: note.unitTag, color: note.unitColor })}
-                <span>${esc(note.unitName)} — ${esc(formatTime(note.createdAt))}${note.updatedAt ? ' (modifiée)' : ''}</span>
+                ${unitChip({ name: note.unitName, color: note.unitColor })}
+                <span>${esc(formatTime(note.createdAt))}${note.updatedAt ? ' (modifiée)' : ''}</span>
                 <span class="grow"></span>
                 ${mine && !editing ? `<button type="button" class="btn btn-small" data-note-edit="${esc(note.id)}">Modifier</button>` : ''}
             </div>`;
@@ -819,7 +838,7 @@
                 <div class="toolbar call-actions">
                     ${unit ? (onCall
                         ? '<button type="button" class="btn" data-call-action="leave">Quitter l\'appel</button>'
-                        : `<button type="button" class="btn btn-default" data-call-action="join">Rejoindre l'appel (${esc(unit.tag)})</button>`) : ''}
+                        : `<button type="button" class="btn btn-default" data-call-action="join">Rejoindre l'appel (${esc(unit.name)})</button>`) : ''}
                     <button type="button" class="btn" data-call-action="edit">Modifier</button>
                     <span class="grow"></span>
                     ${onCall ? '<button type="button" class="btn btn-danger" data-call-action="end">Intervention terminée</button>' : ''}
@@ -845,7 +864,7 @@
             </dl>
             <div class="sheet-sub">Unités sur l'appel (${units.length})</div>
             <div class="call-units">${units.length
-                ? units.map((u) => `<span class="call-unit">${unitTag(u)} ${esc(u.name)}</span>`).join('')
+                ? units.map(unitChip).join('')
                 : '<span class="muted">Aucune unité.</span>'}</div>
             <div class="sheet-sub">Notes (${notes.length})</div>
             ${notes.length ? notes.map((n) => noteHtml(n, c, unit)).join('') : '<div class="muted">Aucune note.</div>'}
@@ -865,7 +884,7 @@
         const kind = isNew ? 'incident' : c.kind;
         const unit = myUnit();
         const v = (key) => esc(c ? (c[key] ?? '') : '');
-        const unitName = isNew ? (unit ? `[${unit.tag}] ${unit.name}` : 'Aucune unité : rejoignez une unité pour déclarer un incident') : c.unitName;
+        const unitName = isNew ? (unit ? unit.name : 'Aucune unité : rejoignez une unité pour déclarer un incident') : c.unitName;
         const priorities = Object.entries(CALL_PRIORITY).map(([key, [, label]]) =>
             `<option value="${key}" ${c && c.priority === key ? 'selected' : ''}>${label}</option>`).join('');
 
@@ -1613,6 +1632,731 @@
         if (!btn) return;
         const record = state.registry.find((r) => r.kind === btn.dataset.editKind && String(r.id) === btn.dataset.editId);
         if (record) startEdit(record);
+    });
+
+    // =====================================================================
+    // RAPPORTS : DOT-523, Arrest Report, Incident Report, Citation,
+    // Traffic Ticket, Ticket, Warning.
+    // Les formulaires et les fiches sont construits à partir des modèles de
+    // server/reports.lua (le serveur valide avec ces mêmes règles).
+    // Les données d'un rapport en cours de rédaction sont gardées dans
+    // reports.draft.data ; chaque champ y est relié par son chemin (data-path,
+    // ex : "units.0.occupants.1.name").
+    // =====================================================================
+    const reports = {
+        types: [],          // modèles, dans l'ordre d'affichage
+        byId: {},
+        index: {},          // [type] = { [clé] = champ } (premier niveau)
+        list: [],
+        selected: null,     // id du rapport affiché à droite
+        current: null,      // rapport affiché (complet)
+        draft: null,        // { id (null = nouveau), type, data }
+        lookups: [],        // boutons "Remplir depuis..." du formulaire affiché
+        queryTimer: null,
+    };
+
+    const DATA_TYPES = ['text', 'area', 'date', 'time', 'num', 'select', 'check', 'checks'];
+
+    const pathGet = (obj, path) => path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
+    function pathSet(obj, path, value) {
+        const keys = path.split('.');
+        const last = keys.pop();
+        const target = keys.reduce((o, k) => (o == null ? undefined : o[k]), obj);
+        if (target != null) target[last] = value;
+    }
+
+    // Condition "show" / "reqIf" : { k, eq } | { k, any: [] } | { k, none: [] }
+    function condMet(cond, obj) {
+        const value = obj ? obj[cond.k] : undefined;
+        const list = Array.isArray(value) ? value : [];
+        if (cond.any) return list.some((v) => toArray(cond.any).includes(v));
+        if (cond.none) return !list.some((v) => toArray(cond.none).includes(v));
+        return value === cond.eq;
+    }
+    const visible = (f, obj) => !f.show || condMet(f.show, obj);
+    const isRequired = (f, obj) => !!f.req || (!!f.reqIf && condMet(f.reqIf, obj));
+    const optionLabel = (options, value) => {
+        const found = toArray(options).find((o) => o[0] === value);
+        return found ? found[1] : value;
+    };
+
+    // Index des champs du premier niveau (listes sources des tableaux "par Unit")
+    function indexFields(fields, index) {
+        toArray(fields).forEach((f) => {
+            if (f.t === 'group') indexFields(f.f, index);
+            else if (f.k) index[f.k] = f;
+        });
+        return index;
+    }
+
+    // ---- Valeurs par défaut d'un nouveau rapport / d'un nouvel élément de liste ----
+    function defaultValue(f) {
+        const now = new Date();
+        if (f.def === 'today') return dateString(now);
+        if (f.def === 'now') return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        if (f.def != null) return String(f.def);
+        if (f.t === 'check') return false;
+        if (f.t === 'checks') return [];
+        return '';
+    }
+
+    function newObject(fields, obj = {}) {
+        toArray(fields).forEach((f) => {
+            if (f.t === 'group') newObject(f.f, obj);
+            else if (f.t === 'list') obj[f.k] = Array.from({ length: f.min || 0 }, () => newObject(f.f));
+            else if (f.k && DATA_TYPES.includes(f.t)) obj[f.k] = defaultValue(f);
+        });
+        return obj;
+    }
+
+    // Rapport existant : listes et cases multiples toujours en tableaux (Lua peut envoyer {})
+    function normalizeFields(fields, obj, root) {
+        toArray(fields).forEach((f) => {
+            if (f.t === 'group') normalizeFields(f.f, obj, root);
+            else if (f.t === 'list') {
+                obj[f.k] = toArray(obj[f.k]).map((item) => normalizeFields(f.f, item && typeof item === 'object' ? item : {}, root));
+            } else if (f.t === 'checks') obj[f.k] = toArray(obj[f.k]);
+            else if (f.t === 'matrix') toArray(root[f.list]).forEach((item) => { item[f.k] = toArray(item[f.k]); });
+            else if (f.t === 'check') obj[f.k] = obj[f.k] === true;
+            else if (f.k && DATA_TYPES.includes(f.t) && obj[f.k] == null) obj[f.k] = '';
+        });
+        return obj;
+    }
+
+    const sectionsOf = (type) => toArray(type.sections);
+    // Copie normalisée des données d'un rapport enregistré
+    const reportData = (type, report) => {
+        const data = JSON.parse(JSON.stringify(report.data || {}));
+        return normalizeFields(allFields(type), data, data);
+    };
+    const allFields = (type) => sectionsOf(type).flatMap((s) => toArray(s.f));
+
+    // Clés des champs d'un niveau (pour limiter le remplissage depuis une fiche)
+    function fieldKeys(fields, keys = new Set()) {
+        toArray(fields).forEach((f) => {
+            if (f.t === 'group') fieldKeys(f.f, keys);
+            else if (f.k) keys.add(f.k);
+        });
+        return keys;
+    }
+
+    // ---------------------------------------------------------------------
+    // Formulaire
+    // ---------------------------------------------------------------------
+    function inputHtml(f, value, path) {
+        const v = value ?? '';
+        const attrs = `data-path="${esc(path)}" data-t="${esc(f.t)}"`;
+        switch (f.t) {
+            case 'area':
+                return `<textarea ${attrs} rows="${f.rows || 3}" maxlength="${f.max || 2000}">${esc(v)}</textarea>`;
+            case 'date':
+                return `<input type="text" ${attrs} class="date-input" maxlength="10" placeholder="JJ/MM/AAAA" value="${esc(v)}">`;
+            case 'time':
+                return `<input type="text" ${attrs} class="time-input" maxlength="5" placeholder="HH:MM" value="${esc(v)}">`;
+            case 'num':
+                return `<input type="text" ${attrs} class="digits" maxlength="${String(f.max ?? 999999999).length}" placeholder="${esc(f.money ? '$' : (f.unit || ''))}" value="${esc(v)}">`;
+            case 'select':
+                return `<select ${attrs}><option value="">— Choisir —</option>${toArray(f.o).map(([key, label]) =>
+                    `<option value="${esc(key)}" ${key === v ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select>`;
+            case 'check':
+                return `<input type="checkbox" ${attrs} ${v === true ? 'checked' : ''}>`;
+            default:
+                return `<input type="text" ${attrs} maxlength="${f.max || 80}" ${f.upper ? 'class="upper"' : ''} placeholder="${esc(f.ph || '')}" value="${esc(v)}">`;
+        }
+    }
+
+    function fieldHtml(f, obj, path) {
+        const span = f.w > 1 ? ` span-${Math.min(f.w, 4)}` : '';
+        const required = isRequired(f, obj) ? ' *' : '';
+        const key = path + f.k;
+
+        if (f.t === 'check') {
+            return `<label class="check rp-check${span}">${inputHtml(f, obj[f.k], key)} ${esc(f.l)}${required}</label>`;
+        }
+        if (f.t === 'checks') {
+            const selected = toArray(obj[f.k]);
+            return `
+                <div class="lbl span-4">
+                    <span>${esc(f.l)}${required}${f.ph ? ` <span class="hint-text">(${esc(f.ph)})</span>` : ''}</span>
+                    <div class="checks">${toArray(f.o).map(([value, label]) => `
+                        <label class="check"><input type="checkbox" data-path="${esc(key)}" data-t="checks" value="${esc(value)}" ${selected.includes(value) ? 'checked' : ''}> ${esc(label)}</label>`).join('')}
+                    </div>
+                </div>`;
+        }
+        if (f.t === 'note') return `<div class="hint-box span-4">${esc(f.l)}</div>`;
+        return `<label class="lbl${span}">${esc(f.l)}${f.unit ? ` (${esc(f.unit)})` : ''}${required}${inputHtml(f, obj[f.k], key)}</label>`;
+    }
+
+    // Suite de champs : les champs simples sont regroupés dans une grille de 4 colonnes,
+    // les groupes / listes / tableaux forment des blocs à part.
+    function blocksHtml(fields, obj, path) {
+        let html = '';
+        let grid = '';
+        const flush = () => {
+            if (grid) html += `<div class="form-grid cols-4">${grid}</div>`;
+            grid = '';
+        };
+
+        toArray(fields).forEach((f) => {
+            if (!visible(f, obj)) return;
+            if (f.t === 'group') {
+                flush();
+                html += `<div class="subgroup"><span class="subgroup-title">${esc(f.l)}</span>${blocksHtml(f.f, obj, path)}</div>`;
+            } else if (f.t === 'list') {
+                flush();
+                html += listHtml(f, obj, path);
+            } else if (f.t === 'matrix' || f.t === 'perUnit') {
+                flush();
+                html += unitTableHtml(f);
+            } else if (f.t === 'lookup') {
+                const id = reports.lookups.push({ f, ctx: path, keys: fieldKeys(fields) }) - 1;
+                grid += `<div class="span-4 rp-lookup"><button type="button" class="btn btn-small" data-lookup="${id}">${esc(f.l)}</button></div>`;
+            } else {
+                grid += fieldHtml(f, obj, path);
+            }
+        });
+        flush();
+        return html;
+    }
+
+    function listHtml(f, obj, path) {
+        const items = toArray(obj[f.k]);
+        const key = path + f.k;
+        const min = f.min || 0;
+        const max = f.max || 20;
+        return `
+            <div class="subgroup">
+                <span class="subgroup-title">${esc(f.l)}${min ? ' *' : ''}</span>
+                <div class="entries">${items.map((item, i) => `
+                    <div class="entry-box">
+                        <div class="entry-head">
+                            <span class="entry-title">${esc(f.item)} ${i + 1}</span>
+                            ${items.length > min ? `<button type="button" class="win-btn entry-remove" data-list-remove="${esc(key)}" data-index="${i}" title="Retirer">&#10005;</button>` : ''}
+                        </div>
+                        ${blocksHtml(f.f, item, `${key}.${i}.`)}
+                    </div>`).join('')}
+                </div>
+                <div class="toolbar entries-toolbar">
+                    ${items.length ? '' : `<span class="hint-text">Aucun élément.</span>`}
+                    <span class="grow"></span>
+                    ${items.length < max ? `<button type="button" class="btn" data-list-add="${esc(key)}">${esc(f.add || '+ Ajouter')}</button>` : ''}
+                </div>
+            </div>`;
+    }
+
+    // Tableau "une colonne par Unit" : causes du crash (matrix) ou informations véhicules (perUnit)
+    function unitTableHtml(f) {
+        const units = toArray(reports.draft.data[f.list]);
+        const source = reports.index[reports.draft.type][f.list] || {};
+        const head = `<tr><th></th>${units.map((u, i) => `<th class="mx-cell">${esc(source.item || '')} ${i + 1}</th>`).join('')}</tr>`;
+        let body;
+
+        if (f.t === 'matrix') {
+            body = toArray(f.groups).map((group) => `
+                <tr class="mx-group"><td colspan="${units.length + 1}">${esc(group.l)}</td></tr>
+                ${toArray(group.o).map(([value, label]) => `
+                    <tr>
+                        <td>${esc(label)}</td>
+                        ${units.map((u, i) => `<td class="mx-cell"><input type="checkbox" data-path="${esc(`${f.list}.${i}.${f.k}`)}" data-t="checks" value="${esc(value)}" ${toArray(u[f.k]).includes(value) ? 'checked' : ''}></td>`).join('')}
+                    </tr>`).join('')}`).join('');
+        } else {
+            body = toArray(f.f).map((sub) => `
+                <tr>
+                    <td>${esc(sub.l)}${sub.unit ? ` (${esc(sub.unit)})` : ''}</td>
+                    ${units.map((u, i) => `<td class="mx-cell">${visible(sub, u)
+                        ? inputHtml(sub, u[sub.k], `${f.list}.${i}.${sub.k}`)
+                        : '<span class="muted" title="Sans véhicule">—</span>'}</td>`).join('')}
+                </tr>`).join('');
+        }
+
+        return `
+            <div class="subgroup">
+                <span class="subgroup-title">${esc(f.l)}</span>
+                ${units.length
+                    ? `<div class="mx-wrap"><table class="grid matrix">${head}${body}</table></div>`
+                    : '<span class="hint-text">Ajoutez d\'abord une unit (section 1).</span>'}
+            </div>`;
+    }
+
+    function renderReportForm() {
+        const draft = reports.draft;
+        const type = reports.byId[draft.type];
+        const scroller = $('#reportForm');
+        const top = scroller.scrollTop;
+        reports.lookups = [];
+        scroller.innerHTML = sectionsOf(type).map((section) => `
+            <div class="report-section">
+                <div class="report-section-title">${esc(section.title)}</div>
+                ${blocksHtml(section.f, draft.data, '')}
+            </div>`).join('');
+        scroller.scrollTop = top;
+    }
+
+    function openReportEditor(typeId, report) {
+        const type = reports.byId[typeId];
+        if (!type) return;
+        const data = report ? reportData(type, report) : newObject(allFields(type));
+
+        reports.draft = { id: report ? report.id : null, type: typeId, data };
+        $('#reportEditorTitle').textContent = report ? `Modification — ${type.label} n°${report.number}` : `Nouveau rapport — ${type.label}`;
+        $('#reportsBrowse').classList.add('hidden');
+        $('#reportEditor').classList.remove('hidden');
+        $('#reportForm').scrollTop = 0;
+        renderReportForm();
+    }
+
+    function closeReportEditor() {
+        reports.draft = null;
+        $('#reportEditor').classList.add('hidden');
+        $('#reportsBrowse').classList.remove('hidden');
+    }
+
+    // ---- Saisie : les champs texte mettent à jour les données sans tout redessiner ----
+    // (écouteur posé sur document APRÈS celui des formats automatiques : la valeur est déjà formatée)
+    document.addEventListener('input', (e) => {
+        const el = e.target;
+        if (!reports.draft || !el.dataset || !el.dataset.path || !el.closest('#reportForm')) return;
+        el.classList.remove('invalid');
+        if (el.type !== 'checkbox' && el.tagName !== 'SELECT') pathSet(reports.draft.data, el.dataset.path, el.value);
+    });
+
+    // Cases / listes déroulantes : peuvent afficher ou masquer d'autres champs -> on redessine
+    $('#reportForm').addEventListener('change', (e) => {
+        const el = e.target;
+        const path = el.dataset && el.dataset.path;
+        if (!path || !reports.draft) return;
+
+        if (el.dataset.t === 'check') {
+            pathSet(reports.draft.data, path, el.checked);
+        } else if (el.dataset.t === 'checks') {
+            const current = toArray(pathGet(reports.draft.data, path));
+            const next = el.checked ? [...new Set([...current, el.value])] : current.filter((v) => v !== el.value);
+            pathSet(reports.draft.data, path, next);
+        } else if (el.tagName === 'SELECT') {
+            pathSet(reports.draft.data, path, el.value);
+        } else {
+            return;
+        }
+        renderReportForm();
+    });
+
+    $('#reportForm').addEventListener('click', (e) => {
+        const draft = reports.draft;
+        if (!draft) return;
+
+        const add = e.target.closest('[data-list-add]');
+        if (add) {
+            const path = add.dataset.listAdd;
+            const spec = findListSpec(reports.byId[draft.type], path);
+            const list = toArray(pathGet(draft.data, path));
+            list.push(newObject(spec ? spec.f : []));
+            pathSet(draft.data, path, list);
+            renderReportForm();
+            return;
+        }
+
+        const remove = e.target.closest('[data-list-remove]');
+        if (remove) {
+            const path = remove.dataset.listRemove;
+            const list = toArray(pathGet(draft.data, path));
+            list.splice(Number(remove.dataset.index), 1);
+            pathSet(draft.data, path, list);
+            renderReportForm();
+            return;
+        }
+
+        const lookup = e.target.closest('[data-lookup]');
+        if (lookup) runLookup(reports.lookups[Number(lookup.dataset.lookup)], lookup);
+    });
+
+    // Retrouve la définition d'une liste à partir de son chemin (ex : "units.0.occupants")
+    function findListSpec(type, path) {
+        let fields = allFields(type);
+        let spec = null;
+        path.split('.').filter((part) => !/^\d+$/.test(part)).forEach((key) => {
+            const flat = [];
+            const walk = (list) => toArray(list).forEach((f) => (f.t === 'group' ? walk(f.f) : flat.push(f)));
+            walk(fields);
+            spec = flat.find((f) => f.k === key && f.t === 'list') || null;
+            fields = spec ? spec.f : [];
+        });
+        return spec;
+    }
+
+    // ---- "Remplir depuis une fiche" : recherche dans les identités / véhicules enregistrés ----
+    function lookupValue(record, source) {
+        switch (source) {
+            case 'makeModel': return [record.make, record.model].filter(Boolean).join(' ');
+            case 'ownerFull': return record.ownerIdentity ? fullName(record.ownerIdentity) : (record.ownerName || '');
+            case 'insurance':
+                return record.insuranceStatus === 'none'
+                    ? 'Non-Assuré'
+                    : [record.insuranceCompany, record.insurancePolicy, INSURANCE_LABELS[record.insuranceStatus]].filter(Boolean).join(' — ');
+            default: return record[source] ?? '';
+        }
+    }
+
+    async function runLookup(entry, button) {
+        if (!entry) return;
+        const { f, ctx, keys } = entry;
+        const obj = ctx ? pathGet(reports.draft.data, ctx.slice(0, -1)) : reports.draft.data;
+        const target = (source) => Object.keys(f.map).find((key) => f.map[key] === source);
+        let res;
+
+        if (f.kind === 'identity') {
+            const lastname = String(obj[target('lastname')] || '').trim();
+            const dob = obj[target('dob')];
+            if (!lastname || !parseDate(dob)) {
+                toast('Saisissez d\'abord le nom de famille et la date de naissance.', 'error');
+                return;
+            }
+            button.disabled = true;
+            res = await post('search', { type: 'identity', lastname, dob, firstname: obj[target('firstname')] || '' });
+        } else {
+            const plate = String(obj[target('plate')] || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (plate.length < 2) {
+                toast('Saisissez d\'abord l\'immatriculation.', 'error');
+                return;
+            }
+            button.disabled = true;
+            res = await post('search', { type: 'vehicle', query: plate });
+        }
+        button.disabled = false;
+
+        if (!res || !res.ok) {
+            toast(res?.error || 'Recherche impossible.', 'error');
+            return;
+        }
+        const results = toArray(res.results);
+        if (!results.length) {
+            toast(f.kind === 'identity' ? 'Aucune fiche d\'identité trouvée.' : 'Aucun véhicule enregistré avec cette immatriculation.', 'error');
+            return;
+        }
+        const record = f.kind === 'vehicle'
+            ? (results.find((r) => r.plate === String(obj[target('plate')] || '').toUpperCase()) || results[0])
+            : results[0];
+        if (f.kind === 'identity' && results.length > 1) toast(`${results.length} fiches trouvées : la première est utilisée (précisez le prénom).`, 'info');
+
+        Object.entries(f.map).forEach(([to, from]) => {
+            const value = lookupValue(record, from);
+            if (keys.has(to) && value !== '' && value != null) obj[to] = typeof value === 'number' ? String(value) : value;
+        });
+        renderReportForm();
+        toast('Champs remplis depuis la fiche.', 'success');
+    }
+
+    // ---- Vérification avant envoi (le serveur revérifie avec les mêmes règles) ----
+    const dateNum = (str) => {
+        const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str || '');
+        return m ? Number(m[3]) * 10000 + Number(m[2]) * 100 + Number(m[1]) : null;
+    };
+
+    function checkValue(f, value, obj) {
+        const required = isRequired(f, obj);
+        if (f.t === 'check') return required && value !== true ? 'case obligatoire.' : null;
+        if (f.t === 'checks') return required && !toArray(value).length ? 'cochez au moins une case.' : null;
+
+        const str = String(value ?? '').trim();
+        if (str === '') return required ? 'champ obligatoire.' : null;
+        if (f.t === 'date') {
+            const n = dateNum(str);
+            const d = n && Number(str.slice(0, 2));
+            const m = n && Number(str.slice(3, 5));
+            if (!n || d < 1 || d > 31 || m < 1 || m > 12) return 'date invalide (JJ/MM/AAAA).';
+            if (f.past && n > dateNum(dateString(new Date()))) return 'la date ne peut pas être dans le futur.';
+        }
+        if (f.t === 'time' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(str)) return 'horaire invalide (HH:MM).';
+        if (f.t === 'num') {
+            const n = Number(str);
+            if (!/^\d+$/.test(str) || (f.min != null && n < f.min) || (f.max != null && n > f.max)) {
+                return `nombre entier attendu (${f.min ?? 0} à ${f.max ?? 999999999}).`;
+            }
+        }
+        return null;
+    }
+
+    function validateFields(fields, obj, path, crumb) {
+        for (const f of toArray(fields)) {
+            if (!visible(f, obj)) continue;
+            let error = null;
+
+            if (f.t === 'group') {
+                error = validateFields(f.f, obj, path, crumb);
+            } else if (f.t === 'list') {
+                const items = toArray(obj[f.k]);
+                for (let i = 0; i < items.length && !error; i += 1) {
+                    error = validateFields(f.f, items[i], `${path}${f.k}.${i}.`, [...crumb, `${f.item} ${i + 1}`]);
+                }
+                if (!error && items.length < (f.min || 0)) {
+                    error = { path: null, message: `${f.l} : ajoutez au moins ${f.min} ${String(f.item).toLowerCase()}.` };
+                }
+            } else if (f.t === 'perUnit') {
+                const source = reports.index[reports.draft.type][f.list] || {};
+                toArray(reports.draft.data[f.list]).forEach((unit, i) => {
+                    toArray(f.f).forEach((sub) => {
+                        if (error || !visible(sub, unit)) return;
+                        const message = checkValue(sub, unit[sub.k], unit);
+                        if (message) error = { path: `${f.list}.${i}.${sub.k}`, message: `${[...crumb, `${source.item} ${i + 1}`, sub.l].join(' › ')} : ${message}` };
+                    });
+                });
+            } else if (f.k && DATA_TYPES.includes(f.t)) {
+                const message = checkValue(f, obj[f.k], obj);
+                if (message) error = { path: path + f.k, message: `${[...crumb, f.l].join(' › ')} : ${message}` };
+            }
+            if (error) return error;
+        }
+        return null;
+    }
+
+    function validateDraft() {
+        const type = reports.byId[reports.draft.type];
+        for (const section of sectionsOf(type)) {
+            const error = validateFields(section.f, reports.draft.data, '', [section.title]);
+            if (error) return error;
+        }
+        return null;
+    }
+
+    function showFieldError(error) {
+        toast(error.message, 'error');
+        const el = error.path && $(`#reportForm [data-path="${CSS.escape(error.path)}"]`);
+        if (el) {
+            el.classList.add('invalid');
+            el.scrollIntoView({ block: 'center' });
+            el.focus();
+        }
+    }
+
+    $('#reportEditor').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const draft = reports.draft;
+        if (!draft) return;
+
+        const error = validateDraft();
+        if (error) {
+            showFieldError(error);
+            return;
+        }
+
+        const submit = $('#reportSubmit');
+        submit.disabled = true;
+        const res = await post('saveReport', { id: draft.id, type: draft.type, data: draft.data });
+        submit.disabled = false;
+        if (!res || !res.ok) {
+            toast(res?.error || 'Erreur lors de l\'enregistrement du rapport.', 'error');
+            return;
+        }
+
+        toast(`Rapport n°${res.number} enregistré.`, 'success');
+        closeReportEditor();
+        reports.selected = res.id;
+        await refreshReports();
+        openReport(res.id);
+    });
+
+    // "Annuler" : deuxième clic pour confirmer (le brouillon est perdu)
+    $('#reportCancel').addEventListener('click', (e) => {
+        const btn = e.currentTarget;
+        if (!btn.dataset.confirm) {
+            btn.dataset.confirm = '1';
+            btn.textContent = 'Abandonner le rapport ?';
+            setTimeout(() => {
+                delete btn.dataset.confirm;
+                btn.textContent = 'Annuler';
+            }, 3000);
+            return;
+        }
+        delete btn.dataset.confirm;
+        btn.textContent = 'Annuler';
+        closeReportEditor();
+    });
+
+    // ---------------------------------------------------------------------
+    // Fiche d'un rapport (lecture)
+    // Seuls les champs remplis sont affichés.
+    // ---------------------------------------------------------------------
+    function valueHtml(f, value) {
+        if (f.t === 'check') return value === true ? 'Oui' : '';
+        if (f.t === 'checks') return toArray(value).map((v) => esc(optionLabel(f.o, v))).join(', ');
+        if (value === '' || value == null) return '';
+        if (f.t === 'select') return esc(optionLabel(f.o, value));
+        if (f.t === 'num' && f.money) return `$${esc(Number(value).toLocaleString('en-US'))}`;
+        if (f.t === 'num' && f.unit) return `${esc(value)} ${esc(f.unit)}`;
+        return esc(value);
+    }
+
+    function viewBlocks(fields, obj, root, type) {
+        let html = '';
+        let rows = '';
+        const flush = () => {
+            if (rows) html += `<dl class="sheet">${rows}</dl>`;
+            rows = '';
+        };
+
+        toArray(fields).forEach((f) => {
+            if (!visible(f, obj)) return;
+            if (f.t === 'group') {
+                const inner = viewBlocks(f.f, obj, root, type);
+                if (inner) {
+                    flush();
+                    html += `<div class="view-group">${esc(f.l)}</div>${inner}`;
+                }
+            } else if (f.t === 'list') {
+                flush();
+                const items = toArray(obj[f.k]);
+                const moneyField = toArray(f.f).find((sub) => sub.money);
+                html += `<div class="view-group">${esc(f.l)} (${items.length})</div>`;
+                html += items.length
+                    ? items.map((item, i) => `
+                        <div class="entry-view">
+                            <div class="entry-view-title">${esc(f.item)} ${i + 1}</div>
+                            ${viewBlocks(f.f, item, root, type) || '<div class="fold-empty">Aucune information.</div>'}
+                        </div>`).join('')
+                    : '<div class="fold-empty">Aucun élément.</div>';
+                if (moneyField && items.length) {
+                    const total = items.reduce((sum, item) => sum + (Number(item[moneyField.k]) || 0), 0);
+                    html += `<div class="view-total">Total : $${esc(total.toLocaleString('en-US'))}</div>`;
+                }
+            } else if (f.t === 'matrix' || f.t === 'perUnit') {
+                flush();
+                html += unitViewHtml(f, root, type);
+            } else if (f.k && DATA_TYPES.includes(f.t)) {
+                const value = valueHtml(f, obj[f.k]);
+                if (value) rows += dd(f.l, value);
+            }
+        });
+        flush();
+        return html;
+    }
+
+    function unitViewHtml(f, root, type) {
+        const units = toArray(root[f.list]);
+        const source = reports.index[type.id][f.list] || {};
+        if (!units.length) return '';
+
+        if (f.t === 'matrix') {
+            const all = toArray(f.groups).flatMap((g) => toArray(g.o));
+            return `<div class="view-group">${esc(f.l)}</div><dl class="sheet">${units.map((u, i) => {
+                const labels = toArray(u[f.k]).map((v) => optionLabel(all, v));
+                return dd(`${source.item} ${i + 1}`, labels.length ? esc(labels.join(', ')) : '<span class="muted">Aucune cause cochée</span>');
+            }).join('')}</dl>`;
+        }
+
+        const rows = toArray(f.f).map((sub) => {
+            const cells = units.map((u) => (visible(sub, u) ? valueHtml(sub, u[sub.k]) : '') || '-');
+            return cells.every((c) => c === '-') ? '' : `<tr><td>${esc(sub.l)}</td>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`;
+        }).join('');
+        return rows ? `
+            <div class="view-group">${esc(f.l)}</div>
+            <div class="mx-wrap"><table class="grid matrix">
+                <tr><th></th>${units.map((u, i) => `<th>${esc(source.item)} ${i + 1}</th>`).join('')}</tr>
+                ${rows}
+            </table></div>` : '';
+    }
+
+    function reportViewHtml(r) {
+        const type = reports.byId[r.type];
+        if (!type) return '<div class="empty">Type de rapport inconnu.</div>';
+        const data = reportData(type, r);
+
+        return `
+            <div class="sheet-title">
+                <span>${esc(type.label)} — n°${esc(r.number)}</span>
+                ${r.mine ? '<button type="button" class="btn btn-small" data-report-edit>Modifier</button>' : ''}
+            </div>
+            <div class="report-meta">
+                Rédigé par <b>${esc(r.createdByName || '-')}</b>${r.unitName ? ` (${esc(r.unitName)})` : ''} le ${esc(formatDate(r.createdAt))}
+                ${r.updatedAt ? `<br>Modifié le ${esc(formatDate(r.updatedAt))}` : ''}
+            </div>
+            ${sectionsOf(type).map((section) => {
+                const body = viewBlocks(section.f, data, data, type);
+                return body ? `<div class="report-section-title">${esc(section.title)}</div>${body}` : '';
+            }).join('')}`;
+    }
+
+    // ---------------------------------------------------------------------
+    // Liste des rapports
+    // ---------------------------------------------------------------------
+    function renderReportList() {
+        const list = reports.list;
+        $('#reportsCount').textContent = `(${list.length})`;
+        $('#reportsEmpty').classList.toggle('hidden', list.length > 0);
+        $('#reportsBody').innerHTML = list.map((r) => `
+            <tr data-id="${esc(r.id)}" class="${r.id === reports.selected ? 'selected' : ''}">
+                <td>${esc(r.number)}</td>
+                <td>${esc(reports.byId[r.type] ? reports.byId[r.type].short : r.type)}</td>
+                <td class="cell-ellipsis">${esc(r.summary || '-')}</td>
+                <td>${esc(formatDate(r.createdAt))}</td>
+            </tr>`).join('');
+    }
+
+    async function refreshReports() {
+        const res = await post('getReports', {
+            type: $('#reportFilter').value,
+            query: $('#reportQuery').value.trim(),
+            mine: $('#reportMine').checked,
+        });
+        if (!res || !res.ok) {
+            toast(res?.error || 'Impossible de charger les rapports.', 'error');
+            return;
+        }
+        reports.list = toArray(res.reports);
+        renderReportList();
+    }
+
+    async function openReport(id) {
+        reports.selected = id;
+        renderReportList();
+        const detail = $('#reportDetail');
+        const res = await post('getReport', { id });
+        if (!res || !res.ok) {
+            detail.innerHTML = `<div class="empty">${esc(res?.error || 'Rapport introuvable.')}</div>`;
+            return;
+        }
+        reports.current = res.report;
+        detail.innerHTML = reportViewHtml(res.report);
+    }
+
+    async function loadReportTypes() {
+        if (reports.types.length) return true;
+        const res = await post('getReportTypes');
+        if (!res || !res.ok) {
+            $('#reportTypeButtons').innerHTML = `<span class="hint-text">${esc(res?.error || 'Modèles indisponibles.')}</span>`;
+            return false;
+        }
+        reports.types = toArray(res.types);
+        reports.types.forEach((type) => {
+            reports.byId[type.id] = type;
+            reports.index[type.id] = indexFields(allFields(type), {});
+        });
+        $('#reportTypeButtons').innerHTML = reports.types.map((type) =>
+            `<button type="button" class="btn" data-report-type="${esc(type.id)}" title="${esc(type.label)}">${esc(type.button || type.label)}</button>`).join('');
+        $('#reportFilter').innerHTML = '<option value="">Tous les types</option>'
+            + reports.types.map((type) => `<option value="${esc(type.id)}">${esc(type.short)}</option>`).join('');
+        return true;
+    }
+
+    async function loadReportsPage() {
+        if (await loadReportTypes() && !reports.draft) refreshReports();
+    }
+
+    $('#reportTypeButtons').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-report-type]');
+        if (btn) openReportEditor(btn.dataset.reportType, null);
+    });
+    $('#reportsBody').addEventListener('click', (e) => {
+        const tr = e.target.closest('tr[data-id]');
+        if (tr) openReport(Number(tr.dataset.id));
+    });
+    $('#reportDetail').addEventListener('click', (e) => {
+        if (e.target.closest('[data-report-edit]') && reports.current) openReportEditor(reports.current.type, reports.current);
+    });
+    $('#reportFilter').addEventListener('change', refreshReports);
+    $('#reportMine').addEventListener('change', refreshReports);
+    $('#refreshReports').addEventListener('click', refreshReports);
+    $('#reportQuery').addEventListener('input', () => {
+        clearTimeout(reports.queryTimer);
+        reports.queryTimer = setTimeout(refreshReports, 300);
     });
 
     // =====================================================================

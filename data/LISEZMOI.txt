@@ -2,10 +2,12 @@ Dossier de données du MDC (créé et rempli automatiquement par le serveur).
 
   identities.json  -> identités enregistrées via "Créations"
   vehicles.json    -> véhicules enregistrés via "Créations"
+  reports.json     -> rapports rédigés via "Rapports" (DOT-523, Arrest Report, tickets…)
 
-Ces fiches sont PERMANENTES : elles survivent aux déconnexions et aux redémarrages,
-restent accessibles dans les recherches et dans le registre de leur créateur
-(retrouvé grâce à sa licence Rockstar, champ "createdBy").
+Ces fiches sont PERMANENTES : elles survivent aux déconnexions et aux redémarrages.
+Identités et véhicules restent accessibles dans les recherches et dans le registre de
+leur créateur ; les rapports dans l'onglet "Rapports" (seul leur auteur peut les modifier).
+L'auteur est retrouvé grâce à sa licence Rockstar (champ "createdBy").
 Les unités, interventions et incidents ne sont pas enregistrés ici : ils disparaissent au redémarrage.
 
 Le script ne supprime JAMAIS d'entrée. Pour en retirer une (cadres uniquement) :

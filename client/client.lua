@@ -24,6 +24,10 @@ local Config = {
 
     -- Délai max (ms) d'attente d'une réponse serveur avant d'abandonner
     RequestTimeout = 5000,
+
+    -- Débit (octets/s) des événements "latents" utilisés pour les gros envois
+    -- (rapports : un DOT-523 complet peut dépasser la taille d'un événement classique)
+    LatentBps = 200000,
 }
 
 -- =========================================================================
@@ -51,12 +55,17 @@ local requestId = 0
 ---@param name string     nom du handler déclaré côté serveur (RegisterMDCCallback)
 ---@param payload any      données envoyées
 ---@param cb function      callback(result)
-local function serverRequest(name, payload, cb)
+---@param latent boolean?  true pour les gros envois (envoi progressif, sans limite de taille)
+local function serverRequest(name, payload, cb, latent)
     requestId = requestId + 1
     local id = requestId
     pendingRequests[id] = cb
 
-    TriggerServerEvent('mdc:server:request', name, id, payload)
+    if latent then
+        TriggerLatentServerEvent('mdc:server:request', Config.LatentBps, name, id, payload)
+    else
+        TriggerServerEvent('mdc:server:request', name, id, payload)
+    end
 
     -- Timeout de sécurité : SetTimeout ne crée qu'un timer ponctuel, pas une boucle.
     SetTimeout(Config.RequestTimeout, function()
@@ -254,9 +263,9 @@ end)
 -- Callbacks génériques relayés au serveur (requête -> réponse)
 -- Le NUI attend la réponse du serveur avant de résoudre son fetch.
 -- =========================================================================
-local function relay(nuiName, serverName)
+local function relay(nuiName, serverName, latent)
     RegisterNUICallback(nuiName, function(data, cb)
-        serverRequest(serverName, data, cb)
+        serverRequest(serverName, data, cb, latent)
     end)
 end
 
@@ -283,6 +292,12 @@ relay('create',            'create')            -- Onglet "Créations" (identit�
 relay('update',            'update')            -- Modification d'une identité / d'un véhicule
 relay('getRegistry',       'getRegistry')       -- Bouton "Registre" (mes créations)
 relay('getMyIdentities',   'getMyIdentities')   -- Liste des propriétaires possibles (véhicule)
+
+-- Rapports (DOT-523, Arrest Report, Incident Report, Citation, Traffic Ticket, Ticket, Warning)
+relay('getReportTypes',    'getReportTypes')    -- Modèles des formulaires (définis dans server/reports.lua)
+relay('getReports',        'getReports')        -- Liste (filtrée par type / texte)
+relay('getReport',         'getReport')         -- Rapport complet
+relay('saveReport',        'saveReport', true)  -- Création / modification (envoi latent : peut être volumineux)
 
 -- =========================================================================
 -- PUSH SERVEUR -> NUI (uniquement si le MDC est ouvert)
