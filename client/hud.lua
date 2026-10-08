@@ -2,15 +2,17 @@
     MDC Standalone - HUD (client)
     -----------------------------
     Deux affichages indépendants, dessinés par le NUI (html/script.js) :
-      - PLD (Player Localisation Display) : rue, croisement, direction, bloc
+      - PLD (Player Localisation Display) : direction, rue, croisement le plus proche, bloc
+        -> toujours affiché (désactivable dans l'onglet "Paramètres" du MDC)
       - Display MDC : nom de l'unité, tag, statut, n° d'incident de l'appel en cours
+        -> affiché uniquement quand le joueur fait partie d'une unité
+    + les notifications de nouvelles interventions (en haut à droite de l'écran).
 
     Performance :
-      - Le HUD n'est actif que si le joueur fait partie d'une unité (Config.ShowWhen).
-        Hors unité : aucune boucle, 0.00ms dans le resmon.
-      - Le PLD utilise UNE boucle lente (Config.Interval ms, 500 par défaut) qui ne tourne
-        que lorsqu'il est affiché, et n'envoie au NUI que ce qui a changé (~0.01ms).
-      - Le display MDC n'a pas de boucle : le serveur envoie les changements (événements).
+      - Le PLD utilise UNE boucle lente (Config.Interval ms, 500 par défaut) qui
+        n'envoie au NUI que ce qui a changé (~0.01ms). PLD désactivé : 0.00ms.
+      - Le display MDC et les notifications n'ont pas de boucle : le serveur envoie
+        les changements (événements).
 
     Les blocs de localisation se configurent dans config/blocks.json (voir config/LISEZMOI.txt).
     Les réglages (position, taille, éléments affichés) sont modifiés dans l'onglet
@@ -18,26 +20,23 @@
 ]]
 
 local Config = {
-    -- 'unit'   : HUD affiché uniquement quand le joueur fait partie d'une unité (en service)
-    -- 'always' : HUD toujours affiché (PLD en permanence ; display MDC seulement en unité)
-    ShowWhen = 'unit',
-
     Interval = 500,          -- délai (ms) entre deux mises à jour du PLD
     BlocksFile = 'config/blocks.json',
     UnknownStreet = 'Rue inconnue',
+
+    -- Recherche du croisement le plus proche quand le joueur n'est pas sur une intersection :
+    -- points testés devant et derrière le joueur (en mètres), du plus proche au plus loin.
+    CrossingProbe = { 15, 30, 50, 75, 110, 150, 200, 260 },
+
+    -- Son joué à l'arrivée d'une nouvelle intervention (désactivable dans "Paramètres")
+    CallSound = { name = 'Event_Message_Purple', set = 'GTAO_FM_Events_Soundset' },
 }
 
 local RESOURCE = GetCurrentResourceName()
 
--- Réglages par défaut (doivent correspondre à HUD_DEFAULTS dans script.js)
-local DEFAULT_SETTINGS = {
-    pld = { enabled = true },
-    unit = { enabled = true },
-}
-
-local settings = DEFAULT_SETTINGS   -- réglages complets envoyés par le NUI (voir saveSettings)
-local hasAccess = false             -- accès au MDC (ACE), donné par le serveur
-local unitInfo = nil                -- unité du joueur : { name, tag, color, status, dept, callNumber }
+local settings = {}       -- réglages complets envoyés par le NUI (voir saveSettings)
+local hasAccess = false   -- accès au MDC (ACE), donné par le serveur
+local unitInfo = nil      -- unité du joueur : { name, tag, color, status, dept, callNumber }
 local loopRunning = false
 
 -- =========================================================================
@@ -50,14 +49,16 @@ local function loadSettings()
     if ok and type(decoded) == 'table' then settings = decoded end
 end
 
-local function pldEnabled()
-    return type(settings.pld) ~= 'table' or settings.pld.enabled ~= false
+--- Réglage booléen (vrai par défaut), ex : setting('pld', 'enabled')
+local function setting(group, key)
+    return type(settings[group]) ~= 'table' or settings[group][key] ~= false
 end
 
 loadSettings()
 
 -- =========================================================================
 -- BLOCS DE LOCALISATION (config/blocks.json)
+-- Le bloc qui contient le joueur est affiché ; sinon, le bloc le plus proche.
 -- =========================================================================
 local Blocks = {}
 local DefaultBlock = ''
@@ -95,21 +96,12 @@ local function loadBlocks()
         elseif entry.type == 'circle' then
             local c = toPoint(entry.center)
             if c and type(entry.radius) == 'number' then
-                block.kind, block.cx, block.cy, block.r2 = 'circle', c.x, c.y, entry.radius * entry.radius
-                block.minX, block.maxX = c.x - entry.radius, c.x + entry.radius
-                block.minY, block.maxY = c.y - entry.radius, c.y + entry.radius
+                block.kind, block.cx, block.cy, block.r = 'circle', c.x, c.y, entry.radius
             end
         elseif entry.type == 'poly' and type(entry.points) == 'table' then
             local points = {}
             for _, value in ipairs(entry.points) do points[#points + 1] = toPoint(value) end
-            if #points >= 3 then
-                block.kind, block.points = 'poly', points
-                block.minX, block.maxX, block.minY, block.maxY = math.huge, -math.huge, math.huge, -math.huge
-                for _, p in ipairs(points) do
-                    block.minX, block.maxX = math.min(block.minX, p.x), math.max(block.maxX, p.x)
-                    block.minY, block.maxY = math.min(block.minY, p.y), math.max(block.maxY, p.y)
-                end
-            end
+            if #points >= 3 then block.kind, block.points = 'poly', points end
         end
 
         if block.kind and block.name ~= '' then
@@ -134,20 +126,44 @@ local function inPolygon(x, y, points)
     return inside
 end
 
---- Premier bloc de la liste qui contient la position (l'ordre du fichier compte).
+local function distanceToSegment(x, y, a, b)
+    local dx, dy = b.x - a.x, b.y - a.y
+    local length2 = dx * dx + dy * dy
+    local t = length2 > 0 and math.max(0, math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / length2)) or 0
+    local px, py = a.x + t * dx, a.y + t * dy
+    return math.sqrt((x - px) ^ 2 + (y - py) ^ 2)
+end
+
+--- Distance (m) entre la position et le bord du bloc ; 0 si la position est dedans.
+local function blockDistance(block, x, y)
+    if block.kind == 'circle' then
+        return math.max(0, math.sqrt((x - block.cx) ^ 2 + (y - block.cy) ^ 2) - block.r)
+    elseif block.kind == 'rect' then
+        local dx = math.max(block.minX - x, 0, x - block.maxX)
+        local dy = math.max(block.minY - y, 0, y - block.maxY)
+        return math.sqrt(dx * dx + dy * dy)
+    end
+    if inPolygon(x, y, block.points) then return 0 end
+    local best, points = math.huge, block.points
+    for i = 1, #points do
+        best = math.min(best, distanceToSegment(x, y, points[i], points[i % #points + 1]))
+    end
+    return best
+end
+
+--- Bloc qui contient la position (le premier de la liste), sinon le bloc le plus proche.
+--- Un bloc limité à une rue ("street") n'est utilisé que sur cette rue.
 local function findBlock(x, y, street)
     street = street:lower()
+    local nearest, nearestDistance = nil, math.huge
     for _, block in ipairs(Blocks) do
-        if x >= block.minX and x <= block.maxX and y >= block.minY and y <= block.maxY
-            and (not block.street or block.street == street) then
-            if block.kind == 'rect'
-                or (block.kind == 'circle' and (x - block.cx) ^ 2 + (y - block.cy) ^ 2 <= block.r2)
-                or (block.kind == 'poly' and inPolygon(x, y, block.points)) then
-                return block.name
-            end
+        if not block.street or block.street == street then
+            local distance = blockDistance(block, x, y)
+            if distance == 0 then return block.name end
+            if distance < nearestDistance then nearest, nearestDistance = block.name, distance end
         end
     end
-    return DefaultBlock
+    return nearest or DefaultBlock
 end
 
 loadBlocks()
@@ -158,21 +174,46 @@ loadBlocks()
 -- Cap GTA : 0 = Nord, 90 = Ouest, 180 = Sud, 270 = Est (sens inverse des aiguilles)
 local DIRECTIONS = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
 
+local function streetsAt(x, y, z)
+    local streetHash, crossingHash = GetStreetNameAtCoord(x, y, z)
+    return streetHash ~= 0 and GetStreetNameFromHashKey(streetHash) or '',
+        crossingHash ~= 0 and GetStreetNameFromHashKey(crossingHash) or ''
+end
+
+--- Rue de croisement la plus proche : on teste des points devant / derrière le joueur.
+local function nearestCrossing(coords, forward, street)
+    for _, distance in ipairs(Config.CrossingProbe) do
+        for sign = 1, -1, -2 do
+            local s, c = streetsAt(coords.x + forward.x * distance * sign, coords.y + forward.y * distance * sign, coords.z)
+            if c ~= '' and c ~= street then return c end
+            if s ~= '' and s ~= street then return s end
+        end
+    end
+    return nil
+end
+
+-- Dernier croisement connu (gardé tant que le joueur reste sur la même rue)
+local lastStreet, lastCrossing = '', ''
+
 local function readLocation()
     local ped = PlayerPedId()
     local coords = GetEntityCoords(ped)
-    local streetHash, crossingHash = GetStreetNameAtCoord(coords.x, coords.y, coords.z)
-    local street = streetHash ~= 0 and GetStreetNameFromHashKey(streetHash) or ''
-    local crossing = crossingHash ~= 0 and GetStreetNameFromHashKey(crossingHash) or ''
-
     local vehicle = GetVehiclePedIsIn(ped, false)
-    local heading = GetEntityHeading(vehicle ~= 0 and vehicle or ped)
-    local direction = DIRECTIONS[math.floor(((heading + 22.5) % 360) / 45) + 1]
+    local entity = vehicle ~= 0 and vehicle or ped
+    local street, crossing = streetsAt(coords.x, coords.y, coords.z)
 
+    -- Toujours un croisement : sur une intersection celui du jeu, sinon le plus proche
+    if crossing == '' or crossing == street then
+        crossing = nearestCrossing(coords, GetEntityForwardVector(entity), street)
+            or (street == lastStreet and lastCrossing) or ''
+    end
+    lastStreet, lastCrossing = street, crossing
+
+    local heading = GetEntityHeading(entity)
     return {
         street = street ~= '' and street or Config.UnknownStreet,
         crossing = crossing,
-        dir = direction,
+        dir = DIRECTIONS[math.floor(((heading + 22.5) % 360) / 45) + 1],
         block = findBlock(coords.x, coords.y, street),
         paused = IsPauseMenuActive(), -- masqué dans le menu pause
     }, coords
@@ -181,15 +222,15 @@ end
 -- =========================================================================
 -- ÉTAT DU HUD
 -- =========================================================================
-local function hudActive()
-    return hasAccess and (Config.ShowWhen == 'always' or unitInfo ~= nil)
+local function pldActive()
+    return hasAccess and setting('pld', 'enabled')
 end
 
 local startLoop
 
 local function refreshHud()
-    SendNUIMessage({ action = 'hudState', data = { active = hudActive(), unit = unitInfo } })
-    if hudActive() and pldEnabled() then startLoop() end
+    SendNUIMessage({ action = 'hudState', data = { access = hasAccess, unit = unitInfo } })
+    if pldActive() then startLoop() end
 end
 
 -- Boucle du PLD : uniquement quand il est affiché ; envoie seulement les changements
@@ -198,7 +239,7 @@ startLoop = function()
     loopRunning = true
     CreateThread(function()
         local last = nil
-        while hudActive() and pldEnabled() do
+        while pldActive() do
             local data = readLocation()
             local key = ('%s|%s|%s|%s|%s'):format(data.street, data.crossing, data.dir, data.block, tostring(data.paused))
             if key ~= last then
@@ -211,11 +252,20 @@ startLoop = function()
     end)
 end
 
--- Unité du joueur (nom, tag, statut, appel) : envoyée par le serveur à chaque changement
+-- Accès au MDC + unité du joueur (nom, tag, statut, appel) : envoyés par le serveur à chaque changement
 RegisterNetEvent('mdc:client:hud', function(access, info)
     hasAccess = access == true
     unitInfo = type(info) == 'table' and info or nil
     refreshHud()
+end)
+
+-- Nouvelle intervention / nouvel incident : notification en haut à droite de l'écran
+RegisterNetEvent('mdc:client:callNotify', function(call)
+    if type(call) ~= 'table' or not setting('notify', 'calls') then return end
+    SendNUIMessage({ action = 'callNotify', data = call })
+    if setting('notify', 'sound') then
+        PlaySoundFrontend(-1, Config.CallSound.name, Config.CallSound.set, false)
+    end
 end)
 
 -- Au démarrage : on demande au serveur l'accès et l'unité actuelle
@@ -229,13 +279,13 @@ end)
 
 -- Le NUI (re)chargé demande les réglages et l'état du HUD
 RegisterNUICallback('hudReady', function(_, cb)
-    cb({ ok = true, settings = settings, active = hudActive(), unit = unitInfo })
-    if hudActive() and pldEnabled() then
+    cb({ ok = true, settings = settings, access = hasAccess, unit = unitInfo })
+    if pldActive() then
         SetTimeout(200, function() startLoop() end)
     end
 end)
 
--- Onglet "Paramètres" : réglages du HUD et du MDC
+-- Onglet "Paramètres" : réglages du HUD, des notifications et du MDC
 RegisterNUICallback('saveSettings', function(data, cb)
     if type(data) ~= 'table' then
         cb({ ok = false, error = 'Réglages invalides.' })
@@ -252,21 +302,9 @@ RegisterNUICallback('saveSettings', function(data, cb)
     refreshHud()
 end)
 
--- Onglet "Paramètres" : position actuelle, pour configurer config/blocks.json
-RegisterNUICallback('getPosition', function(_, cb)
-    local location, coords = readLocation()
-    cb({
-        ok = true,
-        x = math.floor(coords.x * 100 + 0.5) / 100,
-        y = math.floor(coords.y * 100 + 0.5) / 100,
-        z = math.floor(coords.z * 100 + 0.5) / 100,
-        street = location.street, crossing = location.crossing, block = location.block,
-    })
-end)
-
--- Commande /mdc_pos : affiche la position dans la console F8 (format de config/blocks.json)
+-- Commande /mdc_pos (cadres) : position dans la console F8, au format de config/blocks.json
 RegisterCommand('mdc_pos', function()
     local location, coords = readLocation()
-    print(('[MDC] Rue : %s | Croisement : %s | Bloc actuel : %s'):format(location.street, location.crossing, location.block))
+    print(('[MDC] Rue : %s | Croisement : %s | Bloc affiché : %s'):format(location.street, location.crossing, location.block))
     print(('{ "name": "A RENOMMER", "type": "circle", "center": [%.2f, %.2f], "radius": 60 }'):format(coords.x, coords.y))
 end, false)

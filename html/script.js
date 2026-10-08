@@ -2609,6 +2609,33 @@
     });
 
     // =====================================================================
+    // NOTIFICATION "NOUVELLE INTERVENTION" (en haut à droite, même MDC fermé)
+    // Nom, priorité, adresse, bloc. Disparaît seule ; clic pour la fermer (MDC ouvert).
+    // =====================================================================
+    function callNotification(c) {
+        const incident = c.kind === 'incident';
+        const prio = CALL_PRIORITY[c.priority];
+        const el = document.createElement('div');
+        el.className = `call-toast prio-${incident ? 'incident' : esc(c.priority)}`;
+        el.innerHTML = `
+            <div class="ct-head">
+                <span>${incident ? 'NOUVEL INCIDENT' : 'NOUVELLE INTERVENTION'}</span>
+                <span class="ct-number">${esc(c.number)}</span>
+            </div>
+            <div class="ct-title">${esc(c.title)}</div>
+            <div class="ct-row"><span class="hud-label">PRIORITÉ</span>${incident
+                ? `Incident${c.unitName ? ` — ${esc(c.unitName)}` : ''}`
+                : (prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-')}</div>
+            <div class="ct-row"><span class="hud-label">ADRESSE</span>${esc(c.address)}</div>
+            <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
+        const box = $('#toasts');
+        while (box.children.length >= 5) box.firstElementChild.remove();
+        box.appendChild(el);
+        el.addEventListener('click', () => el.remove());
+        setTimeout(() => el.remove(), 12000);
+    }
+
+    // =====================================================================
     // HUD : PLD (localisation) et display MDC (unité), séparés et déplaçables.
     // Les données viennent de client/hud.lua ; les réglages (onglet "Paramètres")
     // sont gardés chez le joueur (KVP) via le callback "saveSettings".
@@ -2618,14 +2645,15 @@
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true },
         mdc: { zoom: 1, startTab: 'last' },
+        notify: { calls: true, sound: true },
     };
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
     const hud = {
         settings: clone(HUD_DEFAULTS),
-        active: false,      // joueur dans une unité (ou HUD toujours affiché : voir client/hud.lua)
-        unit: null,         // { name, tag, color, status, dept, callNumber, callTitle }
+        access: false,      // accès au MDC (le PLD est toujours affiché, sauf désactivé)
+        unit: null,         // unité du joueur : { name, tag, color, status, dept, callNumber, callTitle }
         pld: null,          // { street, crossing, dir, block, paused }
         placing: false,
         drag: null,
@@ -2679,23 +2707,22 @@
         const pldCfg = hud.settings.pld;
         const unitCfg = hud.settings.unit;
 
-        // ---- PLD ----
+        // ---- PLD : toujours affiché (si activé) ----
         const loc = hud.pld || (hud.placing ? PLD_SAMPLE : null);
-        const showPld = pldCfg.enabled && !!loc && (hud.placing || (hud.active && !paused));
+        const showPld = pldCfg.enabled && !!loc && (hud.placing || (hud.access && !paused));
         pldEl.classList.toggle('hidden', !showPld);
         if (showPld) {
             $('#pldDir').textContent = loc.dir || '-';
             $('#pldStreet').textContent = loc.street || '-';
-            $('#pldCross').textContent = loc.crossing || '';
+            $('#pldCross').textContent = loc.crossing || '-'; // ligne toujours présente : taille stable
             $('#pldBlock').textContent = loc.block || '';
-            pldEl.querySelector('[data-part="crossing"]').classList.toggle('part-empty', !loc.crossing);
             pldEl.querySelector('[data-part="block"]').classList.toggle('part-empty', !loc.block);
             placeHud(pldEl, pldCfg);
         }
 
-        // ---- Display MDC (unité) ----
+        // ---- Display MDC : uniquement dans une unité ----
         const unit = hud.unit || (hud.placing ? UNIT_SAMPLE : null);
-        const showUnit = unitCfg.enabled && !!unit && (hud.placing || (hud.active && !paused));
+        const showUnit = unitCfg.enabled && !!unit && (hud.placing || !paused);
         unitEl.classList.toggle('hidden', !showUnit);
         if (showUnit) {
             $('#huName').textContent = unit.name;
@@ -2705,8 +2732,9 @@
             tag.classList.toggle('part-empty', !unit.tag);
             $('#huSq').dataset.status = unit.status;
             $('#huStatus').textContent = STATUS_LABELS[unit.status] || unit.status;
-            $('#huCall').textContent = unit.callNumber || 'Aucun';
-            unitEl.querySelector('[data-part="call"]').classList.toggle('hu-idle', !unit.callNumber);
+            // N° d'incident ajouté seulement quand l'unité est sur un appel
+            $('#huCall').textContent = unit.callNumber || '';
+            unitEl.querySelector('[data-part="call"]').classList.toggle('part-empty', !unit.callNumber);
             placeHud(unitEl, unitCfg);
         }
     }
@@ -2824,27 +2852,12 @@
         toast('Réglages par défaut rétablis.', 'success');
     });
 
-    // Ma position : aide à la configuration de config/blocks.json
-    $('#getPosition').addEventListener('click', async () => {
-        const res = await post('getPosition');
-        if (!res || !res.ok) {
-            toast(res?.error || 'Position indisponible.', 'error');
-            return;
-        }
-        $('#positionInfo').textContent = `Rue : ${res.street} | Croisement : ${res.crossing || '-'} | Bloc détecté : ${res.block || 'aucun'} | z = ${res.z}`;
-        const out = $('#positionOut');
-        out.value = `{ "name": "A RENOMMER", "type": "circle", "center": [${res.x.toFixed(2)}, ${res.y.toFixed(2)}], "radius": 60 }`;
-        out.focus();
-        out.select();
-    });
-    $('#positionOut').addEventListener('focus', (e) => e.target.select());
-
     // Au chargement du NUI : réglages et état du HUD (le client Lua peut démarrer un peu après)
     async function initHud(attempt = 1) {
         const res = await post('hudReady');
         if (res && res.ok) {
             hud.settings = mergeSettings(res.settings);
-            hud.active = !!res.active;
+            hud.access = !!res.access;
             hud.unit = res.unit || null;
         } else if (attempt < 5) {
             setTimeout(() => initHud(attempt + 1), 1000);
@@ -2873,14 +2886,17 @@
             case 'interventions':
                 setInterventions(data.data);
                 break;
-            case 'hudState': // client/hud.lua : HUD actif + unité du joueur
-                hud.active = !!(data.data && data.data.active);
+            case 'hudState': // client/hud.lua : accès au MDC + unité du joueur
+                hud.access = !!(data.data && data.data.access);
                 hud.unit = (data.data && data.data.unit) || null;
                 renderHud();
                 break;
             case 'pld': // client/hud.lua : localisation (uniquement quand elle change)
                 hud.pld = data.data || null;
                 renderHud();
+                break;
+            case 'callNotify': // nouvelle intervention / nouvel incident (même MDC fermé)
+                if (data.data) callNotification(data.data);
                 break;
         }
     });

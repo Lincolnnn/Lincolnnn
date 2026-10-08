@@ -1110,6 +1110,22 @@ local function buildCall(p, kind)
     return r
 end
 
+-- Notification "nouvelle intervention / nouvel incident" (en haut à droite de l'écran) :
+-- envoyée aux joueurs en unité et à ceux qui ont le MDC ouvert, sauf à son auteur.
+local function notifyNewCall(call, src)
+    local data = {
+        number = call.number, kind = call.kind, title = call.title, priority = call.priority,
+        address = call.address, block = call.block, unitName = call.unitName,
+    }
+    local targets = {}
+    for player in pairs(PlayerUnit) do targets[player] = true end
+    for player in pairs(Viewers) do targets[player] = true end
+    targets[src] = nil
+    for player in pairs(targets) do
+        TriggerClientEvent('mdc:client:callNotify', player, data)
+    end
+end
+
 local function addCall(src, call, kind, unit)
     call.id = NextInterventionId
     call.number = newInterventionNumber()
@@ -1128,6 +1144,7 @@ local function addCall(src, call, kind, unit)
 
     print(('^5[MDC]^0 Nouvel(le) %s %s "%s" par %s [%s]'):format(kind, call.number, call.title, agentName(src), GetPlayerName(src) or '?'))
     pushInterventions()
+    notifyNewCall(call, src)
     return { ok = true, id = call.id, number = call.number }
 end
 

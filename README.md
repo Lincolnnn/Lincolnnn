@@ -33,23 +33,25 @@ Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), in
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
 
-### HUD
+### HUD et notifications
 
-Deux affichages séparés, au thème du MDC (fond noir transparent, bordure grise fine et arrondie), visibles même MDC fermé
-lorsque le joueur fait partie d'une unité :
+Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fine et arrondie), visibles même MDC fermé :
 
-- **PLD** (Player Localisation Display) : rue, croisement, direction (N / NE / E / SE / S / SW / W / NW) et bloc.
-  Les blocs se dessinent sur la carte dans **`config/blocks.json`** (cercles, rectangles, polygones, filtre par rue) :
-  voir `config/LISEZMOI.txt`. La commande `/mdc_pos` ou **Paramètres > Lire ma position** donne la ligne à copier.
-- **Display MDC** : nom de l'unité, tag, statut et n° d'incident de l'appel en cours.
+- **PLD** (Player Localisation Display), **toujours affiché** (désactivable dans « Paramètres ») : direction en gros
+  et en gras (N / NE / E / SE / S / SW / W / NW), rue actuelle en gros, **croisement le plus proche** en petit et en
+  italique (toujours présent : largeur stable), et **bloc** : celui où se trouve le joueur, sinon le plus proche.
+  Les blocs se dessinent dans **`config/blocks.json`** (cercles, rectangles, polygones, filtre par rue) : voir
+  `config/LISEZMOI.txt` ; la commande `/mdc_pos` (console F8) donne la ligne à copier.
+- **Display MDC** : affiché seulement dans une unité : nom, tag, statut, et le n° d'incident uniquement quand
+  l'unité est sur un appel.
+- **Notifications** (en haut à droite) : toutes les notifications du MDC, et chaque nouvelle intervention / nouvel
+  incident (nom, priorité, adresse, bloc) pour les joueurs en unité ou ayant le MDC ouvert, avec un son.
 
-Onglet **Paramètres** : afficher / masquer chaque HUD et chacun de ses éléments, taille (50 à 200 %), et
-**Placer les HUD à l'écran** (glisser à la souris, molette = taille). Pour afficher le HUD en permanence (hors unité),
-passez `ShowWhen = 'always'` dans `client/hud.lua`.
+Onglet **Paramètres** : afficher / masquer chaque HUD et ses éléments, taille (50 à 200 %), **Placer les HUD à
+l'écran** (glisser à la souris, molette = taille), notifications et son.
 
-Performance : hors unité, aucune boucle (0.00ms). En unité, le PLD lit la position toutes les 500 ms
-(`Interval` dans `client/hud.lua`) et n'envoie que les changements ; le display MDC n'a aucune boucle (le serveur
-envoie les changements d'unité, de statut et d'appel).
+Performance : le PLD lit la position toutes les 500 ms (`Interval` dans `client/hud.lua`) et n'envoie que les
+changements (~0.01ms) ; PLD désactivé : 0.00ms. Le display MDC et les notifications n'ont aucune boucle.
 
 ### Rapports
 

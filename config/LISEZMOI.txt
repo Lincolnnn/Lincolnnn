@@ -4,7 +4,8 @@ Blocs de localisation du HUD (PLD) : blocks.json
 Le PLD affiche le "bloc" de la zone où se trouve le joueur. Chaque bloc est une zone
 dessinée sur la carte. Le PREMIER bloc de la liste qui contient le joueur est affiché :
 placez donc les petites zones précises AVANT les grandes zones qui les englobent.
-Si aucun bloc ne correspond, "default" est affiché (vide = rien).
+Hors de tout bloc, c'est le bloc le PLUS PROCHE qui est affiché : le bloc ne disparaît
+jamais. "default" n'est utilisé que si le fichier ne contient aucun bloc.
 
 Les blocs fournis sont des EXEMPLES (Mission Row, Legion Square, Sandy Shores, Paleto) :
 remplacez-les par les vôtres.
@@ -18,9 +19,8 @@ Formats (coordonnées x, y du jeu ; la hauteur z n'est pas utilisée) :
 Option sur chaque bloc : "street": "Nom de la rue" -> le bloc ne s'applique que sur cette
 rue (nom exact affiché par le PLD, sans tenir compte des majuscules).
 
-Trouver des coordonnées en jeu :
-  - Commande  /mdc_pos  : affiche dans la console F8 la position actuelle, prête à copier ;
-  - ou MDC > onglet "Paramètres" > "Ma position" (avec le bloc détecté actuellement).
+Trouver des coordonnées en jeu : commande  /mdc_pos  (console F8) : affiche la position
+actuelle et le bloc détecté, avec une ligne prête à copier.
 
 Le fichier doit rester un JSON valide (virgules entre les blocs, pas de virgule après le
 dernier, pas de commentaires). Après modification : redémarrez la ressource
