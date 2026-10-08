@@ -20,9 +20,14 @@
         en_route: 'En route',
     };
     const PRIORITY_LABELS = { low: 'Basse', medium: 'Moyenne', high: 'Haute' };
-    const GENDER_LABELS = { M: 'Homme', F: 'Femme', X: 'Autre' };
     const VEHICLE_STATUS = { valid: 'En règle', stolen: 'Volé', wanted: 'Recherché' };
     const KIND_LABELS = { identity: 'Identité', vehicle: 'Véhicule', intervention: 'Intervention' };
+    const KIND_SAVED = { identity: 'Identité enregistrée', vehicle: 'Véhicule enregistré', intervention: 'Intervention enregistrée' };
+
+    // Identité : condition et interdictions (clés identiques à server.lua)
+    const CONDITION_LABELS = { none: 'N/A', wanted: 'Recherché', missing: 'Personne disparue', deceased: 'Personne décédée' };
+    const CONDITION_FLAG = { wanted: 'flag-stolen', missing: 'flag-missing', deceased: 'flag-deceased' };
+    const RESTRICTION_LABELS = { weapon: 'Port d\'arme' };
 
     // Taille de fenêtre (px)
     const MIN_W = 760, MIN_H = 480;
@@ -86,7 +91,9 @@
         const el = document.createElement('div');
         el.className = `toast ${type}`;
         el.textContent = message;
-        $('#toasts').appendChild(el);
+        const box = $('#toasts');
+        while (box.children.length >= 4) box.firstElementChild.remove(); // 4 notifications max à l'écran
+        box.appendChild(el);
         setTimeout(() => el.remove(), 3500);
     }
 
@@ -352,7 +359,26 @@
     // =====================================================================
     const row = (label, value) => `<dt>${esc(label)}</dt><dd>${value === '' || value == null ? '-' : esc(value)}</dd>`;
     const vehicleFlag = (status) => `<span class="flag flag-${esc(status)}">${esc(VEHICLE_STATUS[status] || status)}</span>`;
-    const fullName = (i) => `${i.firstname} ${String(i.lastname).toUpperCase()}`;
+    const fullName = (i) => [i.firstname, i.middlename, String(i.lastname).toUpperCase()].filter(Boolean).join(' ');
+    const conditionFlag = (c) => (c && c !== 'none')
+        ? `<span class="flag ${CONDITION_FLAG[c] || ''}">${esc(CONDITION_LABELS[c] || c)}</span>`
+        : 'N/A';
+    const restrictionFlags = (list) => {
+        list = toArray(list);
+        return list.length
+            ? list.map((k) => `<span class="flag flag-${esc(k)}">${esc(RESTRICTION_LABELS[k] || k)}</span>`).join(' ')
+            : 'N/A';
+    };
+
+    // Bandeau d'alerte en haut d'une fiche d'identité
+    function conditionAlert(r) {
+        if (r.condition === 'wanted') {
+            return `<div class="sheet-alert">&#9888; PERSONNE RECHERCHÉE${r.wantedSince ? ` depuis le ${esc(r.wantedSince)}` : ''}${r.wantedReason ? ` — ${esc(r.wantedReason)}` : ''}</div>`;
+        }
+        if (r.condition === 'missing') return '<div class="sheet-alert missing">&#9888; PERSONNE DISPARUE</div>';
+        if (r.condition === 'deceased') return '<div class="sheet-alert deceased">PERSONNE DÉCÉDÉE</div>';
+        return '';
+    }
 
     function renderRecord(r) {
         const foot = `<div class="sheet-foot">Fiche n°${esc(r.id)} — créée le ${esc(formatDate(r.createdAt))} par ${esc(r.createdByName || '-')}</div>`;
@@ -361,17 +387,21 @@
             const vehicles = toArray(r.vehicles);
             return `
                 <div class="sheet-title">FICHE D'IDENTITÉ — ${esc(fullName(r))}</div>
+                ${conditionAlert(r)}
                 <dl class="sheet">
-                    ${row('Nom', String(r.lastname).toUpperCase())}
                     ${row('Prénom', r.firstname)}
+                    ${row('Middle name', r.middlename)}
+                    ${row('Nom de famille', String(r.lastname).toUpperCase())}
                     ${row('Date de naissance', r.dob)}
-                    ${row('Sexe', GENDER_LABELS[r.gender] || r.gender)}
-                    ${row('Nationalité', r.nationality)}
-                    ${row('Taille', r.height ? `${r.height} cm` : '')}
-                    ${row('Téléphone', r.phone)}
                     ${row('Adresse', r.address)}
-                    ${row('Profession', r.job)}
-                    ${row('Remarques', r.notes)}
+                    ${row('SSN', r.ssn)}
+                    ${row('Emploi', r.job)}
+                    ${row('Licence de conduite', r.licenseClass || 'N/A')}
+                    ${row('N° de licence', r.licenseNumber)}
+                    ${row('État d\'émission', r.licenseState)}
+                    <dt>Interdictions</dt><dd>${restrictionFlags(r.restrictions)}</dd>
+                    <dt>Condition</dt><dd>${conditionFlag(r.condition)}</dd>
+                    ${r.condition === 'wanted' ? row('Raison si recherché', r.wantedReason) + row('Recherché depuis le', r.wantedSince) : ''}
                 </dl>
                 <div class="sheet-sub">Véhicules enregistrés (${vehicles.length})</div>
                 ${vehicles.length
@@ -394,7 +424,7 @@
                 </dl>
                 <div class="sheet-sub">Identité du propriétaire</div>
                 ${o
-                    ? `<ul class="sheet-list"><li><b>${esc(fullName(o))}</b> — né(e) le ${esc(o.dob)}${o.phone ? ` — Tél. ${esc(o.phone)}` : ''}</li></ul>`
+                    ? `<ul class="sheet-list"><li><b>${esc(fullName(o))}</b> — né(e) le ${esc(o.dob)}${o.ssn ? ` — SSN ${esc(o.ssn)}` : ''}${o.condition && o.condition !== 'none' ? ` ${conditionFlag(o.condition)}` : ''}</li></ul>`
                     : '<div class="card-meta">Aucune identité enregistrée ne correspond au propriétaire.</div>'}
                 ${foot}`;
         }
@@ -433,7 +463,7 @@
 
     $$('input[name="searchType"]').forEach((radio) => radio.addEventListener('change', () => {
         $('#searchInput').placeholder = searchType() === 'identity'
-            ? 'Nom, prénom ou date de naissance (JJ/MM/AAAA)...'
+            ? 'Nom, prénom, date de naissance (JJ/MM/AAAA), SSN ou n° de licence...'
             : 'Plaque d\'immatriculation ou modèle...';
         $('#searchInput').focus();
     }));
@@ -446,13 +476,14 @@
         $('#searchEmpty').textContent = 'Aucun résultat.';
 
         if (type === 'identity') {
-            $('#searchHead').innerHTML = '<tr><th>Nom</th><th>Prénom</th><th>Naissance</th><th>Véhicules</th></tr>';
+            $('#searchHead').innerHTML = '<tr><th>Nom</th><th>Prénom</th><th>Naissance</th><th>SSN</th><th>Condition</th></tr>';
             $('#searchBody').innerHTML = results.map((r, i) => `
-                <tr data-index="${i}">
+                <tr data-index="${i}" class="${r.condition === 'wanted' ? 'row-wanted' : ''}">
                     <td>${esc(String(r.lastname).toUpperCase())}</td>
-                    <td>${esc(r.firstname)}</td>
+                    <td>${esc([r.firstname, r.middlename].filter(Boolean).join(' '))}</td>
                     <td>${esc(r.dob)}</td>
-                    <td>${toArray(r.vehicles).length}</td>
+                    <td>${esc(r.ssn || '-')}</td>
+                    <td>${conditionFlag(r.condition)}</td>
                 </tr>`).join('');
         } else {
             $('#searchHead').innerHTML = '<tr><th>Plaque</th><th>Modèle</th><th>Propriétaire</th><th>Statut</th></tr>';
@@ -553,6 +584,102 @@
     $('#refreshInterventions').addEventListener('click', refreshInterventions);
 
     // =====================================================================
+    // GÉNÉRATEUR D'IDENTITÉS ALÉATOIRES (bouton "Remplissage aléatoire")
+    // Ajoutez librement des entrées dans les listes ci-dessous.
+    // =====================================================================
+    const Random = (() => {
+        const MALE = ['James', 'Michael', 'Robert', 'John', 'David', 'William', 'Richard', 'Joseph', 'Thomas', 'Christopher',
+            'Charles', 'Daniel', 'Matthew', 'Anthony', 'Mark', 'Steven', 'Paul', 'Andrew', 'Joshua', 'Kevin', 'Brian',
+            'Ryan', 'Jacob', 'Tyler', 'Brandon', 'Marcus', 'Luis', 'Carlos', 'Jamal', 'Tyrone', 'Hector', 'Dylan',
+            'Logan', 'Ethan', 'Mason', 'Caleb', 'Travis', 'Wade', 'Dwayne', 'Frank'];
+        const FEMALE = ['Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Susan', 'Jessica', 'Sarah', 'Karen',
+            'Lisa', 'Nancy', 'Betty', 'Sandra', 'Ashley', 'Emily', 'Michelle', 'Amanda', 'Melissa', 'Stephanie',
+            'Rebecca', 'Laura', 'Megan', 'Brittany', 'Hannah', 'Olivia', 'Chloe', 'Madison', 'Kayla', 'Rosa',
+            'Maria', 'Gabriela', 'Keisha', 'Tanya', 'Crystal', 'Amber', 'Destiny', 'Holly', 'Erin', 'Grace'];
+        const MIDDLE_M = ['Lee', 'Allen', 'James', 'Ray', 'Wayne', 'Edward', 'Lewis', 'Scott', 'Dean', 'Alan', 'Jay', 'Earl', 'Joseph', 'Michael'];
+        const MIDDLE_F = ['Marie', 'Ann', 'Lynn', 'Rose', 'Jean', 'Mae', 'Grace', 'Louise', 'Elizabeth', 'Nicole', 'Renee', 'Kay', 'Dawn', 'Faith'];
+        const LAST = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+            'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
+            'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson',
+            'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores',
+            'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts',
+            'Kowalski', 'O\'Brien', 'McAllister', 'Delgado', 'Washington', 'Fitzgerald', 'Novak', 'Reyes', 'Bishop', 'Crowley'];
+        const STREETS = [
+            ['Grove Street', 'Los Santos'], ['Forum Drive', 'Los Santos'], ['Vespucci Boulevard', 'Los Santos'],
+            ['Alta Street', 'Los Santos'], ['Strawberry Avenue', 'Los Santos'], ['Davis Avenue', 'Los Santos'],
+            ['Macdonald Street', 'Los Santos'], ['Carson Avenue', 'Los Santos'], ['Jamestown Street', 'Los Santos'],
+            ['Innocence Boulevard', 'Los Santos'], ['Elgin Avenue', 'Los Santos'], ['Mirror Park Boulevard', 'Los Santos'],
+            ['Nikola Avenue', 'Los Santos'], ['West Eclipse Boulevard', 'Los Santos'], ['Palomino Avenue', 'Los Santos'],
+            ['Prosperity Street', 'Los Santos'], ['Magellan Avenue', 'Los Santos'], ['Hawick Avenue', 'Los Santos'],
+            ['Power Street', 'Los Santos'], ['San Andreas Avenue', 'Los Santos'], ['Sinner Street', 'Los Santos'],
+            ['Popular Street', 'Los Santos'], ['Integrity Way', 'Los Santos'], ['Las Lagunas Boulevard', 'Los Santos'],
+            ['Clinton Avenue', 'Los Santos'], ['Vinewood Boulevard', 'Los Santos'], ['Boulevard Del Perro', 'Los Santos'],
+            ['Bay City Avenue', 'Los Santos'], ['Little Bighorn Avenue', 'Los Santos'], ['Tongva Drive', 'Los Santos'],
+            ['Algonquin Boulevard', 'Sandy Shores'], ['Marina Drive', 'Sandy Shores'], ['Niland Avenue', 'Sandy Shores'],
+            ['Zancudo Avenue', 'Sandy Shores'], ['Grapeseed Main Street', 'Grapeseed'], ['Paleto Boulevard', 'Paleto Bay'],
+            ['Procopio Drive', 'Paleto Bay'], ['Duluoz Avenue', 'Paleto Bay'],
+        ];
+        const JOBS = ['Mécanicien', 'Chauffeur de taxi', 'Agent immobilier', 'Infirmier', 'Cuisinier', 'Livreur', 'Barman',
+            'Électricien', 'Plombier', 'Vendeur', 'Agriculteur', 'Pêcheur', 'Routier', 'Comptable', 'Avocat', 'Journaliste',
+            'Ouvrier du bâtiment', 'Agent de sécurité', 'Étudiant', 'Sans emploi', 'Garagiste', 'Coiffeur', 'Photographe',
+            'Pilote', 'Docker', 'Mineur', 'Développeur', 'Enseignant', 'Médecin', 'Pompiste', 'Serveur', 'Caissier'];
+        const STATES = ['Alabama', 'Arizona', 'Colorado', 'Florida', 'Georgia', 'Illinois', 'Louisiana', 'Nevada',
+            'New Jersey', 'New York', 'North Yankton', 'Ohio', 'Oregon', 'Texas', 'Utah', 'Washington'];
+        const WANTED_REASONS = ['Vol à main armée', 'Délit de fuite', 'Agression', 'Trafic de stupéfiants',
+            'Non-présentation au tribunal', 'Vol de véhicule', 'Violation de probation', 'Fraude', 'Recel',
+            'Évasion', 'Port d\'arme illégal', 'Cambriolage'];
+        // [valeur, poids] : plus le poids est grand, plus la valeur sort souvent
+        const LICENSES = [['N/A', 10], ['Class C - Standard', 50], ['Class F - Lourd', 4], ['Class E - Combiné', 4],
+            ['Class M - Moto', 7], ['CDL A', 4], ['CDL B', 3], ['CDL C', 3], ['Prob - Class CP', 5],
+            ['Prob - Class D', 5], ['Prob - Class MP', 5]];
+        const CONDITIONS = [['none', 80], ['wanted', 12], ['missing', 5], ['deceased', 3]];
+
+        const int = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        const pick = (list) => list[int(0, list.length - 1)];
+        const weighted = (list) => {
+            let roll = Math.random() * list.reduce((sum, [, w]) => sum + w, 0);
+            for (const [value, w] of list) { if ((roll -= w) < 0) return value; }
+            return list[0][0];
+        };
+        const dateString = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+        // SSN au format XXX-XX-XXXX (zone 001-899 hors 666, comme les vrais SSN)
+        function ssn() {
+            let area;
+            do { area = int(1, 899); } while (area === 666);
+            return `${String(area).padStart(3, '0')}-${String(int(1, 99)).padStart(2, '0')}-${String(int(1, 9999)).padStart(4, '0')}`;
+        }
+
+        function identity() {
+            const male = Math.random() < 0.5;
+            const [street, city] = pick(STREETS);
+            const now = new Date();
+            const birth = new Date(now.getFullYear() - int(18, 75), int(0, 11), int(1, 28));
+            const licenseClass = weighted(LICENSES);
+            const condition = weighted(CONDITIONS);
+
+            return {
+                firstname: pick(male ? MALE : FEMALE),
+                middlename: pick(male ? MIDDLE_M : MIDDLE_F),
+                lastname: pick(LAST),
+                dob: dateString(birth),
+                address: `${int(100, 9999)} ${street}, ${city}`,
+                ssn: ssn(),
+                job: pick(JOBS),
+                licenseClass,
+                licenseNumber: licenseClass === 'N/A' ? '' : `${String.fromCharCode(65 + int(0, 25))}${int(1000000, 9999999)}`,
+                licenseState: licenseClass === 'N/A' ? '' : (Math.random() < 0.85 ? 'San Andreas' : pick(STATES)),
+                restrictions: Math.random() < 0.15 ? ['weapon'] : [],
+                condition,
+                wantedReason: condition === 'wanted' ? pick(WANTED_REASONS) : '',
+                wantedSince: condition === 'wanted' ? dateString(new Date(now.getTime() - int(0, 90) * 86400000)) : '',
+            };
+        }
+
+        return { ssn, identity };
+    })();
+
+    // =====================================================================
     // CRÉATIONS (identité / véhicule / intervention) + REGISTRE
     // =====================================================================
     function showCreateView(view) {
@@ -567,15 +694,20 @@
     $$('form.view').forEach((form) => form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submit = form.querySelector('button[type="submit"]');
-        const payload = Object.fromEntries(new FormData(form).entries());
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
         payload.kind = form.dataset.kind;
+        if (payload.kind === 'identity') {
+            // Choix multiples : on envoie la liste (sans "N/A")
+            payload.restrictions = formData.getAll('restrictions').filter((v) => v !== 'none');
+        }
 
         submit.disabled = true;
         const res = await post('create', payload);
         submit.disabled = false;
 
         if (res && res.ok) {
-            toast(`${KIND_LABELS[payload.kind]} enregistrée (n°${res.id}).`, 'success');
+            toast(`${KIND_SAVED[payload.kind]} (n°${res.id}).`, 'success');
             form.reset();
             if (payload.kind === 'intervention') showPage('interventions');
         } else {
@@ -588,11 +720,95 @@
         e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     });
 
-    // Date de naissance : insère automatiquement les "/"
-    $('input[name="dob"]').addEventListener('input', (e) => {
-        const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
-        e.target.value = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
+    // Dates (JJ/MM/AAAA) : insère automatiquement les "/"
+    $$('.date-input').forEach((input) => input.addEventListener('input', () => {
+        const digits = input.value.replace(/\D/g, '').slice(0, 8);
+        input.value = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
+    }));
+
+    // SSN (XXX-XX-XXXX) : insère automatiquement les "-"
+    $('.ssn-input').addEventListener('input', (e) => {
+        const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+        e.target.value = [digits.slice(0, 3), digits.slice(3, 5), digits.slice(5)].filter(Boolean).join('-');
     });
+
+    // =====================================================================
+    // FORMULAIRE IDENTITÉ : interdictions, condition, SSN, remplissage aléatoire
+    // =====================================================================
+    const identityForm = $('#view-identity');
+    const field = (name) => identityForm.elements.namedItem(name);
+
+    // ---- Interdictions (menu déroulant à choix multiples) ----
+    const multi = $('#restrictionsSelect');
+    const multiPanel = multi.querySelector('.multi-panel');
+    const multiInputs = () => [...multi.querySelectorAll('input[type="checkbox"]')];
+
+    function updateRestrictionsLabel() {
+        const keys = multiInputs().filter((i) => i.checked && i.value !== 'none').map((i) => i.value);
+        multi.querySelector('.multi-value').textContent = keys.length
+            ? keys.map((k) => RESTRICTION_LABELS[k] || k).join(', ')
+            : 'N/A';
+    }
+
+    function setRestrictions(keys) {
+        multiInputs().forEach((i) => { i.checked = i.value === 'none' ? keys.length === 0 : keys.includes(i.value); });
+        updateRestrictionsLabel();
+    }
+
+    multi.querySelector('.multi-btn').addEventListener('click', () => multiPanel.classList.toggle('hidden'));
+    document.addEventListener('mousedown', (e) => {
+        if (!multi.contains(e.target)) multiPanel.classList.add('hidden');
+    });
+
+    // "N/A" est exclusif : le cocher décoche le reste, et inversement
+    multi.addEventListener('change', (e) => {
+        const input = e.target;
+        const none = multi.querySelector('input[value="none"]');
+        if (input.value === 'none' && input.checked) {
+            multiInputs().forEach((i) => { if (i !== none) i.checked = false; });
+        } else if (input.checked) {
+            none.checked = false;
+        }
+        if (!multiInputs().some((i) => i.checked)) none.checked = true;
+        updateRestrictionsLabel();
+    });
+
+    // ---- Condition : cases supplémentaires si "Recherché" ----
+    const todayString = () => {
+        const d = new Date();
+        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    };
+
+    function updateWantedFields() {
+        const wanted = field('condition').value === 'wanted';
+        identityForm.querySelectorAll('.wanted-only').forEach((el) => el.classList.toggle('hidden', !wanted));
+        if (wanted && !field('wantedSince').value) field('wantedSince').value = todayString();
+    }
+
+    field('condition').addEventListener('change', updateWantedFields);
+
+    // ---- SSN prérempli aléatoirement (le serveur en génère un aussi si vide) ----
+    $('#regenSSN').addEventListener('click', () => { field('ssn').value = Random.ssn(); });
+
+    // Après "Effacer" / un enregistrement : on remet l'état par défaut
+    identityForm.addEventListener('reset', () => setTimeout(() => {
+        updateRestrictionsLabel();
+        updateWantedFields();
+        field('ssn').value = Random.ssn();
+    }, 0));
+
+    // ---- Remplissage aléatoire ----
+    $('#randomIdentity').addEventListener('click', () => {
+        const id = Random.identity();
+        Object.entries(id).forEach(([name, value]) => {
+            if (name !== 'restrictions') field(name).value = value;
+        });
+        setRestrictions(id.restrictions);
+        updateWantedFields();
+        toast('Identité générée aléatoirement : vérifiez puis enregistrez.', 'info');
+    });
+
+    field('ssn').value = Random.ssn();
 
     const registryRef = (r) => {
         if (r.kind === 'identity') return `${String(r.lastname).toUpperCase()} ${r.firstname} (${r.dob})`;

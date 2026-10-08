@@ -10,7 +10,7 @@ lua54 'yes'
 name 'mdc_standalone'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police 100% standalone - NUI Vanilla JS'
-version '1.1.0'
+version '1.2.0'
 
 ui_page 'html/index.html'
 

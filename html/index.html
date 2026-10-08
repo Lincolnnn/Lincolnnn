@@ -92,7 +92,7 @@
                         <form class="toolbar" id="searchForm" autocomplete="off">
                             <label class="radio"><input type="radio" name="searchType" value="identity" checked> Identité</label>
                             <label class="radio"><input type="radio" name="searchType" value="vehicle"> Immatriculation</label>
-                            <input id="searchInput" class="grow" type="text" maxlength="64" placeholder="Nom, prénom ou date de naissance (JJ/MM/AAAA)...">
+                            <input id="searchInput" class="grow" type="text" maxlength="64" placeholder="Nom, prénom, date de naissance (JJ/MM/AAAA), SSN ou n° de licence...">
                             <button type="submit" class="btn btn-default">Rechercher</button>
                         </form>
                     </div>
@@ -142,30 +142,108 @@
                     <form class="view active" id="view-identity" data-kind="identity" autocomplete="off" novalidate>
                         <div class="group">
                             <span class="legend">Nouvelle identité</span>
-                            <div class="form-grid">
-                                <label class="lbl">Nom *<input name="lastname" type="text" maxlength="40" required></label>
-                                <label class="lbl">Prénom *<input name="firstname" type="text" maxlength="40" required></label>
-                                <label class="lbl">Date de naissance *<input name="dob" type="text" maxlength="10" placeholder="JJ/MM/AAAA" pattern="\d{2}/\d{2}/\d{4}" required></label>
-                                <label class="lbl">Sexe
-                                    <select name="gender">
-                                        <option value="M">Homme</option>
-                                        <option value="F">Femme</option>
-                                        <option value="X">Autre</option>
-                                    </select>
-                                </label>
-                                <label class="lbl">Nationalité<input name="nationality" type="text" maxlength="40"></label>
-                                <label class="lbl">Taille (cm)<input name="height" type="number" min="50" max="250"></label>
-                                <label class="lbl">Téléphone<input name="phone" type="text" maxlength="20"></label>
-                                <label class="lbl">Profession<input name="job" type="text" maxlength="40"></label>
-                                <label class="lbl span-2">Adresse<input name="address" type="text" maxlength="80"></label>
-                                <label class="lbl span-2">Remarques<textarea name="notes" rows="4" maxlength="1000"></textarea></label>
+                            <div class="toolbar">
+                                <span class="hint-text">* champs obligatoires — le SSN est généré automatiquement s'il est laissé vide.</span>
+                                <span class="grow"></span>
+                                <button type="button" class="btn" id="randomIdentity" title="Remplir toutes les cases aléatoirement">&#9858; Remplissage aléatoire</button>
                             </div>
+                            <div class="form-grid cols-3">
+                                <label class="lbl">Prénom *<input name="firstname" type="text" maxlength="40"></label>
+                                <label class="lbl">Middle name<input name="middlename" type="text" maxlength="40"></label>
+                                <label class="lbl">Nom de famille *<input name="lastname" type="text" maxlength="40"></label>
+
+                                <label class="lbl">Date de naissance *<input name="dob" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
+                                <label class="lbl span-2">Adresse *<input name="address" type="text" maxlength="80" placeholder="ex : 1420 Grove Street, Los Santos"></label>
+
+                                <label class="lbl">Social Security Number *
+                                    <span class="inline">
+                                        <input name="ssn" type="text" maxlength="11" placeholder="XXX-XX-XXXX" class="ssn-input">
+                                        <button type="button" class="btn btn-icon" id="regenSSN" title="Générer un nouveau SSN">&#8635;</button>
+                                    </span>
+                                </label>
+                                <label class="lbl span-2">Emploi<input name="job" type="text" maxlength="40"></label>
+                            </div>
+
+                            <div class="subgroup">
+                                <span class="subgroup-title">Permis de conduire</span>
+                                <div class="form-grid cols-3">
+                                    <label class="lbl">Licence de conduite
+                                        <select name="licenseClass">
+                                            <option value="N/A">N/A</option>
+                                            <option value="Class C - Standard">Class C - Standard</option>
+                                            <option value="Class F - Lourd">Class F - Lourd</option>
+                                            <option value="Class E - Combiné">Class E - Combiné</option>
+                                            <option value="Class M - Moto">Class M - Moto</option>
+                                            <option value="CDL A">CDL A</option>
+                                            <option value="CDL B">CDL B</option>
+                                            <option value="CDL C">CDL C</option>
+                                            <option value="Prob - Class CP">Prob - Class CP</option>
+                                            <option value="Prob - Class D">Prob - Class D</option>
+                                            <option value="Prob - Class MP">Prob - Class MP</option>
+                                        </select>
+                                    </label>
+                                    <label class="lbl">Numéro de licence<input name="licenseNumber" type="text" maxlength="20" class="upper"></label>
+                                    <label class="lbl">État d'émission<input name="licenseState" type="text" maxlength="40" list="usStates"></label>
+                                </div>
+                            </div>
+
+                            <div class="subgroup">
+                                <span class="subgroup-title">Statut judiciaire</span>
+                                <div class="form-grid cols-3">
+                                    <div class="lbl">Interdictions
+                                        <!-- Menu déroulant à choix multiples (cases à cocher) -->
+                                        <div class="multi" id="restrictionsSelect">
+                                            <button type="button" class="multi-btn"><span class="multi-value">N/A</span><span class="multi-arrow">&#9662;</span></button>
+                                            <div class="multi-panel hidden">
+                                                <label><input type="checkbox" name="restrictions" value="none" checked> N/A</label>
+                                                <label><input type="checkbox" name="restrictions" value="weapon"> Port d'arme</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <label class="lbl">Condition
+                                        <select name="condition">
+                                            <option value="none">N/A</option>
+                                            <option value="wanted">Recherché</option>
+                                            <option value="missing">Personne disparue</option>
+                                            <option value="deceased">Personne décédée</option>
+                                        </select>
+                                    </label>
+                                    <span></span>
+
+                                    <!-- Visibles uniquement si la condition "Recherché" est choisie -->
+                                    <label class="lbl span-2 wanted-only hidden">Raison si recherché<input name="wantedReason" type="text" maxlength="500"></label>
+                                    <label class="lbl wanted-only hidden">Date de début si recherché<input name="wantedSince" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
+                                </div>
+                            </div>
+
                             <div class="form-actions">
                                 <button type="reset" class="btn">Effacer</button>
                                 <button type="submit" class="btn btn-default">Enregistrer</button>
                             </div>
                         </div>
                     </form>
+
+                    <!-- États pour "État d'émission" (suggestions, saisie libre possible) -->
+                    <datalist id="usStates">
+                        <option value="San Andreas"></option>
+                        <option value="Alabama"></option><option value="Alaska"></option><option value="Arizona"></option>
+                        <option value="Arkansas"></option><option value="California"></option><option value="Colorado"></option>
+                        <option value="Connecticut"></option><option value="Delaware"></option><option value="Florida"></option>
+                        <option value="Georgia"></option><option value="Hawaii"></option><option value="Idaho"></option>
+                        <option value="Illinois"></option><option value="Indiana"></option><option value="Iowa"></option>
+                        <option value="Kansas"></option><option value="Kentucky"></option><option value="Louisiana"></option>
+                        <option value="Maine"></option><option value="Maryland"></option><option value="Massachusetts"></option>
+                        <option value="Michigan"></option><option value="Minnesota"></option><option value="Mississippi"></option>
+                        <option value="Missouri"></option><option value="Montana"></option><option value="Nebraska"></option>
+                        <option value="Nevada"></option><option value="New Hampshire"></option><option value="New Jersey"></option>
+                        <option value="New Mexico"></option><option value="New York"></option><option value="North Carolina"></option>
+                        <option value="North Dakota"></option><option value="North Yankton"></option><option value="Ohio"></option>
+                        <option value="Oklahoma"></option><option value="Oregon"></option><option value="Pennsylvania"></option>
+                        <option value="Rhode Island"></option><option value="South Carolina"></option><option value="South Dakota"></option>
+                        <option value="Tennessee"></option><option value="Texas"></option><option value="Utah"></option>
+                        <option value="Vermont"></option><option value="Virginia"></option><option value="Washington"></option>
+                        <option value="West Virginia"></option><option value="Wisconsin"></option><option value="Wyoming"></option>
+                    </datalist>
 
                     <!-- Véhicule -->
                     <form class="view" id="view-vehicle" data-kind="vehicle" autocomplete="off" novalidate>

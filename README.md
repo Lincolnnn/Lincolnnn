@@ -20,9 +20,14 @@ Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), in
 | Onglet | Rôle |
 |---|---|
 | Unités | Agents en service et leur statut (temps réel) |
-| Recherches | Recherche d'identités (nom, prénom, date de naissance) et d'immatriculations |
+| Recherches | Recherche d'identités (nom, prénom, middle name, date de naissance, SSN, n° de licence) et d'immatriculations |
 | Interventions | Interventions en cours : prendre l'appel, se retirer, clôturer |
 | Créations | Enregistrer une identité, un véhicule ou une intervention. Bouton **Registre** : vos propres créations |
+
+### Identités
+
+Champs : prénom\*, middle name, nom de famille\*, date de naissance\*, adresse\*, SSN\* (`XXX-XX-XXXX`, généré automatiquement s'il est vide), emploi, licence de conduite (classe, numéro, État d'émission), interdictions (choix multiple), condition (N/A, Recherché, Personne disparue, Personne décédée). Si « Recherché » : raison et date de début.
+Le bouton **Remplissage aléatoire** remplit toutes les cases (listes de noms, rues, emplois… modifiables dans `html/script.js`, section « GÉNÉRATEUR D'IDENTITÉS ALÉATOIRES »).
 
 ## Données (persistantes)
 

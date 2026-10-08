@@ -321,19 +321,29 @@ end)
 
 -- =========================================================================
 -- LIENS ENTRE IDENTITÉS ET VÉHICULES
--- (le propriétaire d'un véhicule est saisi sous la forme "Prénom Nom")
+-- (le propriétaire d'un véhicule est saisi sous la forme "Prénom Nom",
+--  "Prénom Middle Nom" ou "Nom Prénom" ; majuscules ignorées)
 -- =========================================================================
+
+--- Toutes les écritures acceptées du nom d'une identité : { ["john doe"] = true, ... }
 local function identityNames(identity)
-    local first, last = normalizeName(identity.firstname), normalizeName(identity.lastname)
-    return first .. ' ' .. last, last .. ' ' .. first
+    local first, middle, last = normalizeName(identity.firstname), normalizeName(identity.middlename), normalizeName(identity.lastname)
+    local names = {
+        [first .. ' ' .. last] = true,
+        [last .. ' ' .. first] = true,
+    }
+    if middle ~= '' then
+        names[first .. ' ' .. middle .. ' ' .. last] = true
+        names[last .. ' ' .. first .. ' ' .. middle] = true
+    end
+    return names
 end
 
 local function vehiclesOf(identity)
-    local a, b = identityNames(identity)
+    local names = identityNames(identity)
     local list = {}
     for _, vehicle in ipairs(Store.vehicles) do
-        local owner = normalizeName(vehicle.owner)
-        if owner ~= '' and (owner == a or owner == b) then
+        if names[normalizeName(vehicle.owner)] then
             list[#list + 1] = publicView(vehicle, 'vehicle')
         end
     end
@@ -344,10 +354,30 @@ local function ownerOf(vehicle)
     local owner = normalizeName(vehicle.owner)
     if owner == '' then return nil end
     for _, identity in ipairs(Store.identities) do
-        local a, b = identityNames(identity)
-        if owner == a or owner == b then return publicView(identity, 'identity') end
+        if identityNames(identity)[owner] then return publicView(identity, 'identity') end
     end
     return nil
+end
+
+--- L'identité correspond-elle à la recherche ? (nom, prénom, middle name, DoB, SSN, n° de permis)
+local function identityMatches(identity, query)
+    for name in pairs(identityNames(identity)) do
+        if name:find(query, 1, true) then return true end
+    end
+
+    local fields = { identity.dob, identity.ssn, identity.licenseNumber }
+    for _, value in ipairs(fields) do
+        if type(value) == 'string' and value:lower():find(query, 1, true) then return true end
+    end
+
+    -- SSN saisi sans tirets (ex : 123456789) : uniquement si la recherche ne contient que des chiffres
+    if query:match('^[%d%-%s]+$') then
+        local digits = query:gsub('%D', '')
+        if #digits >= 4 and type(identity.ssn) == 'string' and identity.ssn:gsub('%D', ''):find(digits, 1, true) then
+            return true
+        end
+    end
+    return false
 end
 
 -- =========================================================================
@@ -363,8 +393,7 @@ RegisterMDCCallback('search', function(_, payload)
 
     if payload.type == 'identity' then
         for _, identity in ipairs(Store.identities) do
-            local a, b = identityNames(identity)
-            if a:find(query, 1, true) or b:find(query, 1, true) or (identity.dob or ''):find(query, 1, true) then
+            if identityMatches(identity, query) then
                 local entry = publicView(identity, 'identity')
                 entry.vehicles = vehiclesOf(identity)
                 results[#results + 1] = entry
@@ -436,14 +465,50 @@ end)
 -- =========================================================================
 -- CRÉATIONS (identités, véhicules, interventions)
 -- =========================================================================
-local GENDERS = { M = true, F = true, X = true }
 local VEHICLE_STATUSES = { valid = true, stolen = true, wanted = true }
 local PRIORITIES = { low = true, medium = true, high = true }
 
-local function validDob(dob)
-    local d, m, y = dob:match('^(%d%d)/(%d%d)/(%d%d%d%d)$')
+-- Listes de l'identité (doivent correspondre aux <option> de index.html)
+local LICENSE_CLASSES = {
+    ['N/A'] = true,
+    ['Class C - Standard'] = true,
+    ['Class F - Lourd'] = true,
+    ['Class E - Combiné'] = true,
+    ['Class M - Moto'] = true,
+    ['CDL A'] = true,
+    ['CDL B'] = true,
+    ['CDL C'] = true,
+    ['Prob - Class CP'] = true,
+    ['Prob - Class D'] = true,
+    ['Prob - Class MP'] = true,
+}
+local RESTRICTIONS = { weapon = true }  -- weapon = Port d'arme (liste vide = N/A)
+local CONDITIONS = { none = true, wanted = true, missing = true, deceased = true }
+
+--- Date au format JJ/MM/AAAA
+local function validDate(date)
+    if type(date) ~= 'string' then return false end
+    local d, m, y = date:match('^(%d%d)/(%d%d)/(%d%d%d%d)$')
     d, m, y = tonumber(d), tonumber(m), tonumber(y)
-    return d and d >= 1 and d <= 31 and m >= 1 and m <= 12 and y >= 1900 and y <= 2100
+    return d and d >= 1 and d <= 31 and m >= 1 and m <= 12 and y >= 1900 and y <= 2100 or false
+end
+
+local function ssnTaken(ssn)
+    for _, identity in ipairs(Store.identities) do
+        if identity.ssn == ssn then return identity end
+    end
+    return nil
+end
+
+--- Génère un Social Security Number unique au format XXX-XX-XXXX
+local function generateSSN()
+    while true do
+        local area = math.random(1, 899)
+        if area ~= 666 then
+            local ssn = ('%03d-%02d-%04d'):format(area, math.random(1, 99), math.random(1, 9999))
+            if not ssnTaken(ssn) then return ssn end
+        end
+    end
 end
 
 -- Chaque builder valide les données reçues et retourne (record) ou (nil, erreur)
@@ -451,26 +516,59 @@ local Builders = {}
 
 Builders.identities = function(p)
     local r = {
-        lastname    = clean(p.lastname, 40),
-        firstname   = clean(p.firstname, 40),
-        dob         = clean(p.dob, 10),
-        gender      = GENDERS[p.gender] and p.gender or 'X',
-        nationality = clean(p.nationality, 40),
-        height      = tonumber(p.height),
-        phone       = clean(p.phone, 20),
-        address     = clean(p.address, 80),
-        job         = clean(p.job, 40),
-        notes       = cleanMultiline(p.notes, 1000),
+        firstname     = clean(p.firstname, 40),
+        middlename    = clean(p.middlename, 40),
+        lastname      = clean(p.lastname, 40),
+        dob           = clean(p.dob, 10),
+        address       = clean(p.address, 80),
+        ssn           = clean(p.ssn, 11),
+        job           = clean(p.job, 40),
+        licenseClass  = LICENSE_CLASSES[p.licenseClass] and p.licenseClass or 'N/A',
+        licenseNumber = clean(p.licenseNumber, 20):upper(),
+        licenseState  = clean(p.licenseState, 40),
+        restrictions  = {},
+        condition     = CONDITIONS[p.condition] and p.condition or 'none',
+        wantedReason  = '',
+        wantedSince   = '',
     }
 
-    if r.lastname == '' or r.firstname == '' then return nil, 'Le nom et le prénom sont obligatoires.' end
-    if not validDob(r.dob) then return nil, 'Date de naissance invalide (format JJ/MM/AAAA).' end
-    if r.height and (r.height < 50 or r.height > 250) then return nil, 'Taille invalide (50 à 250 cm).' end
-    if r.height then r.height = math.floor(r.height) end
+    -- Champs obligatoires : Prénom, Nom, DoB, Adresse (+ SSN, généré si vide)
+    if r.firstname == '' or r.lastname == '' then return nil, 'Le prénom et le nom de famille sont obligatoires.' end
+    if not validDate(r.dob) then return nil, 'Date de naissance invalide (format JJ/MM/AAAA).' end
+    if r.address == '' then return nil, 'L\'adresse est obligatoire.' end
 
-    local a = normalizeName(r.firstname .. ' ' .. r.lastname)
+    if r.ssn == '' then
+        r.ssn = generateSSN()
+    elseif not r.ssn:match('^%d%d%d%-%d%d%-%d%d%d%d$') then
+        return nil, 'SSN invalide (format XXX-XX-XXXX).'
+    else
+        local other = ssnTaken(r.ssn)
+        if other then return nil, ('Ce SSN est déjà attribué (fiche #%d).'):format(other.id) end
+    end
+
+    -- Interdictions : liste de clés connues, sans doublon (vide = N/A)
+    if type(p.restrictions) == 'table' then
+        local seen = {}
+        for _, key in ipairs(p.restrictions) do
+            if RESTRICTIONS[key] and not seen[key] then
+                seen[key] = true
+                r.restrictions[#r.restrictions + 1] = key
+            end
+        end
+    end
+
+    -- Raison et date de début uniquement si la personne est recherchée
+    if r.condition == 'wanted' then
+        r.wantedReason = cleanMultiline(p.wantedReason, 500)
+        r.wantedSince = clean(p.wantedSince, 10)
+        if r.wantedSince ~= '' and not validDate(r.wantedSince) then
+            return nil, 'Date de début de recherche invalide (format JJ/MM/AAAA).'
+        end
+    end
+
+    local fullName = normalizeName(r.firstname .. ' ' .. r.lastname)
     for _, identity in ipairs(Store.identities) do
-        if identityNames(identity) == a and identity.dob == r.dob then
+        if identity.dob == r.dob and identityNames(identity)[fullName] then
             return nil, ('Cette identité existe déjà (fiche #%d).'):format(identity.id)
         end
     end
