@@ -302,6 +302,12 @@ RegisterNUICallback('saveSettings', function(data, cb)
     refreshHud()
 end)
 
+-- Bouton "Position actuelle" des formulaires d'intervention / d'incident : rue, croisement, bloc
+RegisterNUICallback('getLocation', function(_, cb)
+    local location = readLocation()
+    cb({ ok = true, street = location.street, crossing = location.crossing, block = location.block })
+end)
+
 -- Commande /mdc_pos (cadres) : position dans la console F8, au format de config/blocks.json
 RegisterCommand('mdc_pos', function()
     local location, coords = readLocation()

@@ -60,6 +60,7 @@
         noteDraft: '',         // note en cours de rédaction
         noteEdit: null,        // { id, text } note en cours de modification
         callReportType: null,  // type de rapport choisi dans le détail d'une intervention
+        linkChoice: null,      // fiche de l'historique choisie pour être liée à l'appel
         layout: null,          // { x, y, w, h, maximized }
         createView: 'identity',
         editing: null,         // { kind, id } lorsqu'une fiche du registre est en cours de modification
@@ -278,9 +279,10 @@
         if (notifyLua) post('close');
     }
 
-    function updateClock() {
-        const d = new Date();
-        $('#sbClock').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    // Heure du JEU (et non l'heure réelle), lue auprès du client Lua tant que le MDC est ouvert
+    async function updateClock() {
+        const res = await post('getGameTime');
+        $('#sbClock').textContent = res && res.ok ? `${pad(res.hours)}:${pad(res.minutes)}` : '--:--';
     }
 
     document.addEventListener('keydown', (e) => {
@@ -746,6 +748,18 @@
         }
     }
 
+    async function openRecordInSearch(kind, id) {
+        const res = await post('getRecord', { kind, id });
+        if (!res || !res.ok) {
+            toast(res?.error || 'Fiche introuvable.', 'error');
+            return;
+        }
+        const record = res.record;
+        state.searchResults = [record, ...state.searchResults.filter((r) => !(r.kind === record.kind && r.id === record.id))].slice(0, 100);
+        showPage('search');
+        renderSearchResults(0);
+    }
+
     async function runSearch(type, payload) {
         const res = await post('search', { type, ...payload });
         if (!res || !res.ok) {
@@ -819,7 +833,7 @@
             <tr data-id="${esc(c.id)}" class="${c.closed ? 'row-closed' : ''} ${prio} ${c.id === selected ? 'selected' : ''}">
                 <td class="cell-ellipsis"><b>${esc(c.title)}</b></td>
                 <td>${c.kind === 'incident' ? '<span class="muted">Incident</span>' : esc(CALL_PRIORITY[c.priority] ? CALL_PRIORITY[c.priority][1] : '-')}</td>
-                <td class="cell-ellipsis">${esc(c.address)}</td>
+                <td class="cell-ellipsis">${esc(c.address)}${c.crossStreet ? `<span class="cross-inline"> × ${esc(c.crossStreet)}</span>` : ''}</td>
                 <td>${esc(c.block)}</td>
             </tr>`;
         }).join('');
@@ -860,6 +874,54 @@
                 ${r.summary ? `<div class="note-text">${esc(r.summary)}</div>` : ''}
                 <div class="note-meta">Rédigé par ${esc(r.createdByName || '-')}${r.unitName ? ` (${esc(r.unitName)})` : ''} — ${esc(formatTime(r.createdAt))}${r.updatedAt ? ` (modifié à ${esc(formatTime(r.updatedAt))})` : ''}</div>
             </div>`;
+    }
+
+    // ---- Identités / véhicules liés à l'appel (ajoutés depuis l'historique des recherches) ----
+    const linkKey = (kind, id) => `${kind}:${id}`;
+
+    function linkLineHtml(l) {
+        if (l.kind === 'vehicle') {
+            return `<span class="flag c-gray">VÉHICULE</span> <b>${esc(l.plate)}</b> — ${esc([l.make, l.model].filter(Boolean).join(' '))}${l.color ? ` (${esc(l.color)})` : ''}
+                ${l.owner ? `<span class="muted"> — ${esc(l.owner)}</span>` : ''} ${regFlag(l.regStatus)}${l.stolen ? ` ${flag('c-red', 'Volé')}` : ''}`;
+        }
+        return `<span class="flag c-gray">IDENTITÉ</span> <b>${esc(String(l.lastname || '').toUpperCase())}</b> ${esc([l.firstname, l.middlename].filter(Boolean).join(' '))} — ${esc(l.dob)}
+            ${l.condition && l.condition !== 'none' ? conditionFlag(l.condition) : ''}`;
+    }
+
+    function callLinksHtml(c, onCall) {
+        const links = toArray(c.links);
+        const taken = new Set(links.map((l) => linkKey(l.kind, l.recordId)));
+        const choices = state.searchResults.filter((r) => !taken.has(linkKey(r.kind, r.id)));
+        const canEdit = onCall && !c.closed;
+
+        let picker = '';
+        if (canEdit) {
+            picker = choices.length
+                ? `<div class="toolbar link-picker">
+                       <select id="callLinkChoice">${choices.map((r) => {
+                           const key = linkKey(r.kind, r.id);
+                           const label = r.kind === 'vehicle'
+                               ? `Véhicule — ${r.plate} — ${[r.make, r.model].filter(Boolean).join(' ')}`
+                               : `Identité — ${String(r.lastname).toUpperCase()} ${r.firstname} (${r.dob})`;
+                           return `<option value="${esc(key)}" ${key === state.linkChoice ? 'selected' : ''}>${esc(label)}</option>`;
+                       }).join('')}</select>
+                       <button type="button" class="btn" data-call-action="linkRecord">+ Ajouter à l'appel</button>
+                   </div>`
+                : `<div class="hint-text link-picker">${state.searchResults.length
+                    ? 'Toutes les fiches de l\'historique des recherches sont déjà liées.'
+                    : 'Recherchez une identité ou une immatriculation (onglet Recherches) pour pouvoir l\'ajouter ici.'}</div>`;
+        }
+
+        return `
+            <div class="sheet-sub">Personnes et véhicules (${links.length})</div>
+            ${links.length ? `<div class="call-links">${links.map((l) => `
+                <div class="call-link">
+                    <span class="call-link-text">${linkLineHtml(l)}</span>
+                    <span class="grow"></span>
+                    <button type="button" class="btn btn-small" data-link-open="${esc(l.kind)}" data-id="${esc(l.recordId)}">Fiche</button>
+                    ${canEdit ? `<button type="button" class="btn btn-small" data-link-remove="${esc(l.kind)}" data-id="${esc(l.recordId)}" title="Retirer de l'appel">&#10005;</button>` : ''}
+                </div>`).join('')}</div>` : '<div class="muted">Aucune personne ni aucun véhicule lié.</div>'}
+            ${picker}`;
     }
 
     // Choix du type de rapport à rédiger depuis l'intervention
@@ -914,6 +976,7 @@
                     ? row('Unité déclarante', c.unitName)
                     : row('Requérant', c.caller) + row('Téléphone du requérant', c.phone) + dd('Priorité de l\'urgence', callFlag(CALL_PRIORITY, c.priority))}
                 ${row('Adresse', c.address)}
+                ${row('Croisement', c.crossStreet)}
                 ${row('Bloc', c.block)}
                 ${row(incident ? 'Description de l\'incident' : 'Description', c.description)}
                 ${row('Émise le', formatDate(c.createdAt))}
@@ -923,6 +986,7 @@
             <div class="call-units">${units.length
                 ? units.map(unitChip).join('')
                 : '<span class="muted">Aucune unité.</span>'}</div>
+            ${callLinksHtml(c, onCall)}
             <div class="sheet-sub">Notes et rapports (${timeline.length})</div>
             ${timeline.length ? timeline.map((entry) => entry.html()).join('') : '<div class="muted">Aucune note ni rapport.</div>'}
             ${onCall && !c.closed ? `
@@ -948,7 +1012,11 @@
 
         return `
             <form id="callForm" class="call-form" autocomplete="off" novalidate>
-                <div class="toolbar"><span class="hint-text">* champs obligatoires${isNew ? ' — votre unité sera automatiquement placée sur l\'incident.' : ''}</span></div>
+                <div class="toolbar">
+                    <span class="hint-text">* champs obligatoires${isNew ? ' — votre unité sera automatiquement placée sur l\'incident.' : ''}</span>
+                    <span class="grow"></span>
+                    <button type="button" class="btn btn-small" data-fill-location title="Remplit l'adresse, le croisement et le bloc avec votre position actuelle">Position actuelle</button>
+                </div>
                 <div class="form-grid">
                     <label class="lbl span-2">${kind === 'incident' ? 'Type d\'incident' : 'Type d\'intervention'} *<input name="title" type="text" maxlength="60" value="${v('title')}"></label>
                     ${kind === 'incident' ? `<label class="lbl span-2">Nom de l'unité créant l'incident<input type="text" value="${esc(unitName)}" disabled></label>` : `
@@ -961,6 +1029,7 @@
                         </label>
                         <label class="lbl span-2">Priorité de l'urgence *<select name="priority">${priorities}</select></label>`}
                     <label class="lbl">Adresse *<input name="address" type="text" maxlength="80" value="${v('address')}"></label>
+                    <label class="lbl">Croisement<input name="crossStreet" type="text" maxlength="80" value="${v('crossStreet')}"></label>
                     <label class="lbl">Bloc *<input name="block" type="text" maxlength="40" value="${v('block')}"></label>
                     <label class="lbl span-2">${kind === 'incident' ? 'Description de l\'incident' : 'Description'} *<textarea name="description" rows="6" maxlength="2000">${v('description')}</textarea></label>
                 </div>
@@ -1054,6 +1123,7 @@
 
     $('#interventionDetail').addEventListener('change', (e) => {
         if (e.target.id === 'callReportType') state.callReportType = e.target.value;
+        if (e.target.id === 'callLinkChoice') state.linkChoice = e.target.value;
     });
 
     // Texte des notes : saisie conservée entre deux mises à jour
@@ -1081,6 +1151,19 @@
             return;
         }
 
+        const linkOpen = e.target.closest('[data-link-open]');
+        if (linkOpen) {
+            openRecordInSearch(linkOpen.dataset.linkOpen, Number(linkOpen.dataset.id));
+            return;
+        }
+        const linkRemove = e.target.closest('[data-link-remove]');
+        if (linkRemove && call) {
+            if (await callRequest('unlinkRecord', { id: call.id, kind: linkRemove.dataset.linkRemove, recordId: Number(linkRemove.dataset.id) }, 'Fiche retirée de l\'appel.')) {
+                refreshInterventions();
+            }
+            return;
+        }
+
         const openBtn = e.target.closest('[data-report-open]');
         if (openBtn) {
             showReportFromCall(Number(openBtn.dataset.reportOpen));
@@ -1104,6 +1187,14 @@
             if (!call) return;
             if (action === 'edit') return openCall(call.id, 'edit');
             if (action === 'writeReport') return startReportForCall(call.id, $('#callReportType').value);
+            if (action === 'linkRecord') {
+                const [kind, recordId] = String($('#callLinkChoice').value).split(':');
+                if (await callRequest('linkRecord', { id: call.id, kind, recordId: Number(recordId) }, 'Fiche ajoutée à l\'appel.')) {
+                    state.linkChoice = null;
+                    refreshInterventions();
+                }
+                return;
+            }
 
             // "Intervention terminée" : deuxième clic pour confirmer
             if (action === 'end' && !actionBtn.dataset.confirm) {
@@ -2609,6 +2700,26 @@
     });
 
     // =====================================================================
+    // BOUTON "POSITION ACTUELLE" : adresse, croisement et bloc du joueur
+    // (formulaire d'intervention de Créations et formulaire d'incident)
+    // =====================================================================
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-fill-location]');
+        if (!btn) return;
+        const form = btn.closest('form');
+        const res = await post('getLocation');
+        if (!res || !res.ok) {
+            toast(res?.error || 'Position indisponible.', 'error');
+            return;
+        }
+        const set = (name, value) => { if (form.elements[name] && value) form.elements[name].value = value; };
+        set('address', res.street);
+        set('crossStreet', res.crossing);
+        set('block', res.block);
+        toast('Adresse, croisement et bloc remplis avec votre position.', 'success');
+    });
+
+    // =====================================================================
     // NOTIFICATION "NOUVELLE INTERVENTION" (en haut à droite, même MDC fermé)
     // Nom, priorité, adresse, bloc. Disparaît seule ; clic pour la fermer (MDC ouvert).
     // =====================================================================
@@ -2627,6 +2738,7 @@
                 ? `Incident${c.unitName ? ` — ${esc(c.unitName)}` : ''}`
                 : (prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-')}</div>
             <div class="ct-row"><span class="hud-label">ADRESSE</span>${esc(c.address)}</div>
+            ${c.crossStreet ? `<div class="ct-row"><span class="hud-label">CROISEMENT</span>${esc(c.crossStreet)}</div>` : ''}
             <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
         const box = $('#toasts');
         while (box.children.length >= 5) box.firstElementChild.remove();

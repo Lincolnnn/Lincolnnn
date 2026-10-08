@@ -705,6 +705,16 @@ input::placeholder { color: #6a6a6a; }
 .note textarea, .note-new textarea { margin-top: 6px; }
 .note-new { margin-top: 10px; }
 
+/* Personnes et véhicules liés à l'appel */
+.call-links { border: 1px solid #262626; background: #161616; }
+.call-link { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-bottom: 1px solid #262626; }
+.call-link:last-child { border-bottom: none; }
+.call-link-text { min-width: 0; line-height: 20px; }
+.link-picker { margin: 6px 0 0; }
+.link-picker select { flex: 1; min-width: 220px; }
+.cross-inline { color: var(--muted); font-style: italic; }
+.grid.selectable tbody tr.selected .cross-inline { color: inherit; }
+
 /* Rapport lié, dans le déroulé de l'intervention */
 .note.note-report { border-color: #1f3f6e; background: #111a28; }
 .note-report-title { color: #fff; }

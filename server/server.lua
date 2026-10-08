@@ -1060,6 +1060,26 @@ local function interventionView(intervention)
     view.units = units
     view.status = interventionStatus(intervention)
     view.reports = reportLinks(intervention) -- affichés avec les notes, dans le déroulé
+
+    -- Identités / véhicules liés : informations à jour lues dans les fiches
+    local links = {}
+    for _, link in ipairs(intervention.links or {}) do
+        local record = findBy(link.kind == 'vehicle' and 'vehicles' or 'identities', 'id', link.recordId)
+        if record then
+            local item = { kind = link.kind, recordId = link.recordId, addedBy = link.addedBy, addedAt = link.addedAt }
+            if link.kind == 'vehicle' then
+                local owner = ownerOf(record)
+                item.plate, item.make, item.model, item.color = record.plate, record.make, record.model, record.color
+                item.stolen, item.regStatus = record.stolen, record.regStatus
+                item.owner = owner and identityLabel(owner) or (record.ownerName ~= '' and record.ownerName or nil)
+            else
+                item.firstname, item.middlename, item.lastname = record.firstname, record.middlename, record.lastname
+                item.dob, item.condition = record.dob, record.condition
+            end
+            links[#links + 1] = item
+        end
+    end
+    view.links = links
     return view
 end
 
@@ -1084,6 +1104,7 @@ local function buildCall(p, kind)
     local r = {
         title       = clean(p.title, 60),
         address     = clean(p.address, 80),
+        crossStreet = clean(p.crossStreet, 80), -- croisement (facultatif)
         block       = clean(p.block, 40),
         description = cleanMultiline(p.description, 2000),
     }
@@ -1115,7 +1136,7 @@ end
 local function notifyNewCall(call, src)
     local data = {
         number = call.number, kind = call.kind, title = call.title, priority = call.priority,
-        address = call.address, block = call.block, unitName = call.unitName,
+        address = call.address, crossStreet = call.crossStreet, block = call.block, unitName = call.unitName,
     }
     local targets = {}
     for player in pairs(PlayerUnit) do targets[player] = true end
@@ -1133,6 +1154,7 @@ local function addCall(src, call, kind, unit)
     call.units = {}
     call.notes = {}
     call.reports = {} -- [id du rapport] = true (rapports liés, section RAPPORTS)
+    call.links = {}   -- identités / véhicules liés : { kind, recordId, addedBy, addedAt }
     call.nextNoteId = 1
     call.closed = false
     call.createdAt = os.time()
@@ -1249,6 +1271,64 @@ RegisterMDCCallback('addNote', function(src, payload)
     call.nextNoteId = call.nextNoteId + 1
     pushInterventions()
     return { ok = true }
+end)
+
+-- Identités / véhicules (historique des recherches) liés à l'appel par une unité présente
+local LINK_STORES = { identity = 'identities', vehicle = 'vehicles' }
+
+RegisterMDCCallback('linkRecord', function(src, payload)
+    local call = findIntervention(payload.id)
+    if not call then return { ok = false, error = 'Intervention introuvable.' } end
+    if call.closed then return { ok = false, error = 'Cette intervention est terminée.' } end
+
+    local unit = findUnit(PlayerUnit[src])
+    if not unit or not call.units[tostring(unit.id)] then
+        return { ok = false, error = 'Seules les unités sur l\'appel peuvent y ajouter des fiches.' }
+    end
+
+    local storeName = LINK_STORES[payload.kind]
+    local record = storeName and findBy(storeName, 'id', tonumber(payload.recordId))
+    if not record then return { ok = false, error = 'Fiche introuvable.' } end
+
+    for _, link in ipairs(call.links) do
+        if link.kind == payload.kind and link.recordId == record.id then
+            return { ok = false, error = 'Cette fiche est déjà liée à l\'appel.' }
+        end
+    end
+    if #call.links >= 30 then return { ok = false, error = '30 fiches maximum par appel.' } end
+
+    call.links[#call.links + 1] = { kind = payload.kind, recordId = record.id, addedBy = unit.name, addedAt = os.time() }
+    pushInterventions()
+    return { ok = true }
+end)
+
+RegisterMDCCallback('unlinkRecord', function(src, payload)
+    local call = findIntervention(payload.id)
+    if not call then return { ok = false, error = 'Intervention introuvable.' } end
+    if call.closed then return { ok = false, error = 'Cette intervention est terminée.' } end
+
+    local unit = findUnit(PlayerUnit[src])
+    if not unit or not call.units[tostring(unit.id)] then
+        return { ok = false, error = 'Seules les unités sur l\'appel peuvent retirer une fiche.' }
+    end
+
+    local recordId = tonumber(payload.recordId)
+    for index, link in ipairs(call.links) do
+        if link.kind == payload.kind and link.recordId == recordId then
+            table.remove(call.links, index)
+            pushInterventions()
+            return { ok = true }
+        end
+    end
+    return { ok = false, error = 'Fiche introuvable sur cet appel.' }
+end)
+
+-- Fiche complète (bouton "Fiche" d'une identité / d'un véhicule lié à un appel)
+RegisterMDCCallback('getRecord', function(_, payload)
+    local storeName = LINK_STORES[payload.kind]
+    local record = storeName and findBy(storeName, 'id', tonumber(payload.id))
+    if not record then return { ok = false, error = 'Fiche introuvable.' } end
+    return { ok = true, record = payload.kind == 'vehicle' and vehicleView(record) or identityView(record) }
 end)
 
 RegisterMDCCallback('editNote', function(src, payload)

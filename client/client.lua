@@ -151,6 +151,11 @@ RegisterNUICallback('saveLayout', function(data, cb)
     cb({ ok = true })
 end)
 
+-- Heure du jeu (barre d'état du MDC, lue chaque seconde uniquement quand le MDC est ouvert)
+RegisterNUICallback('getGameTime', function(_, cb)
+    cb({ ok = true, hours = GetClockHours(), minutes = GetClockMinutes() })
+end)
+
 -- Nom RP
 RegisterNUICallback('setProfile', function(data, cb)
     local value = type(data) == 'table' and data.rpName or nil
@@ -287,6 +292,9 @@ relay('interventionAction', 'interventionAction') -- Rejoindre / quitter / termi
 relay('editIntervention',   'editIntervention')
 relay('addNote',            'addNote')
 relay('editNote',           'editNote')
+relay('linkRecord',         'linkRecord')         -- Lier une identité / un véhicule (historique des recherches)
+relay('unlinkRecord',       'unlinkRecord')
+relay('getRecord',          'getRecord')          -- Fiche complète d'une identité / d'un véhicule lié
 
 -- Recherches et créations
 relay('search',            'search')            -- Onglet "Recherches" (identités / immatriculations)

@@ -519,7 +519,11 @@
                     <form class="view" id="view-intervention" data-kind="intervention" autocomplete="off" novalidate>
                         <div class="group">
                             <span class="legend">Nouvelle intervention</span>
-                            <div class="toolbar"><span class="hint-text">* champs obligatoires — l'intervention apparaîtra dans l'onglet « Interventions ».</span></div>
+                            <div class="toolbar">
+                                <span class="hint-text">* champs obligatoires — l'intervention apparaîtra dans l'onglet « Interventions ».</span>
+                                <span class="grow"></span>
+                                <button type="button" class="btn" data-fill-location title="Remplit l'adresse, le croisement et le bloc avec votre position actuelle">Position actuelle</button>
+                            </div>
                             <div class="form-grid cols-3">
                                 <label class="lbl">Type d'intervention *<input name="title" type="text" maxlength="60" placeholder="ex : Cambriolage en cours"></label>
                                 <label class="lbl">Requérant *<input name="caller" type="text" maxlength="60" placeholder="Nom de la personne qui appelle"></label>
@@ -539,6 +543,7 @@
                                     </select>
                                 </label>
                                 <label class="lbl">Adresse *<input name="address" type="text" maxlength="80"></label>
+                                <label class="lbl">Croisement<input name="crossStreet" type="text" maxlength="80"></label>
                                 <label class="lbl">Bloc *<input name="block" type="text" maxlength="40"></label>
                                 <label class="lbl span-3">Description *<textarea name="description" rows="6" maxlength="2000"></textarea></label>
                             </div>
