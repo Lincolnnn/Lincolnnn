@@ -107,7 +107,9 @@ véhicule volé / abandonné / commercial ; **Historique** (infraction administr
 **Véhicule actuel** : reprend modèle, marque, couleur et plaque du véhicule où vous êtes.
 **Remplissage aléatoire** : statut d'immatriculation, contrôle technique et assurance.
 
-Les listes du générateur (noms, rues, emplois…) se modifient dans `html/script.js`, section « GÉNÉRATEURS ALÉATOIRES ».
+Les listes du générateur (noms, adresses, emplois…) se modifient dans `html/script.js`, section « GÉNÉRATEURS ALÉATOIRES ».
+Adresses générées : adresses réelles de Géorgie au format « 225 Baker Street NW, Atlanta, Fulton Co., GA » — 80 % Atlanta,
+10 % autres villes du comté de Fulton, 10 % reste de la Géorgie (liste `ADDRESSES`, bâtiments publics et lieux connus).
 Les numéros de téléphone générés commencent par un indicatif régional de Géorgie compris entre 470 et 678
 (470, 478, 678 : liste `GEORGIA_AREA_CODES` dans `server/server.lua` et `html/script.js`).
 

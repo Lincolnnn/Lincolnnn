@@ -1323,21 +1323,96 @@
             'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores',
             'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts',
             'Kowalski', 'O\'Brien', 'McAllister', 'Delgado', 'Washington', 'Fitzgerald', 'Novak', 'Reyes', 'Bishop', 'Crowley'];
-        const STREETS = [
-            ['Grove Street', 'Los Santos'], ['Forum Drive', 'Los Santos'], ['Vespucci Boulevard', 'Los Santos'],
-            ['Alta Street', 'Los Santos'], ['Strawberry Avenue', 'Los Santos'], ['Davis Avenue', 'Los Santos'],
-            ['Macdonald Street', 'Los Santos'], ['Carson Avenue', 'Los Santos'], ['Jamestown Street', 'Los Santos'],
-            ['Innocence Boulevard', 'Los Santos'], ['Elgin Avenue', 'Los Santos'], ['Mirror Park Boulevard', 'Los Santos'],
-            ['Nikola Avenue', 'Los Santos'], ['West Eclipse Boulevard', 'Los Santos'], ['Palomino Avenue', 'Los Santos'],
-            ['Prosperity Street', 'Los Santos'], ['Magellan Avenue', 'Los Santos'], ['Hawick Avenue', 'Los Santos'],
-            ['Power Street', 'Los Santos'], ['San Andreas Avenue', 'Los Santos'], ['Sinner Street', 'Los Santos'],
-            ['Popular Street', 'Los Santos'], ['Integrity Way', 'Los Santos'], ['Las Lagunas Boulevard', 'Los Santos'],
-            ['Clinton Avenue', 'Los Santos'], ['Vinewood Boulevard', 'Los Santos'], ['Boulevard Del Perro', 'Los Santos'],
-            ['Bay City Avenue', 'Los Santos'], ['Little Bighorn Avenue', 'Los Santos'], ['Tongva Drive', 'Los Santos'],
-            ['Algonquin Boulevard', 'Sandy Shores'], ['Marina Drive', 'Sandy Shores'], ['Niland Avenue', 'Sandy Shores'],
-            ['Zancudo Avenue', 'Sandy Shores'], ['Grapeseed Main Street', 'Grapeseed'], ['Paleto Boulevard', 'Paleto Bay'],
-            ['Procopio Drive', 'Paleto Bay'], ['Duluoz Avenue', 'Paleto Bay'],
-        ];
+        // Adresses RÉELLES de Géorgie (bâtiments publics, institutions, lieux connus — aucun domicile
+        // de particulier) : [numéro et rue, ville, comté]. Ajoutez librement vos propres adresses vérifiées.
+        // Tirage : 80 % Atlanta (comté de Fulton), 10 % autres villes du comté de Fulton, 10 % reste de la Géorgie.
+        const ADDRESSES = {
+            atlanta: [
+                ['225 Baker Street NW', 'Atlanta', 'Fulton'],                   // Georgia Aquarium
+                ['121 Baker Street NW', 'Atlanta', 'Fulton'],                   // World of Coca-Cola
+                ['100 Ivan Allen Jr. Boulevard NW', 'Atlanta', 'Fulton'],       // National Center for Civil and Human Rights
+                ['250 Marietta Street NW', 'Atlanta', 'Fulton'],                // College Football Hall of Fame
+                ['190 Marietta Street NW', 'Atlanta', 'Fulton'],                // CNN Center
+                ['1 AMB Drive NW', 'Atlanta', 'Fulton'],                        // Mercedes-Benz Stadium
+                ['1 State Farm Drive', 'Atlanta', 'Fulton'],                    // State Farm Arena
+                ['285 Andrew Young International Boulevard NW', 'Atlanta', 'Fulton'], // Georgia World Congress Center
+                ['265 Park Avenue West NW', 'Atlanta', 'Fulton'],               // Centennial Olympic Park
+                ['660 Peachtree Street NE', 'Atlanta', 'Fulton'],               // Fox Theatre
+                ['1280 Peachtree Street NE', 'Atlanta', 'Fulton'],              // Woodruff Arts Center
+                ['600 Peachtree Street NE', 'Atlanta', 'Fulton'],               // Bank of America Plaza
+                ['191 Peachtree Street NE', 'Atlanta', 'Fulton'],               // 191 Peachtree Tower
+                ['210 Peachtree Street NW', 'Atlanta', 'Fulton'],               // Westin Peachtree Plaza
+                ['265 Peachtree Center Avenue NE', 'Atlanta', 'Fulton'],        // Atlanta Marriott Marquis
+                ['675 Ponce de Leon Avenue NE', 'Atlanta', 'Fulton'],           // Ponce City Market
+                ['1345 Piedmont Avenue NE', 'Atlanta', 'Fulton'],               // Atlanta Botanical Garden
+                ['400 Park Drive NE', 'Atlanta', 'Fulton'],                     // Piedmont Park
+                ['979 Crescent Avenue NE', 'Atlanta', 'Fulton'],                // Margaret Mitchell House
+                ['130 West Paces Ferry Road NW', 'Atlanta', 'Fulton'],          // Atlanta History Center
+                ['391 West Paces Ferry Road NW', 'Atlanta', 'Fulton'],          // Georgia Governor's Mansion
+                ['3393 Peachtree Road NE', 'Atlanta', 'Fulton'],                // Lenox Square
+                ['3500 Peachtree Road NE', 'Atlanta', 'Fulton'],                // Phipps Plaza
+                ['1968 Peachtree Road NW', 'Atlanta', 'Fulton'],                // Piedmont Atlanta Hospital
+                ['1380 Atlantic Drive NW', 'Atlanta', 'Fulton'],                // Atlantic Station
+                ['441 John Lewis Freedom Parkway NE', 'Atlanta', 'Fulton'],     // Jimmy Carter Presidential Library
+                ['407 Auburn Avenue NE', 'Atlanta', 'Fulton'],                  // Historic Ebenezer Baptist Church
+                ['449 Auburn Avenue NE', 'Atlanta', 'Fulton'],                  // The King Center
+                ['501 Auburn Avenue NE', 'Atlanta', 'Fulton'],                  // Martin Luther King Jr. Birth Home
+                ['206 Washington Street SW', 'Atlanta', 'Fulton'],              // Georgia State Capitol
+                ['55 Trinity Avenue SW', 'Atlanta', 'Fulton'],                  // Atlanta City Hall
+                ['136 Pryor Street SW', 'Atlanta', 'Fulton'],                   // Fulton County Courthouse
+                ['226 Peachtree Street SW', 'Atlanta', 'Fulton'],               // Atlanta Police Department HQ
+                ['50 Upper Alabama Street SW', 'Atlanta', 'Fulton'],            // Underground Atlanta
+                ['1 Margaret Mitchell Square NW', 'Atlanta', 'Fulton'],         // Atlanta-Fulton Central Library
+                ['80 Jesse Hill Jr. Drive SE', 'Atlanta', 'Fulton'],            // Grady Memorial Hospital
+                ['248 Oakland Avenue SE', 'Atlanta', 'Fulton'],                 // Oakland Cemetery
+                ['800 Cherokee Avenue SE', 'Atlanta', 'Fulton'],                // Zoo Atlanta
+                ['755 Hank Aaron Drive SE', 'Atlanta', 'Fulton'],               // Center Parc Stadium
+                ['61 North Avenue NW', 'Atlanta', 'Fulton'],                    // The Varsity
+                ['225 North Avenue NW', 'Atlanta', 'Fulton'],                   // Georgia Tech
+                ['33 Gilmer Street SE', 'Atlanta', 'Fulton'],                   // Georgia State University
+                ['830 Westview Drive SW', 'Atlanta', 'Fulton'],                 // Morehouse College
+                ['350 Spelman Lane SW', 'Atlanta', 'Fulton'],                   // Spelman College
+                ['223 James P. Brawley Drive SW', 'Atlanta', 'Fulton'],         // Clark Atlanta University
+                ['2002 Lakewood Way SW', 'Atlanta', 'Fulton'],                  // Lakewood Amphitheatre
+                ['99 Krog Street NE', 'Atlanta', 'Fulton'],                     // Krog Street Market
+            ],
+            fulton: [
+                ['1 Galambos Way', 'Sandy Springs', 'Fulton'],                  // Sandy Springs City Hall
+                ['38 Hill Street', 'Roswell', 'Fulton'],                        // Roswell City Hall
+                ['535 Barrington Drive', 'Roswell', 'Fulton'],                  // Barrington Hall
+                ['180 Bulloch Avenue', 'Roswell', 'Fulton'],                    // Bulloch Hall
+                ['2 Park Plaza', 'Alpharetta', 'Fulton'],                       // Alpharetta City Hall
+                ['400 Avalon Boulevard', 'Alpharetta', 'Fulton'],               // Avalon
+                ['1000 North Point Circle', 'Alpharetta', 'Fulton'],            // North Point Mall
+                ['2200 Encore Parkway', 'Alpharetta', 'Fulton'],                // Ameris Bank Amphitheatre
+                ['11360 Lakefield Drive', 'Johns Creek', 'Fulton'],             // Johns Creek City Hall
+                ['2006 Heritage Walk', 'Milton', 'Fulton'],                     // Milton City Hall
+                ['2757 East Point Street', 'East Point', 'Fulton'],             // East Point City Hall
+                ['3667 Main Street', 'College Park', 'Fulton'],                 // College Park City Hall
+                ['2330 Convention Center Concourse', 'College Park', 'Fulton'], // Gateway Center
+                ['3468 North Fulton Avenue', 'Hapeville', 'Fulton'],            // Hapeville City Hall
+                ['5047 Union Street', 'Union City', 'Fulton'],                  // Union City City Hall
+                ['56 Malone Street', 'Fairburn', 'Fulton'],                     // Fairburn City Hall
+                ['509 Toombs Street', 'Palmetto', 'Fulton'],                    // Palmetto City Hall
+            ],
+            georgia: [
+                ['2 East Bay Street', 'Savannah', 'Chatham'],                   // Savannah City Hall
+                ['429 Bull Street', 'Savannah', 'Chatham'],                     // Mercer Williams House
+                ['2604 Washington Road', 'Augusta', 'Richmond'],                // Augusta National Golf Club
+                ['700 Poplar Street', 'Macon', 'Bibb'],                         // Macon City Hall
+                ['301 College Avenue', 'Athens', 'Clarke'],                     // Athens-Clarke County City Hall
+                ['100 10th Street', 'Columbus', 'Muscogee'],                     // Columbus Government Center
+                ['12 Cobb Parkway North', 'Marietta', 'Cobb'],                  // The Big Chicken
+                ['1000 Chastain Road', 'Kennesaw', 'Cobb'],                     // Kennesaw State University
+                ['1000 Robert E. Lee Boulevard', 'Stone Mountain', 'DeKalb'],   // Stone Mountain Park
+                ['101 East Court Square', 'Decatur', 'DeKalb'],                 // Historic DeKalb Courthouse
+                ['75 Langley Drive', 'Lawrenceville', 'Gwinnett'],              // Gwinnett Justice and Administration Center
+                ['6400 Sugarloaf Parkway', 'Duluth', 'Gwinnett'],               // Gas South Arena
+                ['1500 North Patterson Street', 'Valdosta', 'Lowndes'],         // Valdosta State University
+                ['2277 Martha Berry Highway NW', 'Rome', 'Floyd'],              // Berry College
+            ],
+        };
+        const ADDRESS_AREAS = [['atlanta', 80], ['fulton', 10], ['georgia', 10]];
         const JOBS = ['Mécanicien', 'Chauffeur de taxi', 'Agent immobilier', 'Infirmier', 'Cuisinier', 'Livreur', 'Barman',
             'Électricien', 'Plombier', 'Vendeur', 'Agriculteur', 'Pêcheur', 'Routier', 'Comptable', 'Avocat', 'Journaliste',
             'Ouvrier du bâtiment', 'Agent de sécurité', 'Étudiant', 'Sans emploi', 'Garagiste', 'Coiffeur', 'Photographe',
@@ -1373,7 +1448,7 @@
         // Identité : prénom, middle name, nom, DoB, adresse, SSN et emploi uniquement
         function identity() {
             const male = Math.random() < 0.5;
-            const [street, city] = pick(STREETS);
+            const [street, city, county] = pick(ADDRESSES[weighted(ADDRESS_AREAS)]);
             const birth = new Date(new Date().getFullYear() - int(18, 75), int(0, 11), int(1, 28));
             return {
                 firstname: pick(male ? MALE : FEMALE),
@@ -1381,7 +1456,7 @@
                 lastname: pick(LAST),
                 dob: dateString(birth),
                 sex: male ? 'M' : 'F',
-                address: `${int(100, 9999)} ${street}, ${city}`,
+                address: `${street}, ${city}, ${county} Co., GA`, // ex : 225 Baker Street NW, Atlanta, Fulton Co., GA
                 ssn: ssn(),
                 job: pick(JOBS),
             };
