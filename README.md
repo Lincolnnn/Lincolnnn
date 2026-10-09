@@ -47,7 +47,9 @@ Les membres d'une même unité (4 au maximum) partagent en direct :
 
 Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fine et arrondie), visibles même MDC fermé :
 
-- **PLD** (Player Localisation Display), **toujours affiché** (désactivable dans « Paramètres ») : direction en gros
+- **PLD** (Player Localisation Display), **affiché pour chaque joueur dès sa connexion**, sans utiliser le MDC
+  (ni nom RP, ni unité) ; désactivable et réglable dans « Paramètres », réglages propres à chaque joueur
+  (`PldForEveryone` dans `client/hud.lua` pour le réserver aux joueurs ayant accès au MDC) : direction en gros
   et en gras (N / NE / E / SE / S / SW / W / NW), rue actuelle en gros, **croisement le plus proche** en petit et en
   italique (toujours présent : largeur stable), et **bloc** : celui où se trouve le joueur, sinon le plus proche.
   Les blocs se dessinent dans **`config/blocks.json`** (cercles, rectangles, polygones, filtre par rue) : voir
@@ -88,8 +90,12 @@ l'interface et la validation serveur suivent automatiquement.
 ### Identités
 
 Prénom\*, middle name, nom de famille\*, date de naissance\*, sexe ((M) Male / (F) Female), adresse\*, SSN\* (généré), emploi ;
-licence de conduite (classe, condition : Suspension / Révocation / Annulation / Disqualification pour les CDL, n° généré, État d'émission) ;
-interdictions, condition (Recherché + raison et date de début) ; **Antécédents** (infraction, date, horaire, adresse, explication).
+licence de conduite (case à cocher, puis État d'émission : GA - Georgia, FL - Floride, TN - Tennessee,
+SC - South Carolina, NC - North Carolina, AL - Alabama ; type de licence selon l'État (standard, moto, CDL A/B/C,
+Class G - Cyclomoteur en Caroline du Sud) ; n° généré ; condition : Valide / Suspension / Révocation / Annulation /
+Disqualification pour les CDL) ;
+interdictions cumulables (Port d'arme, Conduite de jour uniquement, Interdiction de rouler sur Interstate),
+condition (Recherché + raison et date de début) ; **Antécédents** (infraction, date, horaire, adresse, explication).
 **Remplissage aléatoire** : prénom, middle name, nom, DoB, adresse, SSN et emploi.
 
 ### Véhicules

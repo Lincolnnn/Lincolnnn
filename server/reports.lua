@@ -46,18 +46,17 @@
 -- -------------------------------------------------------------------------
 -- Listes communes
 -- -------------------------------------------------------------------------
+-- Toutes les classes délivrées par les États de server.lua (LICENSE_STATES)
 local LICENSE_CLASSES = {
     { 'N/A', 'Aucune' },
     { 'Class C - Standard', 'Class C - Standard' },
-    { 'Class F - Lourd', 'Class F - Lourd' },
-    { 'Class E - Combiné', 'Class E - Combiné' },
+    { 'Class D - Standard', 'Class D - Standard' },
+    { 'Class E - Standard', 'Class E - Standard' },
     { 'Class M - Moto', 'Class M - Moto' },
+    { 'Class G - Cyclomoteur', 'Class G - Cyclomoteur' },
     { 'CDL A', 'CDL A' },
     { 'CDL B', 'CDL B' },
     { 'CDL C', 'CDL C' },
-    { 'Probatoire - Class CP', 'Probatoire - Class CP' },
-    { 'Probatoire - Class D', 'Probatoire - Class D' },
-    { 'Probatoire - Class MP', 'Probatoire - Class MP' },
 }
 
 local SEXES = { { 'male', '(M) Male' }, { 'female', '(F) Female' } }

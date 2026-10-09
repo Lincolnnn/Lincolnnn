@@ -396,6 +396,8 @@ select option:disabled { color: #555; }
     line-height: 16px;
 }
 
+.license-grid { margin-top: 8px; }
+
 /* Menu déroulant à choix multiples */
 .multi { position: relative; }
 .multi-btn {

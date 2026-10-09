@@ -3,7 +3,8 @@
     -----------------------------
     Deux affichages indépendants, dessinés par le NUI (html/script.js) :
       - PLD (Player Localisation Display) : direction, rue, croisement le plus proche, bloc
-        -> toujours affiché (désactivable dans l'onglet "Paramètres" du MDC)
+        -> affiché pour chaque joueur dès sa connexion, sans utiliser le MDC
+           (désactivable / réglable dans l'onglet "Paramètres" du MDC, réglages propres au joueur)
       - Display MDC : nom de l'unité, tag, statut, n° d'incident de l'appel en cours
         -> affiché uniquement quand le joueur fait partie d'une unité
     + les notifications (en haut à droite de l'écran) : nouvel appel, nouvel incident,
@@ -21,6 +22,10 @@
 ]]
 
 local Config = {
+    -- PLD affiché pour TOUS les joueurs dès leur connexion (sans nom RP, sans unité, sans ouvrir
+    -- le MDC). false : seulement pour les joueurs ayant accès au MDC (permission ACE).
+    PldForEveryone = true,
+
     Interval = 500,          -- délai (ms) entre deux mises à jour du PLD
     BlocksFile = 'config/blocks.json',
     UnknownStreet = 'Rue inconnue',
@@ -37,6 +42,8 @@ local RESOURCE = GetCurrentResourceName()
 
 local settings = {}       -- réglages complets envoyés par le NUI (voir saveSettings)
 local hasAccess = false   -- accès au MDC (ACE), donné par le serveur
+local pldReady = false    -- le joueur est en jeu (fin du chargement) : le PLD peut s'afficher
+local synced = false      -- réponse du serveur reçue (accès + unité)
 local unitInfo = nil      -- unité du joueur : { name, tag, color, status, dept, callNumber }
 local loopRunning = false
 
@@ -216,21 +223,27 @@ local function readLocation()
         crossing = crossing,
         dir = DIRECTIONS[math.floor(((heading + 22.5) % 360) / 45) + 1],
         block = findBlock(coords.x, coords.y, street),
-        paused = IsPauseMenuActive(), -- masqué dans le menu pause
+        -- masqué dans le menu pause et pendant les écrans noirs (chargement, mort…)
+        paused = IsPauseMenuActive() or IsScreenFadedOut() or GetIsLoadingScreenActive(),
     }, coords
 end
 
 -- =========================================================================
 -- ÉTAT DU HUD
 -- =========================================================================
+--- PLD autorisé pour ce joueur (indépendant du MDC : ni nom RP, ni unité nécessaires)
+local function pldAllowed()
+    return pldReady and (Config.PldForEveryone or hasAccess)
+end
+
 local function pldActive()
-    return hasAccess and setting('pld', 'enabled')
+    return pldAllowed() and setting('pld', 'enabled')
 end
 
 local startLoop
 
 local function refreshHud()
-    SendNUIMessage({ action = 'hudState', data = { access = hasAccess, unit = unitInfo } })
+    SendNUIMessage({ action = 'hudState', data = { pld = pldAllowed(), unit = unitInfo } })
     if pldActive() then startLoop() end
 end
 
@@ -255,6 +268,7 @@ end
 
 -- Accès au MDC + unité du joueur (nom, tag, statut, appel) : envoyés par le serveur à chaque changement
 RegisterNetEvent('mdc:client:hud', function(access, info)
+    synced = true
     hasAccess = access == true
     unitInfo = type(info) == 'table' and info or nil
     refreshHud()
@@ -275,9 +289,18 @@ RegisterNetEvent('mdc:client:statusNotify', function(unit)
     SendNUIMessage({ action = 'statusNotify', data = unit })
 end)
 
--- Au démarrage : on demande au serveur l'accès et l'unité actuelle
+-- À la connexion : le PLD démarre dès que le joueur est en jeu (sans passer par le MDC),
+-- puis on demande au serveur l'accès au MDC et l'unité actuelle (nouvel essai si pas de réponse).
 CreateThread(function()
-    TriggerServerEvent('mdc:server:hudSync')
+    while not NetworkIsPlayerActive(PlayerId()) do Wait(500) end
+    pldReady = true
+    refreshHud()
+
+    for _ = 1, 10 do
+        if synced then break end
+        TriggerServerEvent('mdc:server:hudSync')
+        Wait(3000)
+    end
 end)
 
 -- =========================================================================
@@ -286,7 +309,7 @@ end)
 
 -- Le NUI (re)chargé demande les réglages et l'état du HUD
 RegisterNUICallback('hudReady', function(_, cb)
-    cb({ ok = true, settings = settings, access = hasAccess, unit = unitInfo })
+    cb({ ok = true, settings = settings, pld = pldAllowed(), unit = unitInfo })
     if pldActive() then
         SetTimeout(200, function() startLoop() end)
     end

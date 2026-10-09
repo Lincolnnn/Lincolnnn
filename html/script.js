@@ -33,7 +33,20 @@
     const SEX_LABELS = { M: '(M) Male', F: '(F) Female' };
     const CONDITION_LABELS = { none: 'N/A', wanted: 'Recherché', missing: 'Personne disparue', deceased: 'Personne décédée' };
     const CONDITION_COLOR = { wanted: 'c-red', missing: 'c-yellow', deceased: 'c-orange' };
-    const RESTRICTION_LABELS = { weapon: 'Port d\'arme' };
+    // Interdictions (cumulables) : clés identiques à RESTRICTIONS dans server.lua
+    const RESTRICTION_LABELS = { weapon: 'Port d\'arme', daylight: 'Conduite de jour uniquement', nointerstate: 'Interdiction de rouler sur Interstate' };
+
+    // Licences de conduite par État d'émission (identique à LICENSE_STATES dans server.lua) :
+    // la Géorgie en premier, puis les États voisins ; licences standard, moto et CDL réelles.
+    const LICENSE_STATES = [
+        { code: 'GA', label: 'GA - Georgia', classes: ['Class C - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
+        { code: 'FL', label: 'FL - Floride', classes: ['Class E - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
+        { code: 'TN', label: 'TN - Tennessee', classes: ['Class D - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
+        { code: 'SC', label: 'SC - South Carolina', classes: ['Class D - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto', 'Class G - Cyclomoteur'] },
+        { code: 'NC', label: 'NC - North Carolina', classes: ['Class C - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
+        { code: 'AL', label: 'AL - Alabama', classes: ['Class D - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
+    ];
+    const stateLabel = (code) => (LICENSE_STATES.find((s) => s.code === code) || {}).label || code || '';
     const LICENSE_STATUS_LABELS = { valid: 'Valide', suspended: 'Suspension', revoked: 'Révocation', cancelled: 'Annulation', disqualified: 'Disqualification' };
     const LICENSE_STATUS_COLOR = { valid: 'c-green', suspended: 'c-orange', revoked: 'c-red', cancelled: 'c-red', disqualified: 'c-red' };
 
@@ -630,7 +643,7 @@
                     ${row('Type de licence', r.licenseClass)}
                     ${dd('Condition de la licence', flag(LICENSE_STATUS_COLOR[r.licenseStatus], LICENSE_STATUS_LABELS[r.licenseStatus] || 'Valide'))}
                     ${row('N° de licence', r.licenseNumber)}
-                    ${row('État d\'émission', r.licenseState)}
+                    ${row('État d\'émission', stateLabel(r.licenseState))}
                 </dl>` : foldEmpty('Aucune licence de conduite (N/A).'))}
             ${fold('Véhicule(s)', vehicles.length
                 ? `<ul class="sheet-list">${vehicles.map(vehicleLine).join('')}</ul>`
@@ -1528,11 +1541,25 @@
 
     idField('condition').addEventListener('change', updateWantedFields);
 
-    // ---- Licence : numéro (généré), État et condition seulement si une licence est choisie ----
+    // ---- Licence : case à cocher, puis État d'émission, type de licence (selon l'État), n° et condition ----
+    idField('licenseState').innerHTML = '<option value="">— Choisir —</option>'
+        + LICENSE_STATES.map((s) => `<option value="${s.code}">${esc(s.label)}</option>`).join('');
+
+    // Types de licence délivrés par l'État choisi (le type déjà choisi est gardé s'il existe dans cet État)
+    function updateLicenseClasses() {
+        const state = LICENSE_STATES.find((s) => s.code === idField('licenseState').value);
+        const select = idField('licenseClass');
+        const current = select.value;
+        select.innerHTML = state
+            ? '<option value="">— Choisir —</option>' + state.classes.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')
+            : '<option value="">— Choisir l\'État —</option>';
+        select.value = state && state.classes.includes(current) ? current : '';
+    }
+
     function updateLicenseFields() {
-        const licenseClass = idField('licenseClass').value;
-        const hasLicense = licenseClass !== 'N/A';
+        const hasLicense = idField('hasLicense').checked;
         identityForm.querySelectorAll('.license-only').forEach((el) => el.classList.toggle('hidden', !hasLicense));
+        const licenseClass = idField('licenseClass').value;
 
         // "Disqualification" uniquement pour les licences CDL
         const cdl = licenseClass.startsWith('CDL');
@@ -1543,6 +1570,11 @@
         if (hasLicense && !idField('licenseNumber').value) idField('licenseNumber').value = Random.licenseNumber();
     }
 
+    idField('hasLicense').addEventListener('change', updateLicenseFields);
+    idField('licenseState').addEventListener('change', () => {
+        updateLicenseClasses();
+        updateLicenseFields();
+    });
     idField('licenseClass').addEventListener('change', updateLicenseFields);
 
     function resetIdentityForm() {
@@ -1550,16 +1582,21 @@
         clearEntries($('#identityRecords'));
         setRestrictions([]);
         updateWantedFields();
+        updateLicenseClasses();
         updateLicenseFields();
         idField('ssn').value = Random.ssn();
     }
 
     function fillIdentityForm(r) {
         resetIdentityForm();
-        ['firstname', 'middlename', 'lastname', 'dob', 'sex', 'address', 'ssn', 'job', 'licenseClass',
-            'licenseStatus', 'licenseNumber', 'licenseState', 'condition', 'wantedReason', 'wantedSince']
+        ['firstname', 'middlename', 'lastname', 'dob', 'sex', 'address', 'ssn', 'job',
+            'licenseStatus', 'licenseNumber', 'condition', 'wantedReason', 'wantedSince']
             .forEach((name) => { idField(name).value = r[name] ?? ''; });
-        if (!idField('licenseClass').value) idField('licenseClass').value = 'N/A';
+        // Licence : État (code GA, FL…) puis le type de licence de cet État
+        idField('hasLicense').checked = !!r.licenseClass && r.licenseClass !== 'N/A';
+        idField('licenseState').value = LICENSE_STATES.some((s) => s.code === r.licenseState) ? r.licenseState : '';
+        updateLicenseClasses();
+        idField('licenseClass').value = r.licenseClass || '';
         if (!idField('licenseStatus').value) idField('licenseStatus').value = 'valid';
         if (!idField('condition').value) idField('condition').value = 'none';
         setRestrictions(toArray(r.restrictions));
@@ -1572,6 +1609,7 @@
         const formData = new FormData(identityForm);
         const payload = Object.fromEntries(formData.entries());
         payload.restrictions = formData.getAll('restrictions').filter((v) => v !== 'none');
+        payload.hasLicense = formData.has('hasLicense');
         payload.records = collectEntries($('#identityRecords'));
         return payload;
     }
@@ -2830,7 +2868,7 @@
 
     const hud = {
         settings: clone(HUD_DEFAULTS),
-        access: false,      // accès au MDC (le PLD est toujours affiché, sauf désactivé)
+        pldAllowed: false,  // PLD autorisé (dès la connexion du joueur, voir client/hud.lua)
         unit: null,         // unité du joueur : { name, tag, color, status, dept, callNumber, callTitle }
         pld: null,          // { street, crossing, dir, block, paused }
         placing: false,
@@ -2887,7 +2925,7 @@
 
         // ---- PLD : toujours affiché (si activé) ----
         const loc = hud.pld || (hud.placing ? PLD_SAMPLE : null);
-        const showPld = pldCfg.enabled && !!loc && (hud.placing || (hud.access && !paused));
+        const showPld = pldCfg.enabled && !!loc && (hud.placing || (hud.pldAllowed && !paused));
         pldEl.classList.toggle('hidden', !showPld);
         if (showPld) {
             $('#pldDir').textContent = loc.dir || '-';
@@ -3035,7 +3073,7 @@
         const res = await post('hudReady');
         if (res && res.ok) {
             hud.settings = mergeSettings(res.settings);
-            hud.access = !!res.access;
+            hud.pldAllowed = !!res.pld;
             hud.unit = res.unit || null;
         } else if (attempt < 5) {
             setTimeout(() => initHud(attempt + 1), 1000);
@@ -3225,8 +3263,8 @@
             case 'interventions':
                 setInterventions(data.data);
                 break;
-            case 'hudState': // client/hud.lua : accès au MDC + unité du joueur
-                hud.access = !!(data.data && data.data.access);
+            case 'hudState': // client/hud.lua : PLD autorisé + unité du joueur
+                hud.pldAllowed = !!(data.data && data.data.pld);
                 hud.unit = (data.data && data.data.unit) || null;
                 renderHud();
                 break;

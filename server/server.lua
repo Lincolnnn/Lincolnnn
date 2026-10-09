@@ -114,12 +114,22 @@ local Locked = {} -- [kind] = true si le fichier est corrompu (on ne l'écrase p
 -- Mise à niveau des fiches créées avec une version précédente du MDC
 local Migrations = {}
 
+-- Anciennes fiches (État écrit en toutes lettres) -> code de l'État
+local STATE_NAMES = {
+    georgia = 'GA', florida = 'FL', floride = 'FL', tennessee = 'TN',
+    ['south carolina'] = 'SC', ['north carolina'] = 'NC', alabama = 'AL',
+}
+
 Migrations.identities = function(r)
     if type(r.licenseClass) == 'string' then
         r.licenseClass = r.licenseClass:gsub('^Prob %- ', 'Probatoire - ')
     end
     r.licenseClass = r.licenseClass or 'N/A'
     r.licenseStatus = r.licenseStatus or 'valid'
+    -- v1.13 : État d'émission sous forme de code (GA, FL…)
+    if type(r.licenseState) == 'string' then
+        r.licenseState = STATE_NAMES[r.licenseState:lower():gsub('^%s+', ''):gsub('%s+$', '')] or r.licenseState
+    end
     r.condition = r.condition or 'none'
     if type(r.restrictions) ~= 'table' then r.restrictions = {} end
     if type(r.records) ~= 'table' then r.records = {} end
@@ -467,22 +477,21 @@ end
 -- =========================================================================
 -- LISTES (doivent correspondre aux <option> de index.html)
 -- =========================================================================
-local LICENSE_CLASSES = {
-    ['N/A'] = true,
-    ['Class C - Standard'] = true,
-    ['Class F - Lourd'] = true,
-    ['Class E - Combiné'] = true,
-    ['Class M - Moto'] = true,
-    ['CDL A'] = true,
-    ['CDL B'] = true,
-    ['CDL C'] = true,
-    ['Probatoire - Class CP'] = true,
-    ['Probatoire - Class D'] = true,
-    ['Probatoire - Class MP'] = true,
+-- Licences de conduite par État d'émission (licences standard, moto et CDL de chaque État).
+-- Doit correspondre à LICENSE_STATES dans script.js.
+local LICENSE_STATES = {
+    GA = { ['Class C - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
+    FL = { ['Class E - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
+    TN = { ['Class D - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
+    SC = { ['Class D - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true, ['Class G - Cyclomoteur'] = true },
+    NC = { ['Class C - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
+    AL = { ['Class D - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
 }
 -- Condition de la licence ("disqualified" uniquement pour les licences CDL)
 local LICENSE_STATUSES = { valid = true, suspended = true, revoked = true, cancelled = true, disqualified = true }
-local RESTRICTIONS = { weapon = true }  -- weapon = Port d'arme (liste vide = N/A)
+-- Interdictions (cumulables ; liste vide = N/A) : port d'arme, conduite de jour uniquement,
+-- interdiction de rouler sur Interstate
+local RESTRICTIONS = { weapon = true, daylight = true, nointerstate = true }
 local CONDITIONS = { none = true, wanted = true, missing = true, deceased = true }
 
 local REG_STATUSES = { valid = true, invalid = true, suspended = true }
@@ -511,7 +520,7 @@ Builders.identities = function(p, selfId)
         address       = clean(p.address, 80),
         ssn           = clean(p.ssn, 11),
         job           = clean(p.job, 40),
-        licenseClass  = LICENSE_CLASSES[p.licenseClass] and p.licenseClass or 'N/A',
+        licenseClass  = 'N/A',
         licenseStatus = 'valid',
         licenseNumber = '',
         licenseState  = '',
@@ -538,9 +547,14 @@ Builders.identities = function(p, selfId)
         if other then return nil, ('Ce SSN est déjà attribué (fiche n°%d).'):format(other.id) end
     end
 
-    -- Licence de conduite (numéro, État et condition uniquement si une licence est choisie)
-    if r.licenseClass ~= 'N/A' then
-        r.licenseState = clean(p.licenseState, 40)
+    -- Licence de conduite (case "licence de conduite" cochée) : État d'émission, type de licence
+    -- de cet État, n° (généré si vide) et condition
+    if p.hasLicense == true then
+        local classes = LICENSE_STATES[p.licenseState]
+        if not classes then return nil, 'Choisissez l\'État d\'émission de la licence de conduite.' end
+        if not classes[p.licenseClass] then return nil, 'Choisissez un type de licence délivré par cet État.' end
+        r.licenseState = p.licenseState
+        r.licenseClass = p.licenseClass
         r.licenseStatus = LICENSE_STATUSES[p.licenseStatus] and p.licenseStatus or 'valid'
         if r.licenseStatus == 'disqualified' and not r.licenseClass:match('^CDL') then
             return nil, 'La disqualification ne concerne que les licences CDL.'
