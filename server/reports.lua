@@ -37,6 +37,7 @@
       reqIf = { condition }           obligatoire si la condition est vraie
       show  = { condition }           visible seulement si la condition est vraie
       w     = 1..4                    largeur (colonnes sur 4)
+    Modèle : archived = true -> plus de nouveaux rapports de ce type (les anciens restent lisibles)
       Condition : { k = clé, eq = valeur } | { k = clé, any = { ... } } | { k = clé, none = { ... } }
 ]]
 
@@ -114,10 +115,12 @@ local function vehicle(opts)
     }
 end
 
--- Infractions (citation / tickets / warning)
+-- Infractions (Citation, Traffic Citation, Convocation, Warning) : intitulé, case "Infraction"
+-- pour détailler l'infraction commise, et l'amende pour les citations.
 local function violations(withFine)
-    local fields = { { k = 'offense', t = 'text', l = 'Infraction', req = true, max = 120, w = withFine and 3 or 4 } }
+    local fields = { { k = 'offense', t = 'text', l = 'Intitulé de l\'infraction', req = true, max = 120, w = withFine and 3 or 4 } }
     if withFine then fields[2] = { k = 'fine', t = 'num', l = 'Amende', min = 0, max = 1000000, money = true } end
+    fields[#fields + 1] = { k = 'details', t = 'area', l = 'Infraction (détail de l\'infraction commise)', max = 1500, rows = 3, w = 4 }
     return { k = 'violations', t = 'list', l = 'Infractions', item = 'Infraction', add = '+ Ajouter une infraction',
              min = 1, max = 15, f = fields }
 end
@@ -313,7 +316,7 @@ local ARREST = {
     id = 'arrest',
     label = 'Arrest Report',
     short = 'Arrest',
-    summary = '{lastname} {firstname}',
+    summary = '{lastname} {firstname} — {#charges} charge(s)',
     sections = {
         { title = 'Informations générales', f = whenWhere() },
         { title = 'Personne arrêtée', f = (function()
@@ -321,6 +324,12 @@ local ARREST = {
             fields[#fields + 1] = { k = 'marks', t = 'text', l = 'Signes distinctifs', max = 120, w = 4 }
             return fields
         end)() },
+        { title = 'Charges', f = {
+            { k = 'charges', t = 'list', l = 'Charges', item = 'Charge', add = '+ Ajouter une charge', min = 1, max = 20, f = {
+                { k = 'charge', t = 'text', l = 'Charge', req = true, max = 120, w = 4 },
+                { k = 'details', t = 'area', l = 'Détail de la charge', max = 1500, rows = 3, w = 4 },
+            } },
+        } },
         { title = 'Arrestation', f = {
             { k = 'miranda', t = 'check', l = 'Droits Miranda lus' },
             { k = 'force', t = 'check', l = 'Usage de la force' },
@@ -382,9 +391,9 @@ local CITATION = {
 }
 
 local TRAFFIC = {
-    id = 'traffic',
-    label = 'Traffic Ticket',
-    short = 'Traffic',
+    id = 'traffic', -- ancien "Traffic Ticket" : même clé, les rapports déjà rédigés restent lisibles
+    label = 'Traffic Citation',
+    short = 'Traffic Citation',
     summary = '{plate} — {lastname} {firstname}',
     sections = {
         { title = 'Informations générales', f = whenWhere() },
@@ -406,8 +415,29 @@ local TRAFFIC = {
     },
 }
 
+local CONVOCATION = {
+    id = 'convocation',
+    label = 'Convocation',
+    short = 'Convocation',
+    summary = '{lastname} {firstname} — {summonsDate}',
+    sections = {
+        { title = 'Informations générales', f = whenWhere() },
+        { title = 'Personne convoquée', f = person({ req = true, license = true }) },
+        { title = 'Infractions', f = { violations(false) } },
+        { title = 'Convocation', f = {
+            { k = 'summonsDate', t = 'date', l = 'Date de la convocation', req = true },
+            { k = 'summonsTime', t = 'time', l = 'Heure', req = true },
+            { k = 'summonsPlace', t = 'text', l = 'Lieu (tribunal, poste…)', req = true, max = 80, w = 2 },
+            { k = 'refused', t = 'check', l = 'Refus de signer' },
+        } },
+        { title = 'Notes', f = { narrative('Notes de l\'agent', false) } },
+    },
+}
+
+-- Ancien modèle, retiré : on ne peut plus en créer, les rapports existants restent lisibles
 local TICKET = {
     id = 'ticket',
+    archived = true,
     label = 'Ticket',
     short = 'Ticket',
     summary = '{plate} — {address}',
@@ -439,5 +469,5 @@ local WARNING = {
     },
 }
 
--- Ordre d'affichage dans l'onglet "Rapports"
-MDC_REPORT_TYPES = { DOT523, ARREST, INCIDENT, CITATION, TRAFFIC, TICKET, WARNING }
+-- Ordre d'affichage dans l'onglet "Rapports" (archived = true : lecture seule, absent des boutons)
+MDC_REPORT_TYPES = { DOT523, ARREST, INCIDENT, CITATION, TRAFFIC, CONVOCATION, WARNING, TICKET }

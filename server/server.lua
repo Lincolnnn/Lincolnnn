@@ -952,6 +952,14 @@ RegisterMDCCallback('deleteUnit', function(src, payload)
     return { ok = true }
 end)
 
+-- Notification "statut de l'unité" (en haut à droite) envoyée à chaque membre de l'unité
+local function notifyUnitStatus(unit)
+    local data = { name = unit.name, tag = unit.tag, color = unit.color, status = unit.status }
+    for key in pairs(unit.members) do
+        TriggerClientEvent('mdc:client:statusNotify', tonumber(key), data)
+    end
+end
+
 -- Statut de l'unité du joueur (barre latérale)
 RegisterMDCCallback('setStatus', function(src, payload)
     local unit = findUnit(PlayerUnit[src])
@@ -972,6 +980,7 @@ RegisterMDCCallback('setStatus', function(src, payload)
     unit.status = payload.status
     unit.updatedAt = os.time()
     pushUnits()
+    notifyUnitStatus(unit)
     return { ok = true }
 end)
 
@@ -1209,9 +1218,11 @@ RegisterMDCCallback('interventionAction', function(src, payload)
 
     if payload.action == 'join' then
         call.units[key] = true
+        local changed = unit.status ~= 'en_route'
         unit.status = 'en_route' -- rejoindre un appel passe l'unité "En route"
         unit.updatedAt = os.time()
         pushUnits()
+        if changed then notifyUnitStatus(unit) end
     elseif payload.action == 'leave' then
         call.units[key] = nil
     elseif payload.action == 'end' then
@@ -1721,6 +1732,9 @@ RegisterMDCCallback('saveReport', function(src, payload)
 
     local reportType = ReportTypes[old and old.type or payload.type]
     if not reportType then return { ok = false, error = 'Type de rapport invalide.' } end
+    if reportType.archived and not old then
+        return { ok = false, error = 'Ce type de rapport n\'est plus utilisé.' }
+    end
 
     -- Intervention / incident lié (en cours ou terminé)
     local link

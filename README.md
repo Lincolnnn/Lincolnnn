@@ -29,7 +29,7 @@ L'heure affichée en bas à droite du MDC est l'heure du jeu.
 | Unités | Deux listes, une par service : **Atlanta Police Department** et **Georgia State Patrol** (chacun voit les deux). Bouton **Créer une unité** par service (service, nom, tag facultatif, couleur). Chacun peut rejoindre, quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur) |
 | Interventions | Liste des interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer pour le masquer. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous |
-| Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation, Traffic Ticket, Ticket, Warning. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
+| Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation, Traffic Citation, Convocation, Warning (case « Infraction » pour détailler chaque infraction ; « Charges » pour l'Arrest Report). Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
 | Paramètres | Réglages du HUD (affichage, éléments visibles, taille, position) et du MDC (taille de l'interface, onglet à l'ouverture, fenêtre). Gardés chez le joueur, même après une reconnexion |
 | Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
@@ -46,8 +46,9 @@ Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fin
   `config/LISEZMOI.txt` ; la commande `/mdc_pos` (console F8) donne la ligne à copier.
 - **Display MDC** : affiché seulement dans une unité : nom, tag, statut, et le n° d'incident uniquement quand
   l'unité est sur un appel.
-- **Notifications** (en haut à droite) : toutes les notifications du MDC, et chaque nouvelle intervention / nouvel
-  incident (nom, priorité, adresse, bloc) pour les joueurs en unité ou ayant le MDC ouvert, avec un son.
+- **Notifications** (en haut à droite) : toutes les notifications du MDC, et, même MDC fermé : nouvel appel
+  (titre, priorité, adresse, croisement, bloc), nouvel incident (titre, unité créatrice, adresse, croisement, bloc) et
+  changement de statut de votre unité. Chacune se désactive dans « Paramètres ».
 
 Onglet **Paramètres** : afficher / masquer chaque HUD et ses éléments, taille (50 à 200 %), **Placer les HUD à
 l'écran** (glisser à la souris, molette = taille), notifications et son.

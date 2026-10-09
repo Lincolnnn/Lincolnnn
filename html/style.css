@@ -936,6 +936,14 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .ct-title { margin: 3px 0 4px; font-size: 15px; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ct-row { display: flex; align-items: center; font-size: 12px; line-height: 18px; }
 .ct-row .hud-label { min-width: 64px; }
+.status-toast { --prio: 138, 138, 138; width: 280px; }
+.status-toast[data-status="available"]   { --prio: var(--st-available); }
+.status-toast[data-status="en_route"]    { --prio: var(--st-en_route); }
+.status-toast[data-status="on_scene"]    { --prio: var(--st-on_scene); }
+.status-toast[data-status="unavailable"] { --prio: var(--st-unavailable); }
+.ct-unit { margin-top: 3px; font-size: 13px; color: #cfcfcf; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ct-status { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 16px; font-weight: bold; color: #fff; }
+.ct-status .sq { width: 12px; height: 12px; border-radius: 2px; }
 @keyframes call-in { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: none; } }
 
 /* =========================================================================

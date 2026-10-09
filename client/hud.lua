@@ -6,7 +6,8 @@
         -> toujours affiché (désactivable dans l'onglet "Paramètres" du MDC)
       - Display MDC : nom de l'unité, tag, statut, n° d'incident de l'appel en cours
         -> affiché uniquement quand le joueur fait partie d'une unité
-    + les notifications de nouvelles interventions (en haut à droite de l'écran).
+    + les notifications (en haut à droite de l'écran) : nouvel appel, nouvel incident,
+      changement de statut de l'unité.
 
     Performance :
       - Le PLD utilise UNE boucle lente (Config.Interval ms, 500 par défaut) qui
@@ -266,6 +267,12 @@ RegisterNetEvent('mdc:client:callNotify', function(call)
     if setting('notify', 'sound') then
         PlaySoundFrontend(-1, Config.CallSound.name, Config.CallSound.set, false)
     end
+end)
+
+-- Changement de statut de l'unité du joueur : notification en haut à droite
+RegisterNetEvent('mdc:client:statusNotify', function(unit)
+    if type(unit) ~= 'table' or not setting('notify', 'status') then return end
+    SendNUIMessage({ action = 'statusNotify', data = unit })
 end)
 
 -- Au démarrage : on demande au serveur l'accès et l'unité actuelle

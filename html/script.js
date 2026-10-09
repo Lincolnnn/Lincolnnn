@@ -384,9 +384,8 @@
 
         const res = await post('setStatus', { status });
         if (res && res.ok) {
-            unit.status = status;
+            unit.status = status; // la notification "statut de l'unité" arrive du serveur
             renderUnits();
-            toast(`${unit.name} : ${STATUS_LABELS[status]}`, 'success');
         } else {
             toast(res?.error || 'Impossible de changer de statut.', 'error');
         }
@@ -933,7 +932,7 @@
         return `
             <div class="toolbar report-starter">
                 <span class="lbl-inline">Rapport lié :</span>
-                <select id="callReportType">${reports.types.map((t) => `<option value="${esc(t.id)}" ${t.id === state.callReportType ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
+                <select id="callReportType">${reports.types.filter((t) => !t.archived).map((t) => `<option value="${esc(t.id)}" ${t.id === state.callReportType ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
                 <button type="button" class="btn" data-call-action="writeReport">+ Rédiger un rapport</button>
             </div>`;
     }
@@ -2663,10 +2662,10 @@
             reports.byId[type.id] = type;
             reports.index[type.id] = indexFields(allFields(type), {});
         });
-        $('#reportTypeButtons').innerHTML = reports.types.map((type) =>
+        $('#reportTypeButtons').innerHTML = reports.types.filter((type) => !type.archived).map((type) =>
             `<button type="button" class="btn" data-report-type="${esc(type.id)}" title="${esc(type.label)}">${esc(type.button || type.label)}</button>`).join('');
         $('#reportFilter').innerHTML = '<option value="">Tous les types</option>'
-            + reports.types.map((type) => `<option value="${esc(type.id)}">${esc(type.short)}</option>`).join('');
+            + reports.types.map((type) => `<option value="${esc(type.id)}">${esc(type.short)}${type.archived ? ' (ancien)' : ''}</option>`).join('');
         return true;
     }
 
@@ -2734,17 +2733,33 @@
                 <span class="ct-number">${esc(c.number)}</span>
             </div>
             <div class="ct-title">${esc(c.title)}</div>
-            <div class="ct-row"><span class="hud-label">PRIORITÉ</span>${incident
-                ? `Incident${c.unitName ? ` — ${esc(c.unitName)}` : ''}`
-                : (prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-')}</div>
+            ${incident
+                ? `<div class="ct-row"><span class="hud-label">UNITÉ</span>${esc(c.unitName || '-')}</div>`
+                : `<div class="ct-row"><span class="hud-label">PRIORITÉ</span>${prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-'}</div>`}
             <div class="ct-row"><span class="hud-label">ADRESSE</span>${esc(c.address)}</div>
             ${c.crossStreet ? `<div class="ct-row"><span class="hud-label">CROISEMENT</span>${esc(c.crossStreet)}</div>` : ''}
             <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
+        pushNotification(el, 12000);
+    }
+
+    function pushNotification(el, duration) {
         const box = $('#toasts');
         while (box.children.length >= 5) box.firstElementChild.remove();
         box.appendChild(el);
         el.addEventListener('click', () => el.remove());
-        setTimeout(() => el.remove(), 12000);
+        setTimeout(() => el.remove(), duration);
+    }
+
+    // Changement de statut de l'unité du joueur (sidebar, appel rejoint...)
+    function statusNotification(u) {
+        const el = document.createElement('div');
+        el.className = 'call-toast status-toast';
+        el.innerHTML = `
+            <div class="ct-head"><span>STATUT DE L'UNITÉ</span>${u.tag ? `<span class="ct-number">${esc(u.tag)}</span>` : ''}</div>
+            <div class="ct-unit">${esc(u.name)}</div>
+            <div class="ct-status"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</div>`;
+        el.dataset.status = u.status; // couleur du liseré
+        pushNotification(el, 6000);
     }
 
     // =====================================================================
@@ -2757,7 +2772,7 @@
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true },
         mdc: { zoom: 1, startTab: 'last' },
-        notify: { calls: true, sound: true },
+        notify: { calls: true, sound: true, status: true },
     };
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -3009,6 +3024,9 @@
                 break;
             case 'callNotify': // nouvelle intervention / nouvel incident (même MDC fermé)
                 if (data.data) callNotification(data.data);
+                break;
+            case 'statusNotify': // nouveau statut de l'unité du joueur
+                if (data.data) statusNotification(data.data);
                 break;
         }
     });
