@@ -7,11 +7,13 @@
           data/identities.json
           data/vehicles.json
           data/reports.json
+          data/bolos.json      (BOLOs actifs)
       Ils survivent aux déconnexions et aux redémarrages du serveur. Identités et
       véhicules restent accessibles via les recherches et dans le registre de leur
       créateur ; les rapports dans l'onglet "Rapports".
 
-      Le script ne SUPPRIME JAMAIS une identité, un véhicule ou un rapport. Seuls les cadres
+      Le script ne SUPPRIME JAMAIS une identité, un véhicule ou un rapport (seuls les BOLOs
+      peuvent être supprimés depuis le MDC, quand ils ne sont plus d'actualité). Seuls les cadres
       du serveur peuvent retirer une entrée, manuellement :
           1. Ouvrez le fichier JSON voulu et supprimez l'objet { ... } concerné
              (attention aux virgules : le fichier doit rester un JSON valide).
@@ -46,6 +48,7 @@ local Config = {
     MaxReportResults = 200, -- nombre max de rapports affichés dans la liste
     MaxUnitMembers = 4,     -- nombre max de joueurs dans une unité
     MaxSharedHistory = 100, -- historique de recherches partagé par une unité
+    MaxBolos = 200,         -- nombre max de BOLOs actifs
 
     -- Débit (octets/s) des réponses "latentes" (modèles et contenu des rapports,
     -- qui peuvent dépasser la taille d'un événement classique)
@@ -105,10 +108,11 @@ local DATA_FILES = {
     identities = 'data/identities.json',
     vehicles   = 'data/vehicles.json',
     reports    = 'data/reports.json',
+    bolos      = 'data/bolos.json',
 }
 
-local Store  = { identities = {}, vehicles = {}, reports = {} }
-local NextId = { identities = 1, vehicles = 1, reports = 1 }
+local Store  = { identities = {}, vehicles = {}, reports = {}, bolos = {} }
+local NextId = { identities = 1, vehicles = 1, reports = 1, bolos = 1 }
 local Locked = {} -- [kind] = true si le fichier est corrompu (on ne l'écrase pas)
 
 -- Mise à niveau des fiches créées avec une version précédente du MDC
@@ -152,6 +156,11 @@ Migrations.reports = function(r)
     if r.type == 'warning' and r.data.category == nil then
         r.data.category = (type(r.data.plate) == 'string' and r.data.plate ~= '') and 'road' or 'other'
     end
+end
+
+Migrations.bolos = function(r)
+    if type(r.vehicles) ~= 'table' then r.vehicles = {} end
+    if type(r.origins) ~= 'table' then r.origins = {} end
 end
 
 --- Charge un fichier JSON en mémoire. Retourne true si le fichier existait.
@@ -229,6 +238,7 @@ local createIntervention    -- défini dans la section INTERVENTIONS
 local reportLinks           -- défini dans la section RAPPORTS
 local shareUnitSearch       -- défini dans la section ESPACE PARTAGÉ D'UNITÉ
 local pushHud               -- défini dans la section HUD
+local bolosFor              -- défini dans la section BOLOs
 
 -- Identifiant de cette session du serveur : un rapport n'est relié "en direct" à une
 -- intervention que si le lien date de la session en cours (les interventions sont
@@ -359,12 +369,14 @@ end
 local function identityView(identity)
     local view = publicView(identity, 'identity')
     view.vehicles = vehiclesOf(identity)
+    view.bolos = bolosFor('identity', identity) -- BOLOs actifs visant cette personne
     return view
 end
 
 local function vehicleView(vehicle)
     local view = publicView(vehicle, 'vehicle')
     view.ownerIdentity = ownerOf(vehicle)
+    view.bolos = bolosFor('vehicle', vehicle)
     return view
 end
 
@@ -1834,6 +1846,308 @@ RegisterMDCCallback('saveReport', function(src, payload)
     print(('^5[MDC]^0 Rapport %s n°%s %s par %s [%s] (intervention %s)'):format(reportType.short, record.number,
         old and 'modifié' or 'créé', agentName(src), GetPlayerName(src) or '?', link and link.number or '-'))
     return { ok = true, id = record.id, number = record.number }
+end)
+
+-- =========================================================================
+-- BOLOs ("Be On the Look-Out") : avis de recherche d'un individu ou d'un véhicule
+-- Permanents (data/bolos.json) jusqu'à leur suppression depuis le MDC.
+-- N'importe quel agent peut créer, modifier ou supprimer un BOLO.
+--   Individu : motif, identité (facultative, depuis l'historique des recherches),
+--              description, lieu, détails et véhicule(s) utilisé(s)
+--   Véhicule : motif, immatriculation PARTIELLE (complète = c'est le propriétaire
+--              qui est recherché : BOLO individu), marque, modèle, couleur, type, détails
+-- Une description non cochée / non renseignée est affichée "Inconnue".
+-- =========================================================================
+-- Doivent correspondre à BOLO_ORIGINS / BOLO_VEHICLE_TYPES dans script.js
+local BOLO_ORIGINS = {
+    white = true, hispanic = true, black = true, asian = true, native = true, mideast = true,
+}
+local BOLO_VEHICLE_TYPES = {
+    ['Compact'] = true, ['Sedan'] = true, ['SUV'] = true, ['Coupé'] = true, ['Break'] = true,
+    ['Muscle'] = true, ['Sport'] = true, ['Pick-up'] = true, ['Van'] = true, ['Moto'] = true,
+    ['Camion'] = true, ['Autre'] = true,
+}
+local BOLO_MAX_VEHICLES = 5
+local BOLO_WILDCARD = '*' -- caractère inconnu d'une immatriculation partielle
+
+--- Immatriculation de BOLO : lettres, chiffres et * (caractère inconnu), 8 max
+local function boloPlate(plate)
+    return (clean(plate, 16):upper():gsub('[^%w%*]', ''):sub(1, 8))
+end
+
+--- Une immatriculation est complète si elle est enregistrée, ou si elle a 8 caractères
+--- sans aucun caractère inconnu.
+local function plateIsComplete(plate)
+    if plate == '' or plate:find(BOLO_WILDCARD, 1, true) then return false end
+    return #plate == 8 or findBy('vehicles', 'plate', plate) ~= nil
+end
+
+--- Immatriculation partielle d'un BOLO (ex. "AB*12") retrouvée dans une immatriculation
+--- (au moins 3 caractères connus, sinon trop de correspondances).
+local function plateMatches(pattern, plate)
+    if type(pattern) ~= 'string' or #pattern:gsub('%*', '') < 3 or type(plate) ~= 'string' then return false end
+    local luaPattern = pattern:gsub('%*', '.')
+    return plate:find(luaPattern) ~= nil
+end
+
+local function boloVehicle(v, i)
+    local name = ('Véhicule n°%d'):format(i)
+    if type(v) ~= 'table' then return nil, name .. ' invalide.' end
+    local out = {
+        plate = boloPlate(v.plate),
+        make  = clean(v.make, 40),
+        model = clean(v.model, 40),
+        color = clean(v.color, 40),
+        vtype = BOLO_VEHICLE_TYPES[v.vtype] and v.vtype or '',
+    }
+    if out.plate == '' and out.make == '' and out.model == '' and out.color == '' and out.vtype == '' then
+        return nil, name .. ' : renseignez au moins un élément (ou retirez-le).'
+    end
+    -- Immatriculation enregistrée : lien vers la fiche du véhicule
+    local record = out.plate ~= '' and findBy('vehicles', 'plate', out.plate)
+    if record then out.recordId = record.id end
+    return out
+end
+
+--- Valide le formulaire d'un BOLO. Retourne (bolo) ou (nil, message d'erreur).
+local function buildBolo(p)
+    local kind = p.kind == 'person' and 'person' or p.kind == 'vehicle' and 'vehicle' or nil
+    if not kind then return nil, 'Choisissez le type de BOLO (individu ou véhicule).' end
+
+    local r = { kind = kind, reason = clean(p.reason, 120), details = cleanMultiline(p.details, 2000) }
+    if r.reason == '' then return nil, 'Le motif est obligatoire.' end
+
+    if kind == 'vehicle' then
+        r.plate = boloPlate(p.plate)
+        r.make, r.model, r.color = clean(p.make, 40), clean(p.model, 40), clean(p.color, 40)
+        r.vtype = BOLO_VEHICLE_TYPES[p.vtype] and p.vtype or ''
+        if plateIsComplete(r.plate) then
+            return nil, 'Immatriculation complète : c\'est son propriétaire qui est recherché. Créez un BOLO ' ..
+                '"Individu" (avec ce véhicule), ou remplacez les caractères inconnus par *.'
+        end
+        if r.plate == '' and r.make == '' and r.model == '' and r.color == '' and r.vtype == '' then
+            return nil, 'Renseignez au moins un élément du véhicule (immatriculation partielle, marque, modèle, couleur ou type).'
+        end
+        return r
+    end
+
+    -- Individu : identité facultative (fiche existante)
+    local identityId = tonumber(p.identityId)
+    if identityId then
+        local identity = findBy('identities', 'id', identityId)
+        if not identity then return nil, 'Identité introuvable : refaites la recherche.' end
+        r.identityId = identity.id
+        r.identityLabel = identityLabel(identity)
+    end
+
+    -- Description : chaque case cochée exige sa précision (non cochée = "Inconnue")
+    r.hairKnown = p.hairKnown == true
+    r.hairColor = r.hairKnown and clean(p.hairColor, 40) or ''
+    if r.hairKnown and r.hairColor == '' then return nil, 'Cheveux : précisez la couleur (ou décochez la case).' end
+
+    r.facialKnown = p.facialKnown == true
+    r.facialType = r.facialKnown and clean(p.facialType, 40) or ''
+    r.facialColor = r.facialKnown and clean(p.facialColor, 40) or ''
+    if r.facialKnown and r.facialType == '' then return nil, 'Pilosité faciale : précisez le type (ou décochez la case).' end
+
+    r.tattooKnown = p.tattooKnown == true
+    r.tattoos = r.tattooKnown and cleanMultiline(p.tattoos, 500) or ''
+    if r.tattooKnown and r.tattoos == '' then return nil, 'Tatouages : précisez lesquels (ou décochez la case).' end
+
+    r.skin = clean(p.skin, 40)
+    r.clothing = cleanMultiline(p.clothing, 500)
+
+    r.origins = {}
+    if type(p.origins) == 'table' then
+        local seen = {}
+        for _, origin in ipairs(p.origins) do
+            if BOLO_ORIGINS[origin] and not seen[origin] then
+                seen[origin] = true
+                r.origins[#r.origins + 1] = origin
+            end
+        end
+    end
+
+    local height = clean(p.height, 3)
+    if height ~= '' then
+        r.height = tonumber(height)
+        if not height:match('^%d+$') or r.height < 50 or r.height > 250 then
+            return nil, 'Taille invalide (en cm, de 50 à 250).'
+        end
+    end
+
+    r.location = clean(p.location, 120)
+
+    r.vehicles = {}
+    if type(p.vehicles) == 'table' then
+        if #p.vehicles > BOLO_MAX_VEHICLES then return nil, ('%d véhicules maximum.'):format(BOLO_MAX_VEHICLES) end
+        for i, v in ipairs(p.vehicles) do
+            local vehicle, err = boloVehicle(v, i)
+            if not vehicle then return nil, err end
+            r.vehicles[i] = vehicle
+        end
+    end
+    return r
+end
+
+--- Résumé affiché dans la liste
+local function boloSummary(bolo)
+    if bolo.kind == 'vehicle' then
+        local parts = { bolo.plate ~= '' and bolo.plate or nil }
+        local name = table.concat({ bolo.make or '', bolo.model or '' }, ' '):gsub('^%s+', ''):gsub('%s+$', '')
+        if name ~= '' then parts[#parts + 1] = name end
+        if bolo.color ~= '' then parts[#parts + 1] = bolo.color end
+        if bolo.vtype ~= '' then parts[#parts + 1] = bolo.vtype end
+        return table.concat(parts, ' — ')
+    end
+    local parts = { bolo.identityLabel or 'Individu non identifié' }
+    if bolo.height then parts[#parts + 1] = bolo.height .. ' cm' end
+    if #bolo.vehicles > 0 then parts[#parts + 1] = ('%d véhicule(s)'):format(#bolo.vehicles) end
+    return table.concat(parts, ' — ')
+end
+
+local function boloListItem(bolo)
+    return {
+        id = bolo.id, number = bolo.number, kind = bolo.kind, reason = bolo.reason,
+        summary = boloSummary(bolo), location = bolo.location,
+        createdAt = bolo.createdAt, updatedAt = bolo.updatedAt,
+    }
+end
+
+local function bolosList()
+    local list = {}
+    for i = #Store.bolos, 1, -1 do -- les plus récents d'abord
+        list[#list + 1] = boloListItem(Store.bolos[i])
+    end
+    return list
+end
+
+local function pushBolos()
+    pushToViewers('bolos', bolosList())
+end
+
+--- BOLOs actifs visant une fiche (affichés en alerte dans les recherches) :
+---   identité : BOLO individu lié à cette identité
+---   véhicule : BOLO individu utilisant ce véhicule, ou BOLO véhicule dont
+---              l'immatriculation partielle correspond (correspondance possible)
+bolosFor = function(kind, record)
+    local list = {}
+    for _, bolo in ipairs(Store.bolos) do
+        local match, possible = false, false
+        if kind == 'identity' then
+            match = bolo.kind == 'person' and bolo.identityId == record.id
+        elseif bolo.kind == 'person' then
+            for _, v in ipairs(bolo.vehicles or {}) do
+                if v.recordId == record.id or (v.plate ~= '' and v.plate == record.plate) then match = true break end
+            end
+        else
+            match = plateMatches(bolo.plate, record.plate)
+            possible = match
+        end
+        if match then
+            list[#list + 1] = { id = bolo.id, number = bolo.number, reason = bolo.reason, possible = possible or nil }
+        end
+    end
+    return list
+end
+
+RegisterMDCCallback('getBolos', function()
+    return { ok = true, bolos = bolosList() }
+end)
+
+RegisterMDCCallback('getBolo', function(_, payload)
+    local bolo = findBy('bolos', 'id', tonumber(payload.id))
+    if not bolo then return { ok = false, error = 'Ce BOLO n\'existe plus.' } end
+    local view = publicView(bolo, bolo.kind) -- kind : 'person' ou 'vehicle'
+    -- Nom à jour de l'identité liée (si la fiche existe encore)
+    if bolo.identityId then
+        local identity = findBy('identities', 'id', bolo.identityId)
+        view.identityExists = identity ~= nil
+        if identity then view.identityLabel = identityLabel(identity) end
+    end
+    return { ok = true, bolo = view }
+end)
+
+-- Création (sans id) ou modification (id) d'un BOLO
+RegisterMDCCallback('saveBolo', function(src, payload)
+    if Locked.bolos then
+        return { ok = false, error = 'Enregistrement bloqué : fichier de données corrompu (voir console serveur).' }
+    end
+    local id = tonumber(payload.id)
+    local old, index
+    if id then
+        old, index = findBy('bolos', 'id', id)
+        if not old then return { ok = false, error = 'Ce BOLO n\'existe plus.' } end
+        if payload.kind ~= old.kind then return { ok = false, error = 'Le type d\'un BOLO ne peut pas être modifié.' } end
+    elseif #Store.bolos >= Config.MaxBolos then
+        return { ok = false, error = ('%d BOLOs actifs maximum : supprimez ceux qui ne sont plus d\'actualité.'):format(Config.MaxBolos) }
+    end
+
+    local record, err = buildBolo(payload)
+    if not record then return { ok = false, error = err } end
+    if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
+
+    if old then
+        record.id, record.number = old.id, old.number
+        record.createdAt, record.createdBy, record.createdByName, record.unitName = old.createdAt, old.createdBy, old.createdByName, old.unitName
+        record.updatedAt = os.time()
+        record.updatedByName = agentName(src)
+        Store.bolos[index] = record
+        if not saveStore('bolos') then
+            Store.bolos[index] = old
+            return { ok = false, error = 'Erreur d\'écriture sur le serveur : modification annulée (voir console).' }
+        end
+    else
+        local unit = findUnit(PlayerUnit[src])
+        record.id = NextId.bolos
+        record.number = uniqueValue('bolos', 'number', genCaseNumber)
+        record.createdAt = os.time()
+        record.createdByName = agentName(src)
+        record.unitName = unit and unit.name or nil
+        record.createdBy = getIdentifier(src) -- privé : jamais envoyé aux clients (voir publicView)
+        Store.bolos[#Store.bolos + 1] = record
+        if not saveStore('bolos') then
+            table.remove(Store.bolos)
+            return { ok = false, error = 'Erreur d\'écriture sur le serveur : rien n\'a été enregistré (voir console).' }
+        end
+        NextId.bolos = NextId.bolos + 1
+    end
+
+    pushBolos()
+    print(('^5[MDC]^0 BOLO n°%s %s par %s [%s]'):format(record.number, old and 'modifié' or 'créé', agentName(src), GetPlayerName(src) or '?'))
+    return { ok = true, id = record.id, number = record.number }
+end)
+
+-- Suppression définitive (BOLO levé)
+RegisterMDCCallback('deleteBolo', function(src, payload)
+    if Locked.bolos then
+        return { ok = false, error = 'Suppression bloquée : fichier de données corrompu (voir console serveur).' }
+    end
+    local bolo, index = findBy('bolos', 'id', tonumber(payload.id))
+    if not bolo then return { ok = false, error = 'Ce BOLO n\'existe plus.' } end
+
+    table.remove(Store.bolos, index)
+    if not saveStore('bolos') then
+        table.insert(Store.bolos, index, bolo)
+        return { ok = false, error = 'Erreur d\'écriture sur le serveur : suppression annulée (voir console).' }
+    end
+
+    pushBolos()
+    print(('^5[MDC]^0 BOLO n°%s supprimé par %s [%s]'):format(bolo.number, agentName(src), GetPlayerName(src) or '?'))
+    return { ok = true }
+end)
+
+-- Immatriculation complète saisie dans un BOLO : informations du véhicule enregistré
+-- (remplissage automatique de la marque, du modèle et de la couleur)
+RegisterMDCCallback('lookupPlate', function(_, payload)
+    local plate = normalizePlate(payload.plate)
+    local vehicle = plate ~= '' and findBy('vehicles', 'plate', plate)
+    if not vehicle then return { ok = true, found = false } end
+    local owner = ownerOf(vehicle)
+    return { ok = true, found = true, vehicle = {
+        id = vehicle.id, plate = vehicle.plate, make = vehicle.make, model = vehicle.model, color = vehicle.color,
+        ownerId = owner and owner.id or nil, ownerLabel = owner and identityLabel(owner) or nil,
+    } }
 end)
 
 -- =========================================================================

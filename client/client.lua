@@ -309,6 +309,13 @@ relay('getReports',        'getReports')        -- Liste (filtrée par type / te
 relay('getReport',         'getReport')         -- Rapport complet
 relay('saveReport',        'saveReport', true)  -- Création / modification (envoi latent : peut être volumineux)
 
+-- BOLOs (bouton "BOLOs" de l'onglet Recherches)
+relay('getBolos',          'getBolos')          -- Liste des BOLOs actifs
+relay('getBolo',           'getBolo')           -- Détails d'un BOLO
+relay('saveBolo',          'saveBolo')          -- Création / modification
+relay('deleteBolo',        'deleteBolo')        -- Suppression (BOLO levé)
+relay('lookupPlate',       'lookupPlate')       -- Immatriculation complète -> marque / modèle / couleur
+
 -- Espace partagé d'unité (recherches et rapport en cours, communs aux membres de l'unité)
 relay('getUnitShared',     'getUnitShared')
 

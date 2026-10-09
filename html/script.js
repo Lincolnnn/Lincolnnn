@@ -317,7 +317,8 @@
     function showPage(page) {
         state.page = page;
         hideSuggest();
-        $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.page === page));
+        const tab = page === 'bolos' ? 'search' : page; // la page des BOLOs fait partie des Recherches
+        $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.page === tab));
         $$('.page').forEach((p) => p.classList.toggle('active', p.id === `page-${page}`));
         loadPage(page);
     }
@@ -328,6 +329,7 @@
         else if (page === 'reports') loadReportsPage();
         else if (page === 'create') loadCreateView(state.createView);
         else if (page === 'settings') renderSettings();
+        else if (page === 'search' || page === 'bolos') refreshBolos();
     }
 
     $$('.tab').forEach((tab) => tab.addEventListener('click', () => showPage(tab.dataset.page)));
@@ -629,6 +631,7 @@
         return `
             ${sheetHead(`FICHE D'IDENTITÉ — ${fullName(r)}`, r, editable)}
             ${conditionAlert(r)}
+            ${boloAlerts(r)}
             <dl class="sheet">
                 ${row('Prénom', r.firstname)}
                 ${row('Middle name', r.middlename)}
@@ -673,6 +676,7 @@
         return `
             ${sheetHead(`FICHE VÉHICULE — ${r.plate}`, r, editable)}
             ${alerts}
+            ${boloAlerts(r)}
             <dl class="sheet">
                 ${row('Immatriculation', r.plate)}
                 ${dd('Statut de l\'immatriculation', regFlag(r.regStatus))}
@@ -745,7 +749,7 @@
                     <td>Identité</td>
                     <td><b>${esc(String(r.lastname).toUpperCase())}</b> ${esc([r.firstname, r.middlename].filter(Boolean).join(' '))}</td>
                     <td>${esc(r.dob)}${r.sex ? ` (${esc(r.sex)})` : ''} — SSN ${esc(r.ssn || '-')}</td>
-                    <td>${conditionFlag(r.condition)}</td>
+                    <td>${conditionFlag(r.condition)}${boloFlag(r)}</td>
                 </tr>`;
         }
         const owner = r.ownerIdentity ? fullName(r.ownerIdentity) : (r.ownerName || 'Propriétaire inconnu');
@@ -754,8 +758,15 @@
                 <td>Véhicule</td>
                 <td><b>${esc(r.plate)}</b></td>
                 <td>${esc([r.make, r.model].filter(Boolean).join(' '))} — ${esc(owner)}</td>
-                <td>${regFlag(r.regStatus)}${r.stolen ? ` ${flag('c-red', 'Volé')}` : ''}</td>
+                <td>${regFlag(r.regStatus)}${r.stolen ? ` ${flag('c-red', 'Volé')}` : ''}${boloFlag(r)}</td>
             </tr>`;
+    }
+
+    // Étiquette "BOLO" dans la liste des résultats (BOLO ? = immatriculation partielle correspondante)
+    function boloFlag(r) {
+        const list = toArray(r.bolos);
+        if (!list.length) return '';
+        return ` ${list.some((b) => !b.possible) ? flag('c-red', 'BOLO') : flag('c-yellow', 'BOLO ?')}`;
     }
 
     function renderSearchResults(selectIndex) {
@@ -1506,6 +1517,9 @@
             input.value = [digits.slice(0, 3), digits.slice(3, 5), digits.slice(5)].filter(Boolean).join('-');
         } else if (input.classList.contains('digits')) {
             input.value = input.value.replace(/\D/g, '');
+        } else if (input.classList.contains('bolo-plate')) {
+            // Immatriculation de BOLO : * = caractère inconnu
+            input.value = input.value.toUpperCase().replace(/[^A-Z0-9*]/g, '').slice(0, 8);
         } else if (input.name === 'plate' || input.name === 'vin') {
             input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
         }
@@ -3324,6 +3338,623 @@
     }
 
     // =====================================================================
+    // BOLOs ("Be On the Look-Out") : avis de recherche d'un individu ou d'un véhicule
+    // Page ouverte par le bouton "BOLOs" des Recherches : liste des BOLOs actifs à gauche,
+    // détails / création / modification à droite.
+    // Une description non cochée ou non renseignée est affichée "Inconnue".
+    // =====================================================================
+    // Clés identiques à BOLO_ORIGINS / BOLO_VEHICLE_TYPES dans server.lua
+    const BOLO_ORIGINS = [
+        ['white', 'Blanc'], ['hispanic', 'Hispanique'], ['black', 'Afro-américain'],
+        ['asian', 'Asiatique'], ['native', 'Natif'], ['mideast', 'Moyen-Orient'],
+    ];
+    const BOLO_ORIGIN_LABELS = Object.fromEntries(BOLO_ORIGINS);
+    const BOLO_VEHICLE_TYPES = ['Compact', 'Sedan', 'SUV', 'Coupé', 'Break', 'Muscle', 'Sport', 'Pick-up', 'Van', 'Moto', 'Camion', 'Autre'];
+    const BOLO_KIND_LABELS = { person: 'Individu', vehicle: 'Véhicule' };
+    const BOLO_MAX_VEHICLES = 5;
+    const UNKNOWN = 'Inconnue';
+
+    const bolos = {
+        list: [],          // BOLOs actifs (résumés, temps réel)
+        selected: null,    // id du BOLO affiché
+        current: null,     // BOLO affiché (détails complets)
+        mode: 'empty',     // empty | view | choose | form
+        draft: null,       // formulaire en cours : { id, kind, ... }
+        saving: false,
+        confirmDelete: null,
+    };
+
+    const emptyBoloVehicle = () => ({ plate: '', make: '', model: '', color: '', vtype: '' });
+
+    function newBoloDraft(kind) {
+        if (kind === 'vehicle') {
+            return { kind, reason: '', plate: '', make: '', model: '', color: '', vtype: '', details: '' };
+        }
+        return {
+            kind, reason: '', identityId: '', identityLabel: '',
+            hairKnown: false, hairColor: '', facialKnown: false, facialType: '', facialColor: '',
+            skin: '', origins: [], tattooKnown: false, tattoos: '', height: '', clothing: '',
+            location: '', details: '', vehicles: [],
+        };
+    }
+
+    // Brouillon de modification à partir d'un BOLO enregistré
+    function boloToDraft(b) {
+        const draft = { ...newBoloDraft(b.kind), id: b.id, number: b.number };
+        Object.keys(draft).forEach((k) => {
+            if (b[k] != null && k !== 'vehicles' && k !== 'origins') draft[k] = b[k];
+        });
+        if (b.kind === 'person') {
+            draft.identityId = b.identityId != null ? String(b.identityId) : '';
+            draft.height = b.height != null ? String(b.height) : '';
+            draft.origins = toArray(b.origins);
+            draft.vehicles = toArray(b.vehicles).map((v) => ({ ...emptyBoloVehicle(), ...v }));
+        }
+        return draft;
+    }
+
+    // ---- Liste ----
+    async function refreshBolos() {
+        const res = await post('getBolos');
+        if (res && res.ok) setBolos(res.bolos);
+    }
+
+    function setBolos(list) {
+        bolos.list = toArray(list);
+        renderBoloList();
+        // BOLO affiché supprimé ou modifié par un autre agent
+        if (bolos.mode === 'view' && bolos.selected != null) {
+            const item = bolos.list.find((b) => b.id === bolos.selected);
+            if (!item) {
+                bolos.current = null;
+                $('#boloDetail').innerHTML = '<div class="empty">Ce BOLO a été supprimé.</div>';
+                $('#boloPanelTitle').textContent = 'Détails';
+                bolos.mode = 'empty';
+                bolos.selected = null;
+            } else if (bolos.current && item.updatedAt !== bolos.current.updatedAt) {
+                openBolo(item.id, false);
+            }
+        }
+    }
+
+    function renderBoloList() {
+        const filter = $('#boloFilter').value;
+        const list = bolos.list.filter((b) => !filter || b.kind === filter);
+        $('#bolosBadge').textContent = bolos.list.length ? `(${bolos.list.length})` : '';
+        $('#bolosCount').textContent = `(${list.length})`;
+        $('#bolosEmpty').classList.toggle('hidden', list.length > 0);
+        $('#bolosEmpty').textContent = bolos.list.length ? 'Aucun BOLO de ce type.' : 'Aucun BOLO actif.';
+        $('#bolosBody').innerHTML = list.map((b) => `
+            <tr data-id="${esc(b.id)}" class="${b.id === bolos.selected ? 'selected' : ''}" title="${esc(`Émis le ${formatDate(b.createdAt)}${b.location ? ` — ${b.location}` : ''}`)}">
+                <td><b>${esc(b.number)}</b></td>
+                <td>${flag(b.kind === 'vehicle' ? 'c-orange' : 'c-red', BOLO_KIND_LABELS[b.kind] || b.kind)}</td>
+                <td class="cell-ellipsis bolo-reason"><b>${esc(b.reason)}</b></td>
+                <td class="cell-ellipsis bolo-summary">${esc(b.summary)}</td>
+            </tr>`).join('');
+    }
+
+    $('#bolosBody').addEventListener('click', (e) => {
+        const tr = e.target.closest('tr[data-id]');
+        if (tr) openBolo(Number(tr.dataset.id));
+    });
+    $('#boloFilter').addEventListener('change', renderBoloList);
+    $('#refreshBolos').addEventListener('click', refreshBolos);
+    $('#openBolos').addEventListener('click', () => showPage('bolos'));
+    $('#bolosBack').addEventListener('click', () => showPage('search'));
+    $('#newBolo').addEventListener('click', () => {
+        bolos.mode = 'choose';
+        bolos.selected = null;
+        bolos.draft = null;
+        renderBoloList();
+        renderBoloPanel();
+        $('#boloDetail').scrollTop = 0;
+    });
+
+    // Ouvre un BOLO (liste, ou lien depuis une fiche des Recherches)
+    async function openBolo(id, select = true) {
+        const res = await post('getBolo', { id });
+        if (!res || !res.ok) {
+            toast(res?.error || 'BOLO introuvable.', 'error');
+            refreshBolos();
+            return;
+        }
+        // Mise à jour en arrière-plan : n'écrase pas un formulaire ouvert entre-temps
+        if (!select && (bolos.mode !== 'view' || bolos.selected !== res.bolo.id)) return;
+        if (select && state.page !== 'bolos') showPage('bolos');
+        const changed = bolos.selected !== res.bolo.id || bolos.mode !== 'view';
+        bolos.current = res.bolo;
+        bolos.selected = res.bolo.id;
+        bolos.mode = 'view';
+        bolos.confirmDelete = null;
+        renderBoloList();
+        renderBoloPanel();
+        if (changed) $('#boloDetail').scrollTop = 0;
+    }
+
+    // ---- Panneau de droite ----
+    function renderBoloPanel() {
+        const el = $('#boloDetail');
+        const title = $('#boloPanelTitle');
+        if (bolos.mode === 'view' && bolos.current) {
+            title.textContent = `BOLO n°${bolos.current.number}`;
+            el.innerHTML = boloViewHtml(bolos.current);
+        } else if (bolos.mode === 'choose') {
+            title.textContent = 'Nouveau BOLO';
+            el.innerHTML = `
+                <div class="bolo-choose">
+                    <div class="hint-text">Quel est l'objet du BOLO ?</div>
+                    <button type="button" class="btn bolo-choice" data-bolo-kind="person"><b>Individu</b><span>Personne recherchée (identité connue ou non), avec sa description et ses véhicules éventuels.</span></button>
+                    <button type="button" class="btn bolo-choice" data-bolo-kind="vehicle"><b>Véhicule</b><span>Véhicule recherché dont l'immatriculation est inconnue ou incomplète.</span></button>
+                    <div class="toolbar"><span class="grow"></span><button type="button" class="btn" data-bolo-cancel>Annuler</button></div>
+                </div>`;
+        } else if (bolos.mode === 'form' && bolos.draft) {
+            title.textContent = bolos.draft.id ? `Modifier le BOLO n°${bolos.draft.number}` : `Nouveau BOLO — ${BOLO_KIND_LABELS[bolos.draft.kind]}`;
+            el.innerHTML = boloFormHtml(bolos.draft);
+        } else {
+            title.textContent = 'Détails';
+            el.innerHTML = '<div class="empty">Sélectionnez un BOLO dans la liste.</div>';
+        }
+    }
+
+    // Valeur affichée : "Inconnue" si la case n'est pas cochée ou le champ vide
+    const known = (value) => (value === '' || value == null ? `<span class="unknown">${UNKNOWN}</span>` : esc(value));
+    const knownIf = (checked, value) => (checked ? known(value) : known(''));
+
+    function boloVehicleHtml(v, i) {
+        const name = [v.make, v.model].filter(Boolean).join(' ');
+        return `
+            <div class="bolo-vehicle">
+                <div class="bolo-vehicle-head">
+                    <b>Véhicule ${i + 1}</b>
+                    <span class="grow"></span>
+                    ${v.recordId != null ? `<button type="button" class="btn btn-small" data-bolo-record="vehicle" data-id="${esc(v.recordId)}">Voir la fiche</button>` : ''}
+                </div>
+                <dl class="sheet">
+                    ${dd('Immatriculation', v.plate ? `<b>${esc(v.plate)}</b>${v.plate.includes('*') ? ' <span class="muted">(partielle)</span>' : ''}` : known(''))}
+                    ${dd('Marque / Modèle', known(name))}
+                    ${dd('Couleur', known(v.color))}
+                    ${dd('Type', known(v.vtype))}
+                </dl>
+            </div>`;
+    }
+
+    function boloViewHtml(b) {
+        const deleting = bolos.confirmDelete === b.id;
+        const head = `
+            <div class="sheet-title">
+                <span>BOLO n°${esc(b.number)} — ${esc((BOLO_KIND_LABELS[b.kind] || '').toUpperCase())}</span>
+                <span class="toolbar-inline">
+                    <button type="button" class="btn btn-small" data-bolo-edit>Modifier</button>
+                    <button type="button" class="btn btn-small btn-danger ${deleting ? 'confirm' : ''}" data-bolo-delete>${deleting ? 'Confirmer la suppression' : 'Supprimer'}</button>
+                </span>
+            </div>
+            <div class="sheet-alert">&#9888; MOTIF : ${esc(b.reason)}</div>`;
+        const meta = `
+            <div class="bolo-meta">
+                Émis par ${esc(b.createdByName || '?')}${b.unitName ? ` (${esc(b.unitName)})` : ''} le ${esc(formatDate(b.createdAt))}
+                ${b.updatedAt ? `<br>Modifié par ${esc(b.updatedByName || '?')} le ${esc(formatDate(b.updatedAt))}` : ''}
+            </div>`;
+        const details = `
+            <div class="sheet-sub">Détails</div>
+            <div class="bolo-text">${b.details ? esc(b.details) : '<span class="muted">Aucun détail.</span>'}</div>`;
+
+        if (b.kind === 'vehicle') {
+            return `${head}
+                <dl class="sheet">
+                    ${dd('Immatriculation', b.plate ? `<b>${esc(b.plate)}</b> <span class="muted">(partielle)</span>` : known(''))}
+                    ${dd('Marque', known(b.make))}
+                    ${dd('Modèle', known(b.model))}
+                    ${dd('Couleur', known(b.color))}
+                    ${dd('Type', known(b.vtype))}
+                </dl>
+                ${details}${meta}`;
+        }
+
+        const origins = toArray(b.origins).map((o) => BOLO_ORIGIN_LABELS[o] || o);
+        const facial = b.facialKnown ? [b.facialType, b.facialColor && `couleur : ${b.facialColor}`].filter(Boolean).join(', ') : '';
+        const identity = b.identityId != null
+            ? `${esc(b.identityLabel || '?')}${b.identityExists ? ` <button type="button" class="btn btn-small" data-bolo-record="identity" data-id="${esc(b.identityId)}">Voir la fiche</button>` : ' <span class="muted">(fiche supprimée)</span>'}`
+            : '<span class="unknown">Non identifié</span>';
+        const vehicles = toArray(b.vehicles);
+        return `${head}
+            <dl class="sheet">
+                ${dd('Identité', identity)}
+                ${dd('Lieu', known(b.location))}
+            </dl>
+            <div class="sheet-sub">Description</div>
+            <dl class="sheet">
+                ${dd('Cheveux', knownIf(b.hairKnown, b.hairColor))}
+                ${dd('Pilosité faciale', knownIf(b.facialKnown, facial))}
+                ${dd('Couleur de peau', known(b.skin))}
+                ${dd('Origine(s)', known(origins.join(', ')))}
+                ${dd('Tatouages', knownIf(b.tattooKnown, b.tattoos))}
+                ${dd('Taille', known(b.height != null ? `${b.height} cm` : ''))}
+                ${dd('Tenue vestimentaire', known(b.clothing))}
+            </dl>
+            ${details}
+            <div class="sheet-sub">Véhicule(s) (${vehicles.length})</div>
+            ${vehicles.length ? vehicles.map(boloVehicleHtml).join('') : '<div class="bolo-text muted">Aucun véhicule connu.</div>'}
+            ${meta}`;
+    }
+
+    // ---- Formulaire ----
+    const historyOf = (kind) => state.searchResults.filter((r) => r.kind === kind);
+    const identityChoiceLabel = (r) => `${String(r.lastname).toUpperCase()} ${r.firstname}${r.middlename ? ` ${r.middlename}` : ''} (${r.dob})`;
+    const vehicleChoiceLabel = (r) => `${r.plate} — ${[r.make, r.model].filter(Boolean).join(' ')}${r.color ? ` (${r.color})` : ''}`;
+
+    const bInput = (key, value, attrs = '') => `<input type="text" data-k="${key}" value="${esc(value)}" ${attrs}>`;
+    const typeSelect = (attrs, value) => `
+        <select ${attrs}>
+            <option value="">${UNKNOWN}</option>
+            ${BOLO_VEHICLE_TYPES.map((t) => `<option value="${esc(t)}" ${t === value ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+        </select>`;
+
+    function identityPicker(d) {
+        const history = historyOf('identity');
+        const ids = new Set(history.map((r) => String(r.id)));
+        const extra = d.identityId && !ids.has(String(d.identityId))
+            ? `<option value="${esc(d.identityId)}" selected>${esc(d.identityLabel || `Fiche n°${d.identityId}`)}</option>` : '';
+        return `
+            <label class="lbl span-2">Identité (facultatif — depuis l'historique des recherches)
+                <select data-k="identityId">
+                    <option value="">Non identifié</option>
+                    ${extra}
+                    ${history.map((r) => `<option value="${esc(r.id)}" ${String(r.id) === String(d.identityId) ? 'selected' : ''}>${esc(identityChoiceLabel(r))}</option>`).join('')}
+                </select>
+                ${history.length ? '' : '<span class="hint-text">Recherchez la personne dans l\'onglet Recherches pour pouvoir la sélectionner.</span>'}
+            </label>`;
+    }
+
+    // Case à cocher qui révèle ses champs (non cochée = "Inconnue")
+    const knownBox = (key, checked, label) => `
+        <label class="check"><input type="checkbox" data-k="${key}" ${checked ? 'checked' : ''}> ${esc(label)}</label>`;
+
+    function boloVehicleForm(v, i) {
+        const history = historyOf('vehicle');
+        return `
+            <div class="entry-box" data-vi="${i}">
+                <div class="entry-head">
+                    <span class="entry-title">Véhicule ${i + 1}${v.recordId != null ? ' <span class="flag c-green">Enregistré</span>' : ''}</span>
+                    <button type="button" class="btn entry-remove" data-bolo-vremove="${i}" title="Retirer">&#10005;</button>
+                </div>
+                <div class="form-grid cols-4">
+                    ${history.length ? `
+                    <label class="lbl span-4">Depuis l'historique des recherches
+                        <select data-vhist="${i}">
+                            <option value="">—</option>
+                            ${history.map((r) => `<option value="${esc(r.id)}">${esc(vehicleChoiceLabel(r))}</option>`).join('')}
+                        </select>
+                    </label>` : ''}
+                    <label class="lbl">Immatriculation<input type="text" class="bolo-plate" data-vi="${i}" data-vk="plate" value="${esc(v.plate)}" maxlength="8" placeholder="ex : AB*12 (facultatif)"></label>
+                    <label class="lbl">Marque<input type="text" data-vi="${i}" data-vk="make" value="${esc(v.make)}" maxlength="40"></label>
+                    <label class="lbl">Modèle<input type="text" data-vi="${i}" data-vk="model" value="${esc(v.model)}" maxlength="40"></label>
+                    <label class="lbl">Couleur<input type="text" data-vi="${i}" data-vk="color" value="${esc(v.color)}" maxlength="40"></label>
+                    <label class="lbl">Type${typeSelect(`data-vi="${i}" data-vk="vtype"`, v.vtype)}</label>
+                    <span class="hint-text span-3 bolo-plate-hint" data-vhint="${i}">${v.recordId != null ? 'Immatriculation enregistrée : informations remplies automatiquement.' : 'Immatriculation complète : marque, modèle et couleur se remplissent automatiquement.'}</span>
+                </div>
+            </div>`;
+    }
+
+    function boloFormHtml(d) {
+        const actions = `
+            <div class="toolbar bolo-actions">
+                <span class="grow"></span>
+                <button type="button" class="btn" data-bolo-cancel>Annuler</button>
+                <button type="button" class="btn btn-default" data-bolo-save ${bolos.saving ? 'disabled' : ''}>Enregistrer</button>
+            </div>`;
+        const reason = `<label class="lbl span-2">Motif *${bInput('reason', d.reason, 'maxlength="120" placeholder="ex : Vol à main armée"')}</label>`;
+
+        if (d.kind === 'vehicle') {
+            return `
+                <div class="report-form bolo-form">
+                    <div class="form-grid">
+                        ${reason}
+                        <label class="lbl span-2">Immatriculation (partielle)${bInput('plate', d.plate, 'class="bolo-plate" maxlength="8" placeholder="ex : AB*12 — * = caractère inconnu"')}
+                            <span class="hint-text">Uniquement une immatriculation incomplète : si elle est complète, c'est son propriétaire qui est recherché (BOLO Individu).</span>
+                        </label>
+                        <div class="span-2 bolo-plate-warning hidden" id="boloPlateWarning"></div>
+                        <label class="lbl">Marque${bInput('make', d.make, 'maxlength="40"')}</label>
+                        <label class="lbl">Modèle${bInput('model', d.model, 'maxlength="40"')}</label>
+                        <label class="lbl">Couleur${bInput('color', d.color, 'maxlength="40"')}</label>
+                        <label class="lbl">Type${typeSelect('data-k="vtype"', d.vtype)}</label>
+                        <label class="lbl span-2">Détails<textarea data-k="details" rows="5" maxlength="2000" placeholder="Signes distinctifs, dernière position, direction de fuite…">${esc(d.details)}</textarea></label>
+                    </div>
+                    ${actions}
+                </div>`;
+        }
+
+        const origins = toArray(d.origins);
+        return `
+            <div class="report-form bolo-form">
+                <div class="form-grid">
+                    ${reason}
+                    ${identityPicker(d)}
+                </div>
+                <div class="subgroup">
+                    <span class="subgroup-title">Description</span>
+                    <div class="form-grid bolo-desc">
+                        <div class="lbl">Cheveux
+                            ${knownBox('hairKnown', d.hairKnown, 'Connus')}
+                            <input type="text" data-k="hairColor" value="${esc(d.hairColor)}" maxlength="40" placeholder="Couleur *" class="${d.hairKnown ? '' : 'hidden'}" data-shown-by="hairKnown">
+                        </div>
+                        <div class="lbl">Pilosité faciale
+                            ${knownBox('facialKnown', d.facialKnown, 'Connue')}
+                            <div class="inline-2 ${d.facialKnown ? '' : 'hidden'}" data-shown-by="facialKnown">
+                                <input type="text" data-k="facialType" value="${esc(d.facialType)}" maxlength="40" placeholder="Type * (barbe, moustache…)" list="boloFacialTypes">
+                                <input type="text" data-k="facialColor" value="${esc(d.facialColor)}" maxlength="40" placeholder="Couleur">
+                            </div>
+                        </div>
+                        <label class="lbl">Couleur de peau${bInput('skin', d.skin, `maxlength="40" placeholder="${UNKNOWN}"`)}</label>
+                        <label class="lbl">Taille (cm)${bInput('height', d.height, `maxlength="3" class="digits" placeholder="${UNKNOWN}"`)}</label>
+                        <div class="lbl span-2">Origine(s)
+                            <div class="checks bolo-origins">
+                                <label class="check"><input type="checkbox" data-origin="" ${origins.length ? '' : 'checked'}> ${UNKNOWN}</label>
+                                ${BOLO_ORIGINS.map(([key, label]) => `<label class="check"><input type="checkbox" data-origin="${key}" ${origins.includes(key) ? 'checked' : ''}> ${esc(label)}</label>`).join('')}
+                            </div>
+                        </div>
+                        <div class="lbl span-2">Tatouages
+                            ${knownBox('tattooKnown', d.tattooKnown, 'Connus')}
+                            <textarea data-k="tattoos" rows="2" maxlength="500" placeholder="Détails * (motif, emplacement…)" class="${d.tattooKnown ? '' : 'hidden'}" data-shown-by="tattooKnown">${esc(d.tattoos)}</textarea>
+                        </div>
+                        <label class="lbl span-2">Tenue vestimentaire<textarea data-k="clothing" rows="2" maxlength="500" placeholder="${UNKNOWN}">${esc(d.clothing)}</textarea></label>
+                    </div>
+                    <datalist id="boloFacialTypes">
+                        ${['Barbe', 'Barbe courte', 'Moustache', 'Bouc', 'Favoris', 'Rasé de près'].map((t) => `<option value="${t}">`).join('')}
+                    </datalist>
+                </div>
+                <div class="form-grid bolo-after-desc">
+                    <label class="lbl span-2">Lieu${bInput('location', d.location, 'maxlength="120" placeholder="ex : Grove Street, Davis"')}</label>
+                    <label class="lbl span-2">Détails<textarea data-k="details" rows="5" maxlength="2000" placeholder="Narratif : faits, comportement, armé ou non…">${esc(d.details)}</textarea></label>
+                </div>
+                <div class="subgroup">
+                    <span class="subgroup-title">Véhicule(s) (${d.vehicles.length})</span>
+                    <div class="entries">${d.vehicles.map(boloVehicleForm).join('')}</div>
+                    <div class="toolbar entries-toolbar">
+                        <button type="button" class="btn" data-bolo-vadd ${d.vehicles.length >= BOLO_MAX_VEHICLES ? 'disabled' : ''}>+ Ajouter un véhicule</button>
+                        ${d.vehicles.length ? '' : '<span class="hint-text">Aucun véhicule connu.</span>'}
+                    </div>
+                </div>
+                ${actions}
+            </div>`;
+    }
+
+    function openBoloForm(draft) {
+        bolos.draft = draft;
+        bolos.mode = 'form';
+        bolos.saving = false;
+        renderBoloPanel();
+        $('#boloDetail').scrollTop = 0;
+        const first = $('#boloDetail [data-k="reason"]');
+        if (first) first.focus();
+    }
+
+    // Immatriculation complète d'un véhicule de BOLO : remplissage depuis le véhicule enregistré
+    const plateLookups = {};
+    function lookupBoloPlate(i) {
+        clearTimeout(plateLookups[i]);
+        plateLookups[i] = setTimeout(async () => {
+            const draft = bolos.draft;
+            const v = draft && draft.vehicles && draft.vehicles[i];
+            if (!v) return;
+            const plate = v.plate;
+            const res = plate.length >= 2 && !plate.includes('*')
+                ? await post('lookupPlate', { plate }) : null;
+            if (bolos.draft !== draft || v.plate !== plate) return; // saisie modifiée entre-temps
+            const box = $(`#boloDetail .entry-box[data-vi="${i}"]`);
+            if (res && res.ok && res.found) {
+                Object.assign(v, { make: res.vehicle.make, model: res.vehicle.model, color: res.vehicle.color, recordId: res.vehicle.id });
+                if (box) {
+                    ['make', 'model', 'color'].forEach((k) => { box.querySelector(`[data-vk="${k}"]`).value = v[k] || ''; });
+                    box.querySelector('.entry-title').innerHTML = `Véhicule ${i + 1} <span class="flag c-green">Enregistré</span>`;
+                    box.querySelector('[data-vhint]').textContent = 'Immatriculation enregistrée : informations remplies automatiquement.';
+                }
+            } else if (v.recordId != null) {
+                delete v.recordId;
+                if (box) {
+                    box.querySelector('.entry-title').textContent = `Véhicule ${i + 1}`;
+                    box.querySelector('[data-vhint]').textContent = 'Immatriculation complète : marque, modèle et couleur se remplissent automatiquement.';
+                }
+            }
+        }, 350);
+    }
+
+    // BOLO véhicule : une immatriculation enregistrée = c'est son propriétaire qui est recherché
+    let vehiclePlateTimer = null;
+    function checkVehicleBoloPlate() {
+        clearTimeout(vehiclePlateTimer);
+        vehiclePlateTimer = setTimeout(async () => {
+            const draft = bolos.draft;
+            if (!draft || draft.kind !== 'vehicle') return;
+            const plate = draft.plate;
+            const res = plate.length >= 2 && !plate.includes('*') ? await post('lookupPlate', { plate }) : null;
+            const box = $('#boloPlateWarning');
+            if (!box || bolos.draft !== draft || draft.plate !== plate) return;
+            const found = res && res.ok && res.found ? res.vehicle : null;
+            const full = !plate.includes('*') && plate.length === 8;
+            box.classList.toggle('hidden', !found && !full);
+            box.dataset.vehicle = found ? JSON.stringify(found) : '';
+            box.innerHTML = found
+                ? `<div class="sheet-alert yellow">&#9888; ${esc(found.plate)} est une immatriculation enregistrée (${esc([found.make, found.model].filter(Boolean).join(' '))}) : c'est son propriétaire qui est recherché.
+                       <button type="button" class="btn btn-small" data-bolo-convert>Créer un BOLO Individu avec ce véhicule</button></div>`
+                : full ? '<div class="sheet-alert yellow">&#9888; Immatriculation complète : remplacez les caractères inconnus par *, ou créez un BOLO Individu.</div>' : '';
+        }, 350);
+    }
+
+    function collectBolo(d) {
+        const payload = { ...d };
+        delete payload.number;
+        delete payload.identityLabel;
+        if (d.kind === 'person') {
+            payload.identityId = d.identityId ? Number(d.identityId) : null;
+            payload.vehicles = d.vehicles.map((v) => ({ plate: v.plate, make: v.make, model: v.model, color: v.color, vtype: v.vtype }));
+        }
+        return payload;
+    }
+
+    async function saveBolo() {
+        const d = bolos.draft;
+        if (!d || bolos.saving) return;
+        if (!d.reason.trim()) {
+            toast('Le motif est obligatoire.', 'error');
+            $('#boloDetail [data-k="reason"]').focus();
+            return;
+        }
+        bolos.saving = true;
+        const btn = $('#boloDetail [data-bolo-save]');
+        if (btn) btn.disabled = true;
+        const res = await post('saveBolo', collectBolo(d));
+        bolos.saving = false;
+        if (!res || !res.ok) {
+            if (btn) btn.disabled = false;
+            toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error');
+            return;
+        }
+        toast(`BOLO n°${res.number} ${d.id ? 'modifié' : 'enregistré'}.`, 'success');
+        bolos.draft = null;
+        bolos.mode = 'empty';
+        await refreshBolos();
+        openBolo(res.id);
+    }
+
+    async function deleteBolo(id) {
+        if (bolos.confirmDelete !== id) {
+            bolos.confirmDelete = id; // premier clic : demande de confirmation
+            renderBoloPanel();
+            setTimeout(() => {
+                if (bolos.confirmDelete === id) {
+                    bolos.confirmDelete = null;
+                    if (bolos.mode === 'view') renderBoloPanel();
+                }
+            }, 4000);
+            return;
+        }
+        bolos.confirmDelete = null;
+        const res = await post('deleteBolo', { id });
+        if (!res || !res.ok) {
+            toast(res?.error || 'Suppression impossible.', 'error');
+            return;
+        }
+        toast('BOLO supprimé.', 'success');
+        bolos.mode = 'empty';
+        bolos.selected = null;
+        bolos.current = null;
+        renderBoloPanel();
+        refreshBolos();
+    }
+
+    function cancelBoloForm() {
+        const editing = bolos.draft && bolos.draft.id;
+        bolos.draft = null;
+        if (editing && bolos.current) {
+            bolos.mode = 'view';
+        } else {
+            bolos.mode = 'empty';
+            bolos.selected = null;
+        }
+        renderBoloList();
+        renderBoloPanel();
+    }
+
+    $('#boloDetail').addEventListener('click', (e) => {
+        const t = e.target.closest('button');
+        if (!t) return;
+        const d = bolos.draft;
+        if (t.dataset.boloKind) {
+            openBoloForm(newBoloDraft(t.dataset.boloKind));
+        } else if (t.hasAttribute('data-bolo-cancel')) {
+            cancelBoloForm();
+        } else if (t.hasAttribute('data-bolo-save')) {
+            saveBolo();
+        } else if (t.hasAttribute('data-bolo-edit') && bolos.current) {
+            openBoloForm(boloToDraft(bolos.current));
+        } else if (t.hasAttribute('data-bolo-delete') && bolos.current) {
+            deleteBolo(bolos.current.id);
+        } else if (t.dataset.boloRecord) {
+            openRecordInSearch(t.dataset.boloRecord, Number(t.dataset.id));
+        } else if (t.hasAttribute('data-bolo-vadd') && d) {
+            if (d.vehicles.length < BOLO_MAX_VEHICLES) d.vehicles.push(emptyBoloVehicle());
+            renderBoloPanel();
+            const plates = $$('#boloDetail .bolo-plate');
+            if (plates.length) plates[plates.length - 1].focus();
+        } else if (t.dataset.boloVremove != null && d) {
+            d.vehicles.splice(Number(t.dataset.boloVremove), 1);
+            renderBoloPanel();
+        } else if (t.hasAttribute('data-bolo-convert') && d) {
+            // BOLO véhicule -> BOLO individu (le propriétaire est recherché), avec ce véhicule
+            const v = JSON.parse($('#boloPlateWarning').dataset.vehicle || 'null');
+            if (!v) return;
+            const person = newBoloDraft('person');
+            if (v.ownerId != null) { // propriétaire enregistré : identité présélectionnée
+                person.identityId = String(v.ownerId);
+                person.identityLabel = v.ownerLabel || '';
+            }
+            person.reason = d.reason;
+            person.details = d.details;
+            person.vehicles = [{ plate: v.plate, make: v.make, model: v.model, color: v.color, vtype: d.vtype, recordId: v.id }];
+            openBoloForm(person);
+        }
+    });
+
+    // Saisie (écouteur posé APRÈS celui des formats automatiques : la valeur est déjà formatée)
+    function onBoloInput(e) {
+        const el = e.target;
+        const d = bolos.draft;
+        if (!d || !el.closest || !el.closest('#boloDetail')) return;
+        if (el.dataset.k) {
+            if (el.type === 'checkbox') {
+                d[el.dataset.k] = el.checked;
+                $$(`#boloDetail [data-shown-by="${el.dataset.k}"]`).forEach((x) => x.classList.toggle('hidden', !el.checked));
+                const field = $(`#boloDetail [data-shown-by="${el.dataset.k}"]`);
+                if (el.checked && field) (field.matches('input, textarea') ? field : field.querySelector('input')).focus();
+            } else {
+                d[el.dataset.k] = el.value;
+                if (d.kind === 'vehicle' && el.dataset.k === 'plate') checkVehicleBoloPlate();
+            }
+        } else if (el.dataset.origin != null) {
+            // "Inconnue" exclusive ; aucune origine cochée = "Inconnue"
+            const key = el.dataset.origin;
+            let origins = toArray(d.origins);
+            if (key === '') origins = [];
+            else origins = el.checked ? [...new Set([...origins, key])] : origins.filter((o) => o !== key);
+            d.origins = origins;
+            $$('#boloDetail [data-origin]').forEach((box) => {
+                box.checked = box.dataset.origin === '' ? origins.length === 0 : origins.includes(box.dataset.origin);
+            });
+        } else if (el.dataset.vk) {
+            const i = Number(el.dataset.vi);
+            const v = d.vehicles[i];
+            if (!v) return;
+            v[el.dataset.vk] = el.value;
+            if (el.dataset.vk === 'plate') lookupBoloPlate(i);
+        } else if (el.dataset.vhist != null) {
+            // Véhicule choisi dans l'historique des recherches
+            const i = Number(el.dataset.vhist);
+            const r = historyOf('vehicle').find((x) => String(x.id) === el.value);
+            if (!r || !d.vehicles[i]) return;
+            Object.assign(d.vehicles[i], { plate: r.plate, make: r.make || '', model: r.model || '', color: r.color || '', recordId: r.id });
+            renderBoloPanel();
+        }
+    }
+    // Texte : événement "input" ; listes déroulantes et cases : événement "change"
+    const isChoice = (el) => el.tagName === 'SELECT' || el.type === 'checkbox';
+    document.addEventListener('input', (e) => { if (!isChoice(e.target)) onBoloInput(e); });
+    document.addEventListener('change', (e) => { if (isChoice(e.target)) onBoloInput(e); });
+
+    // Fiches des Recherches : alerte des BOLOs actifs (cliquer pour ouvrir le BOLO)
+    function boloAlerts(r) {
+        return toArray(r.bolos).map((b) => b.possible
+            ? `<div class="sheet-alert yellow bolo-alert">&#9888; Correspondance possible avec le BOLO n°${esc(b.number)} (immatriculation partielle) — ${esc(b.reason)}
+                   <button type="button" class="btn btn-small" data-open-bolo="${esc(b.id)}">Voir le BOLO</button></div>`
+            : `<div class="sheet-alert bolo-alert">&#9888; BOLO ACTIF n°${esc(b.number)} — ${esc(b.reason)}
+                   <button type="button" class="btn btn-small" data-open-bolo="${esc(b.id)}">Voir le BOLO</button></div>`).join('');
+    }
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-open-bolo]');
+        if (btn) openBolo(Number(btn.dataset.openBolo));
+    });
+
+    // =====================================================================
     // MESSAGES Lua -> NUI
     // =====================================================================
     window.addEventListener('message', ({ data }) => {
@@ -3341,6 +3972,9 @@
                 break;
             case 'interventions':
                 setInterventions(data.data);
+                break;
+            case 'bolos': // BOLOs actifs (création / modification / suppression par un agent)
+                setBolos(data.data);
                 break;
             case 'hudState': // client/hud.lua : PLD autorisé + unité du joueur
                 hud.pldAllowed = !!(data.data && data.data.pld);

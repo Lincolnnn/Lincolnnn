@@ -146,6 +146,8 @@
                         <div class="toolbar">
                             <label class="radio"><input type="radio" name="searchType" value="identity" checked> Identité</label>
                             <label class="radio"><input type="radio" name="searchType" value="vehicle"> Immatriculation</label>
+                            <span class="grow"></span>
+                            <button type="button" class="btn btn-bolos" id="openBolos">BOLOs <span class="bolo-count" id="bolosBadge"></span></button>
                         </div>
 
                         <!-- Identité : nom de famille et DoB obligatoires -->
@@ -185,6 +187,39 @@
                             <span class="legend">Fiche</span>
                             <div class="well detail" id="searchDetail">
                                 <div class="empty">Sélectionnez un résultat.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ============ BOLOs (page ouverte depuis le bouton "BOLOs" des Recherches) ============ -->
+                <section class="page" id="page-bolos">
+                    <div class="split">
+                        <div class="group">
+                            <span class="legend">BOLOs actifs <span id="bolosCount"></span></span>
+                            <div class="toolbar">
+                                <button type="button" class="btn" id="bolosBack">&larr; Recherches</button>
+                                <button type="button" class="btn btn-default" id="newBolo">+ Ajouter un BOLO</button>
+                                <span class="grow"></span>
+                                <select id="boloFilter">
+                                    <option value="">Tous</option>
+                                    <option value="person">Individus</option>
+                                    <option value="vehicle">Véhicules</option>
+                                </select>
+                                <button type="button" class="btn" id="refreshBolos">Actualiser</button>
+                            </div>
+                            <div class="well">
+                                <table class="grid selectable">
+                                    <thead><tr><th>N°</th><th>Type</th><th>Motif</th><th>Résumé</th></tr></thead>
+                                    <tbody id="bolosBody"></tbody>
+                                </table>
+                                <div class="empty" id="bolosEmpty">Aucun BOLO actif.</div>
+                            </div>
+                        </div>
+                        <div class="group">
+                            <span class="legend" id="boloPanelTitle">Détails</span>
+                            <div class="well detail" id="boloDetail">
+                                <div class="empty">Sélectionnez un BOLO dans la liste.</div>
                             </div>
                         </div>
                     </div>

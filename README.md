@@ -28,12 +28,33 @@ L'heure affichée en bas à droite du MDC est l'heure du jeu.
 |---|---|
 | Unités | Deux listes, une par service : **Atlanta Police Department** et **Georgia State Patrol** (chacun voit les deux). Bouton **Créer une unité** par service (service, nom, tag facultatif, couleur). Chacun peut rejoindre (4 joueurs max par unité), quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur). Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
 | Interventions | Liste des interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer pour le masquer. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
-| Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous |
+| Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
 | Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
 | Paramètres | Réglages du HUD (affichage, éléments visibles, taille, position) et du MDC (taille de l'interface, onglet à l'ouverture, fenêtre). Gardés chez le joueur, même après une reconnexion |
 | Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
+
+### BOLOs (Recherches → bouton « BOLOs »)
+
+Page des **BOLOs actifs** (n°, type, motif, résumé ; filtre Individus / Véhicules), mise à jour en direct.
+**Ajouter un BOLO** : on choisit d'abord **Individu** ou **Véhicule**.
+
+- **Individu** : motif\*, identité facultative (choisie dans l'historique des recherches), description
+  (cheveux ☐ → couleur, pilosité faciale ☐ → type + couleur, couleur de peau, origine(s) : Inconnue / Blanc /
+  Hispanique / Afro-américain / Asiatique / Natif / Moyen-Orient, tatouages ☐ → détails, taille en cm,
+  tenue vestimentaire), lieu, détails (narratif) et **Ajouter un véhicule** (5 max) : immatriculation
+  facultative (partielle possible, `*` = caractère inconnu) ou véhicule de l'historique ; une immatriculation
+  enregistrée remplit automatiquement marque, modèle et couleur. Type : Compact, Sedan, SUV, Coupé, Break,
+  Muscle, Sport, Pick-up, Van, Moto, Camion, Autre.
+- **Véhicule** : motif\*, immatriculation **incomplète** (ex. `AB*12`), marque, modèle, couleur, type, détails.
+  Une immatriculation complète est refusée : c'est son propriétaire qui est recherché (bouton
+  « Créer un BOLO Individu avec ce véhicule », propriétaire présélectionné).
+
+Une description non cochée ou non renseignée est affichée **Inconnue**. Cliquer sur un BOLO affiche ses détails,
+avec **Modifier** (puis Enregistrer) et **Supprimer** (deux clics). Tous les agents peuvent créer, modifier et
+supprimer un BOLO. Dans les Recherches, une fiche visée par un BOLO affiche une alerte (et l'étiquette `BOLO`
+dans les résultats) ; une immatriculation correspondant à un BOLO véhicule partiel affiche « Correspondance possible ».
 
 ### Unité : espace partagé
 
@@ -115,8 +136,9 @@ Les numéros de téléphone générés commencent par un indicatif régional de 
 
 ## Données (permanentes)
 
-Identités, véhicules et rapports : `data/identities.json`, `data/vehicles.json` et `data/reports.json`, écrits à chaque création / modification.
-Ils survivent aux déconnexions et aux redémarrages. **Le script ne supprime jamais rien.**
+Identités, véhicules, rapports et BOLOs : `data/identities.json`, `data/vehicles.json`, `data/reports.json` et `data/bolos.json`,
+écrits à chaque création / modification. Ils survivent aux déconnexions et aux redémarrages. **Le script ne supprime
+jamais rien**, sauf les BOLOs supprimés depuis le MDC (BOLO levé).
 Pour retirer une entrée (cadres) : éditez le fichier puis tapez `mdc_reload` dans la console serveur.
 Voir `data/LISEZMOI.txt`. ⚠ Ne remplacez pas le dossier `data/` lors d'une mise à jour.
 

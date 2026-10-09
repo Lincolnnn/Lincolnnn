@@ -962,3 +962,46 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
     border-color: var(--hi) var(--lo) var(--lo) var(--hi);
 }
 ::-webkit-scrollbar-corner { background: #141414; }
+
+/* =========================================================================
+   BOLOs (page ouverte depuis les Recherches)
+   ========================================================================= */
+.btn-bolos { font-weight: bold; color: #ffd0d0; }
+.bolo-count { font-weight: normal; color: var(--muted); }
+.toolbar-inline { display: flex; gap: 6px; }
+.btn-danger.confirm { background: var(--danger); color: #fff; }
+.unknown { color: var(--muted); font-style: italic; }
+.bolo-meta { margin-top: 12px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.bolo-text { padding: 6px 8px; border: 1px solid #262626; white-space: pre-wrap; word-break: break-word; }
+.bolo-vehicle { margin-bottom: 8px; }
+.bolo-vehicle-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.bolo-alert { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bolo-alert .btn { margin-left: auto; }
+
+/* Choix du type de BOLO */
+.bolo-choose { display: flex; flex-direction: column; gap: 10px; padding: 6px; }
+.btn.bolo-choice {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    height: auto;
+    padding: 12px 14px;
+    text-align: left;
+    white-space: normal;
+}
+.bolo-choice b { font-size: 14px; color: #fff; }
+.bolo-choice span { font-size: 12px; color: var(--muted); }
+
+/* Formulaire */
+.bolo-form .form-grid + .subgroup { margin-top: 18px; }
+.bolo-form .bolo-after-desc { margin-top: 12px; }
+.bolo-desc .lbl .check { color: var(--text); font-size: 13px; }
+.bolo-origins { gap: 6px 16px; color: var(--text); font-size: 13px; }
+.inline-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.bolo-plate { text-transform: uppercase; letter-spacing: 1px; }
+.bolo-plate-warning .sheet-alert { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: normal; }
+.bolo-actions { margin-top: 12px; }
+.grid td.bolo-reason { max-width: 180px; }
+.grid td.bolo-summary { max-width: 220px; }
+.toolbar select#boloFilter { min-width: 0; }
