@@ -309,12 +309,32 @@ relay('getReports',        'getReports')        -- Liste (filtrée par type / te
 relay('getReport',         'getReport')         -- Rapport complet
 relay('saveReport',        'saveReport', true)  -- Création / modification (envoi latent : peut être volumineux)
 
+-- Espace partagé d'unité (recherches et rapport en cours, communs aux membres de l'unité)
+relay('getUnitShared',     'getUnitShared')
+
+-- Modifications en direct (saisie) : envoyées sans attendre de réponse
+RegisterNUICallback('unitSync', function(data, cb)
+    cb({ ok = true })
+    if type(data) ~= 'table' or type(data.scope) ~= 'string' or type(data.payload) ~= 'table' then return end
+    local op = data.payload.op
+    if op == 'start' or op == 'replace' then
+        TriggerLatentServerEvent('mdc:server:unitSync', Config.LatentBps, data.scope, data.payload)
+    else
+        TriggerServerEvent('mdc:server:unitSync', data.scope, data.payload)
+    end
+end)
+
 -- =========================================================================
 -- PUSH SERVEUR -> NUI (uniquement si le MDC est ouvert)
 -- =========================================================================
 RegisterNetEvent('mdc:client:push', function(kind, payload)
     if not isOpen then return end
     SendNUIMessage({ action = kind, data = payload })
+end)
+
+-- Espace partagé d'unité : toujours transmis (le MDC reste à jour même fermé)
+RegisterNetEvent('mdc:client:unitSync', function(scope, payload)
+    SendNUIMessage({ action = 'unitSync', data = { scope = scope, payload = payload } })
 end)
 
 -- =========================================================================

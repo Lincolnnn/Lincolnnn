@@ -44,6 +44,8 @@ local Config = {
     MaxSearchResults = 50,
     MaxEntries = 50,        -- nombre max d'antécédents / d'entrées d'historique par fiche
     MaxReportResults = 200, -- nombre max de rapports affichés dans la liste
+    MaxUnitMembers = 4,     -- nombre max de joueurs dans une unité
+    MaxSharedHistory = 100, -- historique de recherches partagé par une unité
 
     -- Débit (octets/s) des réponses "latentes" (modèles et contenu des rapports,
     -- qui peuvent dépasser la taille d'un événement classique)
@@ -136,6 +138,10 @@ end
 
 Migrations.reports = function(r)
     if type(r.data) ~= 'table' then r.data = {} end
+    -- v1.12 : le Warning commence par le type d'infraction (routière si un véhicule était renseigné)
+    if r.type == 'warning' and r.data.category == nil then
+        r.data.category = (type(r.data.plate) == 'string' and r.data.plate ~= '') and 'road' or 'other'
+    end
 end
 
 --- Charge un fichier JSON en mémoire. Retourne true si le fichier existait.
@@ -211,6 +217,7 @@ local Interventions = {}    -- interventions (civils) et incidents (police)
 local lastWrite = {}
 local createIntervention    -- défini dans la section INTERVENTIONS
 local reportLinks           -- défini dans la section RAPPORTS
+local shareUnitSearch       -- défini dans la section ESPACE PARTAGÉ D'UNITÉ
 local pushHud               -- défini dans la section HUD
 
 -- Identifiant de cette session du serveur : un rapport n'est relié "en direct" à une
@@ -510,6 +517,7 @@ Builders.identities = function(p, selfId)
         licenseState  = '',
         restrictions  = {},
         condition     = CONDITIONS[p.condition] and p.condition or 'none',
+        sex           = (p.sex == 'M' or p.sex == 'F') and p.sex or '', -- (M) Male / (F) Female
         wantedReason  = '',
         wantedSince   = '',
     }
@@ -779,7 +787,7 @@ end)
 --              prénom et SSN facultatifs pour affiner.
 --   Véhicule : immatriculation ou VIN.
 -- =========================================================================
-RegisterMDCCallback('search', function(_, payload)
+RegisterMDCCallback('search', function(src, payload)
     local results = {}
 
     if payload.type == 'identity' then
@@ -814,6 +822,7 @@ RegisterMDCCallback('search', function(_, payload)
         return { ok = false, error = 'Type de recherche invalide.' }
     end
 
+    shareUnitSearch(src, results) -- historique et résultat partagés avec l'unité du joueur
     return { ok = true, results = results }
 end)
 
@@ -925,6 +934,10 @@ end)
 RegisterMDCCallback('joinUnit', function(src, payload)
     local unit = findUnit(payload.id)
     if not unit then return { ok = false, error = 'Unité introuvable.' } end
+    if PlayerUnit[src] == unit.id then return { ok = true } end
+    local count = 0
+    for _ in pairs(unit.members) do count = count + 1 end
+    if count >= Config.MaxUnitMembers then return { ok = false, error = 'Cette unité est complète.' } end
     leaveCurrentUnit(src) -- une seule unité à la fois
     unit.members[tostring(src)] = true
     PlayerUnit[src] = unit.id
@@ -1141,19 +1154,12 @@ local function buildCall(p, kind)
 end
 
 -- Notification "nouvelle intervention / nouvel incident" (en haut à droite de l'écran) :
--- envoyée aux joueurs en unité et à ceux qui ont le MDC ouvert, sauf à son auteur.
-local function notifyNewCall(call, src)
-    local data = {
+-- envoyée à TOUS les joueurs en jeu (son auteur, les unités, les civils).
+local function notifyNewCall(call)
+    TriggerClientEvent('mdc:client:callNotify', -1, {
         number = call.number, kind = call.kind, title = call.title, priority = call.priority,
         address = call.address, crossStreet = call.crossStreet, block = call.block, unitName = call.unitName,
-    }
-    local targets = {}
-    for player in pairs(PlayerUnit) do targets[player] = true end
-    for player in pairs(Viewers) do targets[player] = true end
-    targets[src] = nil
-    for player in pairs(targets) do
-        TriggerClientEvent('mdc:client:callNotify', player, data)
-    end
+    })
 end
 
 local function addCall(src, call, kind, unit)
@@ -1175,7 +1181,7 @@ local function addCall(src, call, kind, unit)
 
     print(('^5[MDC]^0 Nouvel(le) %s %s "%s" par %s [%s]'):format(kind, call.number, call.title, agentName(src), GetPlayerName(src) or '?'))
     pushInterventions()
-    notifyNewCall(call, src)
+    notifyNewCall(call)
     return { ok = true, id = call.id, number = call.number }
 end
 
@@ -1452,6 +1458,12 @@ end
 --- Condition "show" / "reqIf" d'un champ, évaluée sur les données déjà validées.
 local function condMet(cond, obj)
     local value = obj[cond.k]
+    if cond['in'] then
+        for _, allowed in ipairs(cond['in']) do
+            if value == allowed then return true end
+        end
+        return false
+    end
     if cond.any then return hasAny(value, cond.any) end
     if cond.none then return not hasAny(value, cond.none) end
     return value == cond.eq
@@ -1589,8 +1601,11 @@ local function buildReport(reportType, raw)
     local out = {}
     local ctx = { raw = raw, out = out, fields = ReportFields[reportType.id] }
     for _, section in ipairs(reportType.sections) do
-        local err = sanitizeFields(section.f, raw, out, ctx, { section.title })
-        if err then return nil, err end
+        -- Section conditionnelle (ex : "Véhicule" du Warning, seulement pour une infraction routière)
+        if not section.show or condMet(section.show, out) then
+            local err = sanitizeFields(section.f, raw, out, ctx, { section.title })
+            if err then return nil, err end
+        end
     end
     return out
 end
@@ -1727,7 +1742,14 @@ RegisterMDCCallback('saveReport', function(src, payload)
     if id then
         old, index = findBy('reports', 'id', id)
         if not old then return { ok = false, error = 'Rapport introuvable.' } end
-        if old.createdBy ~= me then return { ok = false, error = 'Vous ne pouvez modifier que vos propres rapports.' } end
+        if old.createdBy ~= me then
+            -- Rapport rédigé à plusieurs : la modification a été ouverte par son auteur dans l'unité du joueur
+            local unit = findUnit(PlayerUnit[src])
+            local draft = unit and unit.shared and unit.shared.draft
+            if not (draft and draft.id == id and draft.startedBy == old.createdBy) then
+                return { ok = false, error = 'Vous ne pouvez modifier que vos propres rapports.' }
+            end
+        end
     end
 
     local reportType = ReportTypes[old and old.type or payload.type]
@@ -1793,6 +1815,200 @@ RegisterMDCCallback('saveReport', function(src, payload)
     print(('^5[MDC]^0 Rapport %s n°%s %s par %s [%s] (intervention %s)'):format(reportType.short, record.number,
         old and 'modifié' or 'créé', agentName(src), GetPlayerName(src) or '?', link and link.number or '-'))
     return { ok = true, id = record.id, number = record.number }
+end)
+
+-- =========================================================================
+-- ESPACE PARTAGÉ D'UNITÉ
+-- Les membres d'une même unité partagent :
+--   - les recherches : saisie en direct, résultats, historique ;
+--   - le rapport en cours de rédaction (chacun voit l'autre écrire et peut le compléter).
+-- Gardé en mémoire avec l'unité (perdu au redémarrage, comme les unités).
+-- =========================================================================
+local SEARCH_FIELDS = { lastname = 40, firstname = 40, dob = 10, ssn = 11, query = 17 }
+local MAX_DRAFT_SIZE = 60000 -- octets (JSON) d'un rapport en cours de rédaction
+
+local function sharedOf(unit)
+    unit.shared = unit.shared or { history = {} }
+    return unit.shared
+end
+
+local function sendToMembers(unit, exceptSrc, scope, payload, latent)
+    for key in pairs(unit.members) do
+        local member = tonumber(key)
+        if member ~= exceptSrc then
+            if latent then
+                TriggerLatentClientEvent('mdc:client:unitSync', member, Config.LatentBps, scope, payload)
+            else
+                TriggerClientEvent('mdc:client:unitSync', member, scope, payload)
+            end
+        end
+    end
+end
+
+-- Résultats d'une recherche faite par un membre : en tête de l'historique commun,
+-- et affichés chez les autres membres
+shareUnitSearch = function(src, results)
+    local unit = findUnit(PlayerUnit[src])
+    if not unit or #results == 0 then return end
+    local shared = sharedOf(unit)
+
+    local list, seen = {}, {}
+    local function add(kind, id)
+        local key = kind .. ':' .. tostring(id)
+        if not seen[key] and #list < Config.MaxSharedHistory then
+            seen[key] = true
+            list[#list + 1] = { kind = kind, id = id }
+        end
+    end
+    for _, record in ipairs(results) do add(record.kind, record.id) end
+    for _, entry in ipairs(shared.history) do add(entry.kind, entry.id) end
+    shared.history = list
+
+    sendToMembers(unit, src, 'searchResults', { results = results, by = agentName(src) }, true)
+end
+
+-- Historique commun avec les fiches à jour (les fiches supprimées par les cadres disparaissent)
+local function historyRecords(shared)
+    local out = {}
+    for _, entry in ipairs(shared.history) do
+        local record = findBy(entry.kind == 'vehicle' and 'vehicles' or 'identities', 'id', entry.id)
+        if record then out[#out + 1] = entry.kind == 'vehicle' and vehicleView(record) or identityView(record) end
+    end
+    return out
+end
+
+local function draftView(draft)
+    return {
+        type = draft.type, id = draft.id, callRef = draft.callRef, call = draft.call,
+        data = draft.data, startedName = draft.startedName,
+    }
+end
+
+local function draftSize(data)
+    local ok, encoded = pcall(json.encode, data)
+    return ok and #encoded or math.huge
+end
+
+--- Chemin "units.0.lastname" (index JS à partir de 0) -> { 'units', 1, 'lastname' } (index Lua)
+local function draftPath(path)
+    if type(path) ~= 'string' or #path > 120 then return nil end
+    local parts = {}
+    for part in path:gmatch('[^%.]+') do
+        if part:match('^%d+$') then
+            parts[#parts + 1] = tonumber(part) + 1
+        elseif part:match('^[%a_][%w_]*$') then
+            parts[#parts + 1] = part
+        else
+            return nil
+        end
+    end
+    if #parts == 0 or #parts > 8 then return nil end
+    return parts
+end
+
+local function draftValue(value)
+    local kind = type(value)
+    if kind == 'string' then return truncate(value, 6000) end
+    if kind == 'number' or kind == 'boolean' then return value end
+    if kind == 'table' then -- cases multiples : liste de textes
+        local out = {}
+        for index, item in ipairs(value) do
+            if type(item) == 'string' and index <= 40 then out[#out + 1] = truncate(item, 40) end
+        end
+        return out
+    end
+    return nil
+end
+
+local function draftCallRef(ref)
+    if ref == 'keep' then return 'keep' end
+    local id = tonumber(ref)
+    return id and tostring(math.floor(id)) or ''
+end
+
+--- Applique une modification du rapport partagé. Retourne ce qu'il faut relayer aux autres membres.
+local function applyDraftOp(shared, src, op)
+    if op.op == 'start' then
+        if not ReportTypes[op.type] or type(op.data) ~= 'table' or draftSize(op.data) > MAX_DRAFT_SIZE then return nil end
+        local id = tonumber(op.id)
+        if id then -- modification d'un rapport existant : commencée par son auteur uniquement
+            local report = findBy('reports', 'id', id)
+            if not report or report.createdBy ~= getIdentifier(src) then return nil end
+        end
+        local call = type(op.call) == 'table' and {
+            number = clean(op.call.number, 7), title = clean(op.call.title, 60), kind = op.call.kind == 'incident' and 'incident' or 'intervention',
+        } or nil
+        shared.draft = {
+            type = op.type, id = id, callRef = draftCallRef(op.callRef), call = call, data = op.data,
+            startedBy = getIdentifier(src), startedName = agentName(src),
+        }
+        local view = draftView(shared.draft)
+        view.op = 'start'
+        return view, true
+    end
+
+    local draft = shared.draft
+    if not draft then return nil end
+
+    if op.op == 'set' then
+        local parts, value = draftPath(op.path), draftValue(op.value)
+        if not parts or value == nil then return nil end
+        local target = draft.data
+        for i = 1, #parts - 1 do target = type(target) == 'table' and target[parts[i]] or nil end
+        if type(target) ~= 'table' then return nil end
+        target[parts[#parts]] = value
+        return { op = 'set', path = op.path, value = value }
+    elseif op.op == 'replace' then
+        if type(op.data) ~= 'table' or draftSize(op.data) > MAX_DRAFT_SIZE then return nil end
+        draft.data = op.data
+        return { op = 'replace', data = op.data }, true
+    elseif op.op == 'call' then
+        draft.callRef = draftCallRef(op.callRef)
+        return { op = 'call', callRef = draft.callRef }
+    elseif op.op == 'close' then
+        shared.draft = nil
+        return { op = 'close', saved = op.saved == true, number = clean(op.number, 7) }
+    end
+    return nil
+end
+
+-- État partagé à l'ouverture du MDC ou en rejoignant une unité
+RegisterMDCCallback('getUnitShared', function(src)
+    local unit = findUnit(PlayerUnit[src])
+    if not unit then return { ok = true, inUnit = false } end
+    local shared = sharedOf(unit)
+    return {
+        ok = true, inUnit = true, unitId = unit.id,
+        searchForm = shared.form,
+        history = historyRecords(shared),
+        draft = shared.draft and draftView(shared.draft) or nil,
+    }
+end, true)
+
+-- Modifications en direct d'un membre (saisie de recherche, historique, rapport)
+RegisterNetEvent('mdc:server:unitSync', function(scope, payload)
+    local src = source
+    if not hasAccess(src) or type(payload) ~= 'table' then return end
+    local unit = findUnit(PlayerUnit[src])
+    if not unit then return end
+    local shared = sharedOf(unit)
+    local by = agentName(src)
+
+    if scope == 'searchForm' then
+        local form = { type = payload.type == 'vehicle' and 'vehicle' or 'identity' }
+        for key, maxLen in pairs(SEARCH_FIELDS) do form[key] = clean(payload[key], maxLen) end
+        shared.form = form
+        sendToMembers(unit, src, 'searchForm', { form = form, by = by })
+    elseif scope == 'searchClear' then
+        shared.history = {}
+        sendToMembers(unit, src, 'searchClear', { by = by })
+    elseif scope == 'draft' then
+        local relay, large = applyDraftOp(shared, src, payload)
+        if relay then
+            relay.by = by
+            sendToMembers(unit, src, 'draft', relay, large)
+        end
+    end
 end)
 
 -- =========================================================================

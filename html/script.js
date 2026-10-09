@@ -30,6 +30,7 @@
     const KIND_SAVED = { identity: 'Identité enregistrée', vehicle: 'Véhicule enregistré', intervention: 'Intervention enregistrée' };
 
     // Identité
+    const SEX_LABELS = { M: '(M) Male', F: '(F) Female' };
     const CONDITION_LABELS = { none: 'N/A', wanted: 'Recherché', missing: 'Personne disparue', deceased: 'Personne décédée' };
     const CONDITION_COLOR = { wanted: 'c-red', missing: 'c-yellow', deceased: 'c-orange' };
     const RESTRICTION_LABELS = { weapon: 'Port d\'arme' };
@@ -350,6 +351,7 @@
     // =====================================================================
     // UNITÉS : indépendantes des joueurs, qui peuvent les rejoindre / quitter
     // =====================================================================
+    const MAX_UNIT_MEMBERS = 4; // identique à Config.MaxUnitMembers (server.lua)
     const TAG_COLORS = ['green', 'purple', 'blue', 'orange', 'red', 'yellow', 'pink', 'gray'];
     const tagColor = (color) => (TAG_COLORS.includes(color) ? color : 'gray');
     // Tag facultatif : rien n'est affiché si l'unité n'en a pas
@@ -419,7 +421,7 @@
                 <td class="col-actions">
                     ${isMine
                         ? `<button class="btn btn-small" data-unit-action="leave" data-id="${esc(u.id)}">Quitter</button>`
-                        : `<button class="btn btn-small btn-default" data-unit-action="join" data-id="${esc(u.id)}">Rejoindre</button>`}
+                        : `<button class="btn btn-small btn-default" data-unit-action="join" data-id="${esc(u.id)}" ${members.length >= MAX_UNIT_MEMBERS ? 'disabled' : ''}>Rejoindre</button>`}
                     <button class="btn btn-small" data-unit-action="edit" data-id="${esc(u.id)}">Modifier</button>
                     <button class="btn btn-small btn-danger" data-unit-action="delete" data-id="${esc(u.id)}">Supprimer</button>
                 </td>
@@ -430,6 +432,7 @@
     function setUnits(units) {
         state.units = toArray(units);
         renderUnits();
+        checkUnitChange(); // espace partagé d'unité
         if (state.callPanel.mode === 'view') renderInterventionDetail(); // boutons "Rejoindre l'appel"
     }
 
@@ -616,6 +619,7 @@
                 ${row('Middle name', r.middlename)}
                 ${row('Nom de famille', String(r.lastname || '').toUpperCase())}
                 ${row('Date de naissance', r.dob)}
+                ${row('Sexe', SEX_LABELS[r.sex] || '')}
                 ${row('SSN', r.ssn)}
                 ${row('Adresse', r.address)}
                 ${row('Emploi', r.job)}
@@ -707,11 +711,16 @@
     // =====================================================================
     const searchType = () => $('input[name="searchType"]:checked').value;
 
-    $$('input[name="searchType"]').forEach((radio) => radio.addEventListener('change', () => {
+    function applySearchType(focus) {
         const identity = searchType() === 'identity';
         $('#searchIdentityForm').classList.toggle('hidden', !identity);
         $('#searchVehicleForm').classList.toggle('hidden', identity);
-        $(identity ? '#searchIdentityForm input' : '#searchVehicleForm input').focus();
+        if (focus) $(identity ? '#searchIdentityForm input' : '#searchVehicleForm input').focus();
+    }
+
+    $$('input[name="searchType"]').forEach((radio) => radio.addEventListener('change', () => {
+        applySearchType(true);
+        searchFormLater();
     }));
 
     function resultRow(r, i) {
@@ -720,7 +729,7 @@
                 <tr data-index="${i}" class="${r.condition === 'wanted' ? 'row-wanted' : ''}">
                     <td>Identité</td>
                     <td><b>${esc(String(r.lastname).toUpperCase())}</b> ${esc([r.firstname, r.middlename].filter(Boolean).join(' '))}</td>
-                    <td>${esc(r.dob)} — SSN ${esc(r.ssn || '-')}</td>
+                    <td>${esc(r.dob)}${r.sex ? ` (${esc(r.sex)})` : ''} — SSN ${esc(r.ssn || '-')}</td>
                     <td>${conditionFlag(r.condition)}</td>
                 </tr>`;
         }
@@ -772,7 +781,11 @@
             return;
         }
 
-        // Nouveaux résultats en haut ; une fiche déjà présente remonte au lieu d'être dupliquée
+        mergeSearchResults(results);
+    }
+
+    // Nouveaux résultats en haut ; une fiche déjà présente remonte au lieu d'être dupliquée
+    function mergeSearchResults(results) {
         const key = (r) => `${r.kind}:${r.id}`;
         const fresh = new Set(results.map(key));
         state.searchResults = [...results, ...state.searchResults.filter((r) => !fresh.has(key(r)))].slice(0, 100);
@@ -797,6 +810,7 @@
     $('#clearSearch').addEventListener('click', () => {
         state.searchResults = [];
         renderSearchResults();
+        unitSync('searchClear', {}); // historique commun de l'unité
     });
 
     bindSelectable($('#searchBody'), () => state.searchResults, $('#searchDetail'), false);
@@ -1351,6 +1365,7 @@
                 middlename: pick(male ? MIDDLE_M : MIDDLE_F),
                 lastname: pick(LAST),
                 dob: dateString(birth),
+                sex: male ? 'M' : 'F',
                 address: `${int(100, 9999)} ${street}, ${city}`,
                 ssn: ssn(),
                 job: pick(JOBS),
@@ -1541,7 +1556,7 @@
 
     function fillIdentityForm(r) {
         resetIdentityForm();
-        ['firstname', 'middlename', 'lastname', 'dob', 'address', 'ssn', 'job', 'licenseClass',
+        ['firstname', 'middlename', 'lastname', 'dob', 'sex', 'address', 'ssn', 'job', 'licenseClass',
             'licenseStatus', 'licenseNumber', 'licenseState', 'condition', 'wantedReason', 'wantedSince']
             .forEach((name) => { idField(name).value = r[name] ?? ''; });
         if (!idField('licenseClass').value) idField('licenseClass').value = 'N/A';
@@ -1843,9 +1858,10 @@
         if (target != null) target[last] = value;
     }
 
-    // Condition "show" / "reqIf" : { k, eq } | { k, any: [] } | { k, none: [] }
+    // Condition "show" / "reqIf" : { k, eq } | { k, in: [] } | { k, any: [] } | { k, none: [] }
     function condMet(cond, obj) {
         const value = obj ? obj[cond.k] : undefined;
+        if (cond.in) return toArray(cond.in).includes(value);
         const list = Array.isArray(value) ? value : [];
         if (cond.any) return list.some((v) => toArray(cond.any).includes(v));
         if (cond.none) return !list.some((v) => toArray(cond.none).includes(v));
@@ -2079,13 +2095,21 @@
         const type = reports.byId[draft.type];
         const scroller = $('#reportForm');
         const top = scroller.scrollTop;
+        const active = document.activeElement;
+        const activePath = active && scroller.contains(active) && active.type !== 'checkbox' ? active.dataset.path : null;
+        const caret = activePath && typeof active.selectionStart === 'number' ? active.selectionStart : null;
         reports.lookups = [];
-        scroller.innerHTML = sectionsOf(type).map((section) => `
+        scroller.innerHTML = sectionsOf(type).filter((section) => visible(section, draft.data)).map((section) => `
             <div class="report-section">
                 <div class="report-section-title">${esc(section.title)}</div>
                 ${blocksHtml(section.f, draft.data, '')}
             </div>`).join('');
         scroller.scrollTop = top;
+        const again = activePath && scroller.querySelector(`[data-path="${CSS.escape(activePath)}"]`);
+        if (again) {
+            again.focus();
+            if (caret != null && typeof again.setSelectionRange === 'function') again.setSelectionRange(caret, caret);
+        }
     }
 
     // Intervention par défaut d'un nouveau rapport : la plus récente sur laquelle est l'unité du joueur
@@ -2106,17 +2130,32 @@
         reports.draft = {
             id: report ? report.id : null, type: typeId, data, callRef,
             call: report && report.call && report.call.number ? report.call : null, // lien actuel (modification)
+            shared: !!myUnit(), // rédaction partagée avec les membres de l'unité
+            number: report ? report.number : null,
         };
-        $('#reportEditorTitle').textContent = report ? `Modification — ${type.label} n°${report.number}` : `Nouveau rapport — ${type.label}`;
+        showReportEditor(null);
+        refreshInterventions(); // liste à jour pour la première ligne
+        draftSync({ op: 'start', type: typeId, id: reports.draft.id, callRef, call: reports.draft.call, data });
+    }
+
+    // Affiche l'éditeur pour reports.draft (startedBy : membre de l'unité qui l'a commencé)
+    function showReportEditor(startedBy) {
+        const draft = reports.draft;
+        const type = reports.byId[draft.type];
+        const title = draft.id ? `Modification — ${type.label}${draft.number ? ` n°${draft.number}` : ''}` : `Nouveau rapport — ${type.label}`;
+        $('#reportEditorTitle').textContent = draft.shared
+            ? `${title} — rédaction partagée avec l'unité${startedBy ? ` (commencé par ${startedBy})` : ''}`
+            : title;
         $('#reportsBrowse').classList.add('hidden');
         $('#reportEditor').classList.remove('hidden');
         $('#reportForm').scrollTop = 0;
         renderCallSelect();
         renderReportForm();
-        refreshInterventions(); // liste à jour pour la première ligne
     }
 
-    function closeReportEditor() {
+    // closeReportEditor(sync) : sync = { saved, number } pour prévenir l'unité (rédaction partagée)
+    function closeReportEditor(sync) {
+        if (sync) draftSync({ op: 'close', saved: !!sync.saved, number: sync.number || '' });
         reports.draft = null;
         hideSuggest();
         $('#reportEditor').classList.add('hidden');
@@ -2153,6 +2192,7 @@
         if (!reports.draft) return;
         reports.draft.callRef = e.target.value;
         e.target.classList.remove('invalid');
+        draftSync({ op: 'call', callRef: e.target.value });
     });
 
     // Entrée dans un champ : ne doit pas enregistrer le rapport par erreur
@@ -2164,7 +2204,9 @@
     function draftInProgress() {
         if (!reports.draft) return false;
         showPage('reports');
-        toast('Un rapport est déjà en cours de rédaction : enregistrez-le ou annulez-le d\'abord.', 'error');
+        toast(reports.draft.shared
+            ? 'Un rapport est déjà en cours de rédaction dans votre unité : enregistrez-le ou annulez-le d\'abord.'
+            : 'Un rapport est déjà en cours de rédaction : enregistrez-le ou annulez-le d\'abord.', 'error');
         return true;
     }
 
@@ -2201,7 +2243,10 @@
         const el = e.target;
         if (!reports.draft || !el.dataset || !el.dataset.path || !el.closest('#reportForm')) return;
         el.classList.remove('invalid');
-        if (el.type !== 'checkbox' && el.tagName !== 'SELECT') pathSet(reports.draft.data, el.dataset.path, el.value);
+        if (el.type !== 'checkbox' && el.tagName !== 'SELECT') {
+            pathSet(reports.draft.data, el.dataset.path, el.value);
+            draftSetLater(el.dataset.path, el.value);
+        }
         if (el.dataset.suggest != null) showSuggest(el);
     });
 
@@ -2222,6 +2267,7 @@
         } else {
             return;
         }
+        draftSync({ op: 'set', path, value: pathGet(reports.draft.data, path) });
         renderReportForm();
     });
 
@@ -2236,6 +2282,7 @@
             const list = toArray(pathGet(draft.data, path));
             list.push(newObject(spec ? spec.f : []));
             pathSet(draft.data, path, list);
+            draftSync({ op: 'replace', data: draft.data });
             renderReportForm();
             return;
         }
@@ -2246,6 +2293,7 @@
             const list = toArray(pathGet(draft.data, path));
             list.splice(Number(remove.dataset.index), 1);
             pathSet(draft.data, path, list);
+            draftSync({ op: 'replace', data: draft.data });
             renderReportForm();
             return;
         }
@@ -2271,6 +2319,7 @@
     function lookupValue(record, source) {
         switch (source) {
             case 'makeModel': return [record.make, record.model].filter(Boolean).join(' ');
+            case 'sexReport': return { M: 'male', F: 'female' }[record.sex] || ''; // fiche (M / F) -> rapport
             case 'ownerFull': return record.ownerIdentity ? fullName(record.ownerIdentity) : (record.ownerName || '');
             case 'insurance':
                 return record.insuranceStatus === 'none'
@@ -2333,6 +2382,7 @@
             if (keys.has(to) && value !== '' && value != null) obj[to] = typeof value === 'number' ? String(value) : value;
         });
         hideSuggest();
+        draftSync({ op: 'replace', data: reports.draft.data });
         renderReportForm();
         toast(record.kind === 'vehicle' ? `Véhicule ${record.plate} repris de l'historique.` : `${fullName(record)} repris de l'historique.`, 'success');
     }
@@ -2430,6 +2480,7 @@
     function validateDraft() {
         const type = reports.byId[reports.draft.type];
         for (const section of sectionsOf(type)) {
+            if (!visible(section, reports.draft.data)) continue;
             const error = validateFields(section.f, reports.draft.data, '', [section.title]);
             if (error) return error;
         }
@@ -2474,7 +2525,7 @@
         }
 
         toast(`Rapport n°${res.number} enregistré.`, 'success');
-        closeReportEditor();
+        closeReportEditor({ saved: true, number: res.number });
         reports.selected = res.id;
         await refreshReports();
         openReport(res.id);
@@ -2494,7 +2545,7 @@
         }
         delete btn.dataset.confirm;
         btn.textContent = 'Annuler';
-        closeReportEditor();
+        closeReportEditor({ saved: false });
     });
 
     // ---------------------------------------------------------------------
@@ -2600,7 +2651,7 @@
                     : '<span class="muted">aucune</span>'}</span>
                 ${r.callLive ? `<button type="button" class="btn btn-small" data-goto-call="${esc(r.call.id)}">Voir l'intervention</button>` : ''}
             </div>
-            ${sectionsOf(type).map((section) => {
+            ${sectionsOf(type).filter((section) => visible(section, data)).map((section) => {
                 const body = viewBlocks(section.f, data, data, type);
                 return body ? `<div class="report-section-title">${esc(section.title)}</div>${body}` : '';
             }).join('')}`;
@@ -2995,6 +3046,167 @@
     }
 
     // =====================================================================
+    // ESPACE PARTAGÉ D'UNITÉ : les membres d'une même unité partagent
+    //   - les recherches (saisie en direct, résultats, historique commun) ;
+    //   - le rapport en cours de rédaction (chacun voit l'autre écrire et peut compléter).
+    // Hors unité, tout reste local au joueur.
+    // =====================================================================
+    const unitShare = { unitId: null, applying: false, formTimer: null, setTimer: null, pendingSets: new Map(), hintTimer: null };
+
+    function unitSync(scope, payload) {
+        if (myUnit()) post('unitSync', { scope, payload });
+    }
+
+    // Rapport partagé : seulement si le brouillon est celui de l'unité
+    function draftSync(op) {
+        if (reports.draft && reports.draft.shared && myUnit()) unitSync('draft', op);
+    }
+
+    // Saisie de texte : regroupée toutes les 150 ms (un envoi par champ modifié)
+    function draftSetLater(path, value) {
+        if (!reports.draft || !reports.draft.shared) return;
+        unitShare.pendingSets.set(path, value);
+        clearTimeout(unitShare.setTimer);
+        unitShare.setTimer = setTimeout(() => {
+            unitShare.pendingSets.forEach((v, p) => draftSync({ op: 'set', path: p, value: v }));
+            unitShare.pendingSets.clear();
+        }, 150);
+    }
+
+    // ---- Recherches ----
+    function searchFormData() {
+        const id = $('#searchIdentityForm').elements;
+        return {
+            type: searchType(), lastname: id.lastname.value, firstname: id.firstname.value, dob: id.dob.value,
+            ssn: id.ssn.value, query: $('#searchVehicleForm').elements.query.value,
+        };
+    }
+
+    function searchFormLater() {
+        if (unitShare.applying || !myUnit()) return;
+        clearTimeout(unitShare.formTimer);
+        unitShare.formTimer = setTimeout(() => unitSync('searchForm', searchFormData()), 150);
+    }
+
+    ['#searchIdentityForm', '#searchVehicleForm'].forEach((sel) => $(sel).addEventListener('input', searchFormLater));
+
+    function applySearchForm(form) {
+        if (!form) return;
+        unitShare.applying = true;
+        const radio = $(`input[name="searchType"][value="${form.type === 'vehicle' ? 'vehicle' : 'identity'}"]`);
+        if (!radio.checked) {
+            radio.checked = true;
+            applySearchType(false);
+        }
+        const id = $('#searchIdentityForm').elements;
+        const fields = { lastname: id.lastname, firstname: id.firstname, dob: id.dob, ssn: id.ssn, query: $('#searchVehicleForm').elements.query };
+        Object.entries(fields).forEach(([key, el]) => {
+            if (el !== document.activeElement) el.value = form[key] || ''; // ne pas écraser la saisie en cours
+        });
+        unitShare.applying = false;
+    }
+
+    function shareHint(text) {
+        const el = $('#searchShareHint');
+        el.textContent = text;
+        el.classList.remove('hidden');
+        clearTimeout(unitShare.hintTimer);
+        unitShare.hintTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    // ---- Rapport partagé reçu ----
+    async function adoptSharedDraft(d, by) {
+        if (!(await loadReportTypes()) || !reports.byId[d.type]) return;
+        const type = reports.byId[d.type];
+        const data = d.data && typeof d.data === 'object' ? d.data : {};
+        normalizeFields(allFields(type), data, data);
+        reports.draft = {
+            id: d.id || null, type: d.type, data, callRef: d.callRef || '', call: d.call && d.call.number ? d.call : null,
+            shared: true, number: null,
+        };
+        showReportEditor(by || d.startedName);
+    }
+
+    function applyRemoteDraft(op) {
+        const draft = reports.draft;
+        if (op.op === 'start') {
+            if (draft && !(draft.shared && draft.id === (op.id || null) && draft.type === op.type)) {
+                if (draft.shared) draft.shared = false; // le brouillon local ne suit plus celui de l'unité
+                toast(`${op.by} a commencé un autre rapport dans votre unité : le vôtre reste local.`, 'info');
+                return;
+            }
+            adoptSharedDraft(op, op.by);
+            toast(`${op.by} rédige un rapport avec votre unité.`, 'info');
+            return;
+        }
+        if (!draft || !draft.shared) return;
+        const type = reports.byId[draft.type];
+
+        if (op.op === 'set') {
+            pathSet(draft.data, op.path, op.value);
+            const el = $(`#reportForm [data-path="${CSS.escape(op.path)}"]`);
+            const isText = el && el.type !== 'checkbox' && el.tagName !== 'SELECT';
+            if (isText) {
+                if (el !== document.activeElement) el.value = op.value ?? '';
+            } else {
+                renderReportForm(); // case / liste : peut afficher ou masquer d'autres champs
+            }
+        } else if (op.op === 'replace') {
+            draft.data = op.data && typeof op.data === 'object' ? op.data : {};
+            normalizeFields(allFields(type), draft.data, draft.data);
+            renderReportForm();
+        } else if (op.op === 'call') {
+            draft.callRef = op.callRef || '';
+            renderCallSelect();
+        } else if (op.op === 'close') {
+            closeReportEditor(null);
+            toast(op.saved ? `${op.by} a enregistré le rapport n°${op.number}.` : `${op.by} a annulé le rapport en cours.`, op.saved ? 'success' : 'info');
+            if (state.page === 'reports') refreshReports();
+        }
+    }
+
+    function handleUnitSync(scope, payload) {
+        if (!payload) return;
+        if (scope === 'searchForm') {
+            applySearchForm(payload.form);
+            shareHint(`${payload.by} écrit une recherche…`);
+        } else if (scope === 'searchResults') {
+            mergeSearchResults(toArray(payload.results));
+            shareHint(`Résultat de la recherche de ${payload.by}`);
+        } else if (scope === 'searchClear') {
+            state.searchResults = [];
+            renderSearchResults();
+            shareHint(`${payload.by} a vidé l'historique.`);
+        } else if (scope === 'draft') {
+            applyRemoteDraft(payload);
+        }
+    }
+
+    // En rejoignant une unité (ou à l'ouverture du MDC) : historique, saisie et rapport de l'unité
+    async function loadUnitShared() {
+        const res = await post('getUnitShared');
+        if (!res || !res.ok || !res.inUnit) return;
+        // Historique commun (s'il est vide, on garde le sien jusqu'à la prochaine recherche)
+        const history = toArray(res.history);
+        if (history.length) {
+            state.searchResults = history;
+            renderSearchResults();
+        }
+        applySearchForm(res.searchForm);
+        if (res.draft && !reports.draft) adoptSharedDraft(res.draft, res.draft.startedName);
+    }
+
+    // Appelé à chaque mise à jour des unités : détecte l'entrée / la sortie d'une unité
+    function checkUnitChange() {
+        const unit = myUnit();
+        const id = unit ? unit.id : null;
+        if (id === unitShare.unitId) return;
+        unitShare.unitId = id;
+        if (id) loadUnitShared();
+        else if (reports.draft) reports.draft.shared = false; // hors unité : le brouillon devient local
+    }
+
+    // =====================================================================
     // MESSAGES Lua -> NUI
     // =====================================================================
     window.addEventListener('message', ({ data }) => {
@@ -3024,6 +3236,9 @@
                 break;
             case 'callNotify': // nouvelle intervention / nouvel incident (même MDC fermé)
                 if (data.data) callNotification(data.data);
+                break;
+            case 'unitSync': // espace partagé d'unité (recherches, rapport en cours)
+                if (data.data) handleUnitSync(data.data.scope, data.data.payload);
                 break;
             case 'statusNotify': // nouveau statut de l'unité du joueur
                 if (data.data) statusNotification(data.data);

@@ -169,6 +169,7 @@
                             <span class="legend">Résultats <span id="searchCount"></span></span>
                             <div class="toolbar">
                                 <span class="hint-text">Les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous.</span>
+                                <span class="share-hint hidden" id="searchShareHint"></span>
                                 <span class="grow"></span>
                                 <button type="button" class="btn btn-small" id="clearSearch">Vider l'historique</button>
                             </div>
@@ -300,7 +301,7 @@
                             <div class="toolbar">
                                 <span class="hint-text">* champs obligatoires</span>
                                 <span class="grow"></span>
-                                <button type="button" class="btn" id="randomIdentity" title="Remplit le prénom, le middle name, le nom, la DoB, l'adresse, le SSN et l'emploi">&#9858; Remplissage aléatoire</button>
+                                <button type="button" class="btn" id="randomIdentity" title="Remplit le prénom, le middle name, le nom, la DoB, le sexe, l'adresse, le SSN et l'emploi">&#9858; Remplissage aléatoire</button>
                             </div>
 
                             <div class="form-grid cols-3">
@@ -309,7 +310,14 @@
                                 <label class="lbl">Nom de famille *<input name="lastname" type="text" maxlength="40"></label>
 
                                 <label class="lbl">Date de naissance *<input name="dob" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
-                                <label class="lbl span-2">Adresse *<input name="address" type="text" maxlength="80" placeholder="ex : 1420 Grove Street, Los Santos"></label>
+                                <label class="lbl">Sexe
+                                    <select name="sex">
+                                        <option value="">— Choisir —</option>
+                                        <option value="M">(M) Male</option>
+                                        <option value="F">(F) Female</option>
+                                    </select>
+                                </label>
+                                <label class="lbl">Adresse *<input name="address" type="text" maxlength="80" placeholder="ex : 1420 Grove Street, Los Santos"></label>
 
                                 <label class="lbl">Social Security Number *
                                     <span class="inline">

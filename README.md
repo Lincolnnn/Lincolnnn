@@ -26,14 +26,22 @@ L'heure affichée en bas à droite du MDC est l'heure du jeu.
 
 | Onglet | Rôle |
 |---|---|
-| Unités | Deux listes, une par service : **Atlanta Police Department** et **Georgia State Patrol** (chacun voit les deux). Bouton **Créer une unité** par service (service, nom, tag facultatif, couleur). Chacun peut rejoindre, quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur) |
+| Unités | Deux listes, une par service : **Atlanta Police Department** et **Georgia State Patrol** (chacun voit les deux). Bouton **Créer une unité** par service (service, nom, tag facultatif, couleur). Chacun peut rejoindre (4 joueurs max par unité), quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur). Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
 | Interventions | Liste des interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer pour le masquer. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous |
-| Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation, Traffic Citation, Convocation, Warning (case « Infraction » pour détailler chaque infraction ; « Charges » pour l'Arrest Report). Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
+| Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
 | Paramètres | Réglages du HUD (affichage, éléments visibles, taille, position) et du MDC (taille de l'interface, onglet à l'ouverture, fenêtre). Gardés chez le joueur, même après une reconnexion |
 | Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
+
+### Unité : espace partagé
+
+Les membres d'une même unité (4 au maximum) partagent en direct :
+- les **recherches** : chacun voit l'autre écrire, voit le résultat s'afficher, et l'historique est commun ;
+- le **rapport en cours de rédaction** : chacun voit l'autre écrire et peut compléter ; n'importe quel membre peut
+  l'enregistrer (une modification de rapport est ouverte par son auteur, puis enregistrable par l'unité) ;
+- les **changements de statut** (notification chez chaque membre).
 
 ### HUD et notifications
 
@@ -47,8 +55,9 @@ Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fin
 - **Display MDC** : affiché seulement dans une unité : nom, tag, statut, et le n° d'incident uniquement quand
   l'unité est sur un appel.
 - **Notifications** (en haut à droite) : toutes les notifications du MDC, et, même MDC fermé : nouvel appel
-  (titre, priorité, adresse, croisement, bloc), nouvel incident (titre, unité créatrice, adresse, croisement, bloc) et
-  changement de statut de votre unité. Chacune se désactive dans « Paramètres ».
+  (titre, priorité, adresse, croisement, bloc) et nouvel incident (titre, unité créatrice, adresse, croisement, bloc)
+  pour **tous les joueurs en jeu** ; changement de statut pour les membres de l'unité. Chacune se désactive dans
+  « Paramètres ».
 
 Onglet **Paramètres** : afficher / masquer chaque HUD et ses éléments, taille (50 à 200 %), **Placer les HUD à
 l'écran** (glisser à la souris, molette = taille), notifications et son.
@@ -78,7 +87,7 @@ l'interface et la validation serveur suivent automatiquement.
 
 ### Identités
 
-Prénom\*, middle name, nom de famille\*, date de naissance\*, adresse\*, SSN\* (généré), emploi ;
+Prénom\*, middle name, nom de famille\*, date de naissance\*, sexe ((M) Male / (F) Female), adresse\*, SSN\* (généré), emploi ;
 licence de conduite (classe, condition : Suspension / Révocation / Annulation / Disqualification pour les CDL, n° généré, État d'émission) ;
 interdictions, condition (Recherché + raison et date de début) ; **Antécédents** (infraction, date, horaire, adresse, explication).
 **Remplissage aléatoire** : prénom, middle name, nom, DoB, adresse, SSN et emploi.

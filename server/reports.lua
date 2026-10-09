@@ -38,7 +38,9 @@
       show  = { condition }           visible seulement si la condition est vraie
       w     = 1..4                    largeur (colonnes sur 4)
     Modèle : archived = true -> plus de nouveaux rapports de ce type (les anciens restent lisibles)
-      Condition : { k = clé, eq = valeur } | { k = clé, any = { ... } } | { k = clé, none = { ... } }
+      Condition : { k = clé, eq = valeur } | { k = clé, ['in'] = { valeurs } }
+                | { k = clé, any = { ... } } | { k = clé, none = { ... } }   (any / none : cases multiples)
+    Section : { title, f = champs, show = { condition } } -> section entière masquée si la condition est fausse
 ]]
 
 -- -------------------------------------------------------------------------
@@ -58,7 +60,7 @@ local LICENSE_CLASSES = {
     { 'Probatoire - Class MP', 'Probatoire - Class MP' },
 }
 
-local SEXES = { { 'male', 'Homme' }, { 'female', 'Femme' }, { 'other', 'Autre' } }
+local SEXES = { { 'male', '(M) Male' }, { 'female', '(F) Female' } }
 
 local VEHICLE_TYPES = {
     { 'sedan', 'Berline' }, { 'suv', 'SUV' }, { 'coupe', 'Coupé' }, { 'hatchback', 'Citadine / compacte' },
@@ -82,7 +84,7 @@ local function person(opts)
     opts = opts or {}
     local fields = {
         { t = 'lookup', kind = 'identity',
-          map = { lastname = 'lastname', firstname = 'firstname', dob = 'dob', homeAddress = 'address',
+          map = { lastname = 'lastname', firstname = 'firstname', dob = 'dob', sex = 'sexReport', homeAddress = 'address',
                   dlNumber = 'licenseNumber', dlClass = 'licenseClass', dlState = 'licenseState' } },
         { k = 'lastname', t = 'text', l = 'Nom de famille', req = opts.req, reqIf = opts.reqIf, max = 40 },
         { k = 'firstname', t = 'text', l = 'Prénom', req = opts.req, max = 40 },
@@ -91,9 +93,11 @@ local function person(opts)
         { k = 'homeAddress', t = 'text', l = 'Domicile', max = 80, w = 2 },
     }
     if opts.license then
-        fields[#fields + 1] = { k = 'dlNumber', t = 'text', l = 'N° de licence (DL)', max = 20, upper = true }
-        fields[#fields + 1] = { k = 'dlClass', t = 'select', l = 'Classe', o = LICENSE_CLASSES }
-        fields[#fields + 1] = { k = 'dlState', t = 'text', l = 'État (DL)', max = 40 }
+        -- licenseShow : condition d'affichage ; licenseReq : licence obligatoire (quand affichée)
+        local show, req = opts.licenseShow, opts.licenseReq
+        fields[#fields + 1] = { k = 'dlNumber', t = 'text', l = 'N° de licence (DL)', max = 20, upper = true, show = show, req = req }
+        fields[#fields + 1] = { k = 'dlClass', t = 'select', l = 'Classe', o = LICENSE_CLASSES, show = show, req = req }
+        fields[#fields + 1] = { k = 'dlState', t = 'text', l = 'État d\'émission (DL)', max = 40, show = show, req = req }
         if opts.restrictions then
             fields[#fields + 1] = { k = 'dlRestrictions', t = 'text', l = 'Restrictions (DL)', max = 80, ph = 'ex : verres correcteurs' }
         end
@@ -175,7 +179,7 @@ local DOT523 = {
                     } },
                     { t = 'group', l = 'B) Conducteur / piéton — identité et licence', f = {
                         { t = 'lookup', kind = 'identity',
-                          map = { lastname = 'lastname', firstname = 'firstname', dob = 'dob', address = 'address',
+                          map = { lastname = 'lastname', firstname = 'firstname', dob = 'dob', sex = 'sexReport', address = 'address',
                                   dlNumber = 'licenseNumber', dlClass = 'licenseClass', dlState = 'licenseState' } },
                         { k = 'lastname', t = 'text', l = 'Nom de famille', max = 40, reqIf = { k = 'types', none = { 'hit_run' } } },
                         { k = 'firstname', t = 'text', l = 'Prénom', max = 40 },
@@ -354,14 +358,23 @@ local INCIDENT = {
             table.insert(fields, 1, { k = 'nature', t = 'text', l = 'Nature de l\'incident', req = true, max = 80, w = 4 })
             return fields
         end)() },
-        { title = 'Personnes impliquées', f = {
-            { k = 'persons', t = 'list', l = 'Personnes', item = 'Personne', add = '+ Ajouter une personne', min = 0, max = 15, f = (function()
+        { title = 'Impliqués', f = {
+            { k = 'persons', t = 'list', l = 'Individus', item = 'Individu', add = '+ Ajouter un individu', min = 0, max = 15, f = (function()
                 local fields = person({ req = true })
                 table.insert(fields, 1, { k = 'role', t = 'select', l = 'Rôle', req = true, o = {
                     { 'victim', 'Victime' }, { 'suspect', 'Suspect' }, { 'witness', 'Témoin' }, { 'caller', 'Requérant' }, { 'other', 'Autre' },
                 } })
                 fields[#fields + 1] = { k = 'phone', t = 'text', l = 'Téléphone', max = 20 }
                 fields[#fields + 1] = { k = 'statement', t = 'area', l = 'Déclaration', max = 1500, rows = 3, w = 4 }
+                return fields
+            end)() },
+            -- Véhicules enregistrés (liste déroulante de l'historique des recherches sur l'immatriculation)
+            { k = 'vehicles', t = 'list', l = 'Véhicules', item = 'Véhicule', add = '+ Ajouter un véhicule', min = 0, max = 10, f = (function()
+                local fields = vehicle({ req = true })
+                fields[#fields + 1] = { k = 'role', t = 'select', l = 'Implication', o = {
+                    { 'suspect', 'Véhicule suspect' }, { 'victim', 'Véhicule de la victime' }, { 'witness', 'Véhicule témoin' }, { 'other', 'Autre' },
+                } }
+                fields[#fields + 1] = { k = 'notes', t = 'text', l = 'Observations', max = 200, w = 3 }
                 return fields
             end)() },
         } },
@@ -379,7 +392,7 @@ local CITATION = {
     summary = '{lastname} {firstname} — {#violations} infraction(s)',
     sections = {
         { title = 'Informations générales', f = whenWhere() },
-        { title = 'Contrevenant', f = person({ req = true, license = true }) },
+        { title = 'Contrevenant', f = person({ req = true }) },
         { title = 'Infractions', f = { violations(true) } },
         { title = 'Comparution', f = {
             { k = 'courtDate', t = 'date', l = 'Date de comparution' },
@@ -406,9 +419,17 @@ local TRAFFIC = {
                 { 'radar', 'Radar' }, { 'lidar', 'Lidar' }, { 'pacing', 'Pacing (suivi)' }, { 'visual', 'Estimation visuelle' },
             } },
         } },
-        { title = 'Infractions', f = { violations(true) } },
-        { title = 'Paiement / comparution', f = {
-            { k = 'dueDate', t = 'date', l = 'Date limite' },
+        { title = 'Infractions', f = {
+            { k = 'violations', t = 'list', l = 'Infractions', item = 'Infraction', add = '+ Ajouter une infraction', min = 1, max = 15, f = {
+                { k = 'category', t = 'select', l = 'Type d\'infraction', req = true, o = {
+                    { 'speeding', 'Excès de vitesse' }, { 'driving', 'Conduite' }, { 'control', 'Contrôle' },
+                } },
+                { k = 'offense', t = 'text', l = 'Intitulé de l\'infraction', req = true, max = 120, w = 3 },
+                { k = 'details', t = 'area', l = 'Description de l\'infraction', max = 1500, rows = 3, w = 4 },
+            } },
+        } },
+        { title = 'Comparution', f = {
+            { k = 'courtDate', t = 'date', l = 'Date de comparution' },
             { k = 'court', t = 'text', l = 'Tribunal', max = 80, w = 2 },
         } },
         { title = 'Notes', f = { narrative('Notes de l\'agent', false) } },
@@ -452,19 +473,28 @@ local TICKET = {
     },
 }
 
+-- Warning : "Infraction routière" -> identité complète avec licence + véhicule obligatoire ;
+--           "Autre infraction"     -> identité seule. Puis l'intitulé et le détail.
+local WARNING_ROAD = { k = 'category', eq = 'road' }
+local WARNING_CHOSEN = { k = 'category', ['in'] = { 'road', 'other' } }
+
 local WARNING = {
     id = 'warning',
     label = 'Warning',
     short = 'Warning',
-    summary = '{lastname} {firstname} — {kind}',
+    summary = '{lastname} {firstname} — {category}',
     sections = {
-        { title = 'Informations générales', f = whenWhere() },
-        { title = 'Personne avertie', f = person({ req = true, license = true }) },
-        { title = 'Véhicule (facultatif)', f = vehicle() },
-        { title = 'Avertissement', f = {
-            { k = 'kind', t = 'select', l = 'Type d\'avertissement', req = true, o = { { 'verbal', 'Verbal' }, { 'written', 'Écrit' } } },
-            violations(false),
-        } },
+        { title = 'Informations générales', f = (function()
+            local fields = whenWhere()
+            fields[#fields + 1] = { k = 'category', t = 'select', l = 'Type d\'infraction', req = true, w = 2, o = {
+                { 'road', 'Infraction routière' }, { 'other', 'Autre infraction' },
+            } }
+            return fields
+        end)() },
+        { title = 'Personne avertie', show = WARNING_CHOSEN,
+          f = person({ req = true, license = true, licenseShow = WARNING_ROAD, licenseReq = true }) },
+        { title = 'Véhicule', show = WARNING_ROAD, f = vehicle({ req = true }) },
+        { title = 'Infraction', show = WARNING_CHOSEN, f = { violations(false) } },
         { title = 'Notes', f = { narrative('Notes de l\'agent', false) } },
     },
 }

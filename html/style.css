@@ -705,6 +705,9 @@ input::placeholder { color: #6a6a6a; }
 .note textarea, .note-new textarea { margin-top: 6px; }
 .note-new { margin-top: 10px; }
 
+/* Espace partagé d'unité : "X écrit une recherche…" */
+.share-hint { padding: 1px 8px; font-size: 11px; color: #cfe0ff; background: #10233f; border: 1px solid #000; }
+
 /* Personnes et véhicules liés à l'appel */
 .call-links { border: 1px solid #262626; background: #161616; }
 .call-link { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-bottom: 1px solid #262626; }
