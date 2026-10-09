@@ -91,8 +91,9 @@ l'interface et la validation serveur suivent automatiquement.
 
 Prénom\*, middle name, nom de famille\*, date de naissance\*, sexe ((M) Male / (F) Female), adresse\*, SSN\* (généré), emploi ;
 licence de conduite (case à cocher, puis État d'émission : GA - Georgia, FL - Floride, TN - Tennessee,
-SC - South Carolina, NC - North Carolina, AL - Alabama ; type de licence selon l'État (standard, moto, CDL A/B/C,
-Class G - Cyclomoteur en Caroline du Sud) ; n° généré ; condition : Valide / Suspension / Révocation / Annulation /
+SC - South Carolina, NC - North Carolina, AL - Alabama ; type de licence selon l'État : en Géorgie Class C - Standard,
+Class F - Lourd, Class E - Combiné, Class M - Moto, CDL A/B/C, Probatoire - Class CP/D/MP ; ailleurs standard, moto,
+CDL A/B/C (+ Class G - Cyclomoteur en Caroline du Sud) ; n° généré ; condition : Valide / Suspension / Révocation / Annulation /
 Disqualification pour les CDL) ;
 interdictions cumulables (Port d'arme, Conduite de jour uniquement, Interdiction de rouler sur Interstate),
 condition (Recherché + raison et date de début) ; **Antécédents** (infraction, date, horaire, adresse, explication).

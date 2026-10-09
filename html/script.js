@@ -37,9 +37,11 @@
     const RESTRICTION_LABELS = { weapon: 'Port d\'arme', daylight: 'Conduite de jour uniquement', nointerstate: 'Interdiction de rouler sur Interstate' };
 
     // Licences de conduite par État d'émission (identique à LICENSE_STATES dans server.lua) :
-    // la Géorgie en premier, puis les États voisins ; licences standard, moto et CDL réelles.
+    // la Géorgie en premier (toutes les licences du MDC), puis les États voisins (licences standard,
+    // moto et CDL réelles).
     const LICENSE_STATES = [
-        { code: 'GA', label: 'GA - Georgia', classes: ['Class C - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
+        { code: 'GA', label: 'GA - Georgia', classes: ['Class C - Standard', 'Class F - Lourd', 'Class E - Combiné', 'Class M - Moto',
+            'CDL A', 'CDL B', 'CDL C', 'Probatoire - Class CP', 'Probatoire - Class D', 'Probatoire - Class MP'] },
         { code: 'FL', label: 'FL - Floride', classes: ['Class E - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
         { code: 'TN', label: 'TN - Tennessee', classes: ['Class D - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
         { code: 'SC', label: 'SC - South Carolina', classes: ['Class D - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto', 'Class G - Cyclomoteur'] },
@@ -1594,7 +1596,9 @@
             .forEach((name) => { idField(name).value = r[name] ?? ''; });
         // Licence : État (code GA, FL…) puis le type de licence de cet État
         idField('hasLicense').checked = !!r.licenseClass && r.licenseClass !== 'N/A';
-        idField('licenseState').value = LICENSE_STATES.some((s) => s.code === r.licenseState) ? r.licenseState : '';
+        const knownState = LICENSE_STATES.some((s) => s.code === r.licenseState);
+        const legacyGeorgia = !knownState && LICENSE_STATES[0].classes.includes(r.licenseClass); // ancienne fiche (ex : "San Andreas")
+        idField('licenseState').value = knownState ? r.licenseState : (legacyGeorgia ? 'GA' : '');
         updateLicenseClasses();
         idField('licenseClass').value = r.licenseClass || '';
         if (!idField('licenseStatus').value) idField('licenseStatus').value = 'valid';

@@ -477,10 +477,15 @@ end
 -- =========================================================================
 -- LISTES (doivent correspondre aux <option> de index.html)
 -- =========================================================================
--- Licences de conduite par État d'émission (licences standard, moto et CDL de chaque État).
--- Doit correspondre à LICENSE_STATES dans script.js.
+-- Licences de conduite par État d'émission. Doit correspondre à LICENSE_STATES dans script.js.
+--   GA : toutes les licences du MDC (standard, lourd, combiné, moto, CDL, probatoires)
+--   autres États : licences standard, moto et CDL de chaque État
 local LICENSE_STATES = {
-    GA = { ['Class C - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
+    GA = {
+        ['Class C - Standard'] = true, ['Class F - Lourd'] = true, ['Class E - Combiné'] = true, ['Class M - Moto'] = true,
+        ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true,
+        ['Probatoire - Class CP'] = true, ['Probatoire - Class D'] = true, ['Probatoire - Class MP'] = true,
+    },
     FL = { ['Class E - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
     TN = { ['Class D - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
     SC = { ['Class D - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true, ['Class G - Cyclomoteur'] = true },

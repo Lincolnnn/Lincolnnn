@@ -52,11 +52,16 @@ local LICENSE_CLASSES = {
     { 'Class C - Standard', 'Class C - Standard' },
     { 'Class D - Standard', 'Class D - Standard' },
     { 'Class E - Standard', 'Class E - Standard' },
+    { 'Class E - Combiné', 'Class E - Combiné' },
+    { 'Class F - Lourd', 'Class F - Lourd' },
     { 'Class M - Moto', 'Class M - Moto' },
     { 'Class G - Cyclomoteur', 'Class G - Cyclomoteur' },
     { 'CDL A', 'CDL A' },
     { 'CDL B', 'CDL B' },
     { 'CDL C', 'CDL C' },
+    { 'Probatoire - Class CP', 'Probatoire - Class CP' },
+    { 'Probatoire - Class D', 'Probatoire - Class D' },
+    { 'Probatoire - Class MP', 'Probatoire - Class MP' },
 }
 
 local SEXES = { { 'male', '(M) Male' }, { 'female', '(F) Female' } }
