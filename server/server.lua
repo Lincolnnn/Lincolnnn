@@ -228,7 +228,6 @@ end, true)
 -- =========================================================================
 -- ÉTAT EN MÉMOIRE (non persistant : remis à zéro au redémarrage du serveur)
 -- =========================================================================
-local Profiles = {}         -- [source] = { rpName }
 local Viewers = {}          -- [source] = true (joueurs ayant le MDC ouvert)
 local Units = {}            -- unités créées par les joueurs (section UNITÉS)
 local PlayerUnit = {}       -- [source] = id de l'unité rejointe par le joueur
@@ -279,10 +278,18 @@ local function findBy(storeName, field, value, exceptId)
     return nil
 end
 
+--- Nom RP du joueur ('' s'il n'en a pas encore défini).
+--- Gardé dans l'état du joueur (state bag "rpName"), partagé avec le chat (ressource rp_chat,
+--- commande /nomrp) : il n'est enregistré nulle part et disparaît à la déconnexion.
+local function rpNameOf(src)
+    -- Re-nettoyé à chaque lecture : un client modifié peut écrire lui-même dans son état
+    return clean(Player(src).state.rpName, 40)
+end
+
 --- Nom affiché d'un joueur : son nom RP (jamais le pseudo Steam/FiveM).
 local function agentName(src)
-    local profile = Profiles[src]
-    return profile and profile.rpName ~= '' and profile.rpName or 'Agent sans nom RP'
+    local name = rpNameOf(src)
+    return name ~= '' and name or 'Agent sans nom RP'
 end
 
 local function pushToViewers(kind, payload)
@@ -965,6 +972,9 @@ end)
 RegisterMDCCallback('joinUnit', function(src, payload)
     local unit = findUnit(payload.id)
     if not unit then return { ok = false, error = 'Unité introuvable.' } end
+    if rpNameOf(src) == '' then
+        return { ok = false, error = 'Définissez d\'abord votre nom RP (en haut à gauche, ou /nomrp dans le chat) pour rejoindre une unité.' }
+    end
     if PlayerUnit[src] == unit.id then return { ok = true } end
     local count = 0
     for _ in pairs(unit.members) do count = count + 1 end
@@ -1030,12 +1040,28 @@ end)
 
 -- =========================================================================
 -- PROFIL (nom RP) ET OUVERTURE DU MDC
+-- Le nom RP est l'état "rpName" du joueur, répliqué à tous les clients : le chat
+-- (/nomrp) et le MDC lisent et modifient la même valeur. Il n'est pas sauvegardé :
+-- remis à zéro à chaque connexion.
 -- =========================================================================
+local RP_NAME_MIN, RP_NAME_MAX = 2, 40 -- identiques à ChatConfig.NameMin / NameMax (rp_chat)
+
 RegisterNetEvent('mdc:server:setProfile', function(rpName)
     local src = source
     if not hasAccess(src) then return end
-    Profiles[src] = { rpName = clean(rpName, 40) }
-    if PlayerUnit[src] then pushUnits() end
+    local name = clean(rpName, RP_NAME_MAX):gsub('%s+', ' ')
+    if (utf8.len(name) or 0) < RP_NAME_MIN then return end
+    Player(src).state:set('rpName', name, true)
+end)
+
+-- Nom RP modifié (MDC ou /nomrp du chat) : listes des unités et HUD à jour.
+-- Le gestionnaire est appelé AVANT que la nouvelle valeur soit enregistrée : mise à jour au tick suivant.
+AddStateBagChangeHandler('rpName', nil, function(bagName)
+    local src = GetPlayerFromStateBagName(bagName)
+    if not src or src == 0 then return end
+    SetTimeout(0, function()
+        if PlayerUnit[src] then pushUnits() end
+    end)
 end)
 
 RegisterNetEvent('mdc:server:viewer', function(isViewing)
@@ -2410,6 +2436,6 @@ AddEventHandler('playerDropped', function()
     local src = source
     local hadUnit = PlayerUnit[src] ~= nil
     leaveCurrentUnit(src)
-    Profiles[src], Viewers[src], lastStatusChange[src], lastWrite[src], HudCache[src] = nil, nil, nil, nil, nil
+    Viewers[src], lastStatusChange[src], lastWrite[src], HudCache[src] = nil, nil, nil, nil
     if hadUnit then pushUnits() end
 end)

@@ -1,0 +1,114 @@
+/* =========================================================================
+   RP Chat - même thème que le HUD et le display du MDC (réglable par joueur)
+   Les variables sont modifiées par script.js selon les réglages du joueur.
+   ========================================================================= */
+:root {
+    --chat-bg: rgba(0, 0, 0, .62);
+    --chat-border: 1.5px solid #7a7a7a;
+    --chat-font: 14px;
+    --chat-w: 32vw;
+    --chat-h: 30vh;
+    --font: 'Segoe UI', Tahoma, Arial, sans-serif;
+
+    /* Couleurs des commandes */
+    --c-me: #a8e6a1;       /* /me : vert pâle */
+    --c-info: #a8141e;     /* /info : rouge Torino… */
+    --c-info-bg: #f4c6c6;  /* …surligné de rouge pâle */
+    --c-qst: #f7c58f;      /* /qst : orange pâle */
+    --c-rep: #cdb0f2;      /* /rep : violet pâle */
+    --c-system: #bdbdbd;
+    --c-error: #ff9c9c;
+    --c-success: #a8e6a1;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: var(--font); }
+
+.chat {
+    position: fixed;
+    top: 2.5vh;
+    left: 1.2vw;
+    width: var(--chat-w);
+    height: var(--chat-h);
+    display: flex;
+    flex-direction: column;
+    background: var(--chat-bg);
+    border: var(--chat-border);
+    border-radius: 8px;
+    color: #e6e6e6;
+    font-size: var(--chat-font);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .8);
+    transition: opacity .6s ease;
+}
+.chat.hidden { display: none; }
+/* Chat fermé : nouveaux messages affichés sans la ligne de saisie, puis fondu */
+.chat.feed .input-row { display: none; }
+.chat.fading { opacity: 0; }
+
+.messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(160, 160, 160, .5) transparent;
+}
+.messages::-webkit-scrollbar { width: 6px; }
+.messages::-webkit-scrollbar-thumb { background: rgba(160, 160, 160, .5); border-radius: 3px; }
+.chat.feed .messages { overflow: hidden; }
+/* Le premier message pousse les autres vers le bas (affichage collé en bas) */
+.messages > :first-child { margin-top: auto; }
+
+.msg { line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
+.msg .name { font-weight: bold; }
+.msg-me { color: var(--c-me); }
+.msg-qst { color: var(--c-qst); }
+.msg-rep { color: var(--c-rep); }
+.msg-info {
+    color: var(--c-info);
+    background: var(--c-info-bg);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: bold;
+    text-shadow: none;
+}
+.msg-system { color: var(--c-system); font-style: italic; }
+.msg-error { color: var(--c-error); font-style: italic; }
+.msg-success { color: var(--c-success); font-style: italic; }
+.msg-external { color: #e6e6e6; }
+
+.input-row { padding: 6px 8px 8px; border-top: 1px solid rgba(122, 122, 122, .45); }
+#input {
+    width: 100%;
+    height: calc(var(--chat-font) + 14px);
+    padding: 0 8px;
+    background: rgba(0, 0, 0, .45);
+    color: #fff;
+    font: var(--chat-font) var(--font);
+    border: 1px solid rgba(122, 122, 122, .7);
+    border-radius: 4px;
+    outline: none;
+}
+#input::placeholder { color: #8a8a8a; }
+#input.no-name::placeholder { color: var(--c-error); }
+
+/* Suggestions de commandes (sous le chat) */
+.suggest {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    list-style: none;
+    background: var(--chat-bg);
+    border: var(--chat-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.suggest.hidden { display: none; }
+.suggest li { display: flex; gap: 10px; padding: 4px 10px; font-size: calc(var(--chat-font) - 1px); }
+.suggest li.active { background: rgba(255, 255, 255, .12); }
+.suggest .usage { color: #fff; font-weight: bold; white-space: nowrap; }
+.suggest .desc { color: #a9a9a9; }

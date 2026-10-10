@@ -1005,3 +1005,50 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .grid td.bolo-reason { max-width: 180px; }
 .grid td.bolo-summary { max-width: 220px; }
 .toolbar select#boloFilter { min-width: 0; }
+
+/* =========================================================================
+   PARAMÈTRES : catégories repliables (toutes fermées à l'ouverture)
+   ========================================================================= */
+#page-settings.active { gap: 10px; }
+.settings-cat {
+    flex-shrink: 0;
+    background: var(--page);
+    border: 2px solid;
+    border-color: var(--hi) var(--lo) var(--lo) var(--hi);
+}
+.settings-cat > summary {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--face);
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+.settings-cat > summary::-webkit-details-marker { display: none; }
+.settings-cat > summary::before { content: "+"; width: 14px; color: var(--muted); }
+.settings-cat[open] > summary::before { content: "\2212"; }
+.settings-cat[open] > summary { border-bottom: 1px solid var(--lo); }
+.settings-cat > summary:hover { background: #333; }
+.settings-cat-hint { font-size: 11px; font-weight: normal; color: var(--muted); }
+.settings-cat > .settings-grid { padding: 14px 10px 10px; }
+.settings-chat-missing { margin: 12px; padding: 10px; color: var(--muted); font-style: italic; border: 1px dashed var(--lo); }
+
+/* Chat écrit : réglages et aperçu des couleurs des commandes */
+.chat-border-options.disabled { opacity: .45; pointer-events: none; }
+.chat-color-input { width: 90px !important; font-family: monospace; text-transform: lowercase; }
+.swatch-chat { width: 18px; height: 18px; border: 1px solid #000; cursor: pointer; padding: 0; }
+.swatch-chat.active { outline: 2px solid #fff; outline-offset: 1px; }
+.chat-commands { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; font-size: 12px; align-items: baseline; }
+.chat-commands dt { color: #fff; font-family: monospace; font-size: 12px; }
+.chat-commands dd { color: var(--muted); }
+.chat-sample { padding: 1px 5px; background: rgba(0, 0, 0, .62); border-radius: 3px; }
+.chat-sample.me { color: #a8e6a1; }
+.chat-sample.info { color: #a8141e; background: #f4c6c6; font-weight: bold; }
+.chat-sample.qst { color: #f7c58f; }
+.chat-sample.rep { color: #cdb0f2; }
+#page-settings .radio { margin-top: 4px; color: var(--text); font-size: 13px; }

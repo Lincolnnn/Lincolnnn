@@ -634,93 +634,185 @@
 
                 <!-- ============ PARAMÈTRES (HUD et MDC, gardés chez le joueur) ============ -->
                 <section class="page" id="page-settings">
-                    <div class="settings-grid">
-                        <div class="group">
-                            <span class="legend">HUD — Localisation (PLD)</span>
-                            <label class="check"><input type="checkbox" data-setting="pld.enabled"> Afficher le PLD</label>
-                            <div class="subgroup">
-                                <span class="subgroup-title">Éléments affichés</span>
-                                <div class="checks">
-                                    <label class="check"><input type="checkbox" data-setting="pld.street"> Rue</label>
-                                    <label class="check"><input type="checkbox" data-setting="pld.crossing"> Croisement</label>
-                                    <label class="check"><input type="checkbox" data-setting="pld.dir"> Direction</label>
-                                    <label class="check"><input type="checkbox" data-setting="pld.block"> Bloc</label>
+                    <!-- Catégories repliables (toutes fermées à l'ouverture du MDC) -->
+                    <details class="settings-cat" data-cat="mdc">
+                        <summary>MDC <span class="settings-cat-hint">Taille de l'interface, onglet à l'ouverture, notifications et sons</span></summary>
+                        <div class="settings-grid">
+                            <div class="group">
+                                <span class="legend">Interface</span>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Taille de l'interface</span>
+                                    <input type="range" min="80" max="130" step="5" data-setting="mdc.zoom">
+                                    <span class="setting-value" data-setting-value="mdc.zoom"></span>
+                                </div>
+                                <label class="lbl setting-select">Onglet à l'ouverture
+                                    <select data-setting="mdc.startTab">
+                                        <option value="last">Dernier onglet utilisé</option>
+                                        <option value="units">Unités</option>
+                                        <option value="interventions">Interventions</option>
+                                        <option value="search">Recherches</option>
+                                        <option value="reports">Rapports</option>
+                                        <option value="create">Créations</option>
+                                    </select>
+                                </label>
+                                <div class="toolbar setting-actions">
+                                    <button type="button" class="btn" id="mdcResetWindow">Réinitialiser la fenêtre</button>
+                                    <button type="button" class="btn btn-danger" id="settingsReset">Réglages par défaut</button>
                                 </div>
                             </div>
-                            <div class="setting-row">
-                                <span class="lbl-inline">Taille</span>
-                                <input type="range" min="50" max="200" step="5" data-setting="pld.scale">
-                                <span class="setting-value" data-setting-value="pld.scale"></span>
-                            </div>
-                            <div class="toolbar setting-actions">
-                                <button type="button" class="btn" data-hud-reset="pld">Réinitialiser position et taille</button>
+                            <div class="group">
+                                <span class="legend">Notifications et sons</span>
+                                <p class="hint-text setting-text">Les notifications du MDC s'affichent en haut à droite de l'écran, même MDC fermé :
+                                    nouvel appel, nouvel incident, changement de statut de votre unité.</p>
+                                <label class="check"><input type="checkbox" data-setting="notify.calls"> Notifier les nouvelles interventions et incidents</label>
+                                <label class="check"><input type="checkbox" data-setting="notify.sound"> Son à l'arrivée d'une intervention</label>
+                                <label class="check"><input type="checkbox" data-setting="notify.status"> Notifier les changements de statut de mon unité</label>
                             </div>
                         </div>
+                    </details>
 
-                        <div class="group">
-                            <span class="legend">HUD — Display MDC (unité)</span>
-                            <label class="check"><input type="checkbox" data-setting="unit.enabled"> Afficher le display MDC</label>
-                            <div class="subgroup">
-                                <span class="subgroup-title">Éléments affichés</span>
-                                <div class="checks">
-                                    <label class="check"><input type="checkbox" data-setting="unit.name"> Nom de l'unité</label>
-                                    <label class="check"><input type="checkbox" data-setting="unit.tag"> Tag</label>
-                                    <label class="check"><input type="checkbox" data-setting="unit.status"> Statut</label>
-                                    <label class="check"><input type="checkbox" data-setting="unit.call"> N° d'incident</label>
+                    <details class="settings-cat" data-cat="hud">
+                        <summary>HUD &amp; Display <span class="settings-cat-hint">PLD, display MDC de l'unité, position à l'écran</span></summary>
+                        <div class="settings-grid">
+                            <div class="group">
+                                <span class="legend">HUD — Localisation (PLD)</span>
+                                <label class="check"><input type="checkbox" data-setting="pld.enabled"> Afficher le PLD</label>
+                                <div class="subgroup">
+                                    <span class="subgroup-title">Éléments affichés</span>
+                                    <div class="checks">
+                                        <label class="check"><input type="checkbox" data-setting="pld.street"> Rue</label>
+                                        <label class="check"><input type="checkbox" data-setting="pld.crossing"> Croisement</label>
+                                        <label class="check"><input type="checkbox" data-setting="pld.dir"> Direction</label>
+                                        <label class="check"><input type="checkbox" data-setting="pld.block"> Bloc</label>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Taille</span>
+                                    <input type="range" min="50" max="200" step="5" data-setting="pld.scale">
+                                    <span class="setting-value" data-setting-value="pld.scale"></span>
+                                </div>
+                                <div class="toolbar setting-actions">
+                                    <button type="button" class="btn" data-hud-reset="pld">Réinitialiser position et taille</button>
                                 </div>
                             </div>
-                            <div class="setting-row">
-                                <span class="lbl-inline">Taille</span>
-                                <input type="range" min="50" max="200" step="5" data-setting="unit.scale">
-                                <span class="setting-value" data-setting-value="unit.scale"></span>
+                            <div class="group">
+                                <span class="legend">HUD — Display MDC (unité)</span>
+                                <label class="check"><input type="checkbox" data-setting="unit.enabled"> Afficher le display MDC</label>
+                                <div class="subgroup">
+                                    <span class="subgroup-title">Éléments affichés</span>
+                                    <div class="checks">
+                                        <label class="check"><input type="checkbox" data-setting="unit.name"> Nom de l'unité</label>
+                                        <label class="check"><input type="checkbox" data-setting="unit.tag"> Tag</label>
+                                        <label class="check"><input type="checkbox" data-setting="unit.status"> Statut</label>
+                                        <label class="check"><input type="checkbox" data-setting="unit.call"> N° d'incident</label>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Taille</span>
+                                    <input type="range" min="50" max="200" step="5" data-setting="unit.scale">
+                                    <span class="setting-value" data-setting-value="unit.scale"></span>
+                                </div>
+                                <div class="toolbar setting-actions">
+                                    <button type="button" class="btn" data-hud-reset="unit">Réinitialiser position et taille</button>
+                                </div>
                             </div>
-                            <div class="toolbar setting-actions">
-                                <button type="button" class="btn" data-hud-reset="unit">Réinitialiser position et taille</button>
+                            <div class="group">
+                                <span class="legend">Position des HUD</span>
+                                <p class="hint-text setting-text">Le PLD est toujours affiché (sauf si vous le désactivez) ; le display MDC apparaît
+                                    dès que vous rejoignez une unité. Le mode placement masque le MDC : déplacez chaque HUD à la souris,
+                                    la molette l'agrandit ou le rétrécit. Échap ou « Terminer » pour revenir.</p>
+                                <div class="toolbar setting-actions">
+                                    <button type="button" class="btn btn-default" id="hudPlace">Placer les HUD à l'écran</button>
+                                </div>
                             </div>
                         </div>
+                    </details>
 
-                        <div class="group">
-                            <span class="legend">Position des HUD</span>
-                            <p class="hint-text setting-text">Le PLD est toujours affiché (sauf si vous le désactivez) ; le display MDC apparaît
-                                dès que vous rejoignez une unité. Le mode placement masque le MDC : déplacez chaque HUD à la souris,
-                                la molette l'agrandit ou le rétrécit. Échap ou « Terminer » pour revenir.</p>
-                            <div class="toolbar setting-actions">
-                                <button type="button" class="btn btn-default" id="hudPlace">Placer les HUD à l'écran</button>
-                            </div>
+                    <details class="settings-cat" data-cat="chat">
+                        <summary>Chat écrit et commandes <span class="settings-cat-hint">Apparence du chat, affichage des /me, liste des commandes</span></summary>
+                        <div class="settings-chat-missing hidden" id="chatMissing">
+                            Le chat écrit (ressource <b>rp_chat</b>) n'est pas démarré : ses réglages ne sont pas disponibles.
                         </div>
+                        <div class="settings-grid" id="chatSettings">
+                            <div class="group">
+                                <span class="legend">Apparence du chat</span>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Teinte du fond</span>
+                                    <input type="range" min="0" max="100" step="1" data-chat-setting="shade">
+                                    <span class="setting-value" data-chat-value="shade"></span>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Opacité du fond</span>
+                                    <input type="range" min="10" max="100" step="1" data-chat-setting="opacity">
+                                    <span class="setting-value" data-chat-value="opacity"></span>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Taille du texte</span>
+                                    <input type="range" min="10" max="24" step="1" data-chat-setting="fontSize">
+                                    <span class="setting-value" data-chat-value="fontSize"></span>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Largeur du chat</span>
+                                    <input type="range" min="20" max="60" step="1" data-chat-setting="width">
+                                    <span class="setting-value" data-chat-value="width"></span>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Hauteur du chat</span>
+                                    <input type="range" min="15" max="70" step="1" data-chat-setting="height">
+                                    <span class="setting-value" data-chat-value="height"></span>
+                                </div>
+                                <div class="subgroup">
+                                    <span class="subgroup-title">Contour</span>
+                                    <label class="check"><input type="checkbox" data-chat-setting="border"> Afficher le contour</label>
+                                    <div class="chat-border-options" id="chatBorderOptions">
+                                        <div class="setting-row">
+                                            <span class="lbl-inline">Couleur</span>
+                                            <div class="swatches" id="chatBorderSwatches"></div>
+                                            <input type="text" class="chat-color-input" maxlength="7" data-chat-setting="borderColor" placeholder="#7a7a7a">
+                                        </div>
+                                        <div class="setting-row">
+                                            <span class="lbl-inline">Épaisseur</span>
+                                            <input type="range" min="1" max="4" step="0.5" data-chat-setting="borderWidth">
+                                            <span class="setting-value" data-chat-value="borderWidth"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <label class="lbl setting-select">Nouveaux messages, chat fermé
+                                    <select data-chat-setting="feed">
+                                        <option value="fade">Affichés quelques secondes</option>
+                                        <option value="always">Toujours affichés</option>
+                                        <option value="never">Masqués (visibles à l'ouverture du chat)</option>
+                                    </select>
+                                </label>
+                                <p class="hint-text setting-text">Le chat apparaît en aperçu pendant que vous modifiez ses réglages.</p>
+                                <div class="toolbar setting-actions">
+                                    <button type="button" class="btn btn-danger" id="chatReset">Réglages par défaut du chat</button>
+                                </div>
+                            </div>
 
-                        <div class="group">
-                            <span class="legend">MDC</span>
-                            <div class="setting-row">
-                                <span class="lbl-inline">Taille de l'interface</span>
-                                <input type="range" min="80" max="130" step="5" data-setting="mdc.zoom">
-                                <span class="setting-value" data-setting-value="mdc.zoom"></span>
-                            </div>
-                            <label class="lbl setting-select">Onglet à l'ouverture
-                                <select data-setting="mdc.startTab">
-                                    <option value="last">Dernier onglet utilisé</option>
-                                    <option value="units">Unités</option>
-                                    <option value="interventions">Interventions</option>
-                                    <option value="search">Recherches</option>
-                                    <option value="reports">Rapports</option>
-                                    <option value="create">Créations</option>
-                                </select>
-                            </label>
-                            <div class="toolbar setting-actions">
-                                <button type="button" class="btn" id="mdcResetWindow">Réinitialiser la fenêtre</button>
-                                <button type="button" class="btn btn-danger" id="settingsReset">Réglages par défaut</button>
+                            <div class="group">
+                                <span class="legend">Commandes</span>
+                                <div class="lbl">Affichage des /me
+                                    <label class="radio"><input type="radio" name="chatMeMode" value="chat" data-chat-setting="meMode"> Dans le chat écrit (joueurs dans un rayon de <span id="chatMeDistance">100</span> m)</label>
+                                    <label class="radio"><input type="radio" name="chatMeMode" value="head" data-chat-setting="meMode"> Au-dessus de la tête des joueurs</label>
+                                </div>
+                                <p class="hint-text setting-text">Ce choix ne s'applique qu'à vous : vos /me et ceux des autres s'affichent à l'endroit
+                                    choisi, de votre point de vue uniquement. Au-dessus des têtes, le texte garde son vert pâle, sans fond.</p>
+                                <div class="subgroup">
+                                    <span class="subgroup-title">Liste des commandes</span>
+                                    <dl class="chat-commands">
+                                        <dt>/nomrp [nom]</dt><dd>Nom RP, aussi celui du MDC (à refaire à chaque connexion). Obligatoire avant toute autre commande et pour rejoindre une unité.</dd>
+                                        <dt>/me [action]</dt><dd><span class="chat-sample me"><b>John Carter</b> jette l'arme au sol</span> — rayon de 100 m</dd>
+                                        <dt>/info [texte]</dt><dd><span class="chat-sample info">Texte de l'information</span> — tout le monde, sans nom RP</dd>
+                                        <dt>/qst [texte]</dt><dd><span class="chat-sample qst"><b>John Carter</b> Question : …</span> — tout le monde</dd>
+                                        <dt>/rep [texte]</dt><dd><span class="chat-sample rep"><b>John Carter</b> Réponse : …</span> — tout le monde</dd>
+                                    </dl>
+                                </div>
+                                <p class="hint-text setting-text">Ouvrir / fermer le chat : touche <b id="chatKey">T</b> (ou Échap pour fermer). Pour la changer :
+                                    Échap &gt; Paramètres &gt; Raccourcis clavier &gt; FiveM &gt; « Chat : ouvrir / fermer ».</p>
                             </div>
                         </div>
-
-                        <div class="group">
-                            <span class="legend">Notifications</span>
-                            <p class="hint-text setting-text">Les notifications du MDC s'affichent en haut à droite de l'écran, même MDC fermé :
-                                nouvel appel, nouvel incident, changement de statut de votre unité.</p>
-                            <label class="check"><input type="checkbox" data-setting="notify.calls"> Notifier les nouvelles interventions et incidents</label>
-                            <label class="check"><input type="checkbox" data-setting="notify.sound"> Son à l'arrivée d'une intervention</label>
-                            <label class="check"><input type="checkbox" data-setting="notify.status"> Notifier les changements de statut de mon unité</label>
-                        </div>
-                    </div>
+                    </details>
                 </section>
             </main>
         </div>

@@ -30,6 +30,10 @@ local Config = {
     -- Débit (octets/s) des événements "latents" utilisés pour les gros envois
     -- (rapports : un DOT-523 complet peut dépasser la taille d'un événement classique)
     LatentBps = 200000,
+
+    -- Nom de la ressource du chat écrit (dossier rp_chat). Ses réglages sont modifiables
+    -- dans l'onglet "Paramètres" du MDC si elle est démarrée.
+    ChatResource = 'rp_chat',
 }
 
 -- =========================================================================
@@ -42,10 +46,19 @@ local isOpen = false
 -- ouverture à l'autre, mais réinitialisée à chaque reconnexion au serveur.
 local windowLayout = nil
 
--- Nom RP : sauvegardé localement chez le joueur (KVP), il est donc conservé
--- après une reconnexion.
--- >>> BASE DE DONNÉES : si vous avez une table "officers", récupérez-le plutôt côté serveur.
-local rpName = GetResourceKvpString('mdc_rpname') or ''
+-- Nom RP : état "rpName" du joueur (state bag), partagé avec le chat écrit (/nomrp).
+-- Il n'est PAS sauvegardé : vide à chaque connexion, le joueur le redéfinit (MDC ou /nomrp).
+-- >>> BASE DE DONNÉES : pour le garder, chargez-le côté serveur (voir rp_chat/server/server.lua).
+local function currentRpName()
+    local name = LocalPlayer.state.rpName
+    return type(name) == 'string' and name or ''
+end
+DeleteResourceKvp('mdc_rpname') -- ancienne version : nom RP sauvegardé chez le joueur
+
+-- Nom RP modifié (MDC ou /nomrp) : mis à jour dans le MDC
+AddStateBagChangeHandler('rpName', ('player:%d'):format(GetPlayerServerId(PlayerId())), function(_, _, value)
+    SendNUIMessage({ action = 'profile', data = { rpName = type(value) == 'string' and value or '' } })
+end)
 
 -- =========================================================================
 -- MINI-SYSTÈME DE "SERVER CALLBACKS" (standalone, remplace ESX.TriggerServerCallback)
@@ -101,14 +114,13 @@ local function openMDC()
     SendNUIMessage({
         action = 'open',
         data = {
-            rpName   = rpName,
+            rpName   = currentRpName(),
             serverId = GetPlayerServerId(PlayerId()), -- non affiché : sert à repérer sa propre ligne
             layout   = windowLayout, -- nil = position par défaut (centrée)
         }
     })
 
-    -- Profil (nom RP) puis inscription aux mises à jour en temps réel
-    TriggerServerEvent('mdc:server:setProfile', rpName)
+    -- Inscription aux mises à jour en temps réel
     TriggerServerEvent('mdc:server:viewer', true)
 end
 
@@ -164,14 +176,18 @@ RegisterNUICallback('setProfile', function(data, cb)
         return
     end
 
-    -- Espaces superflus retirés, 40 caractères max (le serveur revérifie)
-    rpName = value:gsub('%c', ''):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
-    local cutAt = utf8.offset(rpName, 41)
-    if cutAt then rpName = rpName:sub(1, cutAt - 1) end
-    SetResourceKvp('mdc_rpname', rpName)
+    -- Espaces superflus retirés, 2 à 40 caractères (le serveur revérifie)
+    local name = value:gsub('%c', ''):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+    local cutAt = utf8.offset(name, 41)
+    if cutAt then name = name:sub(1, cutAt - 1) end
+    if (utf8.len(name) or 0) < 2 then
+        cb({ ok = false, error = 'Le nom RP doit contenir au moins 2 caractères.' })
+        return
+    end
 
-    TriggerServerEvent('mdc:server:setProfile', rpName)
-    cb({ ok = true, rpName = rpName })
+    -- Enregistré par le serveur dans l'état du joueur (partagé avec /nomrp du chat)
+    TriggerServerEvent('mdc:server:setProfile', name)
+    cb({ ok = true, rpName = name })
 end)
 
 -- =========================================================================
@@ -264,6 +280,41 @@ RegisterNUICallback('getCurrentVehicle', function(_, cb)
         make  = okMake and gameLabel(makeKey) or '',
         color = vehicleColorName(vehicle),
     })
+end)
+
+-- =========================================================================
+-- CHAT ÉCRIT (ressource rp_chat) : ses réglages sont modifiés depuis l'onglet
+-- "Paramètres" du MDC (catégorie "Chat écrit et commandes") et enregistrés par le chat.
+-- Le MDC fonctionne normalement si le chat n'est pas installé.
+-- =========================================================================
+local function callChat(name, ...)
+    if GetResourceState(Config.ChatResource) ~= 'started' then return nil end
+    local args = { ... }
+    local ok, result = pcall(function()
+        return exports[Config.ChatResource][name](exports[Config.ChatResource], table.unpack(args))
+    end)
+    return ok and type(result) == 'table' and result or nil
+end
+
+-- Réglages actuels, valeurs par défaut et touche d'ouverture du chat
+RegisterNUICallback('getChatSettings', function(_, cb)
+    local info = callChat('getSettings')
+    if not info then
+        cb({ ok = true, installed = false })
+        return
+    end
+    info.ok, info.installed = true, true
+    cb(info)
+end)
+
+RegisterNUICallback('saveChatSettings', function(data, cb)
+    local settings = callChat('setSettings', type(data) == 'table' and data or {})
+    cb(settings and { ok = true, settings = settings } or { ok = false, error = 'Le chat écrit n\'est pas démarré.' })
+end)
+
+RegisterNUICallback('resetChatSettings', function(_, cb)
+    local settings = callChat('resetSettings')
+    cb(settings and { ok = true, settings = settings } or { ok = false, error = 'Le chat écrit n\'est pas démarré.' })
 end)
 
 -- =========================================================================

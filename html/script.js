@@ -324,6 +324,7 @@
     }
 
     function loadPage(page) {
+        if (page === 'settings') loadChatSettings();
         if (page === 'units') refreshUnits();
         else if (page === 'interventions') refreshInterventions();
         else if (page === 'reports') loadReportsPage();
@@ -3161,6 +3162,110 @@
         toast('Réglages par défaut rétablis.', 'success');
     });
 
+    // ---- Paramètres > "Chat écrit et commandes" (ressource rp_chat) ----
+    // Réglages gardés par le chat (KVP du joueur) : lus et modifiés via le client Lua du MDC.
+    const CHAT_BORDER_COLORS = ['#3a3a3a', '#5a5a5a', '#7a7a7a', '#a0a0a0', '#d0d0d0', '#3a6ea5', '#8a2a2a', '#2f7a43'];
+    const chatSet = { settings: null, defaults: null, timer: null };
+
+    const shadeLabel = (v) => (v <= 10 ? 'Noir' : v <= 35 ? 'Plutôt noir' : v <= 60 ? 'Gris foncé' : v <= 85 ? 'Gris' : 'Gris clair');
+    const CHAT_VALUE_TEXT = {
+        shade: shadeLabel,
+        opacity: (v) => `${v} %`,
+        fontSize: (v) => `${v} px`,
+        width: (v) => `${v} %`,
+        height: (v) => `${v} %`,
+        borderWidth: (v) => `${String(v).replace('.', ',')} px`,
+    };
+
+    function renderChatSettings() {
+        const s = chatSet.settings;
+        $('#chatMissing').classList.toggle('hidden', !!s);
+        $('#chatSettings').classList.toggle('hidden', !s);
+        if (!s) return;
+        $$('[data-chat-setting]').forEach((input) => {
+            const value = s[input.dataset.chatSetting];
+            if (input.type === 'checkbox') input.checked = !!value;
+            else if (input.type === 'radio') input.checked = input.value === value;
+            else if (document.activeElement !== input) input.value = value;
+        });
+        $$('[data-chat-value]').forEach((el) => {
+            const key = el.dataset.chatValue;
+            el.textContent = CHAT_VALUE_TEXT[key](s[key]);
+        });
+        $('#chatBorderOptions').classList.toggle('disabled', !s.border);
+        $('#chatBorderSwatches').innerHTML = CHAT_BORDER_COLORS.map((c) => `
+            <button type="button" class="swatch-chat ${c === s.borderColor ? 'active' : ''}" data-chat-color="${c}" style="background:${c}" title="${c}"></button>`).join('');
+    }
+
+    async function loadChatSettings() {
+        const res = await post('getChatSettings');
+        chatSet.settings = res && res.ok && res.installed ? res.settings : null;
+        chatSet.defaults = res && res.defaults ? res.defaults : null;
+        if (res && res.key) $('#chatKey').textContent = res.key;
+        if (res && res.distance) $('#chatMeDistance').textContent = Math.round(res.distance);
+        renderChatSettings();
+    }
+
+    // Envoi groupé (les curseurs envoient beaucoup de valeurs) ; le chat s'affiche en aperçu
+    function saveChatSettings() {
+        clearTimeout(chatSet.timer);
+        chatSet.timer = setTimeout(async () => {
+            const res = await post('saveChatSettings', chatSet.settings);
+            if (res && res.ok && res.settings) {
+                chatSet.settings = res.settings;
+                renderChatSettings();
+            } else if (res && !res.ok) {
+                toast(res.error || 'Réglage du chat impossible.', 'error');
+            }
+        }, 120);
+    }
+
+    function setChatSetting(key, value) {
+        if (!chatSet.settings) return;
+        chatSet.settings[key] = value;
+        renderChatSettings();
+        saveChatSettings();
+    }
+
+    $('#chatSettings').addEventListener('input', (e) => {
+        const input = e.target;
+        const key = input.dataset && input.dataset.chatSetting;
+        if (!key || !chatSet.settings) return;
+        if (input.type === 'checkbox') setChatSetting(key, input.checked);
+        else if (input.type === 'range') setChatSetting(key, Number(input.value));
+        else if (key === 'borderColor') {
+            // Couleur tapée à la main : appliquée dès qu'elle est complète (#rrggbb)
+            if (/^#[0-9a-fA-F]{6}$/.test(input.value)) setChatSetting(key, input.value.toLowerCase());
+        } else setChatSetting(key, input.value);
+    });
+    $('#chatSettings').addEventListener('click', (e) => {
+        const swatch = e.target.closest('[data-chat-color]');
+        if (swatch) setChatSetting('borderColor', swatch.dataset.chatColor);
+    });
+
+    $('#chatReset').addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        if (!btn.dataset.confirm) {
+            btn.dataset.confirm = '1';
+            btn.textContent = 'Confirmer ?';
+            setTimeout(() => {
+                delete btn.dataset.confirm;
+                btn.textContent = 'Réglages par défaut du chat';
+            }, 3000);
+            return;
+        }
+        delete btn.dataset.confirm;
+        btn.textContent = 'Réglages par défaut du chat';
+        const res = await post('resetChatSettings');
+        if (res && res.ok) {
+            chatSet.settings = res.settings;
+            renderChatSettings();
+            toast('Réglages du chat par défaut rétablis.', 'success');
+        } else {
+            toast(res?.error || 'Réglage du chat impossible.', 'error');
+        }
+    });
+
     // Au chargement du NUI : réglages et état du HUD (le client Lua peut démarrer un peu après)
     async function initHud(attempt = 1) {
         const res = await post('hudReady');
@@ -3969,6 +4074,10 @@
                 break;
             case 'units':
                 setUnits(data.data);
+                break;
+            case 'profile': // nom RP modifié (MDC ou /nomrp du chat écrit)
+                state.rpName = (data.data && data.data.rpName) || '';
+                if (!state.editingRpName) renderProfile();
                 break;
             case 'interventions':
                 setInterventions(data.data);
