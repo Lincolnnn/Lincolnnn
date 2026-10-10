@@ -64,6 +64,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 
 .msg { line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
 .msg .name { font-weight: bold; }
+/* Nom RP devant /qst et /rep : gras et souligné ("Question :" / "Réponse :" : gras seulement) */
+.msg .name-underline { text-decoration: underline; text-underline-offset: 2px; }
+.msg .label { font-weight: bold; }
 .msg-me { color: var(--c-me); }
 .msg-qst { color: var(--c-qst); }
 .msg-rep { color: var(--c-rep); }

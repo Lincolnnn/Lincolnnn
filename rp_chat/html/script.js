@@ -132,17 +132,17 @@
         const el = document.createElement('div');
         el.className = `msg msg-${m.type}`;
         switch (m.type) {
-            case 'me': // "<nom RP> jette l'arme au sol"
+            case 'me': // "<nom RP> jette l'arme au sol" : nom en gras (non souligné)
                 el.append(span('name', m.name || ''), ` ${m.text}`);
                 break;
             case 'info': // sans nom RP
                 el.textContent = m.text;
                 break;
-            case 'qst':
-                el.append(span('name', m.name || ''), ` Question : ${m.text}`);
+            case 'qst': // nom RP en gras souligné, "Question :" en gras
+                el.append(span('name name-underline', m.name || ''), ' ', span('label', 'Question :'), ` ${m.text}`);
                 break;
-            case 'rep':
-                el.append(span('name', m.name || ''), ` Réponse : ${m.text}`);
+            case 'rep': // nom RP en gras souligné, "Réponse :" en gras
+                el.append(span('name name-underline', m.name || ''), ' ', span('label', 'Réponse :'), ` ${m.text}`);
                 break;
             case 'external': { // chat:addMessage d'autres ressources
                 if (m.name) el.append(span('name', `${m.name} : `));

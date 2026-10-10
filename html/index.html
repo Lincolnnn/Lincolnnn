@@ -666,6 +666,12 @@
                                     nouvel appel, nouvel incident, changement de statut de votre unité.</p>
                                 <label class="check"><input type="checkbox" data-setting="notify.calls"> Notifier les nouvelles interventions et incidents</label>
                                 <label class="check"><input type="checkbox" data-setting="notify.sound"> Son à l'arrivée d'une intervention</label>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Volume du son</span>
+                                    <input type="range" min="0" max="100" step="1" data-setting="notify.volume">
+                                    <span class="setting-value" data-setting-value="notify.volume"></span>
+                                    <button type="button" class="btn btn-small" id="soundTest">Tester</button>
+                                </div>
                                 <label class="check"><input type="checkbox" data-setting="notify.status"> Notifier les changements de statut de mon unité</label>
                             </div>
                         </div>
@@ -804,8 +810,8 @@
                                         <dt>/nomrp [nom]</dt><dd>Nom RP, aussi celui du MDC (à refaire à chaque connexion). Obligatoire avant toute autre commande et pour rejoindre une unité.</dd>
                                         <dt>/me [action]</dt><dd><span class="chat-sample me"><b>John Carter</b> jette l'arme au sol</span> — rayon de 100 m</dd>
                                         <dt>/info [texte]</dt><dd><span class="chat-sample info">Texte de l'information</span> — tout le monde, sans nom RP</dd>
-                                        <dt>/qst [texte]</dt><dd><span class="chat-sample qst"><b>John Carter</b> Question : …</span> — tout le monde</dd>
-                                        <dt>/rep [texte]</dt><dd><span class="chat-sample rep"><b>John Carter</b> Réponse : …</span> — tout le monde</dd>
+                                        <dt>/qst [texte]</dt><dd><span class="chat-sample qst"><b><u>John Carter</u></b> <b>Question :</b> …</span> — tout le monde</dd>
+                                        <dt>/rep [texte]</dt><dd><span class="chat-sample rep"><b><u>John Carter</u></b> <b>Réponse :</b> …</span> — tout le monde</dd>
                                     </dl>
                                 </div>
                                 <p class="hint-text setting-text">Ouvrir / fermer le chat : touche <b id="chatKey">T</b> (ou Échap pour fermer). Pour la changer :

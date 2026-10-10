@@ -3,7 +3,10 @@
     -------------------------------------------------------------------------------
     Visible uniquement par le joueur qui a choisi cette option : ses /me et ceux des
     autres (reçus dans le rayon de 100 m) s'affichent au-dessus de la tête du joueur
-    concerné au lieu du chat. Même vert pâle que dans le chat, sans fond.
+    concerné au lieu du chat. Même vert pâle que dans le chat, sans fond, en plus grand.
+    La taille suit la distance entre la caméra et le joueur : elle grandit quand on
+    s'approche et diminue quand on recule (bornée pour rester lisible), et tient
+    compte du zoom de la caméra (visée, jumelles…).
 
     Performance : la boucle d'affichage (Wait(0), nécessaire pour dessiner du texte en 3D)
     ne tourne QUE pendant qu'un /me est affiché, puis s'arrête d'elle-même.
@@ -12,8 +15,10 @@
 local Config = ChatConfig
 local COLOR = { 168, 230, 161 }   -- vert pâle : même couleur que /me dans le chat (#a8e6a1)
 local HEAD_BONE = 31086           -- SKEL_Head
-local LINE_CHARS = 42             -- retour à la ligne automatique
-local LINE_HEIGHT = 0.024         -- écart entre deux lignes (fraction de l'écran, taille de base)
+local LINE_CHARS = 36             -- retour à la ligne automatique
+local LINE_SPACING = 0.065        -- hauteur d'une ligne (fraction de l'écran) pour une taille de texte de 1.0
+local REFERENCE_DISTANCE = 4.0    -- distance (m) à laquelle le texte a la taille ChatConfig.OverheadScale
+local REFERENCE_FOV = 50.0        -- champ de vision de la caméra "normale"
 
 local entries = {}                -- { sender, lines, expires }
 local running = false
@@ -42,7 +47,7 @@ local function pedOf(sender)
 end
 
 local function drawLine(text, x, y, scale)
-    SetTextScale(0.0, 0.42 * scale)
+    SetTextScale(0.0, scale)
     SetTextFont(4)
     SetTextProportional(true)
     SetTextColour(COLOR[1], COLOR[2], COLOR[3], 255)
@@ -54,6 +59,15 @@ local function drawLine(text, x, y, scale)
     EndTextCommandDisplayText(x, y)
 end
 
+--- Taille du texte selon la distance caméra -> tête : inversement proportionnelle à la distance
+--- (comme un objet réel), corrigée par le zoom de la caméra et bornée pour rester lisible.
+local function textScale(distance)
+    local factor = (REFERENCE_DISTANCE * 2.0) / (math.max(distance, 0.5) + REFERENCE_DISTANCE)
+    factor = factor * (REFERENCE_FOV / math.max(GetFinalRenderedCamFov(), 1.0))
+    factor = math.min(math.max(factor, Config.OverheadMinScale), Config.OverheadMaxScale)
+    return Config.OverheadScale * factor
+end
+
 --- Dessine les /me d'un joueur : le plus récent juste au-dessus de la tête, les anciens au-dessus
 local function drawFor(ped, list, camCoords)
     local head = GetPedBoneCoords(ped, HEAD_BONE, 0.0, 0.0, 0.0)
@@ -62,9 +76,8 @@ local function drawFor(ped, list, camCoords)
     local onScreen, x, y = GetScreenCoordFromWorldCoord(head.x, head.y, head.z + 0.35)
     if not onScreen then return end
 
-    -- Taille selon la distance (plus petit au loin, bornée pour rester lisible)
-    local scale = math.min(math.max((1.6 / math.max(distance, 1.0)) * (50.0 / GetGameplayCamFov()), 0.55), 1.0)
-    local step = LINE_HEIGHT * scale
+    local scale = textScale(distance)
+    local step = LINE_SPACING * scale
     for i = #list, 1, -1 do
         local lines = list[i].lines
         for j = #lines, 1, -1 do

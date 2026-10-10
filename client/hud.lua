@@ -33,9 +33,6 @@ local Config = {
     -- Recherche du croisement le plus proche quand le joueur n'est pas sur une intersection :
     -- points testés devant et derrière le joueur (en mètres), du plus proche au plus loin.
     CrossingProbe = { 15, 30, 50, 75, 110, 150, 200, 260 },
-
-    -- Son joué à l'arrivée d'une nouvelle intervention (désactivable dans "Paramètres")
-    CallSound = { name = 'Event_Message_Purple', set = 'GTAO_FM_Events_Soundset' },
 }
 
 local RESOURCE = GetCurrentResourceName()
@@ -274,13 +271,12 @@ RegisterNetEvent('mdc:client:hud', function(access, info)
     refreshHud()
 end)
 
--- Nouvelle intervention / nouvel incident : notification en haut à droite de l'écran
+-- Nouvelle intervention / nouvel incident : notification en haut à droite de l'écran.
+-- Le son est joué par le NUI (script.js, playSound) pour respecter le volume réglé
+-- dans "Paramètres > MDC" (PlaySoundFrontend n'a pas de réglage de volume).
 RegisterNetEvent('mdc:client:callNotify', function(call)
     if type(call) ~= 'table' or not setting('notify', 'calls') then return end
     SendNUIMessage({ action = 'callNotify', data = call })
-    if setting('notify', 'sound') then
-        PlaySoundFrontend(-1, Config.CallSound.name, Config.CallSound.set, false)
-    end
 end)
 
 -- Changement de statut de l'unité du joueur : notification en haut à droite

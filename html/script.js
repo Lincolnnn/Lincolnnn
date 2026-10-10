@@ -2923,6 +2923,49 @@
             ${c.crossStreet ? `<div class="ct-row"><span class="hud-label">CROISEMENT</span>${esc(c.crossStreet)}</div>` : ''}
             <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
         pushNotification(el, 12000);
+        if (hud.settings.notify.sound) playSound(incident ? 'incident' : 'call');
+    }
+
+    // =====================================================================
+    // SONS DE L'INTERFACE : générés par le navigateur (Web Audio, aucun fichier),
+    // au volume réglé dans "Paramètres > MDC" (0 à 100 %).
+    // Chaque son : liste de notes [fréquence (Hz), début (s), durée (s)].
+    // =====================================================================
+    const SOUNDS = {
+        call: [[880, 0, 0.16], [1320, 0.18, 0.26]],                         // intervention : deux tons montants
+        incident: [[660, 0, 0.12], [880, 0.14, 0.12], [1175, 0.28, 0.24]],  // incident : trois tons
+    };
+    const SOUND_GAIN = 0.35; // volume à 100 % (évite la saturation)
+    let audioCtx = null;
+
+    function playSound(kind) {
+        const volume = hud.settings.notify.volume;
+        const notes = SOUNDS[kind];
+        if (!notes || !(volume > 0)) return;
+        try {
+            audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const t0 = audioCtx.currentTime + 0.02;
+            const master = audioCtx.createGain();
+            master.gain.value = SOUND_GAIN * volume;
+            master.connect(audioCtx.destination);
+            notes.forEach(([freq, start, duration]) => {
+                const osc = audioCtx.createOscillator();
+                const env = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                // Attaque et extinction douces (pas de "clic")
+                env.gain.setValueAtTime(0.0001, t0 + start);
+                env.gain.exponentialRampToValueAtTime(1, t0 + start + 0.015);
+                env.gain.exponentialRampToValueAtTime(0.0001, t0 + start + duration);
+                osc.connect(env);
+                env.connect(master);
+                osc.start(t0 + start);
+                osc.stop(t0 + start + duration + 0.02);
+            });
+        } catch (err) {
+            // Audio indisponible : la notification reste affichée sans son
+        }
     }
 
     function pushNotification(el, duration) {
@@ -2955,7 +2998,7 @@
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true },
         mdc: { zoom: 1, startTab: 'last' },
-        notify: { calls: true, sound: true, status: true },
+        notify: { calls: true, sound: true, status: true, volume: 0.8 },
     };
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -2988,6 +3031,7 @@
             s.scale = Math.min(Math.max(s.scale, 0.5), 2);
         });
         out.mdc.zoom = Math.min(Math.max(out.mdc.zoom, 0.8), 1.3);
+        out.notify.volume = Math.min(Math.max(out.notify.volume, 0), 1);
         if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
         return out;
     }
@@ -3097,7 +3141,7 @@
 
     // ---- Onglet "Paramètres" ----
     const settingGet = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), hud.settings);
-    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'mdc.zoom'];
+    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'mdc.zoom', 'notify.volume'];
 
     function renderSettings() {
         $$('[data-setting]').forEach((input) => {
@@ -3140,6 +3184,10 @@
     }));
 
     $('#mdcResetWindow').addEventListener('click', () => $('#btnReset').click());
+
+    // Volume : aperçu en relâchant le curseur, ou avec le bouton "Tester"
+    $('[data-setting="notify.volume"]').addEventListener('change', () => playSound('call'));
+    $('#soundTest').addEventListener('click', () => playSound('call'));
 
     $('#settingsReset').addEventListener('click', (e) => {
         const btn = e.currentTarget;

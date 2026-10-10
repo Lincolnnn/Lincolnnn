@@ -29,8 +29,11 @@ Conçu pour fonctionner avec le MDC du même dépôt (`mdc_standalone`), mais ut
 | `/nomrp John Carter` | « Nom RP : John Carter » (confirmation) | le joueur |
 | `/me jette l'arme au sol` | **John Carter** jette l'arme au sol — vert pâle | joueurs dans un rayon de **100 m** au moment de l'envoi |
 | `/info Route fermée` | Route fermée — rouge Torino surligné de rouge pâle, **sans nom RP** | tout le monde |
-| `/qst Qui est dispo ?` | **John Carter** Question : Qui est dispo ? — orange pâle | tout le monde |
-| `/rep Adam-12 dispo` | **John Carter** Réponse : Adam-12 dispo — violet pâle | tout le monde |
+| `/qst Qui est dispo ?` | <ins>**John Carter**</ins> **Question :** Qui est dispo ? — orange pâle | tout le monde |
+| `/rep Adam-12 dispo` | <ins>**John Carter**</ins> **Réponse :** Adam-12 dispo — violet pâle | tout le monde |
+
+Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` et `/rep` (« Question : » et
+« Réponse : » en gras, non soulignés).
 
 - **`/nomrp` d'abord** : sans nom RP, aucune autre commande n'est possible (même celles des autres ressources tapées dans le
   chat), et le MDC refuse de rejoindre une unité.
@@ -51,7 +54,9 @@ Dans le MDC : onglet **Paramètres > Chat écrit et commandes**. Gardés chez ch
 - Contour : affiché ou non, couleur (couleurs proposées ou code `#rrggbb`), épaisseur ;
 - Nouveaux messages, chat fermé : affichés quelques secondes / toujours affichés / masqués ;
 - **Affichage des /me** : dans le chat écrit (par défaut), ou **au-dessus de la tête** des joueurs. Ce choix ne concerne que
-  le joueur qui l'a fait : il voit alors ses `/me` et ceux des autres au-dessus des têtes, en vert pâle, sans fond.
+  le joueur qui l'a fait : il voit alors ses `/me` et ceux des autres au-dessus des têtes, en vert pâle, sans fond et en
+  plus grand que dans le chat. La taille suit la distance : le texte grandit quand on s'approche du joueur et rétrécit
+  quand on recule (jusqu'à ~30 m, puis taille minimale lisible), et grossit avec le zoom de la caméra (visée).
 
 Le chat apparaît en aperçu pendant les réglages. Sans le MDC, les réglages par défaut s'appliquent.
 
@@ -66,6 +71,7 @@ Le chat apparaît en aperçu pendant les réglages. Sans le MDC, les réglages p
 | `GlobalHistory` | nombre de `/info`, `/qst`, `/rep` envoyés aux nouveaux connectés |
 | `Permissions` | permission ACE facultative par commande, ex. `info = 'rpchat.info'` puis `add_ace group.admin rpchat.info allow` |
 | `OverheadDuration`, `OverheadMaxLines` | durée d'un `/me` au-dessus d'une tête, nombre max par joueur |
+| `OverheadScale`, `OverheadMinScale`, `OverheadMaxScale` | taille du `/me` au-dessus des têtes (à ~4 m), facteurs min (au loin) et max (tout près) |
 
 Si vous renommez le dossier, mettez le nouveau nom dans `ChatResource` (`client/client.lua` du MDC).
 

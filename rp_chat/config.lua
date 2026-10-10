@@ -34,4 +34,10 @@ ChatConfig = {
     -- /me au-dessus des têtes (option du joueur) : durée d'affichage (ms) et lignes max par joueur
     OverheadDuration = 7000,
     OverheadMaxLines = 3,
+
+    -- Taille du /me au-dessus des têtes (uniquement là : le chat écrit n'est pas concerné).
+    -- La taille suit la distance : plus grande quand on s'approche, plus petite quand on recule.
+    OverheadScale = 0.62,      -- taille du texte à ~4 m
+    OverheadMinScale = 0.25,   -- facteur minimal au loin (atteint vers 30 m, texte toujours lisible)
+    OverheadMaxScale = 1.50,   -- facteur maximal tout près
 }

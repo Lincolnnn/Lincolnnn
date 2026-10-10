@@ -36,7 +36,7 @@ L'heure affichée en bas à droite du MDC est l'heure du jeu.
 | Interventions | Liste des interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer pour le masquer. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
 | Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
-| Paramètres | Trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, onglet à l'ouverture, fenêtre, notifications et sons), **HUD & Display** (PLD et display MDC : affichage, éléments visibles, taille, position) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
+| Paramètres | Trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD et display MDC : affichage, éléments visibles, taille, position) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
 | Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
@@ -86,7 +86,9 @@ Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fin
 - **Notifications** (en haut à droite) : toutes les notifications du MDC, et, même MDC fermé : nouvel appel
   (titre, priorité, adresse, croisement, bloc) et nouvel incident (titre, unité créatrice, adresse, croisement, bloc)
   pour **tous les joueurs en jeu** ; changement de statut pour les membres de l'unité. Chacune se désactive dans
-  « Paramètres ».
+  « Paramètres ». Un son accompagne les nouveaux appels (deux tons) et incidents (trois tons) : son **volume (0 à 100 %)**
+  se règle dans *Paramètres > MDC > Notifications et sons* (bouton « Tester »). Le son est généré par l'interface :
+  aucun fichier audio n'est nécessaire.
 
 Onglet **Paramètres** : afficher / masquer chaque HUD et ses éléments, taille (50 à 200 %), **Placer les HUD à
 l'écran** (glisser à la souris, molette = taille), notifications et son.
