@@ -2,6 +2,14 @@
     RP Chat - Configuration (partagée client / serveur)
 ]]
 ChatConfig = {
+    -- REMPLACEMENT DU CHAT D'ORIGINE
+    -- Les ressources d'origine "chat" et "chat-theme-gtao" (thème GTA Online du chat d'origine)
+    -- n'ont pas besoin d'être supprimées : il suffit qu'elles ne soient pas démarrées. Si elles
+    -- le sont quand même (ligne "ensure" oubliée, panel de l'hébergeur…), rp_chat les arrête
+    -- automatiquement (sauf si une autre ressource en dépend : message dans la console).
+    StopDefaultChat = true,
+    DefaultChatResources = { 'chat-theme-gtao', 'chat' }, -- arrêtées dans cet ordre (le thème d'abord)
+
     -- Touche d'ouverture par défaut. Chaque joueur peut la changer dans :
     -- Échap > Paramètres > Raccourcis clavier > FiveM > "Chat : ouvrir / fermer"
     -- (une fois le raccourci enregistré chez un joueur, changer cette valeur ne l'affecte plus)

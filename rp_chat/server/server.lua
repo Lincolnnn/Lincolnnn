@@ -209,3 +209,67 @@ end)
 AddEventHandler('playerDropped', function()
     lastMessage[source] = nil
 end)
+
+-- =========================================================================
+-- REMPLACEMENT DU CHAT D'ORIGINE ("chat" et "chat-theme-gtao")
+-- Les dossiers d'origine peuvent rester dans resources/ (ils sont souvent remis par
+-- l'hébergeur ou txAdmin) : seule compte leur exécution. S'ils sont démarrés, ils sont
+-- arrêtés ici, au démarrage de rp_chat ou dès qu'ils démarrent.
+-- =========================================================================
+local DEFAULT_CHAT = {}
+for _, name in ipairs(Config.DefaultChatResources or {}) do DEFAULT_CHAT[name] = true end
+
+local function isRunning(name)
+    local state = GetResourceState(name)
+    return state == 'started' or state == 'starting'
+end
+
+--- Ressources démarrées (hors chat d'origine) qui déclarent "dependency '<name>'" :
+--- arrêter <name> les arrêterait aussi.
+local function runningDependents(name)
+    local list = {}
+    for i = 0, GetNumResources() - 1 do
+        local resource = GetResourceByFindIndex(i)
+        if resource and not DEFAULT_CHAT[resource] and resource ~= GetCurrentResourceName() and isRunning(resource) then
+            for j = 0, GetNumResourceMetadata(resource, 'dependency') - 1 do
+                if GetResourceMetadata(resource, 'dependency', j) == name then
+                    list[#list + 1] = resource
+                    break
+                end
+            end
+        end
+    end
+    return list
+end
+
+local function stopDefaultChat(name)
+    if not isRunning(name) then return end
+    local dependents = runningDependents(name)
+    if #dependents > 0 then
+        print(('^3[RP Chat] "%s" est démarré mais n\'est pas arrêté : %s en dépend (dependency \'%s\'). ' ..
+            'Retirez cette ligne de leur fxmanifest.lua (rp_chat remplace le chat d\'origine) puis redémarrez le serveur.^0')
+            :format(name, table.concat(dependents, ', '), name))
+        return
+    end
+    if StopResource(name) then
+        print(('^5[RP Chat]^0 Ressource d\'origine "%s" arrêtée : rp_chat la remplace. ' ..
+            'Retirez "ensure %s" de votre server.cfg (ou désactivez-la dans le panel de votre hébergeur).'):format(name, name))
+    else
+        print(('^1[RP Chat] Impossible d\'arrêter "%s". Retirez "ensure %s" de votre server.cfg, ' ..
+            'ou autorisez rp_chat : add_ace resource.%s command.stop allow^0'):format(name, name, GetCurrentResourceName()))
+    end
+end
+
+local function stopAllDefaultChats()
+    for _, name in ipairs(Config.DefaultChatResources or {}) do stopDefaultChat(name) end
+end
+
+AddEventHandler('onResourceStart', function(resource)
+    if not Config.StopDefaultChat then return end
+    -- Arrêt au tick suivant : une ressource ne peut pas être arrêtée pendant son démarrage
+    if resource == GetCurrentResourceName() then
+        SetTimeout(0, stopAllDefaultChats)
+    elseif DEFAULT_CHAT[resource] then
+        SetTimeout(0, function() stopDefaultChat(resource) end)
+    end
+end)

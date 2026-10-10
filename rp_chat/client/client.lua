@@ -25,6 +25,10 @@ local RP_COMMANDS = { nomrp = true, me = true, info = true, qst = true, rep = tr
 local isOpen = false
 local nuiReady = false
 
+-- Chat intégré de GTA Online (touche T du jeu) : désactivé, comme le faisait le chat d'origine
+-- de FiveM. Sans cette ligne, il réapparaît dès que la ressource "chat" n'est plus démarrée.
+SetTextChatEnabled(false)
+
 -- =========================================================================
 -- RÉGLAGES DU JOUEUR
 -- Par défaut : même fond et même contour que le HUD et le display MDC

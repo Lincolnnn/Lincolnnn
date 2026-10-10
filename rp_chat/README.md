@@ -7,11 +7,36 @@ Conçu pour fonctionner avec le MDC du même dépôt (`mdc_standalone`), mais ut
 ## Installation
 
 1. Copiez le dossier `rp_chat` dans `resources/` (à côté du MDC, pas à l'intérieur).
-2. Dans `server.cfg`, **remplacez** `ensure chat` par `ensure rp_chat` (la ressource déclare `provide 'chat'` :
-   les ressources qui dépendent du chat d'origine continuent de fonctionner).
-3. Démarrez-le avant ou après le MDC, l'ordre n'importe pas.
-4. **OneSync recommandé** : le serveur filtre alors lui-même les `/me` par distance. Sans OneSync, le filtrage se fait
+2. Dans `server.cfg` :
+   ```cfg
+   # ensure chat              <- à retirer (ou commenter avec #)
+   # ensure chat-theme-gtao   <- à retirer (ou commenter avec #)
+   ensure rp_chat             # le plus haut possible, avant vos autres scripts
+   ensure mdc_standalone
+   ```
+3. **OneSync recommandé** : le serveur filtre alors lui-même les `/me` par distance. Sans OneSync, le filtrage se fait
    chez chaque joueur (le message est envoyé à tous, puis ignoré au-delà de 100 m).
+
+### Remplacer le chat d'origine (`chat` et `chat-theme-gtao`)
+
+- **Ne supprimez pas leurs dossiers** : beaucoup d'hébergeurs et txAdmin les remettent automatiquement (dossier
+  `[cfx-default]` / `[gameplay]`). Ce n'est pas un problème : une ressource présente dans `resources/` mais **non
+  démarrée** ne fait rien. Seules les lignes `ensure` / `start` comptent.
+- `chat-theme-gtao` n'est pas un second chat : c'est l'habillage « GTA Online » du chat d'origine (il ne fonctionne
+  qu'avec `chat`).
+- **rp_chat les arrête automatiquement** s'ils sont démarrés quand même (ligne oubliée dans `server.cfg`, liste de
+  ressources du panel de l'hébergeur…) : au démarrage de rp_chat et chaque fois que l'un d'eux redémarre. La console
+  serveur indique alors quelle ligne retirer, par exemple :
+  `[RP Chat] Ressource d'origine "chat" arrêtée : rp_chat la remplace. Retirez "ensure chat" de votre server.cfg…`
+- **Exception** : si une autre ressource déclare `dependency 'chat'` dans son `fxmanifest.lua`, arrêter `chat` l'arrêterait
+  aussi. rp_chat laisse alors `chat` démarré et l'indique dans la console : retirez cette ligne `dependency 'chat'`
+  (rp_chat déclare `provide 'chat'` et gère `chat:addMessage`, ces ressources fonctionnent sans le chat d'origine).
+- Si la console affiche « Impossible d'arrêter "chat" », retirez la ligne `ensure chat` ou ajoutez dans `server.cfg` :
+  `add_ace resource.rp_chat command.stop allow`.
+- Panel d'hébergeur (ZAP-Hosting, etc.) avec une page « Ressources » : désactivez-y `chat` et `chat-theme-gtao`.
+- Le **chat intégré de GTA Online** (celui du jeu, sans rapport avec ces ressources) est désactivé par rp_chat, comme le
+  faisait le chat d'origine.
+- Pour garder le chat d'origine actif malgré tout : `StopDefaultChat = false` dans `config.lua`.
 
 ## Utilisation
 
