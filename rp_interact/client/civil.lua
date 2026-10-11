@@ -13,6 +13,8 @@
       - quand un policier (joueur dans une unité du MDC) met le civil en joue avec une arme
         (visée directe ou à moins de 5 m autour de lui) ;
       - ou à la demande : Menu > Civil > Tips arrestation.
+    Il ne se ferme QUE par la touche Échap (rappel écrit en petit sur le mini menu) : il reste affiché
+    quand le policier arrête de viser.
     Les touches ne font l'emote QUE pendant que le mini menu est affiché.
 
     DÉTECTION CÔTÉ POLICIER (fiable, sans dépendre d'une touche) : tant que le policier est en service
@@ -24,10 +26,13 @@ local Config = InteractConfig
 local KVP_KEY = 'rpi_civil_mode'
 
 local civilMode = GetResourceKvpString(KVP_KEY) == '1'
-local tips = { aimed = false, manual = false, aimToken = 0, manualToken = 0 }
+-- shown : tips affichés (ouverts par une mise en joue ou par le menu) ; ils ne se ferment QU'AVEC
+-- la touche Échap (jamais d'eux-mêmes, même quand le policier arrête de viser).
+-- aimed : un policier vise le joueur en ce moment (titre rouge).
+local tips = { shown = false, aimed = false }
 
 function RPI.civilMode() return civilMode end
-function RPI.tipsManual() return tips.manual end
+function RPI.tipsManual() return civilMode and tips.shown end
 
 --- Touche réellement choisie par le joueur pour une commande (raccourci FiveM)
 local function keyLabel(command, default)
@@ -37,29 +42,43 @@ local function keyLabel(command, default)
 end
 
 local function tipsVisible()
-    return civilMode and (tips.aimed or tips.manual)
+    return civilMode and tips.shown
 end
 
--- Touche X (non modifiable) : arrêter l'emote en cours, uniquement pendant que les tips sont affichés.
--- Une touche fixe se lit image par image : petite boucle active seulement tant que les tips sont visibles.
-local STOP_KEY = 73 -- X
-local stopLoopRunning = false
+-- Touches fixes, lues image par image (petite boucle active seulement tant que les tips sont affichés) :
+--   X     : arrêter l'emote en cours
+--   Échap : fermer les tips (le menu pause du jeu ne s'ouvre pas à ce moment-là)
+local STOP_KEY = 73       -- X
+local CLOSE_KEY = 200     -- Échap (INPUT_FRONTEND_PAUSE_ALTERNATE)
+local CLOSE_KEY_ALT = 322 -- Échap (INPUT_REPLAY_TOGGLE, même touche selon la configuration)
+local keyLoopRunning = false
+local renderTips
 
-local function startStopKeyLoop()
-    if stopLoopRunning then return end
-    stopLoopRunning = true
+local function closeTips()
+    tips.shown, tips.aimed = false, false
+    renderTips()
+end
+
+local function startKeyLoop()
+    if keyLoopRunning then return end
+    keyLoopRunning = true
     CreateThread(function()
         while tipsVisible() do
             Wait(0)
-            if IsControlJustPressed(0, STOP_KEY) and not RPI.uiOpen() and not (RPI.isCuffed and RPI.isCuffed()) then
-                RPI.cancelEmote()
+            if not RPI.uiOpen() then
+                DisableControlAction(0, CLOSE_KEY, true)
+                if IsDisabledControlJustPressed(0, CLOSE_KEY) or IsControlJustPressed(0, CLOSE_KEY_ALT) then
+                    closeTips()
+                elseif IsControlJustPressed(0, STOP_KEY) and not (RPI.isCuffed and RPI.isCuffed()) then
+                    RPI.cancelEmote()
+                end
             end
         end
-        stopLoopRunning = false
+        keyLoopRunning = false
     end)
 end
 
-local function renderTips()
+renderTips = function()
     local keys = {}
     for i, s in ipairs(Config.Surrender) do
         keys[i] = { key = keyLabel(s.command, s.key), label = s.label }
@@ -67,31 +86,22 @@ local function renderTips()
     keys[#keys + 1] = { key = 'X', label = 'Arrêter l\'emote', stop = true }
     local show = tipsVisible()
     SendNUIMessage({ action = 'tips', data = { show = show, aimed = tips.aimed, keys = keys } })
-    if show then startStopKeyLoop() end
+    if show then startKeyLoop() end
 end
 
 local function setCivilMode(enabled)
     civilMode = enabled == true
     SetResourceKvp(KVP_KEY, civilMode and '1' or '0')
-    if not civilMode then tips.manual = false end
+    if not civilMode then tips.shown, tips.aimed = false, false end
     renderTips()
 end
 
---- Tips ouverts / fermés depuis le menu (fermeture automatique après TipsManualDuration)
+--- Bouton du menu : ouvre les tips (ou les ferme s'ils sont déjà affichés)
 local function toggleManualTips()
-    tips.manual = not tips.manual
-    tips.manualToken = tips.manualToken + 1
-    if tips.manual then
-        local token = tips.manualToken
-        SetTimeout(Config.TipsManualDuration, function()
-            if tips.manualToken == token and tips.manual then
-                tips.manual = false
-                renderTips()
-            end
-        end)
-    end
+    tips.shown = not tips.shown
+    if not tips.shown then tips.aimed = false end
     renderTips()
-    return tips.manual
+    return tips.shown
 end
 
 -- ---- Menu d'interactions ----
@@ -117,21 +127,16 @@ for _, s in ipairs(Config.Surrender) do
 end
 
 -- ---- Mise en joue par un policier (prévenu par le serveur : début / fin) ----
+-- Début : les tips s'affichent (titre rouge). Fin : ils RESTENT affichés (titre normal) jusqu'à Échap.
 RegisterNetEvent('rp_interact:client:aimed', function(aimed)
-    tips.aimToken = tips.aimToken + 1
     if aimed then
-        tips.aimed = true
-        renderTips()
+        tips.shown, tips.aimed = true, true
     elseif tips.aimed then
-        -- Les tips restent un court instant après la fin de la mise en joue
-        local token = tips.aimToken
-        SetTimeout(Config.TipsAimDelay, function()
-            if tips.aimToken == token then
-                tips.aimed = false
-                renderTips()
-            end
-        end)
+        tips.aimed = false
+    else
+        return
     end
+    renderTips()
 end)
 
 -- =========================================================================

@@ -92,8 +92,7 @@ InteractConfig = {
     AimRadius = 5.0,              -- m : civil visé directement ou à moins de 5 m de la ligne de visée
     AimRange = 60.0,              -- m : portée max de la détection
     AimRefresh = 1000,            -- ms : le policier confirme sa visée à ce rythme (fin auto sinon)
-    TipsAimDelay = 2500,          -- ms : les tips restent affichés après la fin de la mise en joue
-    TipsManualDuration = 60000,   -- ms : durée des tips ouverts depuis le menu
+    -- Les tips ne se ferment qu'avec la touche Échap (ni à la fin de la mise en joue, ni après un délai)
 
     -- Réponses par défaut quand la case n'est pas cochée / pas remplie (ou sans profil).
     -- Pour une même cible, la réponse choisie dans la liste est toujours la même.

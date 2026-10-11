@@ -600,24 +600,58 @@ end
 -- il va jusqu'à la portière, tire sur la poignée (LockedDoorAnim) et la portière reste fermée ;
 -- aucun message. Rien n'est verrouillé sur le véhicule lui-même (un verrou est partagé par le réseau
 -- et bloquait aussi les policiers) : seul le client du civil l'empêche de monter.
--- Autorisé : policier en service, portière déjà ouverte, individu placé par un policier (15 s).
+-- Autorisé : policier en service, portière déjà ouverte, individu placé par un policier (15 s), véhicule
+-- que le joueur vient de faire apparaître (spawn), montée téléportée (spawn "dans le véhicule").
 -- Boucle (250 ms ; à chaque image pendant une tentative de montée) uniquement quand la règle est activée.
 -- =========================================================================
 local EMERGENCY_CLASS = 18
 local DOOR_BONES = { [-1] = 'door_dside_f', [0] = 'door_pside_f', [1] = 'door_dside_r', [2] = 'door_pside_r' }
 local HANDLE_RANGE = 1.4 -- m : le civil est arrêté à la poignée
+-- Une montée "téléportée" (véhicule qui apparaît avec le joueur dedans : menus de spawn, scripts) est
+-- instantanée ; une vraie tentative (marcher jusqu'à la portière) dure. On n'intervient qu'après ce délai,
+-- et jamais quand le joueur est déjà dans un véhicule : le spawn n'est plus perturbé (la portière ne
+-- s'entrouvre plus, le personnage n'est plus interrompu, et le véhicule n'est plus supprimé par le
+-- script de spawn qui ne trouvait pas le joueur à bord).
+local ENTRY_GRACE = 400 -- ms
+-- Véhicule d'urgence apparu À CÔTÉ du joueur et créé par son propre client (menu de spawn, garage,
+-- script de service) : c'est le sien, il y monte librement. Un véhicule garé que le joueur découvre en
+-- arrivant de loin n'est jamais considéré comme le sien.
+local SPAWN_RANGE = 12.0 -- m
 local restriction = GlobalState.rpiPoliceVehicles == true
 local restrictionRunning = false
+local seenVehicles, ownVehicles = {}, {} -- [véhicule] = true
+local seenReady = false -- 1er passage : véhicules déjà là, simplement mémorisés
+
+--- Repère les véhicules d'urgence qui viennent d'apparaître à côté du joueur, créés par son client
+local function scanNewVehicles()
+    local ped = PlayerPedId()
+    local origin, me = GetEntityCoords(ped), PlayerId()
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        if not seenVehicles[vehicle] then
+            seenVehicles[vehicle] = true
+            if seenReady and GetVehicleClass(vehicle) == EMERGENCY_CLASS
+                and #(GetEntityCoords(vehicle) - origin) <= SPAWN_RANGE
+                and IsEntityAMissionEntity(vehicle) and NetworkGetEntityOwner(vehicle) == me then
+                ownVehicles[vehicle] = true
+            end
+        end
+    end
+    seenReady = true
+    for vehicle in pairs(seenVehicles) do
+        if not DoesEntityExist(vehicle) then seenVehicles[vehicle], ownVehicles[vehicle] = nil, nil end
+    end
+end
 
 local function doorForSeat(seat) return seat + 1 end -- siège -1 (conducteur) -> portière 0…
 
 --- Véhicule d'urgence interdit à ce joueur (règle activée, pas policier) ?
 function Police.restricted(vehicle)
     return restriction and not RPI.isPolice() and GetVehicleClass(vehicle) == EMERGENCY_CLASS
+        and not ownVehicles[vehicle]
 end
 
 local function entryAllowed(vehicle)
-    return vehicle == entryAllowedVehicle and GetGameTimer() <= entryAllowedUntil
+    return ownVehicles[vehicle] or (vehicle == entryAllowedVehicle and GetGameTimer() <= entryAllowedUntil)
 end
 
 --- Le civil tire sur la poignée : tentative arrêtée, portière refermée s'il avait commencé à l'ouvrir
@@ -636,11 +670,14 @@ local function startRestriction()
     if restrictionRunning then return end
     restrictionRunning = true
     CreateThread(function()
-        local attempt, door, wasOpen = nil, nil, false
+        local attempt, door, wasOpen, started = nil, nil, false, 0
+        seenVehicles, ownVehicles, seenReady = {}, {}, false
         while restriction do
             local ped = PlayerPedId()
+            if attempt == nil then scanNewVehicles() end
             local vehicle = GetVehiclePedIsTryingToEnter(ped)
             if vehicle == 0 or not DoesEntityExist(vehicle) or RPI.isPolice()
+                or GetVehiclePedIsIn(ped, false) ~= 0 -- déjà à bord (téléporté, change de place…)
                 or GetVehicleClass(vehicle) ~= EMERGENCY_CLASS or entryAllowed(vehicle) then
                 attempt = nil
                 Wait(250)
@@ -648,11 +685,11 @@ local function startRestriction()
                 if attempt ~= vehicle then
                     -- Début de la tentative : portière déjà ouverte -> montée autorisée
                     local seat = GetSeatPedIsTryingToEnter(ped)
-                    attempt = vehicle
+                    attempt, started = vehicle, GetGameTimer()
                     door = { index = doorForSeat(seat), bone = DOOR_BONES[seat] or 'door_dside_f' }
                     wasOpen = GetVehicleDoorAngleRatio(vehicle, door.index) >= 0.1
                 end
-                if not wasOpen then
+                if not wasOpen and GetGameTimer() - started >= ENTRY_GRACE then
                     local bone = GetEntityBoneIndexByName(vehicle, door.bone)
                     local handle = bone ~= -1 and GetWorldPositionOfEntityBone(vehicle, bone) or GetEntityCoords(vehicle)
                     if #(GetEntityCoords(ped) - handle) <= HANDLE_RANGE or GetVehicleDoorAngleRatio(vehicle, door.index) > 0.02 then

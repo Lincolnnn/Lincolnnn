@@ -849,8 +849,8 @@ input.invalid, select.invalid, textarea.invalid { border-color: #ff5a5a; backgro
 /* Direction : en gros et en gras */
 .pld-dir {
     display: flex; align-items: center; justify-content: center;
-    min-width: 54px; padding: 0 8px;
-    font-size: 24px; font-weight: bold; color: #fff;
+    min-width: 60px; padding: 0 8px;
+    font-size: 31px; font-weight: bold; color: #fff; line-height: 1;
     border-right: 1px solid rgba(122, 122, 122, .55);
 }
 .pld-info { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 14px 6px 11px; }

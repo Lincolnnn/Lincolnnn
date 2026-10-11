@@ -46,8 +46,11 @@ Ajoute des options visuelles propres au rôle de civil. La première : les **tip
 | **X** (fixe) | Arrêter l'emote en cours | arrêt par RPEMOTES (export `EmoteCancel`) |
 
 - Il apparaît quand un **policier** (joueur dans une unité du MDC) vous **met en joue avec une arme** : visée directe
-  ou à moins de **5 m** autour de vous (titre « Un policier vous tient en joue »), et disparaît peu après la fin de la visée.
-- Sans mise en joue : Menu > Civil > **Tips arrestation** l'affiche (60 s, ou jusqu'à un nouveau clic).
+  ou à moins de **5 m** autour de vous (titre « Un policier vous tient en joue »).
+- Sans mise en joue : Menu > Civil > **Tips arrestation** l'affiche.
+- Il ne se ferme **qu'avec la touche Échap** (rappel « Échap : fermer » écrit en tout petit, en gris foncé, en bas du
+  mini menu) : il **reste affiché quand le policier arrête de viser** (le titre redevient « Tips arrestation »).
+  Pendant qu'il est affiché, Échap ferme les tips au lieu d'ouvrir le menu pause du jeu.
 - Les touches ne font l'emote **que pendant que le mini menu est affiché** (et jamais quand une fenêtre est ouverte).
   Chaque touche est un **raccourci de la commande `/e …`** de RPEMOTES (exactement comme si le joueur la tapait).
 - **X** : l'emote est arrêtée par RPEMOTES lui-même (export `EmoteCancel`), ce script prend le dessus sur le X de
@@ -168,7 +171,12 @@ d'un véhicule de la catégorie « véhicule d'urgence » (classe 18) va jusqu'�
 (`LockedDoorAnim`) et la portière reste fermée, **sans aucun message**. Rien n'est verrouillé sur le véhicule lui-même
 (un verrou est partagé par le réseau et bloquait aussi les policiers) : **les policiers montent normalement** et un
 individu **placé à l'arrière par un policier** y monte aussi. Autres exceptions : portière déjà ouverte. L'œil ne
-propose plus aux non-policiers d'ouvrir les portières ni de monter. `/policeoff` : retour à la normale. Effet immédiat, sans redémarrage ni annonce
+propose plus aux non-policiers d'ouvrir les portières ni de monter. `/policeoff` : retour à la normale.
+Les **spawns ne sont jamais gênés** : un véhicule d'urgence que le joueur fait apparaître à côté de lui (menu de spawn,
+garage, script de service : créé par son propre client) est le sien, il y monte normalement ; une montée
+« téléportée » (apparaître directement dans le véhicule) n'est jamais interrompue (la règle n'agit qu'après 0,4 s
+de vraie tentative, jamais quand le joueur est déjà à bord). Un véhicule garé que le joueur découvre en arrivant de
+loin reste interdit. Effet immédiat, sans redémarrage ni annonce
 aux autres joueurs : **seul l'auteur de la commande reçoit une notification** confirmant le changement (et une ligne
 dans la console serveur). Commande autorisée : console, policiers en service, ou permission ACE
 `rpinteract.admin` (`add_ace group.admin rpinteract.admin allow`).
@@ -194,7 +202,6 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `Seats`, `TrashBins` | objets de l'environnement |
 | `Surrender` | tips d'arrestation : commande, touche par défaut, libellé et emote de chaque action |
 | `AimRadius`, `AimRange`, `AimRefresh` | mise en joue : rayon autour du civil, portée, confirmation |
-| `TipsAimDelay`, `TipsManualDuration` | durée des tips après la mise en joue / ouverts depuis le menu |
 
 ## Liens avec le MDC et le chat
 
@@ -225,7 +232,8 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 - Menotté : boucle pendant qu'on est menotté (contrôles bloqués, emote vérifiée chaque seconde) ; tenu par le bras :
   suivi à chaque image (position fluide) UNIQUEMENT tant qu'on est tenu ; PNJ menottés : 1 s tant qu'il y en a.
 - Lâcher le bras avec X : raccourci FiveM (aucune boucle).
-- Tips d'arrestation : la touche fixe X est lue uniquement pendant que les tips sont affichés.
+- Tips d'arrestation : les touches fixes X et Échap sont lues uniquement pendant que les tips sont affichés.
 - L'œil d'un joueur autorisé à supprimer vise jusqu'à 60 m (50 m + caméra) au lieu de 25 m : même coût (un rayon).
-- `/policeon` : chez les non-policiers, une vérification toutes les 250 ms (à chaque image seulement pendant une
-  tentative de montée dans un véhicule d'urgence), uniquement tant que la règle est active.
+- `/policeon` : une vérification toutes les 250 ms (tentative de montée + véhicules apparus à côté du joueur ; à
+  chaque image seulement pendant une tentative de montée dans un véhicule d'urgence), uniquement tant que la règle
+  est active.
