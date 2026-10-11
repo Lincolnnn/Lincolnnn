@@ -222,17 +222,44 @@ local function tooFar(a, b, maxDistance)
     return a ~= nil and b ~= nil and distance(a, b) > maxDistance
 end
 
---- Unité MDC du joueur (table) ou nil : seul un joueur en unité est "policier"
+-- Noms réels du MDC et du chat : publiés par ces ressources elles-mêmes (GlobalState, modifiable
+-- uniquement par le serveur), donc corrects même si leurs dossiers ont été renommés.
+local function mdcResource() return GlobalState.mdcResource or Config.MdcResource end
+local function chatResource() return GlobalState.rpChatResource or Config.ChatResource end
+
+local mdcWarned = false
+local function warnMdc(reason)
+    if mdcWarned then return end
+    mdcWarned = true
+    print(('^3[RP Interact] Statut "policier" indisponible : %s. Personne ne peut fouiller tant que le MDC ' ..
+        '(v1.18 ou plus récent) n\'est pas démarré. Vérifiez "ensure" du MDC dans server.cfg.^0'):format(reason))
+end
+
+--- Unité MDC du joueur (table) ou nil : seul un joueur dans une unité du MDC est "policier".
+--- Lu en direct à chaque demande : en service dès qu'il rejoint une unité, plus en service dès qu'il la quitte.
 local function policeUnit(src)
-    if GetResourceState(Config.MdcResource) ~= 'started' then return nil end
-    local ok, unit = pcall(function() return exports[Config.MdcResource]:getPlayerUnit(src) end)
-    return ok and type(unit) == 'table' and unit or nil
+    local resource = mdcResource()
+    if GetResourceState(resource) ~= 'started' then
+        warnMdc(('ressource "%s" non démarrée'):format(resource))
+        return nil
+    end
+    local ok, unit = pcall(function() return exports[resource]:getPlayerUnit(src) end)
+    if not ok then
+        warnMdc(('le MDC "%s" ne fournit pas l\'export getPlayerUnit (version trop ancienne ?)'):format(resource))
+        return nil
+    end
+    mdcWarned = false
+    return type(unit) == 'table' and unit or nil
 end
 
 local function announce(src, text)
-    if not Config.AnnounceWithMe or not text or GetResourceState(Config.ChatResource) ~= 'started' then return end
-    pcall(function() exports[Config.ChatResource]:sendMe(src, text) end)
+    local resource = chatResource()
+    if not Config.AnnounceWithMe or not text or GetResourceState(resource) ~= 'started' then return end
+    pcall(function() exports[resource]:sendMe(src, text) end)
 end
+
+-- Vérification au démarrage : le MDC est-il là et à jour ?
+SetTimeout(5000, function() policeUnit(0) end)
 
 -- =========================================================================
 -- INSPECTIONS (œil)
@@ -510,6 +537,79 @@ on('inspect', function(src, p)
     return { ok = true, title = spec.title, subject = subject, text = text }
 end)
 
+-- =========================================================================
+-- MODE CIVIL : un policier met en joue un civil (tips d'arrestation chez le civil)
+-- Le client du policier (dans une unité du MDC) envoie, pendant qu'il vise avec une arme, la liste
+-- des joueurs visés (visée directe ou à moins de AimRadius mètres de la ligne de visée).
+-- Le serveur vérifie, puis prévient chaque civil visé (début / fin). Sans nouvelle du policier
+-- (déconnexion, plantage), la mise en joue expire seule.
+-- =========================================================================
+local Aimed = {}     -- [civil] = { [policier] = expiration (GetGameTimer) }
+local AimingAt = {}  -- [policier] = { [civil] = true }
+local lastAimEvent = {}
+local AIM_TTL = (Config.AimRefresh or 1500) * 2 + 500
+
+local function aimEnded(civil)
+    Aimed[civil] = nil
+    TriggerClientEvent('rp_interact:client:aimed', civil, false)
+end
+
+local function releaseAim(police, civil)
+    local set = Aimed[civil]
+    if not set then return end
+    set[police] = nil
+    if next(set) == nil then aimEnded(civil) end
+end
+
+local function expireAim(civil)
+    local set = Aimed[civil]
+    if not set then return end
+    local now = GetGameTimer()
+    for police, expires in pairs(set) do
+        if expires <= now then
+            set[police] = nil
+            if AimingAt[police] then AimingAt[police][civil] = nil end
+        end
+    end
+    if next(set) == nil then aimEnded(civil) end
+end
+
+RegisterNetEvent('rp_interact:server:aiming', function(list)
+    local src = source
+    if type(list) ~= 'table' then return end
+    local now = GetGameTimer()
+    if lastAimEvent[src] and now - lastAimEvent[src] < 150 then return end
+    lastAimEvent[src] = now
+
+    local targets = {}
+    if #list > 0 and policeUnit(src) then
+        local origin = playerCoords(src)
+        for i = 1, math.min(#list, 16) do
+            local civil = tonumber(list[i])
+            if civil and civil ~= src and GetPlayerName(civil)
+                and not tooFar(origin, playerCoords(civil), (Config.AimRange or 60.0) + 10.0) then
+                targets[civil] = true
+            end
+        end
+    end
+
+    for civil in pairs(AimingAt[src] or {}) do
+        if not targets[civil] then releaseAim(src, civil) end
+    end
+    AimingAt[src] = next(targets) and targets or nil
+
+    for civil in pairs(targets) do
+        local wasAimed = Aimed[civil] ~= nil
+        Aimed[civil] = Aimed[civil] or {}
+        Aimed[civil][src] = now + AIM_TTL
+        if not wasAimed then TriggerClientEvent('rp_interact:client:aimed', civil, true) end
+        SetTimeout(AIM_TTL + 100, function() expireAim(civil) end)
+    end
+end)
+
 AddEventHandler('playerDropped', function()
-    lastWrite[source], lastInspect[source] = nil, nil
+    local src = source
+    lastWrite[src], lastInspect[src], lastAimEvent[src] = nil, nil, nil
+    for civil in pairs(AimingAt[src] or {}) do releaseAim(src, civil) end
+    AimingAt[src], Aimed[src] = nil, nil
 end)

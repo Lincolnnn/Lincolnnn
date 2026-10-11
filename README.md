@@ -10,7 +10,8 @@ Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), in
 
 Le dépôt contient aussi le **menu d'interactions / fiches civiles / Eye Target** dans [`rp_interact/`](rp_interact/README.md)
 (ressource séparée : un joueur y est « policier » quand il est dans une unité du MDC, voir l'export serveur
-`exports.mdc_standalone:getPlayerUnit(source)` et l'état `Player(source).state.mdcUnit`).
+`getPlayerUnit(source)` et l'état `Player(source).state.mdcUnit`). Le MDC publie son nom de ressource
+(`GlobalState.mdcResource`) : le nom de son dossier n'a pas d'importance.
 
 Le dépôt contient aussi le **chat écrit RP** dans le dossier [`rp_chat/`](rp_chat/README.md) : c'est une ressource
 séparée, à copier à part dans `resources/` (voir son README). Elle partage le nom RP avec le MDC et ses réglages

@@ -43,8 +43,14 @@
 
         <div class="menu-view hidden" data-view="civil">
             <div class="menu-active" id="menuActive"></div>
+            <label class="menu-toggle">
+                <input type="checkbox" id="civilMode">
+                <span class="toggle-box"></span>
+                <span class="toggle-text"><b>Mode civil</b><small>Options visuelles propres au rôle de civil (tips d'arrestation)</small></span>
+            </label>
             <button type="button" class="menu-btn" data-editor="profiles">Créer un profil</button>
             <button type="button" class="menu-btn" data-editor="vehicle">Créer un véhicule</button>
+            <button type="button" class="menu-btn menu-btn-tips hidden" id="tipsToggle">Tips arrestation</button>
         </div>
 
         <div class="menu-view hidden" data-view="police">
@@ -102,7 +108,13 @@
         </div>
     </div>
 
-    <!-- Résultats d'inspection (à droite) et notifications (en bas) -->
+    <!-- Tips d'arrestation (mode civil) : en haut au milieu, non interactif -->
+    <div class="tips hidden" id="tips">
+        <div class="tips-title" id="tipsTitle">Tips arrestation</div>
+        <div class="tips-keys" id="tipsKeys"></div>
+    </div>
+
+    <!-- Résultats d'inspection (à droite) et notifications (en haut) -->
     <div class="results" id="results"></div>
     <div class="toasts" id="toasts"></div>
 

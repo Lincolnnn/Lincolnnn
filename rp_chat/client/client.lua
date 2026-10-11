@@ -278,6 +278,15 @@ end)
 -- Chat d'origine : exports.chat:addMessage(...)
 exports('addMessage', externalMessage)
 
+-- Message PRIVÉ (affiché uniquement chez ce joueur), ex. résultat d'une inspection rp_interact :
+--   exports.rp_chat:addPrivate({ title = 'Fouille du coffre', subject = 'Bravado Buffalo', text = '…' })
+exports('addPrivate', function(data)
+    if type(data) ~= 'table' or type(data.text) ~= 'string' or data.text == '' then return end
+    SendNUIMessage({ action = 'message', data = {
+        type = 'private', title = tostring(data.title or ''), name = data.subject and tostring(data.subject) or nil, text = data.text,
+    } })
+end)
+
 -- =========================================================================
 -- SÉCURITÉ : relâche le focus si la ressource est arrêtée
 -- =========================================================================

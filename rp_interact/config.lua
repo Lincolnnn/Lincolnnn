@@ -32,6 +32,23 @@ InteractConfig = {
     ResultsInChat = true,
     ResultDuration = 20000,         -- ms d'affichage d'un résultat à l'écran (+ selon la longueur)
 
+    -- MODE CIVIL (case à cocher du menu d'interactions, propre à chaque joueur)
+    -- Tips d'arrestation : mini menu en haut de l'écran (non interactif) quand un policier (joueur dans
+    -- une unité du MDC) vous met en joue, ou via Menu > Civil > Tips arrestation. Les touches ne
+    -- déclenchent l'emote QUE pendant que ce mini menu est affiché. Touches modifiables par chaque
+    -- joueur : Échap > Paramètres > Raccourcis clavier > FiveM > "Civil : …".
+    Surrender = {
+        { command = 'rpi_hands', key = 'H', label = 'Mains en l\'air', emote = 'e serendre17' },
+        { command = 'rpi_knees', key = 'J', label = 'À genoux', emote = 'e serendre3' },
+        { command = 'rpi_prone', key = 'L', label = 'S\'allonger', emote = 'e serendre6' },
+    },
+    AimRadius = 5.0,              -- m : civil visé directement ou à moins de 5 m de la ligne de visée
+    AimRange = 60.0,              -- m : portée max de la détection
+    AimRefresh = 1500,            -- ms : le policier confirme sa visée à ce rythme (fin auto sinon)
+    AimWatchKey = 'MOUSE_RIGHT',  -- touche de visée surveillée côté policier (clic droit)
+    TipsAimDelay = 2500,          -- ms : les tips restent affichés après la fin de la mise en joue
+    TipsManualDuration = 60000,   -- ms : durée des tips ouverts depuis le menu
+
     -- Réponses par défaut quand la case n'est pas cochée / pas remplie (ou sans profil).
     -- Pour une même cible, la réponse choisie dans la liste est toujours la même.
     Defaults = {

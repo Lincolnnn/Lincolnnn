@@ -144,6 +144,10 @@
             case 'rep': // nom RP en gras souligné, "Réponse :" en gras
                 el.append(span('name name-underline', m.name || ''), ' ', span('label', 'Réponse :'), ` ${m.text}`);
                 break;
+            case 'private': // résultat visible uniquement par ce joueur (rp_interact)
+                el.append(span('private-tag', 'PRIVÉ'), ' ', span('label', m.title || ''),
+                    m.name ? span('private-subject', ` (${m.name})`) : '', ` : ${m.text}`);
+                break;
             case 'external': { // chat:addMessage d'autres ressources
                 if (m.name) el.append(span('name', `${m.name} : `));
                 el.append(m.text);

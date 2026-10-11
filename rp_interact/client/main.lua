@@ -59,27 +59,58 @@ function RPI.notify(text, kind)
     SendNUIMessage({ action = 'notify', data = { text = text, type = kind or 'info' } })
 end
 
---- Policier = dans une unité du MDC (état publié par le MDC ; le serveur revérifie)
-function RPI.isPolice()
-    local unit = LocalPlayer.state.mdcUnit
-    return type(unit) == 'string' and unit ~= ''
+-- =========================================================================
+-- EN SERVICE (POLICE) = dans une unité du MDC
+-- Le MDC publie l'unité du joueur (état "mdcUnit") à chaque entrée / sortie d'unité : le statut
+-- change immédiatement (le serveur revérifie de son côté à chaque fouille).
+-- =========================================================================
+local function unitName(value) return type(value) == 'string' and value ~= '' and value or nil end
+local dutyUnit = unitName(LocalPlayer.state.mdcUnit)
+
+function RPI.isPolice() return dutyUnit ~= nil end
+function RPI.dutyUnit() return dutyUnit end
+
+-- Appelé AVANT que la nouvelle valeur soit enregistrée : on garde la valeur reçue
+AddStateBagChangeHandler('mdcUnit', ('player:%d'):format(GetPlayerServerId(PlayerId())), function(_, _, value)
+    local unit = unitName(value)
+    if unit == dutyUnit then return end
+    local wasOnDuty = dutyUnit ~= nil
+    dutyUnit = unit
+    if unit and not wasOnDuty then
+        RPI.notify(('En service (unité %s) : fouilles et détails notoires disponibles avec l\'œil.'):format(unit), 'success')
+    elseif not unit and wasOnDuty then
+        RPI.notify('Hors service : fouilles et détails notoires retirés.', 'info')
+    end
+    if RPI.onDutyChanged then RPI.onDutyChanged() end
+    SendNUIMessage({ action = 'menuPolice', data = { police = unit } })
+end)
+
+--- Direction de la caméra (rotation en degrés -> vecteur unitaire)
+function RPI.camDirection(rot)
+    local z, x = math.rad(rot.z), math.rad(rot.x)
+    local cosX = math.abs(math.cos(x))
+    return vector3(-math.sin(z) * cosX, math.cos(z) * cosX, math.sin(x))
 end
 
 -- =========================================================================
--- RÉSULTATS D'INSPECTION
+-- RÉSULTATS D'INSPECTION : PRIVÉS (uniquement chez le joueur qui inspecte)
+-- La fiche à l'écran et la copie dans le chat ne sont affichées que sur ce client ;
+-- seul le /me automatique (envoyé par le serveur) est vu par les joueurs autour.
 -- =========================================================================
 function RPI.showResult(result)
     SendNUIMessage({ action = 'result', data = {
         title = result.title, subject = result.subject, text = result.text, duration = Config.ResultDuration,
     } })
-    -- Copie privée dans le chat écrit (relisible plus tard)
-    if Config.ResultsInChat and GetResourceState(Config.ChatResource) == 'started' then
-        pcall(function()
-            exports[Config.ChatResource]:addMessage({
-                args = { ('%s (%s)'):format(result.title, result.subject), result.text },
-                color = { 140, 200, 255 },
-            })
+    local chat = GlobalState.rpChatResource or Config.ChatResource
+    if Config.ResultsInChat and GetResourceState(chat) == 'started' then
+        local ok = pcall(function()
+            exports[chat]:addPrivate({ title = result.title, subject = result.subject, text = result.text })
         end)
+        if not ok then -- ancien chat sans addPrivate
+            pcall(function()
+                exports[chat]:addMessage({ args = { ('[Privé] %s (%s)'):format(result.title, result.subject), result.text }, color = { 140, 200, 255 } })
+            end)
+        end
     end
 end
 
@@ -135,6 +166,8 @@ local function openMenu()
             activeName = res and res.activeName or nil,
             police = res and res.police or nil,
             targetKey = Config.TargetKey == 'LMENU' and 'Alt' or Config.TargetKey,
+            civilMode = RPI.civilMode and RPI.civilMode() or false,
+            tipsManual = RPI.tipsManual and RPI.tipsManual() or false,
         } })
     end)
 end
@@ -144,6 +177,8 @@ local function closeMenu()
     RPI.setUi('menu', false)
     SendNUIMessage({ action = 'menu', data = { open = false } })
 end
+
+RPI.closeMenu = closeMenu
 
 RegisterCommand('interactions', function()
     if ui.menu then closeMenu() else openMenu() end

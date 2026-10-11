@@ -26,12 +26,6 @@ function RPI.targetActive() return active end
 -- =========================================================================
 -- VISÉE (rayon depuis la caméra)
 -- =========================================================================
-local function direction(rot)
-    local z, x = math.rad(rot.z), math.rad(rot.x)
-    local cosX = math.abs(math.cos(x))
-    return vector3(-math.sin(z) * cosX, math.cos(z) * cosX, math.sin(x))
-end
-
 local function cast(from, to, ignore)
     local handle = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, -1, ignore, 7)
     local _, hit, coords, _, entity = GetShapeTestResult(handle)
@@ -41,7 +35,7 @@ end
 --- Ce que vise la caméra : (point, entité) ou nil
 local function aim()
     local cam = GetFinalRenderedCamCoord()
-    local to = cam + direction(GetFinalRenderedCamRot(2)) * RAY_LENGTH
+    local to = cam + RPI.camDirection(GetFinalRenderedCamRot(2)) * RAY_LENGTH
     local ped = PlayerPedId()
     if Config.AllowSelfTarget then
         local hit, coords, entity = cast(cam, to, 0)
@@ -143,6 +137,13 @@ local function start()
             Wait(0)
         end
     end)
+end
+
+-- Entrée / sortie d'une unité du MDC : options recalculées tout de suite
+-- (liste ouverte refermée : elle pouvait contenir des fouilles qui ne sont plus permises)
+function RPI.onDutyChanged()
+    if not active then return end
+    if menuOpen then stop() else current = nil end
 end
 
 -- Touche maintenue : l'œil reste affiché ; relâchée : il disparaît (sauf liste d'options ouverte)

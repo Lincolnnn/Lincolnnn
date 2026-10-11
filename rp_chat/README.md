@@ -115,3 +115,9 @@ du chat d'origine sont ignorées.
 
 `exports.rp_chat:sendMe(source, texte)` (serveur) : envoie un `/me` au nom du joueur, avec les mêmes règles (nom RP
 obligatoire, rayon de 100 m). Utilisé par `rp_interact` pour les annonces RP (« fouille le coffre du véhicule »…).
+
+`exports.rp_chat:addPrivate({ title, subject, text })` (client) : message **privé**, affiché uniquement chez ce joueur
+avec l'étiquette `PRIVÉ` (résultats d'inspection / de fouille de `rp_interact`).
+
+Le chat publie son nom de ressource (`GlobalState.rpChatResource`) : le MDC et `rp_interact` le retrouvent même si le
+dossier a été renommé.

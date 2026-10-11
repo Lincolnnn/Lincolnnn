@@ -288,10 +288,12 @@ end)
 -- Le MDC fonctionne normalement si le chat n'est pas installé.
 -- =========================================================================
 local function callChat(name, ...)
-    if GetResourceState(Config.ChatResource) ~= 'started' then return nil end
+    -- Nom publié par le chat lui-même (fonctionne même si son dossier a été renommé)
+    local resource = GlobalState.rpChatResource or Config.ChatResource
+    if GetResourceState(resource) ~= 'started' then return nil end
     local args = { ... }
     local ok, result = pcall(function()
-        return exports[Config.ChatResource][name](exports[Config.ChatResource], table.unpack(args))
+        return exports[resource][name](exports[resource], table.unpack(args))
     end)
     return ok and type(result) == 'table' and result or nil
 end

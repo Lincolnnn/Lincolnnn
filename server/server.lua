@@ -57,6 +57,10 @@ local Config = {
 
 local RESOURCE = GetCurrentResourceName()
 
+-- Nom réel de cette ressource, publié pour les autres ressources (rp_interact…) quel que soit le
+-- nom du dossier. GlobalState n'est modifiable que par le serveur.
+GlobalState.mdcResource = RESOURCE
+
 -- Statuts d'une unité : clé technique -> libellé (doit correspondre à index.html)
 local Statuses = {
     available   = 'Disponible',

@@ -74,9 +74,8 @@ local function inspect(ctx, kind, field)
         payload.target = ctx.serverId
     else
         payload.target = ctx.netId
-        payload.label = kind == 'vehicle'
-            and ('%s%s'):format(RPI.vehicleLabel(ctx.entity), RPI.vehiclePlate(ctx.entity) ~= '' and (' — ' .. RPI.vehiclePlate(ctx.entity)) or '')
-            or tostring(ctx.model)
+        -- Véhicule observé : le modèle seulement (pas la plaque d'immatriculation)
+        payload.label = kind == 'vehicle' and RPI.vehicleLabel(ctx.entity) or tostring(ctx.model)
     end
     RPI.request('inspect', payload, function(res)
         if res and res.ok then
@@ -151,6 +150,46 @@ local function nearestDoor(vehicle, hit)
     return best
 end
 
+-- Portières ouvertes avec l'œil : si le joueur monte dans le véhicule et qu'il se met à avancer,
+-- il referme lui-même les portières restées ouvertes. Surveillance légère (toutes les 250 ms),
+-- uniquement tant qu'une portière ouverte par le joueur reste ouverte et qu'il est près du véhicule.
+local DOOR_CLOSE_SPEED = 1.0   -- m/s (~4 km/h) : le véhicule "commence à avancer"
+local DOOR_WATCH_RANGE = 30.0  -- m : au-delà (joueur à pied), la surveillance s'arrête
+local doorWatch = {}           -- [véhicule] = { [n° de portière] = true }
+
+local function watchDoor(vehicle, index)
+    if doorWatch[vehicle] then
+        doorWatch[vehicle][index] = true
+        return
+    end
+    doorWatch[vehicle] = { [index] = true }
+    CreateThread(function()
+        local deadline = GetGameTimer() + 300000 -- 5 min max
+        while GetGameTimer() < deadline do
+            Wait(250)
+            local doors = doorWatch[vehicle]
+            if not doors or not DoesEntityExist(vehicle) then break end
+            local ped = PlayerPedId()
+            local inside = GetVehiclePedIsIn(ped, false) == vehicle
+            if not inside and #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) > DOOR_WATCH_RANGE then break end
+
+            -- Portières refermées entre-temps : plus à surveiller
+            for i in pairs(doors) do
+                if GetVehicleDoorAngleRatio(vehicle, i) <= 0.05 then doors[i] = nil end
+            end
+            if next(doors) == nil then break end
+
+            if inside and GetEntitySpeed(vehicle) > DOOR_CLOSE_SPEED then
+                withControl(vehicle, function()
+                    for i in pairs(doors) do SetVehicleDoorShut(vehicle, i, false) end
+                end)
+                break
+            end
+        end
+        doorWatch[vehicle] = nil
+    end)
+end
+
 local function isLocked(vehicle)
     local status = GetVehicleDoorLockStatus(vehicle)
     return status ~= 0 and status ~= 1
@@ -173,6 +212,7 @@ local function vehicleOptions(ctx)
                     SetVehicleDoorShut(c.entity, door.index, false)
                 else
                     SetVehicleDoorOpen(c.entity, door.index, false, false)
+                    watchDoor(c.entity, door.index)
                 end
             end)
         end,
@@ -279,10 +319,7 @@ function RPI.targetLabel(ctx)
         if ctx.isSelf then return 'Vous-même (test)' end
         return ctx.isPlayer and 'Individu' or 'Individu (PNJ)'
     end
-    if ctx.type == 'vehicle' then
-        local plate = RPI.vehiclePlate(ctx.entity)
-        return RPI.vehicleLabel(ctx.entity) .. (plate ~= '' and (' — ' .. plate) or '')
-    end
+    if ctx.type == 'vehicle' then return RPI.vehicleLabel(ctx.entity) end -- modèle, sans la plaque
     if SEATS[ctx.model] then return 'Siège' end
     if TRASH[ctx.model] then return 'Poubelle' end
     return nil

@@ -25,6 +25,10 @@
 local Config = ChatConfig
 local STATE_KEY = 'rpName'
 
+-- Nom réel de cette ressource, publié pour les autres ressources (MDC, rp_interact) quel que soit
+-- le nom du dossier. GlobalState n'est modifiable que par le serveur.
+GlobalState.rpChatResource = GetCurrentResourceName()
+
 local lastMessage = {}  -- [source] = GetGameTimer() du dernier message
 local history = {}      -- derniers /info, /qst, /rep (envoyés aux joueurs qui se connectent)
 

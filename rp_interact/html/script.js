@@ -167,6 +167,33 @@
                (<b>${esc(d.targetKey || 'Alt')}</b>), seules les inspections visuelles et olfactives sont possibles.`;
     }
 
+    function renderCivilMode() {
+        const d = menu.data;
+        $('#civilMode').checked = !!d.civilMode;
+        $('#tipsToggle').classList.toggle('hidden', !d.civilMode);
+        $('#tipsToggle').classList.toggle('active', !!d.tipsManual);
+        $('#tipsToggle').textContent = d.tipsManual ? 'Masquer les tips arrestation' : 'Tips arrestation';
+    }
+
+    // Case "Mode civil" (gardée chez le joueur)
+    $('#civilMode').addEventListener('change', async (e) => {
+        const res = await post('setCivilMode', { enabled: e.target.checked });
+        menu.data.civilMode = !!(res && res.ok ? res.civilMode : e.target.checked);
+        if (!menu.data.civilMode) menu.data.tipsManual = false;
+        renderCivilMode();
+    });
+
+    // Tips d'arrestation à la demande (le menu se ferme pour que les touches répondent)
+    $('#tipsToggle').addEventListener('click', async () => {
+        const res = await post('toggleTips');
+        if (!res || !res.ok) {
+            toast(res?.error || 'Action impossible.', 'error');
+            return;
+        }
+        menu.data.tipsManual = !!res.visible;
+        renderCivilMode();
+    });
+
     function setMenu(data) {
         menu.open = !!data.open;
         $('#menu').classList.toggle('hidden', !menu.open);
@@ -174,6 +201,18 @@
         menu.data = data;
         menu.view = 'home';
         renderMenu();
+        renderCivilMode();
+    }
+
+    // ---- Tips d'arrestation (mode civil) ----
+    function setTips(data) {
+        const box = $('#tips');
+        box.classList.toggle('hidden', !data.show);
+        if (!data.show) return;
+        box.classList.toggle('aimed', !!data.aimed);
+        $('#tipsTitle').textContent = data.aimed ? 'Un policier vous tient en joue' : 'Tips arrestation';
+        $('#tipsKeys').innerHTML = toArray(data.keys).map((k) => `
+            <span class="tips-key"><kbd>${esc(k.key)}</kbd>${esc(k.label)}</span>`).join('');
     }
 
     $$('[data-go]').forEach((btn) => btn.addEventListener('click', () => {
@@ -664,6 +703,11 @@
             case 'eyeOptions': showEyeOptions(data.data || {}); break;
             case 'result': if (data.data) showResult(data.data); break;
             case 'menu': setMenu(data.data || {}); break;
+            case 'menuPolice': // entrée / sortie d'une unité du MDC pendant que le menu est ouvert
+                menu.data.police = data.data ? data.data.police : null;
+                if (menu.open) renderMenu();
+                break;
+            case 'tips': setTips(data.data || {}); break;
             case 'editor': setEditor(data.data || {}); break;
             case 'notify': if (data.data) toast(data.data.text, data.data.type); break;
         }
