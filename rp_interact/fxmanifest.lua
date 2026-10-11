@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '1.3.0'
+version '1.4.0'
 
 ui_page 'html/index.html'
 
@@ -33,5 +33,6 @@ client_scripts {
 }
 
 server_scripts {
+    'server/emotes.lua',   -- lecture des emotes du mode d'emotes (RPEMOTES / rpemotes)
     'server/server.lua',
 }

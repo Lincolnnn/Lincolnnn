@@ -10,6 +10,10 @@ InteractConfig = {
     -- Ressources liées (nom des dossiers)
     MdcResource = 'mdc_standalone', -- "policier" = joueur dans une unité du MDC
     ChatResource = 'rp_chat',       -- /me automatiques et copie des résultats dans le chat
+    -- Mode d'emotes du serveur (dossier RPEMOTES / rpemotes / rpemotes-reborn). 'auto' : détecté seul.
+    -- Les emotes de ce script y sont lues (animation exacte) au démarrage : voir server/emotes.lua.
+    EmotesResource = 'auto',
+    EmoteFiles = {},                -- fichiers supplémentaires où chercher les emotes (ex. 'client/MesEmotes.lua')
 
     -- Œil : distances (m) entre le joueur et ce qu'il vise. Les options apparaissent quand on s'approche.
     ObserveDistance = 10.0,         -- inspections visuelles / olfactives, détail notoire
@@ -37,16 +41,17 @@ InteractConfig = {
         seated = 'e menotté2',      -- "Faire s'asseoir l'individu" (au sol, pas dans un véhicule)
         cancel = 'e c',             -- arrête l'emote en cours (touche X des tips, lâcher le bras)
     },
-    -- Animation de l'emote "menotté" : sert à vérifier qu'elle est toujours jouée, et de secours
-    -- (PNJ, véhicule, script d'emotes absent). Adaptez-la si votre emote utilise une autre animation.
-    CuffAnim = { dict = 'mp_arresting', clip = 'idle' },
-    -- Animation de l'emote "menotté2" (individu assis) : même rôle que CuffAnim, pour l'individu assis.
-    SeatedAnim = { dict = 'amb@world_human_picnic@male@base', clip = 'base' },
+    -- Animations de SECOURS : utilisées seulement si l'emote n'a pas été trouvée dans le mode d'emotes
+    -- (le serveur y lit l'animation exacte de menotté1 / menotté2) ou pour un PNJ dans ce cas.
+    CuffAnim = { dict = 'mp_arresting', clip = 'idle', flag = 49 },
+    SeatedAnim = { dict = 'amb@world_human_picnic@male@base', clip = 'base', flag = 1 },
     CuffProp = 'p_cs_cuffs_02_s',   -- menottes aux poignets (voir README : dossier stream)
-    -- Individu tenu par le bras : position par rapport au policier (devant à droite), accroché à
-    -- l'os racine du policier (DragBone = 0) : il reste droit. Un autre os (ex. bassin) le penche.
-    DragOffset = { x = 0.45, y = 0.55, z = 0.0 },
-    DragBone = 0,
+    -- Individu tenu par le bras : position par rapport au policier (à droite, un peu devant). Il n'est
+    -- pas accroché : il suit cette position et tourne sur lui-même (pas avec le tronc du policier),
+    -- sans collisions. DragTurnSpeed : vitesse (°/s) à laquelle il s'oriente comme le policier.
+    DragOffset = { x = 0.45, y = 0.3, z = 0.0 },
+    DragTurnSpeed = 240.0,
+    DragReleaseKey = 'X',           -- policier : lâcher le bras (modifiable dans les raccourcis FiveM)
     PlaceVehicleDistance = 6.0,     -- m : véhicule où placer l'individu tenu par le bras
 
     -- SUPPRIMER des PNJ, des véhicules sans joueur et des objets (y compris ceux créés par des
@@ -61,6 +66,8 @@ InteractConfig = {
     -- Pas d'annonce : seul l'auteur de la commande reçoit une notification de confirmation.
     -- Autorisés : console serveur, joueurs en unité du MDC, ou permission ACE ci-dessous.
     PoliceVehiclesAce = 'rpinteract.admin',
+    -- Animation jouée quand un non-policier essaie la poignée d'un véhicule d'urgence (/policeon)
+    LockedDoorAnim = { dict = 'veh@std@ds@enter_exit', clip = 'd_locked' },
 
     MaxProfiles = 20,               -- profils civils par joueur
     TextMax = 1000,                 -- caractères max par case de texte
@@ -81,11 +88,10 @@ InteractConfig = {
         { command = 'rpi_knees', key = 'J', label = 'À genoux', emote = 'e serendre3' },
         { command = 'rpi_prone', key = 'L', label = 'S\'allonger', emote = 'e serendre6' },
     },
-    -- + touche X (non modifiable) : arrêter l'emote en cours (Emotes.cancel), affichée dans les tips
+    -- + touche X (non modifiable) : arrêter l'emote en cours (par le mode d'emotes), affichée dans les tips
     AimRadius = 5.0,              -- m : civil visé directement ou à moins de 5 m de la ligne de visée
     AimRange = 60.0,              -- m : portée max de la détection
-    AimRefresh = 1500,            -- ms : le policier confirme sa visée à ce rythme (fin auto sinon)
-    AimWatchKey = 'MOUSE_RIGHT',  -- touche de visée surveillée côté policier (clic droit)
+    AimRefresh = 1000,            -- ms : le policier confirme sa visée à ce rythme (fin auto sinon)
     TipsAimDelay = 2500,          -- ms : les tips restent affichés après la fin de la mise en joue
     TipsManualDuration = 60000,   -- ms : durée des tips ouverts depuis le menu
 

@@ -13,6 +13,12 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
 2. Dans `server.cfg` (après le MDC et le chat) : `ensure rp_interact`
 3. **OneSync recommandé** : il permet au serveur de vérifier les distances et de supprimer le profil d'un véhicule
    dès que le véhicule disparaît.
+4. **Emotes** : les emotes (`/e menotté1`, `/e menotté2`, `/e tenirlebras`, `/e serendre17`…) viennent du mode
+   d'emotes du serveur (dossier **RPEMOTES** / rpemotes / rpemotes-reborn), détecté automatiquement
+   (`EmotesResource = 'auto'`). Au démarrage, le serveur lit l'**animation exacte** de chaque emote dans ses fichiers
+   et l'écrit dans la console : `[RP Interact] Emotes lues dans "RPEMOTES" : menotté1 (…), menotté2 (…)…`. Une emote
+   introuvable est signalée en jaune : vérifiez son nom dans `config.lua` (`Emotes`, `Surrender`) ou ajoutez le
+   fichier qui la définit à `EmoteFiles`. `rpi_emotes` (console) relit les fichiers.
 
 ## Menu d'interactions (touche F1)
 
@@ -37,16 +43,22 @@ Ajoute des options visuelles propres au rôle de civil. La première : les **tip
 | **H** | Mains en l'air | `/e serendre17` |
 | **J** | À genoux | `/e serendre3` |
 | **L** | S'allonger | `/e serendre6` |
-| **X** (fixe) | Arrêter l'emote en cours | `/e c` |
+| **X** (fixe) | Arrêter l'emote en cours | arrêt par RPEMOTES (export `EmoteCancel`) |
 
 - Il apparaît quand un **policier** (joueur dans une unité du MDC) vous **met en joue avec une arme** : visée directe
   ou à moins de **5 m** autour de vous (titre « Un policier vous tient en joue »), et disparaît peu après la fin de la visée.
 - Sans mise en joue : Menu > Civil > **Tips arrestation** l'affiche (60 s, ou jusqu'à un nouveau clic).
 - Les touches ne font l'emote **que pendant que le mini menu est affiché** (et jamais quand une fenêtre est ouverte).
+  Chaque touche est un **raccourci de la commande `/e …`** de RPEMOTES (exactement comme si le joueur la tapait).
+- **X** : l'emote est arrêtée par RPEMOTES lui-même (export `EmoteCancel`), ce script prend le dessus sur le X de
+  RPEMOTES : plus de message « ^1Help^0 : No emote to cancel ». (Ancienne version de rpemotes sans cet export :
+  `/e c` n'est envoyé que si une emote est réellement jouée.)
 - Touches modifiables par chaque joueur : Échap > Paramètres > Raccourcis clavier > FiveM > « Civil : … ».
-  Les emotes (`/e …`) viennent de votre script d'emotes ; commandes et touches par défaut dans `config.lua` (`Surrender`).
-- Côté policier, la détection ne tourne que pendant qu'il maintient le **clic droit** (visée) et qu'il est en service ;
-  le serveur vérifie l'unité et la distance, et la mise en joue expire seule si le policier se déconnecte.
+  Commandes et touches par défaut dans `config.lua` (`Surrender`).
+- **Détection fiable** côté policier : tant qu'il est en service (unité du MDC), sa visée est surveillée en continu
+  (aucune touche à maintenir : clic droit, manette ou raccourci modifié fonctionnent), les joueurs visés sont
+  envoyés au serveur toutes les 150 ms pendant la visée et confirmés chaque seconde ; le serveur vérifie l'unité et la
+  distance, et la mise en joue expire seule si le policier se déconnecte. Le civil doit avoir coché **Mode civil**.
 
 Thème : celui du HUD (contour gris fin, angles légèrement arrondis), fond noir foncé transparent à 20 %.
 
@@ -128,17 +140,20 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
   (`p_cs_cuffs_02_s`). Si l'emote s'arrête (bousculé, monté dans un véhicule, touche…), elle est **relancée
   automatiquement** ; menotté, il ne peut plus courir, sauter, frapper, viser ni monter seul dans un véhicule.
   **Retirer les menottes** : 3 s.
-- **Prendre par le bras** (individu le plus proche, 2 m) : le policier fait **`/e tenirlebras`**, l'individu est placé un
-  peu devant à droite, **bien droit** (accroché à l'os racine du policier, `DragBone = 0`) ; il **marche quand le
-  policier marche** et s'arrête avec lui. **Lâcher le bras** pour le relâcher.
-- **Faire s'asseoir l'individu** (2 m, à pied, pas tenu par le bras) : il fait l'emote **`/e menotté2`** (assis au sol).
-  Menotté, il **reste assis** (déplacements bloqués, emote relancée si elle s'arrête). **Faire se relever l'individu**
-  pour le remettre debout (`/e menotté1` s'il est menotté). Le prendre par le bras ou le placer dans un véhicule le
-  relève aussi. Sur un PNJ : animation `SeatedAnim` (à adapter si votre emote en utilise une autre).
+- **Prendre par le bras** (individu le plus proche, 2 m) : le policier fait **`/e tenirlebras`**, l'individu est placé à
+  sa droite, un peu devant (`DragOffset`). Il n'est **pas accroché** au policier : il suit sa position et **tourne sur
+  son propre axe** pour s'orienter comme lui (`DragTurnSpeed`), sans pivoter avec le tronc du policier ; ses
+  collisions restent supprimées. Il **marche quand le policier marche**. **Lâcher le bras** (œil, menu) ou touche
+  **X** (`DragReleaseKey`, modifiable : Raccourcis clavier > FiveM > « Police : lâcher le bras »).
+- **Faire s'asseoir l'individu** (2 m, à pied, **menotté uniquement**, pas tenu par le bras) : il fait l'emote
+  **`/e menotté2`** (RPEMOTES) et **reste assis** (déplacements bloqués). Si l'emote s'arrête, c'est **la même**
+  (`/e menotté2`, puis son animation exacte lue dans RPEMOTES) qui est relancée : plus de changement d'emote.
+  **Faire se relever l'individu** : `/e menotté1`. Le prendre par le bras ou le placer dans un véhicule le relève aussi.
 - **Placer l'individu à l'arrière** (en le tenant, véhicule à 6 m) : le policier lâche le bras et ouvre la portière arrière
   la plus proche ; l'individu **monte lui-même** à l'arrière (sans téléportation, places arrière uniquement), même dans
   un véhicule d'urgence. **Faire sortir l'individu (arrière)** pour le ressortir.
-- Sur un PNJ, le client du policier fait tout lui-même (animation de secours `mp_arresting` au lieu de l'emote).
+- Sur un PNJ, le client du policier fait tout lui-même (animation de l'emote lue dans RPEMOTES ; à défaut, les
+  animations de secours `CuffAnim` / `SeatedAnim`).
 
 ### Menottes : modèle `p_cs_cuffs_02_s`
 
@@ -148,11 +163,12 @@ placez-y **`rp_interact/stream/p_cs_cuffs_02_s.ydr`** (FiveM le charge automatiq
 
 ### Véhicules d'urgence : `/policeon` et `/policeoff`
 
-`/policeon` : les véhicules de la catégorie du jeu « véhicule d'urgence » (classe 18) sont **verrouillés** pour les
-joueurs qui ne sont pas policiers en service (unité du MDC) : ils essaient d'ouvrir la portière (animation du jeu) mais
-n'y arrivent pas, **sans aucun message**. Exceptions : portière déjà ouverte, individu placé à l'arrière par un
-policier, joueur déjà à bord (il peut descendre). L'œil ne leur propose plus d'ouvrir les portières ni de monter.
-Les policiers ne sont jamais bloqués. `/policeoff` : tout est déverrouillé. Effet immédiat, sans redémarrage ni annonce
+`/policeon` : un joueur qui n'est pas policier en service (unité du MDC) et qui essaie d'ouvrir une portière fermée
+d'un véhicule de la catégorie « véhicule d'urgence » (classe 18) va jusqu'à la portière, **tire sur la poignée**
+(`LockedDoorAnim`) et la portière reste fermée, **sans aucun message**. Rien n'est verrouillé sur le véhicule lui-même
+(un verrou est partagé par le réseau et bloquait aussi les policiers) : **les policiers montent normalement** et un
+individu **placé à l'arrière par un policier** y monte aussi. Autres exceptions : portière déjà ouverte. L'œil ne
+propose plus aux non-policiers d'ouvrir les portières ni de monter. `/policeoff` : retour à la normale. Effet immédiat, sans redémarrage ni annonce
 aux autres joueurs : **seul l'auteur de la commande reçoit une notification** confirmant le changement (et une ligne
 dans la console serveur). Commande autorisée : console, policiers en service, ou permission ACE
 `rpinteract.admin` (`add_ace group.admin rpinteract.admin allow`).
@@ -168,15 +184,16 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (15 s personne, 35 s véhicule) |
-| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragBone`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté1`, `/e menotté2`, `/e tenirlebras`, `/e c`), animations de contrôle / secours (debout, assis), menottes, position et os d'attache de l'individu tenu, distance du véhicule |
+| `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
+| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragTurnSpeed`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté1`, `/e menotté2`, `/e tenirlebras`, `/e c`), animations de secours (si l'emote est introuvable dans RPEMOTES), menottes, position / rotation de l'individu tenu, touche pour lâcher le bras, distance du véhicule |
 | `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) |
-| `PoliceVehiclesAce` | permission ACE pour `/policeon` / `/policeoff` |
+| `PoliceVehiclesAce`, `LockedDoorAnim` | permission ACE pour `/policeon` / `/policeoff` ; animation « poignée verrouillée » |
 | `MaxProfiles`, `TextMax` | profils par joueur, longueur des textes |
 | `AnnounceWithMe`, `ResultsInChat`, `ResultDuration` | `/me` automatiques, copie dans le chat, durée d'affichage |
 | `Defaults` | réponses par défaut |
 | `Seats`, `TrashBins` | objets de l'environnement |
 | `Surrender` | tips d'arrestation : commande, touche par défaut, libellé et emote de chaque action |
-| `AimRadius`, `AimRange`, `AimRefresh`, `AimWatchKey` | mise en joue : rayon autour du civil, portée, confirmation, touche de visée surveillée |
+| `AimRadius`, `AimRange`, `AimRefresh` | mise en joue : rayon autour du civil, portée, confirmation |
 | `TipsAimDelay`, `TipsManualDuration` | durée des tips après la mise en joue / ouverts depuis le menu |
 
 ## Liens avec le MDC et le chat
@@ -202,11 +219,13 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 - L'œil tourne uniquement pendant que la touche est maintenue (visée toutes les 50 ms, tir bloqué) et s'arrête ensuite.
 - Assis sur un banc : une petite boucle attend la touche pour se lever, puis s'arrête.
 - Portière ouverte avec l'œil : surveillance légère (250 ms) jusqu'à ce qu'elle soit refermée.
-- Policier qui vise (clic droit maintenu, en service) : détection toutes les 200 ms, uniquement pendant la visée.
+- Policier en service : une lecture de la visée toutes les 250 ms (~0.00 ms) ; pendant qu'il vise, détection des
+  joueurs visés toutes les 150 ms. Hors service : aucune boucle.
 - Barre de chargement : boucle uniquement pendant la fouille / le menottage.
 - Menotté : boucle pendant qu'on est menotté (contrôles bloqués, emote vérifiée chaque seconde) ; tenu par le bras :
-  100 ms tant qu'on est tenu ; PNJ menottés : 1 s tant qu'il y en a.
+  suivi à chaque image (position fluide) UNIQUEMENT tant qu'on est tenu ; PNJ menottés : 1 s tant qu'il y en a.
+- Lâcher le bras avec X : raccourci FiveM (aucune boucle).
 - Tips d'arrestation : la touche fixe X est lue uniquement pendant que les tips sont affichés.
 - L'œil d'un joueur autorisé à supprimer vise jusqu'à 60 m (50 m + caméra) au lieu de 25 m : même coût (un rayon).
-- `/policeon` : chez les non-policiers, une vérification des véhicules d'urgence proches toutes les 500 ms (100 ms
-  pendant une tentative de montée), uniquement tant que la règle est active ; policier : 1 s, sans rien faire.
+- `/policeon` : chez les non-policiers, une vérification toutes les 250 ms (à chaque image seulement pendant une
+  tentative de montée dans un véhicule d'urgence), uniquement tant que la règle est active.

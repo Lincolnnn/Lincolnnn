@@ -888,8 +888,11 @@
         <div class="pld-info">
             <div class="pld-street" data-part="street" id="pldStreet"></div>
             <div class="pld-line" data-part="crossing"><span class="hud-label">X</span><span id="pldCross"></span></div>
-            <div class="pld-line" data-part="block"><span class="hud-label">BLOC</span><span id="pldBlock"></span></div>
-            <div class="pld-line" data-part="time"><span class="hud-label">HEURE</span><span id="pldTime"></span></div>
+            <!-- Bloc puis, sur la même ligne et décalée, l'heure du jeu (sans libellé) -->
+            <div class="pld-line pld-bottom">
+                <span class="pld-blockpart" data-part="block"><span class="hud-label">BLOC</span><span id="pldBlock"></span></span>
+                <span class="pld-time" data-part="time" id="pldTime"></span>
+            </div>
         </div>
     </div>
 

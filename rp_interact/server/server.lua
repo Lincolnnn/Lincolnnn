@@ -591,7 +591,7 @@ end)
 local Aimed = {}     -- [civil] = { [policier] = expiration (GetGameTimer) }
 local AimingAt = {}  -- [policier] = { [civil] = true }
 local lastAimEvent = {}
-local AIM_TTL = (Config.AimRefresh or 1500) * 2 + 500
+local AIM_TTL = (Config.AimRefresh or 1000) * 2 + 500
 
 local function aimEnded(civil)
     Aimed[civil] = nil
@@ -622,7 +622,7 @@ RegisterNetEvent('rp_interact:server:aiming', function(list)
     local src = source
     if type(list) ~= 'table' then return end
     local now = GetGameTimer()
-    if lastAimEvent[src] and now - lastAimEvent[src] < 150 then return end
+    if lastAimEvent[src] and now - lastAimEvent[src] < 100 then return end -- client : 150 ms au plus vite
     lastAimEvent[src] = now
 
     local targets = {}
@@ -727,11 +727,14 @@ on('putInVehicle', function(src, p)
     return { ok = true }
 end)
 
--- Faire s'asseoir au sol ("/e menotté2", joué par le civil) / se relever
+-- Faire s'asseoir au sol un individu MENOTTÉ ("/e menotté2", joué par le civil) / se relever
 on('seat', function(src, p)
     local target, err = policeTarget(src, p, ACTION_RANGE)
     if not target then return { ok = false, error = err } end
     local seated = p.seated == true
+    if seated and Player(target).state.rpiCuffed ~= true then
+        return { ok = false, error = 'L\'individu doit d\'abord être menotté.' }
+    end
     if seated and Drags[target] then return { ok = false, error = 'Lâchez d\'abord le bras de l\'individu.' } end
     if seated and GetVehiclePedIsIn(GetPlayerPed(target), false) ~= 0 then
         return { ok = false, error = 'L\'individu est dans un véhicule.' }

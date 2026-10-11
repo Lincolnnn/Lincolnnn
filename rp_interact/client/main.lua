@@ -75,6 +75,10 @@ local dutyUnit = unitName(LocalPlayer.state.mdcUnit)
 function RPI.isPolice() return dutyUnit ~= nil end
 function RPI.dutyUnit() return dutyUnit end
 
+local dutyHooks = {}
+--- fn() appelée à chaque entrée / sortie de service (après la mise à jour de RPI.isPolice())
+function RPI.onDuty(fn) dutyHooks[#dutyHooks + 1] = fn end
+
 -- Appelé AVANT que la nouvelle valeur soit enregistrée : on garde la valeur reçue
 AddStateBagChangeHandler('mdcUnit', ('player:%d'):format(GetPlayerServerId(PlayerId())), function(_, _, value)
     local unit = unitName(value)
@@ -87,6 +91,7 @@ AddStateBagChangeHandler('mdcUnit', ('player:%d'):format(GetPlayerServerId(Playe
         RPI.notify('Hors service : fouilles et détails notoires retirés.', 'info')
     end
     if RPI.onDutyChanged then RPI.onDutyChanged() end
+    for _, fn in ipairs(dutyHooks) do fn() end
     SendNUIMessage({ action = 'menuPolice', data = { police = unit } })
 end)
 
@@ -117,6 +122,68 @@ end
 
 function RPI.playAnim(dict, clip, duration, flag, ped)
     CreateThread(function() RPI.playAnimNow(ped or PlayerPedId(), dict, clip, duration, flag) end)
+end
+
+-- =========================================================================
+-- EMOTES (mode d'emotes du serveur : RPEMOTES / rpemotes, voir server/emotes.lua)
+-- Les emotes se lancent avec la commande "/e nom" ; leur animation exacte est lue par le serveur
+-- dans les fichiers du mode d'emotes (GlobalState.rpiEmotes) : elle sert à savoir si l'emote est
+-- toujours jouée, et à la rejouer à l'identique si besoin (jamais une autre animation).
+-- =========================================================================
+local function emoteName(command)
+    return type(command) == 'string' and (command:match('^%s*/?e%s+(%S+)') or command):lower() or nil
+end
+
+function RPI.emoteResource()
+    local data = GlobalState.rpiEmotes
+    return type(data) == 'table' and data.resource or nil
+end
+
+--- Animation de l'emote : celle du mode d'emotes, sinon (aucun mode d'emotes) celle de secours
+--- `fallback` de config.lua. nil : animation inconnue.
+function RPI.emoteAnim(command, fallback)
+    local data = GlobalState.rpiEmotes
+    local emote = type(data) == 'table' and type(data.list) == 'table' and data.list[emoteName(command)] or nil
+    if emote then
+        return { dict = emote.dict, clip = emote.clip, scenario = emote.scenario, flag = emote.moving and 49 or 1, exact = true }
+    end
+    if fallback and not RPI.emoteResource() then
+        return { dict = fallback.dict, clip = fallback.clip, flag = fallback.flag or 1 }
+    end
+    return nil
+end
+
+--- L'emote est-elle jouée par ce ped ? (animation connue ; sinon on demande au mode d'emotes ;
+--- impossible à savoir : on considère qu'elle l'est, pour ne jamais la remplacer par une autre)
+function RPI.isPlayingEmote(ped, command, fallback)
+    local anim = RPI.emoteAnim(command, fallback)
+    if anim then
+        if anim.scenario then return IsPedUsingScenario(ped, anim.clip) end
+        return IsEntityPlayingAnim(ped, anim.dict, anim.clip, 3)
+    end
+    local resource = RPI.emoteResource()
+    if resource and ped == PlayerPedId() then
+        local ok, current = pcall(function() return exports[resource]:IsPlayerInAnim() end)
+        if ok and current ~= nil then return current ~= false end
+    end
+    return true
+end
+
+--- Lance l'emote (commande "/e nom", exactement comme si le joueur la tapait)
+function RPI.playEmote(command)
+    ExecuteCommand(command)
+end
+
+--- Arrête l'emote en cours via le mode d'emotes (export EmoteCancel : jamais le message
+--- "No emote to cancel"). Sans export, "/e c" seulement si une emote est jouée.
+function RPI.cancelEmote()
+    local resource = RPI.emoteResource()
+    if resource then
+        if pcall(function() exports[resource]:EmoteCancel() end) then return end
+        local ok, current = pcall(function() return exports[resource]:IsPlayerInAnim() end)
+        if ok and not current then return end
+    end
+    ExecuteCommand(InteractConfig.Emotes.cancel)
 end
 
 function RPI.loadModel(model)

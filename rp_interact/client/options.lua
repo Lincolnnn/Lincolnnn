@@ -288,8 +288,8 @@ local function personOptions(ctx)
             out[#out + 1] = { id = 'police:drag', label = 'Prendre par le bras', icon = 'hand', police = true,
                 run = function(c) Police.drag(c.entity) end }
         end
-        -- Faire s'asseoir au sol ("/e menotté2") / se relever : pas pendant qu'il est tenu par le bras
-        if not Police.isDragged(ped) then
+        -- Faire s'asseoir au sol ("/e menotté2") / se relever : individu menotté, pas tenu par le bras
+        if cuffed and not Police.isDragged(ped) then
             local seated = Police.isSeated(ped)
             out[#out + 1] = { id = 'police:seat', icon = 'seat', police = true,
                 label = seated and 'Faire se relever l\'individu' or 'Faire s\'asseoir l\'individu',

@@ -5,14 +5,19 @@
     propres au rôle de civil. La première : les TIPS D'ARRESTATION, un mini menu NON interactif
     en haut au milieu de l'écran qui rappelle les touches :
         H = Mains en l'air (/e serendre17)   J = À genoux (/e serendre3)   L = S'allonger (/e serendre6)
+        X = arrêter l'emote
+    Les touches sont des raccourcis de la commande "/e …" du mode d'emotes du serveur (RPEMOTES).
+    X arrête l'emote par le mode d'emotes lui-même (export EmoteCancel) : pas de conflit avec le X de
+    RPEMOTES, jamais le message "No emote to cancel".
     Il apparaît :
       - quand un policier (joueur dans une unité du MDC) met le civil en joue avec une arme
         (visée directe ou à moins de 5 m autour de lui) ;
       - ou à la demande : Menu > Civil > Tips arrestation.
     Les touches ne font l'emote QUE pendant que le mini menu est affiché.
 
-    DÉTECTION CÔTÉ POLICIER : une boucle (200 ms) tourne uniquement pendant que le policier
-    maintient le clic droit (visée), et seulement s'il est dans une unité du MDC.
+    DÉTECTION CÔTÉ POLICIER (fiable, sans dépendre d'une touche) : tant que le policier est en service
+    (unité du MDC), une vérification légère de la visée toutes les 250 ms ; pendant qu'il vise avec une
+    arme à feu, détection des joueurs visés toutes les 150 ms. Hors service : aucune boucle.
 ]]
 
 local Config = InteractConfig
@@ -47,7 +52,7 @@ local function startStopKeyLoop()
         while tipsVisible() do
             Wait(0)
             if IsControlJustPressed(0, STOP_KEY) and not RPI.uiOpen() and not (RPI.isCuffed and RPI.isCuffed()) then
-                ExecuteCommand(Config.Emotes.cancel)
+                RPI.cancelEmote()
             end
         end
         stopLoopRunning = false
@@ -106,7 +111,7 @@ end)
 -- ---- Touches des emotes (actives seulement quand les tips sont affichés) ----
 for _, s in ipairs(Config.Surrender) do
     RegisterCommand(s.command, function()
-        if tipsVisible() and not RPI.uiOpen() then ExecuteCommand(s.emote) end
+        if tipsVisible() and not RPI.uiOpen() then RPI.playEmote(s.emote) end -- = taper "/e …"
     end, false)
     RegisterKeyMapping(s.command, ('Civil : %s (tips d\'arrestation)'):format(s.label), 'keyboard', s.key)
 end
@@ -132,7 +137,6 @@ end)
 -- =========================================================================
 -- CÔTÉ POLICIER : qui est mis en joue ?
 -- =========================================================================
-local aimWatching = false
 
 --- Joueurs visés : visée directe, ou à moins de AimRadius mètres de la ligne de visée
 local function aimTargets()
@@ -161,13 +165,19 @@ local function aimTargets()
 end
 RPI.aimTargets = aimTargets
 
-RegisterCommand('+rpi_aimwatch', function()
+local aimWatching = false
+local AIM_INTERVAL, IDLE_INTERVAL = 150, 250
+
+--- Tant que le joueur est policier en service : la visée est surveillée (aucune touche nécessaire,
+--- fonctionne aussi avec une manette ou un raccourci de visée modifié)
+local function startAimWatch()
     if aimWatching or not RPI.isPolice() then return end
     aimWatching = true
     CreateThread(function()
         local lastKey, lastSent = '', 0
-        while aimWatching do
-            local list = aimTargets()
+        while RPI.isPolice() do
+            local aiming = IsPlayerFreeAiming(PlayerId())
+            local list = aiming and aimTargets() or {}
             local key = table.concat(list, ',')
             local now = GetGameTimer()
             -- Envoi au changement, puis confirmation régulière tant que la visée dure
@@ -175,10 +185,11 @@ RegisterCommand('+rpi_aimwatch', function()
                 TriggerServerEvent('rp_interact:server:aiming', list)
                 lastKey, lastSent = key, now
             end
-            Wait(200)
+            Wait(aiming and AIM_INTERVAL or IDLE_INTERVAL)
         end
         if lastKey ~= '' then TriggerServerEvent('rp_interact:server:aiming', {}) end
+        aimWatching = false
     end)
-end, false)
-RegisterCommand('-rpi_aimwatch', function() aimWatching = false end, false)
-RegisterKeyMapping('+rpi_aimwatch', 'Police : mise en joue (tips d\'arrestation du civil)', 'MOUSE_BUTTON', Config.AimWatchKey)
+end
+RPI.onDuty(startAimWatch)
+startAimWatch()

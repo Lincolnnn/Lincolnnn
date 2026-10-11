@@ -860,6 +860,11 @@ input.invalid, select.invalid, textarea.invalid { border-color: #ff5a5a; backgro
 /* Croisement : plus petit, en italique, gris */
 .pld-line { font-size: 12px; color: #a9a9a9; }
 .pld-line #pldCross { font-style: italic; }
+/* Heure du jeu : à côté du bloc, décalée de --pld-time-gap (à gauche si le bloc est masqué / vide) */
+.hud-pld { --pld-time-gap: 2.5cm; }
+.pld-bottom { display: flex; align-items: baseline; }
+.pld-time { margin-left: var(--pld-time-gap); font-variant-numeric: tabular-nums; }
+.pld-blockpart.part-off + .pld-time, .pld-blockpart.part-empty + .pld-time { margin-left: 0; }
 
 /* Display MDC : unité, tag, statut, appel */
 .hud-unit { display: flex; flex-direction: column; gap: 3px; padding: 7px 12px; min-width: 150px; }

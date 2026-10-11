@@ -84,7 +84,8 @@ Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fin
   (`PldForEveryone` dans `client/hud.lua` pour le réserver aux joueurs ayant accès au MDC) : direction en gros
   et en gras (N / NE / E / SE / S / SW / W / NW), rue actuelle en gros, **croisement le plus proche** en petit et en
   italique (toujours présent : largeur stable), **bloc** : celui où se trouve le joueur, sinon le plus proche, et
-  **heure du jeu** (HH:MM, masquable dans « Paramètres »).
+  sur la même ligne, décalée d'environ 2,5 cm, l'**heure du jeu** (HH:MM, sans libellé, masquable dans « Paramètres » ;
+  écart réglable : `--pld-time-gap` dans `html/style.css`).
   Les blocs se dessinent dans **`config/blocks.json`** (cercles, rectangles, polygones, filtre par rue) : voir
   `config/LISEZMOI.txt` ; la commande `/mdc_pos` (console F8) donne la ligne à copier.
 - **Display MDC** : affiché seulement dans une unité : nom, tag, statut, et le n° d'incident uniquement quand
