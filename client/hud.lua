@@ -8,8 +8,8 @@
            (désactivable / réglable dans l'onglet "Paramètres" du MDC, réglages propres au joueur)
       - Display MDC : nom de l'unité, tag, statut, n° d'incident de l'appel en cours
         -> affiché uniquement quand le joueur fait partie d'une unité
-    + les notifications (en haut à droite de l'écran) : nouvel appel, nouvel incident,
-      changement de statut de l'unité.
+    + les notifications (en haut à droite de l'écran) : nouvel appel, nouvel incident (unités du
+      service de l'appel), proposition "unité la plus proche" (Y / N), changement de statut de l'unité.
 
     Performance :
       - Le PLD utilise UNE boucle lente (Config.Interval ms, 500 par défaut) qui
@@ -281,6 +281,36 @@ RegisterNetEvent('mdc:client:callNotify', function(call)
     if type(call) ~= 'table' or not setting('notify', 'calls') then return end
     SendNUIMessage({ action = 'callNotify', data = call })
 end)
+
+-- "Vous êtes l'une des unités les plus proches" : proposition d'un appel à l'unité du joueur.
+-- Y : accepter (l'unité est rattachée à l'appel, "En route"), N : refuser. Sans passer par le MDC.
+-- Raccourcis FiveM (modifiables : Paramètres > Raccourcis clavier > FiveM) : aucune boucle ; les touches
+-- ne font rien quand aucune proposition n'est en attente.
+local offer = nil -- { callId, expires }
+
+RegisterNetEvent('mdc:client:nearestOffer', function(call)
+    if type(call) ~= 'table' or not call.id then return end
+    offer = { callId = call.id, expires = GetGameTimer() + (tonumber(call.timeout) or 30000) }
+    SendNUIMessage({ action = 'nearestOffer', data = call })
+end)
+
+RegisterNetEvent('mdc:client:offerClosed', function(callId, result)
+    if offer and offer.callId == callId then offer = nil end
+    SendNUIMessage({ action = 'offerClosed', data = { callId = callId, result = result } })
+end)
+
+local function answerOffer(accept)
+    if not offer then return end
+    if GetGameTimer() > offer.expires then
+        offer = nil
+        return
+    end
+    TriggerServerEvent('mdc:server:offerAnswer', offer.callId, accept)
+end
+RegisterCommand('mdc_offer_yes', function() answerOffer(true) end, false)
+RegisterCommand('mdc_offer_no', function() answerOffer(false) end, false)
+RegisterKeyMapping('mdc_offer_yes', 'MDC : accepter l\'appel (unité la plus proche)', 'keyboard', 'Y')
+RegisterKeyMapping('mdc_offer_no', 'MDC : refuser l\'appel (unité la plus proche)', 'keyboard', 'N')
 
 -- Changement de statut de l'unité du joueur : notification en haut à droite
 RegisterNetEvent('mdc:client:statusNotify', function(unit)

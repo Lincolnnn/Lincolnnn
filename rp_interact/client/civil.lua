@@ -47,16 +47,29 @@ end
 
 -- Touches fixes, lues image par image (petite boucle active seulement tant que les tips sont affichés) :
 --   X     : arrêter l'emote en cours
---   Échap : fermer les tips (le menu pause du jeu ne s'ouvre pas à ce moment-là)
-local STOP_KEY = 73       -- X
-local CLOSE_KEY = 200     -- Échap (INPUT_FRONTEND_PAUSE_ALTERNATE)
-local CLOSE_KEY_ALT = 322 -- Échap (INPUT_REPLAY_TOGGLE, même touche selon la configuration)
+--   Échap : fermer les tips. Le menu pause / la carte du jeu s'ouvrent au RELÂCHEMENT d'Échap : les
+--           commandes de pause restent bloquées jusqu'à ce que la touche soit relâchée (+ quelques
+--           images), puis la boucle s'arrête.
+local STOP_KEY = 73                    -- X
+local PAUSE_KEYS = { 199, 200, 322 }   -- pause (P), pause (Échap), Échap (selon la configuration)
 local keyLoopRunning = false
 local renderTips
 
 local function closeTips()
     tips.shown, tips.aimed = false, false
     renderTips()
+end
+
+local function blockPause()
+    for _, control in ipairs(PAUSE_KEYS) do DisableControlAction(0, control, true) end
+end
+
+local function escPressed()
+    return IsDisabledControlJustPressed(0, 200) or IsDisabledControlJustPressed(0, 322)
+end
+
+local function escHeld()
+    return IsDisabledControlPressed(0, 200) or IsDisabledControlPressed(0, 322)
 end
 
 local function startKeyLoop()
@@ -66,15 +79,24 @@ local function startKeyLoop()
         while tipsVisible() do
             Wait(0)
             if not RPI.uiOpen() then
-                DisableControlAction(0, CLOSE_KEY, true)
-                if IsDisabledControlJustPressed(0, CLOSE_KEY) or IsControlJustPressed(0, CLOSE_KEY_ALT) then
+                blockPause()
+                if escPressed() then
                     closeTips()
                 elseif IsControlJustPressed(0, STOP_KEY) and not (RPI.isCuffed and RPI.isCuffed()) then
                     RPI.cancelEmote()
                 end
             end
         end
+        -- Fermés avec Échap : pause bloquée jusqu'au relâchement de la touche (max 3 s), puis 10 images
+        local untilTime, extra = GetGameTimer() + 3000, 10
+        while extra > 0 and GetGameTimer() < untilTime and not tipsVisible() do
+            blockPause()
+            if IsPauseMenuActive() then SetPauseMenuActive(false) end
+            if not escHeld() then extra = extra - 1 end
+            Wait(0)
+        end
         keyLoopRunning = false
+        if tipsVisible() then renderTips() end -- rouverts entre-temps : la boucle repart
     end)
 end
 

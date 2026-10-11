@@ -351,7 +351,15 @@ relay('getRecord',          'getRecord')          -- Fiche complète d'une ident
 
 -- Recherches et créations
 relay('search',            'search')            -- Onglet "Recherches" (identités / immatriculations)
-relay('create',            'create')            -- Onglet "Créations" (identité, véhicule, intervention)
+-- Onglet "Créations" (identité, véhicule, intervention). Intervention : position du civil jointe
+-- (lieu de l'appel, pour trouver les unités les plus proches si le serveur n'a pas OneSync)
+RegisterNUICallback('create', function(data, cb)
+    if type(data) == 'table' and data.kind == 'intervention' then
+        local c = GetEntityCoords(PlayerPedId())
+        data.coords = { x = c.x, y = c.y, z = c.z }
+    end
+    serverRequest('create', data, cb)
+end)
 relay('update',            'update')            -- Modification d'une identité / d'un véhicule
 relay('getRegistry',       'getRegistry')       -- Bouton "Registre" (mes créations)
 relay('getMyIdentities',   'getMyIdentities')   -- Liste des propriétaires possibles (véhicule)

@@ -1061,3 +1061,33 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 /* Rapports listés dans les antécédents d'une fiche d'identité (cliquables) */
 .entry-report { cursor: pointer; border-left: 3px solid var(--select); }
 .entry-report:hover { background: #1d1d1d; }
+
+/* Interventions : une liste par service (APD / GSP), ouvrable / refermable */
+.dept-lists { overflow-y: auto; }
+.dept-fold + .dept-fold { border-top: 1px solid var(--lo); }
+.dept-fold > summary {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px; font-weight: bold; cursor: pointer; list-style: none; user-select: none;
+    background: var(--face); border-bottom: 1px solid var(--lo);
+    position: sticky; top: 0; z-index: 1;
+}
+.dept-fold > summary::-webkit-details-marker { display: none; }
+.dept-fold > summary::before { content: "+"; width: 12px; color: var(--muted); }
+.dept-fold[open] > summary::before { content: "\2212"; }
+.dept-fold > summary:hover { background: #333; }
+.dept-badge { padding: 1px 6px; border-radius: 3px; font-size: 11px; letter-spacing: .5px; color: #fff; background: var(--select); }
+.dept-fold[data-dept="gsp"] .dept-badge { background: #7a5a1a; }
+.dept-count { margin-left: auto; font-weight: normal; font-size: 11px; color: var(--muted); }
+
+/* Proposition "unité la plus proche" (Y / N) */
+.offer-toast { width: 400px; border-left-width: 6px; box-shadow: 0 0 0 2px rgba(var(--prio), .35); }
+.offer-toast .ct-head { color: #fff; }
+.offer-keys { display: flex; align-items: center; gap: 14px; margin-top: 7px; font-size: 12px; }
+.offer-keys kbd {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px;
+    font: bold 12px var(--font); color: #111; background: #e9e9e9; border-radius: 4px; box-shadow: 0 2px 0 #8a8a8a;
+}
+.offer-time { margin-left: auto; color: #9a9a9a; font-variant-numeric: tabular-nums; }
+.offer-toast .ct-head { gap: 10px; }
+.offer-toast .ct-head > span:first-child { white-space: nowrap; }
+.ct-number { white-space: nowrap; }

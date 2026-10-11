@@ -824,10 +824,13 @@ RegisterCommand('rpi_showprops', function(src)
 end, false)
 
 -- =========================================================================
--- VÉHICULES D'URGENCE : /policeon et /policeoff (sans annonce ; l'auteur reçoit une confirmation)
--- Activé : les véhicules de classe 18 sont verrouillés pour les non-policiers (sauf portière déjà
--- ouverte / placé par un policier). Appliqué par chaque client (voir client/police.lua).
+-- VÉHICULES DE POLICE : /policeon et /policeoff (sans annonce ; l'auteur reçoit une confirmation)
+-- /policeon : seuls les policiers (unité du MDC) montent dans un véhicule de police. /policeoff : tout
+-- le monde. Au démarrage du serveur (ou de la ressource) : /policeoff. Appliqué par chaque client sur
+-- son propre personnage (client/policevehicles.lua) : aucun véhicule n'est verrouillé ni supprimé.
 -- =========================================================================
+GlobalState.rpiPoliceVehicles = false
+
 local function canTogglePoliceVehicles(src)
     return src == 0 or IsPlayerAceAllowed(src, Config.PoliceVehiclesAce) or policeUnit(src) ~= nil
 end
@@ -839,10 +842,10 @@ local function setPoliceVehicles(src, enabled)
     GlobalState.rpiPoliceVehicles = enabled
     if src ~= 0 then
         TriggerClientEvent('rp_interact:client:notify', src, enabled
-            and 'Véhicules d\'urgence verrouillés pour les civils (/policeon).'
-            or 'Véhicules d\'urgence de nouveau accessibles à tous (/policeoff).', 'success')
+            and 'Véhicules de police réservés aux policiers (/policeon).'
+            or 'Véhicules de police de nouveau accessibles à tous (/policeoff).', 'success')
     end
-    print(('^5[RP Interact]^0 Véhicules d\'urgence réservés à la police : %s (par %s)'):format(
+    print(('^5[RP Interact]^0 Véhicules de police réservés aux policiers : %s (par %s)'):format(
         enabled and 'ACTIVÉ' or 'désactivé', src == 0 and 'console' or (GetPlayerName(src) or tostring(src))))
 end
 RegisterCommand('policeon', function(src) setPoliceVehicles(src, true) end, false)

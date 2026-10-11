@@ -50,7 +50,8 @@ Ajoute des options visuelles propres au rôle de civil. La première : les **tip
 - Sans mise en joue : Menu > Civil > **Tips arrestation** l'affiche.
 - Il ne se ferme **qu'avec la touche Échap** (rappel « Échap : fermer » écrit en tout petit, en gris foncé, en bas du
   mini menu) : il **reste affiché quand le policier arrête de viser** (le titre redevient « Tips arrestation »).
-  Pendant qu'il est affiché, Échap ferme les tips au lieu d'ouvrir le menu pause du jeu.
+  Pendant qu'il est affiché, Échap ferme les tips **sans ouvrir le menu pause ni la carte** (la pause reste bloquée
+  jusqu'au relâchement de la touche).
 - Les touches ne font l'emote **que pendant que le mini menu est affiché** (et jamais quand une fenêtre est ouverte).
   Chaque touche est un **raccourci de la commande `/e …`** de RPEMOTES (exactement comme si le joueur la tapait).
 - **X** : l'emote est arrêtée par RPEMOTES lui-même (export `EmoteCancel`), ce script prend le dessus sur le X de
@@ -164,22 +165,30 @@ Le modèle existe déjà dans le jeu. Pour utiliser votre propre fichier, créez
 placez-y **`rp_interact/stream/p_cs_cuffs_02_s.ydr`** (FiveM le charge automatiquement, aucune ligne à ajouter dans
 `fxmanifest.lua`), puis redémarrez la ressource. Autre nom de modèle : `CuffProp` dans `config.lua`.
 
-### Véhicules d'urgence : `/policeon` et `/policeoff`
+### Véhicules de police : `/policeon` et `/policeoff`
 
-`/policeon` : un joueur qui n'est pas policier en service (unité du MDC) et qui essaie d'ouvrir une portière fermée
-d'un véhicule de la catégorie « véhicule d'urgence » (classe 18) va jusqu'à la portière, **tire sur la poignée**
-(`LockedDoorAnim`) et la portière reste fermée, **sans aucun message**. Rien n'est verrouillé sur le véhicule lui-même
-(un verrou est partagé par le réseau et bloquait aussi les policiers) : **les policiers montent normalement** et un
-individu **placé à l'arrière par un policier** y monte aussi. Autres exceptions : portière déjà ouverte. L'œil ne
-propose plus aux non-policiers d'ouvrir les portières ni de monter. `/policeoff` : retour à la normale.
-Les **spawns ne sont jamais gênés** : un véhicule d'urgence que le joueur fait apparaître à côté de lui (menu de spawn,
-garage, script de service : créé par son propre client) est le sien, il y monte normalement ; une montée
-« téléportée » (apparaître directement dans le véhicule) n'est jamais interrompue (la règle n'agit qu'après 0,4 s
-de vraie tentative, jamais quand le joueur est déjà à bord). Un véhicule garé que le joueur découvre en arrivant de
-loin reste interdit. Effet immédiat, sans redémarrage ni annonce
-aux autres joueurs : **seul l'auteur de la commande reçoit une notification** confirmant le changement (et une ligne
-dans la console serveur). Commande autorisée : console, policiers en service, ou permission ACE
-`rpinteract.admin` (`add_ace group.admin rpinteract.admin allow`).
+**Policier** = joueur dans une unité de police du MDC (vérifié aussi par le serveur).
+
+- **`/policeoff`** (par défaut, **à chaque redémarrage du serveur**) : aucune règle, tout le monde monte dans tous les
+  véhicules. Le script ne fait alors strictement rien (aucune boucle, aucune action sur les véhicules).
+- **`/policeon`** : **seuls les policiers** montent dans un véhicule de police. Tous les autres joueurs (mode civil
+  coché ou non) :
+  - **essaient d'ouvrir la portière, elle reste verrouillée** : le joueur est arrêté à la poignée **avant que la
+    portière bouge**, puis tire sur la poignée (`LockedDoorAnim`) ; la portière ne bouge pas, **la vitre n'est jamais
+    cassée**, impossible de voler le véhicule à son conducteur ;
+  - **peuvent faire apparaître un véhicule de police** : le véhicule apparaît et **reste** (jamais supprimé), mais le
+    joueur en **descend aussitôt** et ne peut plus y remonter ;
+  - ne voient plus, avec l'œil, les options d'ouverture des portières ni « Monter ».
+- Exception : l'individu **placé à l'arrière par un policier** y monte et y reste.
+- Un policier qui quitte son unité en étant à bord n'est pas éjecté : la règle ne concerne que la montée.
+- Aucun verrou n'est posé sur le véhicule (un verrou est partagé par le réseau et bloquait aussi les policiers) :
+  seul le jeu de chaque non-policier agit, sur son propre personnage.
+- Véhicule de police : catégorie du jeu « véhicule d'urgence » (`PoliceVehicleClasses = { 18 }`) ou modèle listé
+  dans `PoliceVehicleModels` (véhicules ajoutés rangés dans une autre catégorie).
+
+Effet immédiat, sans redémarrage ni annonce aux autres joueurs : **seul l'auteur de la commande reçoit une
+notification** confirmant le changement (et une ligne dans la console serveur). Commande autorisée : console,
+policiers en service, ou permission ACE `rpinteract.admin` (`add_ace group.admin rpinteract.admin allow`).
 
 Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seats`, `TrashBins`).
 
@@ -195,7 +204,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
 | `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragTurnSpeed`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté1`, `/e menotté2`, `/e tenirlebras`, `/e c`), animations de secours (si l'emote est introuvable dans RPEMOTES), menottes, position / rotation de l'individu tenu, touche pour lâcher le bras, distance du véhicule |
 | `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) |
-| `PoliceVehiclesAce`, `LockedDoorAnim` | permission ACE pour `/policeon` / `/policeoff` ; animation « poignée verrouillée » |
+| `PoliceVehiclesAce`, `PoliceVehicleClasses`, `PoliceVehicleModels`, `LockedDoorAnim` | permission ACE pour `/policeon` / `/policeoff` ; ce qui compte comme véhicule de police ; animation « poignée verrouillée » |
 | `MaxProfiles`, `TextMax` | profils par joueur, longueur des textes |
 | `AnnounceWithMe`, `ResultsInChat`, `ResultDuration` | `/me` automatiques, copie dans le chat, durée d'affichage |
 | `Defaults` | réponses par défaut |
@@ -234,6 +243,5 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 - Lâcher le bras avec X : raccourci FiveM (aucune boucle).
 - Tips d'arrestation : les touches fixes X et Échap sont lues uniquement pendant que les tips sont affichés.
 - L'œil d'un joueur autorisé à supprimer vise jusqu'à 60 m (50 m + caméra) au lieu de 25 m : même coût (un rayon).
-- `/policeon` : une vérification toutes les 250 ms (tentative de montée + véhicules apparus à côté du joueur ; à
-  chaque image seulement pendant une tentative de montée dans un véhicule d'urgence), uniquement tant que la règle
-  est active.
+- `/policeoff` : aucune boucle. `/policeon` : une vérification toutes les 200 ms chez les non-policiers (à chaque
+  image seulement pendant une tentative de montée dans un véhicule de police), 1 s chez les policiers.

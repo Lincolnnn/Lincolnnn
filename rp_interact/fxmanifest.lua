@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '1.5.0'
+version '1.6.0'
 
 ui_page 'html/index.html'
 
@@ -29,7 +29,8 @@ client_scripts {
     'client/options.lua',  -- options de l'œil (environnement, véhicules, personnes)
     'client/target.lua',   -- Eye Target (visée, sélection, exécution)
     'client/civil.lua',    -- Mode civil (tips d'arrestation) et détection de la mise en joue (police)
-    'client/police.lua',   -- Menottes, prendre par le bras, véhicules d'urgence, suppression d'éléments
+    'client/police.lua',   -- Menottes, prendre par le bras, suppression d'éléments
+    'client/policevehicles.lua', -- /policeon : véhicules de police réservés aux policiers
 }
 
 server_scripts {

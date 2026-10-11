@@ -50,6 +50,14 @@ local Config = {
     MaxSharedHistory = 100, -- historique de recherches partagé par une unité
     MaxBolos = 200,         -- nombre max de BOLOs actifs
 
+    -- Appels des civils : service de police choisi (APD / GSP) et nombre idéal d'unités (1 à 4).
+    -- Les N unités disponibles les plus proches (N = nombre idéal, hors superviseurs "SUP.") reçoivent
+    -- "Vous êtes l'une des unités les plus proches" : Y pour accepter, N pour refuser (sans le MDC).
+    -- Nécessite OneSync (position des joueurs côté serveur) ; sinon, notification classique pour tous.
+    MaxIdealUnits = 4,
+    OfferTimeout = 30000,   -- ms pour répondre ; refus / sans réponse : l'unité suivante est proposée
+    SupervisorTag = 'SUP.', -- tag des superviseurs (jamais proposés comme unité la plus proche)
+
     -- Débit (octets/s) des réponses "latentes" (modèles et contenu des rapports,
     -- qui peuvent dépasser la taille d'un événement classique)
     LatentBps = 200000,
@@ -931,9 +939,28 @@ local function leaveCurrentUnit(src)
     PlayerUnit[src] = nil
 end
 
+--- Tag de l'unité (menu déroulant) : aucun, "SUP." (superviseur) ou "Autre" (saisi à la main)
+local function buildTag(p)
+    if p.tagType == 'sup' then return Config.SupervisorTag end
+    if p.tagType == 'other' then
+        local tag = clean(p.tag, 10):upper()
+        if tag == '' then return nil, 'Saisissez le tag de l\'unité (Autre).' end
+        return tag
+    end
+    if p.tagType == nil then return clean(p.tag, 10):upper() end -- ancien format : tag libre
+    return ''
+end
+
+--- Unité de superviseur : tag "SUP." (avec ou sans point)
+local function isSupervisor(unit)
+    local tag = (unit.tag or ''):upper():gsub('[%.%s]', '')
+    return tag == Config.SupervisorTag:upper():gsub('[%.%s]', '')
+end
+
 local function buildUnit(p)
     local name = clean(p.name, 30)
-    local tag = clean(p.tag, 10):upper() -- facultatif
+    local tag, tagErr = buildTag(p)
+    if not tag then return nil, tagErr end
     if name == '' then return nil, 'Le nom de l\'unité est obligatoire.' end
     if not TAG_COLORS[p.color] then return nil, 'Choisissez la couleur du tag.' end
     if not DEPARTMENTS[p.dept] then return nil, 'Choisissez le service de police de l\'unité.' end
@@ -1143,6 +1170,7 @@ local function interventionView(intervention)
     table.sort(units, function(a, b) return a.name < b.name end)
 
     view.units = units
+    view.coords = nil -- position exacte : utilisée par le serveur seulement
     view.status = interventionStatus(intervention)
     view.reports = reportLinks(intervention) -- affichés avec les notes, dans le déroulé
 
@@ -1208,6 +1236,14 @@ local function buildCall(p, kind)
 
         if not PRIORITIES[p.priority] then return nil, 'Choisissez la priorité de l\'urgence.' end
         r.priority = p.priority
+
+        if not DEPARTMENTS[p.dept] then return nil, 'Choisissez le service de police (APD ou GSP).' end
+        r.dept = p.dept
+        local ideal = math.tointeger(tonumber(p.idealUnits) or 0)
+        if not ideal or ideal < 1 or ideal > Config.MaxIdealUnits then
+            return nil, ('Choisissez le nombre idéal d\'unités (1 à %d).'):format(Config.MaxIdealUnits)
+        end
+        r.idealUnits = ideal
     end
 
     if r.address == '' then return nil, 'L\'adresse est obligatoire.' end
@@ -1216,14 +1252,147 @@ local function buildCall(p, kind)
     return r
 end
 
--- Notification "nouvelle intervention / nouvel incident" (en haut à droite de l'écran) :
--- envoyée à TOUS les joueurs en jeu (son auteur, les unités, les civils).
-local function notifyNewCall(call)
-    TriggerClientEvent('mdc:client:callNotify', -1, {
-        number = call.number, kind = call.kind, title = call.title, priority = call.priority,
+local function callSummary(call)
+    return {
+        id = call.id, number = call.number, kind = call.kind, title = call.title, priority = call.priority,
         address = call.address, crossStreet = call.crossStreet, block = call.block, unitName = call.unitName,
-    })
+        dept = call.dept, idealUnits = call.idealUnits,
+    }
 end
+
+-- Notification "nouvelle intervention / nouvel incident" (en haut à droite de l'écran) : envoyée
+-- uniquement aux membres des unités du service de l'appel (APD ou GSP), sauf aux unités qui ont reçu
+-- la proposition "unité la plus proche" (`skip`).
+local function notifyNewCall(call, skip)
+    local data = callSummary(call)
+    for _, unit in ipairs(Units) do
+        if unit.dept == call.dept and not (skip and skip[unit.id]) then
+            for key in pairs(unit.members) do TriggerClientEvent('mdc:client:callNotify', tonumber(key), data) end
+        end
+    end
+end
+
+-- Rattacher une unité à un appel (MDC "Rejoindre l'appel" ou Y sur la proposition) : "En route"
+local function joinCall(call, unit)
+    call.units[tostring(unit.id)] = true
+    local changed = unit.status ~= 'en_route'
+    unit.status = 'en_route'
+    unit.updatedAt = os.time()
+    pushUnits()
+    if changed then notifyUnitStatus(unit) end
+end
+
+-- ---- UNITÉS LES PLUS PROCHES (appels des civils) ----
+-- Offers[id de l'appel] = { offered = { [id unité] = true }, pending = { [id unité] = true } }
+local Offers = {}
+
+local function playerPosition(src)
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return nil end
+    local c = GetEntityCoords(ped)
+    if not c or (c.x == 0 and c.y == 0 and c.z == 0) then return nil end
+    return c
+end
+
+--- Distance entre l'appel et le membre de l'unité le plus proche (nil : position inconnue)
+local function unitDistance(unit, coords)
+    local best
+    for key in pairs(unit.members) do
+        local pos = playerPosition(tonumber(key))
+        if pos then
+            local d = math.sqrt((pos.x - coords.x) ^ 2 + (pos.y - coords.y) ^ 2 + (pos.z - coords.z) ^ 2)
+            if not best or d < best then best = d end
+        end
+    end
+    return best
+end
+
+local function countKeys(t)
+    local n = 0
+    for _ in pairs(t) do n = n + 1 end
+    return n
+end
+
+--- Unités pouvant recevoir la proposition, de la plus proche à la plus éloignée : même service,
+--- "Disponible", pas superviseur (SUP.), pas déjà sur l'appel ni déjà sollicitée, avec un membre en jeu
+local function offerCandidates(call, offers)
+    local list = {}
+    for _, unit in ipairs(Units) do
+        if unit.dept == call.dept and unit.status == 'available' and not isSupervisor(unit)
+            and not call.units[tostring(unit.id)] and not offers.offered[unit.id] then
+            local d = unitDistance(unit, call.coords)
+            if d then list[#list + 1] = { unit = unit, distance = d } end
+        end
+    end
+    table.sort(list, function(a, b)
+        if a.distance ~= b.distance then return a.distance < b.distance end
+        return a.unit.id < b.unit.id
+    end)
+    return list
+end
+
+local expireOffer -- défini plus bas
+
+local function sendOffer(call, offers, unit)
+    offers.offered[unit.id] = true
+    offers.pending[unit.id] = true
+    local data = callSummary(call)
+    data.timeout = Config.OfferTimeout
+    for key in pairs(unit.members) do TriggerClientEvent('mdc:client:nearestOffer', tonumber(key), data) end
+    print(('^5[MDC]^0 %s : proposé à %s (unité la plus proche)'):format(call.number, unitLabel(unit)))
+    SetTimeout(Config.OfferTimeout + 500, function() expireOffer(call.id, unit.id) end)
+end
+
+--- Propose l'appel aux unités les plus proches jusqu'au nombre idéal (unités sur l'appel + en attente)
+--- Retourne les unités sollicitées.
+local function fillOffers(call)
+    local sent = {}
+    local offers = Offers[call.id]
+    if not offers or call.closed or not call.coords then return sent end
+    local missing = (call.idealUnits or 1) - countKeys(call.units) - countKeys(offers.pending)
+    for _, candidate in ipairs(offerCandidates(call, offers)) do
+        if missing <= 0 then break end
+        sendOffer(call, offers, candidate.unit)
+        sent[candidate.unit.id] = true
+        missing = missing - 1
+    end
+    return sent
+end
+
+--- Fin d'une proposition pour une unité (acceptée, refusée, expirée) : prévient ses membres
+local function closeOffer(call, unit, result)
+    local offers = Offers[call.id]
+    if offers then offers.pending[unit.id] = nil end
+    for key in pairs(unit.members) do
+        TriggerClientEvent('mdc:client:offerClosed', tonumber(key), call.id, result)
+    end
+end
+
+expireOffer = function(callId, unitId)
+    local call, unit = findIntervention(callId), findUnit(unitId)
+    local offers = Offers[callId]
+    if not call or not offers or not offers.pending[unitId] then return end
+    if unit then closeOffer(call, unit, 'expired') else offers.pending[unitId] = nil end
+    fillOffers(call) -- sans réponse : l'unité suivante la plus proche
+end
+
+-- Réponse Y / N d'un membre de l'unité sollicitée (client/hud.lua)
+RegisterNetEvent('mdc:server:offerAnswer', function(callId, accept)
+    local src = source
+    local unit = findUnit(PlayerUnit[src])
+    local call = findIntervention(callId)
+    local offers = call and Offers[call.id]
+    if not unit or not offers or not offers.pending[unit.id] then return end
+    if accept == true and not call.closed then
+        closeOffer(call, unit, 'accepted')
+        joinCall(call, unit)
+        print(('^5[MDC]^0 %s : accepté par %s (unité la plus proche)'):format(call.number, unitLabel(unit)))
+        pushInterventions()
+    else
+        closeOffer(call, unit, 'declined')
+        fillOffers(call) -- refus : l'unité suivante la plus proche
+    end
+end)
 
 local function addCall(src, call, kind, unit)
     call.id = NextInterventionId
@@ -1244,7 +1413,12 @@ local function addCall(src, call, kind, unit)
 
     print(('^5[MDC]^0 Nouvel(le) %s %s "%s" par %s [%s]'):format(kind, call.number, call.title, agentName(src), GetPlayerName(src) or '?'))
     pushInterventions()
-    notifyNewCall(call)
+    local offered
+    if kind == 'intervention' then
+        Offers[call.id] = { offered = {}, pending = {} }
+        offered = fillOffers(call)
+    end
+    notifyNewCall(call, offered)
     return { ok = true, id = call.id, number = call.number }
 end
 
@@ -1253,6 +1427,14 @@ createIntervention = function(src, payload)
     local call, err = buildCall(payload, 'intervention')
     if not call then return { ok = false, error = err } end
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
+    -- Lieu de l'appel : position du civil (OneSync), sinon celle envoyée par son client
+    local pos = playerPosition(src)
+    local c = type(payload.coords) == 'table' and payload.coords or nil
+    if pos then
+        call.coords = { x = pos.x, y = pos.y, z = pos.z }
+    elseif c and tonumber(c.x) and tonumber(c.y) and tonumber(c.z) then
+        call.coords = { x = tonumber(c.x), y = tonumber(c.y), z = tonumber(c.z) }
+    end
     return addCall(src, call, 'intervention')
 end
 
@@ -1266,6 +1448,7 @@ RegisterMDCCallback('createIncident', function(src, payload)
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
 
     call.unitName = unit.name -- nom de l'unité déclarante (automatique)
+    call.dept = unit.dept     -- service de l'unité déclarante
     return addCall(src, call, 'incident', unit)
 end)
 
@@ -1286,12 +1469,9 @@ RegisterMDCCallback('interventionAction', function(src, payload)
     local key = tostring(unit.id)
 
     if payload.action == 'join' then
-        call.units[key] = true
-        local changed = unit.status ~= 'en_route'
-        unit.status = 'en_route' -- rejoindre un appel passe l'unité "En route"
-        unit.updatedAt = os.time()
-        pushUnits()
-        if changed then notifyUnitStatus(unit) end
+        joinCall(call, unit) -- rejoindre un appel passe l'unité "En route"
+        local offers = Offers[call.id]
+        if offers and offers.pending[unit.id] then closeOffer(call, unit, 'accepted') end
     elseif payload.action == 'leave' then
         call.units[key] = nil
     elseif payload.action == 'end' then
@@ -1299,6 +1479,12 @@ RegisterMDCCallback('interventionAction', function(src, payload)
         call.closed = true
         call.closedAt = os.time()
         call.closedByName = unit.name
+        -- Propositions "unité la plus proche" encore en attente : retirées
+        for unitId in pairs(Offers[call.id] and Offers[call.id].pending or {}) do
+            local pendingUnit = findUnit(unitId)
+            if pendingUnit then closeOffer(call, pendingUnit, 'closed') end
+        end
+        Offers[call.id] = nil
         print(('^5[MDC]^0 %s terminé(e) par %s'):format(call.number, unitLabel(unit)))
     else
         return { ok = false, error = 'Action invalide.' }
@@ -1314,6 +1500,8 @@ RegisterMDCCallback('editIntervention', function(src, payload)
     if not call then return { ok = false, error = 'Intervention introuvable.' } end
     if call.closed then return { ok = false, error = 'Une intervention terminée ne peut plus être modifiée.' } end
 
+    -- Service et nombre idéal d'unités : fixés à la création (notifications déjà envoyées)
+    payload.dept, payload.idealUnits = call.dept, call.idealUnits
     local data, err = buildCall(payload, call.kind)
     if not data then return { ok = false, error = err } end
 

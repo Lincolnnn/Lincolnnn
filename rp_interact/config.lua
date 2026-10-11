@@ -61,12 +61,14 @@ InteractConfig = {
     DeleteAccess = 'police',
     DeleteAce = 'rpinteract.delete',
 
-    -- VÉHICULES D'URGENCE (classe 18) : /policeon et /policeoff activent / désactivent la règle
-    -- "portières verrouillées pour les non-policiers" (sauf portière déjà ouverte / placé par un policier).
+    -- VÉHICULES DE POLICE : /policeon -> seuls les policiers (unité du MDC) y montent ; /policeoff (par
+    -- défaut à chaque démarrage du serveur) -> tout le monde. Voir client/policevehicles.lua.
     -- Pas d'annonce : seul l'auteur de la commande reçoit une notification de confirmation.
     -- Autorisés : console serveur, joueurs en unité du MDC, ou permission ACE ci-dessous.
     PoliceVehiclesAce = 'rpinteract.admin',
-    -- Animation jouée quand un non-policier essaie la poignée d'un véhicule d'urgence (/policeon)
+    PoliceVehicleClasses = { 18 },  -- classes du jeu considérées comme "véhicule de police" (18 = urgence)
+    PoliceVehicleModels = {},       -- modèles en plus (véhicules ajoutés d'une autre classe), ex. { 'police5' }
+    -- Animation jouée quand un non-policier tire sur la poignée d'un véhicule de police (/policeon)
     LockedDoorAnim = { dict = 'veh@std@ds@enter_exit', clip = 'd_locked' },
 
     MaxProfiles = 20,               -- profils civils par joueur

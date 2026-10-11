@@ -37,12 +37,12 @@ L'heure affichée en bas à droite du MDC est l'heure du jeu.
 
 | Onglet | Rôle |
 |---|---|
-| Unités | Deux listes, une par service : **Atlanta Police Department** et **Georgia State Patrol** (chacun voit les deux). Bouton **Créer une unité** par service (service, nom, tag facultatif, couleur). Chacun peut rejoindre (4 joueurs max par unité), quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur). Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
-| Interventions | Liste des interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer pour le masquer. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
+| Unités | Deux listes, une par service : **Atlanta Police Department** et **Georgia State Patrol** (chacun voit les deux). Bouton **Créer une unité** par service (service, nom, **tag** au menu déroulant : Aucun, **SUP.** (superviseur) ou **Autre** à saisir, couleur). Chacun peut rejoindre (4 joueurs max par unité), quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur). Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
+| Interventions | Deux listes ouvrables / refermables, une par service : **APD** et **GSP** (chacun voit les deux ; celle du service de son unité est ouverte par défaut, l'autre fermée). Interventions (civils) et incidents (unités, rangés dans le service de l'unité déclarante) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer pour le masquer. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
 | Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
 | Paramètres | Trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD et display MDC : affichage, éléments visibles, taille, position) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
-| Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
+| Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, **service de police** (APD ou GSP), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
 
@@ -91,8 +91,17 @@ Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fin
 - **Display MDC** : affiché seulement dans une unité : nom, tag, statut, et le n° d'incident uniquement quand
   l'unité est sur un appel.
 - **Notifications** (en haut à droite) : toutes les notifications du MDC, et, même MDC fermé : nouvel appel
-  (titre, priorité, adresse, croisement, bloc) et nouvel incident (titre, unité créatrice, adresse, croisement, bloc)
-  pour **tous les joueurs en jeu** ; changement de statut pour les membres de l'unité. Chacune se désactive dans
+  (titre, service, priorité, adresse, croisement, bloc) et nouvel incident (titre, unité créatrice, adresse,
+  croisement, bloc) pour **les membres des unités du service de l'appel uniquement** ; changement de statut pour les
+  membres de l'unité.
+- **Unités les plus proches** : quand un civil émet un appel, les unités **Disponibles** du service choisi les plus
+  proches du civil (autant que le nombre idéal d'unités, 4 max ; jamais une unité au tag **SUP.**, c'est alors la
+  suivante qui est choisie) reçoivent à la place une notification différente : « **Vous êtes l'une des unités les plus
+  proches** », avec **Y** pour accepter (l'unité est rattachée à l'appel et passe « En route », sans ouvrir le MDC) ou
+  **N** pour refuser (30 s pour répondre, `OfferTimeout`). Refus ou sans réponse : l'unité suivante la plus proche est
+  sollicitée. Les autres unités du service gardent la notification habituelle et peuvent rejoindre l'appel depuis le
+  MDC. Touches modifiables : Paramètres > Raccourcis clavier > FiveM > « MDC : accepter / refuser l'appel ».
+  Position des joueurs lue par le serveur (**OneSync**) ; à défaut, la position du civil est envoyée par son jeu. Chacune se désactive dans
   « Paramètres ». Un son accompagne les nouveaux appels (deux tons) et incidents (trois tons) : son **volume (0 à 100 %)**
   se règle dans *Paramètres > MDC > Notifications et sons* (bouton « Tester »). Le son est généré par l'interface :
   aucun fichier audio n'est nécessaire.

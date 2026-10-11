@@ -78,7 +78,15 @@
                                 </select>
                             </label>
                             <label class="lbl">Nom de l'unité *<input name="name" type="text" maxlength="30" placeholder="ex : Patrouille Centre"></label>
-                            <label class="lbl">Tag (facultatif)<input name="tag" type="text" maxlength="10" class="upper" placeholder="ex : 1-ADAM-12"></label>
+                            <!-- Tag : aucun, "SUP." (superviseur : jamais proposé comme unité la plus proche) ou Autre -->
+                            <label class="lbl">Tag
+                                <select name="tagType">
+                                    <option value="">Aucun</option>
+                                    <option value="sup">SUP. (superviseur)</option>
+                                    <option value="other">Autre</option>
+                                </select>
+                            </label>
+                            <label class="lbl hidden" id="tagOtherField">Tag (Autre) *<input name="tag" type="text" maxlength="10" class="upper" placeholder="ex : 1-ADAM-12"></label>
                             <div class="lbl">Couleur *
                                 <div class="swatches" id="tagColors">
                                     <label class="swatch" title="Vert foncé"><input type="radio" name="color" value="green" checked><span class="swatch-box tag-green"></span></label>
@@ -235,12 +243,25 @@
                                 <span class="grow"></span>
                                 <button class="btn" id="refreshInterventions">Actualiser</button>
                             </div>
-                            <div class="well">
-                                <table class="grid selectable">
-                                    <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
-                                    <tbody id="interventionsBody"></tbody>
-                                </table>
-                                <div class="empty" id="interventionsEmpty">Aucune intervention.</div>
+                            <!-- Une liste par service (ouvrable / refermable) : celle du service de l'unité du
+                                 joueur est ouverte par défaut, l'autre fermée -->
+                            <div class="well dept-lists" id="interventionsLists">
+                                <details class="dept-fold" data-dept="apd">
+                                    <summary><span class="dept-badge">APD</span>Atlanta Police Department <span class="dept-count" data-dept-count="apd"></span></summary>
+                                    <table class="grid selectable">
+                                        <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
+                                        <tbody data-dept-body="apd"></tbody>
+                                    </table>
+                                    <div class="empty" data-dept-empty="apd">Aucune intervention.</div>
+                                </details>
+                                <details class="dept-fold" data-dept="gsp">
+                                    <summary><span class="dept-badge">GSP</span>Georgia State Patrol <span class="dept-count" data-dept-count="gsp"></span></summary>
+                                    <table class="grid selectable">
+                                        <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
+                                        <tbody data-dept-body="gsp"></tbody>
+                                    </table>
+                                    <div class="empty" data-dept-empty="gsp">Aucune intervention.</div>
+                                </details>
                             </div>
                         </div>
                         <div class="group">
@@ -581,6 +602,22 @@
                                         <option value="p1">Priorité 1</option>
                                         <option value="p2">Priorité 2</option>
                                         <option value="p3">Priorité 3</option>
+                                    </select>
+                                </label>
+                                <!-- Seules les unités de ce service reçoivent l'appel (doit correspondre à DEPARTMENTS) -->
+                                <label class="lbl">Service de police *
+                                    <select name="dept">
+                                        <option value="">— Choisir —</option>
+                                        <option value="apd">Atlanta Police Department</option>
+                                        <option value="gsp">Georgia State Patrol</option>
+                                    </select>
+                                </label>
+                                <label class="lbl">Nombre idéal d'unités *
+                                    <select name="idealUnits">
+                                        <option value="1">1 unité</option>
+                                        <option value="2">2 unités</option>
+                                        <option value="3">3 unités</option>
+                                        <option value="4">4 unités</option>
                                     </select>
                                 </label>
                                 <label class="lbl">Adresse *<input name="address" type="text" maxlength="80"></label>

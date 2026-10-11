@@ -452,6 +452,7 @@
         renderUnits();
         checkUnitChange(); // espace partagé d'unité
         if (state.callPanel.mode === 'view') renderInterventionDetail(); // boutons "Rejoindre l'appel"
+        applyDeptFolds(); // nouvelle unité / autre service : liste de son service ouverte
     }
 
     async function refreshUnits() {
@@ -464,10 +465,21 @@
     // ---- Création / modification d'une unité (nom, tag, couleur du tag) ----
     const unitForm = $('#unitForm');
 
+    const SUPERVISOR_TAG = 'SUP.'; // identique à Config.SupervisorTag (server.lua)
+    const isSupervisorTag = (tag) => String(tag || '').toUpperCase().replace(/[.\s]/g, '') === 'SUP';
+
+    function tagValue(data) {
+        const type = data.get('tagType');
+        if (type === 'sup') return SUPERVISOR_TAG;
+        if (type === 'other') return String(data.get('tag') || '').trim().toUpperCase();
+        return '';
+    }
+
     function updateTagPreview() {
         const data = new FormData(unitForm);
+        $('#tagOtherField').classList.toggle('hidden', data.get('tagType') !== 'other');
         const preview = $('#tagPreview');
-        preview.textContent = String(data.get('tag') || '').trim().toUpperCase() || 'Aucun tag';
+        preview.textContent = tagValue(data) || 'Aucun tag';
         preview.className = `unit-tag tag-${data.get('color') || 'green'}`;
     }
 
@@ -493,7 +505,8 @@
         state.unitEdit = unit.id;
         unitForm.elements.dept.value = DEPARTMENTS[unit.dept] ? unit.dept : '';
         unitForm.elements.name.value = unit.name;
-        unitForm.elements.tag.value = unit.tag;
+        unitForm.elements.tagType.value = !unit.tag ? '' : (isSupervisorTag(unit.tag) ? 'sup' : 'other');
+        unitForm.elements.tag.value = unit.tag && !isSupervisorTag(unit.tag) ? unit.tag : '';
         const color = unitForm.querySelector(`input[name="color"][value="${TAG_COLORS.includes(unit.color) ? unit.color : 'gray'}"]`);
         color.checked = true;
         updateTagPreview();
@@ -879,22 +892,45 @@
     const callFlag = (map, key) => (map[key] ? flag(map[key][0], map[key][1]) : '-');
     const findCall = (id) => state.interventions.find((c) => c.id === id) || null;
 
-    function renderInterventionList() {
-        const list = state.interventions;
-        const selected = state.callPanel.id;
-        $('#interventionsCount').textContent = `(${list.length})`;
-        $('#interventionsEmpty').classList.toggle('hidden', list.length > 0);
-        $('#interventionsBody').innerHTML = list.map((c) => {
-            // Ligne surlignée de la couleur de sa priorité (sauf terminée : grisée)
-            const prio = !c.closed && CALL_PRIORITY[c.priority] ? `prio prio-${c.priority}` : '';
-            return `
+    // Listes par service (APD / GSP), ouvrables : celle du service de l'unité du joueur est ouverte par
+    // défaut et l'autre fermée (hors unité : les deux ouvertes). Le choix du joueur est ensuite respecté,
+    // jusqu'à ce qu'il change de service.
+    let deptFoldsFor = null;
+    function applyDeptFolds() {
+        const unit = myUnit();
+        const dept = unit && DEPARTMENTS[unit.dept] ? unit.dept : 'none';
+        if (deptFoldsFor === dept) return;
+        deptFoldsFor = dept;
+        $$('#interventionsLists .dept-fold').forEach((fold) => {
+            fold.open = dept === 'none' || fold.dataset.dept === dept;
+        });
+    }
+
+    const callRow = (c, selected) => {
+        // Ligne surlignée de la couleur de sa priorité (sauf terminée : grisée)
+        const prio = !c.closed && CALL_PRIORITY[c.priority] ? `prio prio-${c.priority}` : '';
+        return `
             <tr data-id="${esc(c.id)}" class="${c.closed ? 'row-closed' : ''} ${prio} ${c.id === selected ? 'selected' : ''}">
                 <td class="cell-ellipsis"><b>${esc(c.title)}</b></td>
                 <td>${c.kind === 'incident' ? '<span class="muted">Incident</span>' : esc(CALL_PRIORITY[c.priority] ? CALL_PRIORITY[c.priority][1] : '-')}</td>
                 <td class="cell-ellipsis">${esc(c.address)}${c.crossStreet ? `<span class="cross-inline"> × ${esc(c.crossStreet)}</span>` : ''}</td>
                 <td>${esc(c.block)}</td>
             </tr>`;
-        }).join('');
+    };
+
+    function renderInterventionList() {
+        const list = state.interventions;
+        const selected = state.callPanel.id;
+        $('#interventionsCount').textContent = `(${list.length})`;
+        applyDeptFolds();
+        Object.keys(DEPARTMENTS).forEach((dept) => {
+            // Appel sans service (ancien) : dans la liste APD
+            const items = list.filter((c) => (DEPARTMENTS[c.dept] ? c.dept : 'apd') === dept);
+            const open = items.filter((c) => !c.closed).length;
+            $(`[data-dept-count="${dept}"]`).textContent = `(${open} en cours / ${items.length})`;
+            $(`[data-dept-empty="${dept}"]`).classList.toggle('hidden', items.length > 0);
+            $(`[data-dept-body="${dept}"]`).innerHTML = items.map((c) => callRow(c, selected)).join('');
+        });
     }
 
     function noteHtml(note, call, unit) {
@@ -1028,6 +1064,8 @@
             <dl class="sheet">
                 ${row('N° d\'incident', c.number)}
                 ${row('Catégorie', incident ? 'Incident (déclaré par une unité)' : 'Intervention (appel)')}
+                ${row('Service de police', DEPARTMENTS[c.dept] ? DEPARTMENTS[c.dept].label : '-')}
+                ${incident ? '' : row('Unités idéales', c.idealUnits ? `${c.idealUnits} (${toArray(c.units).length} sur l'appel)` : '-')}
                 ${dd('Déroulé', callFlag(CALL_STATUS, c.status))}
                 ${row(incident ? 'Type d\'incident' : 'Type d\'intervention', c.title)}
                 ${incident
@@ -1155,7 +1193,7 @@
     }
 
     // Clic sur une ligne : affiche ses détails ; nouveau clic sur la même ligne : les masque
-    $('#interventionsBody').addEventListener('click', (e) => {
+    $('#interventionsLists').addEventListener('click', (e) => {
         const tr = e.target.closest('tr[data-id]');
         if (!tr) return;
         const id = Number(tr.dataset.id);
@@ -2934,6 +2972,7 @@
                 <span class="ct-number">${esc(c.number)}</span>
             </div>
             <div class="ct-title">${esc(c.title)}</div>
+            ${DEPARTMENTS[c.dept] ? `<div class="ct-row"><span class="hud-label">SERVICE</span>${esc(DEPARTMENTS[c.dept].short)}</div>` : ''}
             ${incident
                 ? `<div class="ct-row"><span class="hud-label">UNITÉ</span>${esc(c.unitName || '-')}</div>`
                 : `<div class="ct-row"><span class="hud-label">PRIORITÉ</span>${prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-'}</div>`}
@@ -2942,6 +2981,49 @@
             <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
         pushNotification(el, 12000);
         if (hud.settings.notify.sound) playSound(incident ? 'incident' : 'call');
+    }
+
+    // "Vous êtes l'une des unités les plus proches" : Y pour accepter, N pour refuser (client/hud.lua).
+    // Reste affichée jusqu'à la réponse (ou la fin du délai), avec un compte à rebours.
+    const offers = {}; // [id de l'appel] = { el, timer }
+    function nearestOffer(c) {
+        closeNearestOffer(c.id);
+        const prio = CALL_PRIORITY[c.priority];
+        const el = document.createElement('div');
+        el.className = `call-toast offer-toast prio-${esc(c.priority)}`;
+        el.innerHTML = `
+            <div class="ct-head"><span>VOUS ÊTES L'UNE DES UNITÉS LES PLUS PROCHES</span><span class="ct-number">${esc(c.number)}</span></div>
+            <div class="ct-title">${esc(c.title)}</div>
+            <div class="ct-row"><span class="hud-label">PRIORITÉ</span>${prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-'}</div>
+            <div class="ct-row"><span class="hud-label">ADRESSE</span>${esc(c.address)}</div>
+            ${c.crossStreet ? `<div class="ct-row"><span class="hud-label">CROISEMENT</span>${esc(c.crossStreet)}</div>` : ''}
+            <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>
+            <div class="offer-keys"><span><kbd>Y</kbd> Accepter</span><span><kbd>N</kbd> Refuser</span><span class="offer-time"></span></div>`;
+        $('#toasts').prepend(el);
+        const end = Date.now() + (Number(c.timeout) || 30000);
+        const tick = () => {
+            const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+            el.querySelector('.offer-time').textContent = `${left} s`;
+            if (left <= 0) closeNearestOffer(c.id);
+        };
+        tick();
+        offers[c.id] = { el, timer: setInterval(tick, 500) };
+        if (hud.settings.notify.sound) playSound('call');
+    }
+
+    const OFFER_RESULTS = { accepted: ['c-green', 'Appel accepté : unité en route'], declined: ['c-gray', 'Appel refusé'] };
+    function closeNearestOffer(callId, result) {
+        const offer = offers[callId];
+        if (!offer) return;
+        clearInterval(offer.timer);
+        delete offers[callId];
+        const shown = OFFER_RESULTS[result];
+        if (shown) {
+            offer.el.querySelector('.offer-keys').innerHTML = flag(shown[0], shown[1]);
+            setTimeout(() => offer.el.remove(), 2500);
+        } else {
+            offer.el.remove();
+        }
     }
 
     // =====================================================================
@@ -2988,7 +3070,12 @@
 
     function pushNotification(el, duration) {
         const box = $('#toasts');
-        while (box.children.length >= 5) box.firstElementChild.remove();
+        // 5 notifications max (les propositions "unité la plus proche" ne sont jamais retirées ainsi)
+        while (box.children.length >= 5) {
+            const oldest = box.querySelector('#toasts > :not(.offer-toast)');
+            if (!oldest) break;
+            oldest.remove();
+        }
         box.appendChild(el);
         el.addEventListener('click', () => el.remove());
         setTimeout(() => el.remove(), duration);
@@ -4167,6 +4254,12 @@
                 break;
             case 'unitSync': // espace partagé d'unité (recherches, rapport en cours)
                 if (data.data) handleUnitSync(data.data.scope, data.data.payload);
+                break;
+            case 'nearestOffer': // proposition "unité la plus proche" (Y / N)
+                if (data.data) nearestOffer(data.data);
+                break;
+            case 'offerClosed':
+                if (data.data) closeNearestOffer(data.data.callId, data.data.result);
                 break;
             case 'statusNotify': // nouveau statut de l'unité du joueur
                 if (data.data) statusNotification(data.data);
