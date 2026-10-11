@@ -8,6 +8,10 @@ Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), in
 2. Ajoutez `ensure mdc_standalone` dans votre `server.cfg`.
 3. En jeu : touche **K** (modifiable dans *Paramètres > Raccourcis clavier > FiveM*) ou `/mdc`. **Échap** pour fermer.
 
+Le dépôt contient aussi le **menu d'interactions / fiches civiles / Eye Target** dans [`rp_interact/`](rp_interact/README.md)
+(ressource séparée : un joueur y est « policier » quand il est dans une unité du MDC, voir l'export serveur
+`exports.mdc_standalone:getPlayerUnit(source)` et l'état `Player(source).state.mdcUnit`).
+
 Le dépôt contient aussi le **chat écrit RP** dans le dossier [`rp_chat/`](rp_chat/README.md) : c'est une ressource
 séparée, à copier à part dans `resources/` (voir son README). Elle partage le nom RP avec le MDC et ses réglages
 se font dans l'onglet « Paramètres » du MDC. Le MDC fonctionne aussi sans elle.

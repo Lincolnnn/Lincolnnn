@@ -2409,6 +2409,9 @@ local function sendHud(src, force)
     if force or HudCache[src] ~= key then
         HudCache[src] = key ~= '' and key or nil
         TriggerClientEvent('mdc:client:hud', src, hasAccess(src), info)
+        -- Unité du joueur visible par les autres ressources (rp_interact : options "policier"
+        -- de l'œil). Indicatif seulement : les vérifications serveur passent par l'export getPlayerUnit.
+        Player(src).state:set('mdcUnit', info and info.name or false, true)
     end
 end
 
@@ -2423,6 +2426,15 @@ pushHud = function()
         if not done[src] then sendHud(src) end
     end
 end
+
+-- Unité du joueur pour les autres ressources (côté serveur, fiable) :
+--   exports.mdc_standalone:getPlayerUnit(source) -> { id, name, tag, dept } ou nil (hors unité)
+-- Un joueur est "policier" pour rp_interact uniquement s'il est dans une unité du MDC.
+exports('getPlayerUnit', function(src)
+    local unit = findUnit(PlayerUnit[tonumber(src)])
+    if not unit then return nil end
+    return { id = unit.id, name = unit.name, tag = unit.tag, dept = unit.dept }
+end)
 
 -- Demande du client au démarrage (accès au MDC + unité actuelle)
 RegisterNetEvent('mdc:server:hudSync', function()

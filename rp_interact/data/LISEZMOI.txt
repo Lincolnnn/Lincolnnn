@@ -1,0 +1,16 @@
+Dossier de données de RP Interact (créé et rempli automatiquement par le serveur).
+
+  profiles.json -> profils civils créés dans la "Fiche civile" (menu d'interactions > Civil)
+
+Ces profils sont PERMANENTS : ils survivent aux déconnexions et aux redémarrages.
+Chaque joueur ne voit que les siens (retrouvés grâce à sa licence Rockstar, champ "owner").
+Le profil "active": true d'un joueur est celui que la police découvre avec l'œil.
+
+Les profils de VÉHICULE ne sont pas enregistrés ici : ils sont liés au véhicule et
+disparaissent avec lui, ou au redémarrage du serveur.
+
+Pour retirer un profil (cadres) : supprimez l'objet { ... } dans profiles.json (le fichier
+doit rester un JSON valide), puis tapez  rpi_reload  dans la console serveur.
+Si le fichier devient illisible, l'enregistrement des profils est bloqué (rien n'est écrasé).
+
+ATTENTION : lors d'une mise à jour du script, ne remplacez pas ce dossier.

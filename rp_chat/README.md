@@ -110,3 +110,8 @@ du chat d'origine sont ignorées.
 
 - Aucune boucle côté client quand rien n'est affiché au-dessus des têtes (0.00 ms dans le resmon).
 - `/me` au-dessus des têtes : une boucle de dessin tourne uniquement pendant qu'un `/me` est affiché (7 s environ), puis s'arrête.
+
+## Export pour les autres ressources
+
+`exports.rp_chat:sendMe(source, texte)` (serveur) : envoie un `/me` au nom du joueur, avec les mêmes règles (nom RP
+obligatoire, rayon de 100 m). Utilisé par `rp_interact` pour les annonces RP (« fouille le coffre du véhicule »…).

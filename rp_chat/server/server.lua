@@ -200,6 +200,18 @@ RegisterNetEvent('rp_chat:server:command', function(command, rawText)
     handler(src, text, name)
 end)
 
+-- /me envoyé par une autre ressource (ex. rp_interact : "fouille le coffre du véhicule").
+-- Même règles qu'un /me tapé (nom RP obligatoire, rayon de 100 m), sans délai entre deux messages.
+--   exports.rp_chat:sendMe(source, texte) -> true si envoyé
+exports('sendMe', function(src, rawText)
+    src = tonumber(src)
+    local name = src and rpNameOf(src) or ''
+    local text = cleanText(rawText, Config.MaxLength)
+    if name == '' or text == '' then return false end
+    sendMe(src, { type = 'me', name = name, text = text, sender = src })
+    return true
+end)
+
 -- Le chat du joueur est prêt (connexion ou redémarrage de la ressource) :
 -- derniers messages /info, /qst, /rep
 RegisterNetEvent('rp_chat:server:ready', function()

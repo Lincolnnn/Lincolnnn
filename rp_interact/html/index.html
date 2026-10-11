@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>RP Interact</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ================= ŒIL (Eye Target) ================= -->
+    <div class="eye hidden" id="eye">
+        <svg class="eye-icon" viewBox="0 0 64 40" aria-hidden="true">
+            <path d="M2 20 C14 4 50 4 62 20 C50 36 14 36 2 20 Z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>
+            <circle cx="32" cy="20" r="8.5" fill="currentColor"/>
+        </svg>
+        <div class="eye-label hidden" id="eyeLabel"></div>
+        <ul class="eye-options hidden" id="eyeOptions"></ul>
+    </div>
+
+    <!-- ================= MENU D'INTERACTIONS ================= -->
+    <div class="panel menu hidden" id="menu">
+        <div class="menu-head">
+            <button type="button" class="menu-back hidden" id="menuBack" title="Retour">&#8249;</button>
+            <span class="menu-title" id="menuTitle">Interactions</span>
+            <button type="button" class="menu-close" id="menuClose" title="Fermer (Échap)">&#10005;</button>
+        </div>
+
+        <div class="menu-view" data-view="home">
+            <button type="button" class="menu-case" data-go="police">
+                <span class="case-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                </span>
+                <span class="case-text"><b>Police</b><small id="menuPoliceHint">Hors service</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+            <button type="button" class="menu-case" data-go="civil">
+                <span class="case-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                </span>
+                <span class="case-text"><b>Civil</b><small id="menuCivilHint">Profils et véhicule</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+        </div>
+
+        <div class="menu-view hidden" data-view="civil">
+            <div class="menu-active" id="menuActive"></div>
+            <button type="button" class="menu-btn" data-editor="profiles">Créer un profil</button>
+            <button type="button" class="menu-btn" data-editor="vehicle">Créer un véhicule</button>
+        </div>
+
+        <div class="menu-view hidden" data-view="police">
+            <div class="menu-active" id="menuPolice"></div>
+            <p class="menu-text" id="menuPoliceText"></p>
+        </div>
+    </div>
+
+    <!-- ================= FICHE CIVILE (style MDC, hors MDC) ================= -->
+    <div class="window hidden" id="editor">
+        <div class="titlebar" id="editorBar">
+            <div class="title"><span class="title-icon">CIVIL</span><span>Fiche civile</span></div>
+            <div class="win-buttons">
+                <button type="button" class="win-btn win-close" id="editorClose" title="Fermer (Échap)">&#10005;</button>
+            </div>
+        </div>
+        <nav class="tabbar">
+            <button type="button" class="tab active" data-tab="profiles">Profils</button>
+            <button type="button" class="tab" data-tab="vehicle">Véhicule</button>
+        </nav>
+        <main class="content">
+            <!-- Profils : liste (permanents, uniquement les siens) + détail / formulaire -->
+            <section class="page" data-page="profiles">
+                <div class="split">
+                    <div class="group">
+                        <span class="legend">Mes profils <span id="profileCount"></span></span>
+                        <div class="toolbar">
+                            <button type="button" class="btn btn-default" id="newProfile">+ Nouveau profil</button>
+                        </div>
+                        <div class="well">
+                            <table class="grid selectable">
+                                <thead><tr><th>Nom du profil</th><th>État</th><th>Modifié</th></tr></thead>
+                                <tbody id="profileBody"></tbody>
+                            </table>
+                            <div class="empty" id="profileEmpty">Aucun profil : créez-en un.</div>
+                        </div>
+                    </div>
+                    <div class="group">
+                        <span class="legend" id="profilePanelTitle">Profil</span>
+                        <div class="well detail" id="profileDetail"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Véhicule : profil temporaire lié au véhicule physique -->
+            <section class="page hidden" data-page="vehicle">
+                <div class="group fill">
+                    <span class="legend" id="vehicleTitle">Véhicule</span>
+                    <div class="well detail" id="vehicleDetail"></div>
+                </div>
+            </section>
+        </main>
+        <div class="statusbar">
+            <span class="sb-cell grow" id="editorStatus"></span>
+        </div>
+    </div>
+
+    <!-- Résultats d'inspection (à droite) et notifications (en bas) -->
+    <div class="results" id="results"></div>
+    <div class="toasts" id="toasts"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
