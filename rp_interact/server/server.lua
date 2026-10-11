@@ -268,9 +268,9 @@ SetTimeout(5000, function() policeUnit(0) end)
 local PERSON_FIELDS = {
     visual    = { title = 'Inspection visuelle', defaults = 'visual', me = 'observe attentivement l\'individu' },
     olfactory = { title = 'Inspection olfactive', defaults = 'olfactory', me = 'sent l\'odeur qui se dégage de l\'individu' },
-    upper     = { title = 'Fouille de la partie supérieure du corps', defaults = 'search', police = true,
+    upper     = { title = 'Fouille de la partie supérieure du corps', defaults = 'search', police = true, search = 'person',
                   me = 'fouille la partie supérieure du corps de l\'individu' },
-    lower     = { title = 'Fouille de la partie inférieure du corps', defaults = 'search', police = true,
+    lower     = { title = 'Fouille de la partie inférieure du corps', defaults = 'search', police = true, search = 'person',
                   me = 'fouille la partie inférieure du corps de l\'individu' },
     notable   = { title = 'Détail notoire', defaults = 'notable', police = true },
 }
@@ -279,9 +279,9 @@ local VEHICLE_FIELDS = {
     visualExterior = { title = 'Inspection visuelle extérieure', defaults = 'vehicleVisual', me = 'fait le tour du véhicule pour l\'inspecter' },
     olfactory      = { title = 'Inspection olfactive', defaults = 'vehicleOlfactory', me = 'sent l\'odeur qui se dégage du véhicule' },
     notable        = { title = 'Détail notoire', defaults = 'notable', police = true },
-    cabin          = { title = 'Fouille de l\'habitacle', defaults = 'vehicleSearch', police = true, me = 'fouille l\'habitacle du véhicule' },
-    rear           = { title = 'Fouille de la banquette arrière', defaults = 'vehicleSearch', police = true, me = 'fouille la banquette arrière du véhicule' },
-    trunk          = { title = 'Fouille du coffre', defaults = 'vehicleSearch', police = true, me = 'fouille le coffre du véhicule' },
+    cabin          = { title = 'Fouille de l\'habitacle', defaults = 'vehicleSearch', police = true, search = 'vehicle', me = 'fouille l\'habitacle du véhicule' },
+    rear           = { title = 'Fouille de la banquette arrière', defaults = 'vehicleSearch', police = true, search = 'vehicle', me = 'fouille la banquette arrière du véhicule' },
+    trunk          = { title = 'Fouille du coffre', defaults = 'vehicleSearch', police = true, search = 'vehicle', me = 'fouille le coffre du véhicule' },
 }
 
 --- Réponse par défaut : toujours la même pour une même cible et une même case
@@ -490,50 +490,94 @@ end)
 
 -- ---- Inspection d'une personne ou d'un véhicule (œil) ----
 -- p = { kind = 'player' | 'npc' | 'vehicle', target = id serveur (player) / n° réseau, field, label }
-on('inspect', function(src, p)
+-- Observations (visuel, olfactif, détail notoire) : jusqu'à ObserveDistance (10 m), immédiates.
+-- Fouilles : jusqu'à SearchDistance (3 m), après une barre de chargement (15 s personne, 35 s véhicule) :
+--   "startSearch" la démarre (annonce /me), "inspect" donne le résultat une fois le temps écoulé.
+-- Une personne est toujours désignée "Individu" (ni nom, ni profil, ni PNJ).
+local OBSERVE_RANGE = Config.ObserveDistance + 2.0  -- tolérance (décalage réseau)
+local SEARCH_RANGE = Config.SearchDistance + 1.5
+local SEARCH_EARLY = 1500                           -- ms de tolérance sur la durée d'une fouille
+local Searches = {}                                 -- [joueur] = { key, ready (GetGameTimer) }
+
+local function fieldSpec(p)
     local fields = (p.kind == 'vehicle') and VEHICLE_FIELDS or PERSON_FIELDS
     local spec = fields[p.field]
-    if not spec or (p.kind ~= 'player' and p.kind ~= 'npc' and p.kind ~= 'vehicle') then
-        return { ok = false, error = 'Action impossible.' }
+    if not spec or (p.kind ~= 'player' and p.kind ~= 'npc' and p.kind ~= 'vehicle') then return nil end
+    return spec
+end
+
+local function searchKey(p)
+    return table.concat({ p.kind, tostring(p.target or p.label or ''), p.field }, ':')
+end
+
+--- Cible encore présente et assez proche ? Retourne un message d'erreur, sinon nil.
+local function checkTarget(src, p, range)
+    local target = tonumber(p.target)
+    if p.kind == 'player' then
+        if not target or not GetPlayerName(target) then return 'Cette personne n\'est plus là.' end
+        if target == src and not Config.AllowSelfTarget then return 'Action impossible.' end
+        if tooFar(playerCoords(src), playerCoords(target), range) then return 'Rapprochez-vous de la personne.' end
+    elseif p.kind == 'vehicle' and target and ONESYNC then
+        local entity = vehicleEntity(target)
+        if entity and tooFar(playerCoords(src), coordsOfEntity(entity), range + 2.5) then -- + taille du véhicule
+            return 'Rapprochez-vous du véhicule.'
+        end
     end
+    return nil
+end
+
+on('startSearch', function(src, p)
+    local spec = fieldSpec(p)
+    if not spec or not spec.search then return { ok = false, error = 'Action impossible.' } end
+    if not policeUnit(src) then return { ok = false, error = 'Réservé à la police : rejoignez une unité dans le MDC.' } end
+    local err = checkTarget(src, p, SEARCH_RANGE)
+    if err then return { ok = false, error = err } end
+    local duration = Config.SearchDurations[spec.search] or 15000
+    Searches[src] = { key = searchKey(p), ready = GetGameTimer() + duration - SEARCH_EARLY }
+    announce(src, spec.me) -- la fouille commence : visible par les joueurs autour
+    return { ok = true, duration = duration }
+end)
+
+on('inspect', function(src, p)
+    local spec = fieldSpec(p)
+    if not spec then return { ok = false, error = 'Action impossible.' } end
     if spec.police and not policeUnit(src) then
         return { ok = false, error = 'Réservé à la police : rejoignez une unité dans le MDC.' }
     end
     local now = GetGameTimer()
-    if lastInspect[src] and now - lastInspect[src] < Config.InspectCooldown then
-        return { ok = false, error = 'Patientez un instant.' }
+    if spec.search then
+        local search = Searches[src]
+        if not search or search.key ~= searchKey(p) or now < search.ready then
+            return { ok = false, error = 'Fouille non terminée.' }
+        end
+        Searches[src] = nil
+    else
+        if lastInspect[src] and now - lastInspect[src] < Config.InspectCooldown then
+            return { ok = false, error = 'Patientez un instant.' }
+        end
+        lastInspect[src] = now
     end
-    lastInspect[src] = now
+    local err = checkTarget(src, p, spec.search and SEARCH_RANGE or OBSERVE_RANGE)
+    if err then return { ok = false, error = err } end
 
     local target = tonumber(p.target)
     local text, subject
     if p.kind == 'player' then
-        if not target or not GetPlayerName(target) then return { ok = false, error = 'Cette personne n\'est plus là.' } end
-        if target == src and not Config.AllowSelfTarget then return { ok = false, error = 'Action impossible.' } end
-        if tooFar(playerCoords(src), playerCoords(target), Config.InspectDistance) then
-            return { ok = false, error = 'Rapprochez-vous de la personne.' }
-        end
         local profile = activeProfileOf(getIdentifier(target))
         text = personValue(profile, p.field, 'player:' .. getIdentifier(target) .. ':' .. tostring(profile and profile.id or 0))
-        subject = target == src and 'Vous-même (test)' or 'Individu'
+        subject = 'Individu'
     elseif p.kind == 'npc' then
-        -- Personnage non joueur : pas de profil, réponses par défaut
+        -- Personnage non joueur : pas de profil, réponses par défaut (présenté comme un individu)
         text = personValue(nil, p.field, 'npc:' .. tostring(target or p.label or ''))
-        subject = 'Individu (PNJ)'
+        subject = 'Individu'
     else
         local profile = target and vehicleProfile(target) or nil
-        if target and ONESYNC then
-            local entity = vehicleEntity(target)
-            if entity and tooFar(playerCoords(src), coordsOfEntity(entity), Config.InspectDistance) then
-                return { ok = false, error = 'Rapprochez-vous du véhicule.' }
-            end
-        end
         text = vehicleValue(profile, p.field, 'vehicle:' .. tostring(target or p.label or ''))
         subject = clean(p.label, 60)
         if subject == '' then subject = 'Véhicule' end
     end
 
-    announce(src, spec.me)
+    if not spec.search then announce(src, spec.me) end
     return { ok = true, title = spec.title, subject = subject, text = text }
 end)
 
@@ -607,9 +651,183 @@ RegisterNetEvent('rp_interact:server:aiming', function(list)
     end
 end)
 
+-- =========================================================================
+-- POLICE : MENOTTES, PRENDRE PAR LE BRAS, PLACER / SORTIR D'UN VÉHICULE (joueurs)
+-- (sur les PNJ, le client du policier agit directement : rien à vérifier ici)
+-- Le serveur vérifie la police (unité du MDC) et les distances, puis prévient le civil, dont le
+-- client joue l'emote, s'attache au policier ou monte dans le véhicule.
+-- =========================================================================
+local ACTION_RANGE = Config.ActionDistance + 1.5
+local Drags = {} -- [civil] = policier qui le tient par le bras
+
+local function policeTarget(src, p, range)
+    if not policeUnit(src) then return nil, 'Réservé à la police : rejoignez une unité dans le MDC.' end
+    local target = tonumber(p.target)
+    if not target or target == src or not GetPlayerName(target) then return nil, 'Cette personne n\'est plus là.' end
+    if tooFar(playerCoords(src), playerCoords(target), range) then return nil, 'Rapprochez-vous de la personne.' end
+    return target
+end
+
+local function stopDrag(civil)
+    if not Drags[civil] then return end
+    Drags[civil] = nil
+    Player(civil).state:set('rpiDraggedBy', false, true)
+    TriggerClientEvent('rp_interact:client:drag', civil, false)
+end
+
+on('cuff', function(src, p)
+    local target, err = policeTarget(src, p, ACTION_RANGE)
+    if not target then return { ok = false, error = err } end
+    local cuffed = p.cuffed == true
+    Player(target).state:set('rpiCuffed', cuffed, true)
+    TriggerClientEvent('rp_interact:client:setCuffed', target, cuffed)
+    if not cuffed then stopDrag(target) end
+    return { ok = true }
+end)
+
+on('drag', function(src, p)
+    if p.drag ~= true then
+        local target = tonumber(p.target)
+        if target and Drags[target] == src then stopDrag(target) end
+        return { ok = true }
+    end
+    local target, err = policeTarget(src, p, ACTION_RANGE)
+    if not target then return { ok = false, error = err } end
+    if Drags[target] and Drags[target] ~= src then return { ok = false, error = 'Un autre policier tient déjà cette personne.' } end
+    Drags[target] = src
+    Player(target).state:set('rpiDraggedBy', src, true)
+    TriggerClientEvent('rp_interact:client:drag', target, src)
+    return { ok = true }
+end)
+
+-- Placer à l'arrière : le policier a ouvert la portière ; le civil y monte lui-même (sans téléportation)
+on('putInVehicle', function(src, p)
+    local target, err = policeTarget(src, p, Config.PlaceVehicleDistance + 3.0)
+    if not target then return { ok = false, error = err } end
+    local seat, netId = tonumber(p.seat), tonumber(p.netId)
+    if (seat ~= 1 and seat ~= 2) or not netId then return { ok = false, error = 'Place arrière invalide.' } end
+    if ONESYNC then
+        local entity = vehicleEntity(netId)
+        if not entity or tooFar(playerCoords(src), coordsOfEntity(entity), Config.PlaceVehicleDistance + 3.0) then
+            return { ok = false, error = 'Rapprochez-vous du véhicule.' }
+        end
+    end
+    stopDrag(target)
+    TriggerClientEvent('rp_interact:client:enterVehicle', target, netId, seat)
+    return { ok = true }
+end)
+
+on('takeOut', function(src, p)
+    local target, err = policeTarget(src, p, Config.PlaceVehicleDistance + 3.0)
+    if not target then return { ok = false, error = err } end
+    TriggerClientEvent('rp_interact:client:leaveVehicle', target)
+    return { ok = true }
+end)
+
+-- =========================================================================
+-- SUPPRIMER DES ÉLÉMENTS AMBIANTS (PNJ, véhicules sans joueur, objets)
+-- Réservé à DeleteAccess ('police' / 'everyone') ou à la permission ACE DeleteAce.
+-- Les entités créées par des scripts (véhicules / objets "mission") ne sont pas supprimées.
+-- Les objets de la carte sont masqués chez tous les joueurs (y compris ceux qui se connectent ensuite).
+-- =========================================================================
+local POPULATION_MISSION = 7
+local HiddenProps = {} -- { model, x, y, z }
+
+local function canDelete(src)
+    if IsPlayerAceAllowed(src, Config.DeleteAce) then return true end
+    if Config.DeleteAccess == 'everyone' then return true end
+    return Config.DeleteAccess == 'police' and policeUnit(src) ~= nil
+end
+
+-- Droit ACE publié pour l'affichage de l'option (le serveur revérifie)
+local function publishDeleteRight(src)
+    Player(src).state:set('rpiCanDelete', IsPlayerAceAllowed(src, Config.DeleteAce) == true, true)
+end
+AddEventHandler('playerJoining', function() publishDeleteRight(source) end)
+for _, id in ipairs(GetPlayers()) do publishDeleteRight(tonumber(id)) end
+
+local function playerInVehicle(entity)
+    for _, id in ipairs(GetPlayers()) do
+        if GetVehiclePedIsIn(GetPlayerPed(id), false) == entity then return true end
+    end
+    return false
+end
+
+on('deleteEntity', function(src, p)
+    if not canDelete(src) then return { ok = false, error = 'Vous ne pouvez pas supprimer d\'éléments.' } end
+    if not ONESYNC then return { ok = false, fallback = true } end -- sans OneSync : suppression par le client
+    local entity = NetworkGetEntityFromNetworkId(tonumber(p.netId) or -1)
+    if not entity or entity == 0 or not DoesEntityExist(entity) then return { ok = false, error = 'Élément introuvable.' } end
+    if tooFar(playerCoords(src), coordsOfEntity(entity), OBSERVE_RANGE + 2.5) then return { ok = false, error = 'Rapprochez-vous.' } end
+    local kind = GetEntityType(entity)
+    if kind == 1 then
+        if IsPedAPlayer(entity) then return { ok = false, error = 'Impossible de supprimer un joueur.' } end
+    elseif kind == 2 then
+        if playerInVehicle(entity) then return { ok = false, error = 'Un joueur est dans ce véhicule.' } end
+        if GetEntityPopulationType(entity) == POPULATION_MISSION then
+            return { ok = false, error = 'Véhicule non ambiant (créé par un joueur ou un script).' }
+        end
+    elseif kind == 3 then
+        if GetEntityPopulationType(entity) == POPULATION_MISSION then
+            return { ok = false, error = 'Objet créé par un script : non supprimé.' }
+        end
+    else
+        return { ok = false, error = 'Élément introuvable.' }
+    end
+    DeleteEntity(entity)
+    return { ok = true }
+end)
+
+on('hideProp', function(src, p)
+    if not canDelete(src) then return { ok = false, error = 'Vous ne pouvez pas supprimer d\'éléments.' } end
+    local model, x, y, z = tonumber(p.model), tonumber(p.x), tonumber(p.y), tonumber(p.z)
+    if not model or not x or not y or not z then return { ok = false, error = 'Élément introuvable.' } end
+    if tooFar(playerCoords(src), { x = x, y = y, z = z }, OBSERVE_RANGE + 5.0) then return { ok = false, error = 'Rapprochez-vous.' } end
+    if #HiddenProps >= 1000 then table.remove(HiddenProps, 1) end
+    local prop = { model = model, x = x, y = y, z = z }
+    HiddenProps[#HiddenProps + 1] = prop
+    TriggerClientEvent('rp_interact:client:hideProp', -1, prop)
+    return { ok = true }
+end)
+
+on('getHiddenProps', function()
+    return { ok = true, props = HiddenProps }
+end)
+
+-- Console / ACE : réaffiche tous les objets masqués
+RegisterCommand('rpi_showprops', function(src)
+    if src ~= 0 and not IsPlayerAceAllowed(src, Config.DeleteAce) then return end
+    TriggerClientEvent('rp_interact:client:showProps', -1, HiddenProps)
+    print(('^5[RP Interact]^0 %d objet(s) masqué(s) réaffiché(s).'):format(#HiddenProps))
+    HiddenProps = {}
+end, false)
+
+-- =========================================================================
+-- VÉHICULES D'URGENCE : /policeon et /policeoff (sans annonce ni notification)
+-- Activé : seuls les policiers (unité du MDC) montent dans un véhicule de classe 18, sauf
+-- portière déjà ouverte. Vérifié par chaque client (voir client/police.lua).
+-- =========================================================================
+local function canTogglePoliceVehicles(src)
+    return src == 0 or IsPlayerAceAllowed(src, Config.PoliceVehiclesAce) or policeUnit(src) ~= nil
+end
+
+local function setPoliceVehicles(src, enabled)
+    if not canTogglePoliceVehicles(src) then return end
+    GlobalState.rpiPoliceVehicles = enabled
+    print(('^5[RP Interact]^0 Véhicules d\'urgence réservés à la police : %s (par %s)'):format(
+        enabled and 'ACTIVÉ' or 'désactivé', src == 0 and 'console' or (GetPlayerName(src) or tostring(src))))
+end
+RegisterCommand('policeon', function(src) setPoliceVehicles(src, true) end, false)
+RegisterCommand('policeoff', function(src) setPoliceVehicles(src, false) end, false)
+
 AddEventHandler('playerDropped', function()
     local src = source
-    lastWrite[src], lastInspect[src], lastAimEvent[src] = nil, nil, nil
+    lastWrite[src], lastInspect[src], lastAimEvent[src], Searches[src] = nil, nil, nil, nil
     for civil in pairs(AimingAt[src] or {}) do releaseAim(src, civil) end
     AimingAt[src], Aimed[src] = nil, nil
+    -- Policier parti : les civils qu'il tenait sont lâchés
+    for civil, police in pairs(Drags) do
+        if police == src then stopDrag(civil) end
+    end
+    Drags[src] = nil
 end)

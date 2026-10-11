@@ -35,12 +35,34 @@ local function tipsVisible()
     return civilMode and (tips.aimed or tips.manual)
 end
 
+-- Touche X (non modifiable) : arrêter l'emote en cours, uniquement pendant que les tips sont affichés.
+-- Une touche fixe se lit image par image : petite boucle active seulement tant que les tips sont visibles.
+local STOP_KEY = 73 -- X
+local stopLoopRunning = false
+
+local function startStopKeyLoop()
+    if stopLoopRunning then return end
+    stopLoopRunning = true
+    CreateThread(function()
+        while tipsVisible() do
+            Wait(0)
+            if IsControlJustPressed(0, STOP_KEY) and not RPI.uiOpen() and not (RPI.isCuffed and RPI.isCuffed()) then
+                ExecuteCommand(Config.Emotes.cancel)
+            end
+        end
+        stopLoopRunning = false
+    end)
+end
+
 local function renderTips()
     local keys = {}
     for i, s in ipairs(Config.Surrender) do
         keys[i] = { key = keyLabel(s.command, s.key), label = s.label }
     end
-    SendNUIMessage({ action = 'tips', data = { show = tipsVisible(), aimed = tips.aimed, keys = keys } })
+    keys[#keys + 1] = { key = 'X', label = 'Arrêter l\'emote', stop = true }
+    local show = tipsVisible()
+    SendNUIMessage({ action = 'tips', data = { show = show, aimed = tips.aimed, keys = keys } })
+    if show then startStopKeyLoop() end
 end
 
 local function setCivilMode(enabled)

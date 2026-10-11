@@ -11,17 +11,47 @@ InteractConfig = {
     MdcResource = 'mdc_standalone', -- "policier" = joueur dans une unité du MDC
     ChatResource = 'rp_chat',       -- /me automatiques et copie des résultats dans le chat
 
-    -- Œil : distance max (m) entre le joueur et ce qu'il vise
-    ObjectDistance = 2.5,           -- objets (bancs, chaises, poubelles…)
-    EntityDistance = 4.0,           -- personnes et véhicules
+    -- Œil : distances (m) entre le joueur et ce qu'il vise. Les options apparaissent quand on s'approche.
+    ObserveDistance = 10.0,         -- inspections visuelles / olfactives, détail notoire, supprimer
+    SearchDistance = 3.0,           -- fouilles (personne, véhicule)
+    ActionDistance = 2.0,           -- menotter, prendre par le bras (autour du policier)
+    DoorDistance = 3.0,             -- portières, capot, coffre, monter
+    ObjectDistance = 2.5,           -- s'asseoir, fouiller une poubelle
 
     -- Test : viser son propre personnage (vue à la 3e personne) pour vérifier son profil actif.
     -- Mettez false en production si vous ne voulez pas de cette possibilité.
     AllowSelfTarget = true,
 
-    -- Serveur : distance max (m) entre le joueur qui inspecte et sa cible (avec OneSync)
-    InspectDistance = 8.0,
-    InspectCooldown = 750,          -- ms entre deux inspections
+    InspectCooldown = 750,          -- ms entre deux inspections (serveur)
+
+    -- Durée des fouilles (barre de chargement ; X pour annuler)
+    SearchDurations = { person = 15000, vehicle = 35000 },
+
+    -- POLICE (joueur dans une unité du MDC) : menottes, prendre par le bras, placer dans un véhicule
+    CuffDuration = 7000,            -- ms pour menotter
+    UncuffDuration = 3000,          -- ms pour retirer les menottes
+    Emotes = {
+        cuffed = 'e menotté1',      -- joué par le civil menotté (rejoué s'il est interrompu)
+        drag = 'e tenirlebras',     -- joué par le policier qui tient quelqu'un par le bras
+        cancel = 'e c',             -- arrête l'emote en cours (touche X des tips, lâcher le bras)
+    },
+    -- Animation de l'emote "menotté" : sert à vérifier qu'elle est toujours jouée, et de secours
+    -- (PNJ, véhicule, script d'emotes absent). Adaptez-la si votre emote utilise une autre animation.
+    CuffAnim = { dict = 'mp_arresting', clip = 'idle' },
+    CuffProp = 'p_cs_cuffs_02_s',   -- menottes aux poignets (voir README : dossier stream)
+    DragOffset = { x = 0.45, y = 0.55, z = 0.0 }, -- position du civil : devant à droite du policier
+    PlaceVehicleDistance = 6.0,     -- m : véhicule où placer l'individu tenu par le bras
+
+    -- SUPPRIMER des éléments ambiants (PNJ, véhicules sans joueur, objets) en les visant.
+    -- 'police' = joueurs dans une unité du MDC ; 'everyone' = tout le monde.
+    -- La permission ACE DeleteAce l'autorise toujours (ex. add_ace group.admin rpinteract.delete allow).
+    DeleteAccess = 'police',
+    DeleteAce = 'rpinteract.delete',
+
+    -- VÉHICULES D'URGENCE (classe 18) : /policeon et /policeoff (sans annonce) activent / désactivent
+    -- la règle "seuls les policiers montent dans un véhicule d'urgence (sauf portière déjà ouverte)".
+    -- Autorisés : console serveur, joueurs en unité du MDC, ou permission ACE ci-dessous.
+    PoliceVehiclesAce = 'rpinteract.admin',
 
     MaxProfiles = 20,               -- profils civils par joueur
     TextMax = 1000,                 -- caractères max par case de texte
@@ -42,6 +72,7 @@ InteractConfig = {
         { command = 'rpi_knees', key = 'J', label = 'À genoux', emote = 'e serendre3' },
         { command = 'rpi_prone', key = 'L', label = 'S\'allonger', emote = 'e serendre6' },
     },
+    -- + touche X (non modifiable) : arrêter l'emote en cours (Emotes.cancel), affichée dans les tips
     AimRadius = 5.0,              -- m : civil visé directement ou à moins de 5 m de la ligne de visée
     AimRange = 60.0,              -- m : portée max de la détection
     AimRefresh = 1500,            -- ms : le policier confirme sa visée à ce rythme (fin auto sinon)

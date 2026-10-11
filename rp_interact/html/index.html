@@ -55,6 +55,10 @@
 
         <div class="menu-view hidden" data-view="police">
             <div class="menu-active" id="menuPolice"></div>
+            <!-- Toujours affichées ; grisées tant que personne n'est assez proche (2 m) -->
+            <button type="button" class="menu-btn police-action" data-police-action="cuff" disabled>Menotter</button>
+            <button type="button" class="menu-btn police-action" data-police-action="drag" disabled>Prendre par le bras</button>
+            <button type="button" class="menu-btn police-action" data-police-action="place" disabled>Placer l'individu à l'arrière du véhicule</button>
             <p class="menu-text" id="menuPoliceText"></p>
         </div>
     </div>
@@ -106,6 +110,13 @@
         <div class="statusbar">
             <span class="sb-cell grow" id="editorStatus"></span>
         </div>
+    </div>
+
+    <!-- Barre de chargement (fouilles, menottes) : thème du HUD, barre bleue -->
+    <div class="progress hidden" id="progress">
+        <div class="progress-head"><span id="progressLabel"></span><span class="progress-time" id="progressTime"></span></div>
+        <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-hint"><kbd>X</kbd> Annuler</div>
     </div>
 
     <!-- Tips d'arrestation (mode civil) : en haut au milieu, non interactif -->

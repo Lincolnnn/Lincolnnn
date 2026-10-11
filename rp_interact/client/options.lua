@@ -3,14 +3,17 @@
     -------------------------------------------
     RPI.getOptions(ctx) retourne la liste des options pour ce que vise le joueur.
     ctx = {
-        entity, type = 'ped' | 'vehicle' | 'object', model, hit (point visé), distance,
+        entity, type = 'ped' | 'vehicle' | 'object', model, hit (point visé),
+        distance (joueur -> point visé), pedDistance (joueur -> personne visée),
         isPlayer, serverId (joueur), isSelf, netId (entité réseau), police (joueur dans une unité du MDC)
     }
     Chaque option : { id, label, icon, police (réservée à la police), disabled, run = function(ctx) }
 
     Personnes (joueurs, PNJ, soi-même en test) et véhicules (tous, enregistrés ou non) :
-      - tout le monde : inspections visuelles et olfactives ;
-      - policier (dans une unité du MDC) : en plus, fouilles et détail notoire.
+      - tout le monde : inspections visuelles et olfactives (jusqu'à 10 m) ;
+      - policier (dans une unité du MDC) : détail notoire (10 m), fouilles (3 m, barre de chargement),
+        menotter / prendre par le bras (2 m), placer à l'arrière / faire sortir d'un véhicule.
+    Les options apparaissent quand on s'approche (jamais grisées pour une question de distance).
     Les inspections sont affichées en premier, puis les actions sur l'environnement.
 ]]
 
@@ -32,33 +35,13 @@ for _, def in pairs(Config.Seats) do
 end
 local TRASH = hashes(Config.TrashBins)
 
-local function loadAnim(dict)
-    RequestAnimDict(dict)
-    local timeout = GetGameTimer() + 1500
-    while not HasAnimDictLoaded(dict) and GetGameTimer() < timeout do Wait(10) end
-    return HasAnimDictLoaded(dict)
-end
+local playAnim = function(dict, clip, duration, flag) RPI.playAnim(dict, clip, duration, flag) end
+local withControl = function(entity, fn) RPI.withControl(entity, fn) end
 
-local function playAnim(dict, clip, duration, flag)
-    CreateThread(function()
-        if loadAnim(dict) then
-            TaskPlayAnim(PlayerPedId(), dict, clip, 8.0, -8.0, duration or -1, flag or 49, 0.0, false, false, false)
-            RemoveAnimDict(dict)
-        end
-    end)
-end
-
---- Contrôle réseau d'une entité (portières d'un véhicule d'un autre joueur), puis action
-local function withControl(entity, fn)
-    CreateThread(function()
-        local timeout = GetGameTimer() + 1000
-        NetworkRequestControlOfEntity(entity)
-        while not NetworkHasControlOfEntity(entity) and GetGameTimer() < timeout do
-            Wait(0)
-            NetworkRequestControlOfEntity(entity)
-        end
-        fn()
-    end)
+--- Distance utilisée pour une option : personne -> distance entre les deux personnages,
+--- véhicule / objet -> distance jusqu'au point visé
+local function within(ctx, range)
+    return (ctx.pedDistance or ctx.distance or 0) <= range
 end
 
 local function faceEntity(entity)
@@ -66,9 +49,9 @@ local function faceEntity(entity)
 end
 
 -- =========================================================================
--- INSPECTIONS (résultats donnés par le serveur : profil actif / profil du véhicule)
+-- INSPECTIONS ET FOUILLES (résultats donnés par le serveur : profil actif / profil du véhicule)
 -- =========================================================================
-local function inspect(ctx, kind, field)
+local function inspectPayload(ctx, kind, field)
     local payload = { kind = kind, field = field }
     if kind == 'player' then
         payload.target = ctx.serverId
@@ -77,49 +60,89 @@ local function inspect(ctx, kind, field)
         -- Véhicule observé : le modèle seulement (pas la plaque d'immatriculation)
         payload.label = kind == 'vehicle' and RPI.vehicleLabel(ctx.entity) or tostring(ctx.model)
     end
-    RPI.request('inspect', payload, function(res)
-        if res and res.ok then
-            RPI.showResult(res)
-        else
-            RPI.notify(res and res.error or 'Action impossible.', 'error')
-        end
+    return payload
+end
+
+local function showResult(res)
+    if res and res.ok then
+        RPI.showResult(res)
+    else
+        RPI.notify(res and res.error or 'Action impossible.', 'error')
+    end
+end
+
+-- Animations de fouille (en boucle pendant la barre de chargement)
+local SEARCH_ANIMS = {
+    person = { 'anim@gangops@facility@servers@bodysearch@', 'player_search', 49 },
+    vehicle = { 'mini@repair', 'fixing_a_player', 49 },
+}
+
+--- Fouille : le serveur la démarre (annonce /me), barre de chargement (X pour annuler), puis résultat
+local function search(ctx, kind, def)
+    local payload = inspectPayload(ctx, kind, def.field)
+    local category = kind == 'vehicle' and 'vehicle' or 'person'
+    RPI.request('startSearch', payload, function(res)
+        if not res or not res.ok then return showResult(res) end
+        if not ctx.isSelf then faceEntity(ctx.entity) end
+        RPI.progress({
+            label = def.label,
+            duration = res.duration,
+            anim = SEARCH_ANIMS[category],
+            keep = function()
+                if ctx.isSelf then return true end
+                if not DoesEntityExist(ctx.entity) then return false end
+                local tolerance = category == 'vehicle' and 3.5 or 1.0 -- taille du véhicule
+                return #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(ctx.entity)) <= Config.SearchDistance + tolerance
+            end,
+        }, function()
+            RPI.request('inspect', payload, showResult)
+        end, function()
+            RPI.notify('Fouille interrompue.', 'error')
+        end)
     end)
 end
 
--- Fouille : petite animation pour le joueur qui fouille
-local SEARCH_ANIM = { 'anim@gangops@facility@servers@bodysearch@', 'player_search', 3000 }
-
+-- range : distance max ; search : fouille avec barre de chargement ; police : réservé à la police
 local PERSON_OPTIONS = {
-    { field = 'visual', label = 'Inspection visuelle', icon = 'eye' },
-    { field = 'olfactory', label = 'Inspection olfactive', icon = 'nose' },
-    { field = 'upper', label = 'Fouiller la partie supérieure du corps', icon = 'search', police = true, anim = true },
-    { field = 'lower', label = 'Fouiller la partie inférieure du corps', icon = 'search', police = true, anim = true },
-    { field = 'notable', label = 'Détail notoire', icon = 'note', police = true },
+    { field = 'visual', label = 'Inspection visuelle', icon = 'eye', range = Config.ObserveDistance },
+    { field = 'olfactory', label = 'Inspection olfactive', icon = 'nose', range = Config.ObserveDistance },
+    { field = 'upper', label = 'Fouiller la partie supérieure du corps', icon = 'search', police = true, search = true, range = Config.SearchDistance },
+    { field = 'lower', label = 'Fouiller la partie inférieure du corps', icon = 'search', police = true, search = true, range = Config.SearchDistance },
+    { field = 'notable', label = 'Détail notoire', icon = 'note', police = true, range = Config.ObserveDistance },
 }
 
 local VEHICLE_OPTIONS = {
-    { field = 'visualInterior', label = 'Inspection visuelle intérieure', icon = 'eye' },
-    { field = 'visualExterior', label = 'Inspection visuelle extérieure', icon = 'eye' },
-    { field = 'olfactory', label = 'Inspection olfactive', icon = 'nose' },
-    { field = 'notable', label = 'Détail notoire', icon = 'note', police = true },
-    { field = 'cabin', label = 'Fouille de l\'habitacle', icon = 'search', police = true, anim = true },
-    { field = 'rear', label = 'Fouille de la banquette arrière', icon = 'search', police = true, anim = true },
-    { field = 'trunk', label = 'Fouille du coffre', icon = 'search', police = true, anim = true },
+    { field = 'visualInterior', label = 'Inspection visuelle intérieure', icon = 'eye', range = Config.ObserveDistance },
+    { field = 'visualExterior', label = 'Inspection visuelle extérieure', icon = 'eye', range = Config.ObserveDistance },
+    { field = 'olfactory', label = 'Inspection olfactive', icon = 'nose', range = Config.ObserveDistance },
+    { field = 'notable', label = 'Détail notoire', icon = 'note', police = true, range = Config.ObserveDistance },
+    { field = 'cabin', label = 'Fouille de l\'habitacle', icon = 'search', police = true, search = true, range = Config.SearchDistance },
+    { field = 'rear', label = 'Fouille de la banquette arrière', icon = 'search', police = true, search = true, range = Config.SearchDistance },
+    { field = 'trunk', label = 'Fouille du coffre', icon = 'search', police = true, search = true, range = Config.SearchDistance },
 }
 
 local function inspectionOptions(list, ctx, kind)
     local out = {}
     for _, def in ipairs(list) do
-        if not def.police or ctx.police then
+        if (not def.police or ctx.police) and within(ctx, def.range) then
             out[#out + 1] = {
                 id = kind .. ':' .. def.field, label = def.label, icon = def.icon, police = def.police or nil,
                 run = function(c)
+                    if def.search then return search(c, kind, def) end
                     if not c.isSelf then faceEntity(c.entity) end
-                    if def.anim then playAnim(SEARCH_ANIM[1], SEARCH_ANIM[2], SEARCH_ANIM[3]) end
-                    inspect(c, kind, def.field)
+                    RPI.request('inspect', inspectPayload(c, kind, def.field), showResult)
                 end,
             }
         end
+    end
+    return out
+end
+
+--- Supprimer un élément ambiant (PNJ, véhicule sans joueur, objet)
+local function deleteOption(ctx, out)
+    if within(ctx, Config.ObserveDistance) and RPI.Police.canDelete() and RPI.Police.deletable(ctx) then
+        out[#out + 1] = { id = 'env:delete', label = 'Supprimer (élément ambiant)', icon = 'trash',
+            run = function(c) RPI.Police.delete(c) end }
     end
     return out
 end
@@ -198,8 +221,22 @@ end
 local function vehicleOptions(ctx)
     local out = inspectionOptions(VEHICLE_OPTIONS, ctx, 'vehicle')
     local vehicle = ctx.entity
-    local door = nearestDoor(vehicle, ctx.hit)
-    if not door then return out end
+    local Police = RPI.Police
+
+    -- Police : placer l'individu tenu par le bras à l'arrière / faire sortir les passagers arrière
+    if ctx.police then
+        if Police.dragging() and within(ctx, Config.PlaceVehicleDistance) and Police.rearSeat(vehicle) then
+            out[#out + 1] = { id = 'police:place', label = 'Placer l\'individu à l\'arrière', icon = 'car', police = true,
+                run = function(c) Police.placeInVehicle(c.entity) end }
+        end
+        if within(ctx, Config.DoorDistance) and #Police.rearOccupants(vehicle) > 0 then
+            out[#out + 1] = { id = 'police:takeout', label = 'Faire sortir l\'individu (arrière)', icon = 'car', police = true,
+                run = function(c) Police.takeOut(c.entity) end }
+        end
+    end
+
+    local door = within(ctx, Config.DoorDistance) and nearestDoor(vehicle, ctx.hit) or nil
+    if not door then return deleteOption(ctx, out) end
 
     local locked = isLocked(vehicle)
     local isOpen = GetVehicleDoorAngleRatio(vehicle, door.index) > 0.05
@@ -224,7 +261,7 @@ local function vehicleOptions(ctx)
             run = function(c) TaskEnterVehicle(PlayerPedId(), c.entity, 10000, door.seat, 1.0, 1, 0) end,
         }
     end
-    return out
+    return deleteOption(ctx, out)
 end
 
 -- =========================================================================
@@ -232,16 +269,34 @@ end
 -- =========================================================================
 local function personOptions(ctx)
     local out = inspectionOptions(PERSON_OPTIONS, ctx, ctx.isPlayer and 'player' or 'npc')
-    if not ctx.isSelf and not IsPedDeadOrDying(ctx.entity, true) then
+    local Police = RPI.Police
+    local ped = ctx.entity
+
+    -- Police, à 2 m : menotter / retirer les menottes, prendre / lâcher le bras (joueurs et PNJ)
+    if ctx.police and not ctx.isSelf and within(ctx, Config.ActionDistance) and not IsPedInAnyVehicle(ped, false) then
+        local cuffed = Police.isCuffed(ped)
+        out[#out + 1] = { id = 'police:cuff', label = cuffed and 'Retirer les menottes' or 'Menotter', icon = 'cuffs', police = true,
+            run = function(c) Police.cuff(c.entity, not cuffed) end }
+        local dragging = Police.dragging()
+        if dragging and dragging.ped == ped then
+            out[#out + 1] = { id = 'police:release', label = 'Lâcher le bras', icon = 'hand', police = true,
+                run = function() Police.release() end }
+        elseif not dragging then
+            out[#out + 1] = { id = 'police:drag', label = 'Prendre par le bras', icon = 'hand', police = true,
+                run = function(c) Police.drag(c.entity) end }
+        end
+    end
+
+    if not ctx.isSelf and not IsPedDeadOrDying(ped, true) and within(ctx, Config.ObserveDistance) then
         out[#out + 1] = {
-            id = 'ped:wave', label = 'Saluer', icon = 'hand',
+            id = 'ped:wave', label = 'Saluer', icon = 'wave',
             run = function(c)
                 faceEntity(c.entity)
                 playAnim('gestures@m@standing@casual', 'gesture_hello', 2500, 48)
             end,
         }
     end
-    return out
+    return deleteOption(ctx, out)
 end
 
 -- =========================================================================
@@ -284,10 +339,11 @@ end
 local function objectOptions(ctx)
     local out = {}
     local seat = SEATS[ctx.model]
-    if seat and not seated and not IsPedInAnyVehicle(PlayerPedId(), false) then
+    local near = within(ctx, Config.ObjectDistance)
+    if near and seat and not seated and not IsPedInAnyVehicle(PlayerPedId(), false) then
         out[#out + 1] = { id = 'env:sit', label = 'S\'asseoir', icon = 'seat', run = function(c) sit(c, seat) end }
     end
-    if TRASH[ctx.model] then
+    if near and TRASH[ctx.model] then
         out[#out + 1] = {
             id = 'env:bin', label = 'Fouiller la poubelle', icon = 'search',
             run = function(c)
@@ -300,7 +356,7 @@ local function objectOptions(ctx)
             end,
         }
     end
-    return out
+    return deleteOption(ctx, out)
 end
 
 -- =========================================================================
@@ -315,12 +371,9 @@ end
 
 --- Nom affiché sous l'œil
 function RPI.targetLabel(ctx)
-    if ctx.type == 'ped' then
-        if ctx.isSelf then return 'Vous-même (test)' end
-        return ctx.isPlayer and 'Individu' or 'Individu (PNJ)'
-    end
+    if ctx.type == 'ped' then return 'Individu' end -- jamais d'identité, de profil ni de mention PNJ
     if ctx.type == 'vehicle' then return RPI.vehicleLabel(ctx.entity) end -- modèle, sans la plaque
     if SEATS[ctx.model] then return 'Siège' end
     if TRASH[ctx.model] then return 'Poubelle' end
-    return nil
+    return 'Objet'
 end

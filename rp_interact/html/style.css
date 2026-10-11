@@ -190,6 +190,30 @@ button { font: inherit; }
 .toggle-text b { color: #fff; font-size: 13px; }
 .toggle-text small { color: var(--hud-muted); font-size: 11px; }
 .menu-btn-tips.active { border-color: #d9a441; background: rgba(217, 164, 65, .18); }
+.menu-btn:disabled, .menu-btn:disabled:hover { color: #6c6c6c; background: rgba(255, 255, 255, .02); border-color: rgba(122, 122, 122, .3); cursor: default; }
+.police-action:not(:disabled) { border-left: 3px solid var(--police); }
+
+/* =========================================================================
+   BARRE DE CHARGEMENT (fouilles, menottes) : thème du HUD, barre bleue
+   (même bleu que les résultats privés du chat écrit)
+   ========================================================================= */
+.progress {
+    position: fixed; left: 50%; bottom: 13vh; transform: translateX(-50%); z-index: 50;
+    width: 360px; padding: 9px 12px 10px;
+    background: rgba(0, 0, 0, .62); border: 1.5px solid #7a7a7a; border-radius: 8px;
+    color: #e6e6e6; text-shadow: 0 1px 1px rgba(0, 0, 0, .8); pointer-events: none;
+}
+.progress-head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: bold; color: #fff; }
+.progress-time { font-variant-numeric: tabular-nums; color: #9fd0ff; }
+.progress-track { margin-top: 7px; height: 8px; background: rgba(255, 255, 255, .1); border-radius: 4px; overflow: hidden; }
+.progress-bar { width: 0; height: 100%; background: #9fd0ff; border-radius: 4px; box-shadow: 0 0 6px rgba(159, 208, 255, .6); }
+.progress-hint { margin-top: 6px; font-size: 11px; color: #a9a9a9; text-align: right; }
+.progress-hint kbd, .tips-key.stop kbd { font: bold 10px var(--font); }
+.progress-hint kbd {
+    display: inline-block; padding: 0 5px; margin-right: 3px; color: #111; background: #e9e9e9; border-radius: 3px;
+}
+.tips-key.stop { color: var(--hud-muted); }
+.tips-key.stop kbd { background: #bdbdbd; font-size: 13px; }
 
 /* =========================================================================
    TIPS D'ARRESTATION (mode civil) : non interactif, en haut au milieu

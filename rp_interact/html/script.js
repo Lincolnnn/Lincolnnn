@@ -64,6 +64,10 @@
         note: '<path d="M6 3h9l4 4v14H6Z M14 3v5h5 M9 12h7 M9 16h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
         door: '<path d="M5 3h11v18H5Z M16 5l3 1v13l-3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="13" cy="12" r="1" fill="currentColor"/>',
         seat: '<path d="M7 3v9h10 M7 12l-1 8 M17 12v8 M7 16h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+        trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>',
+        cuffs: '<circle cx="7" cy="14" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="14" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 10.5 12 8l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+        car: '<path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+        wave: '<path d="M8 13V6a1.5 1.5 0 0 1 3 0v5V4a1.5 1.5 0 0 1 3 0v7V5.5a1.5 1.5 0 0 1 3 0V15c0 3.5-2.5 6-6 6-2.5 0-4-1.2-5.5-3.5L3.5 14a1.6 1.6 0 0 1 2.6-1.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
         hand: '<path d="M8 13V6a1.5 1.5 0 0 1 3 0v5V4a1.5 1.5 0 0 1 3 0v7V5.5a1.5 1.5 0 0 1 3 0V15c0 3.5-2.5 6-6 6-2.5 0-4-1.2-5.5-3.5L3.5 14a1.6 1.6 0 0 1 2.6-1.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
     };
     const icon = (name) => `<svg viewBox="0 0 24 24">${ICONS[name] || ICONS.eye}</svg>`;
@@ -143,6 +147,10 @@
 
     function renderMenu() {
         const d = menu.data;
+        if (menu.lastView !== menu.view) {
+            menu.lastView = menu.view;
+            post('menuView', { view: menu.view }); // la vue Police reçoit l'état des actions en direct
+        }
         $('#menuTitle').textContent = MENU_TITLES[menu.view];
         $('#menuBack').classList.toggle('hidden', menu.view === 'home');
         $$('.menu-view').forEach((v) => v.classList.toggle('hidden', v.dataset.view !== menu.view));
@@ -194,14 +202,60 @@
         renderCivilMode();
     });
 
+    // ---- Actions de police (vue Police) : toujours affichées, grisées si personne n'est assez proche ----
+    function setMenuActions(a) {
+        const set = (action, state, label) => {
+            const btn = $(`[data-police-action="${action}"]`);
+            btn.disabled = !(state && state.enabled);
+            if (label) btn.textContent = label;
+        };
+        set('cuff', a.cuff, a.cuff && a.cuff.label);
+        set('drag', a.drag, a.drag && a.drag.label);
+        set('place', a.place);
+    }
+
+    $$('[data-police-action]').forEach((btn) => btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        post('policeAction', { action: btn.dataset.policeAction });
+    }));
+
     function setMenu(data) {
         menu.open = !!data.open;
         $('#menu').classList.toggle('hidden', !menu.open);
-        if (!menu.open) return;
+        if (!menu.open) {
+            menu.lastView = null;
+            return;
+        }
+        $$('[data-police-action]').forEach((btn) => { btn.disabled = true; });
         menu.data = data;
         menu.view = 'home';
         renderMenu();
         renderCivilMode();
+    }
+
+    // ---- Barre de chargement (fouilles, menottes) ----
+    const progress = { timer: null };
+
+    function setProgress(data) {
+        const box = $('#progress');
+        const bar = $('#progressBar');
+        clearInterval(progress.timer);
+        if (!data.show) {
+            box.classList.add('hidden');
+            return;
+        }
+        const duration = Math.max(Number(data.duration) || 0, 1);
+        const endsAt = Date.now() + duration;
+        $('#progressLabel').textContent = data.label || '';
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+        box.classList.remove('hidden');
+        void bar.offsetWidth; // relance la transition depuis 0
+        bar.style.transition = `width ${duration}ms linear`;
+        bar.style.width = '100%';
+        const tick = () => { $('#progressTime').textContent = `${Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))} s`; };
+        tick();
+        progress.timer = setInterval(tick, 250);
     }
 
     // ---- Tips d'arrestation (mode civil) ----
@@ -212,7 +266,7 @@
         box.classList.toggle('aimed', !!data.aimed);
         $('#tipsTitle').textContent = data.aimed ? 'Un policier vous tient en joue' : 'Tips arrestation';
         $('#tipsKeys').innerHTML = toArray(data.keys).map((k) => `
-            <span class="tips-key"><kbd>${esc(k.key)}</kbd>${esc(k.label)}</span>`).join('');
+            <span class="tips-key ${k.stop ? 'stop' : ''}"><kbd>${esc(k.key)}</kbd>${esc(k.label)}</span>`).join('');
     }
 
     $$('[data-go]').forEach((btn) => btn.addEventListener('click', () => {
@@ -708,6 +762,8 @@
                 if (menu.open) renderMenu();
                 break;
             case 'tips': setTips(data.data || {}); break;
+            case 'menuActions': setMenuActions(data.data || {}); break;
+            case 'progress': setProgress(data.data || {}); break;
             case 'editor': setEditor(data.data || {}); break;
             case 'notify': if (data.data) toast(data.data.text, data.data.type); break;
         }

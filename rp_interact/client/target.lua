@@ -56,15 +56,17 @@ local function buildContext(coords, entity)
 
     local ped = PlayerPedId()
     local isSelf = entity == ped
-    local distance = isSelf and 0.0 or #(GetEntityCoords(ped) - coords)
-    local maxDistance = kind == 'object' and Config.ObjectDistance or Config.EntityDistance
-    if distance > maxDistance then return nil end
+    local origin = GetEntityCoords(ped)
+    local distance = isSelf and 0.0 or #(origin - coords)
+    -- Portée max de l'œil (observations à 10 m) ; chaque option a ensuite sa propre distance
+    if distance > Config.ObserveDistance then return nil end
 
     local ctx = {
         entity = entity, type = kind, model = GetEntityModel(entity), hit = coords, distance = distance,
         isSelf = isSelf, police = RPI.isPolice(),
     }
     if kind == 'ped' then
+        ctx.pedDistance = isSelf and 0.0 or #(origin - GetEntityCoords(entity))
         ctx.isPlayer = IsPedAPlayer(entity)
         if ctx.isPlayer then ctx.serverId = GetPlayerServerId(NetworkGetPlayerIndexFromPed(entity)) end
     end

@@ -93,6 +93,99 @@ function RPI.camDirection(rot)
 end
 
 -- =========================================================================
+-- OUTILS PARTAGÉS (animations, modèles, contrôle réseau)
+-- =========================================================================
+function RPI.loadAnim(dict)
+    RequestAnimDict(dict)
+    local timeout = GetGameTimer() + 1500
+    while not HasAnimDictLoaded(dict) and GetGameTimer() < timeout do Wait(10) end
+    return HasAnimDictLoaded(dict)
+end
+
+--- Joue une animation sur un ped (le joueur par défaut). À appeler dans un thread si le
+--- dictionnaire n'est pas encore chargé (sinon : RPI.playAnim crée son propre thread).
+function RPI.playAnimNow(ped, dict, clip, duration, flag)
+    if not RPI.loadAnim(dict) then return false end
+    TaskPlayAnim(ped, dict, clip, 8.0, -8.0, duration or -1, flag or 49, 0.0, false, false, false)
+    return true
+end
+
+function RPI.playAnim(dict, clip, duration, flag, ped)
+    CreateThread(function() RPI.playAnimNow(ped or PlayerPedId(), dict, clip, duration, flag) end)
+end
+
+function RPI.loadModel(model)
+    RequestModel(model)
+    local timeout = GetGameTimer() + 3000
+    while not HasModelLoaded(model) and GetGameTimer() < timeout do Wait(10) end
+    return HasModelLoaded(model)
+end
+
+--- Contrôle réseau d'une entité (portières d'un autre véhicule, PNJ), puis action
+function RPI.withControl(entity, fn)
+    CreateThread(function()
+        local timeout = GetGameTimer() + 1000
+        NetworkRequestControlOfEntity(entity)
+        while not NetworkHasControlOfEntity(entity) and GetGameTimer() < timeout do
+            Wait(0)
+            NetworkRequestControlOfEntity(entity)
+        end
+        fn()
+    end)
+end
+
+-- =========================================================================
+-- BARRE DE CHARGEMENT (fouilles, menottes)
+-- Thème du HUD, barre bleue (même bleu que les résultats privés du chat). Pendant l'action, le
+-- joueur ne se déplace pas ; X annule. Boucle active uniquement pendant la barre.
+-- opts = { label, duration (ms), anim = { dict, clip, flag }, scenario, keep = function() -> bool }
+-- =========================================================================
+local progressRunning = false
+local CANCEL_KEY = 73 -- X
+local PROGRESS_BLOCKED = { 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 44, 140, 141, 142, 143, 257, 263, 264 }
+
+function RPI.busy() return progressRunning end
+
+function RPI.progress(opts, onDone, onCancel)
+    if progressRunning then
+        RPI.notify('Une action est déjà en cours.', 'error')
+        return false
+    end
+    progressRunning = true
+    local ped = PlayerPedId()
+    SendNUIMessage({ action = 'progress', data = { show = true, label = opts.label, duration = opts.duration } })
+    if opts.anim then RPI.playAnim(opts.anim[1], opts.anim[2], -1, opts.anim[3] or 49) end
+    if opts.scenario then TaskStartScenarioInPlace(ped, opts.scenario, 0, true) end
+
+    CreateThread(function()
+        local endsAt = GetGameTimer() + opts.duration
+        local nextKeep, reason = 0, nil
+        while true do
+            Wait(0)
+            for _, control in ipairs(PROGRESS_BLOCKED) do DisableControlAction(0, control, true) end
+            local now = GetGameTimer()
+            if IsControlJustPressed(0, CANCEL_KEY) then reason = 'cancel' break end
+            if IsEntityDead(ped) then reason = 'dead' break end
+            if opts.keep and now >= nextKeep then
+                nextKeep = now + 250
+                if not opts.keep() then reason = 'lost' break end
+            end
+            if now >= endsAt then break end
+        end
+        progressRunning = false
+        SendNUIMessage({ action = 'progress', data = { show = false } })
+        if opts.anim then StopAnimTask(ped, opts.anim[1], opts.anim[2], 1.0) end
+        if opts.scenario then ClearPedTasks(ped) end
+        if reason then
+            if onCancel then onCancel(reason) end
+        elseif onDone then
+            onDone()
+        end
+    end)
+    return true
+end
+
+-- =========================================================================
 -- RÉSULTATS D'INSPECTION : PRIVÉS (uniquement chez le joueur qui inspecte)
 -- La fiche à l'écran et la copie dans le chat ne sont affichées que sur ce client ;
 -- seul le /me automatique (envoyé par le serveur) est vu par les joueurs autour.
