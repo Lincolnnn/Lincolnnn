@@ -8,13 +8,14 @@
       - Placer l'individu tenu à l'arrière d'un véhicule : le policier ouvre la portière arrière la plus
         proche et lâche le bras ; l'individu y monte lui-même (sans téléportation)
       - Faire sortir l'individu (places arrière)
+      - Faire s'asseoir l'individu au sol ("/e menotté2") / le faire se relever
     Tout fonctionne aussi sur les PNJ (tests en solo) : le client du policier les pilote directement.
 
     CIVIL menotté : emote "/e menotté1" + menottes aux poignets ; si l'emote s'arrête (bousculé,
     monté dans un véhicule, touche…), elle est relancée automatiquement.
 
-    VÉHICULES D'URGENCE (/policeon, /policeoff) : seuls les policiers montent dans un véhicule de
-    classe 18 (portière déjà ouverte : tout le monde).
+    VÉHICULES D'URGENCE (/policeon, /policeoff) : les véhicules de classe 18 sont verrouillés pour les
+    non-policiers (ils essaient d'ouvrir, la portière reste fermée ; portière déjà ouverte : autorisé).
 
     Performance : boucles actives uniquement pendant qu'on est menotté, tenu par le bras, qu'on tient
     quelqu'un, que des PNJ sont menottés, ou que la règle des véhicules d'urgence est activée.
@@ -22,9 +23,9 @@
 
 local Config = InteractConfig
 local CUFF = Config.CuffAnim
+local SEATED = Config.SeatedAnim
 local WALK = { 'move_m@generic', 'walk' } -- marche de l'individu tenu par le bras
 local CUFF_ANIM_POLICE = { 'mp_arresting', 'a_uncuff', 49 }
-local PELVIS = 11816
 local LEFT_HAND = 60309
 
 local Police = {}
@@ -35,6 +36,12 @@ RPI.Police = Police
 -- =========================================================================
 local function isPlayingCuff(ped)
     return IsEntityPlayingAnim(ped, CUFF.dict, CUFF.clip, 3)
+end
+
+--- Posture attendue : assis (emote menotté2) ou debout menotté (menotté1)
+local function isPlayingPose(ped, seated)
+    if seated then return IsEntityPlayingAnim(ped, SEATED.dict, SEATED.clip, 3) end
+    return isPlayingCuff(ped)
 end
 
 --- Menottes aux poignets (modèle Config.CuffProp). À appeler dans un thread.
@@ -88,9 +95,12 @@ end
 -- =========================================================================
 -- INDIVIDU TENU PAR LE BRAS : position et marche (policier pour un PNJ, civil pour lui-même)
 -- =========================================================================
+-- Accroché à l'os RACINE du policier (Config.DragBone = 0), aligné sur son personnage : l'individu
+-- reste droit. (L'os du bassin est tourné de 90° par rapport au personnage : accroché dessus,
+-- l'individu était penché sur le côté.)
 local function attachToPolice(ped, policePed)
     local o = Config.DragOffset
-    AttachEntityToEntity(ped, policePed, GetPedBoneIndex(policePed, PELVIS), o.x, o.y, o.z, 0.0, 0.0, 0.0,
+    AttachEntityToEntity(ped, policePed, Config.DragBone or 0, o.x, o.y, o.z, 0.0, 0.0, 0.0,
         false, false, false, false, 2, true)
 end
 
@@ -128,6 +138,7 @@ end
 -- PNJ (tests en solo) : menottés / tenus par ce policier
 -- =========================================================================
 local npcCuffed = {} -- [ped] = prop des menottes (false en attendant)
+local npcSeated = {} -- [ped] = true : PNJ assis par ce policier
 local npcLoopRunning = false
 
 local function startNpcLoop()
@@ -141,10 +152,14 @@ local function startNpcLoop()
                 if not DoesEntityExist(ped) or IsEntityDead(ped) then
                     deleteProp(prop)
                     npcCuffed[ped] = nil
-                elseif not isPlayingCuff(ped) and not IsPedRagdoll(ped) and not IsPedGettingIntoAVehicle(ped)
-                    and not IsEntityAttached(ped) then
+                elseif not isPlayingPose(ped, npcSeated[ped]) and not IsPedRagdoll(ped) and not IsPedGettingIntoAVehicle(ped)
+                    and not IsEntityAttached(ped) and not IsPedInAnyVehicle(ped, false) then
                     if NetworkHasControlOfEntity(ped) then
-                        RPI.playAnimNow(ped, CUFF.dict, CUFF.clip, -1, 49)
+                        if npcSeated[ped] then
+                            RPI.playAnimNow(ped, SEATED.dict, SEATED.clip, -1, 1)
+                        else
+                            RPI.playAnimNow(ped, CUFF.dict, CUFF.clip, -1, 49)
+                        end
                     else
                         NetworkRequestControlOfEntity(ped)
                     end
@@ -168,7 +183,11 @@ local function setNpcCuffed(ped, cuffed)
         ClearPedTasksImmediately(ped)
         npcCuffed[ped] = false
         CreateThread(function()
-            RPI.playAnimNow(ped, CUFF.dict, CUFF.clip, -1, 49)
+            if npcSeated[ped] then
+                RPI.playAnimNow(ped, SEATED.dict, SEATED.clip, -1, 1) -- menotté en restant assis
+            else
+                RPI.playAnimNow(ped, CUFF.dict, CUFF.clip, -1, 49)
+            end
             local prop = attachCuffs(ped)
             if npcCuffed[ped] == false then npcCuffed[ped] = prop or false else deleteProp(prop) end
         end)
@@ -176,12 +195,30 @@ local function setNpcCuffed(ped, cuffed)
     else
         deleteProp(npcCuffed[ped])
         npcCuffed[ped] = nil
+        npcSeated[ped] = nil
         if DoesEntityExist(ped) then
+            StopAnimTask(ped, SEATED.dict, SEATED.clip, 1.0)
             StopAnimTask(ped, CUFF.dict, CUFF.clip, 1.0)
             SetBlockingOfNonTemporaryEvents(ped, false)
         end
     end
     if NetworkGetEntityIsNetworked(ped) then Entity(ped).state:set('rpiCuffed', cuffed, true) end
+end
+
+function Police.isSeated(ped)
+    local id = serverIdOf(ped)
+    if id then return Player(id).state.rpiSeated == true end
+    return npcSeated[ped] == true
+end
+
+--- Individu tenu par le bras (par ce policier ou par un autre) ?
+function Police.isDragged(ped)
+    local id = serverIdOf(ped)
+    if id then
+        local by = Player(id).state.rpiDraggedBy
+        return by ~= nil and by ~= false
+    end
+    return IsEntityAttached(ped)
 end
 
 function Police.isCuffed(ped)
@@ -236,6 +273,10 @@ end
 local function startNpcDrag(ped)
     RPI.withControl(ped, function()
         prepareNpc(ped)
+        if npcSeated[ped] then
+            npcSeated[ped] = nil
+            StopAnimTask(ped, SEATED.dict, SEATED.clip, 1.0)
+        end
         attachToPolice(ped, PlayerPedId())
         followLoop(ped, PlayerPedId, function() return dragging ~= nil and dragging.ped == ped end, function()
             if dragging and dragging.ped == ped then dragging = nil end
@@ -267,6 +308,29 @@ function Police.release()
     dragging = nil -- arrête aussi la boucle de marche du PNJ (qui le détache)
     ExecuteCommand(Config.Emotes.cancel)
     if d.serverId then RPI.request('drag', { target = d.serverId, drag = false }, function() end) end
+end
+
+--- Faire s'asseoir l'individu au sol ("/e menotté2") ou le faire se relever (à pied, pas tenu par le bras)
+function Police.seat(ped, seated)
+    if not RPI.isPolice() or not DoesEntityExist(ped) then return end
+    if IsPedInAnyVehicle(ped, false) then return RPI.notify('L\'individu est dans un véhicule.', 'error') end
+    if seated and Police.isDragged(ped) then return RPI.notify('Lâchez d\'abord le bras de l\'individu.', 'error') end
+    local serverId = serverIdOf(ped)
+    if serverId then
+        return RPI.request('seat', { target = serverId, seated = seated }, feedback(nil))
+    end
+    RPI.withControl(ped, function()
+        if seated then
+            prepareNpc(ped)
+            npcSeated[ped] = true
+            ClearPedTasks(ped)
+            RPI.playAnimNow(ped, SEATED.dict, SEATED.clip, -1, 1)
+        else
+            npcSeated[ped] = nil
+            StopAnimTask(ped, SEATED.dict, SEATED.clip, 1.0)
+            if npcCuffed[ped] ~= nil then RPI.playAnimNow(ped, CUFF.dict, CUFF.clip, -1, 49) end
+        end
+    end)
 end
 
 -- Places arrière uniquement : siège 1 (portière arrière gauche), siège 2 (arrière droite)
@@ -316,6 +380,7 @@ function Police.placeInVehicle(vehicle)
     if d.serverId then
         RPI.request('putInVehicle', { target = d.serverId, netId = VehToNet(vehicle), seat = rear.seat }, feedback(nil))
     else
+        npcSeated[d.ped] = nil
         RPI.withControl(d.ped, function()
             if IsEntityAttached(d.ped) then DetachEntity(d.ped, true, false) end
             TaskEnterVehicle(d.ped, vehicle, 15000, rear.seat, 1.0, 1, 0)
@@ -340,23 +405,28 @@ end
 -- CIVIL (joueur) : menotté / tenu par le bras / placé dans un véhicule
 -- =========================================================================
 local cuffed, cuffProp, lastEmote = false, nil, 0
+local seated = false -- assis au sol par un policier ("/e menotté2")
 local draggedBy = nil
-local entryAllowedUntil = 0 -- portière ouverte par un policier : montée autorisée (véhicule d'urgence)
+local entryAllowedUntil, entryAllowedVehicle = 0, nil -- portière ouverte par un policier (véhicule d'urgence)
 local CUFF_BLOCKED = { 21, 22, 23, 24, 25, 37, 44, 45, 47, 58, 140, 141, 142, 143, 257, 263, 264 }
+local SEATED_BLOCKED = { 30, 31, 32, 33, 34, 35 } -- assis : pas de déplacement (il reste assis)
 
 function RPI.isCuffed() return cuffed end
+function RPI.isSeated() return seated end
 
---- Relance l'emote "menotté" : commande d'emote à pied, animation directe en véhicule / tenu par
---- le bras, ou si l'emote n'a rien donné (script d'emotes absent, autre animation)
+--- Relance l'emote "menotté" (ou "menotté2" si assis) : commande d'emote à pied, animation directe
+--- en véhicule / tenu par le bras, ou si l'emote n'a rien donné (script d'emotes absent, autre animation)
 local function reapplyCuffEmote(ped)
     local now = GetGameTimer()
+    local sit = seated and not draggedBy and not IsPedInAnyVehicle(ped, false)
+    local anim = sit and SEATED or CUFF
     if IsPedInAnyVehicle(ped, false) or draggedBy then
         RPI.playAnimNow(ped, CUFF.dict, CUFF.clip, -1, 49)
     elseif now - lastEmote > 4000 then
-        ExecuteCommand(Config.Emotes.cuffed)
+        ExecuteCommand(sit and Config.Emotes.seated or Config.Emotes.cuffed)
         lastEmote = now
     elseif now - lastEmote > 1500 then
-        RPI.playAnimNow(ped, CUFF.dict, CUFF.clip, -1, 49)
+        RPI.playAnimNow(ped, anim.dict, anim.clip, -1, sit and 1 or 49)
     end
 end
 
@@ -367,11 +437,15 @@ local function cuffLoop()
             Wait(0)
             DisablePlayerFiring(PlayerId(), true)
             for _, control in ipairs(CUFF_BLOCKED) do DisableControlAction(0, control, true) end
+            if seated then
+                for _, control in ipairs(SEATED_BLOCKED) do DisableControlAction(0, control, true) end
+            end
             local now = GetGameTimer()
             if now >= nextCheck then
                 nextCheck = now + 1000
                 local ped = PlayerPedId()
-                if not isPlayingCuff(ped) and not dragWalking and not IsPedRagdoll(ped)
+                local sit = seated and not draggedBy and not IsPedInAnyVehicle(ped, false)
+                if not isPlayingPose(ped, sit) and not dragWalking and not IsPedRagdoll(ped)
                     and not IsPedGettingIntoAVehicle(ped) and not IsEntityDead(ped) then
                     reapplyCuffEmote(ped)
                 end
@@ -394,6 +468,7 @@ local function setCuffed(state)
         end)
         cuffLoop()
     else
+        seated = false
         deleteProp(cuffProp)
         cuffProp = nil
         ExecuteCommand(Config.Emotes.cancel)
@@ -402,6 +477,23 @@ local function setCuffed(state)
 end
 
 RegisterNetEvent('rp_interact:client:setCuffed', setCuffed)
+
+--- Assis au sol par un policier ("/e menotté2") / relevé
+local function setSeated(state)
+    state = state == true
+    local ped = PlayerPedId()
+    if state and IsPedInAnyVehicle(ped, false) then return end
+    seated = state
+    lastEmote = GetGameTimer()
+    if seated then
+        ExecuteCommand(Config.Emotes.seated)
+    else
+        ExecuteCommand(Config.Emotes.cancel)
+        StopAnimTask(ped, SEATED.dict, SEATED.clip, 1.0)
+        if cuffed then ExecuteCommand(Config.Emotes.cuffed) end -- debout, toujours menotté
+    end
+end
+RegisterNetEvent('rp_interact:client:setSeated', setSeated)
 
 RegisterNetEvent('rp_interact:client:drag', function(policeSrc)
     local ped = PlayerPedId()
@@ -412,6 +504,7 @@ RegisterNetEvent('rp_interact:client:drag', function(policeSrc)
     end
     local player = GetPlayerFromServerId(policeSrc)
     if player == -1 then return end
+    seated = false -- relevé par le policier qui le prend par le bras
     draggedBy = policeSrc
     attachToPolice(ped, GetPlayerPed(player))
     followLoop(ped, function()
@@ -427,9 +520,10 @@ RegisterNetEvent('rp_interact:client:enterVehicle', function(netId, seat)
     local vehicle = NetToVeh(netId)
     if not vehicle or vehicle == 0 then return end
     local ped = PlayerPedId()
-    draggedBy = nil
+    draggedBy, seated = nil, false
     if IsEntityAttached(ped) then DetachEntity(ped, true, false) end
-    entryAllowedUntil = GetGameTimer() + 15000
+    entryAllowedUntil, entryAllowedVehicle = GetGameTimer() + 15000, vehicle
+    SetVehicleDoorsLockedForPlayer(vehicle, PlayerId(), false) -- véhicule d'urgence verrouillé (/policeon)
     ClearPedTasks(ped)
     TaskEnterVehicle(ped, vehicle, 15000, seat, 1.0, 1, 0)
 end)
@@ -441,48 +535,78 @@ RegisterNetEvent('rp_interact:client:leaveVehicle', function()
 end)
 
 -- Ressource redémarrée alors que le joueur était menotté
-if LocalPlayer.state.rpiCuffed == true then setCuffed(true) end
+if LocalPlayer.state.rpiCuffed == true then
+    seated = LocalPlayer.state.rpiSeated == true
+    setCuffed(true)
+end
 
 -- =========================================================================
 -- VÉHICULES D'URGENCE (classe 18) : /policeon, /policeoff
--- Non-policier qui essaie de monter par une portière fermée : refusé. Policier : toujours autorisé
--- (déverrouillé pour lui seul). Boucle (100 ms) uniquement quand la règle est activée.
+-- Règle activée : les véhicules d'urgence proches sont VERROUILLÉS pour le joueur s'il n'est pas
+-- policier. Il essaie d'ouvrir (animation du jeu), la portière reste fermée ; aucun message.
+-- Exceptions : portière déjà ouverte, véhicule où un policier vient de le placer, véhicule où il est
+-- déjà assis. Policier : jamais verrouillé. L'option "portières" de l'œil est retirée (voir options.lua).
+-- Boucle (500 ms, 100 ms pendant une tentative de montée) uniquement quand la règle est activée.
 -- =========================================================================
 local EMERGENCY_CLASS = 18
+local LOCK_RANGE = 25.0 -- m : véhicules d'urgence verrouillés autour du joueur
 local restriction = GlobalState.rpiPoliceVehicles == true
 local restrictionRunning = false
-local lastRefusal = 0
+local lockedHere = {} -- [véhicule] = true : verrouillé pour ce joueur par ce script
 
 local function doorForSeat(seat) return seat + 1 end -- siège -1 (conducteur) -> portière 0…
+
+local function setLocked(vehicle, locked)
+    if (lockedHere[vehicle] == true) == locked then return end
+    SetVehicleDoorsLockedForPlayer(vehicle, PlayerId(), locked)
+    lockedHere[vehicle] = locked or nil
+end
+
+local function unlockAll()
+    for vehicle in pairs(lockedHere) do
+        if DoesEntityExist(vehicle) then SetVehicleDoorsLockedForPlayer(vehicle, PlayerId(), false) end
+    end
+    lockedHere = {}
+end
+
+--- Véhicule d'urgence interdit à ce joueur (règle activée, pas policier) ?
+function Police.restricted(vehicle)
+    return restriction and not RPI.isPolice() and GetVehicleClass(vehicle) == EMERGENCY_CLASS
+end
+
+local function updateLocks()
+    local ped = PlayerPedId()
+    local origin = GetEntityCoords(ped)
+    local trying = GetVehiclePedIsTryingToEnter(ped)
+    local current = GetVehiclePedIsIn(ped, false)
+    local now = GetGameTimer()
+    for vehicle in pairs(lockedHere) do
+        if not DoesEntityExist(vehicle) then lockedHere[vehicle] = nil end
+    end
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        if GetVehicleClass(vehicle) == EMERGENCY_CLASS and #(GetEntityCoords(vehicle) - origin) <= LOCK_RANGE then
+            local allowed = vehicle == current
+                or (vehicle == entryAllowedVehicle and now <= entryAllowedUntil)
+                or (vehicle == trying and GetVehicleDoorAngleRatio(vehicle, doorForSeat(GetSeatPedIsTryingToEnter(ped))) >= 0.1)
+            setLocked(vehicle, not allowed)
+        end
+    end
+    return trying ~= 0
+end
 
 local function startRestriction()
     if restrictionRunning then return end
     restrictionRunning = true
     CreateThread(function()
-        local attempt = nil -- véhicule de la tentative en cours (décision prise au début)
         while restriction do
-            Wait(100)
-            local ped = PlayerPedId()
-            local vehicle = GetVehiclePedIsTryingToEnter(ped)
-            if vehicle == 0 or not DoesEntityExist(vehicle) then
-                attempt = nil
-            elseif attempt ~= vehicle and GetVehicleClass(vehicle) == EMERGENCY_CLASS then
-                attempt = vehicle
-                if RPI.isPolice() then
-                    SetVehicleDoorsLockedForPlayer(vehicle, PlayerId(), false)
-                elseif GetGameTimer() > entryAllowedUntil then
-                    local door = doorForSeat(GetSeatPedIsTryingToEnter(ped))
-                    if GetVehicleDoorAngleRatio(vehicle, door) < 0.1 then
-                        ClearPedTasks(ped)
-                        attempt = nil
-                        if GetGameTimer() - lastRefusal > 3000 then
-                            lastRefusal = GetGameTimer()
-                            RPI.notify('Véhicule de police : réservé aux policiers.', 'error')
-                        end
-                    end
-                end
+            if RPI.isPolice() then
+                if next(lockedHere) then unlockAll() end
+                Wait(1000)
+            else
+                Wait(updateLocks() and 100 or 500)
             end
         end
+        unlockAll()
         restrictionRunning = false
     end)
 end
@@ -494,7 +618,7 @@ end)
 if restriction then startRestriction() end
 
 -- =========================================================================
--- SUPPRIMER DES ÉLÉMENTS AMBIANTS
+-- SUPPRIMER (PNJ, véhicules sans joueur, objets ; y compris créés par des joueurs), jusqu'à 50 m
 -- =========================================================================
 function Police.canDelete()
     if LocalPlayer.state.rpiCanDelete == true or Config.DeleteAccess == 'everyone' then return true end
@@ -509,7 +633,8 @@ local function playerInside(vehicle)
     return false
 end
 
---- Élément ambiant supprimable ? (jamais un joueur, ni un véhicule occupé par un joueur)
+--- Élément supprimable ? (jamais un joueur, ni un véhicule occupé par un joueur ; les véhicules et
+--- objets créés par des joueurs ou des scripts le sont)
 function Police.deletable(ctx)
     if ctx.isSelf then return false end
     if ctx.type == 'ped' then return not ctx.isPlayer end
@@ -517,29 +642,55 @@ function Police.deletable(ctx)
     return ctx.type == 'object'
 end
 
-local function deleteLocally(entity)
+--- Suppression par ce client : il prend le contrôle de l'entité (si elle est en réseau), puis la
+--- supprime. done(true) si elle a disparu.
+local function deleteLocally(entity, done)
     RPI.withControl(entity, function()
-        SetEntityAsMissionEntity(entity, true, true)
-        DeleteEntity(entity)
+        local networked = NetworkGetEntityIsNetworked(entity)
+        if DoesEntityExist(entity) and (not networked or NetworkHasControlOfEntity(entity)) then
+            if IsEntityAttached(entity) then DetachEntity(entity, true, false) end
+            SetEntityAsMissionEntity(entity, true, true)
+            DeleteEntity(entity)
+            if DoesEntityExist(entity) then
+                local kind = GetEntityType(entity)
+                if kind == 2 then DeleteVehicle(entity) elseif kind == 3 then DeleteObject(entity) else DeletePed(entity) end
+            end
+        end
+        if done then done(not DoesEntityExist(entity)) end
     end)
 end
 
+local function deleted(ok)
+    if ok then
+        RPI.notify('Élément supprimé.', 'success')
+    else
+        RPI.notify('Suppression impossible : l\'élément est protégé par le script qui l\'a créé.', 'error')
+    end
+end
+
+--- Entité en réseau : le serveur la supprime pour tout le monde (OneSync), même si elle a été créée
+--- par un autre joueur ; vérification, puis suppression par ce client si elle est encore là.
+--- Objet de la carte (pas en réseau, pas créé par un script) : masqué chez tous les joueurs.
 function Police.delete(ctx)
     local entity = ctx.entity
     if ctx.netId then
         RPI.request('deleteEntity', { netId = ctx.netId }, function(res)
-            if res and res.ok then return end
-            if res and res.fallback then return deleteLocally(entity) end
-            RPI.notify(res and res.error or 'Suppression impossible.', 'error')
+            if res and not res.ok and not res.fallback then
+                return RPI.notify(res.error or 'Suppression impossible.', 'error')
+            end
+            SetTimeout(res and res.ok and 1000 or 0, function() -- suppression serveur reçue par ce client
+                if not DoesEntityExist(entity) then return deleted(true) end
+                deleteLocally(entity, deleted)
+            end)
         end)
-    elseif ctx.type == 'object' then
-        -- Objet de la carte : masqué chez tous les joueurs
+    elseif ctx.type == 'object' and not IsEntityAMissionEntity(entity) then
         local c = GetEntityCoords(entity)
         RPI.request('hideProp', { model = ctx.model, x = c.x, y = c.y, z = c.z }, function(res)
-            if not res or not res.ok then RPI.notify(res and res.error or 'Suppression impossible.', 'error') end
+            if res and res.ok then return deleted(true) end
+            RPI.notify(res and res.error or 'Suppression impossible.', 'error')
         end)
     else
-        deleteLocally(entity)
+        deleteLocally(entity, deleted) -- entité propre à ce client
     end
 end
 
@@ -574,6 +725,8 @@ local function menuState()
         cuff = { enabled = onDuty and ped ~= nil, label = pedCuffed and 'Retirer les menottes' or 'Menotter' },
         drag = { enabled = onDuty and (dragging ~= nil or ped ~= nil), label = dragging and 'Lâcher le bras' or 'Prendre par le bras' },
         place = { enabled = onDuty and vehicle ~= nil and Police.rearSeat(vehicle) ~= nil },
+        seat = { enabled = onDuty and ped ~= nil and not Police.isDragged(ped),
+                 label = ped and Police.isSeated(ped) and 'Faire se relever l\'individu' or 'Faire s\'asseoir l\'individu' },
     }
 end
 
@@ -618,5 +771,7 @@ RegisterNUICallback('policeAction', function(data, cb)
         Police.cuff(ped, not Police.isCuffed(ped))
     elseif action == 'drag' then
         Police.drag(ped)
+    elseif action == 'seat' then
+        Police.seat(ped, not Police.isSeated(ped))
     end
 end)

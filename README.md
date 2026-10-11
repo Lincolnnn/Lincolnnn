@@ -83,7 +83,8 @@ Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fin
   (ni nom RP, ni unité) ; désactivable et réglable dans « Paramètres », réglages propres à chaque joueur
   (`PldForEveryone` dans `client/hud.lua` pour le réserver aux joueurs ayant accès au MDC) : direction en gros
   et en gras (N / NE / E / SE / S / SW / W / NW), rue actuelle en gros, **croisement le plus proche** en petit et en
-  italique (toujours présent : largeur stable), et **bloc** : celui où se trouve le joueur, sinon le plus proche.
+  italique (toujours présent : largeur stable), **bloc** : celui où se trouve le joueur, sinon le plus proche, et
+  **heure du jeu** (HH:MM, masquable dans « Paramètres »).
   Les blocs se dessinent dans **`config/blocks.json`** (cercles, rectangles, polygones, filtre par rue) : voir
   `config/LISEZMOI.txt` ; la commande `/mdc_pos` (console F8) donne la ligne à copier.
 - **Display MDC** : affiché seulement dans une unité : nom, tag, statut, et le n° d'incident uniquement quand
@@ -107,6 +108,13 @@ Chaque rapport reçoit un n° `XX-XXXX`, l'auteur (nom RP) et son unité. La **p
 l'intervention ou l'incident lié (obligatoire) : une fois enregistré, le rapport apparaît dans le déroulé de cette
 intervention, avec les notes, d'où il peut être ouvert, modifié et ré-enregistré. Après un redémarrage, le lien reste
 affiché sur le rapport (intervention « archivée »).
+
+**Antécédents** : un rapport (écrit depuis la page « Rapports » ou depuis une intervention) qui mentionne une
+personne enregistrée aux fichiers apparaît automatiquement dans le pli « Antécédents » de sa fiche d'identité
+(Recherches et Registre), sous les antécédents saisis à la main : type et n° du rapport, rôle (victime, suspect,
+témoin…) s'il y en a un, date, auteur, intervention et résumé. Cliquer dessus ouvre le rapport. Correspondance :
+nom de famille + prénom, et date de naissance quand le rapport en donne une (un homonyme né un autre jour n'est pas
+concerné). Modifier le rapport met la fiche à jour (une personne retirée du rapport n'a plus ce rapport).
 
 Sur les champs **Nom de famille** et **Immatriculation**, une liste déroulante propose les fiches de l'historique de
 l'onglet « Recherches » : en choisir une remplit tous les champs liés (identité, licence, véhicule, propriétaire, assurance).

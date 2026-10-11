@@ -12,7 +12,9 @@
     Personnes (joueurs, PNJ, soi-même en test) et véhicules (tous, enregistrés ou non) :
       - tout le monde : inspections visuelles et olfactives (jusqu'à 10 m) ;
       - policier (dans une unité du MDC) : détail notoire (10 m), fouilles (3 m, barre de chargement),
-        menotter / prendre par le bras (2 m), placer à l'arrière / faire sortir d'un véhicule.
+        menotter / prendre par le bras / faire s'asseoir (2 m), placer à l'arrière / faire sortir d'un véhicule.
+      - joueurs autorisés : supprimer (PNJ, véhicules sans joueur, objets) jusqu'à 50 m (DeleteDistance),
+        la seule option proposée de loin.
     Les options apparaissent quand on s'approche (jamais grisées pour une question de distance).
     Les inspections sont affichées en premier, puis les actions sur l'environnement.
 ]]
@@ -138,10 +140,10 @@ local function inspectionOptions(list, ctx, kind)
     return out
 end
 
---- Supprimer un élément ambiant (PNJ, véhicule sans joueur, objet)
+--- Supprimer un PNJ, un véhicule sans joueur ou un objet (même créé par un joueur), jusqu'à 50 m
 local function deleteOption(ctx, out)
-    if within(ctx, Config.ObserveDistance) and RPI.Police.canDelete() and RPI.Police.deletable(ctx) then
-        out[#out + 1] = { id = 'env:delete', label = 'Supprimer (élément ambiant)', icon = 'trash',
+    if within(ctx, Config.DeleteDistance) and RPI.Police.canDelete() and RPI.Police.deletable(ctx) then
+        out[#out + 1] = { id = 'env:delete', label = 'Supprimer', icon = 'trash',
             run = function(c) RPI.Police.delete(c) end }
     end
     return out
@@ -235,7 +237,8 @@ local function vehicleOptions(ctx)
         end
     end
 
-    local door = within(ctx, Config.DoorDistance) and nearestDoor(vehicle, ctx.hit) or nil
+    -- /policeon : pas d'option de portière sur un véhicule d'urgence pour un non-policier
+    local door = within(ctx, Config.DoorDistance) and not Police.restricted(vehicle) and nearestDoor(vehicle, ctx.hit) or nil
     if not door then return deleteOption(ctx, out) end
 
     local locked = isLocked(vehicle)
@@ -284,6 +287,13 @@ local function personOptions(ctx)
         elseif not dragging then
             out[#out + 1] = { id = 'police:drag', label = 'Prendre par le bras', icon = 'hand', police = true,
                 run = function(c) Police.drag(c.entity) end }
+        end
+        -- Faire s'asseoir au sol ("/e menotté2") / se relever : pas pendant qu'il est tenu par le bras
+        if not Police.isDragged(ped) then
+            local seated = Police.isSeated(ped)
+            out[#out + 1] = { id = 'police:seat', icon = 'seat', police = true,
+                label = seated and 'Faire se relever l\'individu' or 'Faire s\'asseoir l\'individu',
+                run = function(c) Police.seat(c.entity, not seated) end }
         end
     end
 

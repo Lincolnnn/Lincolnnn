@@ -2,7 +2,7 @@
     RP Chat - /me au-dessus des têtes (option du joueur, onglet "Paramètres" du MDC)
     -------------------------------------------------------------------------------
     Visible uniquement par le joueur qui a choisi cette option : ses /me et ceux des
-    autres (reçus dans le rayon de 100 m) s'affichent au-dessus de la tête du joueur
+    autres (reçus dans le rayon de 50 m) s'affichent au-dessus de la tête du joueur
     concerné au lieu du chat. Même vert pâle que dans le chat, sans fond, en plus grand.
     La taille suit la distance entre la caméra et le joueur : elle grandit quand on
     s'approche et diminue quand on recule (bornée pour rester lisible), et tient

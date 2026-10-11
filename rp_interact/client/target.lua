@@ -19,7 +19,8 @@ local menuOpen = false   -- liste d'options ouverte (focus NUI)
 local current = nil      -- { ctx, options, key } : cible actuelle
 local DISABLED_CONTROLS = { 24, 25, 47, 58, 140, 141, 142, 143, 257, 263, 264 } -- tir, visée, corps à corps
 local CAST_INTERVAL = 50 -- ms entre deux visées
-local RAY_LENGTH = 25.0
+local RAY_LENGTH = 25.0                              -- portée de la visée (caméra 3e personne comprise)
+local DELETE_RAY_LENGTH = Config.DeleteDistance + 10.0 -- joueurs autorisés à supprimer : visée jusqu'à 50 m
 
 function RPI.targetActive() return active end
 
@@ -33,9 +34,9 @@ local function cast(from, to, ignore)
 end
 
 --- Ce que vise la caméra : (point, entité) ou nil
-local function aim()
+local function aim(length)
     local cam = GetFinalRenderedCamCoord()
-    local to = cam + RPI.camDirection(GetFinalRenderedCamRot(2)) * RAY_LENGTH
+    local to = cam + RPI.camDirection(GetFinalRenderedCamRot(2)) * length
     local ped = PlayerPedId()
     if Config.AllowSelfTarget then
         local hit, coords, entity = cast(cam, to, 0)
@@ -49,7 +50,7 @@ end
 
 local TYPES = { [1] = 'ped', [2] = 'vehicle', [3] = 'object' }
 
-local function buildContext(coords, entity)
+local function buildContext(coords, entity, canDelete)
     if not entity or entity == 0 or not DoesEntityExist(entity) then return nil end
     local kind = TYPES[GetEntityType(entity)]
     if not kind then return nil end
@@ -58,8 +59,11 @@ local function buildContext(coords, entity)
     local isSelf = entity == ped
     local origin = GetEntityCoords(ped)
     local distance = isSelf and 0.0 or #(origin - coords)
-    -- Portée max de l'œil (observations à 10 m) ; chaque option a ensuite sa propre distance
-    if distance > Config.ObserveDistance then return nil end
+    -- Portée max de l'œil : 10 m (observations), 50 m pour les joueurs autorisés à supprimer
+    -- (seule l'option "Supprimer" est alors proposée de loin) ; chaque option a sa propre distance
+    if distance > (canDelete and math.max(Config.DeleteDistance, Config.ObserveDistance) or Config.ObserveDistance) then
+        return nil
+    end
 
     local ctx = {
         entity = entity, type = kind, model = GetEntityModel(entity), hit = coords, distance = distance,
@@ -82,8 +86,9 @@ local function sendEye(data)
 end
 
 local function update()
-    local coords, entity = aim()
-    local ctx = coords and buildContext(coords, entity) or nil
+    local canDelete = RPI.Police.canDelete()
+    local coords, entity = aim(canDelete and math.max(RAY_LENGTH, DELETE_RAY_LENGTH) or RAY_LENGTH)
+    local ctx = coords and buildContext(coords, entity, canDelete) or nil
     local options = ctx and RPI.getOptions(ctx) or {}
     if #options == 0 then ctx = nil end
 

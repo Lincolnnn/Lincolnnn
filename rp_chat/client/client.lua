@@ -43,7 +43,7 @@ local DEFAULTS = {
     border = true,          -- contour affiché
     borderColor = '#7a7a7a',
     borderWidth = 1.5,      -- épaisseur du contour (px)
-    meMode = 'chat',        -- /me : 'chat' (dans le chat, rayon 100 m) ou 'head' (au-dessus des têtes)
+    meMode = 'chat',        -- /me : 'chat' (dans le chat, rayon 50 m) ou 'head' (au-dessus des têtes)
     feed = 'fade',          -- nouveaux messages chat fermé : 'fade' (affichés 8 s), 'always', 'never'
 }
 local RANGES = {

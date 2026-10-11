@@ -12,11 +12,12 @@ InteractConfig = {
     ChatResource = 'rp_chat',       -- /me automatiques et copie des résultats dans le chat
 
     -- Œil : distances (m) entre le joueur et ce qu'il vise. Les options apparaissent quand on s'approche.
-    ObserveDistance = 10.0,         -- inspections visuelles / olfactives, détail notoire, supprimer
+    ObserveDistance = 10.0,         -- inspections visuelles / olfactives, détail notoire
     SearchDistance = 3.0,           -- fouilles (personne, véhicule)
     ActionDistance = 2.0,           -- menotter, prendre par le bras (autour du policier)
     DoorDistance = 3.0,             -- portières, capot, coffre, monter
     ObjectDistance = 2.5,           -- s'asseoir, fouiller une poubelle
+    DeleteDistance = 50.0,          -- "Supprimer" : seule option visible de loin (joueurs autorisés)
 
     -- Test : viser son propre personnage (vue à la 3e personne) pour vérifier son profil actif.
     -- Mettez false en production si vous ne voulez pas de cette possibilité.
@@ -33,23 +34,31 @@ InteractConfig = {
     Emotes = {
         cuffed = 'e menotté1',      -- joué par le civil menotté (rejoué s'il est interrompu)
         drag = 'e tenirlebras',     -- joué par le policier qui tient quelqu'un par le bras
+        seated = 'e menotté2',      -- "Faire s'asseoir l'individu" (au sol, pas dans un véhicule)
         cancel = 'e c',             -- arrête l'emote en cours (touche X des tips, lâcher le bras)
     },
     -- Animation de l'emote "menotté" : sert à vérifier qu'elle est toujours jouée, et de secours
     -- (PNJ, véhicule, script d'emotes absent). Adaptez-la si votre emote utilise une autre animation.
     CuffAnim = { dict = 'mp_arresting', clip = 'idle' },
+    -- Animation de l'emote "menotté2" (individu assis) : même rôle que CuffAnim, pour l'individu assis.
+    SeatedAnim = { dict = 'amb@world_human_picnic@male@base', clip = 'base' },
     CuffProp = 'p_cs_cuffs_02_s',   -- menottes aux poignets (voir README : dossier stream)
-    DragOffset = { x = 0.45, y = 0.55, z = 0.0 }, -- position du civil : devant à droite du policier
+    -- Individu tenu par le bras : position par rapport au policier (devant à droite), accroché à
+    -- l'os racine du policier (DragBone = 0) : il reste droit. Un autre os (ex. bassin) le penche.
+    DragOffset = { x = 0.45, y = 0.55, z = 0.0 },
+    DragBone = 0,
     PlaceVehicleDistance = 6.0,     -- m : véhicule où placer l'individu tenu par le bras
 
-    -- SUPPRIMER des éléments ambiants (PNJ, véhicules sans joueur, objets) en les visant.
+    -- SUPPRIMER des PNJ, des véhicules sans joueur et des objets (y compris ceux créés par des
+    -- joueurs ou des scripts) en les visant, jusqu'à DeleteDistance mètres.
     -- 'police' = joueurs dans une unité du MDC ; 'everyone' = tout le monde.
     -- La permission ACE DeleteAce l'autorise toujours (ex. add_ace group.admin rpinteract.delete allow).
     DeleteAccess = 'police',
     DeleteAce = 'rpinteract.delete',
 
-    -- VÉHICULES D'URGENCE (classe 18) : /policeon et /policeoff (sans annonce) activent / désactivent
-    -- la règle "seuls les policiers montent dans un véhicule d'urgence (sauf portière déjà ouverte)".
+    -- VÉHICULES D'URGENCE (classe 18) : /policeon et /policeoff activent / désactivent la règle
+    -- "portières verrouillées pour les non-policiers" (sauf portière déjà ouverte / placé par un policier).
+    -- Pas d'annonce : seul l'auteur de la commande reçoit une notification de confirmation.
     -- Autorisés : console serveur, joueurs en unité du MDC, ou permission ACE ci-dessous.
     PoliceVehiclesAce = 'rpinteract.admin',
 

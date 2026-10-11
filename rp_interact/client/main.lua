@@ -59,6 +59,11 @@ function RPI.notify(text, kind)
     SendNUIMessage({ action = 'notify', data = { text = text, type = kind or 'info' } })
 end
 
+-- Notification envoyée par le serveur (ex. confirmation de /policeon, /policeoff)
+RegisterNetEvent('rp_interact:client:notify', function(text, kind)
+    if type(text) == 'string' then RPI.notify(text, kind) end
+end)
+
 -- =========================================================================
 -- EN SERVICE (POLICE) = dans une unité du MDC
 -- Le MDC publie l'unité du joueur (état "mdcUnit") à chaque entrée / sortie d'unité : le statut

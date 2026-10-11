@@ -239,6 +239,7 @@ local Interventions = {}    -- interventions (civils) et incidents (police)
 local lastWrite = {}
 local createIntervention    -- défini dans la section INTERVENTIONS
 local reportLinks           -- défini dans la section RAPPORTS
+local reportsOfIdentity     -- défini dans la section RAPPORTS
 local shareUnitSearch       -- défini dans la section ESPACE PARTAGÉ D'UNITÉ
 local pushHud               -- défini dans la section HUD
 local bolosFor              -- défini dans la section BOLOs
@@ -381,6 +382,7 @@ local function identityView(identity)
     local view = publicView(identity, 'identity')
     view.vehicles = vehiclesOf(identity)
     view.bolos = bolosFor('identity', identity) -- BOLOs actifs visant cette personne
+    view.reports = reportsOfIdentity(identity)  -- rapports où la personne apparaît (antécédents)
     return view
 end
 
@@ -1740,6 +1742,57 @@ reportLinks = function(intervention)
     end
     table.sort(list, function(a, b) return (a.createdAt or 0) < (b.createdAt or 0) end)
     return list
+end
+
+-- ---- Rapports <-> antécédents des identités ----
+-- Un rapport (écrit depuis la page Rapports ou depuis une intervention) qui mentionne une
+-- personne enregistrée aux fichiers apparaît dans les antécédents de sa fiche d'identité.
+-- Correspondance : nom de famille + prénom (et date de naissance quand le rapport en donne une).
+-- Toutes les personnes du rapport sont prises en compte (Arrest, Citation, Incident, Collision…) :
+-- un bloc "personne" est une table qui contient lastname + firstname.
+local PersonsCache = setmetatable({}, { __mode = 'k' }) -- [rapport] = personnes (recalculé à chaque modification)
+
+local function reportPersons(report)
+    local cached = PersonsCache[report]
+    if cached then return cached end
+    local list = {}
+    local function walk(value, depth)
+        if type(value) ~= 'table' or depth > 6 then return end
+        if type(value.lastname) == 'string' and type(value.firstname) == 'string' then
+            local last, first = normalizeName(value.lastname), normalizeName(value.firstname)
+            if last ~= '' and first ~= '' then
+                list[#list + 1] = { last = last, first = first, dob = type(value.dob) == 'string' and value.dob or '',
+                    role = type(value.role) == 'string' and value.role or nil }
+            end
+        end
+        for _, v in pairs(value) do walk(v, depth + 1) end
+    end
+    walk(report.data, 0)
+    PersonsCache[report] = list
+    return list
+end
+
+reportsOfIdentity = function(identity)
+    local last, first = normalizeName(identity.lastname), normalizeName(identity.firstname)
+    if last == '' or first == '' then return {} end
+    local out = {}
+    for i = #Store.reports, 1, -1 do -- les plus récents d'abord
+        local report = Store.reports[i]
+        for _, p in ipairs(reportPersons(report)) do
+            if p.last == last and p.first == first and (p.dob == '' or (identity.dob or '') == '' or p.dob == identity.dob) then
+                local reportType = ReportTypes[report.type]
+                out[#out + 1] = {
+                    id = report.id, number = report.number, type = report.type,
+                    label = reportType and reportType.label or report.type, summary = report.summary,
+                    role = p.role, createdAt = report.createdAt, createdByName = report.createdByName,
+                    callNumber = type(report.call) == 'table' and report.call.number or nil,
+                }
+                break
+            end
+        end
+        if #out >= Config.MaxEntries then break end
+    end
+    return out
 end
 
 local function reportListItem(report, me)

@@ -1052,3 +1052,7 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .chat-sample.qst { color: #f7c58f; }
 .chat-sample.rep { color: #cdb0f2; }
 #page-settings .radio { margin-top: 4px; color: var(--text); font-size: 13px; }
+
+/* Rapports listés dans les antécédents d'une fiche d'identité (cliquables) */
+.entry-report { cursor: pointer; border-left: 3px solid var(--select); }
+.entry-report:hover { background: #1d1d1d; }

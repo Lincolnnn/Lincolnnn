@@ -16,7 +16,7 @@ ChatConfig = {
     DefaultKey = 'T',
 
     -- /me : visible uniquement par les joueurs dans ce rayon (mètres) au moment de l'envoi
-    MeDistance = 100.0,
+    MeDistance = 50.0,
 
     -- Longueur max d'un message (caractères) et délai mini entre deux messages (ms)
     MaxLength = 250,

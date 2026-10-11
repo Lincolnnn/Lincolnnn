@@ -15,7 +15,7 @@ Conçu pour fonctionner avec le MDC du même dépôt (`mdc_standalone`), mais ut
    ensure mdc_standalone
    ```
 3. **OneSync recommandé** : le serveur filtre alors lui-même les `/me` par distance. Sans OneSync, le filtrage se fait
-   chez chaque joueur (le message est envoyé à tous, puis ignoré au-delà de 100 m).
+   chez chaque joueur (le message est envoyé à tous, puis ignoré au-delà de 50 m).
 
 ### Remplacer le chat d'origine (`chat` et `chat-theme-gtao`)
 
@@ -52,7 +52,7 @@ Conçu pour fonctionner avec le MDC du même dépôt (`mdc_standalone`), mais ut
 | Commande | Affichage | Qui le voit |
 |---|---|---|
 | `/nomrp John Carter` | « Nom RP : John Carter » (confirmation) | le joueur |
-| `/me jette l'arme au sol` | **John Carter** jette l'arme au sol — vert pâle | joueurs dans un rayon de **100 m** au moment de l'envoi |
+| `/me jette l'arme au sol` | **John Carter** jette l'arme au sol — vert pâle | joueurs dans un rayon de **50 m** au moment de l'envoi |
 | `/info Route fermée` | Route fermée — rouge Torino surligné de rouge pâle, **sans nom RP** | tout le monde |
 | `/qst Qui est dispo ?` | <ins>**John Carter**</ins> **Question :** Qui est dispo ? — orange pâle | tout le monde |
 | `/rep Adam-12 dispo` | <ins>**John Carter**</ins> **Réponse :** Adam-12 dispo — violet pâle | tout le monde |
@@ -90,7 +90,7 @@ Le chat apparaît en aperçu pendant les réglages. Sans le MDC, les réglages p
 | Clé | Rôle |
 |---|---|
 | `DefaultKey` | touche d'ouverture par défaut (`T`) |
-| `MeDistance` | rayon des `/me` (100 m) |
+| `MeDistance` | rayon des `/me` (50 m) |
 | `MaxLength`, `Cooldown` | longueur max d'un message, délai entre deux messages |
 | `NameMin`, `NameMax` | longueur du nom RP (2 à 40) |
 | `GlobalHistory` | nombre de `/info`, `/qst`, `/rep` envoyés aux nouveaux connectés |
@@ -114,7 +114,7 @@ du chat d'origine sont ignorées.
 ## Export pour les autres ressources
 
 `exports.rp_chat:sendMe(source, texte)` (serveur) : envoie un `/me` au nom du joueur, avec les mêmes règles (nom RP
-obligatoire, rayon de 100 m). Utilisé par `rp_interact` pour les annonces RP (« fouille le coffre du véhicule »…).
+obligatoire, rayon de 50 m). Utilisé par `rp_interact` pour les annonces RP (« fouille le coffre du véhicule »…).
 
 `exports.rp_chat:addPrivate({ title, subject, text })` (client) : message **privé**, affiché uniquement chez ce joueur
 avec l'étiquette `PRIVÉ` (résultats d'inspection / de fouille de `rp_interact`).

@@ -15,7 +15,7 @@
     // Commandes proposées en tapant "/" (doivent correspondre à server/server.lua)
     const COMMANDS = [
         { name: 'nomrp', usage: '/nomrp [nom RP]', desc: 'Définit votre nom RP (aussi celui du MDC)' },
-        { name: 'me', usage: '/me [action]', desc: 'Action de votre personnage (rayon de 100 m)' },
+        { name: 'me', usage: '/me [action]', desc: 'Action de votre personnage (rayon de 50 m)' },
         { name: 'info', usage: '/info [texte]', desc: 'Information pour tous (sans nom RP)' },
         { name: 'qst', usage: '/qst [question]', desc: 'Question pour tous' },
         { name: 'rep', usage: '/rep [réponse]', desc: 'Réponse pour tous' },

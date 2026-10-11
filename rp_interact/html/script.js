@@ -212,6 +212,7 @@
         set('cuff', a.cuff, a.cuff && a.cuff.label);
         set('drag', a.drag, a.drag && a.drag.label);
         set('place', a.place);
+        set('seat', a.seat, a.seat && a.seat.label);
     }
 
     $$('[data-police-action]').forEach((btn) => btn.addEventListener('click', () => {

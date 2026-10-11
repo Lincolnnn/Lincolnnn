@@ -668,6 +668,11 @@ local function policeTarget(src, p, range)
     return target
 end
 
+--- Assis au sol par un policier (state bag "rpiSeated", lu par les policiers pour l'option de l'œil)
+local function clearSeated(civil)
+    if Player(civil).state.rpiSeated == true then Player(civil).state:set('rpiSeated', false, true) end
+end
+
 local function stopDrag(civil)
     if not Drags[civil] then return end
     Drags[civil] = nil
@@ -681,7 +686,10 @@ on('cuff', function(src, p)
     local cuffed = p.cuffed == true
     Player(target).state:set('rpiCuffed', cuffed, true)
     TriggerClientEvent('rp_interact:client:setCuffed', target, cuffed)
-    if not cuffed then stopDrag(target) end
+    if not cuffed then
+        stopDrag(target)
+        clearSeated(target)
+    end
     return { ok = true }
 end)
 
@@ -695,6 +703,7 @@ on('drag', function(src, p)
     if not target then return { ok = false, error = err } end
     if Drags[target] and Drags[target] ~= src then return { ok = false, error = 'Un autre policier tient déjà cette personne.' } end
     Drags[target] = src
+    clearSeated(target) -- relevé par le policier (le client le sait aussi : événement drag)
     Player(target).state:set('rpiDraggedBy', src, true)
     TriggerClientEvent('rp_interact:client:drag', target, src)
     return { ok = true }
@@ -713,7 +722,22 @@ on('putInVehicle', function(src, p)
         end
     end
     stopDrag(target)
+    clearSeated(target)
     TriggerClientEvent('rp_interact:client:enterVehicle', target, netId, seat)
+    return { ok = true }
+end)
+
+-- Faire s'asseoir au sol ("/e menotté2", joué par le civil) / se relever
+on('seat', function(src, p)
+    local target, err = policeTarget(src, p, ACTION_RANGE)
+    if not target then return { ok = false, error = err } end
+    local seated = p.seated == true
+    if seated and Drags[target] then return { ok = false, error = 'Lâchez d\'abord le bras de l\'individu.' } end
+    if seated and GetVehiclePedIsIn(GetPlayerPed(target), false) ~= 0 then
+        return { ok = false, error = 'L\'individu est dans un véhicule.' }
+    end
+    Player(target).state:set('rpiSeated', seated, true)
+    TriggerClientEvent('rp_interact:client:setSeated', target, seated)
     return { ok = true }
 end)
 
@@ -725,12 +749,13 @@ on('takeOut', function(src, p)
 end)
 
 -- =========================================================================
--- SUPPRIMER DES ÉLÉMENTS AMBIANTS (PNJ, véhicules sans joueur, objets)
+-- SUPPRIMER DES PNJ, VÉHICULES SANS JOUEUR ET OBJETS (jusqu'à DeleteDistance = 50 m)
 -- Réservé à DeleteAccess ('police' / 'everyone') ou à la permission ACE DeleteAce.
--- Les entités créées par des scripts (véhicules / objets "mission") ne sont pas supprimées.
--- Les objets de la carte sont masqués chez tous les joueurs (y compris ceux qui se connectent ensuite).
+-- Véhicules et objets créés par des joueurs ou des scripts compris ; jamais un joueur, ni un véhicule
+-- où se trouve un joueur. Les objets de la carte sont masqués chez tous les joueurs (y compris ceux
+-- qui se connectent ensuite).
 -- =========================================================================
-local POPULATION_MISSION = 7
+local DELETE_RANGE = Config.DeleteDistance + 10.0 -- tolérance (décalage réseau, grands véhicules)
 local HiddenProps = {} -- { model, x, y, z }
 
 local function canDelete(src)
@@ -758,20 +783,13 @@ on('deleteEntity', function(src, p)
     if not ONESYNC then return { ok = false, fallback = true } end -- sans OneSync : suppression par le client
     local entity = NetworkGetEntityFromNetworkId(tonumber(p.netId) or -1)
     if not entity or entity == 0 or not DoesEntityExist(entity) then return { ok = false, error = 'Élément introuvable.' } end
-    if tooFar(playerCoords(src), coordsOfEntity(entity), OBSERVE_RANGE + 2.5) then return { ok = false, error = 'Rapprochez-vous.' } end
+    if tooFar(playerCoords(src), coordsOfEntity(entity), DELETE_RANGE) then return { ok = false, error = 'Rapprochez-vous.' } end
     local kind = GetEntityType(entity)
     if kind == 1 then
         if IsPedAPlayer(entity) then return { ok = false, error = 'Impossible de supprimer un joueur.' } end
     elseif kind == 2 then
         if playerInVehicle(entity) then return { ok = false, error = 'Un joueur est dans ce véhicule.' } end
-        if GetEntityPopulationType(entity) == POPULATION_MISSION then
-            return { ok = false, error = 'Véhicule non ambiant (créé par un joueur ou un script).' }
-        end
-    elseif kind == 3 then
-        if GetEntityPopulationType(entity) == POPULATION_MISSION then
-            return { ok = false, error = 'Objet créé par un script : non supprimé.' }
-        end
-    else
+    elseif kind ~= 3 then
         return { ok = false, error = 'Élément introuvable.' }
     end
     DeleteEntity(entity)
@@ -782,7 +800,7 @@ on('hideProp', function(src, p)
     if not canDelete(src) then return { ok = false, error = 'Vous ne pouvez pas supprimer d\'éléments.' } end
     local model, x, y, z = tonumber(p.model), tonumber(p.x), tonumber(p.y), tonumber(p.z)
     if not model or not x or not y or not z then return { ok = false, error = 'Élément introuvable.' } end
-    if tooFar(playerCoords(src), { x = x, y = y, z = z }, OBSERVE_RANGE + 5.0) then return { ok = false, error = 'Rapprochez-vous.' } end
+    if tooFar(playerCoords(src), { x = x, y = y, z = z }, DELETE_RANGE) then return { ok = false, error = 'Rapprochez-vous.' } end
     if #HiddenProps >= 1000 then table.remove(HiddenProps, 1) end
     local prop = { model = model, x = x, y = y, z = z }
     HiddenProps[#HiddenProps + 1] = prop
@@ -803,17 +821,24 @@ RegisterCommand('rpi_showprops', function(src)
 end, false)
 
 -- =========================================================================
--- VÉHICULES D'URGENCE : /policeon et /policeoff (sans annonce ni notification)
--- Activé : seuls les policiers (unité du MDC) montent dans un véhicule de classe 18, sauf
--- portière déjà ouverte. Vérifié par chaque client (voir client/police.lua).
+-- VÉHICULES D'URGENCE : /policeon et /policeoff (sans annonce ; l'auteur reçoit une confirmation)
+-- Activé : les véhicules de classe 18 sont verrouillés pour les non-policiers (sauf portière déjà
+-- ouverte / placé par un policier). Appliqué par chaque client (voir client/police.lua).
 -- =========================================================================
 local function canTogglePoliceVehicles(src)
     return src == 0 or IsPlayerAceAllowed(src, Config.PoliceVehiclesAce) or policeUnit(src) ~= nil
 end
 
 local function setPoliceVehicles(src, enabled)
-    if not canTogglePoliceVehicles(src) then return end
+    if not canTogglePoliceVehicles(src) then
+        return TriggerClientEvent('rp_interact:client:notify', src, 'Commande réservée à la police (unité du MDC).', 'error')
+    end
     GlobalState.rpiPoliceVehicles = enabled
+    if src ~= 0 then
+        TriggerClientEvent('rp_interact:client:notify', src, enabled
+            and 'Véhicules d\'urgence verrouillés pour les civils (/policeon).'
+            or 'Véhicules d\'urgence de nouveau accessibles à tous (/policeoff).', 'success')
+    end
     print(('^5[RP Interact]^0 Véhicules d\'urgence réservés à la police : %s (par %s)'):format(
         enabled and 'ACTIVÉ' or 'désactivé', src == 0 and 'console' or (GetPlayerName(src) or tostring(src))))
 end

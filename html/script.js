@@ -602,6 +602,23 @@
             </div>`).join('');
     }
 
+    // Rapports liés à une identité (Rapports / interventions) : cliquer ouvre le rapport
+    const PERSON_ROLE_LABELS = { victim: 'Victime', suspect: 'Suspect', witness: 'Témoin', caller: 'Requérant', other: 'Autre' };
+    function reportEntriesHtml(list) {
+        return list.map((r) => `
+            <div class="entry-view entry-report" data-open-report="${esc(r.id)}" title="Ouvrir le rapport">
+                <div class="entry-view-title">${esc(r.label)} n°${esc(r.number)}${r.role ? ` — ${esc(PERSON_ROLE_LABELS[r.role] || r.role)}` : ''}</div>
+                <div class="entry-view-meta">Rapport du ${esc(formatDate(r.createdAt))} — ${esc(r.createdByName || '-')}${r.callNumber ? ` — intervention ${esc(r.callNumber)}` : ''}</div>
+                <div class="entry-view-text">${esc(r.summary || '')}</div>
+            </div>`).join('');
+    }
+
+    // Un rapport cité dans une fiche (Recherches, Registre, historique d'unité…) s'ouvre dans la page Rapports
+    document.addEventListener('click', (e) => {
+        const entry = e.target.closest('[data-open-report]');
+        if (entry) showReportFromCall(Number(entry.dataset.openReport));
+    });
+
     function sheetHead(title, record, editable) {
         return `
             <div class="sheet-title">
@@ -627,6 +644,7 @@
     function renderIdentity(r, editable) {
         const vehicles = toArray(r.vehicles);
         const records = toArray(r.records);
+        const reports = toArray(r.reports); // rapports où la personne apparaît (ajoutés par le serveur)
         const hasLicense = r.licenseClass && r.licenseClass !== 'N/A';
 
         return `
@@ -660,9 +678,9 @@
                     ${dd('Condition', conditionFlag(r.condition))}
                     ${r.condition === 'wanted' ? row('Raison de la recherche', r.wantedReason) + row('Date de début', r.wantedSince) : ''}
                 </dl>`)}
-            ${fold('Antécédents', records.length
-                ? entriesHtml(records, (e) => e.offense)
-                : foldEmpty('Aucun antécédent connu.'), records.length)}
+            ${fold('Antécédents', records.length || reports.length
+                ? entriesHtml(records, (e) => e.offense) + reportEntriesHtml(reports)
+                : foldEmpty('Aucun antécédent connu.'), records.length + reports.length)}
             `;
     }
 
@@ -2995,7 +3013,7 @@
     // =====================================================================
     // Positions en fraction de l'écran (0 à 1, coin haut-gauche), taille en facteur (0.5 à 2)
     const HUD_DEFAULTS = {
-        pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true },
+        pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true },
         mdc: { zoom: 1, startTab: 'last' },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
@@ -3007,7 +3025,7 @@
         settings: clone(HUD_DEFAULTS),
         pldAllowed: false,  // PLD autorisé (dès la connexion du joueur, voir client/hud.lua)
         unit: null,         // unité du joueur : { name, tag, color, status, dept, callNumber, callTitle }
-        pld: null,          // { street, crossing, dir, block, paused }
+        pld: null,          // { street, crossing, dir, block, time, paused }
         placing: false,
         drag: null,
         saveTimer: null,
@@ -3042,7 +3060,7 @@
     }
 
     // Exemple affiché en mode placement quand il n'y a pas encore de données
-    const PLD_SAMPLE = { street: 'Nom de la rue', crossing: 'Croisement', dir: 'N', block: '100' };
+    const PLD_SAMPLE = { street: 'Nom de la rue', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
     const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', status: 'available', callNumber: '00-0000' };
 
     function placeHud(el, cfg) {
@@ -3071,6 +3089,8 @@
             $('#pldCross').textContent = loc.crossing || '-'; // ligne toujours présente : taille stable
             $('#pldBlock').textContent = loc.block || '';
             pldEl.querySelector('[data-part="block"]').classList.toggle('part-empty', !loc.block);
+            $('#pldTime').textContent = loc.time || '';
+            pldEl.querySelector('[data-part="time"]').classList.toggle('part-empty', !loc.time);
             placeHud(pldEl, pldCfg);
         }
 

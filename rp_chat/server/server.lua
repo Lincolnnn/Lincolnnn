@@ -3,7 +3,7 @@
     -----------------
     Commandes (envoyées par le client avec l'événement "rp_chat:server:command") :
       /nomrp <nom>  définit le nom RP (obligatoire avant toute autre commande)
-      /me <action>  vert pâle, visible dans un rayon de ChatConfig.MeDistance (100 m)
+      /me <action>  vert pâle, visible dans un rayon de ChatConfig.MeDistance (50 m)
       /info <texte> rouge Torino sur fond rouge pâle, sans nom RP, visible par tous
       /qst <texte>  orange pâle : "<nom RP> Question : <texte>", visible par tous
       /rep <texte>  violet pâle : "<nom RP> Réponse : <texte>", visible par tous
@@ -205,7 +205,7 @@ RegisterNetEvent('rp_chat:server:command', function(command, rawText)
 end)
 
 -- /me envoyé par une autre ressource (ex. rp_interact : "fouille le coffre du véhicule").
--- Même règles qu'un /me tapé (nom RP obligatoire, rayon de 100 m), sans délai entre deux messages.
+-- Même règles qu'un /me tapé (nom RP obligatoire, rayon de 50 m), sans délai entre deux messages.
 --   exports.rp_chat:sendMe(source, texte) -> true si envoyé
 exports('sendMe', function(src, rawText)
     src = tonumber(src)

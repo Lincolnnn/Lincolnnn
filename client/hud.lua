@@ -2,7 +2,8 @@
     MDC Standalone - HUD (client)
     -----------------------------
     Deux affichages indépendants, dessinés par le NUI (html/script.js) :
-      - PLD (Player Localisation Display) : direction, rue, croisement le plus proche, bloc
+      - PLD (Player Localisation Display) : direction, rue, croisement le plus proche, bloc,
+        heure du jeu
         -> affiché pour chaque joueur dès sa connexion, sans utiliser le MDC
            (désactivable / réglable dans l'onglet "Paramètres" du MDC, réglages propres au joueur)
       - Display MDC : nom de l'unité, tag, statut, n° d'incident de l'appel en cours
@@ -220,6 +221,7 @@ local function readLocation()
         crossing = crossing,
         dir = DIRECTIONS[math.floor(((heading + 22.5) % 360) / 45) + 1],
         block = findBlock(coords.x, coords.y, street),
+        time = ('%02d:%02d'):format(GetClockHours(), GetClockMinutes()), -- heure du jeu
         -- masqué dans le menu pause et pendant les écrans noirs (chargement, mort…)
         paused = IsPauseMenuActive() or IsScreenFadedOut() or GetIsLoadingScreenActive(),
     }, coords
@@ -252,7 +254,8 @@ startLoop = function()
         local last = nil
         while pldActive() do
             local data = readLocation()
-            local key = ('%s|%s|%s|%s|%s'):format(data.street, data.crossing, data.dir, data.block, tostring(data.paused))
+            -- (l'heure du jeu avance d'une minute toutes les 2 s : un envoi au plus toutes les 2 s)
+            local key = ('%s|%s|%s|%s|%s|%s'):format(data.street, data.crossing, data.dir, data.block, data.time, tostring(data.paused))
             if key ~= last then
                 last = key
                 SendNUIMessage({ action = 'pld', data = data })

@@ -17,7 +17,7 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
 ## Menu d'interactions (touche F1)
 
 Case **Police** : indique si vous êtes en service (dans une unité du MDC), puis les actions **Menotter**,
-**Prendre par le bras** et **Placer l'individu à l'arrière du véhicule** : toujours affichées, **grisées** tant que
+**Prendre par le bras**, **Placer l'individu à l'arrière du véhicule** et **Faire s'asseoir l'individu** : toujours affichées, **grisées** tant que
 personne (joueur ou PNJ) n'est assez près (2 m ; véhicule à 6 m pour placer), mises à jour en direct. Elles agissent
 sur l'individu le plus proche.
 Case **Civil** : rappel du **profil actif** en haut, la case **Mode civil**, puis **Créer un profil** et
@@ -89,11 +89,13 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
 
 | Cible | Tout le monde | Policier (dans une unité du MDC) en plus |
 |---|---|---|
-| Personne | Inspection visuelle, Inspection olfactive (10 m) | Détail notoire (10 m) ; Fouiller la partie supérieure / inférieure du corps (3 m, **15 s**) ; Menotter / Retirer les menottes, Prendre / Lâcher le bras (2 m) |
+| Personne | Inspection visuelle, Inspection olfactive (10 m) | Détail notoire (10 m) ; Fouiller la partie supérieure / inférieure du corps (3 m, **15 s**) ; Menotter / Retirer les menottes, Prendre / Lâcher le bras, Faire s'asseoir / se relever (2 m) |
 | Véhicule | Inspection visuelle intérieure / extérieure, Inspection olfactive (10 m) | Détail notoire (10 m) ; Fouille de l'habitacle, de la banquette arrière, du coffre (3 m, **35 s**) ; Placer l'individu à l'arrière (6 m, en le tenant par le bras) ; Faire sortir l'individu (arrière) |
 
 - **Distances** : les observations se font jusqu'à **10 m**, les fouilles à **3 m**, menottes et bras à **2 m**. Les options
   apparaissent au fur et à mesure qu'on s'approche (elles ne sont jamais grisées pour une question de distance).
+  Seule exception : **Supprimer**, proposée jusqu'à **50 m** (`DeleteDistance`) aux joueurs autorisés ; c'est la seule
+  option visible au-delà de 10 m.
 - **Fouilles** : barre de chargement (thème du HUD, barre bleue) — **15 s** pour une personne, **35 s** pour un véhicule.
   Pendant la fouille on ne se déplace pas ; **X** l'annule (elle s'interrompt aussi si la cible s'éloigne). Le serveur ne
   donne le résultat qu'une fois le temps écoulé.
@@ -102,17 +104,20 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
 - Les inspections sont listées en premier, puis les actions sur l'environnement :
   - véhicule : **ouvrir / fermer la portière visée** (avant gauche, avant droite, arrière…), le capot ou le coffre,
     **monter** à la place correspondante (si libre ; impossible si le véhicule est verrouillé). Une portière ouverte
-    ainsi est **refermée par le joueur** dès qu'il est à bord et que le véhicule commence à avancer ;
+    ainsi est **refermée par le joueur** dès qu'il est à bord et que le véhicule commence à avancer. Après `/policeon`,
+    ces options n'apparaissent plus sur un véhicule d'urgence pour un joueur qui n'est pas policier ;
   - personne : saluer ;
-  - **supprimer un élément ambiant** (PNJ, véhicule sans joueur à bord, objet) pour alléger une scène : réservé aux
-    policiers en service (`DeleteAccess`) ou à la permission ACE `rpinteract.delete`. Les véhicules / objets créés par
-    un joueur ou un script ne sont pas supprimés ; les objets de la carte sont masqués chez tous les joueurs
+  - **Supprimer** (jusqu'à **50 m**) : PNJ, véhicule sans joueur à bord, objet — **y compris les véhicules et objets
+    créés par des joueurs ou des scripts**. Réservé aux policiers en service (`DeleteAccess`) ou à la permission ACE
+    `rpinteract.delete`. Jamais un joueur, ni un véhicule où se trouve un joueur. Avec OneSync, le serveur supprime
+    l'élément pour tout le monde ; s'il est encore là, le client en prend le contrôle et le supprime. Une notification
+    confirme « Élément supprimé. » (ou explique l'échec). Les objets de la carte sont masqués chez tous les joueurs
     (`rpi_showprops` en console pour tout réafficher) ;
   - bancs, chaises, abribus : **s'asseoir** (à la place la plus proche sur un banc ; X ou se déplacer pour se lever) ;
   - poubelles, bennes : fouiller la poubelle.
 - Le résultat est **privé** : la fiche « Résultat » (à droite de l'écran) et sa copie dans le chat écrit (étiquette
   `PRIVÉ`) ne s'affichent que chez le joueur qui inspecte.
-- L'annonce RP, elle, est publique : un `/me` automatique (mêmes règles qu'un `/me` : joueurs dans un rayon de 100 m)
+- L'annonce RP, elle, est publique : un `/me` automatique (mêmes règles qu'un `/me` : joueurs dans un rayon de 50 m)
   « observe attentivement l'individu », « fouille le coffre du véhicule »…
 - Véhicule observé : seul le **modèle** est affiché (jamais la plaque d'immatriculation).
 - Le serveur revérifie tout : police (unité du MDC), distances (10 m / 3 m / 2 m), durée des fouilles, délais.
@@ -124,7 +129,12 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
   automatiquement** ; menotté, il ne peut plus courir, sauter, frapper, viser ni monter seul dans un véhicule.
   **Retirer les menottes** : 3 s.
 - **Prendre par le bras** (individu le plus proche, 2 m) : le policier fait **`/e tenirlebras`**, l'individu est placé un
-  peu devant à droite ; il **marche quand le policier marche** et s'arrête avec lui. **Lâcher le bras** pour le relâcher.
+  peu devant à droite, **bien droit** (accroché à l'os racine du policier, `DragBone = 0`) ; il **marche quand le
+  policier marche** et s'arrête avec lui. **Lâcher le bras** pour le relâcher.
+- **Faire s'asseoir l'individu** (2 m, à pied, pas tenu par le bras) : il fait l'emote **`/e menotté2`** (assis au sol).
+  Menotté, il **reste assis** (déplacements bloqués, emote relancée si elle s'arrête). **Faire se relever l'individu**
+  pour le remettre debout (`/e menotté1` s'il est menotté). Le prendre par le bras ou le placer dans un véhicule le
+  relève aussi. Sur un PNJ : animation `SeatedAnim` (à adapter si votre emote en utilise une autre).
 - **Placer l'individu à l'arrière** (en le tenant, véhicule à 6 m) : le policier lâche le bras et ouvre la portière arrière
   la plus proche ; l'individu **monte lui-même** à l'arrière (sans téléportation, places arrière uniquement), même dans
   un véhicule d'urgence. **Faire sortir l'individu (arrière)** pour le ressortir.
@@ -138,10 +148,13 @@ placez-y **`rp_interact/stream/p_cs_cuffs_02_s.ydr`** (FiveM le charge automatiq
 
 ### Véhicules d'urgence : `/policeon` et `/policeoff`
 
-`/policeon` : seuls les policiers en service (unité du MDC) montent dans un véhicule de la catégorie du jeu
-« véhicule d'urgence » (classe 18) ; les autres en sont empêchés, **sauf si la portière est déjà ouverte** (ou si un
-policier les y place). `/policeoff` : retour à la normale. Effet immédiat, sans redémarrage ni annonce aux joueurs
-(une ligne dans la console serveur). Commande autorisée : console, policiers en service, ou permission ACE
+`/policeon` : les véhicules de la catégorie du jeu « véhicule d'urgence » (classe 18) sont **verrouillés** pour les
+joueurs qui ne sont pas policiers en service (unité du MDC) : ils essaient d'ouvrir la portière (animation du jeu) mais
+n'y arrivent pas, **sans aucun message**. Exceptions : portière déjà ouverte, individu placé à l'arrière par un
+policier, joueur déjà à bord (il peut descendre). L'œil ne leur propose plus d'ouvrir les portières ni de monter.
+Les policiers ne sont jamais bloqués. `/policeoff` : tout est déverrouillé. Effet immédiat, sans redémarrage ni annonce
+aux autres joueurs : **seul l'auteur de la commande reçoit une notification** confirmant le changement (et une ligne
+dans la console serveur). Commande autorisée : console, policiers en service, ou permission ACE
 `rpinteract.admin` (`add_ace group.admin rpinteract.admin allow`).
 
 Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seats`, `TrashBins`).
@@ -152,11 +165,11 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 |---|---|
 | `MenuKey`, `TargetKey` | touches par défaut (F1, Alt gauche) ; chaque joueur les change dans Échap > Paramètres > Raccourcis clavier > FiveM |
 | `MdcResource`, `ChatResource` | noms des dossiers du MDC et du chat |
-| `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras (2 m), portières (3 m), bancs et poubelles (2,5 m) |
+| `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (15 s personne, 35 s véhicule) |
-| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `CuffProp`, `DragOffset`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté1`, `/e tenirlebras`, `/e c`), animation de contrôle / secours, menottes, position de l'individu tenu, distance du véhicule |
-| `DeleteAccess`, `DeleteAce` | qui peut supprimer les éléments ambiants |
+| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragBone`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté1`, `/e menotté2`, `/e tenirlebras`, `/e c`), animations de contrôle / secours (debout, assis), menottes, position et os d'attache de l'individu tenu, distance du véhicule |
+| `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) |
 | `PoliceVehiclesAce` | permission ACE pour `/policeon` / `/policeoff` |
 | `MaxProfiles`, `TextMax` | profils par joueur, longueur des textes |
 | `AnnounceWithMe`, `ResultsInChat`, `ResultDuration` | `/me` automatiques, copie dans le chat, durée d'affichage |
@@ -194,4 +207,6 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 - Menotté : boucle pendant qu'on est menotté (contrôles bloqués, emote vérifiée chaque seconde) ; tenu par le bras :
   100 ms tant qu'on est tenu ; PNJ menottés : 1 s tant qu'il y en a.
 - Tips d'arrestation : la touche fixe X est lue uniquement pendant que les tips sont affichés.
-- `/policeon` : une vérification toutes les 100 ms (tentative de montée dans un véhicule) tant que la règle est active.
+- L'œil d'un joueur autorisé à supprimer vise jusqu'à 60 m (50 m + caméra) au lieu de 25 m : même coût (un rayon).
+- `/policeon` : chez les non-policiers, une vérification des véhicules d'urgence proches toutes les 500 ms (100 ms
+  pendant une tentative de montée), uniquement tant que la règle est active ; policier : 1 s, sans rien faire.
