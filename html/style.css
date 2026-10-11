@@ -508,7 +508,7 @@ input::placeholder { color: #6a6a6a; }
 /* Unité du joueur au-dessus des statuts ; statuts inactifs hors unité */
 .my-unit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-height: 22px; margin-bottom: 6px; font-weight: bold; color: #fff; }
 .my-unit .unit-tag { flex-shrink: 0; }
-.my-unit > span:not(.unit-tag) { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.my-unit > span:not(.unit-tag):not(.dept-tag) { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .my-unit .muted { font-weight: normal; white-space: normal; font-size: 12px; }
 .status-list.no-unit .status-btn { opacity: .45; }
 
@@ -631,6 +631,17 @@ input::placeholder { color: #6a6a6a; }
 .unit-form { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1fr) auto auto auto; gap: 8px 14px; align-items: end; }
 .units-toolbar { margin: 0; }
 .dept-short { padding: 0 5px; font-size: 10px; font-weight: bold; color: #cfe0ff; border: 1px solid #3a5a8a; }
+/* Tag de service d'une unité / d'un appel : APD bleu foncé, GSP orange vif (distinct du tag spécial, ex. SUP.) */
+:root { --dept-apd: #12357a; --dept-gsp: #ff6a00; }
+.dept-tag {
+    display: inline-flex; align-items: center; flex-shrink: 0; height: 17px; padding: 0 6px; border-radius: 3px;
+    font-size: 10px; font-weight: bold; letter-spacing: .6px; color: #fff; background: var(--dept-apd);
+    text-shadow: none; white-space: nowrap;
+}
+.dept-tag.dept-gsp { background: var(--dept-gsp); color: #fff; }
+.dept-tag.dept-both { background: linear-gradient(90deg, var(--dept-apd) 0 50%, var(--dept-gsp) 50% 100%); }
+.joint-row { display: flex; align-items: center; gap: 10px; min-height: 26px; }
+.readonly-value { display: block; padding: 4px 0; color: var(--text); }
 .unit-form-actions { display: flex; gap: 6px; }
 .swatches { display: flex; gap: 4px; height: 26px; align-items: center; }
 .swatch { position: relative; cursor: pointer; }
@@ -1075,8 +1086,14 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .dept-fold > summary::before { content: "+"; width: 12px; color: var(--muted); }
 .dept-fold[open] > summary::before { content: "\2212"; }
 .dept-fold > summary:hover { background: #333; }
-.dept-badge { padding: 1px 6px; border-radius: 3px; font-size: 11px; letter-spacing: .5px; color: #fff; background: var(--select); }
-.dept-fold[data-dept="gsp"] .dept-badge { background: #7a5a1a; }
+.dept-badge { padding: 1px 6px; border-radius: 3px; font-size: 11px; letter-spacing: .5px; color: #fff; background: var(--dept-apd); }
+.dept-fold[data-dept="gsp"] .dept-badge { background: var(--dept-gsp); }
+.dept-fold[data-dept="both"] .dept-badge { background: linear-gradient(90deg, var(--dept-apd) 0 50%, var(--dept-gsp) 50% 100%); }
+/* Listes toujours ouvertes (son service, appels communs) : pas de +/-, titre mis en avant */
+.dept-fold.locked > summary { cursor: default; }
+.dept-fold.locked > summary::before { content: ""; width: 0; }
+.dept-fold.locked > summary:hover { background: var(--face); }
+.dept-fold.own > summary { color: #fff; }
 .dept-count { margin-left: auto; font-weight: normal; font-size: 11px; color: var(--muted); }
 
 /* Proposition "unité la plus proche" (Y / N) */
@@ -1091,3 +1108,15 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .offer-toast .ct-head { gap: 10px; }
 .offer-toast .ct-head > span:first-child { white-space: nowrap; }
 .ct-number { white-space: nowrap; }
+
+/* Tag de service à côté du nom de l'unité (listes, barre latérale, aperçu, display MDC) */
+.unit-name-cell { display: inline-flex; align-items: center; gap: 6px; }
+.my-unit .dept-tag { margin-left: 2px; }
+.tag-preview-row { display: flex; align-items: center; gap: 6px; height: 26px; }
+.tag-preview-row .unit-tag { height: 26px; line-height: 22px; font-size: 12px; }
+.tag-preview-row .dept-tag { height: 22px; font-size: 11px; }
+.hu-name { display: inline-flex; align-items: center; gap: 6px; }
+.hu-dept { display: inline-flex; align-items: center; gap: 6px; }
+.hu-sep { color: #9a9a9a; font-weight: bold; }
+.hud-unit .dept-tag { height: 18px; font-size: 11px; }
+.hu-none { color: #8a8a8a; font-style: italic; }

@@ -22,7 +22,9 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
 
 ## Menu d'interactions (touche F1)
 
-Case **Police** : indique si vous êtes en service (dans une unité du MDC), puis les actions **Menotter**,
+Case **Police** : tout en bas, **Display MDC** : **Secteur** (zone de jeu, saisi à la main) et **Service principal**
+(menu déroulant : APD, GSP ou APD & GSP), enregistrés aussitôt, gardés chez le joueur et affichés sur le display du
+MDC (« aucun sélectionné » sinon). Au-dessus : si vous êtes en service (dans une unité du MDC), puis les actions **Menotter**,
 **Prendre par le bras**, **Placer l'individu à l'arrière du véhicule** et **Faire s'asseoir l'individu** : toujours affichées, **grisées** tant que
 personne (joueur ou PNJ) n'est assez près (2 m ; véhicule à 6 m pour placer), mises à jour en direct. Elles agissent
 sur l'individu le plus proche.

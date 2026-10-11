@@ -241,8 +241,19 @@ end
 
 local startLoop
 
+-- Secteur (zone de jeu) et service principal du policier : choisis dans le menu d'interactions
+-- (rp_interact, Police, tout en bas), publiés dans l'état du joueur ("policeSector", "policeService")
+-- et affichés sur le display MDC.
+local POLICE_SERVICES = { apd = 'APD', gsp = 'GSP', both = 'APD & GSP' }
+
+local function policeProfile(sector, service)
+    sector = type(sector) == 'string' and sector:sub(1, 40) or ''
+    return { sector = sector, service = POLICE_SERVICES[service] and service or '' }
+end
+local profile = policeProfile(LocalPlayer.state.policeSector, LocalPlayer.state.policeService)
+
 local function refreshHud()
-    SendNUIMessage({ action = 'hudState', data = { pld = pldAllowed(), unit = unitInfo } })
+    SendNUIMessage({ action = 'hudState', data = { pld = pldAllowed(), unit = unitInfo, profile = profile } })
     if pldActive() then startLoop() end
 end
 
@@ -265,6 +276,17 @@ startLoop = function()
         loopRunning = false
     end)
 end
+
+-- Changement de secteur / service (appelé AVANT l'enregistrement : la valeur reçue est utilisée)
+local myBag = ('player:%d'):format(GetPlayerServerId(PlayerId()))
+AddStateBagChangeHandler('policeSector', myBag, function(_, _, value)
+    profile = policeProfile(value, profile.service)
+    refreshHud()
+end)
+AddStateBagChangeHandler('policeService', myBag, function(_, _, value)
+    profile = policeProfile(profile.sector, value)
+    refreshHud()
+end)
 
 -- Accès au MDC + unité du joueur (nom, tag, statut, appel) : envoyés par le serveur à chaque changement
 RegisterNetEvent('mdc:client:hud', function(access, info)

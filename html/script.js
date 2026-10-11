@@ -374,6 +374,8 @@
     const tagColor = (color) => (TAG_COLORS.includes(color) ? color : 'gray');
     // Tag facultatif : rien n'est affiché si l'unité n'en a pas
     const unitTag = (u) => (u.tag ? `<span class="unit-tag tag-${tagColor(u.color)}">${esc(u.tag)}</span>` : '');
+    // Tag de service de l'unité (APD bleu foncé / GSP orange vif), à part du tag spécial (ex. SUP.)
+    const deptTag = (u) => (DEPARTMENTS[u.dept] ? `<span class="dept-tag dept-${esc(u.dept)}">${DEPARTMENTS[u.dept].short}</span>` : '');
     // Nom de l'unité précédé d'un carré de la couleur de son tag (appels, notes)
     const unitChip = (u) => `<span class="call-unit"><span class="unit-dot tag-${tagColor(u.color)}"></span>${esc(u.name)}</span>`;
 
@@ -384,7 +386,7 @@
     function renderSidebarUnit() {
         const unit = myUnit();
         $('#myUnit').innerHTML = unit
-            ? `${unitTag(unit)} <span>${esc(unit.name)}</span>${DEPARTMENTS[unit.dept] ? `<span class="dept-short">${DEPARTMENTS[unit.dept].short}</span>` : ''}`
+            ? `<span>${esc(unit.name)}</span>${deptTag(unit)}${unitTag(unit)}`
             : '<span class="muted">Aucune unité — rejoignez-en une dans l\'onglet Unités.</span>';
         $('#statusList').classList.toggle('no-unit', !unit);
         $$('.status-btn').forEach((b) => b.classList.toggle('active', !!unit && b.dataset.status === unit.status));
@@ -432,7 +434,7 @@
             const isMine = !!mine && mine.id === u.id;
             return `
             <tr class="${isMine ? 'me' : ''}">
-                <td><b>${esc(u.name)}</b></td>
+                <td><span class="unit-name-cell"><b>${esc(u.name)}</b>${deptTag(u)}</span></td>
                 <td>${unitTag(u) || '<span class="muted">Aucun</span>'}</td>
                 <td>${members.length ? members.map((m) => esc(m.name)).join(', ') : '<span class="muted">Aucun membre</span>'}</td>
                 <td><span class="badge"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</span></td>
@@ -452,7 +454,7 @@
         renderUnits();
         checkUnitChange(); // espace partagé d'unité
         if (state.callPanel.mode === 'view') renderInterventionDetail(); // boutons "Rejoindre l'appel"
-        applyDeptFolds(); // nouvelle unité / autre service : liste de son service ouverte
+        renderInterventionList(); // nouvelle unité / autre service : listes réordonnées
     }
 
     async function refreshUnits() {
@@ -478,6 +480,7 @@
     function updateTagPreview() {
         const data = new FormData(unitForm);
         $('#tagOtherField').classList.toggle('hidden', data.get('tagType') !== 'other');
+        $('#deptPreview').innerHTML = deptTag({ dept: data.get('dept') }); // tag de service (APD / GSP)
         const preview = $('#tagPreview');
         preview.textContent = tagValue(data) || 'Aucun tag';
         preview.className = `unit-tag tag-${data.get('color') || 'green'}`;
@@ -892,19 +895,47 @@
     const callFlag = (map, key) => (map[key] ? flag(map[key][0], map[key][1]) : '-');
     const findCall = (id) => state.interventions.find((c) => c.id === id) || null;
 
-    // Listes par service (APD / GSP), ouvrables : celle du service de l'unité du joueur est ouverte par
-    // défaut et l'autre fermée (hors unité : les deux ouvertes). Le choix du joueur est ensuite respecté,
-    // jusqu'à ce qu'il change de service.
+    // Service d'un appel : APD, GSP, ou les deux (appel commun). Doit correspondre à CALL_DEPTS (server.lua)
+    const CALL_DEPTS = {
+        apd: { short: 'APD', label: 'Atlanta Police Department' },
+        gsp: { short: 'GSP', label: 'Georgia State Patrol' },
+        both: { short: 'APD & GSP', label: 'APD & GSP (appel commun)' },
+    };
+    const callDept = (c) => (CALL_DEPTS[c.dept] ? c.dept : 'apd');
+    const callServes = (c, dept) => callDept(c) === 'both' || callDept(c) === dept;
+
+    // Listes des interventions par service. Policier : la liste de SON service est en haut et toujours
+    // ouverte, la liste commune (APD & GSP, affichée seulement s'il y a des appels communs) vient en
+    // deuxième et est toujours ouverte, la liste de l'autre service est fermée par défaut (il peut
+    // l'ouvrir pour la consulter, sans pouvoir rejoindre ses appels). Hors unité : APD, communs, GSP.
     let deptFoldsFor = null;
-    function applyDeptFolds() {
+    function arrangeDeptFolds(hasCommon) {
         const unit = myUnit();
-        const dept = unit && DEPARTMENTS[unit.dept] ? unit.dept : 'none';
-        if (deptFoldsFor === dept) return;
-        deptFoldsFor = dept;
-        $$('#interventionsLists .dept-fold').forEach((fold) => {
-            fold.open = dept === 'none' || fold.dataset.dept === dept;
+        const own = unit && DEPARTMENTS[unit.dept] ? unit.dept : null;
+        const other = own === 'apd' ? 'gsp' : (own === 'gsp' ? 'apd' : null);
+        const box = $('#interventionsLists');
+        const fold = (dept) => box.querySelector(`.dept-fold[data-dept="${dept}"]`);
+        (own ? [own, 'both', other] : ['apd', 'both', 'gsp']).forEach((dept) => box.appendChild(fold(dept)));
+        fold('both').classList.toggle('hidden', !hasCommon);
+        $$('#interventionsLists .dept-fold').forEach((f) => {
+            const locked = f.dataset.dept === 'both' || f.dataset.dept === own;
+            f.classList.toggle('locked', locked);
+            f.classList.toggle('own', f.dataset.dept === own);
+            if (locked) f.open = true;
         });
+        // Nouvelle unité / autre service : état par défaut (le choix du joueur est ensuite respecté)
+        if (deptFoldsFor !== (own || 'none')) {
+            deptFoldsFor = own || 'none';
+            if (other) fold(other).open = false;
+            else { fold('apd').open = true; fold('gsp').open = true; }
+        }
     }
+
+    // Listes toujours ouvertes : le clic sur leur titre ne les referme pas
+    $('#interventionsLists').addEventListener('click', (e) => {
+        const summary = e.target.closest('.dept-fold > summary');
+        if (summary && summary.parentElement.classList.contains('locked')) e.preventDefault();
+    });
 
     const callRow = (c, selected) => {
         // Ligne surlignée de la couleur de sa priorité (sauf terminée : grisée)
@@ -922,10 +953,9 @@
         const list = state.interventions;
         const selected = state.callPanel.id;
         $('#interventionsCount').textContent = `(${list.length})`;
-        applyDeptFolds();
-        Object.keys(DEPARTMENTS).forEach((dept) => {
-            // Appel sans service (ancien) : dans la liste APD
-            const items = list.filter((c) => (DEPARTMENTS[c.dept] ? c.dept : 'apd') === dept);
+        arrangeDeptFolds(list.some((c) => callDept(c) === 'both'));
+        Object.keys(CALL_DEPTS).forEach((dept) => {
+            const items = list.filter((c) => callDept(c) === dept);
             const open = items.filter((c) => !c.closed).length;
             $(`[data-dept-count="${dept}"]`).textContent = `(${open} en cours / ${items.length})`;
             $(`[data-dept-empty="${dept}"]`).classList.toggle('hidden', items.length > 0);
@@ -1043,16 +1073,20 @@
         ].sort((a, b) => a.at - b.at);
         const onCall = !!unit && units.some((u) => u.id === unit.id);
         const incident = c.kind === 'incident';
+        // Appel d'un seul service : seules ses unités peuvent le rejoindre (consultation pour les autres)
+        const allowed = !unit || onCall || callServes(c, unit.dept);
+        const reservedTo = callDept(c) === 'gsp' ? 'à la GSP' : 'à l\'APD';
 
         let actions = '';
         if (!c.closed) {
             actions = `
                 ${unit ? '' : '<div class="hint-box">Seules les unités peuvent rejoindre un appel : rejoignez d\'abord une unité (onglet Unités).</div>'}
+                ${allowed ? '' : `<div class="hint-box">Appel réservé ${reservedTo} : seules ses unités peuvent le rejoindre (consultation uniquement).</div>`}
                 <div class="toolbar call-actions">
-                    ${unit ? (onCall
+                    ${unit && allowed ? (onCall
                         ? '<button type="button" class="btn" data-call-action="leave">Quitter l\'appel</button>'
                         : `<button type="button" class="btn btn-default" data-call-action="join">Rejoindre l'appel (${esc(unit.name)})</button>`) : ''}
-                    <button type="button" class="btn" data-call-action="edit">Modifier</button>
+                    ${allowed ? '<button type="button" class="btn" data-call-action="edit">Modifier</button>' : ''}
                     <span class="grow"></span>
                     ${onCall ? '<button type="button" class="btn btn-danger" data-call-action="end">Intervention terminée</button>' : ''}
                 </div>`;
@@ -1064,7 +1098,7 @@
             <dl class="sheet">
                 ${row('N° d\'incident', c.number)}
                 ${row('Catégorie', incident ? 'Incident (déclaré par une unité)' : 'Intervention (appel)')}
-                ${row('Service de police', DEPARTMENTS[c.dept] ? DEPARTMENTS[c.dept].label : '-')}
+                ${dd('Service de police', `<span class="dept-tag dept-${esc(callDept(c))}">${esc(CALL_DEPTS[callDept(c)].short)}</span> ${esc(CALL_DEPTS[callDept(c)].label)}`)}
                 ${incident ? '' : row('Unités idéales', c.idealUnits ? `${c.idealUnits} (${toArray(c.units).length} sur l'appel)` : '-')}
                 ${dd('Déroulé', callFlag(CALL_STATUS, c.status))}
                 ${row(incident ? 'Type d\'incident' : 'Type d\'intervention', c.title)}
@@ -1096,6 +1130,20 @@
             ${reportStarterHtml()}`;
     }
 
+    // Nouvel incident : service de l'unité par défaut ; case pour le joindre aussi à l'autre service
+    function jointFieldHtml(unit) {
+        const own = unit && DEPARTMENTS[unit.dept] ? unit.dept : null;
+        if (!own) return '';
+        const to = own === 'apd' ? 'à la GSP' : 'à l\'APD';
+        return `
+            <div class="lbl span-2">Service
+                <span class="joint-row">
+                    <span class="dept-tag dept-${own}">${DEPARTMENTS[own].short}</span>
+                    <label class="check"><input type="checkbox" name="joint" value="1"> Joindre aussi l'incident ${to} (incident commun)</label>
+                </span>
+            </div>`;
+    }
+
     // Formulaire : nouvel incident (call absent) ou modification d'une intervention / d'un incident
     function callFormHtml(c) {
         const isNew = !c;
@@ -1115,7 +1163,8 @@
                 </div>
                 <div class="form-grid">
                     <label class="lbl span-2">${kind === 'incident' ? 'Type d\'incident' : 'Type d\'intervention'} *<input name="title" type="text" maxlength="60" value="${v('title')}"></label>
-                    ${kind === 'incident' ? `<label class="lbl span-2">Nom de l'unité créant l'incident<input type="text" value="${esc(unitName)}" disabled></label>` : `
+                    ${kind === 'incident' ? `<label class="lbl span-2">Nom de l'unité créant l'incident<input type="text" value="${esc(unitName)}" disabled></label>
+                        ${isNew ? jointFieldHtml(unit) : `<div class="lbl span-2">Service<span class="readonly-value">${esc(CALL_DEPTS[callDept(c)].label)}</span></div>`}` : `
                         <label class="lbl">Requérant *<input name="caller" type="text" maxlength="60" value="${v('caller')}"></label>
                         <label class="lbl">N° de téléphone du requérant *
                             <span class="inline">
@@ -2972,7 +3021,7 @@
                 <span class="ct-number">${esc(c.number)}</span>
             </div>
             <div class="ct-title">${esc(c.title)}</div>
-            ${DEPARTMENTS[c.dept] ? `<div class="ct-row"><span class="hud-label">SERVICE</span>${esc(DEPARTMENTS[c.dept].short)}</div>` : ''}
+            ${CALL_DEPTS[c.dept] ? `<div class="ct-row"><span class="hud-label">SERVICE</span>${esc(CALL_DEPTS[c.dept].short)}</div>` : ''}
             ${incident
                 ? `<div class="ct-row"><span class="hud-label">UNITÉ</span>${esc(c.unitName || '-')}</div>`
                 : `<div class="ct-row"><span class="hud-label">PRIORITÉ</span>${prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-'}</div>`}
@@ -3101,7 +3150,7 @@
     // Positions en fraction de l'écran (0 à 1, coin haut-gauche), taille en facteur (0.5 à 2)
     const HUD_DEFAULTS = {
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true, time: true },
-        unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true },
+        unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true, service: true },
         mdc: { zoom: 1, startTab: 'last' },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
     };
@@ -3112,6 +3161,7 @@
         settings: clone(HUD_DEFAULTS),
         pldAllowed: false,  // PLD autorisé (dès la connexion du joueur, voir client/hud.lua)
         unit: null,         // unité du joueur : { name, tag, color, status, dept, callNumber, callTitle }
+        profile: { sector: '', service: '' }, // secteur / service principal (menu d'interactions)
         pld: null,          // { street, crossing, dir, block, time, paused }
         placing: false,
         drag: null,
@@ -3148,7 +3198,8 @@
 
     // Exemple affiché en mode placement quand il n'y a pas encore de données
     const PLD_SAMPLE = { street: 'Nom de la rue', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
-    const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', status: 'available', callNumber: '00-0000' };
+    const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', dept: 'apd', status: 'available', callNumber: '00-0000' };
+    const PROFILE_SERVICES = { apd: 'APD', gsp: 'GSP', both: 'APD & GSP' };
 
     function placeHud(el, cfg) {
         el.style.left = `${Math.round(cfg.x * innerWidth)}px`;
@@ -3187,6 +3238,10 @@
         unitEl.classList.toggle('hidden', !showUnit);
         if (showUnit) {
             $('#huName').textContent = unit.name;
+            // "[N° d'unité] • [SERVICE]" : tag de service (APD bleu foncé / GSP orange), distinct du tag spécial
+            const dept = $('#huDept');
+            dept.innerHTML = DEPARTMENTS[unit.dept]
+                ? `<span class="hu-sep">•</span><span class="dept-tag dept-${esc(unit.dept)}">${esc(DEPARTMENTS[unit.dept].short)}</span>` : '';
             const tag = $('#huTag');
             tag.textContent = unit.tag || '';
             tag.className = `unit-tag tag-${tagColor(unit.color)}`;
@@ -3196,6 +3251,11 @@
             // N° d'incident ajouté seulement quand l'unité est sur un appel
             $('#huCall').textContent = unit.callNumber || '';
             unitEl.querySelector('[data-part="call"]').classList.toggle('part-empty', !unit.callNumber);
+            const profile = hud.profile || {};
+            $('#huSector').textContent = profile.sector || 'aucun sélectionné';
+            $('#huSector').classList.toggle('hu-none', !profile.sector);
+            $('#huService').textContent = PROFILE_SERVICES[profile.service] || 'aucun sélectionné';
+            $('#huService').classList.toggle('hu-none', !PROFILE_SERVICES[profile.service]);
             placeHud(unitEl, unitCfg);
         }
     }
@@ -4243,6 +4303,7 @@
             case 'hudState': // client/hud.lua : PLD autorisé + unité du joueur
                 hud.pldAllowed = !!(data.data && data.data.pld);
                 hud.unit = (data.data && data.data.unit) || null;
+                hud.profile = (data.data && data.data.profile) || { sector: '', service: '' };
                 renderHud();
                 break;
             case 'pld': // client/hud.lua : localisation (uniquement quand elle change)

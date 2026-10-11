@@ -170,6 +170,20 @@ button { font: inherit; }
 .menu-btn:hover { background: rgba(111, 177, 255, .16); border-color: #8fb8e6; }
 .menu-text { font-size: 12px; line-height: 1.5; color: var(--hud-muted); }
 
+/* Vue Police, en bas : secteur et service principal (display MDC) */
+.menu-profile {
+    display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding: 10px;
+    background: rgba(255, 255, 255, .04); border: 1px solid rgba(122, 122, 122, .45); border-radius: 7px;
+}
+.menu-profile-title { font-size: 11px; font-weight: bold; letter-spacing: .6px; text-transform: uppercase; color: var(--hud-muted); }
+.menu-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #fff; }
+.menu-field input[type="text"], .menu-field select {
+    height: 28px; padding: 0 8px; font: 13px var(--font); color: #fff; background: rgba(0, 0, 0, .45);
+    border: 1px solid rgba(122, 122, 122, .7); border-radius: 5px; outline: none; user-select: text;
+}
+.menu-field input[type="text"]:focus, .menu-field select:focus { border-color: #8fb8e6; }
+.menu-field select option { color: #111; }
+
 /* Case "Mode civil" (interrupteur) */
 .menu-toggle {
     display: flex; align-items: center; gap: 10px; padding: 9px 10px;

@@ -220,6 +220,26 @@
         post('policeAction', { action: btn.dataset.policeAction });
     }));
 
+    // ---- Secteur / service principal (vue Police, en bas) : enregistrés dès qu'ils changent ----
+    function renderPoliceProfile() {
+        const p = menu.data.policeProfile || {};
+        if (document.activeElement !== $('#policeSector')) $('#policeSector').value = p.sector || '';
+        $('#policeService').value = p.service || '';
+    }
+
+    let sectorTimer = null;
+    async function savePoliceProfile() {
+        clearTimeout(sectorTimer);
+        const res = await post('setPoliceProfile', { sector: $('#policeSector').value, service: $('#policeService').value });
+        if (res && res.ok) menu.data.policeProfile = res.profile;
+    }
+    $('#policeSector').addEventListener('input', () => {
+        clearTimeout(sectorTimer);
+        sectorTimer = setTimeout(savePoliceProfile, 400);
+    });
+    $('#policeSector').addEventListener('change', savePoliceProfile);
+    $('#policeService').addEventListener('change', savePoliceProfile);
+
     function setMenu(data) {
         menu.open = !!data.open;
         $('#menu').classList.toggle('hidden', !menu.open);
@@ -232,6 +252,7 @@
         menu.view = 'home';
         renderMenu();
         renderCivilMode();
+        renderPoliceProfile();
     }
 
     // ---- Barre de chargement (fouilles, menottes) ----

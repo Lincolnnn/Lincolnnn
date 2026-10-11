@@ -892,6 +892,14 @@ local DEPARTMENTS = {
     gsp = 'Georgia State Patrol',
 }
 
+-- Service d'un appel : un seul service, ou les deux ("both" : appel commun APD & GSP)
+local CALL_DEPTS = { apd = 'APD', gsp = 'GSP', both = 'APD & GSP' }
+
+--- L'appel concerne-t-il ce service ? (appel du service, ou appel commun)
+local function callServes(call, dept)
+    return call.dept == 'both' or call.dept == dept
+end
+
 local NextUnitId = 1
 local lastStatusChange = {}
 local pushInterventions -- défini dans la section INTERVENTIONS
@@ -1237,7 +1245,7 @@ local function buildCall(p, kind)
         if not PRIORITIES[p.priority] then return nil, 'Choisissez la priorité de l\'urgence.' end
         r.priority = p.priority
 
-        if not DEPARTMENTS[p.dept] then return nil, 'Choisissez le service de police (APD ou GSP).' end
+        if not CALL_DEPTS[p.dept] then return nil, 'Choisissez le service de police (APD, GSP ou APD & GSP).' end
         r.dept = p.dept
         local ideal = math.tointeger(tonumber(p.idealUnits) or 0)
         if not ideal or ideal < 1 or ideal > Config.MaxIdealUnits then
@@ -1261,12 +1269,12 @@ local function callSummary(call)
 end
 
 -- Notification "nouvelle intervention / nouvel incident" (en haut à droite de l'écran) : envoyée
--- uniquement aux membres des unités du service de l'appel (APD ou GSP), sauf aux unités qui ont reçu
--- la proposition "unité la plus proche" (`skip`).
+-- uniquement aux membres des unités du service de l'appel (APD, GSP, ou les deux pour un appel
+-- commun), sauf aux unités qui ont reçu la proposition "unité la plus proche" (`skip`).
 local function notifyNewCall(call, skip)
     local data = callSummary(call)
     for _, unit in ipairs(Units) do
-        if unit.dept == call.dept and not (skip and skip[unit.id]) then
+        if callServes(call, unit.dept) and not (skip and skip[unit.id]) then
             for key in pairs(unit.members) do TriggerClientEvent('mdc:client:callNotify', tonumber(key), data) end
         end
     end
@@ -1318,7 +1326,7 @@ end
 local function offerCandidates(call, offers)
     local list = {}
     for _, unit in ipairs(Units) do
-        if unit.dept == call.dept and unit.status == 'available' and not isSupervisor(unit)
+        if callServes(call, unit.dept) and unit.status == 'available' and not isSupervisor(unit)
             and not call.units[tostring(unit.id)] and not offers.offered[unit.id] then
             local d = unitDistance(unit, call.coords)
             if d then list[#list + 1] = { unit = unit, distance = d } end
@@ -1448,7 +1456,8 @@ RegisterMDCCallback('createIncident', function(src, payload)
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
 
     call.unitName = unit.name -- nom de l'unité déclarante (automatique)
-    call.dept = unit.dept     -- service de l'unité déclarante
+    -- Service de l'unité déclarante ; case "joindre aussi l'autre service" : incident commun
+    call.dept = (payload.joint == true or payload.joint == '1' or payload.joint == 'on') and 'both' or unit.dept
     return addCall(src, call, 'incident', unit)
 end)
 
@@ -1469,6 +1478,11 @@ RegisterMDCCallback('interventionAction', function(src, payload)
     local key = tostring(unit.id)
 
     if payload.action == 'join' then
+        -- Appel d'un seul service : réservé à ses unités (appel commun : les deux services)
+        if not callServes(call, unit.dept) then
+            local to = ({ apd = 'à l\'APD', gsp = 'à la GSP' })[call.dept] or 'à un autre service'
+            return { ok = false, error = ('Cet appel est réservé %s : seules ses unités peuvent le rejoindre.'):format(to) }
+        end
         joinCall(call, unit) -- rejoindre un appel passe l'unité "En route"
         local offers = Offers[call.id]
         if offers and offers.pending[unit.id] then closeOffer(call, unit, 'accepted') end

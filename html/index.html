@@ -99,7 +99,7 @@
                                     <label class="swatch" title="Gris foncé"><input type="radio" name="color" value="gray"><span class="swatch-box tag-gray"></span></label>
                                 </div>
                             </div>
-                            <div class="lbl">Aperçu<span class="unit-tag tag-green" id="tagPreview">Aucun tag</span></div>
+                            <div class="lbl">Aperçu<span class="tag-preview-row"><span id="deptPreview"></span><span class="unit-tag tag-green" id="tagPreview">Aucun tag</span></span></div>
                             <div class="unit-form-actions">
                                 <button type="button" class="btn" id="unitCancelEdit">Annuler</button>
                                 <button type="submit" class="btn btn-default" id="unitSubmit">Créer l'unité</button>
@@ -243,8 +243,7 @@
                                 <span class="grow"></span>
                                 <button class="btn" id="refreshInterventions">Actualiser</button>
                             </div>
-                            <!-- Une liste par service (ouvrable / refermable) : celle du service de l'unité du
-                                 joueur est ouverte par défaut, l'autre fermée -->
+                            <!-- Une liste par service + une liste commune (ordre et ouverture gérés par script.js) -->
                             <div class="well dept-lists" id="interventionsLists">
                                 <details class="dept-fold" data-dept="apd">
                                     <summary><span class="dept-badge">APD</span>Atlanta Police Department <span class="dept-count" data-dept-count="apd"></span></summary>
@@ -253,6 +252,15 @@
                                         <tbody data-dept-body="apd"></tbody>
                                     </table>
                                     <div class="empty" data-dept-empty="apd">Aucune intervention.</div>
+                                </details>
+                                <!-- Appels communs aux deux services : liste affichée seulement s'il y en a, toujours ouverte -->
+                                <details class="dept-fold hidden" data-dept="both">
+                                    <summary><span class="dept-badge">APD &amp; GSP</span>Appels communs <span class="dept-count" data-dept-count="both"></span></summary>
+                                    <table class="grid selectable">
+                                        <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
+                                        <tbody data-dept-body="both"></tbody>
+                                    </table>
+                                    <div class="empty" data-dept-empty="both">Aucune intervention.</div>
                                 </details>
                                 <details class="dept-fold" data-dept="gsp">
                                     <summary><span class="dept-badge">GSP</span>Georgia State Patrol <span class="dept-count" data-dept-count="gsp"></span></summary>
@@ -610,6 +618,7 @@
                                         <option value="">— Choisir —</option>
                                         <option value="apd">Atlanta Police Department</option>
                                         <option value="gsp">Georgia State Patrol</option>
+                                        <option value="both">APD &amp; GSP (appel commun)</option>
                                     </select>
                                 </label>
                                 <label class="lbl">Nombre idéal d'unités *
@@ -749,6 +758,8 @@
                                         <label class="check"><input type="checkbox" data-setting="unit.tag"> Tag</label>
                                         <label class="check"><input type="checkbox" data-setting="unit.status"> Statut</label>
                                         <label class="check"><input type="checkbox" data-setting="unit.call"> N° d'incident</label>
+                                        <label class="check"><input type="checkbox" data-setting="unit.sector"> Secteur</label>
+                                        <label class="check"><input type="checkbox" data-setting="unit.service"> Service principal</label>
                                     </div>
                                 </div>
                                 <div class="setting-row">
@@ -935,12 +946,16 @@
 
     <!-- Display MDC : unité du joueur -->
     <div class="hud hud-unit hidden" id="hudUnit" data-hud="unit">
+        <!-- "[N° D'UNITÉ] • [SERVICE]" puis le tag spécial (ex. SUP.) -->
         <div class="hu-head">
-            <span class="hu-name" data-part="name" id="huName"></span>
+            <span class="hu-name" data-part="name"><span id="huName"></span><span class="hu-dept" id="huDept"></span></span>
             <span class="unit-tag" data-part="tag" id="huTag"></span>
         </div>
         <div class="hu-line" data-part="status"><span class="sq" id="huSq"></span><span id="huStatus"></span></div>
         <div class="hu-line" data-part="call"><span class="hud-label">APPEL</span><span id="huCall"></span></div>
+        <!-- Secteur et service principal : menu d'interactions (rp_interact) > Police -->
+        <div class="hu-line" data-part="sector"><span class="hud-label">SECTEUR</span><span id="huSector"></span></div>
+        <div class="hu-line" data-part="service"><span class="hud-label">SERVICE</span><span id="huService"></span></div>
     </div>
 
     <!-- Mode placement (onglet Paramètres) -->

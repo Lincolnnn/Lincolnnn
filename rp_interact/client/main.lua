@@ -321,6 +321,40 @@ end
 -- =========================================================================
 -- MENU D'INTERACTIONS
 -- =========================================================================
+-- =========================================================================
+-- SECTEUR ET SERVICE PRINCIPAL DU POLICIER (menu > Police, en bas)
+-- Gardés chez le joueur (KVP) et publiés dans son état ("policeSector", "policeService") : le MDC les
+-- affiche sur son display (zone de jeu et service : APD, GSP ou APD & GSP).
+-- =========================================================================
+local POLICE_SERVICES = { apd = true, gsp = true, both = true }
+local KVP_SECTOR, KVP_SERVICE = 'rpi_police_sector', 'rpi_police_service'
+
+local function cleanSector(text)
+    text = type(text) == 'string' and text:gsub('%c', ' '):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '') or ''
+    if utf8.len(text) and utf8.len(text) > 40 then text = text:sub(1, utf8.offset(text, 41) - 1) end
+    return text
+end
+
+local function policeProfile()
+    local service = GetResourceKvpString(KVP_SERVICE) or ''
+    return { sector = cleanSector(GetResourceKvpString(KVP_SECTOR)), service = POLICE_SERVICES[service] and service or '' }
+end
+
+local function publishPoliceProfile(profile)
+    LocalPlayer.state:set('policeSector', profile.sector, true)
+    LocalPlayer.state:set('policeService', profile.service, true)
+end
+publishPoliceProfile(policeProfile()) -- à la connexion / au redémarrage de la ressource
+
+RegisterNUICallback('setPoliceProfile', function(data, cb)
+    data = type(data) == 'table' and data or {}
+    local profile = { sector = cleanSector(data.sector), service = POLICE_SERVICES[data.service] and data.service or '' }
+    SetResourceKvp(KVP_SECTOR, profile.sector)
+    SetResourceKvp(KVP_SERVICE, profile.service)
+    publishPoliceProfile(profile)
+    cb({ ok = true, profile = profile })
+end)
+
 local function openMenu()
     if RPI.uiOpen() or IsPauseMenuActive() or (RPI.targetActive and RPI.targetActive()) then return end
     RPI.request('getMenuState', {}, function(res)
@@ -333,6 +367,7 @@ local function openMenu()
             targetKey = Config.TargetKey == 'LMENU' and 'Alt' or Config.TargetKey,
             civilMode = RPI.civilMode and RPI.civilMode() or false,
             tipsManual = RPI.tipsManual and RPI.tipsManual() or false,
+            policeProfile = policeProfile(),
         } })
     end)
 end

@@ -61,6 +61,21 @@
             <button type="button" class="menu-btn police-action" data-police-action="place" disabled>Placer l'individu à l'arrière du véhicule</button>
             <button type="button" class="menu-btn police-action" data-police-action="seat" disabled>Faire s'asseoir l'individu</button>
             <p class="menu-text" id="menuPoliceText"></p>
+            <!-- Secteur (zone de jeu) et service principal : affichés sur le display MDC -->
+            <div class="menu-profile">
+                <div class="menu-profile-title">Display MDC</div>
+                <label class="menu-field">Secteur
+                    <input type="text" id="policeSector" maxlength="40" placeholder="ex : Downtown, I-75 Nord…">
+                </label>
+                <label class="menu-field">Service principal
+                    <select id="policeService">
+                        <option value="">— Aucun —</option>
+                        <option value="apd">APD</option>
+                        <option value="gsp">GSP</option>
+                        <option value="both">APD &amp; GSP</option>
+                    </select>
+                </label>
+            </div>
         </div>
     </div>
 
