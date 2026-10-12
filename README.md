@@ -98,13 +98,15 @@ fond), visibles même MDC fermé :
   l'unité est sur un appel), **secteur** (zone de jeu) et **service principal** (APD, GSP ou APD & GSP) choisis dans le
   menu d'interactions (`rp_interact`, Police, tout en bas) : « aucun sélectionné » tant que rien n'est choisi. Chaque
   ligne se masque dans « Paramètres ».
-- **Car HUD**, à bord d'un véhicule, **au-dessus de la minimap** et **sans aucun fond** (ni opaque, ni transparent,
+- **Car HUD**, à bord d'un véhicule **moteur allumé** (complet pour le conducteur, seulement le logo de la ceinture
+  pour les passagers), **au-dessus de la minimap** et **sans aucun fond** (ni opaque, ni transparent,
   ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple nombre, **grisée et
   transparente tant que le frein de parcage est serré**, blanche une fois desserré), une fine **barre horizontale
   d'accélération** (régime du moteur, rouge près du maximum), une **jauge d'essence verticale** (orange sous 15 %, rouge
-  sous 5 %), le petit **logo de la ceinture** et, à côté, un **logo rouge « véhicule cassé »**, jamais visible sauf quand
+  sous 5 %), le petit **logo de la ceinture** (contour noir : vide = détachée, blanc = attachée, clignote en rouge pâle
+  en roulant sans ceinture) et, à côté, un **logo rouge « véhicule cassé »**, jamais visible sauf quand
   le véhicule est hors d'usage. En montant côté conducteur, une **notification glisse depuis la gauche juste au-dessus
-  du car HUD** et présente la touche du moteur (**O**). Déplaçable et redimensionnable comme les autres HUD ; chaque
+  du car HUD** et présente la touche du moteur (**O**) ; elle disparaît après 8 secondes. Déplaçable et redimensionnable comme les autres HUD ; chaque
   élément se masque dans « Paramètres », avec le volume des sons de la ceinture.
   Les données (essence, dégâts, ceinture, moteur, frein de parcage) viennent de **Vehicle Control**
   ([`rp_vehiclecontrol/`](rp_vehiclecontrol/README.md)) : sans cette ressource, le car HUD n'apparaît pas

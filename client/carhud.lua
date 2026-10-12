@@ -10,10 +10,11 @@
 ]]
 
 local ACTIONS = {
-    carHud = true,     -- { show, speed, rpm, fuel, belt, alarm, broken, parked, paused }
+    carHud = true,     -- { inVehicle, show, mode = 'driver' | 'passenger', speed, rpm, fuel, belt, alarm, broken, parked, paused }
     beltSound = true,  -- { kind = 'on' | 'off', volume }
     beltBeep = true,   -- { volume } (0 = arrêt)
     carNotice = true,  -- { key, text, hint, duration } : notification au-dessus du car HUD
+    carNoticeHide = true, -- touche du moteur utilisée : notification masquée
 }
 
 AddEventHandler('mdc:carHud', function(action, data)

@@ -4,7 +4,8 @@
     MOTEUR (touche O, conducteur) : un véhicule apparaît moteur COUPÉ. O l'allume et le marque
       "toujours allumé" (état "vcEngine") : il le reste, même quand le joueur descend. O de nouveau :
       coupé. Accélérer démarre aussi le moteur comme dans le jeu de base (sans le marquer).
-      En montant côté conducteur, une notification (car HUD du MDC) présente la touche.
+      En montant côté conducteur, une notification (car HUD du MDC) présente la touche ; elle disparaît
+      au bout de 8 s (EngineNoticeDuration), même sans appuyer, ou dès que la touche est utilisée.
       Panne sèche ou véhicule cassé : impossible à démarrer.
     PORTIÈRES (depuis l'intérieur, sans notification à l'écran : un message privé dans le chat) :
       - touche U : sa portière (avant gauche pour le conducteur, avant droite pour le passager avant) ;
@@ -13,7 +14,8 @@
       refermée par la touche de l'autre (état "vcDoors" : qui a ouvert chaque portière).
     FREIN DE PARCAGE (touche L, conducteur ; état "vcBrake") : serré, le véhicule ne bouge pas et
       n'avance pas (accélérer / reculer bloqués) ; il faut le desserrer. Desserré, le véhicule laissé est
-      libre : il roule en pente, se déplace s'il est percuté, et un joueur à pied peut le pousser.
+      libre : il roule en pente, se déplace s'il est percuté, et un joueur à pied peut le pousser
+      (push.lua).
       Car HUD : vitesse grisée et transparente tant qu'il est serré.
     Touches modifiables : Paramètres > Raccourcis clavier > FiveM.
 ]]
@@ -68,6 +70,7 @@ end
 local function toggleEngine()
     local vehicle = VC.vehicle
     if not VC.isDriver() or IsPauseMenuActive() then return end
+    VC.toHud('carNoticeHide', {}) -- touche utilisée : la notification disparaît
     if VC.state(vehicle, 'vcEngine') == true then
         VC.setState(vehicle, 'vcEngine', false)
         SetVehicleKeepEngineOnWhenAbandoned(vehicle, false)
@@ -261,46 +264,6 @@ end
 
 VC.on('leave', function(vehicle, seat)
     if seat == -1 and DoesEntityExist(vehicle) then watchParked(vehicle) end
-end)
-
--- Pousser un véhicule sans frein de parcage, sans conducteur : à pied, contre l'avant ou l'arrière,
--- en avançant (boucle à chaque image seulement au contact d'un tel véhicule)
-local pushing = false
-
-local function pushLoop(vehicle)
-    pushing = true
-    CreateThread(function()
-        while true do
-            local ped = PlayerPedId()
-            if IsPedInAnyVehicle(ped, false) or IsEntityDead(ped) or not DoesEntityExist(vehicle)
-                or GetPedInVehicleSeat(vehicle, -1) ~= 0 or VC.state(vehicle, 'vcBrake') == true
-                or #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) > 4.0 then
-                break
-            end
-            if IsEntityTouchingEntity(ped, vehicle) and IsControlPressed(0, 32) then
-                if controlled(vehicle) then
-                    local vf, pf = GetEntityForwardVector(vehicle), GetEntityForwardVector(ped)
-                    local sign = (vf.x * pf.x + vf.y * pf.y) >= 0.0 and 1.0 or -1.0 -- pousse vers l'avant ou l'arrière
-                    SetVehicleHandbrake(vehicle, false)
-                    SetVehicleForwardSpeed(vehicle, sign * Config.PushSpeed)
-                else
-                    NetworkRequestControlOfEntity(vehicle)
-                end
-            end
-            Wait(0)
-        end
-        pushing = false
-    end)
-end
-
-VC.on('idle', function(ped)
-    if pushing or IsEntityDead(ped) then return end
-    local pos = GetEntityCoords(ped)
-    local vehicle = GetClosestVehicle(pos.x, pos.y, pos.z, 3.5, 0, 70)
-    if vehicle ~= 0 and GetPedInVehicleSeat(vehicle, -1) == 0 and VC.state(vehicle, 'vcBrake') ~= true
-        and GetVehicleClass(vehicle) <= 12 then
-        pushLoop(vehicle)
-    end
 end)
 
 AddEventHandler('onResourceStop', function(resource)

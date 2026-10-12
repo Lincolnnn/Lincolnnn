@@ -13,5 +13,5 @@ end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
-    VC.toHud('carHud', { show = false })
+    VC.toHud('carHud', { inVehicle = false, show = false })
 end)

@@ -17,6 +17,8 @@ VCConfig = {
         door = 'U',          -- sa portière : avant gauche (conducteur) / avant droite (passager avant)
         frontDoors = 'I',    -- les deux portières avant en même temps (conducteur uniquement)
         parkingBrake = 'L',  -- frein de parcage (conducteur)
+        push = 'K',          -- à pied, devant / derrière un véhicule : pousser / arrêter de pousser
+                             -- (près d'un véhicule poussable, K n'ouvre pas le MDC)
     },
 
     -- ---------------------------------------------------------------------
@@ -109,8 +111,22 @@ VCConfig = {
     -- ---------------------------------------------------------------------
     -- MOTEUR, PORTIÈRES, FREIN DE PARCAGE
     -- ---------------------------------------------------------------------
-    EngineNoticeDuration = 6000,  -- ms : notification "O" en montant côté conducteur
+    EngineNoticeDuration = 8000,  -- ms : notification "O" en montant côté conducteur (disparaît ensuite)
     ParkedRange = 60.0,           -- m : sans frein de parcage, le véhicule laissé reste libre (pente,
                                   -- choc, poussé) tant que son dernier conducteur est à cette distance
-    PushSpeed = 1.1,              -- m/s : vitesse à laquelle un joueur à pied pousse un véhicule sans frein
+
+    -- ---------------------------------------------------------------------
+    -- POUSSER UN VÉHICULE (à pied, devant le capot ou derrière le coffre, sans conducteur ni frein
+    -- de parcage) : touche Keys.push, puis avancer (Z / W) ; Q / D (A / D) tournent les roues.
+    -- ---------------------------------------------------------------------
+    Push = {
+        Speed = 1.1,              -- m/s : vitesse du véhicule poussé
+        Reach = 1.4,              -- m : zone devant le capot / derrière le coffre où le message apparaît
+        Gap = 0.35,               -- m : distance entre le personnage et le pare-chocs pendant la poussée
+        Height = 0.95,            -- m : hauteur du personnage par rapport au bas du véhicule
+        Anim = { dict = 'missfinale_c2ig_11', clip = 'pushcar_offcliff_m' },
+        -- Classes poussables : voitures, SUV, utilitaires, services, urgences, commerciaux
+        Classes = { [0] = true, [1] = true, [2] = true, [3] = true, [4] = true, [5] = true, [6] = true,
+            [7] = true, [9] = true, [10] = true, [11] = true, [12] = true, [17] = true, [18] = true, [20] = true },
+    },
 }

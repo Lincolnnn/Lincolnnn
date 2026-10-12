@@ -3210,7 +3210,7 @@
     const PLD_SAMPLE = { street: 'Nom de la rue', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
     const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', dept: 'apd', status: 'available', callNumber: '00-0000' };
     const PROFILE_SERVICES = { apd: 'APD', gsp: 'GSP', both: 'APD & GSP' };
-    const CAR_SAMPLE = { show: true, speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true };
+    const CAR_SAMPLE = { inVehicle: true, show: true, mode: 'driver', speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true };
 
     function placeHud(el, cfg) {
         el.style.left = `${Math.round(cfg.x * innerWidth)}px`;
@@ -3281,8 +3281,10 @@
         const car = hud.car && hud.car.show ? hud.car : (hud.placing ? CAR_SAMPLE : null);
         const show = cfg.enabled && !!car && (hud.placing || !car.paused);
         el.classList.toggle('hidden', !show);
-        placeCarNotice(show);
+        placeCarNotice();
         if (!show) return;
+        // Conducteur : car HUD complet ; passagers : seulement le logo de la ceinture
+        el.classList.toggle('car-passenger', car.mode === 'passenger');
         $('#carSpeed').textContent = Math.max(0, Math.round(car.speed || 0));
         // Frein de parcage serré : vitesse grisée et transparente
         el.querySelector('.car-speed').classList.toggle('car-parked', !!car.parked);
@@ -3306,20 +3308,19 @@
         const belt = $('#carBelt');
         belt.classList.toggle('part-empty', typeof car.belt !== 'boolean');
         belt.classList.toggle('belt-on', car.belt === true);
-        belt.classList.toggle('belt-off', car.belt === false);
-        belt.classList.toggle('belt-alarm', car.belt === false && !!car.alarm);
+        belt.classList.toggle('belt-blink', car.belt === false && (car.speed || 0) >= 1); // roule sans ceinture
         placeHud(el, cfg);
     }
 
     // Notification du moteur : au-dessus du car HUD (même position / taille), glisse depuis la gauche
     const carNotice = { timer: null, hideTimer: null };
-    function placeCarNotice(visible) {
+    // (affichée même quand le car HUD est masqué : moteur coupé à la montée)
+    function placeCarNotice() {
         const anchor = $('#carNoticeAnchor');
         const cfg = hud.settings.car;
         anchor.style.left = `${Math.round(cfg.x * innerWidth)}px`;
         anchor.style.top = `${Math.round(cfg.y * innerHeight)}px`;
         anchor.style.transform = `scale(${cfg.scale})`;
-        if (!visible) hideCarNotice(true);
     }
     function hideCarNotice(now) {
         const box = $('#carNotice');
@@ -4415,7 +4416,11 @@
                 break;
             case 'carHud': // client/carhud.lua : vitesse, régime, essence, ceinture (uniquement quand ça change)
                 hud.car = data.data || null;
+                if (!(hud.car && hud.car.inVehicle)) hideCarNotice(true); // descendu du véhicule
                 renderCar();
+                break;
+            case 'carNoticeHide': // touche du moteur utilisée
+                hideCarNotice(false);
                 break;
             case 'beltSound': // ceinture attachée / détachée (soi-même ou un joueur proche)
                 if (data.data) playSound(data.data.kind === 'on' ? 'belt_on' : 'belt_off', beltVolume(data.data.volume));

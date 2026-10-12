@@ -796,8 +796,9 @@
                                     <button type="button" class="btn btn-small" id="beltTest">Tester</button>
                                 </div>
                                 <p class="hint-text setting-text">Données fournies par <b>Vehicle Control</b> (rp_vehiclecontrol) : moteur <b>O</b>,
-                                    ceinture <b>G</b>, portières <b>U</b> / <b>I</b>, frein de parcage <b>L</b> (modifiables : Paramètres &gt; Raccourcis
-                                    clavier &gt; FiveM). Frein de parcage serré : vitesse grisée. Ceinture détachée : bip dès 5 MPH jusqu'à l'arrêt.</p>
+                                    ceinture <b>G</b>, portières <b>U</b> / <b>I</b>, frein de parcage <b>L</b>, pousser un véhicule <b>K</b> (modifiables : Paramètres &gt; Raccourcis
+                                    clavier &gt; FiveM). Car HUD affiché moteur allumé (passagers : logo de la ceinture seul). Frein de parcage serré : vitesse grisée.
+                                    Ceinture détachée : bip dès 5 MPH jusqu'à l'arrêt.</p>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn" data-hud-reset="car">Réinitialiser position et taille</button>
                                 </div>
@@ -1000,10 +1001,11 @@
             <div class="car-top">
                 <span class="car-speed" data-part="speed"><span id="carSpeed">0</span><span class="car-unit">MPH</span></span>
                 <span class="car-belt" data-part="belt" id="carBelt" title="Ceinture">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="9" cy="3.8" r="2.3" fill="currentColor" stroke="none"/>
-                        <path d="M8 8.4v6.8h6.6l2.4 6" stroke-width="2.6"/>
-                        <path d="M12.4 8.2L5.6 15.6" stroke-width="1.7"/>
+                    <!-- Silhouette assise + sangle : contour noir ; vide = détachée, blanche = attachée -->
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="9.2" cy="4" r="2.5"/>
+                        <path d="M7.4 7.9h3.3a1.6 1.6 0 0 1 1.6 1.6v3.9h3.6a1.7 1.7 0 0 1 1.6 1.1l2.1 5.4a1.3 1.3 0 0 1-2.4 1l-1.8-4.6H7.4a1.6 1.6 0 0 1-1.6-1.6V9.5a1.6 1.6 0 0 1 1.6-1.6z"/>
+                        <path d="M12.6 7.2l1.5 1.4-7.4 8-1.5-1.4z"/>
                     </svg>
                 </span>
                 <!-- Véhicule cassé : jamais visible, sauf quand le véhicule est hors d'usage (rouge) -->

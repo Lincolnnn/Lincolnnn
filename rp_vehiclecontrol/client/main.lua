@@ -179,28 +179,44 @@ end)
 -- =========================================================================
 local lastKey = nil
 
+local HUD_KEYS = { 'inVehicle', 'show', 'mode', 'speed', 'rpm', 'fuel', 'belt', 'alarm', 'broken', 'parked', 'paused' }
+
 local function sendHud(data)
-    local key = data.show and ('%d|%.2f|%s|%s|%s|%s|%s|%s'):format(data.speed, data.rpm, tostring(data.fuel),
-        tostring(data.belt), tostring(data.alarm), tostring(data.broken), tostring(data.parked), tostring(data.paused)) or 'hidden'
+    local parts = {}
+    for i, k in ipairs(HUD_KEYS) do parts[i] = tostring(data[k]) end
+    local key = table.concat(parts, '|')
     if key == lastKey then return end
     lastKey = key
     VC.toHud('carHud', data)
 end
 
--- Enregistré en dernier (fichier hud.lua) : les modules ont déjà rempli VC.hud
+-- Enregistré en dernier (fichier hud.lua) : les modules ont déjà rempli VC.hud.
+-- Car HUD affiché seulement à bord ET moteur allumé :
+--   - conducteur : car HUD complet (vitesse, accélération, essence, ceinture, véhicule cassé) ; aussi
+--     moteur coupé quand le véhicule est cassé ou en panne sèche (pour comprendre pourquoi il ne
+--     démarre pas) ;
+--   - passagers : uniquement le logo de la ceinture.
 function VC.sendHud(vehicle)
+    local driver = VC.seat == -1
+    local running = GetIsVehicleEngineRunning(vehicle)
     local speed = GetEntitySpeed(vehicle) * VC.MPH
-    local rpm = GetIsVehicleEngineRunning(vehicle) and GetVehicleCurrentRpm(vehicle) or 0.0
+    local rpm = running and GetVehicleCurrentRpm(vehicle) or 0.0
     rpm = math.max(0.0, math.min(1.0, (rpm - 0.2) / 0.8)) -- ralenti ~0.2 -> 0 %, régime maximal -> 100 %
     local h = VC.hud
+    local broken = VC.state(vehicle, 'vcBroken') == true
+    local empty = h.fuel ~= nil and h.fuel <= 0.0
+    local show = running or (driver and (broken or empty))
+    if not driver and h.belt == nil then show = false end -- passager sans ceinture (moto…) : rien
     local data = {
-        show = true,
+        inVehicle = true,
+        show = show,
+        mode = driver and 'driver' or 'passenger',
         speed = math.floor(speed + 0.5),
         rpm = math.floor(rpm * 50 + 0.5) / 50,
         fuel = h.fuel and math.floor(h.fuel + 0.5) or nil, -- nil : pas de réservoir (jauge masquée)
         alarm = h.alarm == true,
-        broken = VC.state(vehicle, 'vcBroken') == true,  -- logo rouge "véhicule cassé"
-        parked = VC.state(vehicle, 'vcBrake') == true,    -- frein de parcage : vitesse grisée
+        broken = broken,                                   -- logo rouge "véhicule cassé"
+        parked = VC.state(vehicle, 'vcBrake') == true,     -- frein de parcage : vitesse grisée
         paused = IsPauseMenuActive() or IsScreenFadedOut(),
     }
     if h.belt ~= nil then data.belt = h.belt end -- absent : pas de ceinture (logo masqué)
@@ -208,7 +224,7 @@ function VC.sendHud(vehicle)
 end
 
 function VC.hideHud()
-    sendHud({ show = false })
+    sendHud({ inVehicle = false, show = false })
 end
 
 -- MDC (re)démarré / NUI rechargé : état renvoyé à la prochaine mise à jour

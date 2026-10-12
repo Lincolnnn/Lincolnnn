@@ -919,12 +919,17 @@ input.invalid, select.invalid, textarea.invalid { border-color: #ff5a5a; backgro
 .car-fuel-fill.car-empty { background: #ff4a3d; }
 .car-fuel-icon { width: 11px; height: 11px; color: #c9c9c9; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .9)); }
 /* Ceinture : discrète une fois attachée, rouge sinon, clignote pendant l'alarme */
-.car-belt { display: inline-flex; width: 20px; height: 20px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .9)); }
-.car-belt svg { width: 100%; height: 100%; }
-.car-belt.belt-on { color: rgba(235, 235, 235, .5); }
-.car-belt.belt-off { color: #ff4a3d; }
-.car-belt.belt-alarm { animation: belt-blink .9s steps(1, end) infinite; }
-@keyframes belt-blink { 50% { opacity: .25; } }
+/* Ceinture : contour noir ; détachée = transparente (sans couleur), attachée = remplie de blanc,
+   détachée pendant que le véhicule roule = clignote en rouge pâle */
+.car-belt { display: inline-flex; width: 22px; height: 22px; }
+.car-belt svg { width: 100%; height: 100%; overflow: visible; }
+.car-belt svg * { fill: transparent; stroke: #000; stroke-width: 1.3; stroke-linejoin: round; transition: fill .2s; }
+.car-belt.belt-on svg * { fill: #fff; }
+.car-belt.belt-blink svg * { animation: belt-blink 1s steps(1, end) infinite; }
+@keyframes belt-blink { 0% { fill: #ff9e96; } 50% { fill: transparent; } }
+/* Passagers : seul le logo de la ceinture */
+.hud-car.car-passenger .car-fuel, .hud-car.car-passenger .car-speed,
+.hud-car.car-passenger .car-rpm, .hud-car.car-passenger .car-broken { display: none !important; }
 /* Véhicule cassé : logo rouge, à côté de la ceinture, visible uniquement quand il est hors d'usage */
 .car-broken { display: inline-flex; width: 22px; height: 22px; color: #ff3b30; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .9)); }
 .car-broken svg { width: 100%; height: 100%; }

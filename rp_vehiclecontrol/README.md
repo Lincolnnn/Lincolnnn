@@ -23,14 +23,27 @@ passent par le chat d'origine.
 | **U** | conducteur, passager avant | Ouvrir / refermer **sa** portière (avant gauche / avant droite) |
 | **I** | conducteur | Ouvrir / refermer les **deux portières avant** ensemble |
 | **L** | conducteur | Serrer / desserrer le **frein de parcage** |
+| **K** | à pied | Devant le capot / derrière le coffre : **pousser** le véhicule / arrêter de pousser |
 
 En voiture, aucun rappel des touches à l'écran (seule la notification du moteur, en montant côté conducteur).
+
+## Car HUD (dessiné par le MDC)
+
+- Affiché **uniquement à bord ET moteur allumé**. Exception pour le conducteur : moteur coupé parce que le véhicule
+  est **cassé** ou en **panne sèche**, le car HUD reste affiché (logo rouge, jauge vide) pour comprendre pourquoi il
+  ne démarre pas.
+- **Conducteur** : car HUD complet (vitesse, accélération, essence, ceinture, véhicule cassé).
+  **Passagers** : uniquement le **logo de la ceinture**.
+- **Logo de la ceinture** : contour noir ; **transparent, sans couleur** quand elle n'est pas mise, **rempli de
+  blanc** quand elle est mise, **clignote en rouge pâle** quand le véhicule roule sans ceinture.
 
 ## Moteur
 
 - Un véhicule **apparaît moteur coupé** : en montant, il reste coupé (le démarrage automatique du jeu est bloqué).
 - En montant **côté conducteur**, une notification **glisse depuis la gauche, juste au-dessus du car HUD** : touche
   **O** « Allumer le moteur — il reste allumé, même en descendant » (ou « Couper le moteur » s'il tourne déjà).
+  Elle **disparaît 8 secondes** après la montée, même sans appuyer (`EngineNoticeDuration`), ou dès que **O** est
+  utilisée.
 - **O** allume le moteur et le marque **toujours allumé** : il le reste, **même quand le joueur descend**, et pour
   le prochain conducteur. **O** de nouveau : coupé.
 - **Accélérer** démarre toujours le moteur, comme dans le jeu de base (sans le marquer « toujours allumé »).
@@ -88,8 +101,20 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
   bloqués, même le démarrage) : il faut le desserrer. Le **chiffre de la vitesse** du car HUD est **grisé et
   transparent** tant qu'il est serré, blanc une fois desserré.
 - **Desserré**, un véhicule laissé est **libre**, comme si quelqu'un était au volant sans rien toucher : il **roule tout
-  seul en pente**, se déplace quand un véhicule le percute, et un joueur à pied peut le **pousser** (en marchant contre
-  l'avant ou l'arrière). Serré, il reste immobile.
+  seul en pente**, se déplace quand un véhicule le percute, et il peut être **poussé** (ci-dessous). Serré, il reste
+  immobile et ne peut pas être poussé.
+
+## Pousser un véhicule
+
+- À pied, **devant le capot ou derrière le coffre** d'un véhicule sans conducteur et sans frein de parcage, un petit
+  message apparaît en bas de l'écran, sur un **fond noir légèrement transparent** : « **K** Pousser le véhicule ».
+- **K** : le personnage se met en position contre le pare-chocs (animation de poussée). Il pousse en **avançant avec
+  sa touche habituelle** (Z / W) ; **Q / D** (A / D) tournent les roues. Derrière le coffre, le véhicule avance ;
+  devant le capot, il recule.
+- Pendant la poussée, une notification rappelle « **K** Arrêter de pousser » ; **K** de nouveau pour arrêter. Arrêt
+  automatique si quelqu'un prend le volant, si le frein de parcage est serré ou si le personnage tombe.
+- **K ouvre aussi le MDC** : tant que le message est affiché (ou pendant la poussée), K n'ouvre pas le MDC (état du
+  joueur `vcPushPrompt`, lu par le MDC). Ailleurs, K ouvre le MDC normalement. Les deux touches restent modifiables.
 
 ## Configuration (`config.lua`)
 
@@ -99,7 +124,8 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | multiplicateurs, chocs, paliers (abîmé / critique / cassé), puissance, calages |
 | `Seatbelt` | alarme (5 MPH), portée des sons, règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |
-| `EngineNoticeDuration`, `ParkedRange`, `PushSpeed` | notification du moteur, suivi d'un véhicule laissé sans frein, vitesse de poussée |
+| `EngineNoticeDuration`, `ParkedRange` | durée de la notification du moteur (8 s), suivi d'un véhicule laissé sans frein |
+| `Push` | vitesse de poussée, zone devant / derrière, position du personnage, animation, classes poussables |
 
 ## États des véhicules (pour d'autres scripts)
 
@@ -109,8 +135,8 @@ chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au
 
 ## Performance
 
-- À pied : une vérification toutes les 500 ms (~0.00 ms). Boucle à chaque image seulement près d'une pompe, jerrican
-  en main, ou au contact d'un véhicule sans frein (pour le pousser).
+- À pied : une vérification toutes les 500 ms (~0.00 ms). Près d'un véhicule poussable (6 m) : toutes les 100 ms.
+  Boucle à chaque image seulement près d'une pompe, jerrican en main, ou pendant la poussée.
 - À bord : ~0.02 ms (chocs, frein de parcage, puissance) ; essence, dégâts, alarme et car HUD toutes les 100 ms,
   car HUD envoyé seulement quand il change.
 - Serveur : aucune boucle.
