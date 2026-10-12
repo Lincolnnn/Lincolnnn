@@ -155,9 +155,15 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
   **`/e menotté2`** (RPEMOTES) et **reste assis** (déplacements bloqués). Si l'emote s'arrête, c'est **la même**
   (`/e menotté2`, puis son animation exacte lue dans RPEMOTES) qui est relancée : plus de changement d'emote.
   **Faire se relever l'individu** : `/e menotté1`. Le prendre par le bras ou le placer dans un véhicule le relève aussi.
-- **Placer l'individu à l'arrière** (en le tenant, véhicule à 6 m) : le policier lâche le bras et ouvre la portière arrière
-  la plus proche ; l'individu **monte lui-même** à l'arrière (sans téléportation, places arrière uniquement), même dans
-  un véhicule d'urgence. **Faire sortir l'individu (arrière)** pour le ressortir.
+  Assis, il est **légèrement penché en arrière** (`SeatedTilt` : 8°, bassin abaissé de 6 cm) pour que son postérieur
+  touche le sol (l'animation le laissait un peu surélevé) ; retiré dès qu'il se relève.
+- **Menottes** : orientation réglable (`CuffPropPlacement`, par défaut tournées de 80° vers l'extérieur du corps
+  par rapport à la version précédente).
+- **Placer l'individu à l'arrière** (en le tenant, véhicule à 6 m) : **le policier va ouvrir lui-même** la portière
+  arrière la plus proche (animation du jeu), puis lâche le bras ; l'individu **monte lui-même** à l'arrière (sans
+  téléportation, places arrière uniquement), même dans un véhicule d'urgence, **sans refermer la portière** : le
+  policier la referme avec l'œil. **Faire sortir l'individu (arrière)** : le policier ouvre la portière, l'individu
+  descend et la laisse ouverte ; le policier la referme avec l'œil.
 - Sur un PNJ, le client du policier fait tout lui-même (animation de l'emote lue dans RPEMOTES ; à défaut, les
   animations de secours `CuffAnim` / `SeatedAnim`).
 
@@ -175,13 +181,17 @@ placez-y **`rp_interact/stream/p_cs_cuffs_02_s.ydr`** (FiveM le charge automatiq
   véhicules. Le script ne fait alors strictement rien (aucune boucle, aucune action sur les véhicules).
 - **`/policeon`** : **seuls les policiers** montent dans un véhicule de police. Tous les autres joueurs (mode civil
   coché ou non) :
-  - **essaient d'ouvrir la portière, elle reste verrouillée** : le joueur est arrêté à la poignée **avant que la
-    portière bouge**, puis tire sur la poignée (`LockedDoorAnim`) ; la portière ne bouge pas, **la vitre n'est jamais
-    cassée**, impossible de voler le véhicule à son conducteur ;
+  - **essaient d'ouvrir la portière, elle reste verrouillée** : la tentative du jeu est arrêtée **avant que la
+    portière bouge**, le joueur marche lui-même jusqu'à la portière visée, **bien en face**, à quelques centimètres
+    de la poignée (`LockedDoorStand`), puis tire sur la poignée (`LockedDoorAnim`) ; la portière ne bouge pas,
+    **la vitre n'est jamais cassée**, impossible de voler le véhicule à son conducteur ;
   - **peuvent faire apparaître un véhicule de police** : le véhicule apparaît et **reste** (jamais supprimé), mais le
     joueur en **descend aussitôt** et ne peut plus y remonter ;
   - ne voient plus, avec l'œil, les options d'ouverture des portières ni « Monter ».
-- Exception : l'individu **placé à l'arrière par un policier** y monte et y reste.
+- Exceptions : l'individu **placé à l'arrière par un policier** y monte et y reste ; une portière **ouverte par un
+  policier** (œil « Ouvrir la portière », placer / faire sortir un individu) : un civil peut monter par celle-là
+  (et seulement celle-là, tant qu'elle reste ouverte). Le policier qui la referme avec l'œil la reverrouille
+  (nécessite OneSync : la portière est notée dans l'état du véhicule par le serveur).
 - Un policier qui quitte son unité en étant à bord n'est pas éjecté : la règle ne concerne que la montée.
 - Aucun verrou n'est posé sur le véhicule (un verrou est partagé par le réseau et bloquait aussi les policiers) :
   seul le jeu de chaque non-policier agit, sur son propre personnage.
@@ -204,6 +214,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (15 s personne, 35 s véhicule) |
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
+| `CuffPropPlacement`, `SeatedTilt`, `LockedDoorStand` | position / orientation des menottes ; inclinaison de l'individu assis ; où se tient le civil devant une portière verrouillée |
 | `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragTurnSpeed`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté1`, `/e menotté2`, `/e tenirlebras`, `/e c`), animations de secours (si l'emote est introuvable dans RPEMOTES), menottes, position / rotation de l'individu tenu, touche pour lâcher le bras, distance du véhicule |
 | `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) |
 | `PoliceVehiclesAce`, `PoliceVehicleClasses`, `PoliceVehicleModels`, `LockedDoorAnim` | permission ACE pour `/policeon` / `/policeoff` ; ce qui compte comme véhicule de police ; animation « poignée verrouillée » |

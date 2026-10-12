@@ -744,6 +744,25 @@ on('seat', function(src, p)
     return { ok = true }
 end)
 
+-- Portière ouverte / fermée par un policier (œil, placer / faire sortir un individu) : notée dans l'état du
+-- véhicule ("rpiPoliceDoors"). Avec /policeon, un civil peut monter par une portière ouverte par un policier.
+on('policeDoor', function(src, p)
+    if not policeUnit(src) then return { ok = false, error = 'Réservé à la police.' } end
+    local door = tonumber(p.door)
+    if not door or door < 0 or door > 5 then return { ok = false, error = 'Portière invalide.' } end
+    if not ONESYNC then return { ok = false, error = 'OneSync requis.' } end
+    local netId = tonumber(p.netId)
+    local entity = netId and vehicleEntity(netId)
+    if not entity or tooFar(playerCoords(src), coordsOfEntity(entity), Config.PlaceVehicleDistance + 6.0) then
+        return { ok = false, error = 'Rapprochez-vous du véhicule.' }
+    end
+    local doors = {}
+    for k, v in pairs(Entity(entity).state.rpiPoliceDoors or {}) do doors[k] = v end
+    doors[tostring(door)] = p.open == true or nil
+    Entity(entity).state:set('rpiPoliceDoors', doors, true)
+    return { ok = true }
+end)
+
 on('takeOut', function(src, p)
     local target, err = policeTarget(src, p, Config.PlaceVehicleDistance + 3.0)
     if not target then return { ok = false, error = err } end

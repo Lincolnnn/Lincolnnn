@@ -238,7 +238,9 @@ local function vehicleOptions(ctx)
     end
 
     -- /policeon : pas d'option de portière sur un véhicule d'urgence pour un non-policier
-    local door = within(ctx, Config.DoorDistance) and not Police.restricted(vehicle) and nearestDoor(vehicle, ctx.hit) or nil
+    local door = within(ctx, Config.DoorDistance) and nearestDoor(vehicle, ctx.hit) or nil
+    -- /policeon : pas de portière pour un non-policier, sauf portière ouverte par un policier
+    if door and Police.restricted(vehicle, door.index) then door = nil end
     if not door then return deleteOption(ctx, out) end
 
     local locked = isLocked(vehicle)
@@ -248,12 +250,15 @@ local function vehicleOptions(ctx)
         label = ('%s %s%s'):format(isOpen and 'Fermer' or 'Ouvrir', door.name, locked and not isOpen and ' (verrouillé)' or ''),
         run = function(c)
             withControl(c.entity, function()
-                if GetVehicleDoorAngleRatio(c.entity, door.index) > 0.05 then
-                    SetVehicleDoorShut(c.entity, door.index, false)
-                else
+                local opening = GetVehicleDoorAngleRatio(c.entity, door.index) <= 0.05
+                if opening then
                     SetVehicleDoorOpen(c.entity, door.index, false, false)
                     watchDoor(c.entity, door.index)
+                else
+                    SetVehicleDoorShut(c.entity, door.index, false)
                 end
+                -- Policier : portière ouverte "par un policier" (/policeon : un civil peut monter par celle-là)
+                if RPI.isPolice() then RPI.markPoliceDoor(c.entity, door.index, opening) end
             end)
         end,
     }

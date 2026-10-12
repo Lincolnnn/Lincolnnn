@@ -46,6 +46,12 @@ InteractConfig = {
     CuffAnim = { dict = 'mp_arresting', clip = 'idle', flag = 49 },
     SeatedAnim = { dict = 'amb@world_human_picnic@male@base', clip = 'base', flag = 1 },
     CuffProp = 'p_cs_cuffs_02_s',   -- menottes aux poignets (voir README : dossier stream)
+    -- Position (m) et orientation (°) des menottes sur l'os du poignet gauche (60309). rz : rotation
+    -- autour du poignet (diminuer pour tourner vers l'extérieur du corps, augmenter vers le corps).
+    CuffPropPlacement = { bone = 60309, x = -0.055, y = 0.06, z = 0.04, rx = 265.0, ry = 155.0, rz = 0.0 },
+    -- Individu assis au sol menotté : penché en arrière (°) et abaissé (m) pour poser le postérieur au
+    -- sol sans soulever les pieds. { pitch = 0.0, z = 0.0 } pour désactiver.
+    SeatedTilt = { pitch = 8.0, z = -0.06 },
     -- Individu tenu par le bras : position par rapport au policier (à droite, un peu devant). Il n'est
     -- pas accroché : il suit cette position et tourne sur lui-même (pas avec le tronc du policier),
     -- sans collisions. DragTurnSpeed : vitesse (°/s) à laquelle il s'oriente comme le policier.
@@ -70,6 +76,9 @@ InteractConfig = {
     PoliceVehicleModels = {},       -- modèles en plus (véhicules ajoutés d'une autre classe), ex. { 'police5' }
     -- Animation jouée quand un non-policier tire sur la poignée d'un véhicule de police (/policeon)
     LockedDoorAnim = { dict = 'veh@std@ds@enter_exit', clip = 'd_locked' },
+    -- Où se tient le joueur pour tirer sur la poignée : distance (m) entre le centre du personnage et la
+    -- poignée (0.38 = à ~3 cm de la portière), décalage le long du véhicule (m, + vers l'avant)
+    LockedDoorStand = { distance = 0.38, along = 0.0 },
 
     MaxProfiles = 20,               -- profils civils par joueur
     TextMax = 1000,                 -- caractères max par case de texte

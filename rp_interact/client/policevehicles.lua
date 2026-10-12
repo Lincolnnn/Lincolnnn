@@ -9,13 +9,15 @@
 
     /policeon : seuls les policiers montent dans un véhicule de police. Pour tous les autres joueurs
     (mode civil coché ou non) :
-      - il essaie d'ouvrir la portière, elle reste verrouillée : il est arrêté AVANT que la portière
-        bouge (rien n'est cassé, la vitre non plus, pas de vol du véhicule avec son conducteur), puis
-        tire sur la poignée (LockedDoorAnim) ;
+      - il essaie d'ouvrir la portière, elle reste verrouillée : sa tentative est arrêtée AVANT que la
+        portière bouge (rien n'est cassé, la vitre non plus, pas de vol du véhicule avec son conducteur),
+        il marche jusqu'à la portière visée (à quelques centimètres, bien en face) et tire sur la poignée
+        (LockedDoorAnim) ;
       - il fait apparaître un véhicule de police (menu de spawn) en étant placé dedans : le véhicule
         apparaît et RESTE, le joueur en descend aussitôt et ne peut plus y remonter ;
       - l'œil ne lui propose plus d'ouvrir les portières ni de monter.
-    Exception : l'individu placé à l'arrière par un policier (il y monte et y reste).
+    Exceptions : l'individu placé à l'arrière par un policier (il y monte et y reste), et une portière
+    OUVERTE PAR UN POLICIER (œil, placer / faire sortir un individu) : il peut monter par celle-là.
     Tout le monde peut faire apparaître un véhicule ; ce fichier ne supprime jamais rien et ne change
     jamais l'état d'un véhicule (verrou, portières) : il agit uniquement sur le personnage du joueur.
 
@@ -34,9 +36,8 @@ local DOORS = { -- siège -> portière (index), poignée et charnière (os du v�
     [1]  = { index = 2, handle = 'handle_dside_r', door = 'door_dside_r' },
     [2]  = { index = 3, handle = 'handle_pside_r', door = 'door_pside_r' },
 }
-local HANDLE_RANGE = 1.15 -- m : le joueur est arrêté à la poignée (avant d'ouvrir)
-local DOOR_RANGE = 1.6    -- m : idem, mesuré depuis la charnière (véhicule sans os de poignée)
 local PLACED_WINDOW = 15000 -- ms : placé par un policier, il a ce temps pour monter
+local STAND = Config.LockedDoorStand or { distance = 0.38, along = 0.0 } -- position devant la poignée
 
 local classes, models = {}, {}
 for _, class in ipairs(Config.PoliceVehicleClasses or { 18 }) do classes[class] = true end
@@ -45,6 +46,7 @@ for _, name in ipairs(Config.PoliceVehicleModels or {}) do models[GetHashKey(nam
 local active = GlobalState.rpiPoliceVehicles == true
 local running = false
 local placed = { vehicle = nil, untilTime = 0 } -- véhicule où un policier vient de placer le joueur
+local enteredByOpenDoor = nil -- véhicule où il est monté par une portière ouverte par un policier
 
 local function isPoliceVehicle(vehicle)
     return vehicle ~= 0 and DoesEntityExist(vehicle)
@@ -61,43 +63,77 @@ function RPI.allowPoliceVehicle(vehicle)
     placed.vehicle, placed.untilTime = vehicle, GetGameTimer() + PLACED_WINDOW
 end
 
---- Ce joueur est-il interdit de ce véhicule ? (utilisé par l'œil pour retirer les portières)
-function RPI.Police.restricted(vehicle)
+--- Portière ouverte PAR UN POLICIER (état du véhicule "rpiPoliceDoors", écrit par le serveur) et
+--- toujours ouverte : un civil peut monter par celle-là
+local function policeOpenedDoor(vehicle, doorIndex)
+    if not doorIndex or not NetworkGetEntityIsNetworked(vehicle) then return false end
+    local doors = Entity(vehicle).state.rpiPoliceDoors
+    return type(doors) == 'table' and doors[tostring(doorIndex)] == true
+        and GetVehicleDoorAngleRatio(vehicle, doorIndex) > 0.1
+end
+RPI.policeOpenedDoor = policeOpenedDoor
+
+--- Policier : signale au serveur qu'il a ouvert / fermé cette portière (véhicule en réseau)
+function RPI.markPoliceDoor(vehicle, doorIndex, open)
+    if not RPI.isPolice() or not NetworkGetEntityIsNetworked(vehicle) then return end
+    RPI.request('policeDoor', { netId = VehToNet(vehicle), door = doorIndex, open = open == true }, function() end)
+end
+
+--- Ce joueur est-il interdit de ce véhicule (ou de cette portière) ? (l'œil retire alors les portières)
+function RPI.Police.restricted(vehicle, doorIndex)
     return active and not RPI.isPolice() and isPoliceVehicle(vehicle) and not placedIn(vehicle)
+        and not policeOpenedDoor(vehicle, doorIndex)
 end
 
---- Point où le joueur doit être arrêté pour la place visée : poignée, sinon charnière, sinon véhicule
-local function stopPoint(vehicle, seat)
-    local door = DOORS[seat] or DOORS[-1]
+--- Où se tenir pour tirer sur la poignée : face à la portière, à quelques centimètres (STAND.distance
+--- entre le centre du personnage et la poignée), décalé de STAND.along le long du véhicule
+local function standPoint(vehicle, door)
     local bone = GetEntityBoneIndexByName(vehicle, door.handle)
-    if bone ~= -1 then return GetWorldPositionOfEntityBone(vehicle, bone), HANDLE_RANGE, door.index end
-    bone = GetEntityBoneIndexByName(vehicle, door.door)
-    if bone ~= -1 then return GetWorldPositionOfEntityBone(vehicle, bone), DOOR_RANGE, door.index end
-    return GetEntityCoords(vehicle), 2.5, door.index
+    if bone == -1 then bone = GetEntityBoneIndexByName(vehicle, door.door) end
+    local point = bone ~= -1 and GetWorldPositionOfEntityBone(vehicle, bone) or GetEntityCoords(vehicle)
+    local forward, right = GetEntityMatrix(vehicle)
+    local side = (door.index % 2 == 0) and -1.0 or 1.0 -- portières 0 / 2 : côté conducteur (gauche)
+    local ox, oy = right.x * side, right.y * side
+    local len = math.sqrt(ox * ox + oy * oy)
+    if len < 0.001 then ox, oy, len = 1.0, 0.0, 1.0 end
+    ox, oy = ox / len, oy / len
+    local x = point.x + ox * STAND.distance + forward.x * (STAND.along or 0.0)
+    local y = point.y + oy * STAND.distance + forward.y * (STAND.along or 0.0)
+    return x, y, GetHeadingFromVector_2d(-ox, -oy)
 end
 
---- Le joueur tire sur la poignée d'une portière verrouillée : tentative arrêtée, rien ne bouge
-local function lockedAttempt(ped)
-    ClearPedTasks(ped)
-    local anim = Config.LockedDoorAnim
-    if anim then CreateThread(function() RPI.playAnimNow(ped, anim.dict, anim.clip, 1600, 0) end) end
-end
-
---- Tentative de montée en cours : surveillée à chaque image jusqu'à la poignée
-local function watchAttempt(ped, vehicle)
-    local point, range, doorIndex = stopPoint(vehicle, GetSeatPedIsTryingToEnter(ped))
-    local doorStart = GetVehicleDoorAngleRatio(vehicle, doorIndex)
-    while active and GetVehiclePedIsTryingToEnter(ped) == vehicle and not RPI.isPolice() do
-        -- À la poignée, ou la portière / vitre commence à bouger : arrêt immédiat
-        if #(GetEntityCoords(ped) - point) <= range
-            or GetVehicleDoorAngleRatio(vehicle, doorIndex) > doorStart + 0.01
-            or IsPedJacking(ped) then
-            lockedAttempt(ped)
-            return
+--- Le joueur va jusqu'à la portière et tire sur la poignée d'une portière verrouillée : rien ne bouge
+local function lockedAttempt(ped, vehicle, door)
+    ClearPedTasks(ped) -- la tentative du jeu est arrêtée tout de suite : la portière ne bougera pas
+    local x, y, heading = standPoint(vehicle, door)
+    local z = GetEntityCoords(ped).z
+    local distance = #(vector3(x, y, z) - GetEntityCoords(ped))
+    if distance > 0.08 then
+        TaskGoStraightToCoord(ped, x, y, z, distance > 4.0 and 2.0 or 1.0, 8000, heading, 0.05)
+        local timeout = GetGameTimer() + math.floor(distance / 1.0 * 1000) + 1500
+        while GetGameTimer() < timeout and active do
+            Wait(0)
+            local pos = GetEntityCoords(ped)
+            if (pos.x - x) ^ 2 + (pos.y - y) ^ 2 <= 0.12 * 0.12 then break end
+            if IsPedRagdoll(ped) or IsEntityDead(ped) or GetVehiclePedIsIn(ped, false) ~= 0 then return end
         end
-        Wait(0)
-        if GetVehiclePedIsIn(ped, false) == vehicle then return end -- placé directement (spawn) : géré ensuite
+        -- Petit ajustement final (quelques centimètres) : bien en face de la poignée
+        local pos = GetEntityCoords(ped)
+        if (pos.x - x) ^ 2 + (pos.y - y) ^ 2 <= 0.6 * 0.6 then SetEntityCoordsNoOffset(ped, x, y, pos.z, false, false, false) end
     end
+    SetEntityHeading(ped, heading)
+    local anim = Config.LockedDoorAnim
+    if anim then RPI.playAnimNow(ped, anim.dict, anim.clip, 1600, 0) end
+end
+
+--- Tentative de montée détectée : portière ouverte par un policier -> autorisé ; sinon arrêtée aussitôt
+local function watchAttempt(ped, vehicle)
+    local door = DOORS[GetSeatPedIsTryingToEnter(ped)] or DOORS[-1]
+    if policeOpenedDoor(vehicle, door.index) then
+        enteredByOpenDoor = vehicle
+        return
+    end
+    lockedAttempt(ped, vehicle, door)
 end
 
 local function start()
@@ -120,7 +156,7 @@ local function start()
 
                 -- Apparu / placé directement dans un véhicule de police (menu de spawn…) : il en descend
                 -- aussitôt (le véhicule reste), et à nouveau s'il y est replacé
-                if current ~= 0 and isPoliceVehicle(current) and not placedIn(current)
+                if current ~= 0 and isPoliceVehicle(current) and not placedIn(current) and current ~= enteredByOpenDoor
                     and (current ~= previous or ejected == current) then
                     if ejected ~= current or GetGameTimer() - lastEject > 2500 then
                         TaskLeaveVehicle(ped, current, 0)
@@ -128,6 +164,7 @@ local function start()
                     end
                 elseif current == 0 then
                     ejected = nil
+                    if GetVehiclePedIsTryingToEnter(ped) ~= enteredByOpenDoor then enteredByOpenDoor = nil end
                 end
                 previous = current
 
