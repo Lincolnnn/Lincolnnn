@@ -39,16 +39,19 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 ## Clignotants et warnings
 
 - **Flèche gauche / droite** : clignotant ; **flèche bas** : warnings. Les feux sont visibles par tous les joueurs.
-- **Vrai son de relais** (« tic-tac ») entendu par les occupants. Comme dans une vraie voiture, le clignotant **s'arrête
-  tout seul après le virage** (volant revenu droit après avoir tourné de 60°, `SignalCancelAngle`). Les warnings restent
+- **Son du relais** (un seul fichier, `indicators_sound.ogg`, pour les clignotants et les warnings) entendu par les
+  occupants, joué en boucle tant que le clignotant est allumé (`SignalSoundMode`), volume `SignalVolume` (+25 %).
+  Comme dans une vraie voiture, le clignotant **s'arrête tout seul après le virage** (volant revenu droit après avoir tourné de 60°, `SignalCancelAngle`). Les warnings restent
   jusqu'à la touche, même véhicule laissé.
 
 ## Sons
 
 Les sons du véhicule sont des **fichiers audio** (`html/sounds/*.ogg`) : verrou de ceinture (`belt_on`), déclic et
-sangle qui se rembobine (`belt_off`), carillon du tableau de bord (`belt_chime`), relais du clignotant
-(`indicator_tick` / `indicator_tock`). Ce sont des imitations fabriquées pour ce script : vous pouvez les **remplacer par
-vos propres enregistrements** (mêmes noms de fichiers, format .ogg). Volume réglé par chaque joueur dans le MDC
+sangle qui se rembobine (`belt_off`), carillon du tableau de bord (`belt_chime`) : imitations fabriquées pour ce script,
+**remplaçables par vos propres enregistrements** (mêmes noms de fichiers, format .ogg). Clignotants et warnings :
+**`indicators_sound.ogg`, à ajouter vous-même** dans `html/sounds/` ; il est joué en boucle (`SignalSoundMode = 'loop'`,
+le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes les `SignalInterval` ms (`'repeat'`).
+Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaque joueur dans le MDC
 (*Paramètres > HUD & Display > Volume des sons du véhicule*, bouton « Tester »).
 
 ## Moteur
@@ -133,7 +136,7 @@ vos propres enregistrements** (mêmes noms de fichiers, format .ogg). Volume ré
 | Clé | Rôle |
 |---|---|
 | `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓) |
-| `SoundVolume`, `SignalCancelAngle`, `SignalInterval` | volume sans le MDC, arrêt automatique du clignotant après un virage, rythme du relais |
+| `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume +25 %) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
 | `Seatbelt` | alarme (5 MPH), portée des sons, règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |

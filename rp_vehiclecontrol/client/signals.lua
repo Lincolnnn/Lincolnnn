@@ -4,7 +4,9 @@
     Conducteur : flèche gauche / flèche droite (clignotants), flèche bas (warnings / feux de détresse) ;
     même touche pour arrêter (Raccourcis clavier > FiveM > "Véhicule : clignotant…").
       - Feux visibles par tous les joueurs (état du véhicule "vcSignal", appliqué par chaque client).
-      - Son réel du relais ("tic-tac", html/sounds/indicator_*.ogg) entendu par les occupants.
+      - Son du relais (html/sounds/indicators_sound.ogg, un seul fichier pour les clignotants et les
+        warnings) entendu par les occupants : joué en boucle (SignalSoundMode = 'loop') ou rejoué toutes
+        les SignalInterval ms ('repeat').
       - Comme dans une vraie voiture, un clignotant s'arrête tout seul après le virage (volant revenu
         droit après avoir tourné de SignalCancelAngle degrés). Les warnings restent jusqu'à la touche.
       - Les warnings / clignotants restent allumés quand le conducteur descend.
@@ -15,6 +17,12 @@ local Config = VCConfig
 local SIGNALS = { left = true, right = true, hazard = true }
 local turn = nil       -- clignotant gauche / droit : { heading, turned } pour l'arrêt automatique
 local soundOn = nil    -- son du relais en cours (valeur du clignotant)
+local SOUND = { 'indicators_sound' }
+
+local function signalSound(on)
+    VC.soundLoop('signal', SOUND, Config.SignalInterval, on and (Config.SignalVolume or 1.0625) or 0.0,
+        Config.SignalSoundMode ~= 'repeat')
+end
 
 local function applyLights(vehicle, signal)
     SetVehicleIndicatorLights(vehicle, 1, signal == 'left' or signal == 'hazard')  -- 1 : gauche
@@ -59,7 +67,7 @@ VC.on('tick', function(_, vehicle)
     -- Son du relais pour les occupants
     if signal ~= soundOn then
         soundOn = signal
-        VC.soundLoop('signal', { 'indicator_tick', 'indicator_tock' }, Config.SignalInterval, signal and 0.85 or 0.0)
+        signalSound(signal ~= false)
     end
 
     if VC.seat ~= -1 then return end
@@ -88,7 +96,7 @@ VC.on('leave', function()
     turn = nil
     if soundOn then
         soundOn = nil
-        VC.soundLoop('signal', { 'indicator_tick', 'indicator_tock' }, Config.SignalInterval, 0.0)
+        signalSound(false)
     end
 end)
 

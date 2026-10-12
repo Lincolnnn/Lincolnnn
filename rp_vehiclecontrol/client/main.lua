@@ -120,10 +120,11 @@ function VC.sound(name, volume, setting)
     SendNUIMessage({ action = 'sound', data = { name = name, volume = (volume or 1.0) * (tonumber(setting) or VC.volume()) } })
 end
 
---- Son répété (clignotant, alarme) : `names` joués à tour de rôle toutes les `interval` ms ; volume 0 = arrêt
-function VC.soundLoop(id, names, interval, volume)
+--- Son répété (clignotant, alarme) : `names` joués à tour de rôle toutes les `interval` ms ; volume 0 = arrêt.
+--- `loop` : un seul fichier joué en boucle sans interruption (interval ignoré). Volume au-delà de 1 possible.
+function VC.soundLoop(id, names, interval, volume, loop)
     SendNUIMessage({ action = 'soundLoop', data = {
-        id = id, names = names, interval = interval, volume = (volume or 0.0) * VC.volume(),
+        id = id, names = names, interval = interval, volume = (volume or 0.0) * VC.volume(), loop = loop == true,
     } })
 end
 

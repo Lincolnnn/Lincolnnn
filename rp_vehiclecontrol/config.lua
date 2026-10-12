@@ -177,7 +177,12 @@ VCConfig = {
     -- Clignotants : arrêtés tout seuls après un virage (le volant revenu droit après avoir tourné de
     -- SignalCancelAngle degrés), comme dans une vraie voiture. 0 pour désactiver.
     SignalCancelAngle = 60.0,
-    SignalInterval = 370,         -- ms entre le "tic" et le "tac" du relais
+    -- Son des clignotants / warnings : html/sounds/indicators_sound.ogg (votre fichier)
+    --   'loop'   : le fichier contient le "tic-tac" et est joué en boucle tant que le clignotant est allumé ;
+    --   'repeat' : le fichier est un seul "clic", rejoué toutes les SignalInterval ms.
+    SignalSoundMode = 'loop',
+    SignalInterval = 370,         -- ms entre deux clics (mode 'repeat' uniquement)
+    SignalVolume = 1.0625,        -- volume du son des clignotants (0,85 d'avant + 25 %), x réglage du joueur
 
     EngineNoticeDuration = 8000,  -- ms : notification "O" en montant côté conducteur (disparaît ensuite)
 
