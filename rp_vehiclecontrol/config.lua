@@ -17,6 +17,9 @@ VCConfig = {
         door = 'U',          -- sa portière : avant gauche (conducteur) / avant droite (passager avant)
         frontDoors = 'I',    -- les deux portières avant en même temps (conducteur uniquement)
         parkingBrake = 'L',  -- frein de parcage (conducteur)
+        indicatorLeft = 'LEFT',   -- clignotant gauche (flèche gauche, conducteur)
+        indicatorRight = 'RIGHT', -- clignotant droit (flèche droite, conducteur)
+        hazards = 'DOWN',         -- feux de détresse / warnings (flèche bas, conducteur)
         push = 'K',          -- à pied, devant / derrière un véhicule : pousser / arrêter de pousser
                              -- (près d'un véhicule poussable, K n'ouvre pas le MDC)
     },
@@ -111,13 +114,22 @@ VCConfig = {
     -- ---------------------------------------------------------------------
     -- MOTEUR, PORTIÈRES, FREIN DE PARCAGE
     -- ---------------------------------------------------------------------
+    -- Sons du véhicule (html/sounds/*.ogg, remplaçables par vos propres enregistrements) : volume réglé
+    -- par chaque joueur dans le MDC (Paramètres > HUD & Display) ; sans le MDC : SoundVolume.
+    SoundVolume = 0.7,
+    -- Clignotants : arrêtés tout seuls après un virage (le volant revenu droit après avoir tourné de
+    -- SignalCancelAngle degrés), comme dans une vraie voiture. 0 pour désactiver.
+    SignalCancelAngle = 60.0,
+    SignalInterval = 370,         -- ms entre le "tic" et le "tac" du relais
+
     EngineNoticeDuration = 8000,  -- ms : notification "O" en montant côté conducteur (disparaît ensuite)
     ParkedRange = 60.0,           -- m : sans frein de parcage, le véhicule laissé reste libre (pente,
                                   -- choc, poussé) tant que son dernier conducteur est à cette distance
 
     -- ---------------------------------------------------------------------
-    -- POUSSER UN VÉHICULE (à pied, devant le capot ou derrière le coffre, sans conducteur ni frein
-    -- de parcage) : touche Keys.push, puis avancer (Z / W) ; Q / D (A / D) tournent les roues.
+    -- POUSSER UN VÉHICULE (à pied, devant le capot ou derrière le coffre, avec ou sans conducteur ni frein
+    -- de parcage) : touche Keys.push, puis avancer (Z / W) : tout droit uniquement. Frein de parcage
+    -- serré : poussable quand même. Quelqu'un au volant : il peut seulement tourner le volant.
     -- ---------------------------------------------------------------------
     Push = {
         Speed = 1.1,              -- m/s : vitesse du véhicule poussé

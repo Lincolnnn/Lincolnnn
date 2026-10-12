@@ -1,6 +1,10 @@
-Dossier de données de RP Interact (créé et rempli automatiquement par le serveur).
+Dossier de données de RP Interact.
 
-  profiles.json -> profils civils créés dans la "Fiche civile" (menu d'interactions > Civil)
+  profiles.json -> profils civils créés dans la "Fiche civile" (menu d'interactions > Civil),
+                   rempli automatiquement par le serveur
+  vehicles.txt  -> VÉHICULES du menu d'interactions (F1 > Voiture > Spawn) : à remplir vous-même,
+                   une ligne par véhicule (spawn code ; service ; nom ; livery ; extras)
+  equipment.lua -> TENUES EUP et ARMES du menu d'interactions (F1 > Équipements) : à remplir vous-même
 
 Ces profils sont PERMANENTS : ils survivent aux déconnexions et aux redémarrages.
 Chaque joueur ne voit que les siens (retrouvés grâce à sa licence Rockstar, champ "owner").

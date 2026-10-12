@@ -228,12 +228,15 @@ RegisterCommand('vc_parkingbrake', function()
 end, false)
 RegisterKeyMapping('vc_parkingbrake', 'Véhicule : frein de parcage', 'keyboard', Config.Keys.parkingBrake)
 
--- Serré : immobile, accélérer et reculer bloqués (à chaque image, au volant)
+-- Serré : immobile (frein à main + vitesse maintenue à zéro à l'arrêt), accélérer et reculer bloqués
+-- (à chaque image, au volant). Pendant qu'un joueur pousse le véhicule (push.lua), il passe avant.
 VC.on('frame', function(_, vehicle)
     if VC.seat ~= -1 or VC.state(vehicle, 'vcBrake') ~= true then return end
     DisableControlAction(0, 71, true) -- accélérer
     DisableControlAction(0, 72, true) -- freiner / reculer
+    if VC.pushInfo and VC.pushInfo(vehicle) then return end
     SetVehicleHandbrake(vehicle, true)
+    if GetEntitySpeed(vehicle) < 3.0 then SetVehicleForwardSpeed(vehicle, 0.0) end
 end)
 
 -- Véhicule laissé SANS frein de parcage : libre, comme si quelqu'un était au volant sans rien toucher
@@ -246,8 +249,11 @@ local function watchParked(vehicle)
         while DoesEntityExist(vehicle) and VC.vehicle ~= vehicle and GetPedInVehicleSeat(vehicle, -1) == 0
             and #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(vehicle)) < Config.ParkedRange do
             if VC.state(vehicle, 'vcBrake') == true then
-                SetVehicleHandbrake(vehicle, true)
-                Wait(500)
+                if not (VC.pushInfo and VC.pushInfo(vehicle)) and controlled(vehicle) then
+                    SetVehicleHandbrake(vehicle, true)
+                    if GetEntitySpeed(vehicle) < 3.0 then SetVehicleForwardSpeed(vehicle, 0.0) end
+                end
+                Wait(100)
             else
                 if controlled(vehicle) then
                     SetVehicleHandbrake(vehicle, false)

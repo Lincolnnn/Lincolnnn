@@ -324,6 +324,9 @@ local lastWrite, lastInspect = {}, {}
 
 local function on(name, fn) Handlers[name] = fn end
 
+-- Partagé avec les autres fichiers serveur (server/vehicles.lua : spawn, radio, équipements)
+RPIServer = { on = on, policeUnit = function(src) return policeUnit(src) end }
+
 RegisterNetEvent('rp_interact:server:request', function(name, id, payload)
     local src = source
     if type(name) ~= 'string' or type(id) ~= 'number' then return end

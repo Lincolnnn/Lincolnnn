@@ -60,23 +60,70 @@ function VC.keyLabel(command, fallback)
     return fallback
 end
 
--- État d'un véhicule (moteur, frein, portières, essence, cassé) : état du véhicule en réseau ("state
--- bag", écrit par le serveur et lu par tous) ; véhicule local (non synchronisé) : gardé ici.
+-- État d'un véhicule (moteur, frein, portières, essence, cassé, clignotants…) : état du véhicule en
+-- réseau ("state bag", écrit par le serveur et lu par tous) ; véhicule local (non synchronisé) : gardé ici.
+-- Une valeur qui vient d'être demandée au serveur est utilisée tout de suite par ce client, le temps que
+-- le serveur la renvoie (dès que l'état du véhicule change, ou au plus PENDING_MS) : la touche répond
+-- immédiatement.
+local PENDING_MS = 2500
 local localStates = {}
+local pending = {} -- [véhicule] = { [clé] = { value, before, untilTime } }
 
-function VC.state(vehicle, key)
+local function stored(vehicle, key)
     if NetworkGetEntityIsNetworked(vehicle) then return Entity(vehicle).state[key] end
     return localStates[vehicle] and localStates[vehicle][key]
 end
 
+function VC.state(vehicle, key)
+    local value = stored(vehicle, key)
+    local p = pending[vehicle] and pending[vehicle][key]
+    if p then
+        -- Le serveur a répondu (l'état a changé) ou délai dépassé : l'état du véhicule fait foi
+        if value == p.before and GetGameTimer() < p.untilTime then return p.value end
+        pending[vehicle][key] = nil
+    end
+    return value
+end
+
+--- Valeur en attente, sans envoi (ex. essence envoyée par fuel.lua)
+function VC.setPending(vehicle, key, value)
+    pending[vehicle] = pending[vehicle] or {}
+    pending[vehicle][key] = { value = value, before = stored(vehicle, key), untilTime = GetGameTimer() + PENDING_MS }
+end
+
 function VC.setState(vehicle, key, value)
     if NetworkGetEntityIsNetworked(vehicle) then
-        Entity(vehicle).state:set(key, value, false) -- tout de suite chez ce client
+        VC.setPending(vehicle, key, value)
         TriggerServerEvent('rp_vehiclecontrol:state', VehToNet(vehicle), key, value)
     else
         localStates[vehicle] = localStates[vehicle] or {}
         localStates[vehicle][key] = value
     end
+end
+
+-- =========================================================================
+-- SONS (NUI de ce script, html/sounds/*.ogg) : volume réglé dans le MDC
+-- (Paramètres > HUD & Display > volume des sons du véhicule), sinon SoundVolume
+-- =========================================================================
+function VC.volume()
+    local mdc = GlobalState.mdcResource or 'mdc_standalone'
+    if GetResourceState(mdc) == 'started' then
+        local ok, volume = pcall(function() return exports[mdc]:carSoundVolume() end)
+        if ok and type(volume) == 'number' then return math.max(0.0, math.min(1.0, volume)) end
+    end
+    return Config.SoundVolume or 0.7
+end
+
+--- Joue un son une fois (volume 0..1, multiplié par le réglage du joueur, ou par `setting` s'il est donné)
+function VC.sound(name, volume, setting)
+    SendNUIMessage({ action = 'sound', data = { name = name, volume = (volume or 1.0) * (tonumber(setting) or VC.volume()) } })
+end
+
+--- Son répété (clignotant, alarme) : `names` joués à tour de rôle toutes les `interval` ms ; volume 0 = arrêt
+function VC.soundLoop(id, names, interval, volume)
+    SendNUIMessage({ action = 'soundLoop', data = {
+        id = id, names = names, interval = interval, volume = (volume or 0.0) * VC.volume(),
+    } })
 end
 
 function VC.isDriver() return VC.vehicle ~= 0 and VC.seat == -1 end
@@ -179,7 +226,7 @@ end)
 -- =========================================================================
 local lastKey = nil
 
-local HUD_KEYS = { 'inVehicle', 'show', 'mode', 'speed', 'rpm', 'fuel', 'belt', 'alarm', 'broken', 'parked', 'paused' }
+local HUD_KEYS = { 'inVehicle', 'show', 'mode', 'engine', 'speed', 'rpm', 'fuel', 'belt', 'alarm', 'broken', 'parked', 'paused' }
 
 local function sendHud(data)
     local parts = {}
@@ -191,10 +238,8 @@ local function sendHud(data)
 end
 
 -- Enregistré en dernier (fichier hud.lua) : les modules ont déjà rempli VC.hud.
--- Car HUD affiché seulement à bord ET moteur allumé :
---   - conducteur : car HUD complet (vitesse, accélération, essence, ceinture, véhicule cassé) ; aussi
---     moteur coupé quand le véhicule est cassé ou en panne sèche (pour comprendre pourquoi il ne
---     démarre pas) ;
+--   - conducteur : car HUD complet (vitesse, accélération, essence, ceinture, véhicule cassé), toujours
+--     affiché ; moteur coupé, tout est grisé (engine = false), il s'illumine au démarrage ;
 --   - passagers : uniquement le logo de la ceinture.
 function VC.sendHud(vehicle)
     local driver = VC.seat == -1
@@ -204,13 +249,12 @@ function VC.sendHud(vehicle)
     rpm = math.max(0.0, math.min(1.0, (rpm - 0.2) / 0.8)) -- ralenti ~0.2 -> 0 %, régime maximal -> 100 %
     local h = VC.hud
     local broken = VC.state(vehicle, 'vcBroken') == true
-    local empty = h.fuel ~= nil and h.fuel <= 0.0
-    local show = running or (driver and (broken or empty))
-    if not driver and h.belt == nil then show = false end -- passager sans ceinture (moto…) : rien
+    local show = driver or h.belt ~= nil -- passager sans ceinture (moto…) : rien
     local data = {
         inVehicle = true,
         show = show,
         mode = driver and 'driver' or 'passenger',
+        engine = running,                                  -- moteur coupé : car HUD grisé
         speed = math.floor(speed + 0.5),
         rpm = math.floor(rpm * 50 + 0.5) / 50,
         fuel = h.fuel and math.floor(h.fuel + 0.5) or nil, -- nil : pas de réservoir (jauge masquée)

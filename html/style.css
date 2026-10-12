@@ -927,6 +927,9 @@ input.invalid, select.invalid, textarea.invalid { border-color: #ff5a5a; backgro
 .car-belt.belt-on svg * { fill: #fff; }
 .car-belt.belt-blink svg * { animation: belt-blink 1s steps(1, end) infinite; }
 @keyframes belt-blink { 0% { fill: #ff9e96; } 50% { fill: transparent; } }
+/* Moteur coupé : car HUD grisé, il s'illumine au démarrage */
+.hud-car { transition: filter .35s, opacity .35s; }
+.hud-car.car-off { filter: grayscale(1) brightness(.75); opacity: .55; }
 /* Passagers : seul le logo de la ceinture */
 .hud-car.car-passenger .car-fuel, .hud-car.car-passenger .car-speed,
 .hud-car.car-passenger .car-rpm, .hud-car.car-passenger .car-broken { display: none !important; }
@@ -1192,3 +1195,111 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .hu-sep { color: #9a9a9a; font-weight: bold; }
 .hud-unit .dept-tag { height: 18px; font-size: 11px; }
 .hu-none { color: #8a8a8a; font-style: italic; }
+
+/* =========================================================================
+   MDC MODERNISÉ (visuel uniquement : mêmes couleurs)
+   - Navigation verticale à gauche, statuts de l'unité en bas de la barre latérale
+   - Coins arrondis, traits fins au lieu des biseaux
+   - Légère transparence de la fenêtre (--glass-a, réglable / désactivable dans Paramètres > MDC) ;
+     le flou de l'arrière-plan est appliqué au jeu par client/client.lua (le NUI ne voit pas le jeu)
+   ========================================================================= */
+.window {
+    --glass-a: 1;
+    --line: rgba(255, 255, 255, .08);
+    background: transparent; /* chaque zone a son propre fond : la transparence ne s'additionne pas */
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    outline: none;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, .55);
+    overflow: hidden;
+}
+.window.maximized { border-radius: 0; border-width: 0; }
+.titlebar { height: 36px; padding: 0 8px 0 12px; background: rgba(0, 0, 0, var(--glass-a)); border-bottom: 1px solid var(--line); }
+.title-icon { border: 0; border-radius: 4px; padding: 2px 6px; }
+.win-btn { width: 28px; height: 24px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .06); font-weight: normal; }
+.win-btn:hover { background: rgba(255, 255, 255, .12); }
+.win-btn:active { border: 0; background: rgba(255, 255, 255, .18); }
+
+/* Barre latérale : profil, navigation, statuts */
+.sidebar {
+    width: 228px;
+    gap: 14px;
+    padding: 12px 10px;
+    background: rgba(8, 8, 8, var(--glass-a));
+    border-right: 1px solid var(--line);
+}
+.sidenav { display: flex; flex-direction: column; gap: 2px; }
+.sidenav .tab {
+    position: relative; top: 0;
+    display: flex; align-items: center; gap: 11px;
+    width: 100%; min-width: 0; height: 36px; padding: 0 12px;
+    background: transparent; color: var(--muted);
+    font: bold 13px var(--font); text-align: left;
+    border: 0; border-radius: 7px;
+}
+.sidenav .tab:hover { background: rgba(255, 255, 255, .05); color: var(--text); }
+.sidenav .tab.active { height: 36px; background: rgba(31, 78, 140, .38); color: #fff; }
+.sidenav .tab.active::before {
+    content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px;
+    border-radius: 0 3px 3px 0; background: #3c7bd6;
+}
+.sidenav .tab svg {
+    width: 17px; height: 17px; flex-shrink: 0;
+    fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.status-group { margin-top: auto; }
+.status-list { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.status-btn {
+    height: 30px; padding: 0 6px; gap: 6px; font-size: 11.5px; min-width: 0; white-space: nowrap;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--line); border-radius: 7px;
+}
+.status-btn:hover { background: rgba(255, 255, 255, .09); }
+.status-btn.active { background: rgba(var(--c), .24); border-color: rgb(var(--c)); outline: none; }
+.sq { border: 0; border-radius: 3px; }
+
+/* Page */
+.content { padding: 14px; background: rgba(27, 27, 27, var(--glass-a)); border: 0; }
+.group {
+    background: rgba(255, 255, 255, .025);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    box-shadow: none;
+}
+.sidebar .group { background: rgba(255, 255, 255, .03); }
+.legend, .sidebar .legend, .subgroup-title {
+    top: -9px; padding: 0 7px;
+    background: #161616;
+    border: 1px solid var(--line); border-radius: 5px;
+}
+.subgroup { border: 1px solid var(--line); border-radius: 7px; box-shadow: none; }
+
+/* Contrôles */
+.btn, .multi-btn, .fold, .entry-box, .sheet-title, .edit-banner, .sheet-alert {
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 6px;
+}
+.btn:hover { background: #343434; }
+.btn:active, .btn.active { border-color: rgba(255, 255, 255, .1); background: #222; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .6); }
+.btn-default { outline: none; border-color: #2d64ad; }
+.btn.subtab.active { background: rgba(31, 78, 140, .45); border-color: #2d64ad; box-shadow: none; }
+input[type="text"], input[type="number"], textarea, select {
+    background: rgba(10, 10, 10, .65);
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 6px;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: #2d64ad; background: rgba(5, 5, 5, .8); }
+.multi-panel { border: 1px solid rgba(255, 255, 255, .12); border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
+.fold-body { border-radius: 0 0 6px 6px; }
+.well { background: rgba(12, 12, 12, calc(var(--glass-a) * .55)); border: 1px solid var(--line); border-radius: 8px; }
+.grid th { background: rgba(38, 38, 38, .97); border: 0; border-bottom: 1px solid var(--line); color: var(--muted); font-weight: bold; font-size: 12px; }
+.flag { border: 0; border-radius: 4px; }
+.sheet, .sheet-list { border-radius: 6px; overflow: hidden; }
+
+/* Barre d'état */
+.statusbar { height: 28px; padding: 4px 6px; background: rgba(0, 0, 0, var(--glass-a)); border-top: 1px solid var(--line); }
+.sb-cell { border: 0; border-radius: 5px; background: rgba(255, 255, 255, .04); }
+.settings-cat { border: 1px solid var(--line); border-radius: 9px; background: rgba(255, 255, 255, .025); overflow: hidden; }
+.settings-cat > summary { background: rgba(255, 255, 255, .04); }
+.settings-cat[open] > summary { border-bottom: 1px solid var(--line); }
+.settings-cat > summary:hover { background: rgba(255, 255, 255, .08); }

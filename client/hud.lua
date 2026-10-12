@@ -368,6 +368,18 @@ RegisterNUICallback('hudReady', function(_, cb)
     end
 end)
 
+-- Vehicle Control (rp_vehiclecontrol) : volume des sons du véhicule choisi dans "Paramètres"
+exports('carSoundVolume', function()
+    local car = type(settings.car) == 'table' and settings.car or {}
+    return type(car.volume) == 'number' and math.max(0.0, math.min(1.0, car.volume)) or 0.7
+end)
+
+-- Bouton "Tester" / curseur du volume des sons du véhicule
+RegisterNUICallback('testCarSound', function(data, cb)
+    cb({ ok = true })
+    TriggerEvent('rp_vehiclecontrol:testSound', type(data) == 'table' and tonumber(data.volume) or nil)
+end)
+
 -- Onglet "Paramètres" : réglages du HUD, des notifications et du MDC
 RegisterNUICallback('saveSettings', function(data, cb)
     if type(data) ~= 'table' then

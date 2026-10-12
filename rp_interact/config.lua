@@ -7,6 +7,14 @@ InteractConfig = {
     MenuKey = 'F1',
     TargetKey = 'LMENU',          -- Alt gauche
 
+    -- MENU > VOITURE (véhicules listés dans data/vehicles.txt) et ÉQUIPEMENTS (data/equipment.lua)
+    SpawnPoliceOnly = true,         -- véhicules de police (APD / GSP) réservés aux policiers en service
+    EquipmentPoliceOnly = true,     -- tenues et armes réservées aux policiers en service
+    -- Radio du véhicule (lien YouTube ou lien direct vers un son / une radio en ligne)
+    RadioRange = 30.0,              -- m : au-delà, la radio d'un véhicule n'est plus entendue dehors
+    RadioInsulation = 0.35,         -- volume entendu dehors quand vitres et portières sont fermées ("insonorisé")
+    RadioMaxVolume = 0.8,           -- volume maximal (radio à 100 %) pour tous les joueurs
+
     -- Ressources liées (nom des dossiers)
     MdcResource = 'mdc_standalone', -- "policier" = joueur dans une unité du MDC
     ChatResource = 'rp_chat',       -- /me automatiques et copie des résultats dans le chat

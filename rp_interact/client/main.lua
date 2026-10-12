@@ -1,7 +1,8 @@
 --[[
     RP Interact - Client principal
     ------------------------------
-    - Menu d'interactions (touche F1 par défaut) : cases "Police" et "Civil"
+    - Menu d'interactions (touche F1 par défaut) : cases "Police", "Civil", "Équipements" et "Voiture"
+      (client/garage.lua : spawn et équipements ; client/radio.lua : radio du véhicule)
     - Fiche civile (interface séparée du MDC, même style) : profils permanents et profil du véhicule
     - Affichage des résultats d'inspection (à l'écran + copie dans le chat écrit)
 
@@ -355,13 +356,16 @@ RegisterNUICallback('setPoliceProfile', function(data, cb)
     cb({ ok = true, profile = profile })
 end)
 
-local function openMenu()
-    if RPI.uiOpen() or IsPauseMenuActive() or (RPI.targetActive and RPI.targetActive()) then return end
+--- Ouvre le menu (sur la page `view` si elle est donnée, ex. 'radio' depuis l'œil)
+local function openMenu(view)
+    if RPI.uiOpen() or IsPauseMenuActive() then return end
+    if not view and RPI.targetActive and RPI.targetActive() then return end
     RPI.request('getMenuState', {}, function(res)
         if RPI.uiOpen() then return end
         RPI.setUi('menu', true)
         SendNUIMessage({ action = 'menu', data = {
             open = true,
+            view = view,
             activeName = res and res.activeName or nil,
             police = res and res.police or nil,
             targetKey = Config.TargetKey == 'LMENU' and 'Alt' or Config.TargetKey,
@@ -372,7 +376,10 @@ local function openMenu()
     end)
 end
 
+RPI.openMenu = openMenu
+
 local function closeMenu()
+    RPI.radioTarget = nil
     if not ui.menu then return end
     RPI.setUi('menu', false)
     SendNUIMessage({ action = 'menu', data = { open = false } })
@@ -381,7 +388,7 @@ end
 RPI.closeMenu = closeMenu
 
 RegisterCommand('interactions', function()
-    if ui.menu then closeMenu() else openMenu() end
+    if ui.menu then closeMenu() else openMenu(nil) end
 end, false)
 RegisterKeyMapping('interactions', 'Menu d\'interactions', 'keyboard', Config.MenuKey)
 

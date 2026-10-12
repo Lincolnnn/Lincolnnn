@@ -384,3 +384,38 @@ input::placeholder, textarea::placeholder { color: #5f5f5f; font-style: italic; 
 .part-default { font-size: 11px; color: var(--muted); font-style: italic; padding-left: 20px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* =========================================================================
+   MENU : Équipements, Voiture (Spawn, Radio)
+   ========================================================================= */
+.menu { max-height: 86vh; display: flex; flex-direction: column; }
+.menu-view { overflow-y: auto; min-height: 0; padding-right: 2px; }
+.menu-section {
+    display: flex; align-items: center; gap: 8px; margin-top: 4px;
+    font-size: 11px; font-weight: bold; letter-spacing: .6px; text-transform: uppercase; color: var(--hud-muted);
+}
+.menu-list { display: flex; flex-direction: column; gap: 5px; }
+.menu-item {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+    padding: 8px 11px; text-align: left; font: bold 13px var(--font); color: #fff;
+    background: rgba(255, 255, 255, .05); border: 1px solid rgba(122, 122, 122, .5); border-radius: 6px; cursor: pointer;
+}
+.menu-item small { font-size: 11px; font-weight: normal; color: var(--hud-muted); }
+.menu-item:hover { background: rgba(111, 177, 255, .16); border-color: #8fb8e6; }
+.menu-item:disabled, .menu-item:disabled:hover { color: #6c6c6c; background: rgba(255, 255, 255, .02); border-color: rgba(122, 122, 122, .3); cursor: default; }
+.menu-empty { padding: 8px 10px; font-size: 12px; font-style: italic; color: var(--hud-muted); background: rgba(255, 255, 255, .03); border-radius: 6px; }
+.menu-btn-soft { font-weight: normal; color: var(--hud-text); }
+.menu-row { display: flex; gap: 6px; }
+.menu-row .menu-btn { flex: 1; text-align: center; }
+.menu-value { float: right; color: var(--hud-muted); }
+.menu-field input[type="range"] { width: 100%; accent-color: #6fb1ff; }
+.menu-profile.disabled .menu-field { opacity: .5; }
+.menu-active.on-air { border-left-color: #4caf72; }
+.menu-active small { color: var(--hud-muted); }
+.dept-chip { padding: 1px 6px; border-radius: 3px; font-size: 10px; letter-spacing: .6px; color: #fff; }
+.dept-chip.dept-apd { background: #12357a; }
+.dept-chip.dept-gsp { background: #ff6a00; }
+
+/* Lecteurs de la radio : invisibles, hors de l'écran (YouTube exige une taille minimale) */
+.radio-players { position: fixed; left: -10000px; top: 0; width: 200px; height: 200px; overflow: hidden; pointer-events: none; opacity: 0; }
+.radio-player { width: 200px; height: 200px; }

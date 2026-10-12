@@ -270,7 +270,9 @@
 
         renderProfile();
         renderSidebarUnit();
+        applyCivilMode(data.civilMode);
         win.classList.remove('hidden');
+        syncBlur();
 
         updateClock();
         state.clockTimer = setInterval(updateClock, 1000);
@@ -290,6 +292,7 @@
         win.classList.add('hidden');
         clearInterval(state.clockTimer);
         state.clockTimer = null;
+        syncBlur();
 
         // Relâche le SetNuiFocus côté Lua
         if (notifyLua) post('close');
@@ -314,7 +317,22 @@
     // =====================================================================
     // NAVIGATION
     // =====================================================================
+    // Page "Créations" : uniquement en mode civil (case du menu d'interactions, rp_interact)
+    function applyCivilMode(on) {
+        state.civilMode = on === true;
+        $('.tab[data-page="create"]').classList.toggle('hidden', !state.civilMode);
+        if (!state.civilMode && state.page === 'create') showPage('units');
+    }
+
+    // Flou du jeu derrière le MDC (client/client.lua) : MDC ouvert, hors mode placement des HUD
+    function syncBlur() {
+        const s = hud.settings.mdc;
+        const on = state.open && !hud.placing && s.blur;
+        post('mdcBlur', { strength: on ? s.blurStrength : 0 });
+    }
+
     function showPage(page) {
+        if (page === 'create' && !state.civilMode) page = 'units';
         state.page = page;
         hideSuggest();
         const tab = page === 'bolos' ? 'search' : page; // la page des BOLOs fait partie des Recherches
@@ -3084,11 +3102,6 @@
     const SOUNDS = {
         call: [[880, 0, 0.16], [1320, 0.18, 0.26]],                         // intervention : deux tons montants
         incident: [[660, 0, 0.12], [880, 0.14, 0.12], [1175, 0.28, 0.24]],  // incident : trois tons
-        // Ceinture de sécurité (car HUD) : "clic-clac" en s'attachant, clic + glissement en se détachant,
-        // carillon de l'alarme (répété tant qu'elle est active)
-        belt_on: [[2400, 0, 0.025, 'triangle'], [1500, 0.012, 0.03, 'square'], [2900, 0.11, 0.03, 'triangle'], [1800, 0.12, 0.04, 'square']],
-        belt_off: [[2600, 0, 0.03, 'triangle'], [1700, 0.012, 0.035, 'square'], [900, 0.06, 0.12, 'triangle']],
-        belt_beep: [[1047, 0, 0.2]],
     };
     const SOUND_GAIN = 0.35; // volume à 100 % (évite la saturation)
     let audioCtx = null;
@@ -3157,7 +3170,8 @@
     const HUD_DEFAULTS = {
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true, service: true },
-        mdc: { zoom: 1, startTab: 'last' },
+        // Fenêtre : légère transparence (opacity) et flou du jeu derrière (blurStrength), désactivables
+        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.86, blur: true, blurStrength: 0.45 },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
@@ -3195,6 +3209,8 @@
             s.scale = Math.min(Math.max(s.scale, 0.5), 2);
         });
         out.mdc.zoom = Math.min(Math.max(out.mdc.zoom, 0.8), 1.3);
+        out.mdc.opacity = Math.min(Math.max(out.mdc.opacity, 0.5), 1);
+        out.mdc.blurStrength = Math.min(Math.max(out.mdc.blurStrength, 0.1), 1);
         out.notify.volume = Math.min(Math.max(out.notify.volume, 0), 1);
         out.car.volume = Math.min(Math.max(out.car.volume, 0), 1);
         if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
@@ -3285,6 +3301,8 @@
         if (!show) return;
         // Conducteur : car HUD complet ; passagers : seulement le logo de la ceinture
         el.classList.toggle('car-passenger', car.mode === 'passenger');
+        // Moteur coupé : tout est grisé ; il s'illumine au démarrage
+        el.classList.toggle('car-off', car.engine === false);
         $('#carSpeed').textContent = Math.max(0, Math.round(car.speed || 0));
         // Frein de parcage serré : vitesse grisée et transparente
         el.querySelector('.car-speed').classList.toggle('car-parked', !!car.parked);
@@ -3344,20 +3362,6 @@
         carNotice.timer = setTimeout(() => hideCarNotice(false), Math.max(1500, Number(d.duration) || 6000));
     }
 
-    // Sons de la ceinture (les siens et ceux des joueurs proches, volume selon la distance : client/carhud.lua)
-    const beltBeep = { volume: 0, timer: null };
-    function beltVolume(v) { return Math.min(Math.max(Number(v) || 0, 0), 1) * hud.settings.car.volume; }
-    function setBeltBeep(volume) {
-        beltBeep.volume = Math.min(Math.max(Number(volume) || 0, 0), 1);
-        if (beltBeep.volume > 0 && !beltBeep.timer) {
-            const beep = () => playSound('belt_beep', beltVolume(beltBeep.volume));
-            beep();
-            beltBeep.timer = setInterval(beep, 900);
-        } else if (beltBeep.volume <= 0 && beltBeep.timer) {
-            clearInterval(beltBeep.timer);
-            beltBeep.timer = null;
-        }
-    }
 
     window.addEventListener('resize', renderHud);
 
@@ -3368,6 +3372,7 @@
         win.classList.toggle('placing-hidden', on);
         $('#hudPlacebar').classList.toggle('hidden', !on);
         renderHud();
+        syncBlur(); // pas de flou pendant le placement des HUD
         if (!on) {
             saveSettings();
             renderSettings();
@@ -3407,7 +3412,7 @@
 
     // ---- Onglet "Paramètres" ----
     const settingGet = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), hud.settings);
-    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'mdc.zoom', 'notify.volume', 'car.volume'];
+    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'mdc.zoom', 'mdc.opacity', 'mdc.blurStrength', 'notify.volume', 'car.volume'];
 
     function renderSettings() {
         $$('[data-setting]').forEach((input) => {
@@ -3422,7 +3427,10 @@
     }
 
     function applyMdcSettings() {
-        win.style.setProperty('--ui-zoom', hud.settings.mdc.zoom);
+        const s = hud.settings.mdc;
+        win.style.setProperty('--ui-zoom', s.zoom);
+        win.style.setProperty('--glass-a', s.glass ? s.opacity : 1); // transparence de la fenêtre
+        syncBlur();
     }
 
     $('#page-settings').addEventListener('input', (e) => {
@@ -3454,11 +3462,10 @@
     // Volume : aperçu en relâchant le curseur, ou avec le bouton "Tester"
     $('[data-setting="notify.volume"]').addEventListener('change', () => playSound('call'));
     $('#soundTest').addEventListener('click', () => playSound('call'));
-    $('[data-setting="car.volume"]').addEventListener('change', () => playSound('belt_on', hud.settings.car.volume));
-    $('#beltTest').addEventListener('click', () => {
-        playSound('belt_on', hud.settings.car.volume);
-        setTimeout(() => playSound('belt_beep', hud.settings.car.volume), 450);
-    });
+    // Sons du véhicule (vrais sons, joués par Vehicle Control) : aperçu au volume choisi
+    const testCarSound = () => post('testCarSound', { volume: hud.settings.car.volume });
+    $('[data-setting="car.volume"]').addEventListener('change', testCarSound);
+    $('#beltTest').addEventListener('click', testCarSound);
 
     $('#settingsReset').addEventListener('click', (e) => {
         const btn = e.currentTarget;
@@ -4391,6 +4398,9 @@
             case 'close':
                 closeUI(false);
                 break;
+            case 'civilMode': // mode civil activé / désactivé dans le menu d'interactions (rp_interact)
+                applyCivilMode(data.data && data.data.enabled);
+                break;
             case 'units':
                 setUnits(data.data);
                 break;
@@ -4421,12 +4431,6 @@
                 break;
             case 'carNoticeHide': // touche du moteur utilisée
                 hideCarNotice(false);
-                break;
-            case 'beltSound': // ceinture attachée / détachée (soi-même ou un joueur proche)
-                if (data.data) playSound(data.data.kind === 'on' ? 'belt_on' : 'belt_off', beltVolume(data.data.volume));
-                break;
-            case 'beltBeep': // alarme de ceinture (la sienne ou celle d'un joueur proche) ; 0 = arrêt
-                setBeltBeep(data.data && data.data.volume);
                 break;
             case 'carNotice': // Vehicle Control : touche du moteur, en montant côté conducteur
                 if (data.data && hud.settings.car.enabled) showCarNotice(data.data);

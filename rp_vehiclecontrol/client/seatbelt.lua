@@ -2,7 +2,8 @@
     Vehicle Control - ceinture de sécurité (client)
     -----------------------------------------------
     Touche G (Raccourcis clavier > FiveM > "Véhicule : attacher / détacher la ceinture").
-      - Son à l'attache et au retrait ; retirée en descendant du véhicule.
+      - Sons réels (html/sounds) à l'attache et au retrait ; attachée, impossible de descendre sans la
+        détacher (touche F bloquée) ; retirée si le joueur est sorti du véhicule autrement.
       - Détachée : bip au-dessus de 5 MPH, continu jusqu'à l'arrêt du véhicule (ou jusqu'à l'attache).
       - Détachée, accident violent (voir config.lua, Seatbelt) : éjecté à travers le pare-brise.
         Attachée : jamais éjecté (l'éjection automatique du jeu est désactivée, seule cette règle compte).
@@ -43,7 +44,7 @@ local function hearVolume(serverId)
 end
 
 local function beltSound(kind, volume)
-    VC.toHud('beltSound', { kind = kind, volume = volume })
+    VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume)
 end
 
 --- Bip : le plus fort entre le sien (100 %) et ceux des joueurs à portée. Boucle seulement pendant une alarme.
@@ -65,11 +66,11 @@ local function beepLoop()
             volume = math.floor(volume * 20 + 0.5) / 20
             if volume ~= last then
                 last = volume
-                VC.toHud('beltBeep', { volume = volume })
+                VC.soundLoop('chime', { 'belt_chime' }, 1100, volume) -- carillon du tableau de bord
             end
             Wait(250)
         end
-        if last ~= 0.0 then VC.toHud('beltBeep', { volume = 0.0 }) end
+        if last ~= 0.0 then VC.soundLoop('chime', { 'belt_chime' }, 1100, 0.0) end
         beepRunning = false
     end)
 end
@@ -113,6 +114,17 @@ VC.on('leave', function()
     if belt then setBelt(false) end
     setAlarm(false)
     VC.hud.belt, VC.hud.alarm = nil, false
+end)
+
+-- Attaché : impossible de descendre (touche F bloquée) sans détacher la ceinture d'abord
+VC.on('frame', function()
+    if belt then DisableControlAction(0, 75, true) end
+end)
+
+-- MDC : bouton "Tester" du volume des sons du véhicule
+AddEventHandler('rp_vehiclecontrol:testSound', function(volume)
+    VC.sound('belt_on', 1.0, volume)
+    SetTimeout(600, function() VC.sound('belt_chime', 1.0, volume) end)
 end)
 
 VC.on('tick', function(ped, vehicle)
@@ -188,5 +200,5 @@ AddEventHandler('onResourceStop', function(resource)
     SetPedConfigFlag(PlayerPedId(), 32, true)
     LocalPlayer.state:set('seatbelt', false, true)
     LocalPlayer.state:set('seatbeltAlarm', false, true)
-    VC.toHud('beltBeep', { volume = 0.0 })
+    VC.soundLoop('chime', { 'belt_chime' }, 1100, 0.0)
 end)

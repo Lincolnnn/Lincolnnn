@@ -28,7 +28,13 @@ se font dans l'onglet « Paramètres » du MDC. Le MDC fonctionne aussi sans ell
 - Agrandir / rétrécir : bouton ☐ ou double-clic sur la barre de titre. Bouton ↺ : position par défaut.
 - La position est gardée d'une ouverture à l'autre et réinitialisée à chaque reconnexion.
 
-## Barre latérale
+## Barre latérale (à gauche)
+
+Interface modernisée (mêmes couleurs) : en haut le **nom RP**, puis les **pages à la verticale** (Unités, Interventions,
+Recherches, Rapports, Créations, Paramètres), et en bas le **statut de l'unité**. La fenêtre est **légèrement
+transparente** et le jeu derrière elle est **flouté** (sans l'assombrir) : les deux se règlent ou se désactivent dans
+*Paramètres > MDC* (opacité de 50 à 100 %, intensité du flou). Le flou est l'effet du jeu (comme celui du menu pause),
+retiré à la fermeture du MDC et pendant le placement des HUD.
 
 - **NOM RP** : il s'affiche en haut à gauche et dans les unités (le pseudo Steam/FiveM n'est jamais affiché). **Obligatoire pour
   rejoindre une unité.** Il est partagé avec le chat écrit : `/nomrp John Carter` dans le chat change aussi celui du MDC, et
@@ -45,8 +51,8 @@ L'heure affichée en bas à droite du MDC est l'heure du jeu.
 | Interventions | Une liste par service (**APD**, **GSP**) et une liste des **appels communs** (APD & GSP), affichée seulement s'il y en a. Policier : la liste de **son service** est en haut et toujours ouverte, la liste commune vient en deuxième et est toujours ouverte, la liste de l'autre service est fermée (il peut l'ouvrir pour la consulter, **sans pouvoir rejoindre** ses appels : un appel d'un seul service est réservé à ses unités, vérifié par le serveur). Hors unité : APD, communs, GSP. Incident : service de l'unité déclarante par défaut, case « Joindre aussi l'incident à l'autre service » pour un incident commun. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer pour le masquer. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
 | Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
-| Paramètres | Trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume de la ceinture) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
-| Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, **service de police** (APD, GSP ou **APD & GSP** : appel commun aux deux services), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
+| Paramètres | Trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, transparence de la fenêtre, flou du jeu derrière, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
+| Créations | Affichée **uniquement quand le mode civil est activé** (menu d'interactions F1 > Civil, rp_interact). Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, **service de police** (APD, GSP ou **APD & GSP** : appel commun aux deux services), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
 
@@ -98,8 +104,8 @@ fond), visibles même MDC fermé :
   l'unité est sur un appel), **secteur** (zone de jeu) et **service principal** (APD, GSP ou APD & GSP) choisis dans le
   menu d'interactions (`rp_interact`, Police, tout en bas) : « aucun sélectionné » tant que rien n'est choisi. Chaque
   ligne se masque dans « Paramètres ».
-- **Car HUD**, à bord d'un véhicule **moteur allumé** (complet pour le conducteur, seulement le logo de la ceinture
-  pour les passagers), **au-dessus de la minimap** et **sans aucun fond** (ni opaque, ni transparent,
+- **Car HUD**, à bord d'un véhicule : **toujours affiché pour le conducteur**, entièrement **grisé moteur coupé** et
+  qui **s'illumine au démarrage** ; seulement le logo de la ceinture pour les passagers ; **au-dessus de la minimap** et **sans aucun fond** (ni opaque, ni transparent,
   ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple nombre, **grisée et
   transparente tant que le frein de parcage est serré**, blanche une fois desserré), une fine **barre horizontale
   d'accélération** (régime du moteur, rouge près du maximum), une **jauge d'essence verticale** (orange sous 15 %, rouge

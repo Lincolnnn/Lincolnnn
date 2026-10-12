@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '1.9.0'
+version '2.0.0'
 
 ui_page 'html/index.html'
 
@@ -22,7 +22,10 @@ files {
     'html/script.js',
 }
 
-shared_script 'config.lua'
+shared_scripts {
+    'config.lua',
+    'data/equipment.lua', -- tenues EUP et armes du menu (à remplir)
+}
 
 client_scripts {
     'client/main.lua',     -- NUI, menu d'interactions, fiches civiles, résultats
@@ -31,9 +34,12 @@ client_scripts {
     'client/civil.lua',    -- Mode civil (tips d'arrestation) et détection de la mise en joue (police)
     'client/police.lua',   -- Menottes, prendre par le bras, suppression d'éléments
     'client/policevehicles.lua', -- /policeon : véhicules de police réservés aux policiers
+    'client/garage.lua',   -- Menu > Voiture > Spawn (data/vehicles.txt) et Équipements
+    'client/radio.lua',    -- Menu > Voiture > Radio : son synchronisé dans le véhicule
 }
 
 server_scripts {
     'server/emotes.lua',   -- lecture des emotes du mode d'emotes (RPEMOTES / rpemotes)
     'server/server.lua',
+    'server/vehicles.lua', -- liste des véhicules, radio, équipements
 }

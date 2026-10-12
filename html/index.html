@@ -23,16 +23,6 @@
             </div>
         </div>
 
-        <!-- ================= BARRE D'ONGLETS ================= -->
-        <nav class="tabbar" role="tablist">
-            <button class="tab active" data-page="units" role="tab">Unités</button>
-            <button class="tab" data-page="interventions" role="tab">Interventions</button>
-            <button class="tab" data-page="search" role="tab">Recherches</button>
-            <button class="tab" data-page="reports" role="tab">Rapports</button>
-            <button class="tab" data-page="create" role="tab">Créations</button>
-            <button class="tab" data-page="settings" role="tab">Paramètres</button>
-        </nav>
-
         <div class="frame-body">
             <!-- ================= BARRE LATÉRALE ================= -->
             <aside class="sidebar">
@@ -48,7 +38,18 @@
                     </div>
                 </div>
 
-                <div class="group">
+                <!-- Navigation : pages à la verticale ("Créations" seulement en mode civil, rp_interact) -->
+                <nav class="sidenav" role="tablist">
+                    <button class="tab active" data-page="units" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0zM17 11a3 3 0 1 0 0-6M19 20h3a5 5 0 0 0-4-4.9"/></svg><span>Unités</span></button>
+                    <button class="tab" data-page="interventions" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 16H3zM12 10v4M12 17h.01"/></svg><span>Interventions</span></button>
+                    <button class="tab" data-page="search" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg><span>Recherches</span></button>
+                    <button class="tab" data-page="reports" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/></svg><span>Rapports</span></button>
+                    <button class="tab" data-page="create" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Créations</span></button>
+                    <button class="tab" data-page="settings" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Paramètres</span></button>
+                </nav>
+
+                <!-- Unité du joueur et statuts : en bas de la barre latérale -->
+                <div class="group status-group">
                     <span class="legend">Statut de l'unité</span>
                     <div class="my-unit" id="myUnit">Aucune unité</div>
                     <div class="status-list" id="statusList">
@@ -682,7 +683,7 @@
                 <section class="page" id="page-settings">
                     <!-- Catégories repliables (toutes fermées à l'ouverture du MDC) -->
                     <details class="settings-cat" data-cat="mdc">
-                        <summary>MDC <span class="settings-cat-hint">Taille de l'interface, onglet à l'ouverture, notifications et sons</span></summary>
+                        <summary>MDC <span class="settings-cat-hint">Taille de l'interface, transparence et flou, onglet à l'ouverture, notifications et sons</span></summary>
                         <div class="settings-grid">
                             <div class="group">
                                 <span class="legend">Interface</span>
@@ -701,6 +702,18 @@
                                         <option value="create">Créations</option>
                                     </select>
                                 </label>
+                                <label class="check"><input type="checkbox" data-setting="mdc.glass"> Fenêtre légèrement transparente</label>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Opacité de la fenêtre</span>
+                                    <input type="range" min="50" max="100" step="1" data-setting="mdc.opacity">
+                                    <span class="setting-value" data-setting-value="mdc.opacity"></span>
+                                </div>
+                                <label class="check"><input type="checkbox" data-setting="mdc.blur"> Flouter le jeu derrière le MDC</label>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Intensité du flou</span>
+                                    <input type="range" min="10" max="100" step="5" data-setting="mdc.blurStrength">
+                                    <span class="setting-value" data-setting-value="mdc.blurStrength"></span>
+                                </div>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn" id="mdcResetWindow">Réinitialiser la fenêtre</button>
                                     <button type="button" class="btn btn-danger" id="settingsReset">Réglages par défaut</button>
@@ -790,15 +803,15 @@
                                     <span class="setting-value" data-setting-value="car.scale"></span>
                                 </div>
                                 <div class="setting-row">
-                                    <span class="lbl-inline">Volume de la ceinture</span>
+                                    <span class="lbl-inline">Volume des sons du véhicule</span>
                                     <input type="range" min="0" max="100" step="1" data-setting="car.volume">
                                     <span class="setting-value" data-setting-value="car.volume"></span>
                                     <button type="button" class="btn btn-small" id="beltTest">Tester</button>
                                 </div>
                                 <p class="hint-text setting-text">Données fournies par <b>Vehicle Control</b> (rp_vehiclecontrol) : moteur <b>O</b>,
                                     ceinture <b>G</b>, portières <b>U</b> / <b>I</b>, frein de parcage <b>L</b>, pousser un véhicule <b>K</b> (modifiables : Paramètres &gt; Raccourcis
-                                    clavier &gt; FiveM). Car HUD affiché moteur allumé (passagers : logo de la ceinture seul). Frein de parcage serré : vitesse grisée.
-                                    Ceinture détachée : bip dès 5 MPH jusqu'à l'arrêt.</p>
+                                    clavier &gt; FiveM). Car HUD toujours affiché au volant, grisé moteur coupé (passagers : logo de la ceinture seul). Frein de parcage serré : vitesse grisée.
+                                    Ceinture détachée : carillon dès 5 MPH jusqu'à l'arrêt. Clignotants : flèches gauche / droite, warnings : flèche bas.</p>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn" data-hud-reset="car">Réinitialiser position et taille</button>
                                 </div>

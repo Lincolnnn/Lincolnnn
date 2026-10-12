@@ -30,6 +30,27 @@ personne (joueur ou PNJ) n'est assez près (2 m ; véhicule à 6 m pour placer),
 sur l'individu le plus proche.
 Case **Civil** : rappel du **profil actif** en haut, la case **Mode civil**, puis **Créer un profil** et
 **Créer un véhicule** (ouvrent la **fiche civile** et ferment le menu) et, en mode civil, **Tips arrestation**.
+Case **Équipements** : **Tenues** (EUP) et **Armes** (loadouts) que vous enregistrez dans **`data/equipment.lua`**
+(seules les tenues du personnage homme / femme sont proposées) ; **Remettre ma tenue** (celle d'avant la première tenue
+enfilée) et **Retirer mes armes**. Réservé aux policiers en service (`EquipmentPoliceOnly`). D'autres options pourront
+s'ajouter ici.
+Case **Voiture** :
+- **Spawn** : en haut, deux options gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
+  fait apparaître, s'il n'y a pas d'autre joueur dedans) et **Apparaître dans le véhicule** (sinon devant vous). Puis
+  **Police** (deux listes : **Atlanta Police Department** et **Georgia State Patrol**, réservées aux policiers en service,
+  `SpawnPoliceOnly`) et **Autres**. Seuls les véhicules de **`data/vehicles.txt`** sont proposés, une ligne par
+  véhicule : `spawn code ; service ; nom affiché ; livery ; extras` (ex. `apdfordexplorer2016 ; Atlanta Police
+  Department ; Atlanta Police Dept / FPIU 2016 ; 1 ; 1,3`). La **livery** et les **extras** indiqués sont appliqués à
+  l'apparition (extras listés activés, les autres désactivés). `rpi_vehicles` (console) relit le fichier. Le véhicule
+  apparaît moteur coupé, plein fait (Vehicle Control).
+- **Radio** : collez un **lien** (vidéo / musique YouTube, ou lien direct vers un fichier audio, un podcast, une radio
+  en ligne) : le son est joué **dans le véhicule**. Tout le monde l'entend **au même moment et au même volume de base**
+  (le volume est celui du véhicule : à 89 %, tout le monde l'a à 89 %). À bord : normalement ; dehors : de moins en
+  moins fort avec la distance (`RadioRange`, 30 m) et **insonorisé** (son étouffé et plus faible) si aucune vitre n'est
+  baissée et aucune portière n'est ouverte. Réglable seulement par les **places avant**, ou avec l'**œil** en visant
+  l'intérieur avant du véhicule, **portière avant ouverte** (option « Radio du véhicule »). L'effet étouffé est un vrai
+  filtre pour les liens directs qui l'autorisent ; pour YouTube, c'est une baisse du volume.
+
 Échap : retour / fermeture.
 
 **En service** = dans une unité du MDC : dès que vous rejoignez une unité, les fouilles et détails notoires
@@ -212,6 +233,8 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 |---|---|
 | `MenuKey`, `TargetKey` | touches par défaut (F1, Alt gauche) ; chaque joueur les change dans Échap > Paramètres > Raccourcis clavier > FiveM |
 | `MdcResource`, `ChatResource` | noms des dossiers du MDC et du chat |
+| `SpawnPoliceOnly`, `EquipmentPoliceOnly` | véhicules de police (Voiture > Spawn) et équipements réservés aux policiers en service |
+| `RadioRange`, `RadioInsulation`, `RadioMaxVolume` | radio du véhicule : portée dehors, volume quand tout est fermé (insonorisé), volume maximal |
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (15 s personne, 35 s véhicule) |
@@ -241,12 +264,14 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 
 ## Données
 
-`data/profiles.json` (voir `data/LISEZMOI.txt`). Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`
+`data/profiles.json` (voir `data/LISEZMOI.txt`). **À remplir vous-même** : `data/vehicles.txt` (véhicules du menu
+Voiture > Spawn) et `data/equipment.lua` (tenues EUP et armes du menu Équipements). Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`
 dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 
 ## Performance
 
-- Aucune boucle quand rien n'est utilisé (0.00 ms dans le resmon).
+- Aucune boucle quand rien n'est utilisé (0.00 ms dans le resmon). Radio : une vérification toutes les 250 ms
+  seulement tant qu'une radio est allumée dans un véhicule à portée réseau.
 - L'œil tourne uniquement pendant que la touche est maintenue (visée toutes les 50 ms, tir bloqué) et s'arrête ensuite.
 - Assis sur un banc : une petite boucle attend la touche pour se lever, puis s'arrête.
 - Portière ouverte avec l'œil : surveillance légère (250 ms) jusqu'à ce qu'elle soit refermée.

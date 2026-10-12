@@ -57,7 +57,7 @@ end
 --- Envoi au serveur (état du véhicule, lu par tous)
 local function sendFuel(vehicle, fuel, reason)
     if NetworkGetEntityIsNetworked(vehicle) then
-        Entity(vehicle).state:set('fuel', fuel, false) -- tout de suite chez ce client
+        VC.setPending(vehicle, 'fuel', fuel) -- tout de suite chez ce client
         TriggerServerEvent('rp_vehiclecontrol:fuel', VehToNet(vehicle), fuel, reason)
     else
         VC.setState(vehicle, 'fuel', fuel)

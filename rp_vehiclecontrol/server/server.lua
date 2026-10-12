@@ -4,8 +4,9 @@
     Écrit l'état des véhicules (lu par tous les clients) après vérification :
       - "fuel" (essence en %) : un joueur proche du véhicule ; la valeur ne monte qu'en faisant le plein,
         au rythme d'une pompe (Fuel.RefuelPerSecond) ;
-      - "vcEngine" (moteur toujours allumé), "vcBrake" (frein de parcage), "vcBroken" (cassé) : le
-        conducteur uniquement ;
+      - "vcEngine" (moteur toujours allumé), "vcBrake" (frein de parcage), "vcBroken" (cassé),
+        "vcSignal" (clignotants / warnings) : le conducteur ;
+      - "vcPushed" (véhicule poussé : par qui, sens, poussée en cours) : un joueur à côté du véhicule ;
       - "vcDoors" (qui a ouvert chaque portière avant) : conducteur (portières 0 et 1) ou passager avant
         (portière 1) ; le propriétaire réseau du véhicule applique l'ouverture / la fermeture.
     Aucune boucle.
@@ -57,14 +58,40 @@ RegisterNetEvent('rp_vehiclecontrol:fuel', function(netId, value, reason)
     state:set('fuel', math.floor(value * 100 + 0.5) / 100, true)
 end)
 
--- ---- Moteur, frein de parcage, véhicule cassé (conducteur uniquement) ----
-local STATE_KEYS = { vcEngine = true, vcBrake = true, vcBroken = true }
+-- ---- Moteur, frein de parcage, véhicule cassé, clignotants (conducteur) ; poussée (joueur à côté) ----
+local SIGNALS = { left = true, right = true, hazard = true }
+local STATE_KEYS = {
+    vcEngine = function(v) return type(v) == 'boolean' end,
+    vcBrake = function(v) return type(v) == 'boolean' end,
+    vcBroken = function(v) return type(v) == 'boolean' end,
+    vcSignal = function(v) return v == false or SIGNALS[v] == true end,
+}
+
+--- Conducteur (siège -1) ; à défaut (siège pas encore à jour côté serveur), joueur à bord du véhicule
+local function isDriver(src, vehicle)
+    if seatOf(src, vehicle) == -1 then return true end
+    local ped = GetPlayerPed(src)
+    return ped ~= 0 and GetVehiclePedIsIn(ped, false) == vehicle
+end
 
 RegisterNetEvent('rp_vehiclecontrol:state', function(netId, key, value)
     local src = source
     local vehicle = vehicleFromNet(netId)
-    if not vehicle or not STATE_KEYS[key] or type(value) ~= 'boolean' then return end
-    if seatOf(src, vehicle) ~= -1 then return end
+    if not vehicle then return end
+    if key == 'vcPushed' then
+        -- Joueur qui pousse (à côté du véhicule) : sens (+1 / -1) et poussée en cours
+        if not near(src, vehicle, 7.0) then return end
+        if value == false then
+            local current = Entity(vehicle).state.vcPushed
+            if type(current) == 'table' and current.by ~= src then return end
+            Entity(vehicle).state:set('vcPushed', false, true)
+        elseif type(value) == 'table' and (value.dir == 1 or value.dir == -1) then
+            Entity(vehicle).state:set('vcPushed', { by = src, dir = value.dir, active = value.active == true }, true)
+        end
+        return
+    end
+    local valid = STATE_KEYS[key]
+    if not valid or not valid(value) or not isDriver(src, vehicle) then return end
     Entity(vehicle).state:set(key, value, true)
 end)
 

@@ -31,6 +31,9 @@ local civilMode = GetResourceKvpString(KVP_KEY) == '1'
 -- aimed : un policier vise le joueur en ce moment (titre rouge).
 local tips = { shown = false, aimed = false }
 
+-- Partagé avec le MDC (ce joueur uniquement, non répliqué) : page "Créations" en mode civil uniquement
+LocalPlayer.state:set('rpiCivilMode', civilMode, false)
+
 function RPI.civilMode() return civilMode end
 function RPI.tipsManual() return civilMode and tips.shown end
 
@@ -114,6 +117,7 @@ end
 local function setCivilMode(enabled)
     civilMode = enabled == true
     SetResourceKvp(KVP_KEY, civilMode and '1' or '0')
+    LocalPlayer.state:set('rpiCivilMode', civilMode, false) -- MDC : page "Créations" en mode civil uniquement
     if not civilMode then tips.shown, tips.aimed = false, false end
     renderTips()
 end

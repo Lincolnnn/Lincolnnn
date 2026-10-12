@@ -237,6 +237,19 @@ local function vehicleOptions(ctx)
         end
     end
 
+    -- Radio : intérieur avant visé, portière avant ouverte (menu ouvert sur la page Radio)
+    if within(ctx, 3.0) and not IsPedInAnyVehicle(PlayerPedId(), false) then
+        for _, front in ipairs({ { door = 0, bone = 'seat_dside_f' }, { door = 1, bone = 'seat_pside_f' } }) do
+            local bone = GetEntityBoneIndexByName(vehicle, front.bone)
+            if bone ~= -1 and GetVehicleDoorAngleRatio(vehicle, front.door) > 0.1
+                and #(ctx.hit - GetWorldPositionOfEntityBone(vehicle, bone)) < 1.3 then
+                out[#out + 1] = { id = 'radio', label = 'Radio du véhicule', icon = 'music',
+                    run = function(c) RPI.openRadio(c.entity) end }
+                break
+            end
+        end
+    end
+
     -- /policeon : pas d'option de portière sur un véhicule d'urgence pour un non-policier
     local door = within(ctx, Config.DoorDistance) and nearestDoor(vehicle, ctx.hit) or nil
     -- /policeon : pas de portière pour un non-policier, sauf portière ouverte par un policier

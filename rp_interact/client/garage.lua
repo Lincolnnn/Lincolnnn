@@ -1,0 +1,233 @@
+--[[
+    RP Interact - Menu "Voiture > Spawn" et "Équipements" (client)
+    ---------------------------------------------------------------
+    SPAWN : véhicules de data/vehicles.txt uniquement (liste envoyée par le serveur), classés Police
+      (Atlanta Police Department / Georgia State Patrol) et Autres. Deux options en haut, gardées chez
+      le joueur : "Supprimer l'ancien véhicule" (le dernier qu'il a fait apparaître, s'il n'y a pas
+      d'autre joueur dedans) et "Apparaître dans le véhicule". Livery et extras de la liste appliqués.
+      Le véhicule est créé par ce script : Vehicle Control le considère comme neuf (plein, moteur coupé).
+    ÉQUIPEMENTS : tenues EUP (data/equipment.lua, selon le personnage homme / femme) et armes.
+      "Remettre ma tenue" rend la tenue d'avant la première tenue enfilée.
+    Aucune boucle.
+]]
+
+local Config = InteractConfig
+local KVP_OPTIONS = 'rpi_spawn_options'
+local MALE, FEMALE = GetHashKey('mp_m_freemode_01'), GetHashKey('mp_f_freemode_01')
+
+local function loadOptions()
+    local options = { deleteOld = true, warpInto = true }
+    local raw = GetResourceKvpString(KVP_OPTIONS)
+    local ok, saved = pcall(json.decode, raw or '')
+    if ok and type(saved) == 'table' then
+        options.deleteOld = saved.deleteOld ~= false
+        options.warpInto = saved.warpInto ~= false
+    end
+    return options
+end
+
+local options = loadOptions()
+local lastVehicle = nil -- dernier véhicule apparu par ce joueur
+
+-- =========================================================================
+-- SPAWN
+-- =========================================================================
+RegisterNUICallback('vehicleList', function(_, cb)
+    RPI.request('vehicleList', {}, function(res)
+        res = res or { ok = false }
+        res.options = options
+        cb(res)
+    end)
+end)
+
+RegisterNUICallback('spawnOptions', function(data, cb)
+    data = type(data) == 'table' and data or {}
+    options.deleteOld = data.deleteOld == true
+    options.warpInto = data.warpInto == true
+    SetResourceKvp(KVP_OPTIONS, json.encode(options))
+    cb({ ok = true, options = options })
+end)
+
+--- Un autre joueur est-il dans ce véhicule ?
+local function otherPlayerInside(vehicle)
+    local me = PlayerPedId()
+    for seat = -1, GetVehicleMaxNumberOfPassengers(vehicle) - 1 do
+        local ped = GetPedInVehicleSeat(vehicle, seat)
+        if ped ~= 0 and ped ~= me and IsPedAPlayer(ped) then return true end
+    end
+    return false
+end
+
+local function deleteOld()
+    local vehicle = lastVehicle
+    lastVehicle = nil
+    if not vehicle or not DoesEntityExist(vehicle) or otherPlayerInside(vehicle) then return end
+    NetworkRequestControlOfEntity(vehicle)
+    local timeout = GetGameTimer() + 1000
+    while not NetworkHasControlOfEntity(vehicle) and GetGameTimer() < timeout do Wait(0) end
+    SetEntityAsMissionEntity(vehicle, true, true)
+    DeleteVehicle(vehicle)
+    if DoesEntityExist(vehicle) then DeleteEntity(vehicle) end
+end
+
+local function loadVehicleModel(model)
+    RequestModel(model)
+    local timeout = GetGameTimer() + 10000
+    while not HasModelLoaded(model) and GetGameTimer() < timeout do Wait(10) end
+    return HasModelLoaded(model)
+end
+
+--- Livery (index de livery, ou mod de livery n° 48 pour les véhicules qui l'utilisent) et extras
+local function applyVehicleLook(vehicle, entry)
+    if entry.livery then
+        if GetVehicleLiveryCount(vehicle) > 0 then
+            SetVehicleLivery(vehicle, entry.livery)
+        else
+            SetVehicleModKit(vehicle, 0)
+            if GetNumVehicleMods(vehicle, 48) > 0 then SetVehicleMod(vehicle, 48, entry.livery, false) end
+        end
+    end
+    if type(entry.extras) == 'table' then
+        local wanted = {}
+        for _, id in ipairs(entry.extras) do wanted[id] = true end
+        for id = 0, 20 do
+            if DoesExtraExist(vehicle, id) then SetVehicleExtra(vehicle, id, not wanted[id]) end -- true = désactivé
+        end
+    end
+end
+
+local function spawn(entry)
+    local model = GetHashKey(entry.code)
+    if not IsModelInCdimage(model) or not IsModelAVehicle(model) then
+        return RPI.notify(('Modèle "%s" introuvable (spawn code / dossier stream).'):format(entry.code), 'error')
+    end
+    if not loadVehicleModel(model) then return RPI.notify('Le modèle du véhicule n\'a pas pu être chargé.', 'error') end
+
+    local ped = PlayerPedId()
+    local current = GetVehiclePedIsIn(ped, false)
+    local currentIsOld = current ~= 0 and current == lastVehicle
+    if options.deleteOld then deleteOld() end
+
+    -- Dans le véhicule : à la place du joueur (ou de son ancien véhicule) ; sinon devant lui
+    local x, y, z, heading
+    if options.warpInto and (current == 0 or (currentIsOld and options.deleteOld)) then
+        local c = current ~= 0 and DoesEntityExist(current) and GetEntityCoords(current) or GetEntityCoords(ped)
+        x, y, z, heading = c.x, c.y, c.z, GetEntityHeading(ped)
+    else
+        local c = GetOffsetFromEntityInWorldCoords(current ~= 0 and current or ped, 0.0, current ~= 0 and 7.0 or 4.5, 0.0)
+        x, y, z, heading = c.x, c.y, c.z, GetEntityHeading(ped) + (options.warpInto and 0.0 or 90.0)
+    end
+
+    local vehicle = CreateVehicle(model, x, y, z + 0.3, heading, true, false)
+    SetModelAsNoLongerNeeded(model)
+    if not vehicle or vehicle == 0 then return RPI.notify('Le véhicule n\'a pas pu apparaître.', 'error') end
+    SetVehicleOnGroundProperly(vehicle)
+    SetEntityAsMissionEntity(vehicle, true, true)
+    SetVehicleHasBeenOwnedByPlayer(vehicle, true)
+    SetVehicleNeedsToBeHotwired(vehicle, false)
+    SetVehRadioStation(vehicle, 'OFF')
+    applyVehicleLook(vehicle, entry)
+    lastVehicle = vehicle
+    if options.warpInto then TaskWarpPedIntoVehicle(ped, vehicle, -1) end
+    RPI.notify(('Véhicule : %s'):format(entry.label), 'success')
+end
+
+RegisterNUICallback('spawnVehicle', function(data, cb)
+    cb({ ok = true })
+    local code = type(data) == 'table' and data.code or nil
+    RPI.request('spawnVehicle', { code = code }, function(res)
+        if not res or not res.ok then return RPI.notify(res and res.error or 'Action impossible.', 'error') end
+        CreateThread(function() spawn(res.vehicle) end)
+    end)
+end)
+
+-- =========================================================================
+-- ÉQUIPEMENTS : tenues EUP et armes (data/equipment.lua)
+-- =========================================================================
+local savedLook = nil -- tenue d'avant la première tenue enfilée
+
+local function gender()
+    local model = GetEntityModel(PlayerPedId())
+    if model == MALE then return 'male' end
+    if model == FEMALE then return 'female' end
+    return nil
+end
+
+RegisterNUICallback('equipmentList', function(_, cb)
+    local g = gender()
+    local outfits, loadouts = {}, {}
+    for i, o in ipairs(InteractEquipment and InteractEquipment.Outfits or {}) do
+        if g and (o.gender == nil or o.gender == g) then
+            outfits[#outfits + 1] = { index = i, name = o.name, service = o.service }
+        end
+    end
+    for i, l in ipairs(InteractEquipment and InteractEquipment.Loadouts or {}) do
+        loadouts[#loadouts + 1] = { index = i, name = l.name }
+    end
+    cb({
+        ok = true, outfits = outfits, loadouts = loadouts, freemode = g ~= nil,
+        police = RPI.isPolice(), policeOnly = Config.EquipmentPoliceOnly ~= false, saved = savedLook ~= nil,
+    })
+end)
+
+local function saveLook(ped)
+    if savedLook then return end
+    savedLook = { components = {}, props = {} }
+    for id = 0, 11 do
+        savedLook.components[id] = { GetPedDrawableVariation(ped, id), GetPedTextureVariation(ped, id) }
+    end
+    for id = 0, 7 do
+        savedLook.props[id] = { GetPedPropIndex(ped, id), GetPedPropTextureIndex(ped, id) }
+    end
+end
+
+local function applyOutfit(ped, look)
+    for id, v in pairs(look.components or {}) do
+        SetPedComponentVariation(ped, tonumber(id), v[1], v[2] or 0, 0)
+    end
+    for id, v in pairs(look.props or {}) do
+        if v[1] == nil or v[1] < 0 then ClearPedProp(ped, tonumber(id)) else SetPedPropIndex(ped, tonumber(id), v[1], v[2] or 0, true) end
+    end
+end
+
+local function giveLoadout(ped, loadout)
+    if loadout.replace then RemoveAllPedWeapons(ped, true) end
+    for _, w in ipairs(loadout.weapons or {}) do
+        local hash = GetHashKey(w.weapon)
+        GiveWeaponToPed(ped, hash, w.ammo or 0, false, false)
+        for _, component in ipairs(w.components or {}) do GiveWeaponComponentToPed(ped, hash, GetHashKey(component)) end
+    end
+    SetCurrentPedWeapon(ped, GetHashKey('WEAPON_UNARMED'), true)
+end
+
+RegisterNUICallback('useEquipment', function(data, cb)
+    data = type(data) == 'table' and data or {}
+    local ped = PlayerPedId()
+    if data.kind == 'restoreOutfit' then
+        if savedLook then applyOutfit(ped, savedLook); savedLook = nil end
+        cb({ ok = true })
+        return RPI.notify('Tenue d\'origine remise.', 'success')
+    elseif data.kind == 'removeWeapons' then
+        RemoveAllPedWeapons(ped, true)
+        cb({ ok = true })
+        return RPI.notify('Armes retirées.', 'success')
+    end
+    RPI.request('equipment', { kind = data.kind, index = data.index }, function(res)
+        if not res or not res.ok then
+            cb({ ok = false, error = res and res.error })
+            return RPI.notify(res and res.error or 'Action impossible.', 'error')
+        end
+        ped = PlayerPedId()
+        if data.kind == 'outfit' then
+            local outfit = InteractEquipment.Outfits[tonumber(data.index)]
+            saveLook(ped)
+            applyOutfit(ped, outfit)
+            RPI.notify(('Tenue : %s'):format(outfit.name), 'success')
+        else
+            local loadout = InteractEquipment.Loadouts[tonumber(data.index)]
+            giveLoadout(ped, loadout)
+            RPI.notify(('Armes : %s'):format(loadout.name), 'success')
+        end
+        cb({ ok = true, saved = savedLook ~= nil })
+    end)
+end)

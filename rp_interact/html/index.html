@@ -39,6 +39,100 @@
                 <span class="case-text"><b>Civil</b><small id="menuCivilHint">Profils et véhicule</small></span>
                 <span class="case-arrow">&#8250;</span>
             </button>
+            <button type="button" class="menu-case" data-go="equipment">
+                <span class="case-icon">
+                    <svg viewBox="0 0 24 24"><path d="M8 3 4 6l2 4 2-1v12h8V9l2 1 2-4-4-3c-.5 1.7-2 3-4 3S8.5 4.7 8 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                </span>
+                <span class="case-text"><b>Équipements</b><small>Tenues, armes</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+            <button type="button" class="menu-case" data-go="car">
+                <span class="case-icon">
+                    <svg viewBox="0 0 24 24"><path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                </span>
+                <span class="case-text"><b>Voiture</b><small>Spawn, radio</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+        </div>
+
+        <!-- ================= ÉQUIPEMENTS (data/equipment.lua) ================= -->
+        <div class="menu-view hidden" data-view="equipment">
+            <div class="menu-active none hidden" id="equipNotice"></div>
+            <div class="menu-section">Tenues</div>
+            <div class="menu-list" id="outfitList"></div>
+            <button type="button" class="menu-btn menu-btn-soft" id="outfitRestore">Remettre ma tenue</button>
+            <div class="menu-section">Armes</div>
+            <div class="menu-list" id="loadoutList"></div>
+            <button type="button" class="menu-btn menu-btn-soft" id="weaponsRemove">Retirer mes armes</button>
+        </div>
+
+        <!-- ================= VOITURE ================= -->
+        <div class="menu-view hidden" data-view="car">
+            <button type="button" class="menu-case" data-go="spawn">
+                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+                <span class="case-text"><b>Spawn</b><small>Faire apparaître un véhicule</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+            <button type="button" class="menu-case" data-go="radio">
+                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm11-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+                <span class="case-text"><b>Radio</b><small>Musique, vidéo, podcast dans le véhicule</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+        </div>
+
+        <div class="menu-view hidden" data-view="spawn">
+            <label class="menu-toggle">
+                <input type="checkbox" id="spawnDeleteOld">
+                <span class="toggle-box"></span>
+                <span class="toggle-text"><b>Supprimer l'ancien véhicule</b><small>Le dernier véhicule que vous avez fait apparaître</small></span>
+            </label>
+            <label class="menu-toggle">
+                <input type="checkbox" id="spawnWarpInto">
+                <span class="toggle-box"></span>
+                <span class="toggle-text"><b>Apparaître dans le véhicule</b><small>Sinon, il apparaît devant vous</small></span>
+            </label>
+            <button type="button" class="menu-case" data-go="spawn-police">
+                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+                <span class="case-text"><b>Police</b><small id="spawnPoliceHint">Atlanta Police Department, Georgia State Patrol</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+            <button type="button" class="menu-case" data-go="spawn-other">
+                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+                <span class="case-text"><b>Autres</b><small id="spawnOtherHint">Véhicules civils</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+        </div>
+
+        <div class="menu-view hidden" data-view="spawn-police">
+            <div class="menu-active none hidden" id="spawnPoliceNotice"></div>
+            <div class="menu-section"><span class="dept-chip dept-apd">APD</span>Atlanta Police Department</div>
+            <div class="menu-list" id="spawnApd"></div>
+            <div class="menu-section"><span class="dept-chip dept-gsp">GSP</span>Georgia State Patrol</div>
+            <div class="menu-list" id="spawnGsp"></div>
+        </div>
+
+        <div class="menu-view hidden" data-view="spawn-other">
+            <div class="menu-list" id="spawnOther"></div>
+        </div>
+
+        <!-- ================= RADIO DU VÉHICULE ================= -->
+        <div class="menu-view hidden" data-view="radio">
+            <div class="menu-active" id="radioStatus">Montez dans un véhicule.</div>
+            <div class="menu-profile" id="radioControls">
+                <label class="menu-field">Lien (YouTube, musique, podcast, radio en ligne)
+                    <input type="text" id="radioUrl" maxlength="400" placeholder="https://…">
+                </label>
+                <div class="menu-row">
+                    <button type="button" class="menu-btn" id="radioPlay">Lancer</button>
+                    <button type="button" class="menu-btn menu-btn-soft" id="radioStop">Arrêter</button>
+                </div>
+                <label class="menu-field">Volume du véhicule <span class="menu-value" id="radioVolumeValue">60 %</span>
+                    <input type="range" id="radioVolume" min="0" max="100" step="1" value="60">
+                </label>
+            </div>
+            <p class="menu-text" id="radioHint">Tout le monde l'entend au même volume : à bord, et dehors selon la distance ;
+                son étouffé si vitres et portières sont fermées. Réglable seulement depuis les places avant
+                (ou avec l'œil, portière avant ouverte).</p>
         </div>
 
         <div class="menu-view hidden" data-view="civil">
@@ -141,6 +235,9 @@
         <div class="tips-keys" id="tipsKeys"></div>
         <div class="tips-close">Échap : fermer</div>
     </div>
+
+    <!-- Lecteurs de la radio des véhicules (invisibles) -->
+    <div class="radio-players" id="radioPlayers" aria-hidden="true"></div>
 
     <!-- Résultats d'inspection (à droite) et notifications (en haut) -->
     <div class="results" id="results"></div>

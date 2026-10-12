@@ -117,6 +117,7 @@ local function openMDC()
             rpName   = currentRpName(),
             serverId = GetPlayerServerId(PlayerId()), -- non affiché : sert à repérer sa propre ligne
             layout   = windowLayout, -- nil = position par défaut (centrée)
+            civilMode = LocalPlayer.state.rpiCivilMode == true, -- page "Créations" (mode civil, rp_interact)
         }
     })
 
@@ -124,8 +125,25 @@ local function openMDC()
     TriggerServerEvent('mdc:server:viewer', true)
 end
 
+-- Flou du jeu derrière le MDC (le NUI ne voit pas le jeu : le flou est un effet du jeu, comme celui
+-- du menu pause, dont l'intensité est réglée dans Paramètres > MDC). Activé / retiré par le NUI.
+local blurOn = false
+
+local function setBlur(strength)
+    strength = tonumber(strength) or 0
+    if strength > 0 then
+        SetTimecycleModifier('hud_def_blur')
+        SetTimecycleModifierStrength(math.min(strength, 1.0))
+        blurOn = true
+    elseif blurOn then
+        ClearTimecycleModifier()
+        blurOn = false
+    end
+end
+
 local function closeMDC()
     if not isOpen then return end
+    setBlur(0)
     isOpen = false
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
@@ -147,6 +165,20 @@ RegisterKeyMapping(Config.Command, 'Ouvrir le MDC (Police)', 'keyboard', Config.
 -- =========================================================================
 
 -- Fermeture (touche Échap ou bouton de fermeture dans l'UI)
+RegisterNUICallback('mdcBlur', function(data, cb)
+    setBlur(isOpen and type(data) == 'table' and data.strength or 0)
+    cb({ ok = true })
+end)
+
+-- Mode civil activé / désactivé dans le menu d'interactions : page "Créations" affichée ou non
+AddStateBagChangeHandler('rpiCivilMode', ('player:%d'):format(GetPlayerServerId(PlayerId())), function(_, _, value)
+    SendNUIMessage({ action = 'civilMode', data = { enabled = value == true } })
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() then setBlur(0) end
+end)
+
 RegisterNUICallback('close', function(_, cb)
     closeMDC()
     cb({ ok = true })

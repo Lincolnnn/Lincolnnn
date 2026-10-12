@@ -23,19 +23,34 @@ passent par le chat d'origine.
 | **U** | conducteur, passager avant | Ouvrir / refermer **sa** portière (avant gauche / avant droite) |
 | **I** | conducteur | Ouvrir / refermer les **deux portières avant** ensemble |
 | **L** | conducteur | Serrer / desserrer le **frein de parcage** |
+| **←** / **→** | conducteur | **Clignotant** gauche / droit (même touche pour l'arrêter) |
+| **↓** | conducteur | **Warnings** (feux de détresse) |
 | **K** | à pied | Devant le capot / derrière le coffre : **pousser** le véhicule / arrêter de pousser |
 
 En voiture, aucun rappel des touches à l'écran (seule la notification du moteur, en montant côté conducteur).
 
 ## Car HUD (dessiné par le MDC)
 
-- Affiché **uniquement à bord ET moteur allumé**. Exception pour le conducteur : moteur coupé parce que le véhicule
-  est **cassé** ou en **panne sèche**, le car HUD reste affiché (logo rouge, jauge vide) pour comprendre pourquoi il
-  ne démarre pas.
+- **Toujours affiché pour le conducteur** : moteur coupé, tout est **grisé** ; au démarrage, tout s'illumine.
 - **Conducteur** : car HUD complet (vitesse, accélération, essence, ceinture, véhicule cassé).
   **Passagers** : uniquement le **logo de la ceinture**.
 - **Logo de la ceinture** : contour noir ; **transparent, sans couleur** quand elle n'est pas mise, **rempli de
   blanc** quand elle est mise, **clignote en rouge pâle** quand le véhicule roule sans ceinture.
+
+## Clignotants et warnings
+
+- **Flèche gauche / droite** : clignotant ; **flèche bas** : warnings. Les feux sont visibles par tous les joueurs.
+- **Vrai son de relais** (« tic-tac ») entendu par les occupants. Comme dans une vraie voiture, le clignotant **s'arrête
+  tout seul après le virage** (volant revenu droit après avoir tourné de 60°, `SignalCancelAngle`). Les warnings restent
+  jusqu'à la touche, même véhicule laissé.
+
+## Sons
+
+Les sons du véhicule sont des **fichiers audio** (`html/sounds/*.ogg`) : verrou de ceinture (`belt_on`), déclic et
+sangle qui se rembobine (`belt_off`), carillon du tableau de bord (`belt_chime`), relais du clignotant
+(`indicator_tick` / `indicator_tock`). Ce sont des imitations fabriquées pour ce script : vous pouvez les **remplacer par
+vos propres enregistrements** (mêmes noms de fichiers, format .ogg). Volume réglé par chaque joueur dans le MDC
+(*Paramètres > HUD & Display > Volume des sons du véhicule*, bouton « Tester »).
 
 ## Moteur
 
@@ -75,8 +90,8 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 ## Ceinture de sécurité
 
-- Son à l'attache et au retrait ; retirée en descendant. Détachée : **bip au-dessus de 5 MPH**, continu jusqu'à l'arrêt
-  du véhicule ou jusqu'à l'attache.
+- Vrai son à l'attache et au retrait. **Attachée, impossible de descendre** (touche F bloquée) : il faut d'abord la
+  détacher. Détachée : **carillon au-dessus de 5 MPH**, répété jusqu'à l'arrêt du véhicule ou jusqu'à l'attache.
 - **Sons synchronisés** : les occupants entendent tout à 100 %, les joueurs autour (15 m) de moins en moins fort.
 - **Éjection** (ceinture **détachée**), lors d'un **choc contre un objet fixe (mur…) ou un véhicule** (arrêté ou en
   mouvement) :
@@ -97,22 +112,25 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 ## Frein de parcage
 
-- **L** (conducteur) : serré, le véhicule **ne bouge pas** et **n'avance pas** quand on accélère (accélérer / reculer
-  bloqués, même le démarrage) : il faut le desserrer. Le **chiffre de la vitesse** du car HUD est **grisé et
+- **L** (conducteur) : serré, le véhicule **ne bouge pas** (frein à main serré et vitesse maintenue à zéro à l'arrêt)
+  et **n'avance pas** quand on accélère (accélérer / reculer bloqués, même le démarrage) : il faut le desserrer. La
+  touche répond immédiatement, le serveur confirme ensuite pour tous les joueurs. Le **chiffre de la vitesse** du car HUD est **grisé et
   transparent** tant qu'il est serré, blanc une fois desserré.
 - **Desserré**, un véhicule laissé est **libre**, comme si quelqu'un était au volant sans rien toucher : il **roule tout
   seul en pente**, se déplace quand un véhicule le percute, et il peut être **poussé** (ci-dessous). Serré, il reste
-  immobile et ne peut pas être poussé.
+  immobile (il peut quand même être poussé).
 
 ## Pousser un véhicule
 
-- À pied, **devant le capot ou derrière le coffre** d'un véhicule sans conducteur et sans frein de parcage, un petit
-  message apparaît en bas de l'écran, sur un **fond noir légèrement transparent** : « **K** Pousser le véhicule ».
+- À pied, **devant le capot ou derrière le coffre** d'un véhicule (frein de parcage serré ou non, avec ou sans
+  quelqu'un au volant), un petit message apparaît en bas de l'écran, sur un **fond noir légèrement transparent** :
+  « **K** Pousser le véhicule ».
 - **K** : le personnage se met en position contre le pare-chocs (animation de poussée). Il pousse en **avançant avec
-  sa touche habituelle** (Z / W) ; **Q / D** (A / D) tournent les roues. Derrière le coffre, le véhicule avance ;
-  devant le capot, il recule.
+  sa touche habituelle** (Z / W), **tout droit uniquement**. Derrière le coffre, le véhicule avance ; devant le capot,
+  il recule.
+- **Quelqu'un au volant** : il ne peut plus accélérer ni reculer, **seulement tourner le volant** pendant qu'on le pousse.
 - Pendant la poussée, une notification rappelle « **K** Arrêter de pousser » ; **K** de nouveau pour arrêter. Arrêt
-  automatique si quelqu'un prend le volant, si le frein de parcage est serré ou si le personnage tombe.
+  automatique si le personnage tombe.
 - **K ouvre aussi le MDC** : tant que le message est affiché (ou pendant la poussée), K n'ouvre pas le MDC (état du
   joueur `vcPushPrompt`, lu par le MDC). Ailleurs, K ouvre le MDC normalement. Les deux touches restent modifiables.
 
@@ -120,7 +138,8 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 | Clé | Rôle |
 |---|---|
-| `Keys` | touches par défaut |
+| `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓) |
+| `SoundVolume`, `SignalCancelAngle`, `SignalInterval` | volume sans le MDC, arrêt automatique du clignotant après un virage, rythme du relais |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | multiplicateurs, chocs, paliers (abîmé / critique / cassé), puissance, calages |
 | `Seatbelt` | alarme (5 MPH), portée des sons, règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |
@@ -130,7 +149,8 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 ## États des véhicules (pour d'autres scripts)
 
 `Entity(vehicle).state` : `fuel` (0–100), `vcEngine` (toujours allumé), `vcBrake` (frein de parcage), `vcBroken`
-(cassé), `vcDoors` (qui a ouvert les portières avant). État du joueur : `seatbelt`, `seatbeltAlarm`. Le serveur vérifie
+(cassé), `vcDoors` (qui a ouvert les portières avant), `vcSignal` (clignotants / warnings), `vcPushed` (poussé : par
+qui, sens, poussée en cours). État du joueur : `seatbelt`, `seatbeltAlarm`. Le serveur vérifie
 chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au rythme d'une pompe).
 
 ## Performance

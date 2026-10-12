@@ -68,6 +68,7 @@
         cuffs: '<circle cx="7" cy="14" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="14" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 10.5 12 8l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
         car: '<path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
         wave: '<path d="M8 13V6a1.5 1.5 0 0 1 3 0v5V4a1.5 1.5 0 0 1 3 0v7V5.5a1.5 1.5 0 0 1 3 0V15c0 3.5-2.5 6-6 6-2.5 0-4-1.2-5.5-3.5L3.5 14a1.6 1.6 0 0 1 2.6-1.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
+        music: '<path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm11-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
         hand: '<path d="M8 13V6a1.5 1.5 0 0 1 3 0v5V4a1.5 1.5 0 0 1 3 0v7V5.5a1.5 1.5 0 0 1 3 0V15c0 3.5-2.5 6-6 6-2.5 0-4-1.2-5.5-3.5L3.5 14a1.6 1.6 0 0 1 2.6-1.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
     };
     const icon = (name) => `<svg viewBox="0 0 24 24">${ICONS[name] || ICONS.eye}</svg>`;
@@ -143,13 +144,25 @@
     // MENU D'INTERACTIONS
     // =====================================================================
     const menu = { open: false, view: 'home', data: {} };
-    const MENU_TITLES = { home: 'Interactions', civil: 'Civil', police: 'Police' };
+    const MENU_TITLES = {
+        home: 'Interactions', civil: 'Civil', police: 'Police', equipment: 'Équipements',
+        car: 'Voiture', spawn: 'Spawn', 'spawn-police': 'Véhicules de police', 'spawn-other': 'Autres véhicules', radio: 'Radio',
+    };
+    // Page précédente (bouton retour / Échap)
+    const MENU_PARENT = { civil: 'home', police: 'home', equipment: 'home', car: 'home', spawn: 'car', radio: 'car', 'spawn-police': 'spawn', 'spawn-other': 'spawn' };
+    const goBack = () => {
+        menu.view = MENU_PARENT[menu.view] || 'home';
+        renderMenu();
+    };
 
     function renderMenu() {
         const d = menu.data;
         if (menu.lastView !== menu.view) {
             menu.lastView = menu.view;
             post('menuView', { view: menu.view }); // la vue Police reçoit l'état des actions en direct
+            if (menu.view === 'equipment') loadEquipment();
+            if (menu.view.startsWith('spawn')) loadVehicles();
+            if (menu.view === 'radio') loadRadio();
         }
         $('#menuTitle').textContent = MENU_TITLES[menu.view];
         $('#menuBack').classList.toggle('hidden', menu.view === 'home');
@@ -249,10 +262,228 @@
         }
         $$('[data-police-action]').forEach((btn) => { btn.disabled = true; });
         menu.data = data;
-        menu.view = 'home';
+        menu.view = MENU_TITLES[data.view] ? data.view : 'home'; // ex. 'radio' depuis l'œil
         renderMenu();
         renderCivilMode();
         renderPoliceProfile();
+    }
+
+    // ---- Équipements : tenues EUP et armes (data/equipment.lua) ----
+    const listButtons = (items, kind, empty) => (items.length ? items.map((x) => `
+        <button type="button" class="menu-item" data-kind="${kind}" data-index="${x.index}">${esc(x.name)}
+            ${x.service ? `<small>${esc(x.service)}</small>` : ''}</button>`).join('') : `<div class="menu-empty">${esc(empty)}</div>`);
+
+    async function loadEquipment() {
+        const res = await post('equipmentList');
+        if (!res || !res.ok) return;
+        const locked = res.policeOnly && !res.police;
+        const notice = $('#equipNotice');
+        notice.classList.toggle('hidden', !locked && res.freemode);
+        notice.textContent = locked ? 'Réservé à la police : rejoignez une unité dans le MDC.'
+            : 'Tenues disponibles uniquement avec un personnage multijoueur (homme / femme).';
+        $('#outfitList').innerHTML = listButtons(toArray(res.outfits), 'outfit', 'Aucune tenue pour ce personnage.');
+        $('#loadoutList').innerHTML = listButtons(toArray(res.loadouts), 'loadout', 'Aucune arme configurée.');
+        $$('#outfitList .menu-item, #loadoutList .menu-item').forEach((b) => { b.disabled = locked; });
+        $('#outfitRestore').disabled = !res.saved;
+    }
+
+    document.addEventListener('click', async (e) => {
+        const item = e.target.closest('#outfitList .menu-item, #loadoutList .menu-item');
+        if (!item || item.disabled) return;
+        const res = await post('useEquipment', { kind: item.dataset.kind, index: Number(item.dataset.index) });
+        if (res && res.ok && item.dataset.kind === 'outfit') $('#outfitRestore').disabled = false;
+    });
+    $('#outfitRestore').addEventListener('click', async () => {
+        await post('useEquipment', { kind: 'restoreOutfit' });
+        $('#outfitRestore').disabled = true;
+    });
+    $('#weaponsRemove').addEventListener('click', () => post('useEquipment', { kind: 'removeWeapons' }));
+
+    // ---- Voiture > Spawn (data/vehicles.txt) ----
+    async function loadVehicles() {
+        const res = await post('vehicleList');
+        if (!res || !res.ok) return;
+        const opts = res.options || {};
+        $('#spawnDeleteOld').checked = opts.deleteOld !== false;
+        $('#spawnWarpInto').checked = opts.warpInto !== false;
+        const all = toArray(res.vehicles);
+        const locked = res.policeOnly && !res.police;
+        const item = (v) => `<button type="button" class="menu-item vehicle-item" data-code="${esc(v.code)}" ${v.service !== 'other' && locked ? 'disabled' : ''}>
+            ${esc(v.label)}<small>${esc(v.code)}</small></button>`;
+        const fill = (sel, list, empty) => { $(sel).innerHTML = list.length ? list.map(item).join('') : `<div class="menu-empty">${esc(empty)}</div>`; };
+        const apd = all.filter((v) => v.service === 'apd');
+        const gsp = all.filter((v) => v.service === 'gsp');
+        const other = all.filter((v) => v.service === 'other');
+        fill('#spawnApd', apd, 'Aucun véhicule APD (data/vehicles.txt).');
+        fill('#spawnGsp', gsp, 'Aucun véhicule GSP (data/vehicles.txt).');
+        fill('#spawnOther', other, 'Aucun véhicule (data/vehicles.txt).');
+        $('#spawnPoliceHint').textContent = `${apd.length} APD, ${gsp.length} GSP${locked ? ' — réservé à la police' : ''}`;
+        $('#spawnOtherHint').textContent = `${other.length} véhicule(s)`;
+        const notice = $('#spawnPoliceNotice');
+        notice.classList.toggle('hidden', !locked);
+        notice.textContent = 'Réservé à la police : rejoignez une unité dans le MDC.';
+    }
+
+    const saveSpawnOptions = () => post('spawnOptions', { deleteOld: $('#spawnDeleteOld').checked, warpInto: $('#spawnWarpInto').checked });
+    $('#spawnDeleteOld').addEventListener('change', saveSpawnOptions);
+    $('#spawnWarpInto').addEventListener('change', saveSpawnOptions);
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.vehicle-item');
+        if (!btn || btn.disabled) return;
+        post('spawnVehicle', { code: btn.dataset.code });
+        post('closeMenu');
+    });
+
+    // ---- Voiture > Radio : réglages du véhicule (le son est joué plus bas) ----
+    function renderRadio(info) {
+        const status = $('#radioStatus');
+        const controls = $('#radioControls');
+        info = info || {};
+        if (!info.available) {
+            status.className = 'menu-active none';
+            status.textContent = info.error || 'Montez dans un véhicule (ou visez l\'intérieur avant avec l\'œil, portière ouverte).';
+            controls.classList.add('disabled');
+            controls.querySelectorAll('input, button').forEach((el) => { el.disabled = true; });
+            return;
+        }
+        const radio = info.radio || null;
+        status.className = `menu-active ${radio ? 'on-air' : 'none'}`;
+        status.innerHTML = `${info.vehicle ? `<b>${esc(info.vehicle)}</b> — ` : ''}${radio ? 'radio allumée' : 'radio éteinte'}`
+            + (info.canControl ? '' : '<br><small>Seules les places avant peuvent la régler.</small>');
+        controls.classList.toggle('disabled', !info.canControl);
+        controls.querySelectorAll('input, button').forEach((el) => { el.disabled = !info.canControl; });
+        $('#radioStop').disabled = !info.canControl || !radio;
+        if (radio && document.activeElement !== $('#radioUrl')) $('#radioUrl').value = radio.url || '';
+        const volume = radio ? radio.volume : Number($('#radioVolume').value);
+        $('#radioVolume').value = volume;
+        $('#radioVolumeValue').textContent = `${volume} %`;
+    }
+
+    async function loadRadio() {
+        renderRadio(await post('radioInfo'));
+    }
+
+    async function radioAction(action, extra = {}) {
+        const res = await post('radioAction', { action, ...extra });
+        if (!res || !res.ok) return toast(res?.error || 'Action impossible.', 'error');
+        renderRadio(res);
+    }
+    $('#radioPlay').addEventListener('click', () => radioAction('play', { url: $('#radioUrl').value.trim(), volume: Number($('#radioVolume').value) }));
+    $('#radioStop').addEventListener('click', () => radioAction('stop'));
+    $('#radioVolume').addEventListener('input', () => { $('#radioVolumeValue').textContent = `${$('#radioVolume').value} %`; });
+    $('#radioVolume').addEventListener('change', () => {
+        if (!$('#radioStop').disabled) radioAction('volume', { volume: Number($('#radioVolume').value) });
+    });
+
+    // ---- Lecteurs de la radio des véhicules (client/radio.lua) ----
+    // YouTube : lecteur YouTube invisible (volume seulement) ; lien direct : <audio> + filtre "étouffé"
+    // (passe-bas) quand vitres et portières sont fermées, si le site autorise la lecture (CORS).
+    const radios = {};
+    let ytReady = null;
+    let audioCtx = null;
+
+    function youtubeId(url) {
+        const m = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([\w-]{11})/);
+        return m ? m[1] : null;
+    }
+
+    function loadYouTube() {
+        if (!ytReady) {
+            ytReady = new Promise((resolve) => {
+                window.onYouTubeIframeAPIReady = () => resolve(window.YT);
+                const tag = document.createElement('script');
+                tag.src = 'https://www.youtube.com/iframe_api';
+                document.head.appendChild(tag);
+            });
+        }
+        return ytReady;
+    }
+
+    function setRadioVolume(r) {
+        const v = Math.min(Math.max(r.volume, 0), 1);
+        if (r.kind === 'yt') {
+            if (r.player && r.player.setVolume) r.player.setVolume(Math.round(v * 100));
+        } else if (r.gain) {
+            r.gain.gain.setTargetAtTime(v, audioCtx.currentTime, 0.15);
+            r.filter.frequency.setTargetAtTime(r.muffled ? 650 : 20000, audioCtx.currentTime, 0.2);
+        } else if (r.audio) {
+            r.audio.volume = v;
+        }
+    }
+
+    function createRadio(d) {
+        const r = { url: d.url, volume: d.volume, muffled: d.muffled };
+        const holder = document.createElement('div');
+        holder.className = 'radio-player';
+        $('#radioPlayers').appendChild(holder);
+        r.holder = holder;
+        const id = youtubeId(d.url);
+        if (id) {
+            r.kind = 'yt';
+            const slot = document.createElement('div');
+            holder.appendChild(slot);
+            loadYouTube().then((YT) => {
+                if (r.dead) return;
+                r.player = new YT.Player(slot, {
+                    width: 200, height: 200, videoId: id,
+                    playerVars: { autoplay: 1, controls: 0, start: Math.floor(d.offset || 0), playsinline: 1 },
+                    events: {
+                        onReady: (e) => { setRadioVolume(r); e.target.seekTo(Math.floor(r.offset || d.offset || 0), true); e.target.playVideo(); },
+                    },
+                });
+            });
+        } else {
+            r.kind = 'audio';
+            const start = (withCors) => {
+                const audio = new Audio();
+                if (withCors) audio.crossOrigin = 'anonymous';
+                audio.src = d.url;
+                audio.addEventListener('loadedmetadata', () => {
+                    if (Number.isFinite(audio.duration) && d.offset < audio.duration) audio.currentTime = d.offset;
+                }, { once: true });
+                audio.addEventListener('error', () => {
+                    if (withCors && !r.dead) { r.audio = null; start(false); } // site sans CORS : sans filtre
+                }, { once: true });
+                r.audio = audio;
+                if (withCors) {
+                    try {
+                        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+                        const source = audioCtx.createMediaElementSource(audio);
+                        r.filter = audioCtx.createBiquadFilter();
+                        r.filter.type = 'lowpass';
+                        r.gain = audioCtx.createGain();
+                        source.connect(r.filter).connect(r.gain).connect(audioCtx.destination);
+                    } catch (err) { r.gain = null; }
+                } else {
+                    r.gain = null;
+                }
+                setRadioVolume(r);
+                audio.play().catch(() => {});
+            };
+            start(true);
+        }
+        return r;
+    }
+
+    function radioStop(id) {
+        const r = radios[id];
+        if (!r) return;
+        r.dead = true;
+        try { if (r.player && r.player.destroy) r.player.destroy(); } catch (err) { /* déjà fermé */ }
+        if (r.audio) { r.audio.pause(); r.audio.src = ''; }
+        r.holder.remove();
+        delete radios[id];
+    }
+
+    function radioUpdate(d) {
+        if (!d || !d.id) return;
+        let r = radios[d.id];
+        if (r && r.url !== d.url) { radioStop(d.id); r = null; }
+        if (!r) radios[d.id] = r = createRadio(d);
+        r.volume = Number(d.volume) || 0;
+        r.muffled = !!d.muffled;
+        r.offset = d.offset;
+        setRadioVolume(r);
     }
 
     // ---- Barre de chargement (fouilles, menottes) ----
@@ -295,10 +526,7 @@
         menu.view = btn.dataset.go;
         renderMenu();
     }));
-    $('#menuBack').addEventListener('click', () => {
-        menu.view = 'home';
-        renderMenu();
-    });
+    $('#menuBack').addEventListener('click', goBack);
     $('#menuClose').addEventListener('click', () => post('closeMenu'));
 
     // "Créer un profil" / "Créer un véhicule" : ouvre la fiche (le menu se ferme)
@@ -761,8 +989,7 @@
             post('closeEditor');
         } else if (menu.open) {
             if (menu.view !== 'home') {
-                menu.view = 'home';
-                renderMenu();
+                goBack();
             } else {
                 post('closeMenu');
             }
@@ -788,6 +1015,8 @@
             case 'progress': setProgress(data.data || {}); break;
             case 'editor': setEditor(data.data || {}); break;
             case 'notify': if (data.data) toast(data.data.text, data.data.type); break;
+            case 'radio': radioUpdate(data.data); break;
+            case 'radioStop': radioStop(data.data && data.data.id); break;
         }
     });
 })();
