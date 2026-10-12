@@ -1,0 +1,27 @@
+--[[
+    Vehicle Control - essence, dégâts réalistes, ceinture, moteur, portières, frein de parcage
+    Aucun framework requis (ni ESX, ni QBCore, ni vRP).
+    Lié au MDC (mdc_standalone : car HUD et PLD) et au chat écrit (rp_chat : messages privés).
+]]
+
+fx_version 'cerulean'
+game 'gta5'
+lua54 'yes'
+
+name 'rp_vehiclecontrol'
+author 'Lincolnnn'
+description 'Vehicle Control : essence, dégâts, ceinture, moteur, portières et frein de parcage - standalone'
+version '1.0.0'
+
+shared_script 'config.lua'
+
+client_scripts {
+    'client/main.lua',      -- boucle du véhicule, chocs, liaison avec le car HUD du MDC
+    'client/seatbelt.lua',  -- ceinture, alarme, éjection, sons synchronisés
+    'client/fuel.lua',      -- essence : consommation, pompes, jerrican
+    'client/damage.lua',    -- dégâts réalistes, véhicule cassé
+    'client/controls.lua',  -- moteur (O), portières (U / I), frein de parcage (L)
+    'client/hud.lua',       -- car HUD (en dernier)
+}
+
+server_script 'server/server.lua'

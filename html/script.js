@@ -3160,7 +3160,7 @@
         mdc: { zoom: 1, startTab: 'last' },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
-        car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, volume: 0.7 },
+        car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
     };
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -3171,7 +3171,7 @@
         unit: null,         // unité du joueur : { name, tag, color, status, dept, callNumber, callTitle }
         profile: { sector: '', service: '' }, // secteur / service principal (menu d'interactions)
         pld: null,          // { street, crossing, dir, block, time, paused }
-        car: null,          // car HUD : { show, speed, rpm, fuel, belt, alarm, paused } (client/carhud.lua)
+        car: null,          // car HUD : { show, speed, rpm, fuel, belt, alarm, broken, parked, paused } (rp_vehiclecontrol)
         placing: false,
         drag: null,
         saveTimer: null,
@@ -3210,7 +3210,7 @@
     const PLD_SAMPLE = { street: 'Nom de la rue', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
     const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', dept: 'apd', status: 'available', callNumber: '00-0000' };
     const PROFILE_SERVICES = { apd: 'APD', gsp: 'GSP', both: 'APD & GSP' };
-    const CAR_SAMPLE = { show: true, speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false };
+    const CAR_SAMPLE = { show: true, speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true };
 
     function placeHud(el, cfg) {
         el.style.left = `${Math.round(cfg.x * innerWidth)}px`;
@@ -3281,8 +3281,13 @@
         const car = hud.car && hud.car.show ? hud.car : (hud.placing ? CAR_SAMPLE : null);
         const show = cfg.enabled && !!car && (hud.placing || !car.paused);
         el.classList.toggle('hidden', !show);
+        placeCarNotice(show);
         if (!show) return;
         $('#carSpeed').textContent = Math.max(0, Math.round(car.speed || 0));
+        // Frein de parcage serré : vitesse grisée et transparente
+        el.querySelector('.car-speed').classList.toggle('car-parked', !!car.parked);
+        // Véhicule cassé : logo rouge, jamais visible autrement
+        $('#carBroken').classList.toggle('part-empty', !car.broken);
         const rpm = Math.min(Math.max(Number(car.rpm) || 0, 0), 1);
         const rpmFill = $('#carRpm');
         rpmFill.style.width = `${Math.round(rpm * 100)}%`;
@@ -3304,6 +3309,38 @@
         belt.classList.toggle('belt-off', car.belt === false);
         belt.classList.toggle('belt-alarm', car.belt === false && !!car.alarm);
         placeHud(el, cfg);
+    }
+
+    // Notification du moteur : au-dessus du car HUD (même position / taille), glisse depuis la gauche
+    const carNotice = { timer: null, hideTimer: null };
+    function placeCarNotice(visible) {
+        const anchor = $('#carNoticeAnchor');
+        const cfg = hud.settings.car;
+        anchor.style.left = `${Math.round(cfg.x * innerWidth)}px`;
+        anchor.style.top = `${Math.round(cfg.y * innerHeight)}px`;
+        anchor.style.transform = `scale(${cfg.scale})`;
+        if (!visible) hideCarNotice(true);
+    }
+    function hideCarNotice(now) {
+        const box = $('#carNotice');
+        clearTimeout(carNotice.timer);
+        box.classList.remove('show');
+        clearTimeout(carNotice.hideTimer);
+        carNotice.hideTimer = setTimeout(() => $('#carNoticeAnchor').classList.add('hidden'), now ? 0 : 450);
+    }
+    function showCarNotice(d) {
+        $('#carNoticeKey').textContent = d.key || 'O';
+        $('#carNoticeText').textContent = d.text || '';
+        $('#carNoticeHint').textContent = d.hint || '';
+        clearTimeout(carNotice.timer);
+        clearTimeout(carNotice.hideTimer);
+        const anchor = $('#carNoticeAnchor');
+        const box = $('#carNotice');
+        anchor.classList.remove('hidden');
+        box.classList.remove('show');
+        void box.offsetWidth; // relance l'animation d'entrée
+        box.classList.add('show');
+        carNotice.timer = setTimeout(() => hideCarNotice(false), Math.max(1500, Number(d.duration) || 6000));
     }
 
     // Sons de la ceinture (les siens et ceux des joueurs proches, volume selon la distance : client/carhud.lua)
@@ -4385,6 +4422,9 @@
                 break;
             case 'beltBeep': // alarme de ceinture (la sienne ou celle d'un joueur proche) ; 0 = arrêt
                 setBeltBeep(data.data && data.data.volume);
+                break;
+            case 'carNotice': // Vehicle Control : touche du moteur, en montant côté conducteur
+                if (data.data && hud.settings.car.enabled) showCarNotice(data.data);
                 break;
             case 'callNotify': // nouvelle intervention / nouvel incident (même MDC fermé)
                 if (data.data) callNotification(data.data);

@@ -10,7 +10,7 @@ lua54 'yes'
 name 'mdc_standalone'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police 100% standalone - NUI Vanilla JS'
-version '1.25.0'
+version '1.26.0'
 
 ui_page 'html/index.html'
 
@@ -24,7 +24,7 @@ files {
 client_scripts {
     'client/client.lua',
     'client/hud.lua',
-    'client/carhud.lua' -- car HUD (vitesse, régime, essence) + ceinture de sécurité
+    'client/carhud.lua' -- car HUD : relais des données de Vehicle Control (rp_vehiclecontrol)
 }
 
 server_scripts {

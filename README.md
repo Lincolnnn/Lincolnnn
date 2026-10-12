@@ -13,6 +13,10 @@ Le dépôt contient aussi le **menu d'interactions / fiches civiles / Eye Target
 `getPlayerUnit(source)` et l'état `Player(source).state.mdcUnit`). Le MDC publie son nom de ressource
 (`GlobalState.mdcResource`) : le nom de son dossier n'a pas d'importance.
 
+Le dépôt contient aussi **Vehicle Control** dans [`rp_vehiclecontrol/`](rp_vehiclecontrol/README.md) : essence (plein,
+jerrican), dégâts réalistes, ceinture, moteur toujours allumé, portières depuis l'intérieur et frein de parcage ; il
+alimente le car HUD du MDC.
+
 Le dépôt contient aussi le **chat écrit RP** dans le dossier [`rp_chat/`](rp_chat/README.md) : c'est une ressource
 séparée, à copier à part dans `resources/` (voir son README). Elle partage le nom RP avec le MDC et ses réglages
 se font dans l'onglet « Paramètres » du MDC. Le MDC fonctionne aussi sans elle.
@@ -94,21 +98,17 @@ fond), visibles même MDC fermé :
   l'unité est sur un appel), **secteur** (zone de jeu) et **service principal** (APD, GSP ou APD & GSP) choisis dans le
   menu d'interactions (`rp_interact`, Police, tout en bas) : « aucun sélectionné » tant que rien n'est choisi. Chaque
   ligne se masque dans « Paramètres ».
-- **Car HUD** (`client/carhud.lua`), à bord d'un véhicule, **au-dessus de la minimap** et **sans aucun fond** (ni
-  opaque, ni transparent, ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple
-  nombre, sans compteur), une fine **barre horizontale d'accélération** (régime du moteur : elle se remplit quand on
-  accélère, rouge près du régime maximal), une **jauge d'essence verticale** (ox_fuel, LegacyFuel ou niveau du jeu ;
-  orange sous 15 %, rouge sous 5 % ; masquée sans réservoir) et un petit **logo de ceinture** (discret une fois
-  attachée, rouge sinon, clignotant pendant l'alarme ; masqué pour les motos, vélos, bateaux et aéronefs).
-  Déplaçable et redimensionnable comme les autres HUD ; chaque élément se masque dans « Paramètres ».
-- **Ceinture de sécurité** : touche **K** (Paramètres > Raccourcis clavier > FiveM > « Véhicule : attacher / détacher
-  la ceinture »). Un son à l'attache et un autre au retrait. Non attachée, un **bip** démarre au-dessus de **5 MPH** et
-  continue **jusqu'à l'arrêt du véhicule** ou jusqu'à ce qu'elle soit attachée. Les sons sont **synchronisés** : les
-  occupants du véhicule les entendent comme le conducteur, les joueurs autour (15 m) les entendent aussi, de moins en
-  moins fort avec la distance (bip d'un passager non attaché, attache, retrait). Attachée, le personnage ne passe plus
-  à travers le pare-brise ; elle se retire en descendant du véhicule. Volume réglable (Paramètres > HUD & Display,
-  bouton « Tester ») ; réglages du script (`AlarmSpeed`, `HearRange`, classes sans ceinture…) en haut de
-  `client/carhud.lua`.
+- **Car HUD**, à bord d'un véhicule, **au-dessus de la minimap** et **sans aucun fond** (ni opaque, ni transparent,
+  ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple nombre, **grisée et
+  transparente tant que le frein de parcage est serré**, blanche une fois desserré), une fine **barre horizontale
+  d'accélération** (régime du moteur, rouge près du maximum), une **jauge d'essence verticale** (orange sous 15 %, rouge
+  sous 5 %), le petit **logo de la ceinture** et, à côté, un **logo rouge « véhicule cassé »**, jamais visible sauf quand
+  le véhicule est hors d'usage. En montant côté conducteur, une **notification glisse depuis la gauche juste au-dessus
+  du car HUD** et présente la touche du moteur (**O**). Déplaçable et redimensionnable comme les autres HUD ; chaque
+  élément se masque dans « Paramètres », avec le volume des sons de la ceinture.
+  Les données (essence, dégâts, ceinture, moteur, frein de parcage) viennent de **Vehicle Control**
+  ([`rp_vehiclecontrol/`](rp_vehiclecontrol/README.md)) : sans cette ressource, le car HUD n'apparaît pas
+  (`client/carhud.lua` ne fait que relayer ses données au NUI, sans boucle).
 - **Notifications** (en haut à droite) : toutes les notifications du MDC, et, même MDC fermé : nouvel appel
   (titre, service, priorité, adresse, croisement, bloc) et nouvel incident (titre, unité créatrice, adresse,
   croisement, bloc) pour **les membres des unités du service de l'appel uniquement** ; changement de statut pour les
@@ -130,9 +130,7 @@ l'écran** (glisser à la souris, molette = taille), notifications et son.
 
 Performance : le PLD lit la position toutes les 500 ms (`Interval` dans `client/hud.lua`) et n'envoie que les
 changements (~0.01ms) ; PLD désactivé : 0.00ms. Le display MDC et les notifications n'ont aucune boucle.
-Car HUD : à pied, une vérification toutes les 500 ms (0.00ms) ; en véhicule, une mise à jour toutes les 100 ms qui
-n'envoie que les changements (~0.01ms) ; le bip des autres joueurs n'est suivi (250 ms) que pendant qu'une alarme est
-active à portée.
+Car HUD : aucune boucle dans le MDC (données envoyées par rp_vehiclecontrol, seulement quand elles changent).
 
 ### Rapports
 

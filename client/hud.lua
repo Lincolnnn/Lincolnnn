@@ -8,7 +8,7 @@
            (désactivable / réglable dans l'onglet "Paramètres" du MDC, réglages propres au joueur)
       - Display MDC : nom de l'unité, tag, statut, n° d'incident de l'appel en cours
         -> affiché uniquement quand le joueur fait partie d'une unité
-      (+ le car HUD et la ceinture de sécurité : client/carhud.lua)
+      (+ le car HUD : client/carhud.lua, données de Vehicle Control / rp_vehiclecontrol)
     + les notifications (en haut à droite de l'écran) : nouvel appel, nouvel incident (unités du
       service de l'appel), proposition "unité la plus proche" (Y / N), changement de statut de l'unité.
 
@@ -362,7 +362,7 @@ end)
 -- Le NUI (re)chargé demande les réglages et l'état du HUD
 RegisterNUICallback('hudReady', function(_, cb)
     cb({ ok = true, settings = settings, pld = pldAllowed(), unit = unitInfo })
-    if MdcCarHud then MdcCarHud.resend() end -- car HUD (client/carhud.lua) renvoyé au NUI
+    TriggerEvent('mdc:hudReady') -- Vehicle Control (rp_vehiclecontrol) renvoie le car HUD
     if pldActive() then
         SetTimeout(200, function() startLoop() end)
     end
