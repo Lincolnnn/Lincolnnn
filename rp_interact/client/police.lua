@@ -13,10 +13,11 @@
       - Faire s'asseoir l'individu MENOTTÉ au sol ("/e menotté2") / le faire se relever
     Tout fonctionne aussi sur les PNJ (tests en solo) : le client du policier les pilote directement.
 
-    CIVIL menotté : emote "/e menotté1" + menottes aux poignets ; si l'emote s'arrête (bousculé,
-    monté dans un véhicule, touche…), elle est relancée automatiquement. Les emotes viennent du mode
-    d'emotes du serveur (RPEMOTES) : leur animation exacte y est lue (server/emotes.lua), pour ne
-    jamais rejouer une autre animation que celle de l'emote.
+    CIVIL menotté : comportement de base de GTA 5 (aucune emote) : menottes du jeu (SetEnableHandcuffs)
+    + animation "mains dans le dos" (CuffAnim) + menottes aux poignets ; si l'animation s'arrête
+    (bousculé, monté dans un véhicule…), elle est relancée automatiquement. Assis au sol : emote
+    "/e menotté2" du mode d'emotes du serveur (RPEMOTES), dont l'animation exacte y est lue
+    (server/emotes.lua), pour ne jamais rejouer une autre animation que celle de l'emote.
 
     Véhicules de police (/policeon, /policeoff) : voir client/policevehicles.lua.
 
@@ -35,14 +36,19 @@ RPI.Police = Police
 -- =========================================================================
 -- OUTILS
 -- =========================================================================
--- Postures de l'individu menotté : debout ("/e menotté1") ou assis au sol ("/e menotté2")
-local function poseCommand(sit) return sit and Config.Emotes.seated or Config.Emotes.cuffed end
+-- Postures de l'individu menotté : debout (animation de base du jeu, CuffAnim, jamais d'emote) ou
+-- assis au sol ("/e menotté2")
+local function poseCommand() return Config.Emotes.seated end
 local function poseFallback(sit) return sit and Config.SeatedAnim or Config.CuffAnim end
 
---- Animation de la posture : celle de l'emote (lue dans RPEMOTES). `direct` (PNJ, en véhicule, tenu
---- par le bras : pas de commande d'emote possible) : toujours une animation, au besoin celle de secours.
+--- Animation de la posture. Debout : toujours CuffAnim. Assis : celle de l'emote (lue dans RPEMOTES) ;
+--- `direct` (PNJ : pas de commande d'emote possible) : toujours une animation, au besoin celle de secours.
 local function poseAnim(sit, direct)
-    local anim = RPI.emoteAnim(poseCommand(sit), poseFallback(sit))
+    if not sit then
+        local a = Config.CuffAnim
+        return { dict = a.dict, clip = a.clip, flag = a.flag or 49 }
+    end
+    local anim = RPI.emoteAnim(poseCommand(), poseFallback(sit))
     if anim and anim.scenario and direct then anim = nil end
     if not anim and direct then
         local fb = poseFallback(sit)
@@ -52,11 +58,11 @@ local function poseAnim(sit, direct)
 end
 
 local function isPlayingPose(ped, sit, direct)
-    if direct then
+    if direct or not sit then
         local anim = poseAnim(sit, true)
         return IsEntityPlayingAnim(ped, anim.dict, anim.clip, 3)
     end
-    return RPI.isPlayingEmote(ped, poseCommand(sit), poseFallback(sit))
+    return RPI.isPlayingEmote(ped, poseCommand(), poseFallback(sit))
 end
 
 --- Joue directement l'animation de la posture (à appeler dans un thread)
@@ -73,7 +79,7 @@ end
 
 --- Menottes aux poignets (modèle Config.CuffProp). À appeler dans un thread.
 --- Position / orientation des menottes sur le poignet (Config.CuffPropPlacement)
-local CUFF_PLACE = Config.CuffPropPlacement or { bone = LEFT_HAND, x = -0.055, y = 0.06, z = 0.04, rx = 265.0, ry = 155.0, rz = 0.0 }
+local CUFF_PLACE = Config.CuffPropPlacement or { bone = LEFT_HAND, x = -0.055, y = 0.06, z = 0.04, rx = 265.0, ry = 155.0, rz = 80.0 }
 
 local function attachCuffs(ped)
     local model = GetHashKey(Config.CuffProp)
@@ -94,49 +100,11 @@ local function deleteProp(prop)
     end
 end
 
--- ---- Assis au sol (menotté2) : légèrement penché en arrière ----
--- L'animation laisse le postérieur un peu au-dessus du sol (les pieds, eux, le touchent) : l'individu
--- est accroché à un point invisible posé sous lui, penché en arrière de SeatedTilt.pitch degrés et
--- abaissé de SeatedTilt.z mètres (le bassin descend, les pieds restent au sol). Retiré dès qu'il se
--- relève, est pris par le bras, placé dans un véhicule ou démenotté.
-local TILT = Config.SeatedTilt or { pitch = 8.0, z = -0.06 }
-local TILT_ANCHOR = 'prop_golf_ball'
-local tilted = {} -- [ped] = point d'accroche (false pendant sa création)
-
-local function untilt(ped)
-    local anchor = tilted[ped]
-    tilted[ped] = nil
-    if anchor and DoesEntityExist(ped) and IsEntityAttachedToEntity(ped, anchor) then DetachEntity(ped, true, false) end
-    deleteProp(anchor or nil)
+--- Menottes du jeu (comportement de base de GTA 5 d'un personnage menotté). Retirées le temps de
+--- monter / descendre d'un véhicule (le jeu l'empêcherait), remises ensuite par la boucle.
+local function handcuffs(ped, on)
+    if DoesEntityExist(ped) then SetEnableHandcuffs(ped, on == true) end
 end
-
---- Penche le personnage assis (à appeler dans un thread)
-local function tilt(ped)
-    if tilted[ped] ~= nil or (TILT.pitch == 0 and TILT.z == 0) or not DoesEntityExist(ped) then return end
-    tilted[ped] = false
-    local model = GetHashKey(TILT_ANCHOR)
-    if not RPI.loadModel(model) or tilted[ped] ~= false then
-        if tilted[ped] == false then tilted[ped] = nil end
-        return
-    end
-    local c = GetEntityCoords(ped)
-    local anchor = CreateObject(model, c.x, c.y, c.z, true, true, false)
-    SetModelAsNoLongerNeeded(model)
-    SetEntityVisible(anchor, false, false)
-    SetEntityCollision(anchor, false, false)
-    FreezeEntityPosition(anchor, true)
-    SetEntityHeading(anchor, GetEntityHeading(ped))
-    if tilted[ped] ~= false then return deleteProp(anchor) end -- relevé entre-temps
-    tilted[ped] = anchor
-    AttachEntityToEntity(ped, anchor, 0, 0.0, 0.0, TILT.z, TILT.pitch, 0.0, 0.0, false, false, false, false, 2, true)
-end
-
-function Police.isTilted(ped) return tilted[ped] ~= nil end
-
-AddEventHandler('onResourceStop', function(resource)
-    if resource ~= GetCurrentResourceName() then return end
-    for ped in pairs(tilted) do untilt(ped) end
-end)
 
 local function serverIdOf(ped)
     if not IsPedAPlayer(ped) then return nil end
@@ -244,6 +212,7 @@ end
 -- =========================================================================
 local npcCuffed = {} -- [ped] = prop des menottes (false en attendant)
 local npcSeated = {} -- [ped] = true : PNJ assis par ce policier
+local npcMoving = {} -- [ped] = heure de fin : PNJ qui monte / descend d'un véhicule (menottes du jeu retirées)
 local npcLoopRunning = false
 
 local function startNpcLoop()
@@ -256,12 +225,13 @@ local function startNpcLoop()
             for ped, prop in pairs(npcCuffed) do
                 if not DoesEntityExist(ped) or IsEntityDead(ped) then
                     deleteProp(prop)
-                    npcCuffed[ped] = nil
-                elseif not isPlayingPose(ped, npcSeated[ped], true) and not IsPedRagdoll(ped) and not IsPedGettingIntoAVehicle(ped)
+                    npcCuffed[ped], npcMoving[ped] = nil, nil
+                elseif (npcMoving[ped] or 0) < GetGameTimer()
+                    and not isPlayingPose(ped, npcSeated[ped], true) and not IsPedRagdoll(ped) and not IsPedGettingIntoAVehicle(ped)
                     and not Police.isDragged(ped) and not IsPedInAnyVehicle(ped, false) then
                     if NetworkHasControlOfEntity(ped) then
+                        handcuffs(ped, true)
                         playPose(ped, npcSeated[ped], true)
-                        if npcSeated[ped] then tilt(ped) end
                     else
                         NetworkRequestControlOfEntity(ped)
                     end
@@ -284,6 +254,7 @@ local function setNpcCuffed(ped, cuffed)
         prepareNpc(ped)
         ClearPedTasksImmediately(ped)
         npcCuffed[ped] = false
+        handcuffs(ped, true)
         CreateThread(function()
             playPose(ped, false, true)
             local prop = attachCuffs(ped)
@@ -293,8 +264,8 @@ local function setNpcCuffed(ped, cuffed)
     else
         deleteProp(npcCuffed[ped])
         npcCuffed[ped] = nil
-        npcSeated[ped] = nil
-        untilt(ped)
+        npcSeated[ped], npcMoving[ped] = nil, nil
+        handcuffs(ped, false)
         if DoesEntityExist(ped) then
             stopPose(ped, true)
             stopPose(ped, false)
@@ -375,7 +346,6 @@ local function startNpcDrag(ped)
         prepareNpc(ped)
         if npcSeated[ped] then
             npcSeated[ped] = nil
-            untilt(ped)
             stopPose(ped, true)
         end
         followLoop(ped, PlayerPedId, function() return dragging ~= nil and dragging.ped == ped end, function()
@@ -432,11 +402,8 @@ function Police.seat(ped, seated)
             npcSeated[ped] = true
             ClearPedTasks(ped)
             playPose(ped, true, true)
-            Wait(600) -- animation en place : puis légèrement penché en arrière
-            if npcSeated[ped] then tilt(ped) end
         else
             npcSeated[ped] = nil
-            untilt(ped)
             stopPose(ped, true)
             if npcCuffed[ped] ~= nil then playPose(ped, false, true) end
         end
@@ -514,9 +481,10 @@ function Police.placeInVehicle(vehicle)
             RPI.request('putInVehicle', { target = d.serverId, netId = VehToNet(vehicle), seat = rear.seat }, feedback(nil))
         else
             npcSeated[d.ped] = nil
-            untilt(d.ped)
             RPI.withControl(d.ped, function()
                 holdPed(d.ped, false)
+                npcMoving[d.ped] = GetGameTimer() + 15000
+                handcuffs(d.ped, false) -- le jeu empêche un personnage menotté de monter
                 TaskEnterVehicle(d.ped, vehicle, 15000, rear.seat, 1.0, ENTER_FLAGS, 0)
             end)
         end
@@ -534,7 +502,11 @@ function Police.takeOut(vehicle)
             if serverId then
                 RPI.request('takeOut', { target = serverId }, feedback(nil))
             else
-                RPI.withControl(occupant.ped, function() TaskLeaveVehicle(occupant.ped, vehicle, LEAVE_FLAGS) end)
+                RPI.withControl(occupant.ped, function()
+                    npcMoving[occupant.ped] = GetGameTimer() + 5000
+                    handcuffs(occupant.ped, false) -- remises par la boucle des PNJ une fois descendu
+                    TaskLeaveVehicle(occupant.ped, vehicle, LEAVE_FLAGS)
+                end)
             end
         end
     end)
@@ -546,21 +518,22 @@ end
 local cuffed, cuffProp, lastEmote = false, nil, 0
 local seated = false -- assis au sol par un policier ("/e menotté2")
 local draggedBy = nil
+-- Monte ('enter') / descend ('leave') d'un véhicule : menottes du jeu retirées le temps du mouvement
+local vehicleMove = { kind = nil, untilTime = 0 }
 local CUFF_BLOCKED = { 21, 22, 23, 24, 25, 37, 44, 45, 47, 58, 140, 141, 142, 143, 257, 263, 264 }
 local SEATED_BLOCKED = { 30, 31, 32, 33, 34, 35 } -- assis : pas de déplacement (il reste assis)
 
 function RPI.isCuffed() return cuffed end
 function RPI.isSeated() return seated end
 
---- Relance l'emote "menotté1" (ou "menotté2" si assis) : commande d'emote à pied ; animation directe
---- en véhicule / tenu par le bras ; si l'emote n'a rien donné, la MÊME animation (lue dans RPEMOTES),
---- jamais une autre.
+--- Relance la posture : debout (ou en véhicule, tenu par le bras), l'animation de base du jeu ; assis,
+--- l'emote "menotté2" et, si elle n'a rien donné, la MÊME animation (lue dans RPEMOTES), jamais une autre.
 local function reapplyCuffEmote(ped, sit, direct)
     local now = GetGameTimer()
-    if direct then
+    if direct or not sit then
         playPose(ped, false, true)
     elseif now - lastEmote > 4000 then
-        RPI.playEmote(poseCommand(sit))
+        RPI.playEmote(poseCommand())
         lastEmote = now
     elseif now - lastEmote > 2500 then
         playPose(ped, sit, false)
@@ -585,15 +558,16 @@ local function cuffLoop()
                 local direct = inVehicle or draggedBy ~= nil
                 local sit = seated and not direct
                 local posed = isPlayingPose(ped, sit, direct)
+                -- Menottes du jeu, sauf pendant qu'il monte / descend d'un véhicule (placé, sorti)
+                if vehicleMove.kind then
+                    local arrived = (vehicleMove.kind == 'enter' and inVehicle and not IsPedGettingIntoAVehicle(ped))
+                        or (vehicleMove.kind == 'leave' and not inVehicle)
+                    if arrived or now > vehicleMove.untilTime then vehicleMove.kind = nil end
+                end
+                handcuffs(ped, vehicleMove.kind == nil)
                 if not posed and not dragWalking and not IsPedRagdoll(ped)
                     and not IsPedGettingIntoAVehicle(ped) and not IsEntityDead(ped) then
                     reapplyCuffEmote(ped, sit, direct)
-                end
-                -- Assis au sol : légèrement penché en arrière une fois l'emote en place
-                if sit and posed and not IsPedRagdoll(ped) then
-                    if not Police.isTilted(ped) then CreateThread(function() tilt(ped) end) end
-                elseif not sit and Police.isTilted(ped) then
-                    untilt(ped)
                 end
             end
         end
@@ -612,20 +586,23 @@ local function setCuffed(state)
             local prop = attachCuffs(ped)
             if cuffed then cuffProp = prop else deleteProp(prop) end
         end)
+        handcuffs(ped, true)
+        if not seated then CreateThread(function() playPose(ped, false, true) end) end -- sans attendre la boucle
         cuffLoop()
     else
+        if seated then RPI.cancelEmote() end -- emote assise ; debout : aucune emote à arrêter
         seated = false
-        untilt(ped)
+        vehicleMove.kind = nil
+        handcuffs(ped, false)
         deleteProp(cuffProp)
         cuffProp = nil
-        RPI.cancelEmote()
         stopPose(ped, false)
     end
 end
 
 RegisterNetEvent('rp_interact:client:setCuffed', setCuffed)
 
---- Assis au sol par un policier ("/e menotté2", menotté uniquement) / relevé ("/e menotté1")
+--- Assis au sol par un policier ("/e menotté2", menotté uniquement) / relevé (posture menotté du jeu)
 local function setSeated(state)
     state = state == true and cuffed
     local ped = PlayerPedId()
@@ -634,10 +611,11 @@ local function setSeated(state)
     seated = state
     lastEmote = GetGameTimer()
     if seated then
+        stopPose(ped, false)
         RPI.playEmote(Config.Emotes.seated)
     else
-        untilt(ped)
-        RPI.playEmote(Config.Emotes.cuffed) -- debout, toujours menotté (remplace l'emote assise)
+        RPI.cancelEmote() -- arrête l'emote assise : debout, toujours menotté
+        CreateThread(function() playPose(ped, false, true) end)
     end
 end
 RegisterNetEvent('rp_interact:client:setSeated', setSeated)
@@ -651,8 +629,8 @@ RegisterNetEvent('rp_interact:client:drag', function(policeSrc)
     end
     local player = GetPlayerFromServerId(policeSrc)
     if player == -1 then return end
+    if seated then RPI.cancelEmote() end
     seated = false -- relevé par le policier qui le prend par le bras
-    untilt(ped)
     draggedBy = policeSrc
     followLoop(ped, function()
         local p = GetPlayerFromServerId(policeSrc)
@@ -668,10 +646,11 @@ RegisterNetEvent('rp_interact:client:enterVehicle', function(netId, seat)
     if not vehicle or vehicle == 0 then return end
     local ped = PlayerPedId()
     draggedBy, seated = nil, false
-    untilt(ped)
     holdPed(ped, false)
     RPI.allowPoliceVehicle(vehicle) -- /policeon : placé par un policier, il peut y monter
     ClearPedTasks(ped)
+    vehicleMove.kind, vehicleMove.untilTime = 'enter', GetGameTimer() + 15000
+    handcuffs(ped, false) -- le jeu empêche un personnage menotté de monter : remises une fois à bord
     TaskEnterVehicle(ped, vehicle, 15000, seat, 1.0, ENTER_FLAGS, 0) -- sans refermer la portière
 end)
 
@@ -679,7 +658,11 @@ end)
 RegisterNetEvent('rp_interact:client:leaveVehicle', function()
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
-    if vehicle ~= 0 then TaskLeaveVehicle(ped, vehicle, LEAVE_FLAGS) end
+    if vehicle ~= 0 then
+        vehicleMove.kind, vehicleMove.untilTime = 'leave', GetGameTimer() + 5000
+        handcuffs(ped, false) -- remises une fois descendu
+        TaskLeaveVehicle(ped, vehicle, LEAVE_FLAGS)
+    end
 end)
 
 -- Ressource redémarrée alors que le joueur était menotté

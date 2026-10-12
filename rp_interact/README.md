@@ -13,10 +13,10 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
 2. Dans `server.cfg` (après le MDC et le chat) : `ensure rp_interact`
 3. **OneSync recommandé** : il permet au serveur de vérifier les distances et de supprimer le profil d'un véhicule
    dès que le véhicule disparaît.
-4. **Emotes** : les emotes (`/e menotté1`, `/e menotté2`, `/e tenirlebras`, `/e serendre17`…) viennent du mode
+4. **Emotes** : les emotes (`/e menotté2`, `/e tenirlebras`, `/e serendre17`…) viennent du mode
    d'emotes du serveur (dossier **RPEMOTES** / rpemotes / rpemotes-reborn), détecté automatiquement
    (`EmotesResource = 'auto'`). Au démarrage, le serveur lit l'**animation exacte** de chaque emote dans ses fichiers
-   et l'écrit dans la console : `[RP Interact] Emotes lues dans "RPEMOTES" : menotté1 (…), menotté2 (…)…`. Une emote
+   et l'écrit dans la console : `[RP Interact] Emotes lues dans "RPEMOTES" : menotté2 (…), tenirlebras (…)…`. Une emote
    introuvable est signalée en jaune : vérifiez son nom dans `config.lua` (`Emotes`, `Surrender`) ou ajoutez le
    fichier qui la définit à `EmoteFiles`. `rpi_emotes` (console) relit les fichiers.
 
@@ -142,10 +142,12 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
 
 ### Police : menottes, prendre par le bras, véhicule (joueurs ET PNJ, pour tester seul)
 
-- **Menotter** (2 m, **7 s** de barre) : le civil fait l'emote **`/e menotté1`** et porte des menottes aux poignets
-  (`p_cs_cuffs_02_s`). Si l'emote s'arrête (bousculé, monté dans un véhicule, touche…), elle est **relancée
-  automatiquement** ; menotté, il ne peut plus courir, sauter, frapper, viser ni monter seul dans un véhicule.
-  **Retirer les menottes** : 3 s.
+- **Menotter** (2 m, **7 s** de barre) : **comportement de base de GTA 5**, sans emote : menottes du jeu
+  (`SetEnableHandcuffs`) et animation « mains dans le dos » du jeu (`CuffAnim` : `mp_arresting idle`), avec les
+  menottes aux poignets (`p_cs_cuffs_02_s`, dans leur toute première position). Si l'animation s'arrête (bousculé,
+  monté dans un véhicule…), elle est **relancée automatiquement** ; menotté, il ne peut plus courir, sauter, frapper,
+  viser ni monter seul dans un véhicule (les menottes du jeu sont levées le temps d'être placé / sorti par un
+  policier). **Retirer les menottes** : 3 s.
 - **Prendre par le bras** (individu le plus proche, 2 m) : le policier fait **`/e tenirlebras`**, l'individu est placé à
   sa droite, un peu devant (`DragOffset`). Il n'est **pas accroché** au policier : il suit sa position et **tourne sur
   son propre axe** pour s'orienter comme lui (`DragTurnSpeed`), sans pivoter avec le tronc du policier ; ses
@@ -154,11 +156,11 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
 - **Faire s'asseoir l'individu** (2 m, à pied, **menotté uniquement**, pas tenu par le bras) : il fait l'emote
   **`/e menotté2`** (RPEMOTES) et **reste assis** (déplacements bloqués). Si l'emote s'arrête, c'est **la même**
   (`/e menotté2`, puis son animation exacte lue dans RPEMOTES) qui est relancée : plus de changement d'emote.
-  **Faire se relever l'individu** : `/e menotté1`. Le prendre par le bras ou le placer dans un véhicule le relève aussi.
-  Assis, il est **légèrement penché en arrière** (`SeatedTilt` : 8°, bassin abaissé de 6 cm) pour que son postérieur
-  touche le sol (l'animation le laissait un peu surélevé) ; retiré dès qu'il se relève.
-- **Menottes** : orientation réglable (`CuffPropPlacement`, par défaut tournées de 80° vers l'extérieur du corps
-  par rapport à la version précédente).
+  La pose assise est celle de l'emote, telle quelle (plus d'inclinaison).
+  **Faire se relever l'individu** : l'emote assise est arrêtée, il reprend la posture menotté du jeu. Le prendre par le
+  bras ou le placer dans un véhicule le relève aussi.
+- **Menottes** : position réglable (`CuffPropPlacement`, par défaut leur toute première position : rotation
+  265 / 155 / 80, prévue pour l'animation du jeu).
 - **Placer l'individu à l'arrière** (en le tenant, véhicule à 6 m) : **le policier va ouvrir lui-même** la portière
   arrière la plus proche (animation du jeu), puis lâche le bras ; l'individu **monte lui-même** à l'arrière (sans
   téléportation, places arrière uniquement), même dans un véhicule d'urgence, **sans refermer la portière** : le
@@ -214,8 +216,8 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (15 s personne, 35 s véhicule) |
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
-| `CuffPropPlacement`, `SeatedTilt`, `LockedDoorStand` | position / orientation des menottes ; inclinaison de l'individu assis ; où se tient le civil devant une portière verrouillée |
-| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragTurnSpeed`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté1`, `/e menotté2`, `/e tenirlebras`, `/e c`), animations de secours (si l'emote est introuvable dans RPEMOTES), menottes, position / rotation de l'individu tenu, touche pour lâcher le bras, distance du véhicule |
+| `CuffPropPlacement`, `LockedDoorStand` | position / orientation des menottes ; où se tient le civil devant une portière verrouillée |
+| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragTurnSpeed`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position / rotation de l'individu tenu, touche pour lâcher le bras, distance du véhicule |
 | `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) |
 | `PoliceVehiclesAce`, `PoliceVehicleClasses`, `PoliceVehicleModels`, `LockedDoorAnim` | permission ACE pour `/policeon` / `/policeoff` ; ce qui compte comme véhicule de police ; animation « poignée verrouillée » |
 | `MaxProfiles`, `TextMax` | profils par joueur, longueur des textes |

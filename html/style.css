@@ -885,6 +885,45 @@ input.invalid, select.invalid, textarea.invalid { border-color: #ff5a5a; backgro
 .hu-line { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .hu-line .sq { width: 10px; height: 10px; border-radius: 2px; }
 
+/* Car HUD : AUCUN fond ni bordure (ni opaque, ni transparent, ni de couleur) ; ombre portée du texte
+   pour rester lisible sur n'importe quel décor */
+.hud-car {
+    display: flex; align-items: stretch; gap: 8px;
+    background: none; border: 0; border-radius: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .95), 0 0 6px rgba(0, 0, 0, .55);
+}
+.car-main { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.car-top { display: flex; align-items: center; gap: 10px; }
+.car-speed { display: flex; align-items: baseline; gap: 4px; line-height: 1; }
+#carSpeed { min-width: 2ch; font-size: 30px; font-weight: bold; color: #fff; font-variant-numeric: tabular-nums; }
+.car-unit { font-size: 10px; font-weight: bold; letter-spacing: .8px; color: #c9c9c9; }
+/* Barre d'accélération (régime du moteur), horizontale et fine */
+.car-rpm {
+    width: 112px; height: 4px; border-radius: 2px; overflow: hidden;
+    background: rgba(255, 255, 255, .2);
+    box-shadow: 0 0 3px rgba(0, 0, 0, .6);
+}
+.car-rpm-fill { width: 0; height: 100%; background: #f2f2f2; border-radius: 2px; transition: width .12s linear, background-color .2s; }
+.car-rpm-fill.car-redline { background: #ff5a4a; }
+/* Jauge d'essence : verticale (perpendiculaire à la barre d'accélération), petite pompe dessous */
+.car-fuel { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; }
+.car-fuel-bar {
+    position: relative; width: 4px; height: 34px; border-radius: 2px; overflow: hidden;
+    background: rgba(255, 255, 255, .2);
+    box-shadow: 0 0 3px rgba(0, 0, 0, .6);
+}
+.car-fuel-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: #f2f2f2; transition: height .4s, background-color .2s; }
+.car-fuel-fill.car-low { background: #ffa62b; }
+.car-fuel-fill.car-empty { background: #ff4a3d; }
+.car-fuel-icon { width: 11px; height: 11px; color: #c9c9c9; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .9)); }
+/* Ceinture : discrète une fois attachée, rouge sinon, clignote pendant l'alarme */
+.car-belt { display: inline-flex; width: 20px; height: 20px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .9)); }
+.car-belt svg { width: 100%; height: 100%; }
+.car-belt.belt-on { color: rgba(235, 235, 235, .5); }
+.car-belt.belt-off { color: #ff4a3d; }
+.car-belt.belt-alarm { animation: belt-blink .9s steps(1, end) infinite; }
+@keyframes belt-blink { 50% { opacity: .25; } }
+
 /* Mode placement : HUD déplaçables, MDC masqué */
 body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed rgba(255, 255, 255, .7); outline-offset: 4px; }
 .hud-placebar {

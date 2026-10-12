@@ -3080,15 +3080,21 @@
     // au volume réglé dans "Paramètres > MDC" (0 à 100 %).
     // Chaque son : liste de notes [fréquence (Hz), début (s), durée (s)].
     // =====================================================================
+    // [fréquence, début, durée, forme d'onde (sine par défaut)]
     const SOUNDS = {
         call: [[880, 0, 0.16], [1320, 0.18, 0.26]],                         // intervention : deux tons montants
         incident: [[660, 0, 0.12], [880, 0.14, 0.12], [1175, 0.28, 0.24]],  // incident : trois tons
+        // Ceinture de sécurité (car HUD) : "clic-clac" en s'attachant, clic + glissement en se détachant,
+        // carillon de l'alarme (répété tant qu'elle est active)
+        belt_on: [[2400, 0, 0.025, 'triangle'], [1500, 0.012, 0.03, 'square'], [2900, 0.11, 0.03, 'triangle'], [1800, 0.12, 0.04, 'square']],
+        belt_off: [[2600, 0, 0.03, 'triangle'], [1700, 0.012, 0.035, 'square'], [900, 0.06, 0.12, 'triangle']],
+        belt_beep: [[1047, 0, 0.2]],
     };
     const SOUND_GAIN = 0.35; // volume à 100 % (évite la saturation)
     let audioCtx = null;
 
-    function playSound(kind) {
-        const volume = hud.settings.notify.volume;
+    function playSound(kind, volumeOverride) {
+        const volume = volumeOverride === undefined ? hud.settings.notify.volume : volumeOverride;
         const notes = SOUNDS[kind];
         if (!notes || !(volume > 0)) return;
         try {
@@ -3098,10 +3104,10 @@
             const master = audioCtx.createGain();
             master.gain.value = SOUND_GAIN * volume;
             master.connect(audioCtx.destination);
-            notes.forEach(([freq, start, duration]) => {
+            notes.forEach(([freq, start, duration, wave]) => {
                 const osc = audioCtx.createOscillator();
                 const env = audioCtx.createGain();
-                osc.type = 'sine';
+                osc.type = wave || 'sine';
                 osc.frequency.value = freq;
                 // Attaque et extinction douces (pas de "clic")
                 env.gain.setValueAtTime(0.0001, t0 + start);
@@ -3153,6 +3159,8 @@
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true, service: true },
         mdc: { zoom: 1, startTab: 'last' },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
+        // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
+        car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, volume: 0.7 },
     };
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -3163,6 +3171,7 @@
         unit: null,         // unité du joueur : { name, tag, color, status, dept, callNumber, callTitle }
         profile: { sector: '', service: '' }, // secteur / service principal (menu d'interactions)
         pld: null,          // { street, crossing, dir, block, time, paused }
+        car: null,          // car HUD : { show, speed, rpm, fuel, belt, alarm, paused } (client/carhud.lua)
         placing: false,
         drag: null,
         saveTimer: null,
@@ -3179,7 +3188,7 @@
                 if (typeof src[key] === typeof out[group][key]) out[group][key] = src[key];
             });
         });
-        ['pld', 'unit'].forEach((kind) => {
+        ['pld', 'unit', 'car'].forEach((kind) => {
             const s = out[kind];
             s.x = Math.min(Math.max(s.x, 0), 0.98);
             s.y = Math.min(Math.max(s.y, 0), 0.98);
@@ -3187,6 +3196,7 @@
         });
         out.mdc.zoom = Math.min(Math.max(out.mdc.zoom, 0.8), 1.3);
         out.notify.volume = Math.min(Math.max(out.notify.volume, 0), 1);
+        out.car.volume = Math.min(Math.max(out.car.volume, 0), 1);
         if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
         return out;
     }
@@ -3200,6 +3210,7 @@
     const PLD_SAMPLE = { street: 'Nom de la rue', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
     const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', dept: 'apd', status: 'available', callNumber: '00-0000' };
     const PROFILE_SERVICES = { apd: 'APD', gsp: 'GSP', both: 'APD & GSP' };
+    const CAR_SAMPLE = { show: true, speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false };
 
     function placeHud(el, cfg) {
         el.style.left = `${Math.round(cfg.x * innerWidth)}px`;
@@ -3258,6 +3269,56 @@
             $('#huService').classList.toggle('hu-none', !PROFILE_SERVICES[profile.service]);
             placeHud(unitEl, unitCfg);
         }
+
+        renderCar();
+    }
+
+    // ---- Car HUD : vitesse (MPH), régime (barre horizontale), essence (jauge verticale), ceinture ----
+    // Mis à jour seul (jusqu'à 10 fois par seconde en roulant), sans redessiner les autres HUD.
+    function renderCar() {
+        const el = $('#hudCar');
+        const cfg = hud.settings.car;
+        const car = hud.car && hud.car.show ? hud.car : (hud.placing ? CAR_SAMPLE : null);
+        const show = cfg.enabled && !!car && (hud.placing || !car.paused);
+        el.classList.toggle('hidden', !show);
+        if (!show) return;
+        $('#carSpeed').textContent = Math.max(0, Math.round(car.speed || 0));
+        const rpm = Math.min(Math.max(Number(car.rpm) || 0, 0), 1);
+        const rpmFill = $('#carRpm');
+        rpmFill.style.width = `${Math.round(rpm * 100)}%`;
+        rpmFill.classList.toggle('car-redline', rpm >= 0.9);
+        // Pas de réservoir (vélo, électrique) : jauge masquée
+        const hasFuel = typeof car.fuel === 'number';
+        el.querySelector('[data-part="fuel"]').classList.toggle('part-empty', !hasFuel);
+        if (hasFuel) {
+            const fuel = Math.min(Math.max(car.fuel, 0), 100);
+            const fill = $('#carFuel');
+            fill.style.height = `${Math.round(fuel)}%`;
+            fill.classList.toggle('car-low', fuel <= 15 && fuel > 5);
+            fill.classList.toggle('car-empty', fuel <= 5);
+        }
+        // Pas de ceinture (moto, vélo, bateau, aéronef) : logo masqué
+        const belt = $('#carBelt');
+        belt.classList.toggle('part-empty', typeof car.belt !== 'boolean');
+        belt.classList.toggle('belt-on', car.belt === true);
+        belt.classList.toggle('belt-off', car.belt === false);
+        belt.classList.toggle('belt-alarm', car.belt === false && !!car.alarm);
+        placeHud(el, cfg);
+    }
+
+    // Sons de la ceinture (les siens et ceux des joueurs proches, volume selon la distance : client/carhud.lua)
+    const beltBeep = { volume: 0, timer: null };
+    function beltVolume(v) { return Math.min(Math.max(Number(v) || 0, 0), 1) * hud.settings.car.volume; }
+    function setBeltBeep(volume) {
+        beltBeep.volume = Math.min(Math.max(Number(volume) || 0, 0), 1);
+        if (beltBeep.volume > 0 && !beltBeep.timer) {
+            const beep = () => playSound('belt_beep', beltVolume(beltBeep.volume));
+            beep();
+            beltBeep.timer = setInterval(beep, 900);
+        } else if (beltBeep.volume <= 0 && beltBeep.timer) {
+            clearInterval(beltBeep.timer);
+            beltBeep.timer = null;
+        }
     }
 
     window.addEventListener('resize', renderHud);
@@ -3308,7 +3369,7 @@
 
     // ---- Onglet "Paramètres" ----
     const settingGet = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), hud.settings);
-    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'mdc.zoom', 'notify.volume'];
+    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'mdc.zoom', 'notify.volume', 'car.volume'];
 
     function renderSettings() {
         $$('[data-setting]').forEach((input) => {
@@ -3355,6 +3416,11 @@
     // Volume : aperçu en relâchant le curseur, ou avec le bouton "Tester"
     $('[data-setting="notify.volume"]').addEventListener('change', () => playSound('call'));
     $('#soundTest').addEventListener('click', () => playSound('call'));
+    $('[data-setting="car.volume"]').addEventListener('change', () => playSound('belt_on', hud.settings.car.volume));
+    $('#beltTest').addEventListener('click', () => {
+        playSound('belt_on', hud.settings.car.volume);
+        setTimeout(() => playSound('belt_beep', hud.settings.car.volume), 450);
+    });
 
     $('#settingsReset').addEventListener('click', (e) => {
         const btn = e.currentTarget;
@@ -4309,6 +4375,16 @@
             case 'pld': // client/hud.lua : localisation (uniquement quand elle change)
                 hud.pld = data.data || null;
                 renderHud();
+                break;
+            case 'carHud': // client/carhud.lua : vitesse, régime, essence, ceinture (uniquement quand ça change)
+                hud.car = data.data || null;
+                renderCar();
+                break;
+            case 'beltSound': // ceinture attachée / détachée (soi-même ou un joueur proche)
+                if (data.data) playSound(data.data.kind === 'on' ? 'belt_on' : 'belt_off', beltVolume(data.data.volume));
+                break;
+            case 'beltBeep': // alarme de ceinture (la sienne ou celle d'un joueur proche) ; 0 = arrêt
+                setBeltBeep(data.data && data.data.volume);
                 break;
             case 'callNotify': // nouvelle intervention / nouvel incident (même MDC fermé)
                 if (data.data) callNotification(data.data);

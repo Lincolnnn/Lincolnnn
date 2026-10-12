@@ -41,7 +41,7 @@ L'heure affichée en bas à droite du MDC est l'heure du jeu.
 | Interventions | Une liste par service (**APD**, **GSP**) et une liste des **appels communs** (APD & GSP), affichée seulement s'il y en a. Policier : la liste de **son service** est en haut et toujours ouverte, la liste commune vient en deuxième et est toujours ouverte, la liste de l'autre service est fermée (il peut l'ouvrir pour la consulter, **sans pouvoir rejoindre** ses appels : un appel d'un seul service est réservé à ses unités, vérifié par le serveur). Hors unité : APD, communs, GSP. Incident : service de l'unité déclarante par défaut, case « Joindre aussi l'incident à l'autre service » pour un incident commun. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer pour le masquer. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
 | Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
-| Paramètres | Trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD et display MDC : affichage, éléments visibles, taille, position) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
+| Paramètres | Trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume de la ceinture) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
 | Créations | Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, **service de police** (APD, GSP ou **APD & GSP** : appel commun aux deux services), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
@@ -77,7 +77,8 @@ Les membres d'une même unité (4 au maximum) partagent en direct :
 
 ### HUD et notifications
 
-Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fine et arrondie), visibles même MDC fermé :
+Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fine et arrondie ; le car HUD, lui, sans
+fond), visibles même MDC fermé :
 
 - **PLD** (Player Localisation Display), **affiché pour chaque joueur dès sa connexion**, sans utiliser le MDC
   (ni nom RP, ni unité) ; désactivable et réglable dans « Paramètres », réglages propres à chaque joueur
@@ -93,6 +94,21 @@ Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fin
   l'unité est sur un appel), **secteur** (zone de jeu) et **service principal** (APD, GSP ou APD & GSP) choisis dans le
   menu d'interactions (`rp_interact`, Police, tout en bas) : « aucun sélectionné » tant que rien n'est choisi. Chaque
   ligne se masque dans « Paramètres ».
+- **Car HUD** (`client/carhud.lua`), à bord d'un véhicule, **au-dessus de la minimap** et **sans aucun fond** (ni
+  opaque, ni transparent, ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple
+  nombre, sans compteur), une fine **barre horizontale d'accélération** (régime du moteur : elle se remplit quand on
+  accélère, rouge près du régime maximal), une **jauge d'essence verticale** (ox_fuel, LegacyFuel ou niveau du jeu ;
+  orange sous 15 %, rouge sous 5 % ; masquée sans réservoir) et un petit **logo de ceinture** (discret une fois
+  attachée, rouge sinon, clignotant pendant l'alarme ; masqué pour les motos, vélos, bateaux et aéronefs).
+  Déplaçable et redimensionnable comme les autres HUD ; chaque élément se masque dans « Paramètres ».
+- **Ceinture de sécurité** : touche **K** (Paramètres > Raccourcis clavier > FiveM > « Véhicule : attacher / détacher
+  la ceinture »). Un son à l'attache et un autre au retrait. Non attachée, un **bip** démarre au-dessus de **5 MPH** et
+  continue **jusqu'à l'arrêt du véhicule** ou jusqu'à ce qu'elle soit attachée. Les sons sont **synchronisés** : les
+  occupants du véhicule les entendent comme le conducteur, les joueurs autour (15 m) les entendent aussi, de moins en
+  moins fort avec la distance (bip d'un passager non attaché, attache, retrait). Attachée, le personnage ne passe plus
+  à travers le pare-brise ; elle se retire en descendant du véhicule. Volume réglable (Paramètres > HUD & Display,
+  bouton « Tester ») ; réglages du script (`AlarmSpeed`, `HearRange`, classes sans ceinture…) en haut de
+  `client/carhud.lua`.
 - **Notifications** (en haut à droite) : toutes les notifications du MDC, et, même MDC fermé : nouvel appel
   (titre, service, priorité, adresse, croisement, bloc) et nouvel incident (titre, unité créatrice, adresse,
   croisement, bloc) pour **les membres des unités du service de l'appel uniquement** ; changement de statut pour les
@@ -114,6 +130,9 @@ l'écran** (glisser à la souris, molette = taille), notifications et son.
 
 Performance : le PLD lit la position toutes les 500 ms (`Interval` dans `client/hud.lua`) et n'envoie que les
 changements (~0.01ms) ; PLD désactivé : 0.00ms. Le display MDC et les notifications n'ont aucune boucle.
+Car HUD : à pied, une vérification toutes les 500 ms (0.00ms) ; en véhicule, une mise à jour toutes les 100 ms qui
+n'envoie que les changements (~0.01ms) ; le bip des autres joueurs n'est suivi (250 ms) que pendant qu'une alarme est
+active à portée.
 
 ### Rapports
 

@@ -36,22 +36,20 @@ InteractConfig = {
     CuffDuration = 7000,            -- ms pour menotter
     UncuffDuration = 3000,          -- ms pour retirer les menottes
     Emotes = {
-        cuffed = 'e menotté1',      -- joué par le civil menotté (rejoué s'il est interrompu)
         drag = 'e tenirlebras',     -- joué par le policier qui tient quelqu'un par le bras
         seated = 'e menotté2',      -- "Faire s'asseoir l'individu" (au sol, pas dans un véhicule)
         cancel = 'e c',             -- arrête l'emote en cours (touche X des tips, lâcher le bras)
     },
-    -- Animations de SECOURS : utilisées seulement si l'emote n'a pas été trouvée dans le mode d'emotes
-    -- (le serveur y lit l'animation exacte de menotté1 / menotté2) ou pour un PNJ dans ce cas.
+    -- Individu menotté DEBOUT : comportement de base de GTA 5 (aucune emote) : menottes du jeu
+    -- (SetEnableHandcuffs) + animation "mains dans le dos" du jeu, rejouée si elle s'arrête.
     CuffAnim = { dict = 'mp_arresting', clip = 'idle', flag = 49 },
+    -- Assis au sol ("/e menotté2") : animation de SECOURS, utilisée seulement si l'emote n'a pas été
+    -- trouvée dans le mode d'emotes (le serveur y lit l'animation exacte de menotté2) ou pour un PNJ.
     SeatedAnim = { dict = 'amb@world_human_picnic@male@base', clip = 'base', flag = 1 },
     CuffProp = 'p_cs_cuffs_02_s',   -- menottes aux poignets (voir README : dossier stream)
-    -- Position (m) et orientation (°) des menottes sur l'os du poignet gauche (60309). rz : rotation
-    -- autour du poignet (diminuer pour tourner vers l'extérieur du corps, augmenter vers le corps).
-    CuffPropPlacement = { bone = 60309, x = -0.055, y = 0.06, z = 0.04, rx = 265.0, ry = 155.0, rz = 0.0 },
-    -- Individu assis au sol menotté : penché en arrière (°) et abaissé (m) pour poser le postérieur au
-    -- sol sans soulever les pieds. { pitch = 0.0, z = 0.0 } pour désactiver.
-    SeatedTilt = { pitch = 8.0, z = -0.06 },
+    -- Position (m) et orientation (°) des menottes sur l'os du poignet gauche (60309), réglées pour
+    -- l'animation "mains dans le dos" du jeu (CuffAnim).
+    CuffPropPlacement = { bone = 60309, x = -0.055, y = 0.06, z = 0.04, rx = 265.0, ry = 155.0, rz = 80.0 },
     -- Individu tenu par le bras : position par rapport au policier (à droite, un peu devant). Il n'est
     -- pas accroché : il suit cette position et tourne sur lui-même (pas avec le tronc du policier),
     -- sans collisions. DragTurnSpeed : vitesse (°/s) à laquelle il s'oriente comme le policier.

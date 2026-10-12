@@ -724,7 +724,7 @@
                     </details>
 
                     <details class="settings-cat" data-cat="hud">
-                        <summary>HUD &amp; Display <span class="settings-cat-hint">PLD, display MDC de l'unité, position à l'écran</span></summary>
+                        <summary>HUD &amp; Display <span class="settings-cat-hint">PLD, display MDC de l'unité, car HUD, position à l'écran</span></summary>
                         <div class="settings-grid">
                             <div class="group">
                                 <span class="legend">HUD — Localisation (PLD)</span>
@@ -772,9 +772,38 @@
                                 </div>
                             </div>
                             <div class="group">
+                                <span class="legend">HUD — Véhicule (car HUD)</span>
+                                <label class="check"><input type="checkbox" data-setting="car.enabled"> Afficher le car HUD (à bord d'un véhicule)</label>
+                                <div class="subgroup">
+                                    <span class="subgroup-title">Éléments affichés</span>
+                                    <div class="checks">
+                                        <label class="check"><input type="checkbox" data-setting="car.speed"> Vitesse (MPH)</label>
+                                        <label class="check"><input type="checkbox" data-setting="car.rpm"> Barre d'accélération</label>
+                                        <label class="check"><input type="checkbox" data-setting="car.fuel"> Jauge d'essence</label>
+                                        <label class="check"><input type="checkbox" data-setting="car.belt"> Logo de la ceinture</label>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Taille</span>
+                                    <input type="range" min="50" max="200" step="5" data-setting="car.scale">
+                                    <span class="setting-value" data-setting-value="car.scale"></span>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Volume de la ceinture</span>
+                                    <input type="range" min="0" max="100" step="1" data-setting="car.volume">
+                                    <span class="setting-value" data-setting-value="car.volume"></span>
+                                    <button type="button" class="btn btn-small" id="beltTest">Tester</button>
+                                </div>
+                                <p class="hint-text setting-text">Ceinture : touche <b>K</b> (modifiable : Paramètres &gt; Raccourcis clavier &gt; FiveM).
+                                    Non attachée, un bip retentit dès 5 MPH jusqu'à l'arrêt du véhicule ; les joueurs proches l'entendent aussi.</p>
+                                <div class="toolbar setting-actions">
+                                    <button type="button" class="btn" data-hud-reset="car">Réinitialiser position et taille</button>
+                                </div>
+                            </div>
+                            <div class="group">
                                 <span class="legend">Position des HUD</span>
                                 <p class="hint-text setting-text">Le PLD est toujours affiché (sauf si vous le désactivez) ; le display MDC apparaît
-                                    dès que vous rejoignez une unité. Le mode placement masque le MDC : déplacez chaque HUD à la souris,
+                                    dès que vous rejoignez une unité ; le car HUD, à bord d'un véhicule. Le mode placement masque le MDC : déplacez chaque HUD à la souris,
                                     la molette l'agrandit ou le rétrécit. Échap ou « Terminer » pour revenir.</p>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn btn-default" id="hudPlace">Placer les HUD à l'écran</button>
@@ -956,6 +985,28 @@
         <!-- Secteur et service principal : menu d'interactions (rp_interact) > Police -->
         <div class="hu-line" data-part="sector"><span class="hud-label">SECTEUR</span><span id="huSector"></span></div>
         <div class="hu-line" data-part="service"><span class="hud-label">SERVICE</span><span id="huService"></span></div>
+    </div>
+
+    <!-- Car HUD : au-dessus de la minimap, sans fond. Essence (jauge verticale) | vitesse en MPH + ceinture,
+         barre d'accélération (régime du moteur) en dessous -->
+    <div class="hud hud-car hidden" id="hudCar" data-hud="car">
+        <div class="car-fuel" data-part="fuel">
+            <div class="car-fuel-bar"><div class="car-fuel-fill" id="carFuel"></div></div>
+            <svg class="car-fuel-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2.5 2.2C2.5 1.5 3 1 3.7 1h5.1c.7 0 1.2.5 1.2 1.2V14H2.5V2.2zm1.6.6v3.6h4.3V2.8H4.1zM10.6 5.2l1.3-1.3.8.8-.7.7c.5.3.8.8.8 1.4v5.1a.6.6 0 0 0 1.2 0V6.3h1v5.6a1.6 1.6 0 0 1-3.2 0V6.8c0-.3-.3-.6-.6-.6h-.6v-1z"/></svg>
+        </div>
+        <div class="car-main">
+            <div class="car-top">
+                <span class="car-speed" data-part="speed"><span id="carSpeed">0</span><span class="car-unit">MPH</span></span>
+                <span class="car-belt" data-part="belt" id="carBelt" title="Ceinture">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="9" cy="3.8" r="2.3" fill="currentColor" stroke="none"/>
+                        <path d="M8 8.4v6.8h6.6l2.4 6" stroke-width="2.6"/>
+                        <path d="M12.4 8.2L5.6 15.6" stroke-width="1.7"/>
+                    </svg>
+                </span>
+            </div>
+            <div class="car-rpm" data-part="rpm"><div class="car-rpm-fill" id="carRpm"></div></div>
+        </div>
     </div>
 
     <!-- Mode placement (onglet Paramètres) -->

@@ -1,7 +1,7 @@
 --[[
     RP Interact - Emotes lues dans le mode d'emotes du serveur (RPEMOTES / rpemotes / rpemotes-reborn)
     ---------------------------------------------------------------------------------------------------
-    Les emotes utilisées par ce script (menotté1, menotté2, tenirlebras, serendre17 / 3 / 6…) sont
+    Les emotes utilisées par ce script (menotté2, tenirlebras, serendre17 / 3 / 6…) sont
     lancées avec la commande du mode d'emotes ("/e nom"). Pour savoir si l'emote est toujours jouée
     (et la relancer sans en jouer une AUTRE), il faut son animation exacte : le serveur la lit
     directement dans les fichiers du mode d'emotes, au démarrage (et quand il redémarre).
@@ -11,7 +11,7 @@
         list = { ['menotté2'] = { dict, clip, loop, moving, scenario } , ... },
     }
     Une emote introuvable n'est pas bloquante : le client utilise alors les animations de secours de
-    config.lua (CuffAnim, SeatedAnim) seulement s'il n'y a aucun mode d'emotes, et sinon ne relance
+    config.lua (SeatedAnim) seulement s'il n'y a aucun mode d'emotes, et sinon ne relance
     l'emote que si le mode d'emotes indique qu'aucune emote n'est jouée.
 ]]
 
