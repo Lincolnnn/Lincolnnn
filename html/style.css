@@ -1372,5 +1372,5 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 
 /* ---- MDC ouvert : HUD floutés (le jeu derrière est flouté par client/client.lua) ---- */
 .hud, .car-notice-anchor { transition: filter .25s; }
-body.mdc-blur .hud, body.mdc-blur .car-notice-anchor { filter: blur(4px); }
-body.mdc-blur .hud-car.car-off { filter: blur(4px) grayscale(1) brightness(.75); }
+body.mdc-blur .hud, body.mdc-blur .car-notice-anchor { filter: blur(var(--hud-blur, 4px)); }
+body.mdc-blur .hud-car.car-off { filter: blur(var(--hud-blur, 4px)) grayscale(1) brightness(.75); }

@@ -1,10 +1,15 @@
 --[[
     Vehicle Control - dégâts réalistes (client, calculés par le CONDUCTEUR)
     ----------------------------------------------------------------------
-    Santé du moteur (1000 = neuf) :
-      - les dégâts reçus par le moteur sont multipliés (EngineMultiplier) et une partie des dégâts de
-        la carrosserie s'y ajoute (BodyToEngine) : un accrochage abîme, un vrai choc casse ;
-      - choc violent (perte de vitesse brutale) : dégâts supplémentaires selon la violence du choc ;
+    Santé du moteur (1000 = neuf). Le véhicule encaisse comme un vrai, selon ce qu'il a percuté
+    (reconnu au moment du choc, client/main.lua) :
+      - choc LÉGER (piéton, moto, vélo, barrière, plot, compteur électrique, petits objets) : le moteur
+        ne reçoit qu'une petite part des dégâts du jeu (LightMultiplier) ;
+      - choc FORT (mur, décor fixe, voiture, lampadaire, poteau…) : dégâts du jeu (HeavyMultiplier),
+        une part des dégâts de carrosserie (BodyToEngine) et, si le choc est violent (perte de vitesse
+        brutale), des dégâts supplémentaires selon sa violence : un accrochage n'abîme presque rien, un
+        vrai choc casse ;
+      - sans choc (balles, explosion, chute) : OtherMultiplier ;
       - sous Damaged : puissance réduite ; sous Critical : encore moins de puissance et calages ;
       - sous Broken : véhicule CASSÉ : moteur coupé, impossible à redémarrer, logo rouge sur le car HUD
         (état du véhicule "vcBroken", vu par tous les occupants). Réparé (script de mécanicien,
@@ -25,6 +30,19 @@ local function hurtEngine(vehicle, engine, amount)
     SetVehicleEngineHealth(vehicle, health)
     return health
 end
+
+--- Santé du moteur après les dégâts `loss` reçus du jeu, ramenés à `multiplier` (moins de 1 : le
+--- moteur encaisse mieux, une partie des dégâts du jeu est rendue)
+local function scaleLoss(vehicle, engine, loss, multiplier)
+    if loss <= 0.0 or multiplier == 1.0 then return engine end
+    if multiplier > 1.0 then return hurtEngine(vehicle, engine, loss * (multiplier - 1.0)) end
+    if engine <= 0.0 then return engine end -- déjà en feu : le jeu décide
+    local health = math.min(engine + loss * (1.0 - multiplier), 1000.0)
+    SetVehicleEngineHealth(vehicle, health)
+    return health
+end
+
+local MULTIPLIER = { light = 'LightMultiplier', heavy = 'HeavyMultiplier' }
 
 function VC.isBroken(vehicle)
     return GetVehicleEngineHealth(vehicle) <= Config.Broken
@@ -59,10 +77,15 @@ VC.on('tick', function(_, vehicle, dt)
         last.engine, last.body = engine, body
         return
     end
-    -- Dégâts reçus depuis la dernière mesure (une hausse = réparation : simple mise à jour)
-    local extra = math.max(last.engine - engine, 0.0) * (Config.EngineMultiplier - 1.0)
-        + math.max(last.body - body, 0.0) * Config.BodyToEngine
-    engine = hurtEngine(vehicle, engine, extra)
+    -- Dégâts reçus depuis la dernière mesure (une hausse = réparation : simple mise à jour), selon ce
+    -- qui a été percuté
+    local loss, bodyLoss = math.max(last.engine - engine, 0.0), math.max(last.body - body, 0.0)
+    if loss > 0.0 or bodyLoss > 0.0 then
+        local hit = VC.currentHit(vehicle)
+        local severity = hit and hit.severity or nil
+        engine = scaleLoss(vehicle, engine, loss, Config[MULTIPLIER[severity] or 'OtherMultiplier'] or 1.0)
+        if severity == 'heavy' then engine = hurtEngine(vehicle, engine, bodyLoss * Config.BodyToEngine) end
+    end
     last.engine, last.body = engine, body
 
     -- Moteur critique : calages au hasard en roulant (il redémarre comme d'habitude)
@@ -73,9 +96,10 @@ VC.on('tick', function(_, vehicle, dt)
     updateState(vehicle, engine)
 end)
 
--- Choc violent : dégâts supplémentaires selon la perte de vitesse
-VC.on('impact', function(vehicle, _, drop)
+-- Choc fort et violent (mur, voiture, lampadaire…) : dégâts supplémentaires selon la perte de vitesse
+VC.on('impact', function(vehicle, _, drop, _, hit)
     if VC.seat ~= -1 or drop <= Config.ImpactMinDrop then return end
+    if hit and hit.severity == 'light' then return end
     local engine = GetVehicleEngineHealth(vehicle)
     engine = hurtEngine(vehicle, engine, (drop - Config.ImpactMinDrop) ^ 1.5 * Config.ImpactFactor)
     last.engine = engine

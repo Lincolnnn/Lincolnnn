@@ -7,7 +7,8 @@
       - 'frame' : à chaque image, UNIQUEMENT à bord d'un véhicule (ceinture, véhicule poussé,
         puissance réduite d'un moteur abîmé, détection des chocs) ;
       - 'tick'  : toutes les 100 ms à bord (essence, dégâts, alarme de ceinture, car HUD) ;
-      - 'impact' : choc violent (vitesse avant le choc, perte de vitesse, vitesse du véhicule) ;
+      - 'impact' : choc violent (vitesse avant le choc, perte de vitesse, vitesse du véhicule, ce qui a
+        été percuté : { severity = 'light' | 'heavy', kind = 'ped' | 'vehicle' | 'object' | 'world' }) ;
       - 'idle'  : toutes les 500 ms à pied (pompes, jerrican, véhicule à pousser).
 
     Car HUD : dessiné par le MDC (mdc_standalone, Paramètres > HUD & Display), qui reçoit les données
@@ -136,10 +137,68 @@ local function seatOf(ped, vehicle)
 end
 
 -- =========================================================================
+-- CE QUI A ÉTÉ PERCUTÉ (au moment du choc ; recherche seulement à cet instant)
+--   léger : piéton, moto / vélo, objet de la liste LightModels (ou inconnu, selon UnknownObject)
+--   fort  : autre véhicule, objet de la liste HeavyModels, ou rien de mobile : décor fixe (mur…)
+-- =========================================================================
+local Damage = Config.Damage
+local modelSeverity = {}
+for _, name in ipairs(Damage.LightModels or {}) do modelSeverity[GetHashKey(name)] = 'light' end
+for _, name in ipairs(Damage.HeavyModels or {}) do modelSeverity[GetHashKey(name)] = 'heavy' end
+
+local HIT_MS = 600  -- durée pendant laquelle les dégâts reçus sont attribués à ce choc
+local lastHit = nil -- { vehicle, severity, kind, untilTime }
+
+local function touching(vehicle, pool, range, classify)
+    local pos = GetEntityCoords(vehicle)
+    local found = nil
+    for _, entity in ipairs(GetGamePool(pool)) do
+        if entity ~= vehicle and #(GetEntityCoords(entity) - pos) <= range and IsEntityTouchingEntity(vehicle, entity)
+            -- remorque attelée, objet porté… : toujours au contact, ce n'est pas un choc
+            and not IsEntityAttachedToEntity(entity, vehicle) and not IsEntityAttachedToEntity(vehicle, entity) then
+            local severity = classify(entity)
+            if severity == 'heavy' then return 'heavy' end
+            found = severity or found
+        end
+    end
+    return found
+end
+
+--- Ce que le véhicule vient de percuter : { severity = 'light' | 'heavy', kind }
+function VC.classifyHit(vehicle)
+    local ped = PlayerPedId()
+    local severity = touching(vehicle, 'CVehicle', 12.0, function(other)
+        return Damage.LightVehicleClasses[GetVehicleClass(other)] and 'light' or 'heavy'
+    end)
+    if severity then return { severity = severity, kind = 'vehicle' } end
+    severity = touching(vehicle, 'CObject', 10.0, function(object)
+        return modelSeverity[GetEntityModel(object)] or Damage.UnknownObject or 'light'
+    end)
+    if severity then return { severity = severity, kind = 'object' } end
+    severity = touching(vehicle, 'CPed', 6.0, function(other)
+        if other == ped or GetVehiclePedIsIn(other, false) == vehicle then return nil end
+        return 'light'
+    end)
+    if severity then return { severity = severity, kind = 'ped' } end
+    return { severity = 'heavy', kind = 'world' } -- mur, bâtiment, rocher, décor fixe
+end
+
+--- Choc en cours / tout juste reçu par ce véhicule ; s'il vient de toucher quelque chose sans choc
+--- enregistré (petite vitesse), il est reconnu maintenant ; nil : aucun choc (balles, explosion…)
+function VC.currentHit(vehicle)
+    local now = GetGameTimer()
+    if lastHit and lastHit.vehicle == vehicle and now <= lastHit.untilTime then return lastHit end
+    if not HasEntityCollidedWithAnything(vehicle) then return nil end
+    local hit = VC.classifyHit(vehicle)
+    lastHit = { vehicle = vehicle, severity = hit.severity, kind = hit.kind, untilTime = now + HIT_MS }
+    return lastHit
+end
+
+-- =========================================================================
 -- CHOCS : perte de vitesse brutale pendant un contact (mur, objet fixe, véhicule)
 -- =========================================================================
 local history = {}  -- vitesses des 400 dernières ms : { t, speed }
-local crash = nil   -- choc en cours : { before, min, untilTime, velocity }
+local crash = nil   -- choc en cours : { before, min, untilTime, velocity, hit }
 local lastVelocity = vector3(0.0, 0.0, 0.0)
 
 local function recentPeak(now)
@@ -158,14 +217,15 @@ local function detectImpact(vehicle)
     if not crash and HasEntityCollidedWithAnything(vehicle) then
         local before = math.max(recentPeak(now), speed)
         if before > 5.0 then
-            crash = { before = before, min = speed, untilTime = now + 250, velocity = lastVelocity }
+            lastHit = nil -- nouveau choc : reconnu maintenant
+            crash = { before = before, min = speed, untilTime = now + 250, velocity = lastVelocity, hit = VC.currentHit(vehicle) }
         end
     end
     if crash then
         if speed < crash.min then crash.min = speed end
         -- Fin du choc : 250 ms écoulées, ou véhicule arrêté net
         if now >= crash.untilTime or crash.min < 2.0 then
-            emit('impact', vehicle, crash.before, crash.before - crash.min, crash.velocity)
+            emit('impact', vehicle, crash.before, crash.before - crash.min, crash.velocity, crash.hit)
             crash = nil
         end
     end
@@ -180,7 +240,7 @@ end
 local function leave()
     local vehicle, seat = VC.vehicle, VC.seat
     VC.vehicle, VC.seat = 0, nil
-    history, crash = {}, nil
+    history, crash, lastHit = {}, nil, nil
     emit('leave', vehicle, seat)
 end
 

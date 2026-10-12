@@ -31,8 +31,9 @@ sur l'individu le plus proche.
 Case **Civil** : rappel du **profil actif** en haut, la case **Mode civil**, puis **Créer un profil** et
 **Créer un véhicule** (ouvrent la **fiche civile** et ferment le menu) et, en mode civil, **Tips arrestation**.
 Case **Équipements** : **Tenues** (EUP) et **Armes** (loadouts) que vous enregistrez dans **`data/equipment.lua`**
-(seules les tenues du personnage homme / femme sont proposées) ; **Remettre ma tenue** (celle d'avant la première tenue
-enfilée) et **Retirer mes armes**. Réservé aux policiers en service (`EquipmentPoliceOnly`). D'autres options pourront
+(seules les tenues du personnage homme / femme sont proposées) et **Retirer mes armes**. Les joueurs ne peuvent pas
+enregistrer leurs propres tenues : seules celles configurées par le serveur sont proposées (ajoutez par exemple une
+tenue « Civil »). Réservé aux policiers en service (`EquipmentPoliceOnly`). D'autres options pourront
 s'ajouter ici.
 Case **Voiture** :
 - **Spawn** : en haut, deux options gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
@@ -46,15 +47,19 @@ Case **Voiture** :
 - **Radio** : collez un **lien** (vidéo / musique YouTube, ou lien direct vers un fichier audio, un podcast, une radio
   en ligne) : le son est joué **dans le véhicule**. Tout le monde l'entend **au même moment et au même volume de base**
   (le volume est celui du véhicule : à 89 %, tout le monde l'a à 89 %). À bord : normalement. Dehors, le son **vient
-  du véhicule** (à gauche / à droite selon où il se trouve par rapport à la caméra) et baisse avec la distance
-  (`RadioRange`, 30 m) ; si aucune vitre n'est baissée et aucune portière n'est ouverte, il est **insonorisé** : **filtre
+  du véhicule** (à gauche / à droite selon où il se trouve par rapport à la caméra) et baisse avec la distance :
+  entendu jusqu'à **15 m** tout fermé (`RadioRangeClosed`) et **25 m** avec une portière (coffre, capot) ouverte ou une
+  vitre baissée (`RadioRangeOpen`). Tout fermé, il est **insonorisé** : **filtre
   passe-bas** (on n'entend plus que les basses, comme à travers la carrosserie) et volume encore plus bas
   (`RadioInsulation`). Réglable seulement par les **places avant**, ou avec l'**œil** en visant l'intérieur avant du
   véhicule, **portière avant ouverte** (option « Radio du véhicule »).
-  YouTube : la vidéo est lue en **flux audio** grâce à une API Piped publique (`RadioYouTubeApi`), ce qui permet le
-  filtre et la position du son. Si elle ne répond pas (instance hors ligne), le lecteur YouTube classique prend le
-  relais : le son reste synchronisé mais sans filtre ni position (seulement plus bas dehors). Liens directs : filtre et
-  position si le site autorise la lecture (CORS), sinon lecture simple.
+  Seules les vitres que le véhicule possède comptent (un coupé sans vitres arrière n'est plus vu comme « ouvert »).
+  YouTube : le **serveur** cherche le **flux audio** de la vidéo auprès des services publics listés (`RadioPiped`, puis
+  `RadioInvidious` : le premier qui répond et dont le flux se charge est gardé, en cache 3 h) ; c'est ce flux qui
+  permet le son étouffé et la position. Si aucun service ne répond, le lecteur YouTube classique prend le relais : le
+  son reste synchronisé mais sans filtre ni position (seulement plus bas dehors). La page Radio indique si les effets
+  sont actifs. Ces services publics changent souvent : ajoutez-en (ou votre propre instance Piped / Invidious) dans
+  `config.lua`. Liens directs : filtre et position si le site autorise la lecture (CORS), sinon lecture simple.
 
 Échap : retour / fermeture.
 
@@ -239,7 +244,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `MenuKey`, `TargetKey` | touches par défaut (F1, Alt gauche) ; chaque joueur les change dans Échap > Paramètres > Raccourcis clavier > FiveM |
 | `MdcResource`, `ChatResource` | noms des dossiers du MDC et du chat |
 | `SpawnPoliceOnly`, `EquipmentPoliceOnly` | véhicules de police (Voiture > Spawn) et équipements réservés aux policiers en service |
-| `RadioRange`, `RadioInsulation`, `RadioMaxVolume`, `RadioYouTubeApi` | radio du véhicule : portée dehors, volume quand tout est fermé (insonorisé, en plus du filtre), volume maximal, API Piped pour lire YouTube en flux audio (`''` = lecteur YouTube classique) |
+| `RadioRangeClosed`, `RadioRangeOpen`, `RadioInsulation`, `RadioMaxVolume`, `RadioPiped`, `RadioInvidious` | radio du véhicule : portée dehors tout fermé (15 m) / ouvert (25 m), volume quand tout est fermé (insonorisé, en plus du filtre), volume maximal, services où le serveur cherche le flux audio des vidéos YouTube (`{}` = lecteur YouTube classique) |
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |
@@ -275,7 +280,7 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 
 ## Performance
 
-- Aucune boucle quand rien n'est utilisé (0.00 ms dans le resmon). Radio : une vérification toutes les 250 ms
+- Aucune boucle quand rien n'est utilisé (0.00 ms dans le resmon). Radio : une vérification toutes les 150 ms
   seulement tant qu'une radio est allumée dans un véhicule à portée réseau.
 - L'œil tourne uniquement pendant que la touche est maintenue (visée toutes les 50 ms, tir bloqué) et s'arrête ensuite.
 - Assis sur un banc : une petite boucle attend la touche pour se lever, puis s'arrête.

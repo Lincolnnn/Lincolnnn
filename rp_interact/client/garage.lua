@@ -6,8 +6,8 @@
       le joueur : "Supprimer l'ancien véhicule" (le dernier qu'il a fait apparaître, s'il n'y a pas
       d'autre joueur dedans) et "Apparaître dans le véhicule". Livery et extras de la liste appliqués.
       Le véhicule est créé par ce script : Vehicle Control le considère comme neuf (plein, moteur coupé).
-    ÉQUIPEMENTS : tenues EUP (data/equipment.lua, selon le personnage homme / femme) et armes.
-      "Remettre ma tenue" rend la tenue d'avant la première tenue enfilée.
+    ÉQUIPEMENTS : tenues EUP et armes configurées par le serveur (data/equipment.lua), selon le
+      personnage homme / femme. Le joueur ne peut pas enregistrer de tenue : il choisit parmi celles-ci.
     Aucune boucle.
 ]]
 
@@ -144,8 +144,6 @@ end)
 -- =========================================================================
 -- ÉQUIPEMENTS : tenues EUP et armes (data/equipment.lua)
 -- =========================================================================
-local savedLook = nil -- tenue d'avant la première tenue enfilée
-
 local function gender()
     local model = GetEntityModel(PlayerPedId())
     if model == MALE then return 'male' end
@@ -166,20 +164,9 @@ RegisterNUICallback('equipmentList', function(_, cb)
     end
     cb({
         ok = true, outfits = outfits, loadouts = loadouts, freemode = g ~= nil,
-        police = RPI.isPolice(), policeOnly = Config.EquipmentPoliceOnly ~= false, saved = savedLook ~= nil,
+        police = RPI.isPolice(), policeOnly = Config.EquipmentPoliceOnly ~= false,
     })
 end)
-
-local function saveLook(ped)
-    if savedLook then return end
-    savedLook = { components = {}, props = {} }
-    for id = 0, 11 do
-        savedLook.components[id] = { GetPedDrawableVariation(ped, id), GetPedTextureVariation(ped, id) }
-    end
-    for id = 0, 7 do
-        savedLook.props[id] = { GetPedPropIndex(ped, id), GetPedPropTextureIndex(ped, id) }
-    end
-end
 
 local function applyOutfit(ped, look)
     for id, v in pairs(look.components or {}) do
@@ -203,15 +190,12 @@ end
 RegisterNUICallback('useEquipment', function(data, cb)
     data = type(data) == 'table' and data or {}
     local ped = PlayerPedId()
-    if data.kind == 'restoreOutfit' then
-        if savedLook then applyOutfit(ped, savedLook); savedLook = nil end
-        cb({ ok = true })
-        return RPI.notify('Tenue d\'origine remise.', 'success')
-    elseif data.kind == 'removeWeapons' then
+    if data.kind == 'removeWeapons' then
         RemoveAllPedWeapons(ped, true)
         cb({ ok = true })
         return RPI.notify('Armes retirées.', 'success')
     end
+    if data.kind ~= 'outfit' and data.kind ~= 'loadout' then return cb({ ok = false }) end
     RPI.request('equipment', { kind = data.kind, index = data.index }, function(res)
         if not res or not res.ok then
             cb({ ok = false, error = res and res.error })
@@ -220,7 +204,6 @@ RegisterNUICallback('useEquipment', function(data, cb)
         ped = PlayerPedId()
         if data.kind == 'outfit' then
             local outfit = InteractEquipment.Outfits[tonumber(data.index)]
-            saveLook(ped)
             applyOutfit(ped, outfit)
             RPI.notify(('Tenue : %s'):format(outfit.name), 'success')
         else
@@ -228,6 +211,6 @@ RegisterNUICallback('useEquipment', function(data, cb)
             giveLoadout(ped, loadout)
             RPI.notify(('Armes : %s'):format(loadout.name), 'success')
         end
-        cb({ ok = true, saved = savedLook ~= nil })
+        cb({ ok = true })
     end)
 end)

@@ -284,18 +284,12 @@
         $('#outfitList').innerHTML = listButtons(toArray(res.outfits), 'outfit', 'Aucune tenue pour ce personnage.');
         $('#loadoutList').innerHTML = listButtons(toArray(res.loadouts), 'loadout', 'Aucune arme configurée.');
         $$('#outfitList .menu-item, #loadoutList .menu-item').forEach((b) => { b.disabled = locked; });
-        $('#outfitRestore').disabled = !res.saved;
     }
 
     document.addEventListener('click', async (e) => {
         const item = e.target.closest('#outfitList .menu-item, #loadoutList .menu-item');
         if (!item || item.disabled) return;
-        const res = await post('useEquipment', { kind: item.dataset.kind, index: Number(item.dataset.index) });
-        if (res && res.ok && item.dataset.kind === 'outfit') $('#outfitRestore').disabled = false;
-    });
-    $('#outfitRestore').addEventListener('click', async () => {
-        await post('useEquipment', { kind: 'restoreOutfit' });
-        $('#outfitRestore').disabled = true;
+        post('useEquipment', { kind: item.dataset.kind, index: Number(item.dataset.index) });
     });
     $('#weaponsRemove').addEventListener('click', () => post('useEquipment', { kind: 'removeWeapons' }));
 
@@ -349,6 +343,7 @@
         const radio = info.radio || null;
         status.className = `menu-active ${radio ? 'on-air' : 'none'}`;
         status.innerHTML = `${info.vehicle ? `<b>${esc(info.vehicle)}</b> — ` : ''}${radio ? 'radio allumée' : 'radio éteinte'}`
+            + (radio ? `<br><small>${esc(radioEffects(info.id))}</small>` : '')
             + (info.canControl ? '' : '<br><small>Seules les places avant peuvent la régler.</small>');
         controls.classList.toggle('disabled', !info.canControl);
         controls.querySelectorAll('input, button').forEach((el) => { el.disabled = !info.canControl; });
@@ -357,6 +352,16 @@
         const volume = radio ? radio.volume : Number($('#radioVolume').value);
         $('#radioVolume').value = volume;
         $('#radioVolumeValue').textContent = `${volume} %`;
+    }
+
+    /** Effets du son (étouffé dehors, position) : actifs ou non pour la radio de ce véhicule */
+    function radioEffects(id) {
+        const r = radios[id];
+        if (!r || r.kind === 'wait') return 'Préparation du son…';
+        if (r.kind === 'audio' && r.gain) return 'Son du véhicule actif : étouffé dehors portières fermées, venant du véhicule.';
+        return r.kind === 'yt'
+            ? 'Lecteur YouTube classique (flux audio introuvable) : volume seulement, sans son étouffé.'
+            : 'Ce site ne permet pas les effets : volume seulement, sans son étouffé.';
     }
 
     async function loadRadio() {
@@ -378,8 +383,8 @@
     // ---- Lecteurs de la radio des véhicules (client/radio.lua) ----
     // Chaîne audio : source -> filtre passe-bas ("étouffé" dehors, portières et vitres fermées)
     //                       -> position gauche / droite (le son vient du véhicule) -> volume.
-    // YouTube : lu en flux audio grâce à l'API Piped (RadioYouTubeApi) pour pouvoir le filtrer et le
-    // placer ; si elle ne répond pas, lecteur YouTube classique (volume seulement).
+    // YouTube : lu en flux audio (adresse cherchée par le serveur : "stream") pour pouvoir le filtrer et
+    // le placer ; sans flux, lecteur YouTube classique (volume seulement).
     const radios = {};
     let ytReady = null;
     let audioCtx = null;
@@ -401,25 +406,6 @@
             });
         }
         return ytReady;
-    }
-
-    /** Flux audio d'une vidéo YouTube (API Piped), ou null */
-    async function youtubeStream(api, id) {
-        if (!api) return null;
-        try {
-            const ctrl = new AbortController();
-            const timer = setTimeout(() => ctrl.abort(), 6000);
-            const res = await fetch(`${api.replace(/\/$/, '')}/streams/${id}`, { signal: ctrl.signal });
-            clearTimeout(timer);
-            if (!res.ok) return null;
-            const data = await res.json();
-            const streams = toArray(data.audioStreams).filter((a) => a && a.url);
-            if (!streams.length) return null;
-            streams.sort((a, b) => (Number(b.bitrate) || 0) - (Number(a.bitrate) || 0));
-            return (streams.find((a) => (Number(a.bitrate) || 0) <= 170000) || streams[streams.length - 1]).url;
-        } catch (err) {
-            return null;
-        }
     }
 
     function applyRadio(r) {
@@ -465,7 +451,7 @@
         r.audio = audio;
         try {
             audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
             const source = audioCtx.createMediaElementSource(audio);
             r.filter = audioCtx.createBiquadFilter();
             r.filter.type = 'lowpass';
@@ -480,7 +466,9 @@
             r.gain = null;
         }
         applyRadio(r);
-        audio.play().catch(() => {});
+        audio.play().then(() => {
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+        }).catch(() => {});
     }
 
     function stopMedia(r) {
@@ -491,32 +479,44 @@
         r.holder.innerHTML = '';
     }
 
+    /** Lecteur selon le lien : flux audio (effets), YouTube classique ou lien direct sans effets */
+    function startMedia(r, d) {
+        const id = youtubeId(d.url);
+        r.stream = d.stream;
+        if (id) {
+            if (d.stream === undefined || d.stream === null) { r.kind = 'wait'; return; } // flux cherché par le serveur
+            if (!d.stream) return playIframe(r, id, d.offset);
+            playAudio(r, d.stream, d.offset, () => { stopMedia(r); playIframe(r, id, r.offset); refreshRadioStatus(); });
+            return;
+        }
+        // Lien direct : sans autorisation du site (CORS), lu quand même (sans filtre ni position)
+        playAudio(r, d.url, d.offset, () => {
+            stopMedia(r);
+            refreshRadioStatus();
+            r.kind = 'plain';
+            const audio = new Audio(d.url);
+            audio.addEventListener('loadedmetadata', () => {
+                if (Number.isFinite(audio.duration) && r.offset < audio.duration) audio.currentTime = r.offset;
+            }, { once: true });
+            r.audio = audio;
+            applyRadio(r);
+            audio.play().catch(() => {});
+        });
+    }
+
+    // Menu ouvert sur la page Radio : état des effets mis à jour (flux trouvé, lecteur de secours…)
+    let radioStatusTimer = null;
+    function refreshRadioStatus() {
+        clearTimeout(radioStatusTimer);
+        radioStatusTimer = setTimeout(() => { if (menu.open && menu.view === 'radio') loadRadio(); }, 400);
+    }
+
     function createRadio(d) {
         const r = { url: d.url, volume: d.volume, muffled: d.muffled, pan: d.pan, offset: d.offset };
         r.holder = document.createElement('div');
         r.holder.className = 'radio-player';
         $('#radioPlayers').appendChild(r.holder);
-        const id = youtubeId(d.url);
-        if (id) {
-            youtubeStream(d.ytApi, id).then((stream) => {
-                if (r.dead) return;
-                if (!stream) return playIframe(r, id, d.offset);
-                playAudio(r, stream, d.offset, () => { stopMedia(r); playIframe(r, id, r.offset); });
-            });
-        } else {
-            // Lien direct : sans CORS, lu quand même (sans filtre ni position)
-            playAudio(r, d.url, d.offset, () => {
-                stopMedia(r);
-                r.kind = 'audio';
-                const audio = new Audio(d.url);
-                audio.addEventListener('loadedmetadata', () => {
-                    if (Number.isFinite(audio.duration) && r.offset < audio.duration) audio.currentTime = r.offset;
-                }, { once: true });
-                r.audio = audio;
-                applyRadio(r);
-                audio.play().catch(() => {});
-            });
-        }
+        startMedia(r, d);
         return r;
     }
 
@@ -534,6 +534,13 @@
         let r = radios[d.id];
         if (r && r.url !== d.url) { radioStop(d.id); r = null; }
         if (!r) radios[d.id] = r = createRadio(d);
+        else if ((r.stream ?? null) !== (d.stream ?? null)) {
+            // Flux YouTube trouvé (ou introuvable) par le serveur : lecteur remplacé, au bon moment
+            r.offset = d.offset;
+            stopMedia(r);
+            startMedia(r, d);
+            refreshRadioStatus();
+        }
         r.volume = Number(d.volume) || 0;
         r.muffled = !!d.muffled;
         r.pan = Number(d.pan) || 0;

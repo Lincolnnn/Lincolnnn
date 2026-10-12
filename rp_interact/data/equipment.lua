@@ -1,7 +1,9 @@
 --[[
     RP Interact - Équipements du menu d'interactions (F1 > Équipements)
     ===================================================================
-    Remplissez les listes ci-dessous à la main (même format que les exemples).
+    Remplissez les listes ci-dessous à la main (même format que les exemples). Les joueurs ne peuvent
+    PAS enregistrer leurs propres tenues : ils choisissent uniquement parmi celles configurées ici
+    (ajoutez par exemple une tenue "Civil" pour revenir à une tenue de ville).
 
     TENUES (EUP) : Outfits
       name     : nom affiché dans le menu

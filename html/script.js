@@ -328,11 +328,14 @@
     // MDC ouvert, hors mode placement des HUD
     let blurred = null;
     function syncBlur() {
-        const on = !!(state.open && !hud.placing && hud.settings.mdc.blur);
+        const s = hud.settings.mdc;
+        const on = !!(state.open && !hud.placing && s.blur);
         document.body.classList.toggle('mdc-blur', on);
-        if (on === blurred) return;
-        blurred = on;
-        post('mdcBlur', { enabled: on });
+        document.body.style.setProperty('--hud-blur', `${(1 + s.blurStrength * 7).toFixed(1)}px`); // 1.7 à 8 px
+        const key = on ? s.blurStrength : 0;
+        if (key === blurred) return;
+        blurred = key;
+        post('mdcBlur', { enabled: on, strength: s.blurStrength });
     }
 
     function showPage(page) {
@@ -3175,7 +3178,7 @@
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true, service: true },
         // Fenêtre : légère transparence (opacity) et flou du jeu et des HUD derrière, désactivables
-        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.93, blur: true },
+        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.93, blur: true, blurStrength: 0.6 },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
@@ -3214,6 +3217,7 @@
         });
         out.mdc.zoom = Math.min(Math.max(out.mdc.zoom, 0.8), 1.3);
         out.mdc.opacity = Math.min(Math.max(out.mdc.opacity, 0.5), 1);
+        out.mdc.blurStrength = Math.min(Math.max(out.mdc.blurStrength, 0.1), 1);
         out.notify.volume = Math.min(Math.max(out.notify.volume, 0), 1);
         out.car.volume = Math.min(Math.max(out.car.volume, 0), 1);
         if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
@@ -3413,7 +3417,7 @@
 
     // ---- Onglet "Paramètres" ----
     const settingGet = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), hud.settings);
-    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'mdc.zoom', 'mdc.opacity', 'notify.volume', 'car.volume'];
+    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'mdc.zoom', 'mdc.opacity', 'mdc.blurStrength', 'notify.volume', 'car.volume'];
 
     function renderSettings() {
         $$('[data-setting]').forEach((input) => {

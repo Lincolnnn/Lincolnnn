@@ -72,21 +72,79 @@ VCConfig = {
 
     -- ---------------------------------------------------------------------
     -- DÉGÂTS (santé du moteur : 1000 = neuf ; le jeu prend feu sous 0)
+    -- Le véhicule encaisse comme un vrai : ce qui a été percuté est reconnu au moment du choc.
+    --   - LÉGER : piéton, moto, vélo, petits objets (barrière, plot, compteur électrique, poubelle,
+    --     panneau…) : le moteur souffre peu ;
+    --   - FORT : mur, bâtiment, rocher (décor fixe), voiture, camion, lampadaire, poteau, feu tricolore,
+    --     bouche d'incendie… : dégâts du jeu + dégâts selon la violence du choc.
     -- ---------------------------------------------------------------------
     Damage = {
-        EngineMultiplier = 2.5,   -- dégâts du moteur reçus par le jeu, multipliés
-        BodyToEngine = 0.6,       -- part des dégâts de carrosserie reportée sur le moteur
-        -- Choc violent (perte de vitesse brutale, en MPH) : dégâts supplémentaires du moteur
-        ImpactMinDrop = 12.0,     -- en dessous : simple accrochage, rien de plus
-        ImpactFactor = 4.0,       -- dégâts = (perte - ImpactMinDrop) ^ 1.5 * ImpactFactor
+        -- Dégâts du moteur reçus du jeu, multipliés (1.0 = jeu de base ; moins = plus solide)
+        LightMultiplier = 0.25,   -- choc léger
+        HeavyMultiplier = 0.9,    -- choc fort
+        OtherMultiplier = 0.8,    -- sans choc (balles, explosion, chute…)
+        BodyToEngine = 0.15,      -- choc fort : part des dégâts de carrosserie reportée sur le moteur
+        -- Choc fort et violent (perte de vitesse brutale, en MPH) : dégâts supplémentaires du moteur
+        ImpactMinDrop = 20.0,     -- en dessous : rien de plus (un accrochage n'abîme pas le moteur)
+        ImpactFactor = 2.5,       -- dégâts = (perte - ImpactMinDrop) ^ 1.5 * ImpactFactor
+                                  -- ex. mur à 40 MPH -> ~220 ; à 60 MPH -> ~630 ; à 80 MPH -> ~1160
         EngineFloor = 10.0,       -- ce script n'abaisse jamais le moteur sous cette valeur (pas d'incendie)
         -- Paliers : puissance réduite, calages, véhicule cassé
-        Damaged = 650.0,          -- puissance x DamagedPower
+        Damaged = 500.0,          -- puissance x DamagedPower
         DamagedPower = 0.8,
-        Critical = 350.0,         -- puissance x CriticalPower + calages au hasard
-        CriticalPower = 0.55,
-        StallChance = 0.04,       -- chance de caler par seconde (moteur critique, en roulant)
-        Broken = 120.0,           -- en dessous : cassé (moteur coupé, impossible à démarrer, logo rouge)
+        Critical = 300.0,         -- puissance x CriticalPower + calages au hasard
+        CriticalPower = 0.6,
+        StallChance = 0.03,       -- chance de caler par seconde (moteur critique, en roulant)
+        Broken = 100.0,           -- en dessous : cassé (moteur coupé, impossible à démarrer, logo rouge)
+
+        -- Ce qui a été percuté : véhicules selon leur classe, objets selon leur modèle
+        LightVehicleClasses = { [8] = true, [13] = true }, -- motos, vélos (les autres véhicules : choc fort)
+        UnknownObject = 'light',  -- objet absent des deux listes : 'light' ou 'heavy'
+        LightModels = {
+            -- barrières, plots, séparateurs
+            'prop_barrier_work01a', 'prop_barrier_work02a', 'prop_barrier_work04a', 'prop_barrier_work05',
+            'prop_barrier_work06a', 'prop_barrier_work06b', 'prop_mp_barrier_01', 'prop_mp_barrier_01b',
+            'prop_mp_barrier_02', 'prop_mp_barrier_02b', 'prop_trafficdiv_01a',
+            'prop_trafficdiv_02', 'prop_roadcone01a', 'prop_roadcone01b', 'prop_roadcone01c', 'prop_roadcone02a',
+            'prop_roadcone02b', 'prop_roadcone02c', 'prop_mp_cone_01', 'prop_mp_cone_02', 'prop_mp_cone_03',
+            'prop_mp_cone_04', 'prop_cone_float_1', 'prop_consign_01a', 'prop_consign_02a',
+            -- compteurs et boîtiers électriques
+            'prop_elecbox_01a', 'prop_elecbox_01b', 'prop_elecbox_02a', 'prop_elecbox_02b', 'prop_elecbox_03a',
+            'prop_elecbox_04a', 'prop_elecbox_05a', 'prop_elecbox_06a', 'prop_elecbox_07a', 'prop_elecbox_08',
+            'prop_elecbox_09', 'prop_elecbox_10', 'prop_elecbox_11', 'prop_elecbox_12', 'prop_elecbox_13',
+            'prop_elecbox_14', 'prop_elecbox_15', 'prop_elecbox_16', 'prop_elecbox_17', 'prop_elecbox_18',
+            'prop_elecbox_19', 'prop_elecbox_20', 'prop_elecbox_21', 'prop_elecbox_22', 'prop_elecbox_23',
+            'prop_elecbox_24', 'prop_elecbox_25', 'prop_parknmeter_01', 'prop_parknmeter_02',
+            -- poubelles, panneaux, mobilier urbain léger
+            'prop_bin_01a', 'prop_bin_02a', 'prop_bin_03a', 'prop_bin_04a', 'prop_bin_05a', 'prop_bin_06a',
+            'prop_bin_07a', 'prop_bin_07b', 'prop_bin_08a', 'prop_bin_10a', 'prop_bin_12a', 'prop_sign_road_01a',
+            'prop_sign_road_02a', 'prop_sign_road_03a', 'prop_sign_road_04a', 'prop_sign_road_05a',
+            'prop_sign_road_06a', 'prop_sign_road_07a', 'prop_news_disp_01a', 'prop_news_disp_02a',
+            'prop_news_disp_03a', 'prop_news_disp_05a', 'prop_news_disp_06a', 'prop_bench_01a', 'prop_bench_05',
+            'prop_fncwood_13c', 'prop_fncwood_14a', 'prop_rub_cardpile_01', 'prop_cs_cardbox_01',
+        },
+        HeavyModels = {
+            -- lampadaires
+            'prop_streetlight_01', 'prop_streetlight_01b', 'prop_streetlight_02', 'prop_streetlight_03',
+            'prop_streetlight_03b', 'prop_streetlight_03c', 'prop_streetlight_03d', 'prop_streetlight_03e',
+            'prop_streetlight_04', 'prop_streetlight_05', 'prop_streetlight_05_b', 'prop_streetlight_06',
+            'prop_streetlight_07a', 'prop_streetlight_07b', 'prop_streetlight_08', 'prop_streetlight_09',
+            'prop_streetlight_10', 'prop_streetlight_11a', 'prop_streetlight_11b', 'prop_streetlight_11c',
+            'prop_streetlight_12a', 'prop_streetlight_12b', 'prop_streetlight_14a', 'prop_streetlight_15a',
+            'prop_streetlight_16a',
+            -- feux tricolores, poteaux, bouches d'incendie, bornes
+            'prop_traffic_01a', 'prop_traffic_01b', 'prop_traffic_01d', 'prop_traffic_02a', 'prop_traffic_02b',
+            'prop_traffic_03a', 'prop_traffic_03b', 'prop_traffic_lightset_01', 'prop_telegraph_01a',
+            'prop_telegraph_01b', 'prop_telegraph_01c', 'prop_telegraph_01d', 'prop_telegraph_01e',
+            'prop_telegraph_01f', 'prop_telegraph_02a', 'prop_telegraph_02b', 'prop_telegraph_03',
+            'prop_telegraph_04a', 'prop_telegraph_04b', 'prop_telegraph_05a', 'prop_telegraph_06a',
+            'prop_telegraph_06b', 'prop_telegraph_06c', 'prop_fire_hydrant_1', 'prop_fire_hydrant_2',
+            'prop_fire_hydrant_2_l1', 'prop_fire_hydrant_4', 'prop_bollard_01a', 'prop_bollard_02a',
+            'prop_bollard_02b', 'prop_bollard_03a', 'prop_bollard_04', 'prop_bollard_05', 'prop_postbox_01a',
+            'prop_barier_conc_01a', 'prop_barier_conc_01b', 'prop_barier_conc_02a', 'prop_barier_conc_05a',
+            'prop_phonebox_01a', 'prop_phonebox_01b', 'prop_phonebox_01c', 'prop_phonebox_02', 'prop_dumpster_01a',
+            'prop_dumpster_02a', 'prop_dumpster_02b', 'prop_dumpster_3a', 'prop_dumpster_4a', 'prop_dumpster_4b',
+        },
     },
 
     -- ---------------------------------------------------------------------

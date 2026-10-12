@@ -11,13 +11,27 @@ InteractConfig = {
     SpawnPoliceOnly = true,         -- véhicules de police (APD / GSP) réservés aux policiers en service
     EquipmentPoliceOnly = true,     -- tenues et armes réservées aux policiers en service
     -- Radio du véhicule (lien YouTube ou lien direct vers un son / une radio en ligne)
-    RadioRange = 30.0,              -- m : au-delà, la radio d'un véhicule n'est plus entendue dehors
-    RadioInsulation = 0.18,         -- volume entendu dehors quand vitres et portières sont fermées ("insonorisé",
-                                    -- en plus du filtre passe-bas qui étouffe le son)
+    RadioRangeClosed = 15.0,        -- m : entendue dehors jusqu'à 15 m, vitres et portières fermées
+    RadioRangeOpen = 25.0,          -- m : jusqu'à 25 m avec une portière (coffre, capot) ouverte ou une vitre baissée
+    RadioInsulation = 0.18,         -- volume entendu dehors quand tout est fermé ("insonorisé", en plus du
+                                    -- filtre passe-bas qui étouffe le son : on n'entend plus que les basses)
     RadioMaxVolume = 0.8,           -- volume maximal (radio à 100 %) pour tous les joueurs
-    -- Liens YouTube lus en flux audio par une API Piped (le filtre "étouffé" et la position du son ne
-    -- marchent qu'ainsi) ; si elle ne répond pas, lecteur YouTube classique (volume seulement). '' = jamais.
-    RadioYouTubeApi = 'https://pipedapi.kavin.rocks',
+    -- Liens YouTube : le SERVEUR cherche le flux audio de la vidéo auprès de ces services (Piped, puis
+    -- Invidious ; le premier qui répond est gardé). Lu en flux audio, le son peut être étouffé et placé
+    -- (gauche / droite) ; sinon, lecteur YouTube classique (volume seulement). Ces services publics
+    -- changent souvent : ajoutez / retirez des adresses au besoin. {} = toujours le lecteur classique.
+    RadioPiped = {
+        'https://pipedapi.kavin.rocks',
+        'https://pipedapi.adminforge.de',
+        'https://api.piped.private.coffee',
+        'https://pipedapi.r4fo.com',
+    },
+    RadioInvidious = {
+        'https://inv.nadeko.net',
+        'https://invidious.nerdvpn.de',
+        'https://yewtu.be',
+        'https://invidious.f5.si',
+    },
 
     -- Ressources liées (nom des dossiers)
     MdcResource = 'mdc_standalone', -- "policier" = joueur dans une unité du MDC

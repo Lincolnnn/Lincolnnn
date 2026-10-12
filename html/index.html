@@ -708,7 +708,14 @@
                                     <input type="range" min="50" max="100" step="1" data-setting="mdc.opacity">
                                     <span class="setting-value" data-setting-value="mdc.opacity"></span>
                                 </div>
-                                <label class="check"><input type="checkbox" data-setting="mdc.blur"> Flouter le jeu et les HUD derrière le MDC</label>
+                                <label class="check"><input type="checkbox" data-setting="mdc.blur"> Flouter le jeu, la minimap et les HUD derrière le MDC</label>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Intensité du flou</span>
+                                    <input type="range" min="10" max="100" step="5" data-setting="mdc.blurStrength">
+                                    <span class="setting-value" data-setting-value="mdc.blurStrength"></span>
+                                </div>
+                                <p class="hint-text setting-text">La minimap du jeu ne peut pas être floutée (elle est dessinée par-dessus l'image) :
+                                    elle est masquée tant que le MDC est ouvert avec le flou, puis réaffichée.</p>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn" id="mdcResetWindow">Réinitialiser la fenêtre</button>
                                     <button type="button" class="btn btn-danger" id="settingsReset">Réglages par défaut</button>

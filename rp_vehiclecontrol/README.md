@@ -79,11 +79,17 @@ vos propres enregistrements** (mêmes noms de fichiers, format .ogg). Volume ré
 
 ## Dégâts réalistes
 
-- Les dégâts du moteur sont **multipliés** (×2,5) et une partie des dégâts de carrosserie s'y ajoute : un accrochage
-  abîme, un vrai choc casse. Un **choc violent** (perte de vitesse brutale) ajoute des dégâts selon sa violence
-  (45 → 0 MPH : moteur presque détruit).
-- Moteur **abîmé** (< 650) : puissance réduite (80 %) ; **critique** (< 350) : 55 % de puissance et **calages** au
-  hasard en roulant ; **cassé** (< 120) : moteur coupé, impossible à redémarrer, et **logo rouge « véhicule cassé »**
+- Le véhicule **encaisse comme un vrai** : au moment du choc, ce qui a été percuté est reconnu.
+  - **Dégâts légers** : piéton, moto, vélo, barrière de chantier, plot, compteur / boîtier électrique, poubelle,
+    panneau et autres petits objets (`LightModels`, objet inconnu : `UnknownObject`) : le moteur ne reçoit que 25 %
+    des dégâts du jeu, rien de plus.
+  - **Dégâts forts** : mur, bâtiment, rocher (décor fixe), voiture, camion, lampadaire, poteau, feu tricolore, bouche
+    d'incendie, borne, glissière béton (`HeavyModels`) : 90 % des dégâts du jeu, une petite part des dégâts de
+    carrosserie et, si le choc est **violent** (perte de vitesse brutale de plus de 20 MPH), des dégâts selon sa
+    violence : mur à 40 MPH ≈ −220, à 60 MPH ≈ −630, à 70 MPH et plus : véhicule cassé.
+  - Sans choc (balles, explosion, chute) : 80 % des dégâts du jeu.
+- Moteur **abîmé** (< 500) : puissance réduite (80 %) ; **critique** (< 300) : 60 % de puissance et **calages** au
+  hasard en roulant ; **cassé** (< 100) : moteur coupé, impossible à redémarrer, et **logo rouge « véhicule cassé »**
   sur le car HUD (jamais visible autrement). Réparé par un script de mécanicien : tout redevient normal.
 - Ce script ne fait jamais prendre feu un véhicule (il ne descend pas le moteur sous 10).
 
@@ -129,7 +135,7 @@ vos propres enregistrements** (mêmes noms de fichiers, format .ogg). Volume ré
 | `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓) |
 | `SoundVolume`, `SignalCancelAngle`, `SignalInterval` | volume sans le MDC, arrêt automatique du clignotant après un virage, rythme du relais |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
-| `Damage` | multiplicateurs, chocs, paliers (abîmé / critique / cassé), puissance, calages |
+| `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
 | `Seatbelt` | alarme (5 MPH), portée des sons, règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |
 | `EngineNoticeDuration` | durée de la notification du moteur (8 s) |
 | `Push` | vitesse de poussée, zone devant / derrière, position du personnage, animation, classes poussables |
@@ -145,6 +151,7 @@ chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au
 
 - À pied : une vérification toutes les 500 ms (~0.00 ms). Près d'un véhicule poussable (6 m) : toutes les 100 ms.
   Boucle à chaque image seulement près d'une pompe, jerrican en main, ou pendant la poussée.
-- À bord : ~0.02 ms (chocs, puissance) ; essence, dégâts, alarme et car HUD toutes les 100 ms,
+- À bord : ~0.02 ms (chocs, puissance) ; essence, dégâts, alarme et car HUD toutes les 100 ms ; ce qui a été
+  percuté n'est cherché qu'au moment d'un choc ;
   car HUD envoyé seulement quand il change.
 - Serveur : aucune boucle.

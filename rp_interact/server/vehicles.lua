@@ -4,10 +4,12 @@
     - Véhicules : lus dans data/vehicles.txt (spawn code ; service ; nom ; livery ; extras), relus avec
       la commande console "rpi_vehicles". Seuls les véhicules de cette liste peuvent être demandés ;
       véhicules de police réservés aux policiers en service si SpawnPoliceOnly.
-    - Radio : état du véhicule "rpiRadio" = { url, start (heure UTC de lancement, s), volume (0-100) },
-      lu par tous les clients (chacun joue le son, plus ou moins fort selon sa distance et les vitres /
-      portières). Réglable par les places AVANT, ou par un joueur collé au véhicule (œil, portière
-      avant ouverte).
+    - Radio : état du véhicule "rpiRadio" = { url, start (heure UTC de lancement, s), volume (0-100),
+      stream }, lu par tous les clients (chacun joue le son, plus ou moins fort selon sa distance et les
+      vitres / portières). Réglable par les places AVANT, ou par un joueur collé au véhicule (œil,
+      portière avant ouverte). Lien YouTube : le serveur cherche le flux audio de la vidéo (Piped,
+      Invidious : RadioPiped / RadioInvidious) ; "stream" = adresse du flux, nil pendant la recherche,
+      false si aucun service n'a répondu (lecteur YouTube classique).
     - Équipements : tenues et armes de data/equipment.lua (vérification de l'accès).
     Aucune boucle.
 ]]
@@ -115,6 +117,101 @@ local function validUrl(url)
     return url
 end
 
+-- ---- Flux audio des vidéos YouTube (cherché par le serveur : pas de blocage CORS ni d'IP) ----
+local streamCache = {} -- [id de la vidéo] = { url, expires } (adresse valable quelques heures)
+local CACHE_SECONDS = 3 * 3600
+
+local function youtubeId(url)
+    local patterns = {
+        'youtube%.com/watch%?.-v=([%w_%-]+)', 'youtube%.com/shorts/([%w_%-]+)', 'youtube%.com/live/([%w_%-]+)',
+        'youtube%.com/embed/([%w_%-]+)', 'youtu%.be/([%w_%-]+)',
+    }
+    for _, pattern in ipairs(patterns) do
+        local id = url:match(pattern)
+        if id and #id == 11 then return id end
+    end
+    return nil
+end
+
+local function httpGet(url, cb, headers)
+    PerformHttpRequest(url, function(status, body) cb(tonumber(status) or 0, body) end, 'GET', '', headers or {})
+end
+
+--- Adresses de flux audio proposées par un service (de la meilleure à la moins bonne)
+local function candidates(kind, base, data)
+    local list = {}
+    if kind == 'piped' then
+        for _, a in ipairs(type(data.audioStreams) == 'table' and data.audioStreams or {}) do
+            if type(a) == 'table' and type(a.url) == 'string' then list[#list + 1] = { url = a.url, rate = tonumber(a.bitrate) or 0 } end
+        end
+    else
+        for _, f in ipairs(type(data.adaptiveFormats) == 'table' and data.adaptiveFormats or {}) do
+            if type(f) == 'table' and type(f.url) == 'string' and tostring(f.type):find('^audio/') then
+                local url = f.url:sub(1, 1) == '/' and (base .. f.url) or f.url
+                list[#list + 1] = { url = url, rate = tonumber(f.bitrate) or 0 }
+            end
+        end
+    end
+    -- Qualité correcte mais légère d'abord (~128 kb/s), puis le reste
+    table.sort(list, function(a, b)
+        local ga, gb = a.rate <= 170000, b.rate <= 170000
+        if ga ~= gb then return ga end
+        return a.rate > b.rate
+    end)
+    return list
+end
+
+--- Cherche un flux audio lisible (le premier service qui répond et dont le flux se charge) ; cb(url | nil)
+local function resolveYouTube(id, cb)
+    local cached = streamCache[id]
+    if cached and cached.expires > os.time() then return cb(cached.url) end
+    local sources = {}
+    for _, base in ipairs(Config.RadioPiped or {}) do
+        sources[#sources + 1] = { kind = 'piped', base = base:gsub('/$', ''), path = '/streams/' .. id }
+    end
+    for _, base in ipairs(Config.RadioInvidious or {}) do
+        -- local=true : flux relayé par le service (lisible par les joueurs, autorisé pour le NUI)
+        sources[#sources + 1] = { kind = 'invidious', base = base:gsub('/$', ''), path = '/api/v1/videos/' .. id .. '?local=true' }
+    end
+    local i = 0
+    local function nextSource()
+        i = i + 1
+        local src = sources[i]
+        if not src then return cb(nil) end
+        httpGet(src.base .. src.path, function(status, body)
+            local ok, data = pcall(json.decode, body or '')
+            if status ~= 200 or not ok or type(data) ~= 'table' then return nextSource() end
+            local list = candidates(src.kind, src.base, data)
+            if #list == 0 then return nextSource() end
+            -- Le flux répond-il vraiment ? (2 octets demandés)
+            httpGet(list[1].url, function(code)
+                if code == 200 or code == 206 then
+                    streamCache[id] = { url = list[1].url, expires = os.time() + CACHE_SECONDS }
+                    return cb(list[1].url)
+                end
+                nextSource()
+            end, { Range = 'bytes=0-1' })
+        end)
+    end
+    nextSource()
+end
+
+--- Radio lancée avec un lien YouTube : flux cherché, puis ajouté à l'état du véhicule (si inchangé)
+local function attachStream(vehicle, radio)
+    local id = youtubeId(radio.url)
+    if not id then return end
+    resolveYouTube(id, function(stream)
+        if not DoesEntityExist(vehicle) then return end
+        local state = Entity(vehicle).state
+        local current = state.rpiRadio
+        if type(current) ~= 'table' or current.url ~= radio.url or current.start ~= radio.start then return end
+        local copy = {}
+        for k, v in pairs(current) do copy[k] = v end
+        copy.stream = stream or false
+        state:set('rpiRadio', copy, true)
+    end)
+end
+
 S.on('radio', function(src, p)
     local vehicle = vehicleFromNet(p.netId)
     if not vehicle then return { ok = false, error = 'Véhicule introuvable.' } end
@@ -127,13 +224,16 @@ S.on('radio', function(src, p)
         local url = validUrl(p.url)
         if not url then return { ok = false, error = 'Lien invalide (adresse http:// ou https://).' } end
         local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or (current and current.volume) or 60)))
-        state:set('rpiRadio', { url = url, start = os.time(), volume = volume, by = src }, true)
+        local radio = { url = url, start = os.time(), volume = volume, by = src }
+        if not youtubeId(url) then radio.stream = false end -- lien direct : rien à chercher
+        state:set('rpiRadio', radio, true)
+        attachStream(vehicle, radio)
     elseif p.action == 'stop' then
         state:set('rpiRadio', false, true)
     elseif p.action == 'volume' then
         if not current then return { ok = false, error = 'La radio est éteinte.' } end
         local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or current.volume)))
-        state:set('rpiRadio', { url = current.url, start = current.start, volume = volume, by = current.by }, true)
+        state:set('rpiRadio', { url = current.url, start = current.start, volume = volume, by = current.by, stream = current.stream }, true)
     else
         return { ok = false, error = 'Action inconnue.' }
     end
