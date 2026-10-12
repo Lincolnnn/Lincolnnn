@@ -14,7 +14,7 @@ Le dépôt contient aussi le **menu d'interactions / fiches civiles / Eye Target
 (`GlobalState.mdcResource`) : le nom de son dossier n'a pas d'importance.
 
 Le dépôt contient aussi **Vehicle Control** dans [`rp_vehiclecontrol/`](rp_vehiclecontrol/README.md) : essence (plein,
-jerrican), dégâts réalistes, ceinture, moteur toujours allumé, portières depuis l'intérieur et frein de parcage ; il
+jerrican), dégâts réalistes, ceinture, moteur toujours allumé, portières depuis l'intérieur, clignotants et poussée ; il
 alimente le car HUD du MDC.
 
 Le dépôt contient aussi le **chat écrit RP** dans le dossier [`rp_chat/`](rp_chat/README.md) : c'est une ressource
@@ -30,11 +30,12 @@ se font dans l'onglet « Paramètres » du MDC. Le MDC fonctionne aussi sans ell
 
 ## Barre latérale (à gauche)
 
-Interface modernisée (mêmes couleurs) : en haut le **nom RP**, puis les **pages à la verticale** (Unités, Interventions,
-Recherches, Rapports, Créations, Paramètres), et en bas le **statut de l'unité**. La fenêtre est **légèrement
-transparente** et le jeu derrière elle est **flouté** (sans l'assombrir) : les deux se règlent ou se désactivent dans
-*Paramètres > MDC* (opacité de 50 à 100 %, intensité du flou). Le flou est l'effet du jeu (comme celui du menu pause),
-retiré à la fermeture du MDC et pendant le placement des HUD.
+Interface moderne (mêmes couleurs, plus aucun effet « Windows ») : en haut le **nom RP**, puis les **pages à la
+verticale** (Unités, Interventions, Recherches, Rapports, Créations, Paramètres) et, environ 3,5 cm plus bas, dans le
+même style, le **statut de l'unité**. La fenêtre est **légèrement transparente** (opacité **93 %** par défaut, de 50 à
+100 %) et, MDC ouvert, le **jeu et les HUD** (PLD, display MDC, car HUD) derrière elle sont **floutés** : les deux se
+règlent ou se désactivent dans *Paramètres > MDC*. Le flou du jeu est celui des menus du jeu ; il est retiré à la
+fermeture du MDC et pendant le placement des HUD.
 
 - **NOM RP** : il s'affiche en haut à gauche et dans les unités (le pseudo Steam/FiveM n'est jamais affiché). **Obligatoire pour
   rejoindre une unité.** Il est partagé avec le chat écrit : `/nomrp John Carter` dans le chat change aussi celui du MDC, et
@@ -106,15 +107,14 @@ fond), visibles même MDC fermé :
   ligne se masque dans « Paramètres ».
 - **Car HUD**, à bord d'un véhicule : **toujours affiché pour le conducteur**, entièrement **grisé moteur coupé** et
   qui **s'illumine au démarrage** ; seulement le logo de la ceinture pour les passagers ; **au-dessus de la minimap** et **sans aucun fond** (ni opaque, ni transparent,
-  ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple nombre, **grisée et
-  transparente tant que le frein de parcage est serré**, blanche une fois desserré), une fine **barre horizontale
+  ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple nombre), une fine **barre horizontale
   d'accélération** (régime du moteur, rouge près du maximum), une **jauge d'essence verticale** (orange sous 15 %, rouge
   sous 5 %), le petit **logo de la ceinture** (contour noir : vide = détachée, blanc = attachée, clignote en rouge pâle
   en roulant sans ceinture) et, à côté, un **logo rouge « véhicule cassé »**, jamais visible sauf quand
   le véhicule est hors d'usage. En montant côté conducteur, une **notification glisse depuis la gauche juste au-dessus
   du car HUD** et présente la touche du moteur (**O**) ; elle disparaît après 8 secondes. Déplaçable et redimensionnable comme les autres HUD ; chaque
   élément se masque dans « Paramètres », avec le volume des sons de la ceinture.
-  Les données (essence, dégâts, ceinture, moteur, frein de parcage) viennent de **Vehicle Control**
+  Les données (essence, dégâts, ceinture, moteur) viennent de **Vehicle Control**
   ([`rp_vehiclecontrol/`](rp_vehiclecontrol/README.md)) : sans cette ressource, le car HUD n'apparaît pas
   (`client/carhud.lua` ne fait que relayer ses données au NUI, sans boucle).
 - **Notifications** (en haut à droite) : toutes les notifications du MDC, et, même MDC fermé : nouvel appel

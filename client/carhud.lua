@@ -4,7 +4,7 @@
     Le car HUD (vitesse en MPH, barre d'accélération, jauge d'essence, logos ceinture / véhicule cassé,
     notification du moteur) est dessiné par le NUI du MDC et réglé dans "Paramètres > HUD & Display".
     Ses données viennent de Vehicle Control (ressource rp_vehiclecontrol : essence, dégâts, ceinture,
-    moteur, frein de parcage), par l'événement local "mdc:carHud". Sans rp_vehiclecontrol, le car HUD
+    moteur), par l'événement local "mdc:carHud". Sans rp_vehiclecontrol, le car HUD
     n'apparaît pas.
     Les sons du véhicule (ceinture, carillon, clignotants) sont de vrais sons joués par rp_vehiclecontrol,
     au volume réglé ici (export "carSoundVolume", client/hud.lua).
@@ -12,7 +12,7 @@
 ]]
 
 local ACTIONS = {
-    carHud = true,     -- { inVehicle, show, mode = 'driver' | 'passenger', engine, speed, rpm, fuel, belt, alarm, broken, parked, paused }
+    carHud = true,     -- { inVehicle, show, mode = 'driver' | 'passenger', engine, speed, rpm, fuel, belt, alarm, broken, paused }
     carNotice = true,  -- { key, text, hint, duration } : notification au-dessus du car HUD
     carNoticeHide = true, -- touche du moteur utilisée : notification masquée
 }

@@ -1,7 +1,7 @@
 # Vehicle Control (`rp_vehiclecontrol`)
 
 Gestion des véhicules **100% standalone** (sans ESX / QBCore / vRP) : essence, dégâts réalistes, ceinture de
-sécurité, moteur toujours allumé, portières depuis l'intérieur et frein de parcage. Lié aux HUD du MDC
+sécurité, moteur toujours allumé, portières depuis l'intérieur, clignotants et poussée. Lié aux HUD du MDC
 (`mdc_standalone`) : le **car HUD** (au-dessus de la minimap, à côté du PLD) est dessiné et réglé dans le MDC
 (*Paramètres > HUD & Display* : position, taille, éléments affichés, volume de la ceinture).
 
@@ -22,7 +22,6 @@ passent par le chat d'origine.
 | **G** | tous | Attacher / détacher la ceinture (K ouvre le MDC) |
 | **U** | conducteur, passager avant | Ouvrir / refermer **sa** portière (avant gauche / avant droite) |
 | **I** | conducteur | Ouvrir / refermer les **deux portières avant** ensemble |
-| **L** | conducteur | Serrer / desserrer le **frein de parcage** |
 | **←** / **→** | conducteur | **Clignotant** gauche / droit (même touche pour l'arrêter) |
 | **↓** | conducteur | **Warnings** (feux de détresse) |
 | **K** | à pied | Devant le capot / derrière le coffre : **pousser** le véhicule / arrêter de pousser |
@@ -110,20 +109,9 @@ vos propres enregistrements** (mêmes noms de fichiers, format .ogg). Volume ré
   inversement). Une portière ouverte par un joueur descendu, ou à la main, se referme normalement.
 - Un simple message **privé** dans le chat : « Portière ouverte. », « Portières fermées. »…
 
-## Frein de parcage
-
-- **L** (conducteur) : serré, le véhicule **ne bouge pas** (frein à main serré et vitesse maintenue à zéro à l'arrêt)
-  et **n'avance pas** quand on accélère (accélérer / reculer bloqués, même le démarrage) : il faut le desserrer. La
-  touche répond immédiatement, le serveur confirme ensuite pour tous les joueurs. Le **chiffre de la vitesse** du car HUD est **grisé et
-  transparent** tant qu'il est serré, blanc une fois desserré.
-- **Desserré**, un véhicule laissé est **libre**, comme si quelqu'un était au volant sans rien toucher : il **roule tout
-  seul en pente**, se déplace quand un véhicule le percute, et il peut être **poussé** (ci-dessous). Serré, il reste
-  immobile (il peut quand même être poussé).
-
 ## Pousser un véhicule
 
-- À pied, **devant le capot ou derrière le coffre** d'un véhicule (frein de parcage serré ou non, avec ou sans
-  quelqu'un au volant), un petit message apparaît en bas de l'écran, sur un **fond noir légèrement transparent** :
+- À pied, **devant le capot ou derrière le coffre** d'un véhicule (avec ou sans quelqu'un au volant), un petit message apparaît en bas de l'écran, sur un **fond noir légèrement transparent** :
   « **K** Pousser le véhicule ».
 - **K** : le personnage se met en position contre le pare-chocs (animation de poussée). Il pousse en **avançant avec
   sa touche habituelle** (Z / W), **tout droit uniquement**. Derrière le coffre, le véhicule avance ; devant le capot,
@@ -143,12 +131,12 @@ vos propres enregistrements** (mêmes noms de fichiers, format .ogg). Volume ré
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | multiplicateurs, chocs, paliers (abîmé / critique / cassé), puissance, calages |
 | `Seatbelt` | alarme (5 MPH), portée des sons, règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |
-| `EngineNoticeDuration`, `ParkedRange` | durée de la notification du moteur (8 s), suivi d'un véhicule laissé sans frein |
+| `EngineNoticeDuration` | durée de la notification du moteur (8 s) |
 | `Push` | vitesse de poussée, zone devant / derrière, position du personnage, animation, classes poussables |
 
 ## États des véhicules (pour d'autres scripts)
 
-`Entity(vehicle).state` : `fuel` (0–100), `vcEngine` (toujours allumé), `vcBrake` (frein de parcage), `vcBroken`
+`Entity(vehicle).state` : `fuel` (0–100), `vcEngine` (toujours allumé), `vcBroken`
 (cassé), `vcDoors` (qui a ouvert les portières avant), `vcSignal` (clignotants / warnings), `vcPushed` (poussé : par
 qui, sens, poussée en cours). État du joueur : `seatbelt`, `seatbeltAlarm`. Le serveur vérifie
 chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au rythme d'une pompe).
@@ -157,6 +145,6 @@ chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au
 
 - À pied : une vérification toutes les 500 ms (~0.00 ms). Près d'un véhicule poussable (6 m) : toutes les 100 ms.
   Boucle à chaque image seulement près d'une pompe, jerrican en main, ou pendant la poussée.
-- À bord : ~0.02 ms (chocs, frein de parcage, puissance) ; essence, dégâts, alarme et car HUD toutes les 100 ms,
+- À bord : ~0.02 ms (chocs, puissance) ; essence, dégâts, alarme et car HUD toutes les 100 ms,
   car HUD envoyé seulement quand il change.
 - Serveur : aucune boucle.

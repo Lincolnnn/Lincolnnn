@@ -376,14 +376,18 @@
     });
 
     // ---- Lecteurs de la radio des véhicules (client/radio.lua) ----
-    // YouTube : lecteur YouTube invisible (volume seulement) ; lien direct : <audio> + filtre "étouffé"
-    // (passe-bas) quand vitres et portières sont fermées, si le site autorise la lecture (CORS).
+    // Chaîne audio : source -> filtre passe-bas ("étouffé" dehors, portières et vitres fermées)
+    //                       -> position gauche / droite (le son vient du véhicule) -> volume.
+    // YouTube : lu en flux audio grâce à l'API Piped (RadioYouTubeApi) pour pouvoir le filtrer et le
+    // placer ; si elle ne répond pas, lecteur YouTube classique (volume seulement).
     const radios = {};
     let ytReady = null;
     let audioCtx = null;
+    const MUFFLED_HZ = 420;   // étouffé : on n'entend plus que les basses, comme à travers la carrosserie
+    const CLEAR_HZ = 20000;
 
     function youtubeId(url) {
-        const m = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([\w-]{11})/);
+        const m = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/|music\.youtube\.com\/watch\?(?:.*&)?v=)([\w-]{11})/);
         return m ? m[1] : null;
     }
 
@@ -399,68 +403,119 @@
         return ytReady;
     }
 
-    function setRadioVolume(r) {
+    /** Flux audio d'une vidéo YouTube (API Piped), ou null */
+    async function youtubeStream(api, id) {
+        if (!api) return null;
+        try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 6000);
+            const res = await fetch(`${api.replace(/\/$/, '')}/streams/${id}`, { signal: ctrl.signal });
+            clearTimeout(timer);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const streams = toArray(data.audioStreams).filter((a) => a && a.url);
+            if (!streams.length) return null;
+            streams.sort((a, b) => (Number(b.bitrate) || 0) - (Number(a.bitrate) || 0));
+            return (streams.find((a) => (Number(a.bitrate) || 0) <= 170000) || streams[streams.length - 1]).url;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function applyRadio(r) {
         const v = Math.min(Math.max(r.volume, 0), 1);
         if (r.kind === 'yt') {
+            // Lecteur YouTube classique : ni filtre ni position, seulement le volume
             if (r.player && r.player.setVolume) r.player.setVolume(Math.round(v * 100));
         } else if (r.gain) {
-            r.gain.gain.setTargetAtTime(v, audioCtx.currentTime, 0.15);
-            r.filter.frequency.setTargetAtTime(r.muffled ? 650 : 20000, audioCtx.currentTime, 0.2);
+            const t = audioCtx.currentTime;
+            r.gain.gain.setTargetAtTime(v, t, 0.12);
+            r.filter.frequency.setTargetAtTime(r.muffled ? MUFFLED_HZ : CLEAR_HZ, t, 0.15);
+            if (r.panner) r.panner.pan.setTargetAtTime(r.pan || 0, t, 0.1);
         } else if (r.audio) {
             r.audio.volume = v;
         }
     }
 
+    function playIframe(r, id, offset) {
+        r.kind = 'yt';
+        const slot = document.createElement('div');
+        r.holder.appendChild(slot);
+        loadYouTube().then((YT) => {
+            if (r.dead) return;
+            r.player = new YT.Player(slot, {
+                width: 200, height: 200, videoId: id,
+                playerVars: { autoplay: 1, controls: 0, start: Math.floor(offset || 0), playsinline: 1 },
+                events: { onReady: (e) => { applyRadio(r); e.target.seekTo(Math.floor(r.offset || offset || 0), true); e.target.playVideo(); } },
+            });
+        });
+    }
+
+    /** Lecture par <audio> + Web Audio (filtre, position) ; onFail : site sans CORS / flux illisible */
+    function playAudio(r, src, offset, onFail) {
+        r.kind = 'audio';
+        const audio = new Audio();
+        audio.crossOrigin = 'anonymous';
+        audio.src = src;
+        audio.addEventListener('loadedmetadata', () => {
+            const now = r.offset ?? offset;
+            if (Number.isFinite(audio.duration) && now < audio.duration) audio.currentTime = now;
+        }, { once: true });
+        audio.addEventListener('error', () => { if (!r.dead) onFail(); }, { once: true });
+        r.audio = audio;
+        try {
+            audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const source = audioCtx.createMediaElementSource(audio);
+            r.filter = audioCtx.createBiquadFilter();
+            r.filter.type = 'lowpass';
+            r.filter.Q.value = 0.9;
+            r.panner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+            r.gain = audioCtx.createGain();
+            r.gain.gain.value = 0;
+            let node = source.connect(r.filter);
+            if (r.panner) node = node.connect(r.panner);
+            node.connect(r.gain).connect(audioCtx.destination);
+        } catch (err) {
+            r.gain = null;
+        }
+        applyRadio(r);
+        audio.play().catch(() => {});
+    }
+
+    function stopMedia(r) {
+        try { if (r.player && r.player.destroy) r.player.destroy(); } catch (err) { /* déjà fermé */ }
+        r.player = null;
+        if (r.audio) { r.audio.pause(); r.audio.removeAttribute('src'); r.audio.load(); }
+        r.audio = null; r.gain = null; r.filter = null; r.panner = null;
+        r.holder.innerHTML = '';
+    }
+
     function createRadio(d) {
-        const r = { url: d.url, volume: d.volume, muffled: d.muffled };
-        const holder = document.createElement('div');
-        holder.className = 'radio-player';
-        $('#radioPlayers').appendChild(holder);
-        r.holder = holder;
+        const r = { url: d.url, volume: d.volume, muffled: d.muffled, pan: d.pan, offset: d.offset };
+        r.holder = document.createElement('div');
+        r.holder.className = 'radio-player';
+        $('#radioPlayers').appendChild(r.holder);
         const id = youtubeId(d.url);
         if (id) {
-            r.kind = 'yt';
-            const slot = document.createElement('div');
-            holder.appendChild(slot);
-            loadYouTube().then((YT) => {
+            youtubeStream(d.ytApi, id).then((stream) => {
                 if (r.dead) return;
-                r.player = new YT.Player(slot, {
-                    width: 200, height: 200, videoId: id,
-                    playerVars: { autoplay: 1, controls: 0, start: Math.floor(d.offset || 0), playsinline: 1 },
-                    events: {
-                        onReady: (e) => { setRadioVolume(r); e.target.seekTo(Math.floor(r.offset || d.offset || 0), true); e.target.playVideo(); },
-                    },
-                });
+                if (!stream) return playIframe(r, id, d.offset);
+                playAudio(r, stream, d.offset, () => { stopMedia(r); playIframe(r, id, r.offset); });
             });
         } else {
-            r.kind = 'audio';
-            const start = (withCors) => {
-                const audio = new Audio();
-                if (withCors) audio.crossOrigin = 'anonymous';
-                audio.src = d.url;
+            // Lien direct : sans CORS, lu quand même (sans filtre ni position)
+            playAudio(r, d.url, d.offset, () => {
+                stopMedia(r);
+                r.kind = 'audio';
+                const audio = new Audio(d.url);
                 audio.addEventListener('loadedmetadata', () => {
-                    if (Number.isFinite(audio.duration) && d.offset < audio.duration) audio.currentTime = d.offset;
-                }, { once: true });
-                audio.addEventListener('error', () => {
-                    if (withCors && !r.dead) { r.audio = null; start(false); } // site sans CORS : sans filtre
+                    if (Number.isFinite(audio.duration) && r.offset < audio.duration) audio.currentTime = r.offset;
                 }, { once: true });
                 r.audio = audio;
-                if (withCors) {
-                    try {
-                        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-                        const source = audioCtx.createMediaElementSource(audio);
-                        r.filter = audioCtx.createBiquadFilter();
-                        r.filter.type = 'lowpass';
-                        r.gain = audioCtx.createGain();
-                        source.connect(r.filter).connect(r.gain).connect(audioCtx.destination);
-                    } catch (err) { r.gain = null; }
-                } else {
-                    r.gain = null;
-                }
-                setRadioVolume(r);
+                applyRadio(r);
                 audio.play().catch(() => {});
-            };
-            start(true);
+            });
         }
         return r;
     }
@@ -469,8 +524,7 @@
         const r = radios[id];
         if (!r) return;
         r.dead = true;
-        try { if (r.player && r.player.destroy) r.player.destroy(); } catch (err) { /* déjà fermé */ }
-        if (r.audio) { r.audio.pause(); r.audio.src = ''; }
+        stopMedia(r);
         r.holder.remove();
         delete radios[id];
     }
@@ -482,8 +536,9 @@
         if (!r) radios[d.id] = r = createRadio(d);
         r.volume = Number(d.volume) || 0;
         r.muffled = !!d.muffled;
+        r.pan = Number(d.pan) || 0;
         r.offset = d.offset;
-        setRadioVolume(r);
+        applyRadio(r);
     }
 
     // ---- Barre de chargement (fouilles, menottes) ----

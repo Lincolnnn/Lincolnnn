@@ -4,7 +4,7 @@
     Écrit l'état des véhicules (lu par tous les clients) après vérification :
       - "fuel" (essence en %) : un joueur proche du véhicule ; la valeur ne monte qu'en faisant le plein,
         au rythme d'une pompe (Fuel.RefuelPerSecond) ;
-      - "vcEngine" (moteur toujours allumé), "vcBrake" (frein de parcage), "vcBroken" (cassé),
+      - "vcEngine" (moteur toujours allumé), "vcBroken" (cassé),
         "vcSignal" (clignotants / warnings) : le conducteur ;
       - "vcPushed" (véhicule poussé : par qui, sens, poussée en cours) : un joueur à côté du véhicule ;
       - "vcDoors" (qui a ouvert chaque portière avant) : conducteur (portières 0 et 1) ou passager avant
@@ -58,11 +58,10 @@ RegisterNetEvent('rp_vehiclecontrol:fuel', function(netId, value, reason)
     state:set('fuel', math.floor(value * 100 + 0.5) / 100, true)
 end)
 
--- ---- Moteur, frein de parcage, véhicule cassé, clignotants (conducteur) ; poussée (joueur à côté) ----
+-- ---- Moteur, véhicule cassé, clignotants (conducteur) ; poussée (joueur à côté) ----
 local SIGNALS = { left = true, right = true, hazard = true }
 local STATE_KEYS = {
     vcEngine = function(v) return type(v) == 'boolean' end,
-    vcBrake = function(v) return type(v) == 'boolean' end,
     vcBroken = function(v) return type(v) == 'boolean' end,
     vcSignal = function(v) return v == false or SIGNALS[v] == true end,
 }

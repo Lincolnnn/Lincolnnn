@@ -45,11 +45,16 @@ Case **Voiture** :
   apparaît moteur coupé, plein fait (Vehicle Control).
 - **Radio** : collez un **lien** (vidéo / musique YouTube, ou lien direct vers un fichier audio, un podcast, une radio
   en ligne) : le son est joué **dans le véhicule**. Tout le monde l'entend **au même moment et au même volume de base**
-  (le volume est celui du véhicule : à 89 %, tout le monde l'a à 89 %). À bord : normalement ; dehors : de moins en
-  moins fort avec la distance (`RadioRange`, 30 m) et **insonorisé** (son étouffé et plus faible) si aucune vitre n'est
-  baissée et aucune portière n'est ouverte. Réglable seulement par les **places avant**, ou avec l'**œil** en visant
-  l'intérieur avant du véhicule, **portière avant ouverte** (option « Radio du véhicule »). L'effet étouffé est un vrai
-  filtre pour les liens directs qui l'autorisent ; pour YouTube, c'est une baisse du volume.
+  (le volume est celui du véhicule : à 89 %, tout le monde l'a à 89 %). À bord : normalement. Dehors, le son **vient
+  du véhicule** (à gauche / à droite selon où il se trouve par rapport à la caméra) et baisse avec la distance
+  (`RadioRange`, 30 m) ; si aucune vitre n'est baissée et aucune portière n'est ouverte, il est **insonorisé** : **filtre
+  passe-bas** (on n'entend plus que les basses, comme à travers la carrosserie) et volume encore plus bas
+  (`RadioInsulation`). Réglable seulement par les **places avant**, ou avec l'**œil** en visant l'intérieur avant du
+  véhicule, **portière avant ouverte** (option « Radio du véhicule »).
+  YouTube : la vidéo est lue en **flux audio** grâce à une API Piped publique (`RadioYouTubeApi`), ce qui permet le
+  filtre et la position du son. Si elle ne répond pas (instance hors ligne), le lecteur YouTube classique prend le
+  relais : le son reste synchronisé mais sans filtre ni position (seulement plus bas dehors). Liens directs : filtre et
+  position si le site autorise la lecture (CORS), sinon lecture simple.
 
 Échap : retour / fermeture.
 
@@ -128,14 +133,14 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
 
 | Cible | Tout le monde | Policier (dans une unité du MDC) en plus |
 |---|---|---|
-| Personne | Inspection visuelle, Inspection olfactive (10 m) | Détail notoire (10 m) ; Fouiller la partie supérieure / inférieure du corps (3 m, **15 s**) ; Menotter / Retirer les menottes, Prendre / Lâcher le bras, Faire s'asseoir / se relever (2 m) |
+| Personne | Inspection visuelle, Inspection olfactive (10 m) | Détail notoire (10 m) ; Fouiller la partie supérieure / inférieure du corps (3 m, **6 s** chacune) ; Menotter / Retirer les menottes, Prendre / Lâcher le bras, Faire s'asseoir / se relever (2 m) |
 | Véhicule | Inspection visuelle intérieure / extérieure, Inspection olfactive (10 m) | Détail notoire (10 m) ; Fouille de l'habitacle, de la banquette arrière, du coffre (3 m, **35 s**) ; Placer l'individu à l'arrière (6 m, en le tenant par le bras) ; Faire sortir l'individu (arrière) |
 
 - **Distances** : les observations se font jusqu'à **10 m**, les fouilles à **3 m**, menottes et bras à **2 m**. Les options
   apparaissent au fur et à mesure qu'on s'approche (elles ne sont jamais grisées pour une question de distance).
   Seule exception : **Supprimer**, proposée jusqu'à **50 m** (`DeleteDistance`) aux joueurs autorisés ; c'est la seule
   option visible au-delà de 10 m.
-- **Fouilles** : barre de chargement (thème du HUD, barre bleue) — **15 s** pour une personne, **35 s** pour un véhicule.
+- **Fouilles** : barre de chargement (thème du HUD, barre bleue) — **6 s** par partie du corps (supérieure / inférieure) pour une personne, **35 s** pour un véhicule.
   Pendant la fouille on ne se déplace pas ; **X** l'annule (elle s'interrompt aussi si la cible s'éloigne). Le serveur ne
   donne le résultat qu'une fois le temps écoulé.
 - Une personne est toujours présentée comme « **Individu** » : ni identité, ni nom du profil actif, ni mention PNJ.
@@ -234,10 +239,10 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `MenuKey`, `TargetKey` | touches par défaut (F1, Alt gauche) ; chaque joueur les change dans Échap > Paramètres > Raccourcis clavier > FiveM |
 | `MdcResource`, `ChatResource` | noms des dossiers du MDC et du chat |
 | `SpawnPoliceOnly`, `EquipmentPoliceOnly` | véhicules de police (Voiture > Spawn) et équipements réservés aux policiers en service |
-| `RadioRange`, `RadioInsulation`, `RadioMaxVolume` | radio du véhicule : portée dehors, volume quand tout est fermé (insonorisé), volume maximal |
+| `RadioRange`, `RadioInsulation`, `RadioMaxVolume`, `RadioYouTubeApi` | radio du véhicule : portée dehors, volume quand tout est fermé (insonorisé, en plus du filtre), volume maximal, API Piped pour lire YouTube en flux audio (`''` = lecteur YouTube classique) |
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
-| `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (15 s personne, 35 s véhicule) |
+| `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
 | `CuffPropPlacement`, `LockedDoorStand` | position / orientation des menottes ; où se tient le civil devant une portière verrouillée |
 | `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragTurnSpeed`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position / rotation de l'individu tenu, touche pour lâcher le bras, distance du véhicule |

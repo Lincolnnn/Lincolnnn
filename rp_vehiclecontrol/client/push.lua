@@ -1,8 +1,7 @@
 --[[
     Vehicle Control - pousser un véhicule (client)
     ----------------------------------------------
-    À pied, devant le capot ou derrière le coffre d'un véhicule (frein de parcage serré ou non, avec ou
-    sans quelqu'un au volant) : un petit message (fond noir légèrement transparent, NUI de ce script)
+    À pied, devant le capot ou derrière le coffre d'un véhicule (avec ou sans quelqu'un au volant) : un petit message (fond noir légèrement transparent, NUI de ce script)
     propose la touche K (Raccourcis clavier > FiveM > "Véhicule : pousser / arrêter de pousser").
       - K : le personnage se met en position contre le pare-chocs ; il pousse en AVANÇANT (sa touche
         habituelle, Z / W), tout droit uniquement. Devant le capot, le véhicule recule ; derrière le
@@ -114,7 +113,7 @@ local function startPush(vehicle, side)
                 VC.setState(vehicle, 'vcPushed', { dir = push.info.dir, active = forward })
             end
             if forward and GetPedInVehicleSeat(vehicle, -1) == 0 then
-                -- Personne au volant : ce client fait avancer le véhicule (même frein de parcage serré)
+                -- Personne au volant : ce client fait avancer le véhicule (frein à main du jeu desserré)
                 if controlled(vehicle) then
                     SetVehicleHandbrake(vehicle, false)
                     SetVehicleForwardSpeed(vehicle, push.info.dir * Config.Speed)

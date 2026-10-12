@@ -125,25 +125,23 @@ local function openMDC()
     TriggerServerEvent('mdc:server:viewer', true)
 end
 
--- Flou du jeu derrière le MDC (le NUI ne voit pas le jeu : le flou est un effet du jeu, comme celui
--- du menu pause, dont l'intensité est réglée dans Paramètres > MDC). Activé / retiré par le NUI.
+-- Flou du jeu derrière le MDC (le NUI ne voit pas le jeu : c'est le flou d'écran du jeu, celui des
+-- menus). Activé / retiré par le NUI (Paramètres > MDC), qui floute aussi ses propres HUD.
 local blurOn = false
 
-local function setBlur(strength)
-    strength = tonumber(strength) or 0
-    if strength > 0 then
-        SetTimecycleModifier('hud_def_blur')
-        SetTimecycleModifierStrength(math.min(strength, 1.0))
+local function setBlur(enabled)
+    if enabled and not blurOn then
+        TriggerScreenblurFadeIn(250.0)
         blurOn = true
-    elseif blurOn then
-        ClearTimecycleModifier()
+    elseif not enabled and blurOn then
+        TriggerScreenblurFadeOut(250.0)
         blurOn = false
     end
 end
 
 local function closeMDC()
     if not isOpen then return end
-    setBlur(0)
+    setBlur(false)
     isOpen = false
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
@@ -166,7 +164,7 @@ RegisterKeyMapping(Config.Command, 'Ouvrir le MDC (Police)', 'keyboard', Config.
 
 -- Fermeture (touche Échap ou bouton de fermeture dans l'UI)
 RegisterNUICallback('mdcBlur', function(data, cb)
-    setBlur(isOpen and type(data) == 'table' and data.strength or 0)
+    setBlur(isOpen and type(data) == 'table' and data.enabled == true)
     cb({ ok = true })
 end)
 
@@ -176,7 +174,7 @@ AddStateBagChangeHandler('rpiCivilMode', ('player:%d'):format(GetPlayerServerId(
 end)
 
 AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() then setBlur(0) end
+    if resource == GetCurrentResourceName() then setBlur(false) end
 end)
 
 RegisterNUICallback('close', function(_, cb)

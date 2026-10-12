@@ -7,10 +7,11 @@
         joueurs entendent la même chose au même moment, et au même volume de base (89 % = 89 % pour
         tout le monde), réglé seulement par les places avant, ou avec l'œil en visant l'intérieur avant
         du véhicule portière avant ouverte.
-      - Chaque joueur entend selon sa position : à bord, normalement ; dehors, plus ou moins fort selon
-        la distance (RadioRange) et "insonorisé" (son étouffé, plus faible) si aucune vitre n'est
-        baissée et aucune portière ouverte.
-    Le son est joué par le NUI de ce script (html/script.js). Performance : boucle (250 ms) seulement
+      - Chaque joueur entend selon sa position : à bord, normalement ; dehors, le son VIENT DU VÉHICULE
+        (à gauche / à droite selon où il se trouve par rapport à la caméra), plus ou moins fort selon la
+        distance (RadioRange), et "insonorisé" si aucune vitre n'est baissée et aucune portière ouverte :
+        filtre passe-bas (son étouffé) et volume encore plus bas (RadioInsulation).
+    Le son est joué par le NUI de ce script (html/script.js). Performance : boucle (150 ms) seulement
     tant qu'une radio est allumée dans un véhicule à portée réseau ; aucune sinon.
 ]]
 
@@ -34,20 +35,32 @@ local function isOpen(vehicle)
     return IsVehicleAConvertible(vehicle, false) and GetConvertibleRoofState(vehicle) ~= 0
 end
 
---- Facteur de volume (0..1) et son étouffé pour ce joueur
+--- Facteur de volume (0..1), son étouffé et position gauche / droite (-1..1) pour ce joueur
 function RPI.radioHearing(vehicle)
     local ped = PlayerPedId()
-    if GetVehiclePedIsIn(ped, false) == vehicle then return 1.0, false end
-    local distance = #(GetEntityCoords(ped) - GetEntityCoords(vehicle))
-    if distance >= Config.RadioRange then return 0.0, true end
+    if GetVehiclePedIsIn(ped, false) == vehicle then return 1.0, false, 0.0 end
+    local pos = GetEntityCoords(vehicle)
+    local distance = #(GetEntityCoords(ped) - pos)
+    if distance >= Config.RadioRange then return 0.0, true, 0.0 end
+    -- Le son vient du véhicule : côté gauche / droit par rapport à la caméra
+    local cam, rot = GetGameplayCamCoord(), GetGameplayCamRot(2)
+    local dx, dy = pos.x - cam.x, pos.y - cam.y
+    local len = math.sqrt(dx * dx + dy * dy)
+    local pan = 0.0
+    if len > 0.5 then
+        local heading = math.rad(rot.z)
+        local rightX, rightY = math.cos(heading), math.sin(heading) -- droite de la caméra
+        pan = math.max(-1.0, math.min(1.0, (dx * rightX + dy * rightY) / len)) * 0.85
+    end
     local factor = (1.0 - distance / Config.RadioRange) ^ 1.6
-    if isOpen(vehicle) then return factor, false end
-    return factor * Config.RadioInsulation, true
+    if isOpen(vehicle) then return factor, false, pan end
+    return factor * Config.RadioInsulation, true, pan
 end
 
-local function send(id, radio, volume, muffled)
+local function send(id, radio, volume, muffled, pan)
     SendNUIMessage({ action = 'radio', data = {
-        id = id, url = radio.url, volume = volume, muffled = muffled,
+        id = id, url = radio.url, volume = volume, muffled = muffled, pan = pan,
+        ytApi = Config.RadioYouTubeApi or '', -- lecture de YouTube en flux audio (filtre et position possibles)
         offset = math.max(0, GetCloudTimeAsInt() - (tonumber(radio.start) or 0)), -- même moment pour tous
     } })
 end
@@ -69,21 +82,22 @@ local function startLoop()
                 if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
                     stop(id) -- hors de portée réseau : reprend quand il revient
                 else
-                    local factor, muffled = RPI.radioHearing(vehicle)
+                    local factor, muffled, pan = RPI.radioHearing(vehicle)
                     local distance = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(vehicle))
                     if factor <= 0.0 and distance > Config.RadioRange + 20.0 then
                         stop(id) -- loin : lecteur fermé (rouvert à l'approche, au bon moment)
                     else
                         local volume = math.floor((radio.volume or 0) / 100 * factor * Config.RadioMaxVolume * 100 + 0.5) / 100
-                        local key = ('%s|%s|%.2f|%s'):format(radio.url, radio.start, volume, tostring(muffled))
+                        pan = math.floor(pan * 20 + 0.5) / 20
+                        local key = ('%s|%s|%.2f|%s|%.2f'):format(radio.url, radio.start, volume, tostring(muffled), pan)
                         if playing[id] ~= key then
                             playing[id] = key
-                            send(id, radio, volume, muffled)
+                            send(id, radio, volume, muffled, pan)
                         end
                     end
                 end
             end
-            Wait(250)
+            Wait(150)
         end
         loopRunning = false
     end)

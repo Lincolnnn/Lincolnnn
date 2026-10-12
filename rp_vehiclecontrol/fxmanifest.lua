@@ -1,5 +1,5 @@
 --[[
-    Vehicle Control - essence, dégâts réalistes, ceinture, moteur, portières, frein de parcage
+    Vehicle Control - essence, dégâts réalistes, ceinture, moteur, portières, clignotants, poussée
     Aucun framework requis (ni ESX, ni QBCore, ni vRP).
     Lié au MDC (mdc_standalone : car HUD et PLD) et au chat écrit (rp_chat : messages privés).
 ]]
@@ -10,8 +10,8 @@ lua54 'yes'
 
 name 'rp_vehiclecontrol'
 author 'Lincolnnn'
-description 'Vehicle Control : essence, dégâts, ceinture, moteur, portières et frein de parcage - standalone'
-version '1.2.0'
+description 'Vehicle Control : essence, dégâts, ceinture, moteur, portières, clignotants et poussée - standalone'
+version '1.3.0'
 
 ui_page 'html/index.html' -- message "pousser le véhicule" et sons du véhicule (le car HUD est dessiné par le MDC)
 
@@ -29,7 +29,7 @@ client_scripts {
     'client/seatbelt.lua',  -- ceinture, alarme, éjection, sons synchronisés
     'client/fuel.lua',      -- essence : consommation, pompes, jerrican
     'client/damage.lua',    -- dégâts réalistes, véhicule cassé
-    'client/controls.lua',  -- moteur (O), portières (U / I), frein de parcage (L)
+    'client/controls.lua',  -- moteur (O), portières (U / I)
     'client/signals.lua',   -- clignotants et warnings (flèches gauche / droite / bas)
     'client/push.lua',      -- pousser un véhicule (K)
     'client/hud.lua',       -- car HUD (en dernier)

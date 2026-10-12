@@ -12,8 +12,12 @@ InteractConfig = {
     EquipmentPoliceOnly = true,     -- tenues et armes réservées aux policiers en service
     -- Radio du véhicule (lien YouTube ou lien direct vers un son / une radio en ligne)
     RadioRange = 30.0,              -- m : au-delà, la radio d'un véhicule n'est plus entendue dehors
-    RadioInsulation = 0.35,         -- volume entendu dehors quand vitres et portières sont fermées ("insonorisé")
+    RadioInsulation = 0.18,         -- volume entendu dehors quand vitres et portières sont fermées ("insonorisé",
+                                    -- en plus du filtre passe-bas qui étouffe le son)
     RadioMaxVolume = 0.8,           -- volume maximal (radio à 100 %) pour tous les joueurs
+    -- Liens YouTube lus en flux audio par une API Piped (le filtre "étouffé" et la position du son ne
+    -- marchent qu'ainsi) ; si elle ne répond pas, lecteur YouTube classique (volume seulement). '' = jamais.
+    RadioYouTubeApi = 'https://pipedapi.kavin.rocks',
 
     -- Ressources liées (nom des dossiers)
     MdcResource = 'mdc_standalone', -- "policier" = joueur dans une unité du MDC
@@ -38,7 +42,7 @@ InteractConfig = {
     InspectCooldown = 750,          -- ms entre deux inspections (serveur)
 
     -- Durée des fouilles (barre de chargement ; X pour annuler)
-    SearchDurations = { person = 15000, vehicle = 35000 },
+    SearchDurations = { person = 6000, vehicle = 35000 }, -- personne : 6 s par partie (supérieure / inférieure)
 
     -- POLICE (joueur dans une unité du MDC) : menottes, prendre par le bras, placer dans un véhicule
     CuffDuration = 7000,            -- ms pour menotter

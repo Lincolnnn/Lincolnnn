@@ -2,10 +2,10 @@
     Vehicle Control - noyau (client)
     --------------------------------
     Une seule boucle suit le véhicule du joueur et appelle les modules (ceinture, essence, dégâts,
-    moteur, portières, frein de parcage) :
+    moteur, portières, clignotants, poussée) :
       - 'enter' / 'leave' / 'seat' : montée, descente, changement de place ;
-      - 'frame' : à chaque image, UNIQUEMENT à bord d'un véhicule (touches bloquées par le frein de
-        parcage, puissance réduite d'un moteur abîmé, détection des chocs) ;
+      - 'frame' : à chaque image, UNIQUEMENT à bord d'un véhicule (ceinture, véhicule poussé,
+        puissance réduite d'un moteur abîmé, détection des chocs) ;
       - 'tick'  : toutes les 100 ms à bord (essence, dégâts, alarme de ceinture, car HUD) ;
       - 'impact' : choc violent (vitesse avant le choc, perte de vitesse, vitesse du véhicule) ;
       - 'idle'  : toutes les 500 ms à pied (pompes, jerrican, véhicule à pousser).
@@ -226,7 +226,7 @@ end)
 -- =========================================================================
 local lastKey = nil
 
-local HUD_KEYS = { 'inVehicle', 'show', 'mode', 'engine', 'speed', 'rpm', 'fuel', 'belt', 'alarm', 'broken', 'parked', 'paused' }
+local HUD_KEYS = { 'inVehicle', 'show', 'mode', 'engine', 'speed', 'rpm', 'fuel', 'belt', 'alarm', 'broken', 'paused' }
 
 local function sendHud(data)
     local parts = {}
@@ -260,7 +260,6 @@ function VC.sendHud(vehicle)
         fuel = h.fuel and math.floor(h.fuel + 0.5) or nil, -- nil : pas de réservoir (jauge masquée)
         alarm = h.alarm == true,
         broken = broken,                                   -- logo rouge "véhicule cassé"
-        parked = VC.state(vehicle, 'vcBrake') == true,     -- frein de parcage : vitesse grisée
         paused = IsPauseMenuActive() or IsScreenFadedOut(),
     }
     if h.belt ~= nil then data.belt = h.belt end -- absent : pas de ceinture (logo masqué)

@@ -16,7 +16,6 @@ VCConfig = {
         seatbelt = 'G',      -- attacher / détacher la ceinture (K ouvre le MDC)
         door = 'U',          -- sa portière : avant gauche (conducteur) / avant droite (passager avant)
         frontDoors = 'I',    -- les deux portières avant en même temps (conducteur uniquement)
-        parkingBrake = 'L',  -- frein de parcage (conducteur)
         indicatorLeft = 'LEFT',   -- clignotant gauche (flèche gauche, conducteur)
         indicatorRight = 'RIGHT', -- clignotant droit (flèche droite, conducteur)
         hazards = 'DOWN',         -- feux de détresse / warnings (flèche bas, conducteur)
@@ -123,13 +122,11 @@ VCConfig = {
     SignalInterval = 370,         -- ms entre le "tic" et le "tac" du relais
 
     EngineNoticeDuration = 8000,  -- ms : notification "O" en montant côté conducteur (disparaît ensuite)
-    ParkedRange = 60.0,           -- m : sans frein de parcage, le véhicule laissé reste libre (pente,
-                                  -- choc, poussé) tant que son dernier conducteur est à cette distance
 
     -- ---------------------------------------------------------------------
-    -- POUSSER UN VÉHICULE (à pied, devant le capot ou derrière le coffre, avec ou sans conducteur ni frein
-    -- de parcage) : touche Keys.push, puis avancer (Z / W) : tout droit uniquement. Frein de parcage
-    -- serré : poussable quand même. Quelqu'un au volant : il peut seulement tourner le volant.
+    -- POUSSER UN VÉHICULE (à pied, devant le capot ou derrière le coffre, avec ou sans conducteur) :
+    -- touche Keys.push, puis avancer (Z / W) : tout droit uniquement. Quelqu'un au volant : il peut
+    -- seulement tourner le volant.
     -- ---------------------------------------------------------------------
     Push = {
         Speed = 1.1,              -- m/s : vitesse du véhicule poussé

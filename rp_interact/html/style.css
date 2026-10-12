@@ -2,7 +2,7 @@
    RP Interact
    - Œil, menu d'interactions, résultats : codes du HUD (contour gris fin, angles
      légèrement arrondis) avec un fond noir foncé transparent à 20 % (opaque à 80 %)
-   - Fiche civile : même style que le MDC ("Windows classique" sombre)
+   - Fiche civile : même style que le MDC (thème moderne, voir la fin du fichier)
    ========================================================================= */
 :root {
     /* Thème HUD */
@@ -419,3 +419,64 @@ input::placeholder, textarea::placeholder { color: #5f5f5f; font-style: italic; 
 /* Lecteurs de la radio : invisibles, hors de l'écran (YouTube exige une taille minimale) */
 .radio-players { position: fixed; left: -10000px; top: 0; width: 200px; height: 200px; overflow: hidden; pointer-events: none; opacity: 0; }
 .radio-player { width: 200px; height: 200px; }
+
+/* =========================================================================
+   THÈME MODERNE : fiche civile (même style que le MDC modernisé ; plus d'effet "Windows")
+   ========================================================================= */
+:root { --font: "Segoe UI", "Inter", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; }
+#editor {
+    --line: rgba(255, 255, 255, .08);
+    background: rgba(0, 0, 0, .94);
+    border: 1px solid var(--line); border-radius: 12px; outline: none;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .6);
+    overflow: hidden;
+}
+#editor .titlebar { height: 40px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--line); }
+#editor .title { gap: 10px; font-weight: 600; }
+#editor .title-icon { padding: 3px 8px; border: 0; border-radius: 6px; font-size: 11px; letter-spacing: .8px; background: linear-gradient(135deg, #2c63b3, var(--select)); }
+#editor .win-btn { width: 28px; height: 28px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .06); color: var(--muted); font: 13px var(--font); }
+#editor .win-btn:hover { background: rgba(255, 255, 255, .14); color: #fff; }
+#editor .win-close:hover { background: var(--danger); color: #fff; }
+/* Onglets : pilules */
+#editor .tabbar { align-items: center; gap: 6px; height: 48px; padding: 0 14px; background: transparent; border-bottom: 1px solid var(--line); }
+#editor .tab { top: 0; min-width: 0; height: 32px; padding: 0 18px; background: transparent; color: var(--muted); font: 600 13px var(--font); border: 1px solid transparent; border-radius: 999px; }
+#editor .tab:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
+#editor .tab.active { height: 32px; background: rgba(31, 78, 140, .5); border-color: #2d64ad; color: #fff; }
+#editor .content { padding: 16px; background: #1b1b1b; border: 0; }
+#editor .split { gap: 14px; }
+#editor .group { padding: 14px; background: rgba(255, 255, 255, .025); border: 1px solid var(--line); border-radius: 10px; box-shadow: none; }
+#editor .legend, #editor .form-section-title {
+    position: static; display: block; margin: 0 0 10px; padding: 0; background: none; border: 0;
+    font-size: 11px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; line-height: 1.3; color: var(--muted);
+}
+#editor .form-section { margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; box-shadow: none; background: rgba(255, 255, 255, .02); }
+#editor .well { background: rgba(10, 10, 10, .5); border: 1px solid var(--line); border-radius: 10px; }
+#editor .btn {
+    height: 30px; padding: 0 14px; background: rgba(255, 255, 255, .07); color: var(--text); font: 600 13px var(--font);
+    border: 1px solid rgba(255, 255, 255, .1); border-radius: 8px; outline: none;
+}
+#editor .btn:hover { background: rgba(255, 255, 255, .12); }
+#editor .btn:active { background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .1); }
+#editor .btn-default { background: var(--select); border-color: #2d64ad; color: #fff; }
+#editor .btn-default:hover { background: #2a5ea3; }
+#editor .btn-danger:hover, #editor .btn-danger.confirm { background: var(--danger); border-color: var(--danger); }
+#editor .btn-small { height: 26px; padding: 0 10px; font-size: 12px; }
+#editor input[type="text"], #editor textarea {
+    background: rgba(8, 8, 8, .6); border: 1px solid rgba(255, 255, 255, .1); border-radius: 8px; padding: 5px 10px; font: 13px var(--font);
+}
+#editor input[type="text"] { height: 32px; }
+#editor input:focus, #editor textarea:focus { outline: none; border-color: #3c7bd6; box-shadow: 0 0 0 3px rgba(60, 123, 214, .25); background: rgba(5, 5, 5, .8); }
+#editor .grid th { padding: 8px 10px; background: rgba(34, 34, 34, .98); border: 0; border-bottom: 1px solid var(--line); color: var(--muted); font-weight: 700; font-size: 11px; letter-spacing: .6px; text-transform: uppercase; }
+#editor .grid td { padding: 8px 10px; border-bottom: 1px solid rgba(255, 255, 255, .05); }
+#editor .grid.selectable tbody tr:hover td { background: rgba(255, 255, 255, .04); }
+#editor .grid.selectable tbody tr.selected td { background: rgba(31, 78, 140, .55); }
+#editor .sheet-title { padding: 8px 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 8px; }
+#editor .sheet { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+#editor .sheet dt { background: rgba(255, 255, 255, .03); }
+#editor .sheet dt, #editor .sheet dd { border-color: var(--line); }
+#editor .note { border-radius: 8px; }
+#editor .statusbar { height: 30px; padding: 4px 8px; border-top: 1px solid var(--line); }
+#editor .sb-cell { border: 0; border-radius: 6px; background: rgba(255, 255, 255, .05); }
+#editor ::-webkit-scrollbar { width: 10px; height: 10px; }
+#editor ::-webkit-scrollbar-track { background: transparent; }
+#editor ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .14); border: 2px solid transparent; border-radius: 10px; background-clip: padding-box; }

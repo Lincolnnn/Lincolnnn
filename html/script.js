@@ -324,11 +324,15 @@
         if (!state.civilMode && state.page === 'create') showPage('units');
     }
 
-    // Flou du jeu derrière le MDC (client/client.lua) : MDC ouvert, hors mode placement des HUD
+    // Flou derrière le MDC : le jeu (client/client.lua) et les HUD (PLD, display, car HUD) ;
+    // MDC ouvert, hors mode placement des HUD
+    let blurred = null;
     function syncBlur() {
-        const s = hud.settings.mdc;
-        const on = state.open && !hud.placing && s.blur;
-        post('mdcBlur', { strength: on ? s.blurStrength : 0 });
+        const on = !!(state.open && !hud.placing && hud.settings.mdc.blur);
+        document.body.classList.toggle('mdc-blur', on);
+        if (on === blurred) return;
+        blurred = on;
+        post('mdcBlur', { enabled: on });
     }
 
     function showPage(page) {
@@ -3170,8 +3174,8 @@
     const HUD_DEFAULTS = {
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true, service: true },
-        // Fenêtre : légère transparence (opacity) et flou du jeu derrière (blurStrength), désactivables
-        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.86, blur: true, blurStrength: 0.45 },
+        // Fenêtre : légère transparence (opacity) et flou du jeu et des HUD derrière, désactivables
+        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.93, blur: true },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
@@ -3185,7 +3189,7 @@
         unit: null,         // unité du joueur : { name, tag, color, status, dept, callNumber, callTitle }
         profile: { sector: '', service: '' }, // secteur / service principal (menu d'interactions)
         pld: null,          // { street, crossing, dir, block, time, paused }
-        car: null,          // car HUD : { show, speed, rpm, fuel, belt, alarm, broken, parked, paused } (rp_vehiclecontrol)
+        car: null,          // car HUD : { show, mode, engine, speed, rpm, fuel, belt, alarm, broken, paused } (rp_vehiclecontrol)
         placing: false,
         drag: null,
         saveTimer: null,
@@ -3210,7 +3214,6 @@
         });
         out.mdc.zoom = Math.min(Math.max(out.mdc.zoom, 0.8), 1.3);
         out.mdc.opacity = Math.min(Math.max(out.mdc.opacity, 0.5), 1);
-        out.mdc.blurStrength = Math.min(Math.max(out.mdc.blurStrength, 0.1), 1);
         out.notify.volume = Math.min(Math.max(out.notify.volume, 0), 1);
         out.car.volume = Math.min(Math.max(out.car.volume, 0), 1);
         if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
@@ -3304,8 +3307,6 @@
         // Moteur coupé : tout est grisé ; il s'illumine au démarrage
         el.classList.toggle('car-off', car.engine === false);
         $('#carSpeed').textContent = Math.max(0, Math.round(car.speed || 0));
-        // Frein de parcage serré : vitesse grisée et transparente
-        el.querySelector('.car-speed').classList.toggle('car-parked', !!car.parked);
         // Véhicule cassé : logo rouge, jamais visible autrement
         $('#carBroken').classList.toggle('part-empty', !car.broken);
         const rpm = Math.min(Math.max(Number(car.rpm) || 0, 0), 1);
@@ -3412,7 +3413,7 @@
 
     // ---- Onglet "Paramètres" ----
     const settingGet = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), hud.settings);
-    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'mdc.zoom', 'mdc.opacity', 'mdc.blurStrength', 'notify.volume', 'car.volume'];
+    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'mdc.zoom', 'mdc.opacity', 'notify.volume', 'car.volume'];
 
     function renderSettings() {
         $$('[data-setting]').forEach((input) => {

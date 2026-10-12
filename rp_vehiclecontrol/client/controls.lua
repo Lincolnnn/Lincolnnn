@@ -1,5 +1,5 @@
 --[[
-    Vehicle Control - moteur, portières, frein de parcage (client)
+    Vehicle Control - moteur et portières (client)
     --------------------------------------------------------------
     MOTEUR (touche O, conducteur) : un véhicule apparaît moteur COUPÉ. O l'allume et le marque
       "toujours allumé" (état "vcEngine") : il le reste, même quand le joueur descend. O de nouveau :
@@ -12,11 +12,6 @@
       - touche I (conducteur) : les deux portières avant ensemble.
       Même touche pour refermer. Priorité à celui qui a ouvert : la portière ouverte par l'un n'est pas
       refermée par la touche de l'autre (état "vcDoors" : qui a ouvert chaque portière).
-    FREIN DE PARCAGE (touche L, conducteur ; état "vcBrake") : serré, le véhicule ne bouge pas et
-      n'avance pas (accélérer / reculer bloqués) ; il faut le desserrer. Desserré, le véhicule laissé est
-      libre : il roule en pente, se déplace s'il est percuté, et un joueur à pied peut le pousser
-      (push.lua).
-      Car HUD : vitesse grisée et transparente tant qu'il est serré.
     Touches modifiables : Paramètres > Raccourcis clavier > FiveM.
 ]]
 
@@ -109,8 +104,8 @@ end)
 VC.on('frame', function(_, vehicle)
     if VC.seat ~= -1 then return end
     local running = GetIsVehicleEngineRunning(vehicle)
-    -- Accélérer démarre le moteur, comme dans le jeu de base (sauf panne sèche / cassé / frein serré)
-    if not running and VC.state(vehicle, 'vcBrake') ~= true
+    -- Accélérer démarre le moteur, comme dans le jeu de base (sauf panne sèche / véhicule cassé)
+    if not running
         and (IsControlJustPressed(0, 71) or IsDisabledControlJustPressed(0, 71)) then
         if canStart(vehicle) then
             SetVehicleEngineOn(vehicle, true, false, true)
@@ -214,62 +209,6 @@ RegisterKeyMapping('vc_frontdoors', 'Véhicule : ouvrir / fermer les deux porti�
 RegisterNetEvent('rp_vehiclecontrol:applyDoors', function(netId, actions)
     local vehicle = NetToVeh(netId)
     if vehicle ~= 0 and DoesEntityExist(vehicle) and type(actions) == 'table' then applyDoors(vehicle, actions) end
-end)
-
--- =========================================================================
--- FREIN DE PARCAGE
--- =========================================================================
-RegisterCommand('vc_parkingbrake', function()
-    local vehicle = VC.vehicle
-    if not VC.isDriver() or IsPauseMenuActive() then return end
-    local on = VC.state(vehicle, 'vcBrake') ~= true
-    VC.setState(vehicle, 'vcBrake', on)
-    if not on then SetVehicleHandbrake(vehicle, false) end
-end, false)
-RegisterKeyMapping('vc_parkingbrake', 'Véhicule : frein de parcage', 'keyboard', Config.Keys.parkingBrake)
-
--- Serré : immobile (frein à main + vitesse maintenue à zéro à l'arrêt), accélérer et reculer bloqués
--- (à chaque image, au volant). Pendant qu'un joueur pousse le véhicule (push.lua), il passe avant.
-VC.on('frame', function(_, vehicle)
-    if VC.seat ~= -1 or VC.state(vehicle, 'vcBrake') ~= true then return end
-    DisableControlAction(0, 71, true) -- accélérer
-    DisableControlAction(0, 72, true) -- freiner / reculer
-    if VC.pushInfo and VC.pushInfo(vehicle) then return end
-    SetVehicleHandbrake(vehicle, true)
-    if GetEntitySpeed(vehicle) < 3.0 then SetVehicleForwardSpeed(vehicle, 0.0) end
-end)
-
--- Véhicule laissé SANS frein de parcage : libre, comme si quelqu'un était au volant sans rien toucher
--- (le jeu serre le frein à main d'un véhicule abandonné : on le desserre). Suivi tant que le joueur
--- qui l'a laissé reste à moins de ParkedRange m et que personne ne prend le volant.
-local function watchParked(vehicle)
-    CreateThread(function()
-        Wait(1200) -- fin de la descente
-        local woke = 0
-        while DoesEntityExist(vehicle) and VC.vehicle ~= vehicle and GetPedInVehicleSeat(vehicle, -1) == 0
-            and #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(vehicle)) < Config.ParkedRange do
-            if VC.state(vehicle, 'vcBrake') == true then
-                if not (VC.pushInfo and VC.pushInfo(vehicle)) and controlled(vehicle) then
-                    SetVehicleHandbrake(vehicle, true)
-                    if GetEntitySpeed(vehicle) < 3.0 then SetVehicleForwardSpeed(vehicle, 0.0) end
-                end
-                Wait(100)
-            else
-                if controlled(vehicle) then
-                    SetVehicleHandbrake(vehicle, false)
-                    if GetGameTimer() >= woke then
-                        ActivatePhysics(vehicle) -- réveille la physique : il roule en pente
-                        woke = GetGameTimer() + 1000
-                    end
-                end
-                Wait(100)
-            end
-        end
-    end)
-end
-
-VC.on('leave', function(vehicle, seat)
-    if seat == -1 and DoesEntityExist(vehicle) then watchParked(vehicle) end
 end)
 
 AddEventHandler('onResourceStop', function(resource)

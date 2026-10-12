@@ -896,8 +896,6 @@ input.invalid, select.invalid, textarea.invalid { border-color: #ff5a5a; backgro
 .car-top { display: flex; align-items: center; gap: 10px; }
 .car-speed { display: flex; align-items: baseline; gap: 4px; line-height: 1; }
 #carSpeed { min-width: 2ch; font-size: 30px; font-weight: bold; color: #fff; font-variant-numeric: tabular-nums; transition: color .25s, opacity .25s; }
-/* Frein de parcage serré : vitesse grisée et transparente (blanche une fois desserré) */
-.car-speed.car-parked #carSpeed { color: #9a9a9a; opacity: .45; }
 .car-unit { font-size: 10px; font-weight: bold; letter-spacing: .8px; color: #c9c9c9; }
 /* Barre d'accélération (régime du moteur), horizontale et fine */
 .car-rpm {
@@ -1197,109 +1195,182 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .hu-none { color: #8a8a8a; font-style: italic; }
 
 /* =========================================================================
-   MDC MODERNISÉ (visuel uniquement : mêmes couleurs)
-   - Navigation verticale à gauche, statuts de l'unité en bas de la barre latérale
-   - Coins arrondis, traits fins au lieu des biseaux
-   - Légère transparence de la fenêtre (--glass-a, réglable / désactivable dans Paramètres > MDC) ;
-     le flou de l'arrière-plan est appliqué au jeu par client/client.lua (le NUI ne voit pas le jeu)
+   THÈME MODERNE (mêmes couleurs) : plus aucun effet "Windows" (biseaux, reliefs, titres posés sur
+   les bordures, barre de titre classique) ; cartes arrondies, traits fins, police moderne.
+   - Pages à la verticale à gauche, statuts de l'unité en dessous (même style), bien séparés
+   - Fenêtre légèrement transparente (--glass-a, réglable / désactivable dans Paramètres > MDC) ;
+     le flou du jeu derrière est appliqué par client/client.lua, celui des HUD par body.mdc-blur
    ========================================================================= */
+:root {
+    --hi: rgba(255, 255, 255, .09);    /* anciens biseaux : simples traits fins */
+    --lo: rgba(255, 255, 255, .09);
+    --hi-2: rgba(255, 255, 255, .07);
+    --line: rgba(255, 255, 255, .08);
+    --accent: #3c7bd6;
+    --font: "Segoe UI", "Inter", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+.raised, .sunken, .btn, .win-btn, .multi-btn, .multi-panel, .entry-box, .fold, .sheet-title, .edit-banner,
+.sheet-alert, .well, .status-btn, .swatch-box, .suggest, .toast, .settings-cat, .tab,
+input[type="text"], input[type="number"], textarea, select { border-width: 1px; }
+
+/* ---- Fenêtre ---- */
 .window {
     --glass-a: 1;
-    --line: rgba(255, 255, 255, .08);
     background: transparent; /* chaque zone a son propre fond : la transparence ne s'additionne pas */
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 12px;
     outline: none;
-    box-shadow: 0 22px 60px rgba(0, 0, 0, .55);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .6);
     overflow: hidden;
+    font-family: var(--font);
 }
 .window.maximized { border-radius: 0; border-width: 0; }
-.titlebar { height: 36px; padding: 0 8px 0 12px; background: rgba(0, 0, 0, var(--glass-a)); border-bottom: 1px solid var(--line); }
-.title-icon { border: 0; border-radius: 4px; padding: 2px 6px; }
-.win-btn { width: 28px; height: 24px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .06); font-weight: normal; }
-.win-btn:hover { background: rgba(255, 255, 255, .12); }
-.win-btn:active { border: 0; background: rgba(255, 255, 255, .18); }
+.titlebar { height: 40px; padding: 0 10px 0 14px; background: rgba(0, 0, 0, var(--glass-a)); border-bottom: 1px solid var(--line); }
+.title { gap: 10px; font-weight: 600; letter-spacing: .2px; }
+.title-icon {
+    padding: 3px 8px; border: 0; border-radius: 6px; font-size: 11px; letter-spacing: .8px;
+    background: linear-gradient(135deg, #2c63b3, var(--select));
+}
+.win-buttons { gap: 6px; }
+.win-btn {
+    width: 28px; height: 28px; border: 0; border-radius: 50%;
+    background: rgba(255, 255, 255, .06); color: var(--muted); font: 13px var(--font);
+}
+.win-btn:hover { background: rgba(255, 255, 255, .14); color: #fff; }
+.win-btn:active { border: 0; background: rgba(255, 255, 255, .2); }
+.win-close:hover { background: var(--danger); color: #fff; }
 
-/* Barre latérale : profil, navigation, statuts */
+/* ---- Barre latérale : profil, navigation, statuts (même style, bien en dessous) ---- */
 .sidebar {
-    width: 228px;
-    gap: 14px;
-    padding: 12px 10px;
+    width: 228px; gap: 14px; padding: 14px 10px;
     background: rgba(8, 8, 8, var(--glass-a));
     border-right: 1px solid var(--line);
 }
+.sidebar .group { padding: 10px; background: rgba(255, 255, 255, .035); }
 .sidenav { display: flex; flex-direction: column; gap: 2px; }
-.sidenav .tab {
+.sidenav .tab, .status-btn {
     position: relative; top: 0;
     display: flex; align-items: center; gap: 11px;
     width: 100%; min-width: 0; height: 36px; padding: 0 12px;
     background: transparent; color: var(--muted);
-    font: bold 13px var(--font); text-align: left;
-    border: 0; border-radius: 7px;
+    font: 600 13px var(--font); text-align: left; white-space: nowrap;
+    border: 0; border-radius: 8px; outline: none;
+    cursor: pointer;
 }
-.sidenav .tab:hover { background: rgba(255, 255, 255, .05); color: var(--text); }
+.sidenav .tab:hover, .status-btn:hover { background: rgba(255, 255, 255, .05); color: var(--text); }
 .sidenav .tab.active { height: 36px; background: rgba(31, 78, 140, .38); color: #fff; }
-.sidenav .tab.active::before {
+.sidenav .tab.active::before, .status-btn.active::before {
     content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px;
-    border-radius: 0 3px 3px 0; background: #3c7bd6;
+    border-radius: 0 3px 3px 0; background: var(--accent);
 }
 .sidenav .tab svg {
     width: 17px; height: 17px; flex-shrink: 0;
     fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
-.status-group { margin-top: auto; }
-.status-list { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-.status-btn {
-    height: 30px; padding: 0 6px; gap: 6px; font-size: 11.5px; min-width: 0; white-space: nowrap;
-    background: rgba(255, 255, 255, .04);
-    border: 1px solid var(--line); border-radius: 7px;
-}
-.status-btn:hover { background: rgba(255, 255, 255, .09); }
-.status-btn.active { background: rgba(var(--c), .24); border-color: rgb(var(--c)); outline: none; }
+/* Statuts de l'unité : à la suite des pages, environ 3,5 cm plus bas */
+.sidebar .status-group { margin-top: 3.5cm; padding: 0; background: none; border: 0; box-shadow: none; }
+.status-group > .legend { padding: 0 12px; margin-bottom: 6px; }
+.status-group .my-unit { padding: 0 12px; margin-bottom: 6px; }
+.status-list { display: flex; flex-direction: column; gap: 2px; }
+.status-btn .sq { width: 10px; height: 10px; border: 0; border-radius: 50%; margin: 0 4px 0 3px; box-shadow: 0 0 0 3px rgba(var(--c), .18); }
+.status-btn.active { background: rgba(var(--c), .2); color: #fff; font-weight: 600; outline: none; }
+.status-btn.active::before { background: rgb(var(--c)); }
+.status-list.no-unit .status-btn { opacity: .4; }
 .sq { border: 0; border-radius: 3px; }
 
-/* Page */
-.content { padding: 14px; background: rgba(27, 27, 27, var(--glass-a)); border: 0; }
+/* ---- Page ---- */
+.content { padding: 16px; background: rgba(27, 27, 27, var(--glass-a)); border: 0; }
+.page.active { gap: 16px; padding-top: 0; }
 .group {
+    padding: 14px;
     background: rgba(255, 255, 255, .025);
     border: 1px solid var(--line);
-    border-radius: 9px;
+    border-radius: 10px;
     box-shadow: none;
 }
-.sidebar .group { background: rgba(255, 255, 255, .03); }
+/* Titres des cases : un simple titre DANS la carte (plus posé sur la bordure) */
 .legend, .sidebar .legend, .subgroup-title {
-    top: -9px; padding: 0 7px;
-    background: #161616;
-    border: 1px solid var(--line); border-radius: 5px;
+    position: static; display: block; align-self: flex-start;
+    margin: 0 0 10px; padding: 0;
+    background: none; border: 0;
+    font-size: 11px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; line-height: 1.3;
+    color: var(--muted);
 }
-.subgroup { border: 1px solid var(--line); border-radius: 7px; box-shadow: none; }
+.subgroup { margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; box-shadow: none; background: rgba(255, 255, 255, .02); }
+.form-actions { border-top: 1px solid var(--line); box-shadow: none; }
 
-/* Contrôles */
-.btn, .multi-btn, .fold, .entry-box, .sheet-title, .edit-banner, .sheet-alert {
-    border: 1px solid rgba(255, 255, 255, .1);
-    border-radius: 6px;
+/* ---- Contrôles ---- */
+.btn {
+    height: 30px; padding: 0 14px;
+    background: rgba(255, 255, 255, .07); color: var(--text);
+    font: 600 13px var(--font);
+    border: 1px solid rgba(255, 255, 255, .1); border-radius: 8px;
+    transition: background .12s, border-color .12s;
 }
-.btn:hover { background: #343434; }
-.btn:active, .btn.active { border-color: rgba(255, 255, 255, .1); background: #222; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .6); }
-.btn-default { outline: none; border-color: #2d64ad; }
-.btn.subtab.active { background: rgba(31, 78, 140, .45); border-color: #2d64ad; box-shadow: none; }
-input[type="text"], input[type="number"], textarea, select {
-    background: rgba(10, 10, 10, .65);
-    border: 1px solid rgba(255, 255, 255, .1);
-    border-radius: 6px;
+.btn:hover { background: rgba(255, 255, 255, .12); }
+.btn:active, .btn.active { background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .1); box-shadow: none; }
+.btn:disabled { opacity: .45; background: rgba(255, 255, 255, .04); }
+.btn-default { outline: none; background: var(--select); border-color: #2d64ad; color: #fff; }
+.btn-default:hover { background: #2a5ea3; }
+.btn-danger:hover { background: var(--danger); border-color: var(--danger); }
+.btn-small { height: 26px; padding: 0 10px; font-size: 12px; }
+/* Sous-onglets : boutons "pilule" */
+.btn.subtab { border-radius: 999px; padding: 0 16px; }
+.btn.subtab.active { background: rgba(31, 78, 140, .5); border-color: #2d64ad; color: #fff; }
+input[type="text"], input[type="number"], textarea, select, .multi-btn {
+    height: 32px; padding: 4px 10px;
+    background: rgba(8, 8, 8, .6); color: var(--text); font: 13px var(--font);
+    border: 1px solid rgba(255, 255, 255, .1); border-radius: 8px;
 }
-input:focus, textarea:focus, select:focus { outline: none; border-color: #2d64ad; background: rgba(5, 5, 5, .8); }
-.multi-panel { border: 1px solid rgba(255, 255, 255, .12); border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
-.fold-body { border-radius: 0 0 6px 6px; }
-.well { background: rgba(12, 12, 12, calc(var(--glass-a) * .55)); border: 1px solid var(--line); border-radius: 8px; }
-.grid th { background: rgba(38, 38, 38, .97); border: 0; border-bottom: 1px solid var(--line); color: var(--muted); font-weight: bold; font-size: 12px; }
-.flag { border: 0; border-radius: 4px; }
-.sheet, .sheet-list { border-radius: 6px; overflow: hidden; }
+textarea { height: auto; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(60, 123, 214, .25); background: rgba(5, 5, 5, .8); }
+.lbl { gap: 5px; }
+.check input, .radio input { accent-color: var(--accent); }
+.multi-panel { padding: 4px; background: #1d1d1d; border: 1px solid rgba(255, 255, 255, .12); border-radius: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, .6); }
+.multi-panel label { border-radius: 6px; }
+.edit-banner, .sheet-alert { border-radius: 8px; border: 1px solid rgba(255, 255, 255, .12); }
+.entry-box { padding: 0 10px 10px; background: rgba(255, 255, 255, .03); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.entry-head { margin: 0 -10px 10px; padding: 6px 6px 6px 10px; background: rgba(255, 255, 255, .05); border-bottom: 1px solid var(--line); }
+.fold { background: rgba(255, 255, 255, .03); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.fold > summary { padding: 8px 10px; }
+.fold[open] > summary { border-bottom: 1px solid var(--line); }
+.fold > summary:hover { background: rgba(255, 255, 255, .06); }
+.fold-body { background: rgba(0, 0, 0, .2); }
+.sheet-title { padding: 8px 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 8px; }
+.sheet, .sheet-list { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.sheet dt { background: rgba(255, 255, 255, .03); }
+.sheet dt, .sheet dd, .sheet-list li { border-color: var(--line); }
+.entry-view { border: 1px solid var(--line); border-radius: 8px; background: rgba(255, 255, 255, .03); }
+.swatch-box { border: 1px solid rgba(255, 255, 255, .2); border-radius: 6px; }
+.flag { border: 0; border-radius: 5px; padding: 2px 7px; }
 
-/* Barre d'état */
-.statusbar { height: 28px; padding: 4px 6px; background: rgba(0, 0, 0, var(--glass-a)); border-top: 1px solid var(--line); }
-.sb-cell { border: 0; border-radius: 5px; background: rgba(255, 255, 255, .04); }
-.settings-cat { border: 1px solid var(--line); border-radius: 9px; background: rgba(255, 255, 255, .025); overflow: hidden; }
-.settings-cat > summary { background: rgba(255, 255, 255, .04); }
+/* ---- Tableaux ---- */
+.well { background: rgba(10, 10, 10, calc(var(--glass-a) * .5)); border: 1px solid var(--line); border-radius: 10px; }
+.grid th {
+    padding: 8px 10px; background: rgba(34, 34, 34, .98);
+    border: 0; border-bottom: 1px solid var(--line);
+    color: var(--muted); font-weight: 700; font-size: 11px; letter-spacing: .6px; text-transform: uppercase;
+}
+.grid td { padding: 8px 10px; border-bottom: 1px solid rgba(255, 255, 255, .05); }
+.grid.selectable tbody tr:hover td { background: rgba(255, 255, 255, .04); }
+.grid.selectable tbody tr.selected td { background: rgba(31, 78, 140, .55); }
+
+/* ---- Barre d'état, paramètres, listes, notifications ---- */
+.statusbar { height: 30px; padding: 4px 8px; background: rgba(0, 0, 0, var(--glass-a)); border-top: 1px solid var(--line); }
+.sb-cell { border: 0; border-radius: 6px; background: rgba(255, 255, 255, .05); }
+.settings-cat { border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, .025); overflow: hidden; }
+.settings-cat > summary { padding: 11px 14px; background: rgba(255, 255, 255, .04); }
 .settings-cat[open] > summary { border-bottom: 1px solid var(--line); }
 .settings-cat > summary:hover { background: rgba(255, 255, 255, .08); }
+.suggest { background: #1d1d1d; border: 1px solid rgba(255, 255, 255, .12); border-radius: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, .6); }
+.suggest-title { background: rgba(255, 255, 255, .04); border-bottom: 1px solid var(--line); }
+.toast { font-family: var(--font); background: #1d1d1d; border: 1px solid rgba(255, 255, 255, .12); border-radius: 10px; box-shadow: 0 12px 30px rgba(0, 0, 0, .55); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .14); border: 2px solid transparent; border-radius: 10px; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .24); background-clip: padding-box; }
+
+/* ---- MDC ouvert : HUD floutés (le jeu derrière est flouté par client/client.lua) ---- */
+.hud, .car-notice-anchor { transition: filter .25s; }
+body.mdc-blur .hud, body.mdc-blur .car-notice-anchor { filter: blur(4px); }
+body.mdc-blur .hud-car.car-off { filter: blur(4px) grayscale(1) brightness(.75); }
