@@ -426,6 +426,15 @@ input::placeholder, textarea::placeholder { color: #5f5f5f; font-style: italic; 
 .dept-chip.dept-gsp { background: #ff6a00; }
 .dept-chip.dept-fcso { background: #1e5631; }
 
+/* Radio : bouton "+" et file "Écouter ensuite" */
+.menu-row .radio-add { flex: 0 0 44px; font-size: 18px; font-weight: bold; }
+.radio-now { color: var(--hud-muted); word-break: break-all; }
+.radio-queue { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.radio-queue-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(122, 122, 122, .45); border-radius: 5px; font-size: 12px; }
+.radio-queue-n { color: var(--hud-muted); font-weight: bold; }
+.radio-queue-url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.radio-queue-del { background: none; border: none; color: #e07a7a; cursor: pointer; font-size: 12px; }
+
 /* Lecteurs de la radio : invisibles, hors de l'écran (YouTube exige une taille minimale) */
 .radio-players { position: fixed; left: -10000px; top: 0; width: 200px; height: 200px; overflow: hidden; pointer-events: none; opacity: 0; }
 .radio-player { width: 200px; height: 200px; }
@@ -490,3 +499,57 @@ input::placeholder, textarea::placeholder { color: #5f5f5f; font-style: italic; 
 #editor ::-webkit-scrollbar { width: 10px; height: 10px; }
 #editor ::-webkit-scrollbar-track { background: transparent; }
 #editor ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .14); border: 2px solid transparent; border-radius: 10px; background-clip: padding-box; }
+
+/* =========================================================================
+   MENU DES TENUES /eup : style "menu de jeu" (bannière, lignes sombres, ligne choisie blanche),
+   piloté au clavier uniquement (aucun clic). En haut à gauche.
+   ========================================================================= */
+.eup {
+    position: fixed; left: 2.2vw; top: 6vh; width: 430px; z-index: 40;
+    font-family: var(--font); color: #f2f2f2; pointer-events: none; user-select: none;
+    filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .45));
+}
+.eup-banner {
+    --eup-color: #23272e;
+    position: relative; height: 92px; display: flex; flex-direction: column; justify-content: center; padding: 0 22px;
+    background:
+        repeating-linear-gradient(135deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 9px),
+        linear-gradient(120deg, rgba(255, 255, 255, .06), rgba(0, 0, 0, .45)),
+        var(--eup-color);
+    border-bottom: 3px solid rgba(255, 255, 255, .85);
+}
+.eup-title { font-size: 38px; font-weight: 800; font-style: italic; letter-spacing: 1px; text-transform: uppercase; line-height: 1; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+.eup-sub { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; opacity: .75; margin-top: 4px; }
+.eup-crumb {
+    display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px;
+    background: #050505; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #9fc4ff;
+}
+.eup-crumb #eupCrumb { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.eup-count { color: #d0d0d0; flex: none; }
+.eup-list { background: rgba(0, 0, 0, .72); }
+.eup-item {
+    display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 12px;
+    font-size: 14px; border-bottom: 1px solid rgba(255, 255, 255, .04);
+}
+.eup-item.sel { background: #f2f2f2; color: #0b0b0b; }
+.eup-item.empty { color: #8a8a8a; font-style: italic; }
+.eup-item.empty.sel { color: #555; }
+.eup-tag { width: 6px; height: 18px; background: var(--eup-tag); flex: none; }
+.eup-label { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.eup-right { font-size: 11px; font-weight: 700; letter-spacing: .5px; opacity: .8; }
+.eup-worn { color: #3fbf6f; font-weight: 700; }
+.eup-item.sel .eup-worn { color: #1d8a47; }
+.eup-arrow { font-size: 20px; line-height: 1; opacity: .8; }
+.eup-desc {
+    min-height: 30px; padding: 7px 12px; font-size: 12.5px; color: #dcdcdc;
+    background: rgba(0, 0, 0, .82); border-top: 2px solid rgba(255, 255, 255, .7);
+}
+.eup-desc:empty { display: none; }
+.eup-keys {
+    display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 7px 12px; font-size: 11px; color: #bdbdbd;
+    background: rgba(0, 0, 0, .9);
+}
+.eup-keys kbd {
+    display: inline-block; min-width: 16px; padding: 0 4px; margin-right: 2px; text-align: center;
+    font: 600 10px/16px var(--font); color: #111; background: #e8e8e8; border-radius: 2px;
+}

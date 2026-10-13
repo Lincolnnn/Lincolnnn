@@ -42,46 +42,70 @@ personne (joueur ou PNJ) n'est assez près (2 m ; véhicule à 6 m pour placer),
 sur l'individu le plus proche.
 Case **Civil** : rappel du **profil actif** en haut, la case **Mode civil**, puis **Créer un profil** et
 **Créer un véhicule** (ouvrent la **fiche civile** et ferment le menu) et, en mode civil, **Tips arrestation**.
-Case **Équipements** : **Tenues** (EUP) et **Armes** (loadouts) que vous enregistrez dans **`data/equipment.lua`**
-(seules les tenues du personnage homme / femme sont proposées) et **Retirer mes armes**. Les joueurs ne peuvent pas
-enregistrer leurs propres tenues : seules celles configurées par le serveur sont proposées (ajoutez par exemple une
-tenue « Civil »). Réservé aux policiers en service (`EquipmentPoliceOnly`). D'autres options pourront
-s'ajouter ici.
+Case **Équipements** : **Tenues** → bouton **Accéder aux tenues** (ferme ce menu et ouvre le menu `/eup`, ci-dessous) ;
+**Armes** : lots d'armes que vous enregistrez dans **`data/loadouts.json`**, réservés aux policiers en service
+(`EquipmentPoliceOnly`), et **Retirer mes armes**. D'autres options pourront s'ajouter ici.
 Case **Voiture** :
 - **Spawn** : en haut, deux options gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
   fait apparaître, s'il n'y a pas d'autre joueur dedans) et **Apparaître dans le véhicule** (sinon devant vous). Puis
   **Police** (trois listes : **Atlanta Police Department**, **Georgia State Patrol** et **Fayette County Sheriff
   Office**, réservées aux policiers en service,
-  `SpawnPoliceOnly`) et **Autres**. Seuls les véhicules de **`data/vehicles.txt`** sont proposés, une ligne par
-  véhicule : `spawn code ; service ; nom affiché ; livery ; extras` (ex. `apdfordexplorer2016 ; Atlanta Police
-  Department ; Atlanta Police Dept / FPIU 2016 ; 1 ; 1,3`). La **livery** et les **extras** indiqués sont appliqués à
-  l'apparition (extras listés activés, les autres désactivés). `rpi_vehicles` (console) relit le fichier. Le véhicule
-  apparaît moteur coupé, plein fait (Vehicle Control).
+  `SpawnPoliceOnly`) et **Autres**. Seuls les véhicules de **`data/vehicles.json`** sont proposés, un objet par
+  véhicule : `{ "Code": "apdfordexplorer2016", "Service": "Atlanta Police Department", "Name": "Atlanta Police Dept /
+  FPIU 2016", "Livery": 1, "Extras": [1, 3] }` (`Service` : `Atlanta Police Department`, `Georgia State Patrol`,
+  `Fayette County Sheriff Office`, sinon liste **Autres** ; `Livery` : `null` pour ne rien changer). La **livery** et
+  les **extras** indiqués sont appliqués à l'apparition (extras listés activés, les autres désactivés).
+  `rpi_vehicles` (console) relit les fichiers JSON. Le véhicule apparaît moteur coupé, plein fait (Vehicle Control).
 - **Radio** : collez un **lien** (vidéo / musique YouTube, ou lien direct vers un fichier audio, un podcast, une radio
-  en ligne) : le son est joué **dans le véhicule**. Tout le monde l'entend **au même moment et au même volume de base**
-  (le volume est celui du véhicule : à 89 %, tout le monde l'a à 89 %). À bord : normalement. Dehors, le son **vient
-  du véhicule en 3D** (rendu HRTF : devant / derrière, à gauche / à droite, au-dessus / en dessous, selon où il se
-  trouve par rapport à la caméra) et baisse avec la distance :
-  entendu jusqu'à **15 m** tout fermé (`RadioRangeClosed`) et **25 m** avec une portière (coffre, capot) ouverte ou une
-  vitre baissée (`RadioRangeOpen`). Tout fermé, il est **insonorisé** : **filtre
-  passe-bas** (on n'entend plus que les basses, comme à travers la carrosserie) et volume encore plus bas
-  (`RadioInsulation`). Réglable seulement par les **places avant**, ou avec l'**œil** en visant l'intérieur avant du
-  véhicule, **portière avant ouverte** (option « Radio du véhicule »).
-  Seules les vitres que le véhicule possède comptent (un coupé sans vitres arrière n'est plus vu comme « ouvert »).
-  YouTube : le **serveur** cherche le **flux audio** de la vidéo auprès des services publics listés (`RadioPiped`, puis
-  `RadioInvidious` : le premier qui répond et dont le flux se charge est gardé, en cache 3 h) ; c'est ce flux qui
-  permet le son étouffé et la position. Si aucun service ne répond, le lecteur YouTube classique prend le relais : le
-  son reste synchronisé mais sans filtre ni position (seulement plus bas dehors). La page Radio indique si les effets
-  sont actifs. Ces services publics changent souvent : ajoutez-en (ou votre propre instance Piped / Invidious) dans
-  `config.lua`. Liens directs : filtre et position si le site autorise la lecture (CORS), sinon lecture simple.
-  **pma-voice** : il ne transporte que la **voix des joueurs** (micro, via le serveur Mumble de FiveM) ; il ne peut pas
-  diffuser une musique depuis un lien, ni lui appliquer ses effets. La musique reste donc jouée par le navigateur du
-  jeu (NUI), avec son propre son 3D et son propre filtre « étouffé », réglés sur les mêmes règles de distance.
+  en ligne) puis **Lancer** : le son est joué **dans le véhicule**, tel quel (lecteur YouTube, ou lecteur audio pour un
+  lien direct ; aucun effet ajouté). Tout le monde l'entend **au même moment et au même volume de base** (à 89 %,
+  tout le monde l'a à 89 %). À bord : normalement. Dehors, plus bas avec la distance : entendu jusqu'à **15 m** tout
+  fermé (`RadioRangeClosed`, volume réduit : `RadioInsulation`) et **25 m** avec une portière (coffre, capot) ouverte
+  ou une vitre baissée (`RadioRangeOpen`). Seules les vitres que le véhicule possède comptent.
+  **Écouter ensuite** : le bouton **+** à côté de **Lancer** ajoute le lien à la file (jusqu'à **5** morceaux ; radio
+  éteinte : il est lancé tout de suite). À la fin d'un morceau, le suivant démarre pour tout le monde ; **Suivant**
+  passe au suivant, la croix d'une ligne la retire de la file, **Arrêter** coupe la radio et vide la file.
+  Réglable seulement par les **places avant**, ou avec l'**œil** en visant l'intérieur avant du véhicule, **portière
+  avant ouverte** (option « Radio du véhicule »).
+  **pma-voice** : il ne transporte que la **voix des joueurs** (micro) ; il ne peut pas diffuser une musique depuis un
+  lien. La musique est donc jouée par le navigateur du jeu (NUI), avec les mêmes règles de distance.
 
 Échap : retour / fermeture.
 
 **En service** = dans une unité du MDC : dès que vous rejoignez une unité, les fouilles et détails notoires
 apparaissent dans l'œil (notification) ; dès que vous la quittez, ils sont retirés (et refusés par le serveur).
+
+## Menu des tenues (`/eup`)
+
+S'ouvre avec **`/eup`** dans le chat écrit (même sans nom RP défini avec `/nomrp`), ou par **Menu Interaction >
+Équipements > Accéder aux tenues**. Menu **au clavier uniquement** (pas de souris, vous pouvez continuer à bouger),
+en haut à gauche, dans le style des menus du jeu : **↑ / ↓** (maintenues : défilement), **Entrée** ou **→** pour
+ouvrir / mettre la tenue, **← / Retour arrière** pour revenir, **Échap** pour fermer (`/eup` à nouveau aussi).
+- **Police** : **Atlanta Police Department (APD)**, **Fayette County Sheriff Office (FCSO)**, **Georgia State Patrol
+  (GSP)** (couleur du service sur la bannière), puis les autres services trouvés dans le fichier (ex. `NCSHP`) ;
+- **Civil** : la liste des tenues civiles (ou leurs groupes, si vous en indiquez dans `Category2`).
+Seules les tenues du personnage (**homme / femme**, personnage multijoueur) sont listées ; la tenue mise est cochée.
+Les tenues se configurent **uniquement dans `data/outfits.json`** (relu avec `rpi_vehicles` en console), un objet
+par tenue, au format EUP habituel :
+
+```json
+{
+    "Name": "NCSHP Class Regular", "Gender": "Male", "Category": "EUP", "Category2": "NCSHP", "Cate": "Police",
+    "Hat": "24:1", "Glasses": "0:0", "Ear": "0:0", "Watch": "0:0", "Mask": "0:0", "Top": "38:1",
+    "UpperSkin": "87:1", "Decal": "0:0", "UnderCoat": "330:1", "Pants": "240:1", "Shoes": "28:2",
+    "Accessories": "244:1", "Armor": "15:1", "Parachute": "13:1"
+}
+```
+
+- `Cate` : `Police` ou `Civil` ; `Category2` : le service (`APD`, `FCSO`, `GSP` ou leur nom complet ; autre valeur =
+  autre service) ; `Gender` : `Male` / `Female` (absent : les deux) ; `Category` n'est pas utilisé.
+- Chaque pièce : `"modèle:texture"`, **comptés à partir de 1** comme dans les menus EUP habituels (`Eup.OneBased`,
+  `false` si vos numéros commencent à 0). Accessoires (`Hat`, `Glasses`, `Ear`, `Watch`, `Bracelet`) à `0:0` :
+  retirés. Pièces : `Mask` (1), `UpperSkin` (3, bras), `Pants` (4), `Parachute` (5, sac), `Shoes` (6),
+  `Accessories` (7), `UnderCoat` (8), `Armor` (9), `Decal` (10), `Top` (11).
+- Une virgule en trop ou un guillemet manquant rend le fichier invalide : la console serveur l'indique.
+- `Eup.PoliceOnly = true` réserve les tenues de police aux policiers en service (par défaut : tout le monde, pour
+  pouvoir s'habiller avant de prendre son service). `Eup.Command` : nom de la commande.
 
 ## Mode civil (case à cocher, gardée chez chaque joueur)
 
@@ -182,8 +206,8 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     (`StateKeys`, `Export`), et être prévenu des suppressions / déplacements (`DeletedEvent`, `MovedEvent`, pour sa
     sauvegarde) ;
   - **Supprimer** (jusqu'à **50 m**) : PNJ, véhicule sans joueur à bord, objet — **y compris les véhicules et objets
-    créés par des joueurs ou des scripts**. Réservé aux policiers en service (`DeleteAccess`) ou à la permission ACE
-    `rpinteract.delete`. Jamais un joueur, ni un véhicule où se trouve un joueur. Avec OneSync, le serveur supprime
+    créés par des joueurs ou des scripts**. Ouvert à **tous les joueurs** (`DeleteAccess = 'everyone'` ;
+    `'police'` pour le réserver aux policiers en service, ou permission ACE `rpinteract.delete`). Jamais un joueur, ni un véhicule où se trouve un joueur. Avec OneSync, le serveur supprime
     l'élément pour tout le monde ; s'il est encore là, le client en prend le contrôle et le supprime. Une notification
     confirme « Élément supprimé. » (ou explique l'échec). Les objets de la carte sont masqués chez tous les joueurs
     (`rpi_showprops` en console pour tout réafficher) ;
@@ -268,15 +292,16 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 |---|---|
 | `MenuKey`, `TargetKey` | touches par défaut (F1, Alt gauche) ; chaque joueur les change dans Échap > Paramètres > Raccourcis clavier > FiveM |
 | `MdcResource`, `ChatResource` | noms des dossiers du MDC et du chat |
-| `SpawnPoliceOnly`, `EquipmentPoliceOnly` | véhicules de police (Voiture > Spawn) et équipements réservés aux policiers en service |
-| `RadioRangeClosed`, `RadioRangeOpen`, `RadioInsulation`, `RadioMaxVolume`, `RadioPiped`, `RadioInvidious` | radio du véhicule : portée dehors tout fermé (15 m) / ouvert (25 m), volume quand tout est fermé (insonorisé, en plus du filtre), volume maximal, services où le serveur cherche le flux audio des vidéos YouTube (`{}` = lecteur YouTube classique) |
+| `SpawnPoliceOnly`, `EquipmentPoliceOnly` | véhicules de police (Voiture > Spawn) et armes réservés aux policiers en service |
+| `Eup` | menu des tenues : commande (`eup`), `PoliceOnly` (tenues de police réservées aux policiers en service, `false` par défaut), `OneBased` (numéros des tenues comptés à partir de 1) |
+| `RadioRangeClosed`, `RadioRangeOpen`, `RadioInsulation`, `RadioMaxVolume` | radio du véhicule : portée dehors tout fermé (15 m) / ouvert (25 m), volume quand tout est fermé, volume maximal |
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
 | `CuffPropPlacement`, `LockedDoorStand` | position / orientation des menottes ; où se tient le civil devant une portière verrouillée |
 | `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragTurnSpeed`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position / rotation de l'individu tenu, touche pour lâcher le bras, distance du véhicule |
-| `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) |
+| `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) : `'everyone'` (défaut) ou `'police'`, + permission ACE |
 | `PoliceVehiclesAce`, `PoliceVehicleClasses`, `PoliceVehicleModels`, `LockedDoorAnim` | permission ACE pour `/policeon` / `/policeoff` ; ce qui compte comme véhicule de police ; animation « poignée verrouillée » |
 | `MaxProfiles`, `TextMax` | profils par joueur, longueur des textes |
 | `AnnounceWithMe`, `ResultsInChat`, `ResultDuration` | `/me` automatiques, copie dans le chat, durée d'affichage |
@@ -299,14 +324,16 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 
 ## Données
 
-`data/profiles.json` (voir `data/LISEZMOI.txt`). **À remplir vous-même** : `data/vehicles.txt` (véhicules du menu
-Voiture > Spawn) et `data/equipment.lua` (tenues EUP et armes du menu Équipements). Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`
+`data/profiles.json` (voir `data/LISEZMOI.txt`). **À remplir vous-même**, en **JSON** : `data/vehicles.json`
+(véhicules du menu Voiture > Spawn), `data/loadouts.json` (armes du menu Équipements) et `data/outfits.json` (tenues
+du menu `/eup`) ; `rpi_vehicles` (console) les relit. Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`
 dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 
 ## Performance
 
 - Aucune boucle quand rien n'est utilisé (0.00 ms dans le resmon). Radio : une vérification toutes les 150 ms
   seulement tant qu'une radio est allumée dans un véhicule à portée réseau.
+- Menu `/eup` : lecture des touches à chaque image **uniquement pendant qu'il est ouvert**.
 - L'œil tourne uniquement pendant que la touche est maintenue (visée toutes les 50 ms, tir bloqué) et s'arrête ensuite.
 - Assis sur un banc : une petite boucle attend la touche pour se lever, puis s'arrête.
 - Portière ouverte avec l'œil : surveillance légère (250 ms) jusqu'à ce qu'elle soit refermée.

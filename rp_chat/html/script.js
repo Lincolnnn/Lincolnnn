@@ -20,6 +20,7 @@
         { name: 'qst', usage: '/qst [question]', desc: 'Question pour tous' },
         { name: 'rep', usage: '/rep [réponse]', desc: 'Réponse pour tous' },
         { name: 'dv', usage: '/dv', desc: 'Supprime votre véhicule, ou celui regardé / le plus proche (5 m)' },
+        { name: 'eup', usage: '/eup', desc: 'Menu des tenues (Police, Civil), au clavier' },
     ];
 
     const $ = (sel) => document.querySelector(sel);

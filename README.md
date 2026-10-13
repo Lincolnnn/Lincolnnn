@@ -28,11 +28,17 @@ se font dans l'onglet « Paramètres » du MDC. Le MDC fonctionne aussi sans ell
 - Agrandir / rétrécir : bouton ☐ ou double-clic sur la barre de titre. Bouton ↺ : position par défaut.
 - La position est gardée d'une ouverture à l'autre et réinitialisée à chaque reconnexion.
 
-## Barre latérale (à gauche)
+## Disposition de la fenêtre
 
-Interface moderne (mêmes couleurs, plus aucun effet « Windows ») : en haut le **nom RP**, puis les **pages à la
-verticale** (Unités, Interventions, Recherches, Rapports, Créations, Paramètres) et, environ 3,5 cm plus bas, dans le
-même style, le **statut de l'unité**. La fenêtre est **légèrement transparente** (opacité **93 %** par défaut, de 50 à
+Interface moderne (mêmes couleurs, plus aucun effet « Windows ») en trois colonnes :
+- **à gauche, en haut** : le **nom RP** puis le **statut de l'unité**, à la verticale ;
+- **au centre** : le contenu de la page ouverte ;
+- **à droite** : les **6 pages à la verticale** (Unités, Interventions, Recherches, Rapports, Créations, Paramètres) ;
+- **en bas** : une **case de notes propre à l'unité** (rappels, observations… 160 caractères, partagée par tous ses
+  membres, enregistrée automatiquement pendant la frappe ; Entrée pour valider), puis la disponibilité et l'heure.
+
+Tous les boutons colorés de statut sont **carrés** (liste des statuts et listes des unités) ; le statut choisi n'est
+plus que légèrement surligné. La fenêtre est **légèrement transparente** (opacité **93 %** par défaut, de 50 à
 100 %) et, MDC ouvert, le **jeu** derrière elle est **flouté** (flou des menus du jeu) : une **case** dans
 *Paramètres > MDC* l'active ou le désactive. Les **HUD (PLD, display MDC, car HUD) restent toujours nets**. La
 **minimap** est dessinée par le jeu par-dessus l'image : aucun flou ne peut l'atteindre, elle est donc **masquée** tant

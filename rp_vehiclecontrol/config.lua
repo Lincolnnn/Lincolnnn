@@ -152,11 +152,14 @@ VCConfig = {
     -- ---------------------------------------------------------------------
     Seatbelt = {
         BeltSoundVolume = 1.725,  -- volume des sons d'attache / de retrait (x1,5 puis +15 %)
-        ChimeVolume = 1.2,        -- volume du carillon "ceinture non attachée" (+20 %)
+        ChimeVolume = 1.56,       -- volume du carillon "ceinture non attachée" (1,2 + 30 %)
+        -- Éjection à travers le pare-brise sans ceinture : DÉSACTIVÉE (true pour la réactiver ; règles
+        -- ci-dessous). L'éjection automatique du jeu reste désactivée dans tous les cas.
         AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
         StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
         -- Carillon coupé net : ceinture attachée, joueur descendu ou véhicule arrêté.
         -- Sons entendus autour du véhicule : voir VehicleSounds.
+        Eject = false,
         -- Éjection (ceinture détachée) lors d'un accident violent : choc contre un objet fixe ou un véhicule
         --   - au-dessus de HighSpeed MPH : dès que le choc fait perdre au moins HighSpeedDrop MPH ;
         --   - entre MinSpeed et HighSpeed : seulement si la vitesse chute brutalement d'au moins SuddenDrop
@@ -192,7 +195,7 @@ VCConfig = {
     --   'repeat' : le fichier est un seul "clic", rejoué toutes les SignalInterval ms.
     SignalSoundMode = 'loop',
     SignalInterval = 370,         -- ms entre deux clics (mode 'repeat' uniquement)
-    SignalVolume = 1.594,         -- volume du son des clignotants / warnings (1,0625 + 50 %), x réglage du joueur
+    SignalVolume = 4.782,         -- volume du son des clignotants / warnings (1,594 + 200 %), x réglage du joueur
 
     EngineNoticeDuration = 8000,  -- ms : notification "O" en montant côté conducteur (disparaît ensuite)
     EngineStartTime = 1200,       -- ms : durée du démarrage (démarreur) pendant laquelle on ne peut pas accélérer

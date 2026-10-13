@@ -1,16 +1,16 @@
 --[[
     RP Interact - Voiture (spawn, radio) et Équipements (serveur)
     -------------------------------------------------------------
-    - Véhicules : lus dans data/vehicles.txt (spawn code ; service ; nom ; livery ; extras), relus avec
-      la commande console "rpi_vehicles". Seuls les véhicules de cette liste peuvent être demandés ;
+    - Fichiers JSON du dossier data/ (remplis à la main, relus avec la commande console "rpi_vehicles") :
+      vehicles.json (véhicules du menu Voiture > Spawn), loadouts.json (armes du menu Équipements),
+      outfits.json (tenues du menu /eup). Seuls les véhicules de vehicles.json peuvent être demandés ;
       véhicules de police réservés aux policiers en service si SpawnPoliceOnly.
     - Radio : état du véhicule "rpiRadio" = { url, start (heure UTC de lancement, s), volume (0-100),
-      stream }, lu par tous les clients (chacun joue le son, plus ou moins fort selon sa distance et les
-      vitres / portières). Réglable par les places AVANT, ou par un joueur collé au véhicule (œil,
-      portière avant ouverte). Lien YouTube : le serveur cherche le flux audio de la vidéo (Piped,
-      Invidious : RadioPiped / RadioInvidious) ; "stream" = adresse du flux, nil pendant la recherche,
-      false si aucun service n'a répondu (lecteur YouTube classique).
-    - Équipements : tenues et armes de data/equipment.lua (vérification de l'accès).
+      queue (file "Écouter ensuite", 5 liens max) }, lu par tous les clients (chacun joue le son, plus
+      ou moins fort selon sa distance et les vitres / portières). Réglable par les places AVANT, ou par
+      un joueur collé au véhicule (œil, portière avant ouverte). À la fin d'un morceau (signalée par un
+      joueur qui l'entend), le suivant de la file démarre.
+    - Équipements : armes de loadouts.json ; tenues de outfits.json (menu /eup, vérification de l'accès).
     Aucune boucle.
 ]]
 
@@ -23,58 +23,163 @@ local SERVICES = {
 }
 
 -- =========================================================================
--- VÉHICULES (data/vehicles.txt)
+-- FICHIERS JSON (data/*.json) : remplis à la main, relus avec "rpi_vehicles" (console)
+-- =========================================================================
+local function trim(text) return (tostring(text or '')):gsub('^%s+', ''):gsub('%s+$', '') end
+
+--- Champ d'un objet JSON, quelle que soit la casse de la clé ("Name", "name", "NAME")
+local function field(object, name)
+    if type(object) ~= 'table' then return nil end
+    if object[name] ~= nil then return object[name] end
+    local lower = name:lower()
+    for k, v in pairs(object) do
+        if type(k) == 'string' and k:lower() == lower then return v end
+    end
+    return nil
+end
+
+--- Liste lue dans un fichier JSON (nil + message dans la console si absent / invalide)
+local function readJsonList(path)
+    local raw = LoadResourceFile(GetCurrentResourceName(), path)
+    if not raw then
+        print(('^3[RP Interact] %s introuvable.^0'):format(path))
+        return nil
+    end
+    local ok, data = pcall(json.decode, raw)
+    if not ok or type(data) ~= 'table' then
+        print(('^1[RP Interact] %s : JSON invalide (virgule en trop, guillemet manquant…). Fichier ignoré.^0'):format(path))
+        return nil
+    end
+    return data
+end
+
+-- =========================================================================
+-- VÉHICULES (data/vehicles.json)
+--   [ { "Code": "police3", "Service": "Atlanta Police Department", "Name": "…", "Livery": 0, "Extras": [1, 2] } ]
 -- =========================================================================
 local Vehicles, byCode = {}, {}
 
-local function trim(text) return (text or ''):gsub('^%s+', ''):gsub('%s+$', '') end
-
 local function loadVehicles()
     Vehicles, byCode = {}, {}
-    local raw = LoadResourceFile(GetCurrentResourceName(), 'data/vehicles.txt')
-    if not raw then
-        print('^3[RP Interact] data/vehicles.txt introuvable : aucun véhicule dans le menu Voiture.^0')
-        return
-    end
-    local line = 0
-    for text in (raw .. '\n'):gmatch('([^\r\n]*)\r?\n') do
-        line = line + 1
-        text = trim(text)
-        if text ~= '' and text:sub(1, 1) ~= '#' then
-            local f = {}
-            for field in (text .. ';'):gmatch('([^;]*);') do f[#f + 1] = trim(field) end
-            local code, service, label = f[1], f[2] or '', f[3] or ''
-            if code == '' or label == '' then
-                print(('^3[RP Interact] vehicles.txt ligne %d ignorée (spawn code ou nom manquant).^0'):format(line))
+    local list = readJsonList('data/vehicles.json')
+    if not list then return end
+    for i, v in ipairs(list) do
+        local code, label = trim(field(v, 'Code')), trim(field(v, 'Name'))
+        if code == '' or label == '' then
+            print(('^3[RP Interact] vehicles.json : véhicule n°%d ignoré (Code ou Name manquant).^0'):format(i))
+        else
+            local extras
+            local rawExtras = field(v, 'Extras')
+            if type(rawExtras) == 'table' and #rawExtras > 0 then
+                extras = {}
+                for _, n in ipairs(rawExtras) do if tonumber(n) then extras[#extras + 1] = math.floor(tonumber(n)) end end
+            end
+            local entry = {
+                code = code:lower(), label = label:sub(1, 80),
+                service = SERVICES[trim(field(v, 'Service')):lower()] or 'other',
+                livery = tonumber(field(v, 'Livery')), extras = extras,
+            }
+            local existing = byCode[entry.code]
+            if existing then
+                -- Même code deux fois : le dernier l'emporte (à la même place dans la liste)
+                existing.label, existing.service = entry.label, entry.service
+                existing.livery, existing.extras = entry.livery, entry.extras
             else
-                local extras
-                if f[5] and f[5] ~= '' then
-                    extras = {}
-                    for n in f[5]:gmatch('%d+') do extras[#extras + 1] = tonumber(n) end
-                end
-                local entry = {
-                    code = code:lower(), label = label:sub(1, 80),
-                    service = SERVICES[service:lower()] or 'other',
-                    livery = tonumber(f[4] or ''), extras = extras,
-                }
-                local existing = byCode[entry.code]
-                if existing then
-                    -- Même spawn code deux fois : la dernière ligne l'emporte (à la même place dans la liste)
-                    existing.label, existing.service = entry.label, entry.service
-                    existing.livery, existing.extras = entry.livery, entry.extras
-                else
-                    Vehicles[#Vehicles + 1] = entry
-                    byCode[entry.code] = entry
-                end
+                Vehicles[#Vehicles + 1] = entry
+                byCode[entry.code] = entry
             end
         end
     end
-    print(('^5[RP Interact]^0 %d véhicule(s) lu(s) dans data/vehicles.txt'):format(#Vehicles))
+    print(('^5[RP Interact]^0 %d véhicule(s) lu(s) dans data/vehicles.json'):format(#Vehicles))
 end
 
-loadVehicles()
+-- =========================================================================
+-- ARMES (data/loadouts.json) et TENUES (data/outfits.json, menu /eup)
+-- =========================================================================
+local Loadouts, Outfits = {}, {}
+
+local function loadLoadouts()
+    Loadouts = {}
+    for _, l in ipairs(readJsonList('data/loadouts.json') or {}) do
+        local name = trim(field(l, 'Name'))
+        if name ~= '' then
+            local weapons = {}
+            for _, w in ipairs(type(field(l, 'Weapons')) == 'table' and field(l, 'Weapons') or {}) do
+                local weapon = trim(field(w, 'Weapon')):upper()
+                if weapon ~= '' then
+                    local components = {}
+                    for _, c in ipairs(type(field(w, 'Components')) == 'table' and field(w, 'Components') or {}) do
+                        components[#components + 1] = trim(c):upper()
+                    end
+                    weapons[#weapons + 1] = { weapon = weapon, ammo = math.floor(tonumber(field(w, 'Ammo')) or 0), components = components }
+                end
+            end
+            Loadouts[#Loadouts + 1] = { name = name:sub(1, 80), replace = field(l, 'Replace') == true, weapons = weapons }
+        end
+    end
+end
+
+-- Pièces d'une tenue : nom dans le fichier -> composant (component) ou accessoire (prop) du personnage
+local OUTFIT_PARTS = {
+    Hat = { prop = 0 }, Glasses = { prop = 1 }, Ear = { prop = 2 }, Watch = { prop = 6 }, Bracelet = { prop = 7 },
+    Mask = { component = 1 }, UpperSkin = { component = 3 }, Pants = { component = 4 }, Parachute = { component = 5 },
+    Shoes = { component = 6 }, Accessories = { component = 7 }, UnderCoat = { component = 8 }, Armor = { component = 9 },
+    Decal = { component = 10 }, Top = { component = 11 },
+}
+local POLICE_GROUPS = {
+    apd = 'APD', ['atlanta police department'] = 'APD',
+    fcso = 'FCSO', ['fayette county sheriff office'] = 'FCSO',
+    gsp = 'GSP', ['georgia state patrol'] = 'GSP',
+}
+
+local function loadOutfits()
+    Outfits = {}
+    local oneBased = not (Config.Eup and Config.Eup.OneBased == false)
+    for i, o in ipairs(readJsonList('data/outfits.json') or {}) do
+        local name = trim(field(o, 'Name'))
+        if name == '' then
+            print(('^3[RP Interact] outfits.json : tenue n°%d ignorée (Name manquant).^0'):format(i))
+        else
+            local gender = trim(field(o, 'Gender')):lower()
+            gender = (gender == 'female' or gender == 'femme' or gender == 'f') and 'female'
+                or ((gender == 'male' or gender == 'homme' or gender == 'm') and 'male' or nil)
+            local cate = trim(field(o, 'Cate')):lower()
+            local group = trim(field(o, 'Category2'))
+            local isPolice = cate == 'police'
+            if isPolice then group = POLICE_GROUPS[group:lower()] or (group ~= '' and group:upper() or 'Autres') end
+            local components, props = {}, {}
+            for part, target in pairs(OUTFIT_PARTS) do
+                local value = field(o, part)
+                local d, t = tostring(value or ''):match('^%s*(%-?%d+)%s*:%s*(%-?%d+)%s*$')
+                d, t = tonumber(d), tonumber(t)
+                if d then
+                    if oneBased then d, t = d - 1, math.max((t or 1) - 1, 0) end
+                    if target.prop then
+                        props[#props + 1] = { target.prop, d, t or 0 } -- -1 : accessoire retiré
+                    else
+                        components[#components + 1] = { target.component, math.max(d, 0), t or 0 }
+                    end
+                end
+            end
+            Outfits[#Outfits + 1] = {
+                index = #Outfits + 1, name = name:sub(1, 80), gender = gender,
+                cate = isPolice and 'police' or 'civil', group = group ~= '' and group:sub(1, 40) or nil,
+                components = components, props = props,
+            }
+        end
+    end
+end
+
+local function loadAll()
+    loadVehicles()
+    loadLoadouts()
+    loadOutfits()
+    print(('^5[RP Interact]^0 %d tenue(s) (data/outfits.json), %d lot(s) d\'armes (data/loadouts.json)'):format(#Outfits, #Loadouts))
+end
+
+loadAll()
 RegisterCommand('rpi_vehicles', function(src)
-    if src == 0 or IsPlayerAceAllowed(src, Config.PoliceVehiclesAce) then loadVehicles() end
+    if src == 0 or IsPlayerAceAllowed(src, Config.PoliceVehiclesAce) then loadAll() end
 end, false)
 
 local function isPolice(src) return S.policeUnit(src) ~= nil end
@@ -124,124 +229,88 @@ local function validUrl(url)
     return url
 end
 
--- ---- Flux audio des vidéos YouTube (cherché par le serveur : pas de blocage CORS ni d'IP) ----
-local streamCache = {} -- [id de la vidéo] = { url, expires } (adresse valable quelques heures)
-local CACHE_SECONDS = 3 * 3600
+local MAX_QUEUE = 5
+local trackSeq = 0 -- n° unique de chaque morceau lancé (deux morceaux peuvent démarrer dans la même seconde)
 
-local function youtubeId(url)
-    local patterns = {
-        'youtube%.com/watch%?.-v=([%w_%-]+)', 'youtube%.com/shorts/([%w_%-]+)', 'youtube%.com/live/([%w_%-]+)',
-        'youtube%.com/embed/([%w_%-]+)', 'youtu%.be/([%w_%-]+)',
-    }
-    for _, pattern in ipairs(patterns) do
-        local id = url:match(pattern)
-        if id and #id == 11 then return id end
+--- État de la radio ; `seq` : celui du morceau en cours (nil : nouveau morceau)
+local function radioState(url, start, volume, by, queue, seq)
+    if not seq then trackSeq = trackSeq + 1; seq = trackSeq end
+    return { url = url, start = start, volume = volume, by = by, queue = queue or {}, seq = seq }
+end
+
+local function copyQueue(current)
+    local queue = {}
+    for i, url in ipairs(current and type(current.queue) == 'table' and current.queue or {}) do
+        if i > MAX_QUEUE then break end
+        queue[#queue + 1] = url
     end
-    return nil
+    return queue
 end
 
-local function httpGet(url, cb, headers)
-    PerformHttpRequest(url, function(status, body) cb(tonumber(status) or 0, body) end, 'GET', '', headers or {})
-end
-
---- Adresses de flux audio proposées par un service (de la meilleure à la moins bonne)
-local function candidates(kind, base, data)
-    local list = {}
-    if kind == 'piped' then
-        for _, a in ipairs(type(data.audioStreams) == 'table' and data.audioStreams or {}) do
-            if type(a) == 'table' and type(a.url) == 'string' then list[#list + 1] = { url = a.url, rate = tonumber(a.bitrate) or 0 } end
-        end
+--- Morceau suivant de la file "Écouter ensuite" (ou radio coupée si la file est vide)
+local function playNext(state, current)
+    local queue = copyQueue(current)
+    local nextUrl = table.remove(queue, 1)
+    if nextUrl then
+        state:set('rpiRadio', radioState(nextUrl, os.time(), current.volume, current.by, queue), true)
     else
-        for _, f in ipairs(type(data.adaptiveFormats) == 'table' and data.adaptiveFormats or {}) do
-            if type(f) == 'table' and type(f.url) == 'string' and tostring(f.type):find('^audio/') then
-                local url = f.url:sub(1, 1) == '/' and (base .. f.url) or f.url
-                list[#list + 1] = { url = url, rate = tonumber(f.bitrate) or 0 }
-            end
-        end
+        state:set('rpiRadio', false, true)
     end
-    -- Qualité correcte mais légère d'abord (~128 kb/s), puis le reste
-    table.sort(list, function(a, b)
-        local ga, gb = a.rate <= 170000, b.rate <= 170000
-        if ga ~= gb then return ga end
-        return a.rate > b.rate
-    end)
-    return list
-end
-
---- Cherche un flux audio lisible (le premier service qui répond et dont le flux se charge) ; cb(url | nil)
-local function resolveYouTube(id, cb)
-    local cached = streamCache[id]
-    if cached and cached.expires > os.time() then return cb(cached.url) end
-    local sources = {}
-    for _, base in ipairs(Config.RadioPiped or {}) do
-        sources[#sources + 1] = { kind = 'piped', base = base:gsub('/$', ''), path = '/streams/' .. id }
-    end
-    for _, base in ipairs(Config.RadioInvidious or {}) do
-        -- local=true : flux relayé par le service (lisible par les joueurs, autorisé pour le NUI)
-        sources[#sources + 1] = { kind = 'invidious', base = base:gsub('/$', ''), path = '/api/v1/videos/' .. id .. '?local=true' }
-    end
-    local i = 0
-    local function nextSource()
-        i = i + 1
-        local src = sources[i]
-        if not src then return cb(nil) end
-        httpGet(src.base .. src.path, function(status, body)
-            local ok, data = pcall(json.decode, body or '')
-            if status ~= 200 or not ok or type(data) ~= 'table' then return nextSource() end
-            local list = candidates(src.kind, src.base, data)
-            if #list == 0 then return nextSource() end
-            -- Le flux répond-il vraiment ? (2 octets demandés)
-            httpGet(list[1].url, function(code)
-                if code == 200 or code == 206 then
-                    streamCache[id] = { url = list[1].url, expires = os.time() + CACHE_SECONDS }
-                    return cb(list[1].url)
-                end
-                nextSource()
-            end, { Range = 'bytes=0-1' })
-        end)
-    end
-    nextSource()
-end
-
---- Radio lancée avec un lien YouTube : flux cherché, puis ajouté à l'état du véhicule (si inchangé)
-local function attachStream(vehicle, radio)
-    local id = youtubeId(radio.url)
-    if not id then return end
-    resolveYouTube(id, function(stream)
-        if not DoesEntityExist(vehicle) then return end
-        local state = Entity(vehicle).state
-        local current = state.rpiRadio
-        if type(current) ~= 'table' or current.url ~= radio.url or current.start ~= radio.start then return end
-        local copy = {}
-        for k, v in pairs(current) do copy[k] = v end
-        copy.stream = stream or false
-        state:set('rpiRadio', copy, true)
-    end)
 end
 
 S.on('radio', function(src, p)
     if not allowed(src, 'car') then return DENIED end
     local vehicle = vehicleFromNet(p.netId)
     if not vehicle then return { ok = false, error = 'Véhicule introuvable.' } end
+    local state = Entity(vehicle).state
+    local current = type(state.rpiRadio) == 'table' and state.rpiRadio or nil
+
+    -- Fin d'un morceau (signalée par un joueur qui l'entend) : morceau suivant de la file
+    if p.action == 'ended' then
+        if not current or current.seq ~= tonumber(p.seq) then return { ok = true } end -- déjà passé
+        local ped = GetPlayerPed(src)
+        if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) > 40.0 then return { ok = false } end
+        playNext(state, current)
+        return { ok = true }
+    end
+
     if not canUseRadio(src, vehicle) then
         return { ok = false, error = 'Seules les places avant peuvent régler la radio.' }
     end
-    local state = Entity(vehicle).state
-    local current = type(state.rpiRadio) == 'table' and state.rpiRadio or nil
     if p.action == 'play' then
         local url = validUrl(p.url)
         if not url then return { ok = false, error = 'Lien invalide (adresse http:// ou https://).' } end
         local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or (current and current.volume) or 60)))
-        local radio = { url = url, start = os.time(), volume = volume, by = src }
-        if not youtubeId(url) then radio.stream = false end -- lien direct : rien à chercher
-        state:set('rpiRadio', radio, true)
-        attachStream(vehicle, radio)
+        state:set('rpiRadio', radioState(url, os.time(), volume, src, copyQueue(current)), true)
+    elseif p.action == 'queue' then
+        -- "+" : ajouté à la file "Écouter ensuite" (radio éteinte : lancé tout de suite)
+        local url = validUrl(p.url)
+        if not url then return { ok = false, error = 'Lien invalide (adresse http:// ou https://).' } end
+        if not current then
+            local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or 60)))
+            state:set('rpiRadio', radioState(url, os.time(), volume, src), true)
+        else
+            local queue = copyQueue(current)
+            if #queue >= MAX_QUEUE then return { ok = false, error = ('File pleine (%d morceaux au maximum).'):format(MAX_QUEUE) } end
+            queue[#queue + 1] = url
+            state:set('rpiRadio', radioState(current.url, current.start, current.volume, current.by, queue, current.seq), true)
+        end
+    elseif p.action == 'unqueue' then
+        if not current then return { ok = false, error = 'La radio est éteinte.' } end
+        local queue = copyQueue(current)
+        local index = math.tointeger(tonumber(p.index))
+        if not index or not queue[index] then return { ok = false, error = 'Morceau introuvable.' } end
+        table.remove(queue, index)
+        state:set('rpiRadio', radioState(current.url, current.start, current.volume, current.by, queue, current.seq), true)
+    elseif p.action == 'next' then
+        if not current then return { ok = false, error = 'La radio est éteinte.' } end
+        playNext(state, current)
     elseif p.action == 'stop' then
         state:set('rpiRadio', false, true)
     elseif p.action == 'volume' then
         if not current then return { ok = false, error = 'La radio est éteinte.' } end
         local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or current.volume)))
-        state:set('rpiRadio', { url = current.url, start = current.start, volume = volume, by = current.by, stream = current.stream }, true)
+        state:set('rpiRadio', radioState(current.url, current.start, volume, current.by, copyQueue(current), current.seq), true)
     else
         return { ok = false, error = 'Action inconnue.' }
     end
@@ -249,15 +318,35 @@ S.on('radio', function(src, p)
 end)
 
 -- =========================================================================
--- ÉQUIPEMENTS (data/equipment.lua)
+-- ÉQUIPEMENTS : armes (data/loadouts.json) et tenues (data/outfits.json, menu /eup)
 -- =========================================================================
+S.on('loadoutList', function(src)
+    local list = {}
+    for i, l in ipairs(Loadouts) do list[#list + 1] = { index = i, name = l.name } end
+    return { ok = true, loadouts = list, police = isPolice(src), policeOnly = Config.EquipmentPoliceOnly ~= false }
+end)
+
 S.on('equipment', function(src, p)
     if not allowed(src, 'equipment') then return DENIED end
     if Config.EquipmentPoliceOnly ~= false and not isPolice(src) then
         return { ok = false, error = 'Réservé à la police : rejoignez une unité dans le MDC.' }
     end
-    local list = p.kind == 'outfit' and InteractEquipment.Outfits or p.kind == 'loadout' and InteractEquipment.Loadouts or nil
-    local index = tonumber(p.index)
-    if not list or not index or not list[index] then return { ok = false, error = 'Équipement inconnu.' } end
-    return { ok = true }
+    local loadout = p.kind == 'loadout' and Loadouts[tonumber(p.index) or 0] or nil
+    if not loadout then return { ok = false, error = 'Équipement inconnu.' } end
+    return { ok = true, loadout = loadout }
+end)
+
+--- Menu /eup : toutes les tenues (le client garde celles de son personnage homme / femme)
+S.on('eupList', function(src)
+    local policeOnly = Config.Eup and Config.Eup.PoliceOnly == true
+    return { ok = true, outfits = Outfits, policeLocked = policeOnly and not isPolice(src) or false }
+end)
+
+S.on('eupWear', function(src, p)
+    local outfit = Outfits[tonumber(p.index) or 0]
+    if not outfit then return { ok = false, error = 'Tenue inconnue.' } end
+    if outfit.cate == 'police' and Config.Eup and Config.Eup.PoliceOnly == true and not isPolice(src) then
+        return { ok = false, error = 'Tenues de police réservées aux policiers en service (unité du MDC).' }
+    end
+    return { ok = true, outfit = outfit }
 end)

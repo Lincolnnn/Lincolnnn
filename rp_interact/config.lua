@@ -23,31 +23,23 @@ InteractConfig = {
         Sections = { equipment = true, car = true }, -- Équipements, Voiture (spawn, radio)
     },
 
-    -- MENU > VOITURE (véhicules listés dans data/vehicles.txt) et ÉQUIPEMENTS (data/equipment.lua)
-    SpawnPoliceOnly = true,         -- véhicules de police (APD / GSP) réservés aux policiers en service
-    EquipmentPoliceOnly = true,     -- tenues et armes réservées aux policiers en service
+    -- MENU > VOITURE (véhicules de data/vehicles.json) et ÉQUIPEMENTS (armes de data/loadouts.json)
+    SpawnPoliceOnly = true,         -- véhicules de police (APD / GSP / FCSO) réservés aux policiers en service
+    EquipmentPoliceOnly = true,     -- armes réservées aux policiers en service
+
+    -- MENU DES TENUES (/eup, ou Menu Interaction > Équipements > "Accéder aux tenues") : tenues de
+    -- data/outfits.json, uniquement dans ce fichier. Menu au clavier : flèches haut / bas, Entrée (ou
+    -- flèche droite) pour ouvrir / mettre la tenue, Retour arrière (ou flèche gauche) pour revenir.
+    Eup = {
+        Command = 'eup',
+        PoliceOnly = false,         -- true : tenues de police réservées aux policiers en service (unité du MDC)
+        OneBased = true,            -- numéros "24:1" comptés à partir de 1 (format EUP habituel) ; false : à partir de 0
+    },
     -- Radio du véhicule (lien YouTube ou lien direct vers un son / une radio en ligne)
     RadioRangeClosed = 15.0,        -- m : entendue dehors jusqu'à 15 m, vitres et portières fermées
     RadioRangeOpen = 25.0,          -- m : jusqu'à 25 m avec une portière (coffre, capot) ouverte ou une vitre baissée
-    RadioInsulation = 0.18,         -- volume entendu dehors quand tout est fermé ("insonorisé", en plus du
-                                    -- filtre passe-bas qui étouffe le son : on n'entend plus que les basses)
+    RadioInsulation = 0.18,         -- volume entendu dehors quand tout est fermé (pas d'autre effet sur le son)
     RadioMaxVolume = 0.8,           -- volume maximal (radio à 100 %) pour tous les joueurs
-    -- Liens YouTube : le SERVEUR cherche le flux audio de la vidéo auprès de ces services (Piped, puis
-    -- Invidious ; le premier qui répond est gardé). Lu en flux audio, le son peut être étouffé et placé
-    -- (gauche / droite) ; sinon, lecteur YouTube classique (volume seulement). Ces services publics
-    -- changent souvent : ajoutez / retirez des adresses au besoin. {} = toujours le lecteur classique.
-    RadioPiped = {
-        'https://pipedapi.kavin.rocks',
-        'https://pipedapi.adminforge.de',
-        'https://api.piped.private.coffee',
-        'https://pipedapi.r4fo.com',
-    },
-    RadioInvidious = {
-        'https://inv.nadeko.net',
-        'https://invidious.nerdvpn.de',
-        'https://yewtu.be',
-        'https://invidious.f5.si',
-    },
 
     -- Ressources liées (nom des dossiers)
     MdcResource = 'mdc_standalone', -- "policier" = joueur dans une unité du MDC
@@ -125,7 +117,7 @@ InteractConfig = {
     -- joueurs ou des scripts) en les visant, jusqu'à DeleteDistance mètres.
     -- 'police' = joueurs dans une unité du MDC ; 'everyone' = tout le monde.
     -- La permission ACE DeleteAce l'autorise toujours (ex. add_ace group.admin rpinteract.delete allow).
-    DeleteAccess = 'police',
+    DeleteAccess = 'everyone',
     DeleteAce = 'rpinteract.delete',
 
     -- VÉHICULES DE POLICE : /policeon -> seuls les policiers (unité du MDC) y montent ; /policeoff (par

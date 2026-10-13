@@ -57,12 +57,12 @@
             </button>
         </div>
 
-        <!-- ================= ÉQUIPEMENTS (data/equipment.lua) ================= -->
+        <!-- ================= ÉQUIPEMENTS (tenues : data/outfits.json, armes : data/loadouts.json) ================= -->
         <div class="menu-view hidden" data-view="equipment">
-            <div class="menu-active none hidden" id="equipNotice"></div>
             <div class="menu-section">Tenues</div>
-            <div class="menu-list" id="outfitList"></div>
+            <button type="button" class="menu-btn" id="openEup">Accéder aux tenues</button>
             <div class="menu-section">Armes</div>
+            <div class="menu-active none hidden" id="equipNotice"></div>
             <div class="menu-list" id="loadoutList"></div>
             <button type="button" class="menu-btn menu-btn-soft" id="weaponsRemove">Retirer mes armes</button>
         </div>
@@ -126,16 +126,22 @@
                     <input type="text" id="radioUrl" maxlength="400" placeholder="https://…">
                 </label>
                 <div class="menu-row">
-                    <button type="button" class="menu-btn" id="radioPlay">Lancer</button>
+                    <button type="button" class="menu-btn" id="radioPlay" title="Lancer ce lien maintenant">Lancer</button>
+                    <button type="button" class="menu-btn radio-add" id="radioAdd" title="Ajouter à « Écouter ensuite » (5 max)">+</button>
+                </div>
+                <div class="menu-row">
+                    <button type="button" class="menu-btn menu-btn-soft" id="radioNext" title="Passer au morceau suivant de la file">Suivant</button>
                     <button type="button" class="menu-btn menu-btn-soft" id="radioStop">Arrêter</button>
                 </div>
+                <div class="menu-section" id="radioQueueTitle">Écouter ensuite (0 / 5)</div>
+                <div class="radio-queue" id="radioQueue"></div>
                 <label class="menu-field">Volume du véhicule <span class="menu-value" id="radioVolumeValue">60 %</span>
                     <input type="range" id="radioVolume" min="0" max="100" step="1" value="60">
                 </label>
             </div>
-            <p class="menu-text" id="radioHint">Tout le monde l'entend au même volume : à bord, et dehors selon la distance ;
-                son étouffé si vitres et portières sont fermées. Réglable seulement depuis les places avant
-                (ou avec l'œil, portière avant ouverte).</p>
+            <p class="menu-text" id="radioHint">Tout le monde l'entend au même moment et au même volume : à bord, et dehors selon
+                la distance (plus bas si vitres et portières sont fermées). « + » ajoute le lien à la file « Écouter ensuite »
+                (5 max), lue à la suite. Réglable seulement depuis les places avant (ou avec l'œil, portière avant ouverte).</p>
         </div>
 
         <div class="menu-view hidden" data-view="civil">
@@ -241,6 +247,20 @@
         <div class="tips-title" id="tipsTitle">Tips arrestation</div>
         <div class="tips-keys" id="tipsKeys"></div>
         <div class="tips-close">Échap : fermer</div>
+    </div>
+
+    <!-- Menu des tenues /eup : au clavier (flèches, Entrée, Retour arrière), en haut à gauche -->
+    <div class="eup hidden" id="eup" aria-hidden="true">
+        <div class="eup-banner" id="eupBanner"><span class="eup-title">Tenues</span><span class="eup-sub">EUP</span></div>
+        <div class="eup-crumb"><span id="eupCrumb"></span><span class="eup-count" id="eupCount"></span></div>
+        <div class="eup-list" id="eupList"></div>
+        <div class="eup-desc" id="eupDesc"></div>
+        <div class="eup-keys">
+            <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> Choisir</span>
+            <span><kbd>Entrée</kbd> Valider</span>
+            <span><kbd>&#8592;</kbd> Retour</span>
+            <span><kbd>Échap</kbd> Fermer</span>
+        </div>
     </div>
 
     <!-- Lecteurs de la radio des véhicules (invisibles) -->

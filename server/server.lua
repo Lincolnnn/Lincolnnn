@@ -1019,6 +1019,7 @@ local function unitView(unit)
     return {
         id = unit.id, name = unit.name, tag = unit.tag, color = unit.color, dept = unit.dept,
         status = unit.status, updatedAt = unit.updatedAt, members = members,
+        memo = unit.memo or '', -- note de l'unité (barre du bas du MDC : rappels, observations)
     }
 end
 
@@ -1168,6 +1169,17 @@ RegisterMDCCallback('setStatus', function(src, payload)
     unit.updatedAt = os.time()
     pushUnits()
     notifyUnitStatus(unit)
+    return { ok = true }
+end)
+
+-- Note de l'unité (barre du bas du MDC) : rappels, observations… modifiable par ses membres
+RegisterMDCCallback('setUnitMemo', function(src, payload)
+    local unit = findUnit(PlayerUnit[src])
+    if not unit then return { ok = false, error = 'Rejoignez une unité pour écrire sa note.' } end
+    local memo = clean(payload.memo, 160)
+    if memo == (unit.memo or '') then return { ok = true } end
+    unit.memo = memo
+    pushUnits()
     return { ok = true }
 end)
 

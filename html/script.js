@@ -417,7 +417,24 @@
         const cell = $('#sbStatus');
         cell.querySelector('.sq').dataset.status = unit ? unit.status : '';
         cell.lastElementChild.textContent = unit ? `${unit.name} — ${STATUS_LABELS[unit.status] || unit.status}` : 'Hors unité';
+
+        // Note de l'unité (barre du bas) : partagée entre ses membres
+        const memo = $('#sbMemo');
+        memo.disabled = !unit;
+        memo.placeholder = unit ? `Note de l'unité ${unit.name} : rappels, observations…` : 'Note de l\'unité : rejoignez une unité';
+        if (document.activeElement !== memo) memo.value = unit ? (unit.memo || '') : '';
     }
+
+    // Note de l'unité : envoyée au serveur pendant la frappe (après une courte pause) et à la sortie du champ
+    let memoTimer = null;
+    const saveMemo = () => {
+        clearTimeout(memoTimer);
+        if (!myUnit()) return;
+        post('setUnitMemo', { memo: $('#sbMemo').value });
+    };
+    $('#sbMemo').addEventListener('input', () => { clearTimeout(memoTimer); memoTimer = setTimeout(saveMemo, 700); });
+    $('#sbMemo').addEventListener('change', saveMemo);
+    $('#sbMemo').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
 
     async function changeStatus(status) {
         const unit = myUnit();

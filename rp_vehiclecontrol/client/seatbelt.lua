@@ -67,7 +67,7 @@ local function refreshChime()
     if key ~= lastChime then
         lastChime = key
         -- carillon du tableau de bord (volume renforcé : ChimeVolume)
-        VC.soundLoop('chime', { 'belt_chime' }, 1100, volume * (Config.ChimeVolume or 1.2), false, muffled)
+        VC.soundLoop('chime', { 'belt_chime' }, 1100, volume * (Config.ChimeVolume or 1.56), false, muffled)
     end
 end
 
@@ -135,7 +135,7 @@ end)
 -- MDC : bouton "Tester" du volume des sons du véhicule
 AddEventHandler('rp_vehiclecontrol:testSound', function(volume)
     VC.sound('belt_on', Config.BeltSoundVolume or 1.725, volume)
-    SetTimeout(600, function() VC.sound('belt_chime', Config.ChimeVolume or 1.2, volume) end)
+    SetTimeout(600, function() VC.sound('belt_chime', Config.ChimeVolume or 1.56, volume) end)
 end)
 
 VC.on('tick', function(ped, vehicle)
@@ -178,6 +178,7 @@ local function eject(ped, vehicle, velocity)
 end
 
 VC.on('impact', function(vehicle, before, drop, velocity)
+    if not Config.Eject then return end -- éjection désactivée (config.lua : Seatbelt.Eject)
     if belt or not hasBelt(vehicle) then return end
     if not VC.isViolentCrash(before, drop) then return end
     local ped = PlayerPedId()

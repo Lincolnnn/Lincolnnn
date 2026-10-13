@@ -40,7 +40,7 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 - **Flèche gauche / droite** : clignotant ; **flèche bas** : warnings. Les feux sont visibles par tous les joueurs.
 - **Son du relais** (un seul fichier, `indicators_sound.ogg`, pour les clignotants et les warnings) joué **en boucle
-  tant que le clignotant n'est pas coupé** (`SignalSoundMode`), volume `SignalVolume` (renforcé : 1,594), **même si tout le monde
+  tant que le clignotant n'est pas coupé** (`SignalSoundMode`), volume `SignalVolume` (renforcé : 4,782, soit +200 %), **même si tout le monde
   est descendu** : entendu à 100 % à bord et **autour du véhicule** (voir *Sons entendus autour du véhicule*).
   Comme dans une vraie voiture, le clignotant **s'arrête tout seul après le virage** (volant revenu droit après avoir tourné de 60°, `SignalCancelAngle`). Les warnings restent
   jusqu'à la touche, même véhicule laissé.
@@ -50,7 +50,7 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 Les sons du véhicule sont des **fichiers audio que vous déposez vous-même** dans `html/sounds/` (aucun n'est fourni,
 voir `html/sounds/LISEZMOI.txt`), au format .ogg : `belt_on` (ceinture attachée), `belt_off` (détachée), `belt_chime`
 (carillon), `indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
-**plus fort** (×1,725, `Seatbelt.BeltSoundVolume`) et le carillon renforcé de 20 % (`Seatbelt.ChimeVolume`). Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
+**plus fort** (×1,725, `Seatbelt.BeltSoundVolume`) et le carillon renforcé (1,56, `Seatbelt.ChimeVolume`). Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
 est joué en boucle (`SignalSoundMode = 'loop'`,
 le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes les `SignalInterval` ms (`'repeat'`).
 Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaque joueur dans le MDC
@@ -122,13 +122,13 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   descend du véhicule, ou que le véhicule est **arrêté** (moins de 2 MPH, `StopSpeed`).
 - **Sons synchronisés** : les autres occupants les entendent à 100 %, les joueurs autour selon les règles ci-dessus
   (3 m portière ouverte, 1 m tout fermé et étouffés).
-- **Éjection** (ceinture **détachée**), lors d'un **choc contre un objet fixe (mur…) ou un véhicule** (arrêté ou en
-  mouvement) :
+- **Éjection : désactivée** par défaut (`Seatbelt.Eject = false`) : sans ceinture, le joueur n'est **jamais éjecté**
+  (l'éjection automatique du jeu reste désactivée elle aussi). Avec `Seatbelt.Eject = true`, éjection (ceinture
+  **détachée**) lors d'un **choc contre un objet fixe (mur…) ou un véhicule** (arrêté ou en mouvement) :
   - au-dessus de **55 MPH** : dès que le choc fait perdre au moins 15 MPH ;
   - entre **40 et 55 MPH** : si la vitesse chute brutalement (au moins 30 MPH, ex. **45 → 0**) ;
   - **jamais en dessous de 40 MPH**.
-  Le joueur traverse le pare-brise avec l'élan du véhicule et perd des points de vie. Attaché : jamais éjecté
-  (l'éjection automatique du jeu est désactivée, seule cette règle compte).
+  Le joueur traverse le pare-brise avec l'élan du véhicule et perd des points de vie. Attaché : jamais éjecté.
 
 ## Portières (depuis l'intérieur)
 
@@ -160,7 +160,7 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume renforcé) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
-| `Seatbelt` | carillon (au-dessus de 5 MPH, coupé sous 2 MPH), règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |
+| `Seatbelt` | carillon (au-dessus de 5 MPH, coupé sous 2 MPH), éjection (`Eject`, désactivée par défaut ; règles 55 / 40 MPH, pertes de vitesse), classes sans ceinture |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
 | `EngineNoticeDuration`, `EngineStartTime` | durée de la notification du moteur (8 s), durée du démarrage (1,2 s) |
 | `StopLights`, `KeepWheelAngle` | feux stop à l'arrêt moteur tournant, angle des roues gardé à la descente |

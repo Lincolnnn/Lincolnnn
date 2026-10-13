@@ -1,19 +1,18 @@
 --[[
     RP Interact - Menu "Voiture > Spawn" et "Équipements" (client)
     ---------------------------------------------------------------
-    SPAWN : véhicules de data/vehicles.txt uniquement (liste envoyée par le serveur), classés Police
+    SPAWN : véhicules de data/vehicles.json uniquement (liste envoyée par le serveur), classés Police
       (Atlanta Police Department / Georgia State Patrol) et Autres. Deux options en haut, gardées chez
       le joueur : "Supprimer l'ancien véhicule" (le dernier qu'il a fait apparaître, s'il n'y a pas
       d'autre joueur dedans) et "Apparaître dans le véhicule". Livery et extras de la liste appliqués.
       Le véhicule est créé par ce script : Vehicle Control le considère comme neuf (plein, moteur coupé).
-    ÉQUIPEMENTS : tenues EUP et armes configurées par le serveur (data/equipment.lua), selon le
-      personnage homme / femme. Le joueur ne peut pas enregistrer de tenue : il choisit parmi celles-ci.
+    ÉQUIPEMENTS : armes configurées par le serveur (data/loadouts.json) ; bouton "Accéder aux tenues"
+      (menu /eup, client/eup.lua, tenues de data/outfits.json).
     Aucune boucle.
 ]]
 
 local Config = InteractConfig
 local KVP_OPTIONS = 'rpi_spawn_options'
-local MALE, FEMALE = GetHashKey('mp_m_freemode_01'), GetHashKey('mp_f_freemode_01')
 
 local function loadOptions()
     local options = { deleteOld = true, warpInto = true }
@@ -142,40 +141,14 @@ RegisterNUICallback('spawnVehicle', function(data, cb)
 end)
 
 -- =========================================================================
--- ÉQUIPEMENTS : tenues EUP et armes (data/equipment.lua)
+-- ÉQUIPEMENTS : armes (data/loadouts.json) ; les tenues sont dans le menu /eup (client/eup.lua)
 -- =========================================================================
-local function gender()
-    local model = GetEntityModel(PlayerPedId())
-    if model == MALE then return 'male' end
-    if model == FEMALE then return 'female' end
-    return nil
-end
-
 RegisterNUICallback('equipmentList', function(_, cb)
-    local g = gender()
-    local outfits, loadouts = {}, {}
-    for i, o in ipairs(InteractEquipment and InteractEquipment.Outfits or {}) do
-        if g and (o.gender == nil or o.gender == g) then
-            outfits[#outfits + 1] = { index = i, name = o.name, service = o.service }
-        end
-    end
-    for i, l in ipairs(InteractEquipment and InteractEquipment.Loadouts or {}) do
-        loadouts[#loadouts + 1] = { index = i, name = l.name }
-    end
-    cb({
-        ok = true, outfits = outfits, loadouts = loadouts, freemode = g ~= nil,
-        police = RPI.isPolice(), policeOnly = Config.EquipmentPoliceOnly ~= false,
-    })
+    RPI.request('loadoutList', {}, function(res)
+        res = res or {}
+        cb({ ok = res.ok == true, loadouts = res.loadouts or {}, police = res.police == true, policeOnly = res.policeOnly ~= false })
+    end)
 end)
-
-local function applyOutfit(ped, look)
-    for id, v in pairs(look.components or {}) do
-        SetPedComponentVariation(ped, tonumber(id), v[1], v[2] or 0, 0)
-    end
-    for id, v in pairs(look.props or {}) do
-        if v[1] == nil or v[1] < 0 then ClearPedProp(ped, tonumber(id)) else SetPedPropIndex(ped, tonumber(id), v[1], v[2] or 0, true) end
-    end
-end
 
 local function giveLoadout(ped, loadout)
     if loadout.replace then RemoveAllPedWeapons(ped, true) end
@@ -195,22 +168,21 @@ RegisterNUICallback('useEquipment', function(data, cb)
         cb({ ok = true })
         return RPI.notify('Armes retirées.', 'success')
     end
-    if data.kind ~= 'outfit' and data.kind ~= 'loadout' then return cb({ ok = false }) end
-    RPI.request('equipment', { kind = data.kind, index = data.index }, function(res)
-        if not res or not res.ok then
+    if data.kind ~= 'loadout' then return cb({ ok = false }) end
+    RPI.request('equipment', { kind = 'loadout', index = data.index }, function(res)
+        if not res or not res.ok or type(res.loadout) ~= 'table' then
             cb({ ok = false, error = res and res.error })
             return RPI.notify(res and res.error or 'Action impossible.', 'error')
         end
-        ped = PlayerPedId()
-        if data.kind == 'outfit' then
-            local outfit = InteractEquipment.Outfits[tonumber(data.index)]
-            applyOutfit(ped, outfit)
-            RPI.notify(('Tenue : %s'):format(outfit.name), 'success')
-        else
-            local loadout = InteractEquipment.Loadouts[tonumber(data.index)]
-            giveLoadout(ped, loadout)
-            RPI.notify(('Armes : %s'):format(loadout.name), 'success')
-        end
+        giveLoadout(PlayerPedId(), res.loadout)
+        RPI.notify(('Armes : %s'):format(res.loadout.name), 'success')
         cb({ ok = true })
     end)
+end)
+
+-- Équipements > "Accéder aux tenues" : menu /eup
+RegisterNUICallback('openEup', function(_, cb)
+    cb({ ok = true })
+    if RPI.closeMenu then RPI.closeMenu() end
+    if RPI.openEup then RPI.openEup() end
 end)

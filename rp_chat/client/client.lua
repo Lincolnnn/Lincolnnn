@@ -21,6 +21,8 @@ local KVP_KEY = 'rpchat_settings'
 -- Commandes gérées par ce chat (envoyées au serveur). Les autres commandes tapées dans le
 -- chat (/mdc, commandes d'autres ressources…) sont exécutées normalement.
 local RP_COMMANDS = { nomrp = true, me = true, info = true, qst = true, rep = true }
+-- Commandes possibles même sans nom RP (/nomrp) : /dv (supprimer un véhicule), /eup (tenues, rp_interact)
+local NO_NAME_COMMANDS = { dv = true, eup = true }
 
 local isOpen = false
 local nuiReady = false
@@ -168,7 +170,7 @@ RegisterNUICallback('ready', function(_, cb)
     cb({ ok = true })
 end)
 
-local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv.'
+local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup.'
 
 -- =========================================================================
 -- /dv : supprime UN véhicule (celui où l'on se trouve, sinon celui qu'on regarde, sinon le plus proche,
@@ -252,8 +254,8 @@ RegisterNUICallback('submit', function(data, cb)
         return
     end
 
-    -- Sans nom RP, seule /nomrp est autorisée
-    if myRpName() == '' then
+    -- Sans nom RP, seules /nomrp, /dv et /eup sont autorisées
+    if myRpName() == '' and not NO_NAME_COMMANDS[command] then
         system('Définissez d\'abord votre nom RP : /nomrp [nom RP]', 'error')
         return
     end

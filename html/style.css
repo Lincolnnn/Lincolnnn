@@ -1386,3 +1386,35 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 
 /* ---- MDC ouvert avec le flou : seul le jeu est flouté (client/client.lua) ; les HUD (PLD, car HUD,
    display MDC) restent nets ---- */
+
+/* =========================================================================
+   DISPOSITION : statuts de l'unité en haut à gauche (vertical), pages du MDC à droite (vertical),
+   contenu des pages au centre ; barre du bas : note de l'unité, statut, heure
+   ========================================================================= */
+.sidebar { width: 210px; }
+.sidebar .status-group { margin-top: 0; }
+.navbar {
+    display: flex; flex-direction: column; gap: 14px;
+    width: 196px; flex-shrink: 0; padding: 14px 10px;
+    background: rgba(8, 8, 8, var(--glass-a));
+    border-left: 1px solid var(--line);
+    overflow-y: auto;
+}
+.navbar .sidenav .tab.active::before { left: auto; right: 0; border-radius: 3px 0 0 3px; }
+
+/* Statuts : carrés de couleur (liste des statuts, listes des unités, barre du bas), sans halo */
+.sq, .status-btn .sq, .badge .sq, .hu-line .sq, .ct-status .sq { border-radius: 2px; }
+.status-btn .sq { box-shadow: none; }
+/* Statut sélectionné : sur-brillance discrète (fond léger + trait de couleur) */
+.status-btn.active { background: rgba(var(--c), .08); color: var(--text); font-weight: 600; }
+
+/* Note de l'unité (barre du bas) */
+.statusbar { align-items: center; }
+.sb-memo {
+    min-width: 0; height: 22px; padding: 0 10px; box-sizing: border-box; line-height: 20px; margin: 0;
+    background: rgba(255, 255, 255, .05); color: var(--text);
+    border: 1px solid transparent; border-radius: 6px;
+    font: 12px var(--font);
+}
+.sb-memo:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, .08); }
+.sb-memo:disabled { opacity: .5; cursor: not-allowed; }

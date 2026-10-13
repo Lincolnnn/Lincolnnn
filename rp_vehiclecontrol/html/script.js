@@ -52,7 +52,7 @@
         volume = Math.max(Number(volume) || 0, 0);
         if (v.gain) {
             v.audio.volume = 1;
-            v.gain.gain.value = Math.min(volume, 2);
+            v.gain.gain.value = Math.min(volume, 6); // amplification jusqu'à x6 (clignotants renforcés)
             v.filter.frequency.value = muffled ? MUFFLED_HZ : CLEAR_HZ;
         } else {
             v.audio.volume = Math.min(volume, 1);

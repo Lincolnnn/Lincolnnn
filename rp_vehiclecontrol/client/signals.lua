@@ -62,7 +62,7 @@ local function soundLoop()
                     untrack(key) -- clignotant coupé : son coupé net
                 else
                     local hear, muffled = VC.hearVehicle(vehicle)
-                    sendSound(key, (Config.SignalVolume or 1.594) * hear, muffled)
+                    sendSound(key, (Config.SignalVolume or 4.782) * hear, muffled)
                 end
             end
             Wait(200)
@@ -77,7 +77,7 @@ local function track(vehicle, on)
     if on then
         if not tracked[key] then tracked[key] = { vehicle = vehicle, since = GetGameTimer() } end
         local hear, muffled = VC.hearVehicle(vehicle)
-        sendSound(key, (Config.SignalVolume or 1.594) * hear, muffled) -- tout de suite (touche du conducteur)
+        sendSound(key, (Config.SignalVolume or 4.782) * hear, muffled) -- tout de suite (touche du conducteur)
         soundLoop()
     elseif tracked[key] then
         untrack(key)

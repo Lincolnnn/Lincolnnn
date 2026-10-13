@@ -211,7 +211,6 @@ local lastDv = {}
 RegisterNetEvent('rp_chat:server:dv', function(netId)
     local src = source
     local function reply(result) TriggerClientEvent('rp_chat:client:dv', src, result, netId) end
-    if rpNameOf(src) == '' then return reply('Définissez d\'abord votre nom RP : /nomrp [nom RP]') end
     if not hasPermission(src, 'dv') then return reply('Vous n\'avez pas la permission d\'utiliser /dv.') end
     local now = GetGameTimer()
     if lastDv[src] and now - lastDv[src] < Config.Cooldown then return reply('Patientez un instant.') end

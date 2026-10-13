@@ -38,17 +38,7 @@
                     </div>
                 </div>
 
-                <!-- Navigation : pages à la verticale ("Créations" seulement en mode civil, rp_interact) -->
-                <nav class="sidenav" role="tablist">
-                    <button class="tab active" data-page="units" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0zM17 11a3 3 0 1 0 0-6M19 20h3a5 5 0 0 0-4-4.9"/></svg><span>Unités</span></button>
-                    <button class="tab" data-page="interventions" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 16H3zM12 10v4M12 17h.01"/></svg><span>Interventions</span></button>
-                    <button class="tab" data-page="search" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg><span>Recherches</span></button>
-                    <button class="tab" data-page="reports" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/></svg><span>Rapports</span></button>
-                    <button class="tab" data-page="create" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Créations</span></button>
-                    <button class="tab" data-page="settings" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Paramètres</span></button>
-                </nav>
-
-                <!-- Unité du joueur et statuts : en bas de la barre latérale -->
+                <!-- Unité du joueur et statuts : en haut à gauche, à la verticale -->
                 <div class="group status-group">
                     <span class="legend">Statut de l'unité</span>
                     <div class="my-unit" id="myUnit">Aucune unité</div>
@@ -938,12 +928,13 @@
                                 <div class="subgroup">
                                     <span class="subgroup-title">Liste des commandes</span>
                                     <dl class="chat-commands">
-                                        <dt>/nomrp [nom]</dt><dd>Nom RP, aussi celui du MDC (à refaire à chaque connexion). Obligatoire avant toute autre commande et pour rejoindre une unité.</dd>
+                                        <dt>/nomrp [nom]</dt><dd>Nom RP, aussi celui du MDC (à refaire à chaque connexion). Obligatoire avant toute autre commande (sauf /dv et /eup) et pour rejoindre une unité.</dd>
                                         <dt>/me [action]</dt><dd><span class="chat-sample me"><b>John Carter</b> jette l'arme au sol</span> — rayon de 100 m</dd>
                                         <dt>/info [texte]</dt><dd><span class="chat-sample info">Texte de l'information</span> — tout le monde, sans nom RP</dd>
                                         <dt>/qst [texte]</dt><dd><span class="chat-sample qst"><b><u>John Carter</u></b> <b>Question :</b> …</span> — tout le monde</dd>
                                         <dt>/rep [texte]</dt><dd><span class="chat-sample rep"><b><u>John Carter</u></b> <b>Réponse :</b> …</span> — tout le monde</dd>
-                                        <dt>/dv</dt><dd>Supprime UN véhicule : celui où vous êtes, sinon celui que vous regardez, sinon le plus proche (5 m) ; jamais un véhicule où se trouve un autre joueur</dd>
+                                        <dt>/dv</dt><dd>Supprime UN véhicule : celui où vous êtes, sinon celui que vous regardez, sinon le plus proche (5 m) ; jamais un véhicule où se trouve un autre joueur. Sans nom RP aussi.</dd>
+                                        <dt>/eup</dt><dd>Menu des tenues (Police : APD, FCSO, GSP ; Civil), au clavier : flèches, Entrée, Retour arrière. Sans nom RP aussi.</dd>
                                     </dl>
                                 </div>
                                 <p class="hint-text setting-text">Ouvrir / fermer le chat : touche <b id="chatKey">T</b> (ou Échap pour fermer). Pour la changer :
@@ -953,11 +944,27 @@
                     </details>
                 </section>
             </main>
+
+            <!-- ================= PAGES DU MDC (à droite) ================= -->
+            <aside class="navbar">
+                <!-- Navigation : les pages à la verticale, à droite ("Créations" seulement en mode civil, rp_interact) -->
+                <nav class="sidenav" role="tablist">
+                    <button class="tab active" data-page="units" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0zM17 11a3 3 0 1 0 0-6M19 20h3a5 5 0 0 0-4-4.9"/></svg><span>Unités</span></button>
+                    <button class="tab" data-page="interventions" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 16H3zM12 10v4M12 17h.01"/></svg><span>Interventions</span></button>
+                    <button class="tab" data-page="search" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg><span>Recherches</span></button>
+                    <button class="tab" data-page="reports" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/></svg><span>Rapports</span></button>
+                    <button class="tab" data-page="create" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Créations</span></button>
+                    <button class="tab" data-page="settings" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Paramètres</span></button>
+                </nav>
+
+            </aside>
         </div>
 
         <!-- ================= BARRE D'ÉTAT ================= -->
         <div class="statusbar">
-            <span class="sb-cell grow"></span>
+            <!-- Note de l'unité : rappels, observations… (partagée entre ses membres) -->
+            <input class="sb-memo grow" id="sbMemo" type="text" maxlength="160" autocomplete="off" spellcheck="false"
+                placeholder="Note de l'unité : rappels, observations… (rejoignez une unité)" disabled>
             <span class="sb-cell" id="sbStatus"><span class="sq"></span><span>Hors unité</span></span>
             <span class="sb-cell" id="sbClock">--:--</span>
         </div>

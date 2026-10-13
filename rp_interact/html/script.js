@@ -324,7 +324,7 @@
         renderPoliceProfile();
     }
 
-    // ---- Équipements : tenues EUP et armes (data/equipment.lua) ----
+    // ---- Équipements : armes (data/loadouts.json) ; tenues dans le menu /eup ----
     const listButtons = (items, kind, empty) => (items.length ? items.map((x) => `
         <button type="button" class="menu-item" data-kind="${kind}" data-index="${x.index}">${esc(x.name)}
             ${x.service ? `<small>${esc(x.service)}</small>` : ''}</button>`).join('') : `<div class="menu-empty">${esc(empty)}</div>`);
@@ -334,22 +334,21 @@
         if (!res || !res.ok) return;
         const locked = res.policeOnly && !res.police;
         const notice = $('#equipNotice');
-        notice.classList.toggle('hidden', !locked && res.freemode);
-        notice.textContent = locked ? 'Réservé à la police : rejoignez une unité dans le MDC.'
-            : 'Tenues disponibles uniquement avec un personnage multijoueur (homme / femme).';
-        $('#outfitList').innerHTML = listButtons(toArray(res.outfits), 'outfit', 'Aucune tenue pour ce personnage.');
-        $('#loadoutList').innerHTML = listButtons(toArray(res.loadouts), 'loadout', 'Aucune arme configurée.');
-        $$('#outfitList .menu-item, #loadoutList .menu-item').forEach((b) => { b.disabled = locked; });
+        notice.classList.toggle('hidden', !locked);
+        notice.textContent = 'Armes réservées à la police : rejoignez une unité dans le MDC.';
+        $('#loadoutList').innerHTML = listButtons(toArray(res.loadouts), 'loadout', 'Aucune arme configurée (data/loadouts.json).');
+        $$('#loadoutList .menu-item').forEach((b) => { b.disabled = locked; });
     }
 
     document.addEventListener('click', async (e) => {
-        const item = e.target.closest('#outfitList .menu-item, #loadoutList .menu-item');
+        const item = e.target.closest('#loadoutList .menu-item');
         if (!item || item.disabled) return;
         post('useEquipment', { kind: item.dataset.kind, index: Number(item.dataset.index) });
     });
+    $('#openEup').addEventListener('click', () => post('openEup'));
     $('#weaponsRemove').addEventListener('click', () => post('useEquipment', { kind: 'removeWeapons' }));
 
-    // ---- Voiture > Spawn (data/vehicles.txt) ----
+    // ---- Voiture > Spawn (data/vehicles.json) ----
     async function loadVehicles() {
         const res = await post('vehicleList');
         if (!res || !res.ok) return;
@@ -365,10 +364,10 @@
         const gsp = all.filter((v) => v.service === 'gsp');
         const fcso = all.filter((v) => v.service === 'fcso');
         const other = all.filter((v) => v.service === 'other');
-        fill('#spawnApd', apd, 'Aucun véhicule APD (data/vehicles.txt).');
-        fill('#spawnGsp', gsp, 'Aucun véhicule GSP (data/vehicles.txt).');
-        fill('#spawnFcso', fcso, 'Aucun véhicule FCSO (data/vehicles.txt).');
-        fill('#spawnOther', other, 'Aucun véhicule (data/vehicles.txt).');
+        fill('#spawnApd', apd, 'Aucun véhicule APD (data/vehicles.json).');
+        fill('#spawnGsp', gsp, 'Aucun véhicule GSP (data/vehicles.json).');
+        fill('#spawnFcso', fcso, 'Aucun véhicule FCSO (data/vehicles.json).');
+        fill('#spawnOther', other, 'Aucun véhicule (data/vehicles.json).');
         $('#spawnPoliceHint').textContent = `${apd.length} APD, ${gsp.length} GSP, ${fcso.length} FCSO${locked ? ' — réservé à la police' : ''}`;
         $('#spawnOtherHint').textContent = `${other.length} véhicule(s)`;
         const notice = $('#spawnPoliceNotice');
@@ -387,6 +386,7 @@
     });
 
     // ---- Voiture > Radio : réglages du véhicule (le son est joué plus bas) ----
+    const RADIO_QUEUE_MAX = 5;
     function renderRadio(info) {
         const status = $('#radioStatus');
         const controls = $('#radioControls');
@@ -396,30 +396,30 @@
             status.textContent = info.error || 'Montez dans un véhicule (ou visez l\'intérieur avant avec l\'œil, portière ouverte).';
             controls.classList.add('disabled');
             controls.querySelectorAll('input, button').forEach((el) => { el.disabled = true; });
+            $('#radioQueue').innerHTML = '';
             return;
         }
         const radio = info.radio || null;
+        const queue = radio ? toArray(radio.queue) : [];
         status.className = `menu-active ${radio ? 'on-air' : 'none'}`;
         status.innerHTML = `${info.vehicle ? `<b>${esc(info.vehicle)}</b> — ` : ''}${radio ? 'radio allumée' : 'radio éteinte'}`
-            + (radio ? `<br><small>${esc(radioEffects(info.id))}</small>` : '')
+            + (radio ? `<br><small class="radio-now">${esc(radio.url)}</small>` : '')
             + (info.canControl ? '' : '<br><small>Seules les places avant peuvent la régler.</small>');
         controls.classList.toggle('disabled', !info.canControl);
         controls.querySelectorAll('input, button').forEach((el) => { el.disabled = !info.canControl; });
         $('#radioStop').disabled = !info.canControl || !radio;
-        if (radio && document.activeElement !== $('#radioUrl')) $('#radioUrl').value = radio.url || '';
+        $('#radioNext').disabled = !info.canControl || !radio;
+        $('#radioAdd').disabled = !info.canControl || queue.length >= RADIO_QUEUE_MAX;
         const volume = radio ? radio.volume : Number($('#radioVolume').value);
         $('#radioVolume').value = volume;
         $('#radioVolumeValue').textContent = `${volume} %`;
-    }
-
-    /** Effets du son (étouffé dehors, position) : actifs ou non pour la radio de ce véhicule */
-    function radioEffects(id) {
-        const r = radios[id];
-        if (!r || r.kind === 'wait') return 'Préparation du son…';
-        if (r.kind === 'audio' && r.gain) return 'Son du véhicule actif : étouffé dehors portières fermées, venant du véhicule.';
-        return r.kind === 'yt'
-            ? 'Lecteur YouTube classique (flux audio introuvable) : volume seulement, sans son étouffé.'
-            : 'Ce site ne permet pas les effets : volume seulement, sans son étouffé.';
+        // File "Écouter ensuite"
+        $('#radioQueueTitle').textContent = `Écouter ensuite (${queue.length} / ${RADIO_QUEUE_MAX})`;
+        $('#radioQueue').innerHTML = queue.length
+            ? queue.map((url, i) => `
+                <div class="radio-queue-item"><span class="radio-queue-n">${i + 1}</span><span class="radio-queue-url">${esc(url)}</span>
+                    ${info.canControl ? `<button type="button" class="radio-queue-del" data-unqueue="${i + 1}" title="Retirer">&#10005;</button>` : ''}</div>`).join('')
+            : '<div class="menu-empty">Aucun morceau en attente : collez un lien puis « + ».</div>';
     }
 
     async function loadRadio() {
@@ -430,25 +430,31 @@
         const res = await post('radioAction', { action, ...extra });
         if (!res || !res.ok) return toast(res?.error || 'Action impossible.', 'error');
         renderRadio(res);
+        return res;
     }
-    $('#radioPlay').addEventListener('click', () => radioAction('play', { url: $('#radioUrl').value.trim(), volume: Number($('#radioVolume').value) }));
+    const radioUrl = () => $('#radioUrl').value.trim();
+    $('#radioPlay').addEventListener('click', () => radioAction('play', { url: radioUrl(), volume: Number($('#radioVolume').value) }));
+    $('#radioAdd').addEventListener('click', async () => {
+        const res = await radioAction('queue', { url: radioUrl(), volume: Number($('#radioVolume').value) });
+        if (res) $('#radioUrl').value = '';
+    });
+    $('#radioNext').addEventListener('click', () => radioAction('next'));
     $('#radioStop').addEventListener('click', () => radioAction('stop'));
+    $('#radioQueue').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-unqueue]');
+        if (btn) radioAction('unqueue', { index: Number(btn.dataset.unqueue) });
+    });
     $('#radioVolume').addEventListener('input', () => { $('#radioVolumeValue').textContent = `${$('#radioVolume').value} %`; });
     $('#radioVolume').addEventListener('change', () => {
         if (!$('#radioStop').disabled) radioAction('volume', { volume: Number($('#radioVolume').value) });
     });
 
     // ---- Lecteurs de la radio des véhicules (client/radio.lua) ----
-    // Chaîne audio : source -> filtre passe-bas ("étouffé" dehors, portières et vitres fermées)
-    //                       -> son 3D (HRTF : le son vient du véhicule, devant / derrière / côtés) -> volume.
-    // Le volume selon la distance est calculé par client/radio.lua (le son 3D ne donne que la direction).
-    // YouTube : lu en flux audio (adresse cherchée par le serveur : "stream") pour pouvoir le filtrer et
-    // le placer ; sans flux, lecteur YouTube classique (volume seulement).
+    // Lecture telle quelle, sans effet : lecteur YouTube (lien YouTube) ou lecteur audio (lien direct).
+    // Le volume (distance, vitres / portières) est calculé par client/radio.lua. À la fin d'un morceau,
+    // le serveur est prévenu ("radioEnded") et lance le suivant de la file pour tout le monde.
     const radios = {};
     let ytReady = null;
-    let audioCtx = null;
-    const MUFFLED_HZ = 420;   // étouffé : on n'entend plus que les basses, comme à travers la carrosserie
-    const CLEAR_HZ = 20000;
 
     function youtubeId(url) {
         const m = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/|music\.youtube\.com\/watch\?(?:.*&)?v=)([\w-]{11})/);
@@ -469,143 +475,53 @@
 
     function applyRadio(r) {
         const v = Math.min(Math.max(r.volume, 0), 1);
-        if (r.kind === 'yt') {
-            // Lecteur YouTube classique : ni filtre ni position, seulement le volume
-            if (r.player && r.player.setVolume) r.player.setVolume(Math.round(v * 100));
-        } else if (r.gain) {
-            const t = audioCtx.currentTime;
-            r.gain.gain.setTargetAtTime(v, t, 0.12);
-            r.filter.frequency.setTargetAtTime(r.muffled ? MUFFLED_HZ : CLEAR_HZ, t, 0.15);
-            if (r.panner) placeRadio(r, t);
-        } else if (r.audio) {
-            r.audio.volume = v;
-        }
+        if (r.player && r.player.setVolume) r.player.setVolume(Math.round(v * 100));
+        if (r.audio) r.audio.volume = v;
     }
 
-    /** Son 3D (HRTF) : direction seulement, pas d'atténuation (déjà dans le volume) ; sinon gauche / droite */
-    function createPanner() {
-        try {
-            const p = audioCtx.createPanner();
-            p.panningModel = 'HRTF';
-            p.distanceModel = 'linear';
-            p.rolloffFactor = 0;
-            p.refDistance = 1;
-            return p;
-        } catch (err) {
-            return audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
-        }
+    /** Fin du morceau : une seule fois par morceau (même "start") */
+    function radioEnded(r) {
+        if (r.dead || r.endedSent) return;
+        r.endedSent = true;
+        post('radioEnded', { id: r.id, seq: r.seq });
     }
 
-    /** Position du véhicule vue de la caméra (x droite, y devant, z haut) -> repère Web Audio (devant = -Z) */
-    function placeRadio(r, t) {
-        const p = r.pos || { x: 0, y: 1, z: 0 }; // à bord : juste devant
-        const len = Math.hypot(p.x, p.y, p.z) || 1;
-        // Direction seule, ramenée à 1 m (le volume selon la distance vient de client/radio.lua)
-        const x = p.x / len, y = p.z / len, z = -p.y / len;
-        if (r.panner.pan) { r.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, x)) * 0.85, t, 0.1); return; }
-        if (r.panner.positionX) {
-            r.panner.positionX.setTargetAtTime(x, t, 0.1);
-            r.panner.positionY.setTargetAtTime(y, t, 0.1);
-            r.panner.positionZ.setTargetAtTime(z, t, 0.1);
-        } else {
-            r.panner.setPosition(x, y, z);
-        }
-    }
-
-    function playIframe(r, id, offset) {
-        r.kind = 'yt';
+    function playYouTube(r, id) {
         const slot = document.createElement('div');
         r.holder.appendChild(slot);
         loadYouTube().then((YT) => {
             if (r.dead) return;
             r.player = new YT.Player(slot, {
                 width: 200, height: 200, videoId: id,
-                playerVars: { autoplay: 1, controls: 0, start: Math.floor(offset || 0), playsinline: 1 },
-                events: { onReady: (e) => { applyRadio(r); e.target.seekTo(Math.floor(r.offset || offset || 0), true); e.target.playVideo(); } },
+                playerVars: { autoplay: 1, controls: 0, start: Math.floor(r.offset || 0), playsinline: 1 },
+                events: {
+                    onReady: (e) => { applyRadio(r); e.target.seekTo(Math.floor(r.offset || 0), true); e.target.playVideo(); },
+                    onStateChange: (e) => { if (e.data === 0) radioEnded(r); }, // 0 : vidéo terminée
+                    onError: () => radioEnded(r), // vidéo indisponible : morceau suivant
+                },
             });
         });
     }
 
-    /** Lecture par <audio> + Web Audio (filtre, position) ; onFail : site sans CORS / flux illisible */
-    function playAudio(r, src, offset, onFail) {
-        r.kind = 'audio';
-        const audio = new Audio();
-        audio.crossOrigin = 'anonymous';
-        audio.src = src;
+    function playAudio(r, url) {
+        const audio = new Audio(url);
         audio.addEventListener('loadedmetadata', () => {
-            const now = r.offset ?? offset;
-            if (Number.isFinite(audio.duration) && now < audio.duration) audio.currentTime = now;
+            if (Number.isFinite(audio.duration) && r.offset < audio.duration) audio.currentTime = r.offset;
+            else if (Number.isFinite(audio.duration) && r.offset >= audio.duration) radioEnded(r); // déjà fini
         }, { once: true });
-        audio.addEventListener('error', () => { if (!r.dead) onFail(); }, { once: true });
+        audio.addEventListener('ended', () => radioEnded(r));
         r.audio = audio;
-        try {
-            audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-            const source = audioCtx.createMediaElementSource(audio);
-            r.filter = audioCtx.createBiquadFilter();
-            r.filter.type = 'lowpass';
-            r.filter.Q.value = 0.9;
-            r.panner = createPanner();
-            r.gain = audioCtx.createGain();
-            r.gain.gain.value = 0;
-            let node = source.connect(r.filter);
-            if (r.panner) node = node.connect(r.panner);
-            node.connect(r.gain).connect(audioCtx.destination);
-        } catch (err) {
-            r.gain = null;
-        }
         applyRadio(r);
-        audio.play().then(() => {
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-        }).catch(() => {});
-    }
-
-    function stopMedia(r) {
-        try { if (r.player && r.player.destroy) r.player.destroy(); } catch (err) { /* déjà fermé */ }
-        r.player = null;
-        if (r.audio) { r.audio.pause(); r.audio.removeAttribute('src'); r.audio.load(); }
-        r.audio = null; r.gain = null; r.filter = null; r.panner = null;
-        r.holder.innerHTML = '';
-    }
-
-    /** Lecteur selon le lien : flux audio (effets), YouTube classique ou lien direct sans effets */
-    function startMedia(r, d) {
-        const id = youtubeId(d.url);
-        r.stream = d.stream;
-        if (id) {
-            if (d.stream === undefined || d.stream === null) { r.kind = 'wait'; return; } // flux cherché par le serveur
-            if (!d.stream) return playIframe(r, id, d.offset);
-            playAudio(r, d.stream, d.offset, () => { stopMedia(r); playIframe(r, id, r.offset); refreshRadioStatus(); });
-            return;
-        }
-        // Lien direct : sans autorisation du site (CORS), lu quand même (sans filtre ni position)
-        playAudio(r, d.url, d.offset, () => {
-            stopMedia(r);
-            refreshRadioStatus();
-            r.kind = 'plain';
-            const audio = new Audio(d.url);
-            audio.addEventListener('loadedmetadata', () => {
-                if (Number.isFinite(audio.duration) && r.offset < audio.duration) audio.currentTime = r.offset;
-            }, { once: true });
-            r.audio = audio;
-            applyRadio(r);
-            audio.play().catch(() => {});
-        });
-    }
-
-    // Menu ouvert sur la page Radio : état des effets mis à jour (flux trouvé, lecteur de secours…)
-    let radioStatusTimer = null;
-    function refreshRadioStatus() {
-        clearTimeout(radioStatusTimer);
-        radioStatusTimer = setTimeout(() => { if (menu.open && menu.view === 'radio') loadRadio(); }, 400);
+        audio.play().catch(() => {});
     }
 
     function createRadio(d) {
-        const r = { url: d.url, volume: d.volume, muffled: d.muffled, pos: d.pos || null, offset: d.offset };
+        const r = { id: d.id, url: d.url, seq: d.seq, volume: d.volume, offset: d.offset };
         r.holder = document.createElement('div');
         r.holder.className = 'radio-player';
         $('#radioPlayers').appendChild(r.holder);
-        startMedia(r, d);
+        const id = youtubeId(d.url);
+        if (id) playYouTube(r, id); else playAudio(r, d.url);
         return r;
     }
 
@@ -613,7 +529,8 @@
         const r = radios[id];
         if (!r) return;
         r.dead = true;
-        stopMedia(r);
+        try { if (r.player && r.player.destroy) r.player.destroy(); } catch (err) { /* déjà fermé */ }
+        if (r.audio) { r.audio.pause(); r.audio.removeAttribute('src'); r.audio.load(); }
         r.holder.remove();
         delete radios[id];
     }
@@ -621,20 +538,13 @@
     function radioUpdate(d) {
         if (!d || !d.id) return;
         let r = radios[d.id];
-        if (r && r.url !== d.url) { radioStop(d.id); r = null; }
+        if (r && (r.url !== d.url || r.seq !== d.seq)) { radioStop(d.id); r = null; }
+        const created = !r;
         if (!r) radios[d.id] = r = createRadio(d);
-        else if ((r.stream ?? null) !== (d.stream ?? null)) {
-            // Flux YouTube trouvé (ou introuvable) par le serveur : lecteur remplacé, au bon moment
-            r.offset = d.offset;
-            stopMedia(r);
-            startMedia(r, d);
-            refreshRadioStatus();
-        }
         r.volume = Number(d.volume) || 0;
-        r.muffled = !!d.muffled;
-        r.pos = d.pos && typeof d.pos === 'object' ? { x: Number(d.pos.x) || 0, y: Number(d.pos.y) || 0, z: Number(d.pos.z) || 0 } : null;
         r.offset = d.offset;
         applyRadio(r);
+        if (created && menu.open && menu.view === 'radio') loadRadio(); // morceau suivant : page Radio à jour
     }
 
     // ---- Barre de chargement (fouilles, menottes) ----
@@ -1149,6 +1059,132 @@
     });
 
     // =====================================================================
+    // MENU DES TENUES /eup (au clavier : touches lues par client/eup.lua)
+    // =====================================================================
+    const EUP_SERVICES = [
+        { code: 'APD', name: 'Atlanta Police Department', color: '#12357a' },
+        { code: 'FCSO', name: 'Fayette County Sheriff Office', color: '#1e5631' },
+        { code: 'GSP', name: 'Georgia State Patrol', color: '#ff6a00' },
+    ];
+    const EUP_COLORS = { root: '#23272e', police: '#1b2a44', civil: '#3b3f46', other: '#3a3350' };
+    const EUP_VISIBLE = 10;
+    const eup = { open: false, outfits: [], policeLocked: false, stack: [], worn: null };
+
+    const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+
+    function eupOutfitPage(title, list, color, banner) {
+        return {
+            title, color, banner,
+            items: list.length ? list.map((o) => ({ kind: 'outfit', label: o.name, index: o.index,
+                desc: 'Entrée : mettre cette tenue.' }))
+                : [{ kind: 'empty', label: 'Aucune tenue', desc: 'Aucune tenue pour ce personnage dans data/outfits.json.' }],
+        };
+    }
+
+    function eupPolicePage() {
+        const police = eup.outfits.filter((o) => o.cate === 'police');
+        const groups = EUP_SERVICES.map((s) => ({ ...s, list: police.filter((o) => o.group === s.code) }));
+        const known = new Set(EUP_SERVICES.map((s) => s.code));
+        [...new Set(police.map((o) => o.group || 'Autres').filter((g) => !known.has(g)))].sort()
+            .forEach((g) => groups.push({ code: g, name: g, color: EUP_COLORS.other, list: police.filter((o) => (o.group || 'Autres') === g) }));
+        return {
+            title: 'Police', color: EUP_COLORS.police, banner: { title: 'Police', sub: 'APD · FCSO · GSP' },
+            items: groups.map((g) => ({
+                kind: 'menu', label: g.name, right: g.name !== g.code ? g.code : '', color: g.color,
+                desc: `${plural(g.list.length, 'tenue')}${eup.policeLocked ? ' — réservées aux policiers en service (unité du MDC)' : ''}`,
+                open: () => eupOutfitPage(g.code, g.list, g.color, { title: g.code, sub: g.name !== g.code ? g.name : 'Police' }),
+            })),
+        };
+    }
+
+    function eupCivilPage() {
+        const civil = eup.outfits.filter((o) => o.cate !== 'police');
+        const groupOf = (o) => (o.group && o.group.toLowerCase() !== 'civil' ? o.group : '');
+        const groups = [...new Set(civil.map(groupOf).filter(Boolean))].sort();
+        const banner = { title: 'Civil', sub: 'Tenues civiles' };
+        if (!groups.length) return eupOutfitPage('Civil', civil, EUP_COLORS.civil, banner);
+        const loose = civil.filter((o) => !groupOf(o));
+        if (loose.length) groups.push('');
+        return {
+            title: 'Civil', color: EUP_COLORS.civil, banner,
+            items: groups.map((g) => {
+                const list = civil.filter((o) => groupOf(o) === g);
+                return { kind: 'menu', label: g || 'Autres', desc: plural(list.length, 'tenue'),
+                    open: () => eupOutfitPage(g || 'Autres', list, EUP_COLORS.civil, banner) };
+            }),
+        };
+    }
+
+    function eupRootPage() {
+        const count = (cate) => eup.outfits.filter((o) => (cate === 'police' ? o.cate === 'police' : o.cate !== 'police')).length;
+        return {
+            title: 'Tenues', color: EUP_COLORS.root,
+            items: [
+                { kind: 'menu', label: 'Police', right: eup.policeLocked ? 'En service' : '', open: eupPolicePage,
+                    desc: `APD, FCSO, GSP — ${plural(count('police'), 'tenue')}` },
+                { kind: 'menu', label: 'Civil', open: eupCivilPage, desc: plural(count('civil'), 'tenue') },
+            ],
+        };
+    }
+
+    function renderEup() {
+        const page = eup.stack[eup.stack.length - 1];
+        if (!page) return;
+        const sel = page.sel || 0;
+        page.top = page.top || 0;
+        if (sel < page.top) page.top = sel;
+        if (sel >= page.top + EUP_VISIBLE) page.top = sel - EUP_VISIBLE + 1;
+        const banner = page.banner || { title: 'Tenues', sub: 'EUP' };
+        $('#eupBanner').style.setProperty('--eup-color', page.color || EUP_COLORS.root);
+        $('#eupBanner .eup-title').textContent = banner.title;
+        $('#eupBanner .eup-sub').textContent = banner.sub;
+        $('#eupCrumb').textContent = eup.stack.map((p) => p.title).join(' › ');
+        $('#eupCount').textContent = `${sel + 1}/${page.items.length}`;
+        $('#eupList').innerHTML = page.items.slice(page.top, page.top + EUP_VISIBLE).map((it, i) => {
+            const n = page.top + i;
+            const worn = it.kind === 'outfit' && it.index === eup.worn;
+            return `<div class="eup-item ${n === sel ? 'sel' : ''} ${it.kind === 'empty' ? 'empty' : ''}"
+                ${it.color ? `style="--eup-tag:${esc(it.color)}"` : ''}>
+                ${it.color ? '<span class="eup-tag"></span>' : ''}
+                <span class="eup-label">${esc(it.label)}</span>
+                ${it.right ? `<span class="eup-right">${esc(it.right)}</span>` : ''}
+                ${worn ? '<span class="eup-worn">&#10003;</span>' : ''}
+                ${it.kind === 'menu' ? '<span class="eup-arrow">&#8250;</span>' : ''}
+            </div>`;
+        }).join('');
+        $('#eupDesc').textContent = (page.items[sel] && page.items[sel].desc) || '';
+    }
+
+    function setEup(data) {
+        eup.open = !!data.open;
+        $('#eup').classList.toggle('hidden', !eup.open);
+        if (!eup.open) { eup.stack = []; return; }
+        eup.outfits = toArray(data.outfits);
+        eup.policeLocked = !!data.policeLocked;
+        eup.stack = [{ ...eupRootPage(), sel: 0, top: 0 }];
+        renderEup();
+    }
+
+    function eupKey(key) {
+        if (!eup.open) return;
+        const page = eup.stack[eup.stack.length - 1];
+        const count = page.items.length;
+        const item = page.items[page.sel || 0];
+        if (key === 'up') page.sel = ((page.sel || 0) - 1 + count) % count;
+        else if (key === 'down') page.sel = ((page.sel || 0) + 1) % count;
+        else if (key === 'select' || key === 'right') {
+            if (item && item.kind === 'menu') eup.stack.push({ ...item.open(), sel: 0, top: 0 });
+            else if (item && item.kind === 'outfit' && key === 'select') {
+                eup.worn = item.index;
+                post('eupWear', { index: item.index });
+            }
+        } else if (key === 'back') {
+            if (eup.stack.length > 1) eup.stack.pop(); else return post('eupClose');
+        } else if (key === 'close') return post('eupClose');
+        renderEup();
+    }
+
+    // =====================================================================
     // MESSAGES Lua -> NUI
     // =====================================================================
     window.addEventListener('message', ({ data }) => {
@@ -1170,6 +1206,8 @@
             case 'notify': if (data.data) toast(data.data.text, data.data.type); break;
             case 'radio': radioUpdate(data.data); break;
             case 'radioStop': radioStop(data.data && data.data.id); break;
+            case 'eup': setEup(data.data || {}); break;
+            case 'eupKey': eupKey(data.data && data.data.key); break;
         }
     });
 })();
