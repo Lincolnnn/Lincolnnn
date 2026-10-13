@@ -115,17 +115,61 @@ function VC.volume()
     return Config.SoundVolume or 0.7
 end
 
---- Joue un son une fois (volume 0..1, multiplié par le réglage du joueur, ou par `setting` s'il est donné)
-function VC.sound(name, volume, setting)
-    SendNUIMessage({ action = 'sound', data = { name = name, volume = (volume or 1.0) * (tonumber(setting) or VC.volume()) } })
+--- Joue un son une fois (volume 0..1, multiplié par le réglage du joueur, ou par `setting` s'il est donné) ;
+--- `muffled` : étouffé (entendu de l'extérieur du véhicule, portières fermées)
+function VC.sound(name, volume, setting, muffled)
+    SendNUIMessage({ action = 'sound', data = {
+        name = name, volume = (volume or 1.0) * (tonumber(setting) or VC.volume()), muffled = muffled == true,
+    } })
 end
 
---- Son répété (clignotant, alarme) : `names` joués à tour de rôle toutes les `interval` ms ; volume 0 = arrêt.
---- `loop` : un seul fichier joué en boucle sans interruption (interval ignoré). Volume au-delà de 1 possible.
-function VC.soundLoop(id, names, interval, volume, loop)
+--- Son répété (clignotant, alarme) : `names` joués à tour de rôle toutes les `interval` ms ; volume 0 = arrêt
+--- (coupé net). `loop` : un seul fichier joué en boucle sans interruption (interval ignoré). Volume au-delà de 1
+--- possible ; `muffled` : étouffé.
+function VC.soundLoop(id, names, interval, volume, loop, muffled)
     SendNUIMessage({ action = 'soundLoop', data = {
         id = id, names = names, interval = interval, volume = (volume or 0.0) * VC.volume(), loop = loop == true,
+        muffled = muffled == true,
     } })
+end
+
+-- =========================================================================
+-- SONS DU VÉHICULE ENTENDUS AUTOUR (clignotants, ceinture, carillon)
+--   à bord : 100 % ; dehors, depuis la carrosserie : jusqu'à VehicleSounds.RangeOpen m avec une portière
+--   ouverte, VehicleSounds.RangeClosed m tout fermé (et alors étouffé, moins fort)
+-- =========================================================================
+local Sounds = Config.VehicleSounds
+
+--- Une portière (ou le coffre / le capot) ouverte ?
+function VC.doorsOpen(vehicle)
+    for door = 0, 5 do
+        if GetVehicleDoorAngleRatio(vehicle, door) > 0.05 then return true end
+    end
+    return false
+end
+
+--- Distance (m) entre un point et la carrosserie du véhicule (0 : dedans / contre)
+function VC.distanceToBody(vehicle, pos)
+    local min, max = GetModelDimensions(GetEntityModel(vehicle))
+    local p = GetOffsetFromEntityGivenWorldCoords(vehicle, pos.x, pos.y, pos.z)
+    local dx = math.max(min.x - p.x, 0.0, p.x - max.x)
+    local dy = math.max(min.y - p.y, 0.0, p.y - max.y)
+    local dz = math.max(min.z - p.z, 0.0, p.z - max.z)
+    return math.sqrt(dx * dx + dy * dy + dz * dz)
+end
+
+--- Volume (0..1) et étouffement d'un son venant de ce véhicule, pour ce joueur
+function VC.hearVehicle(vehicle)
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then return 0.0, false end
+    local ped = PlayerPedId()
+    if GetVehiclePedIsIn(ped, false) == vehicle then return 1.0, false end
+    local open = VC.doorsOpen(vehicle)
+    local range = open and Sounds.RangeOpen or Sounds.RangeClosed
+    local distance = VC.distanceToBody(vehicle, GetEntityCoords(ped))
+    if distance >= range then return 0.0, not open end
+    local factor = 1.0 - distance / range
+    if open then return factor * Sounds.OpenVolume, false end
+    return factor * Sounds.ClosedVolume, true
 end
 
 function VC.isDriver() return VC.vehicle ~= 0 and VC.seat == -1 end

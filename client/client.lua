@@ -125,66 +125,31 @@ local function openMDC()
     TriggerServerEvent('mdc:server:viewer', true)
 end
 
--- Flou du jeu derrière le MDC (le NUI ne voit pas le jeu : c'est le flou d'écran du jeu). Activé / retiré
--- par le NUI (Paramètres > MDC : case + intensité de 10 à 100 %), qui floute aussi ses propres HUD.
---   - sous Blur.ScreenFrom : flou doux (modificateur de rendu "hud_def_blur"), dosé par l'intensité ;
---   - à partir de Blur.ScreenFrom : flou des menus du jeu (celui du menu pause), renforcé jusqu'à 100 %
---     par le flou doux ajouté par-dessus ;
---   - un modificateur de rendu déjà actif (météo, drogue…) est remis à la fermeture ;
---   - la minimap (dessinée par le jeu PAR-DESSUS l'image, aucun flou ne peut l'atteindre) est masquée
---     tant que le flou est actif, puis réaffichée si elle l'était.
-local Blur = {
-    Timecycle = 'hud_def_blur',
-    ScreenFrom = 0.5,   -- intensité (0..1) à partir de laquelle le flou des menus du jeu est utilisé
-    HideMinimap = true, -- masquer la minimap pendant le flou
-}
+-- Flou du jeu derrière le MDC (le NUI ne voit pas le jeu : c'est le flou des menus du jeu). Activé / retiré
+-- par le NUI (Paramètres > MDC : case à cocher), qui floute aussi ses propres HUD. Case décochée : jeu et
+-- HUD restent nets. La minimap (dessinée par le jeu PAR-DESSUS l'image, aucun flou ne peut l'atteindre)
+-- est masquée tant que le flou est actif, puis réaffichée si elle l'était.
+local HIDE_MINIMAP = true
+local blur = { on = false, radar = nil }
 
-local blur = { strength = 0, screen = false, radar = nil, previous = nil }
-
-local function softStrength(strength)
-    if strength < Blur.ScreenFrom then return strength / Blur.ScreenFrom end
-    return (strength - Blur.ScreenFrom) / (1.0 - Blur.ScreenFrom)
-end
-
-local function setBlur(strength)
-    strength = math.max(0.0, math.min(1.0, tonumber(strength) or 0.0))
-    if strength > 0 then
-        if blur.strength == 0 then
-            -- Modificateur de rendu en place (autre script) : gardé pour être remis ensuite
-            local index = GetTimecycleModifierIndex()
-            if index and index ~= -1 then
-                local ok, name = pcall(GetTimecycleModifierNameByIndex, index)
-                local okStrength, value = pcall(GetTimecycleModifierStrength)
-                blur.previous = ok and name and { name = name, strength = okStrength and value or 1.0 } or nil
-            end
-            SetTimecycleModifier(Blur.Timecycle)
-            if Blur.HideMinimap then
-                blur.radar = not IsRadarHidden()
-                DisplayRadar(false)
-            end
+local function setBlur(enabled)
+    if enabled and not blur.on then
+        TriggerScreenblurFadeIn(250.0)
+        if HIDE_MINIMAP then
+            blur.radar = not IsRadarHidden()
+            DisplayRadar(false)
         end
-        SetTimecycleModifierStrength(softStrength(strength))
-        local screen = strength >= Blur.ScreenFrom
-        if screen ~= blur.screen then
-            if screen then TriggerScreenblurFadeIn(250.0) else TriggerScreenblurFadeOut(250.0) end
-            blur.screen = screen
-        end
-    elseif blur.strength > 0 then
-        ClearTimecycleModifier()
-        if blur.previous then
-            SetTimecycleModifier(blur.previous.name)
-            SetTimecycleModifierStrength(blur.previous.strength)
-        end
-        if blur.screen then TriggerScreenblurFadeOut(250.0) end
+        blur.on = true
+    elseif not enabled and blur.on then
+        TriggerScreenblurFadeOut(250.0)
         if blur.radar then DisplayRadar(true) end
-        blur.screen, blur.radar, blur.previous = false, nil, nil
+        blur.on, blur.radar = false, nil
     end
-    blur.strength = strength
 end
 
 local function closeMDC()
     if not isOpen then return end
-    setBlur(0)
+    setBlur(false)
     isOpen = false
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
@@ -205,10 +170,9 @@ RegisterKeyMapping(Config.Command, 'Ouvrir le MDC (Police)', 'keyboard', Config.
 -- CALLBACKS NUI (appelés depuis html/script.js via fetch)
 -- =========================================================================
 
--- Flou derrière le MDC : { enabled, strength (0.1..1) }
+-- Flou derrière le MDC : { enabled }
 RegisterNUICallback('mdcBlur', function(data, cb)
-    local on = isOpen and type(data) == 'table' and data.enabled == true
-    setBlur(on and math.max(0.1, tonumber(data.strength) or 0.6) or 0)
+    setBlur(isOpen and type(data) == 'table' and data.enabled == true)
     cb({ ok = true })
 end)
 
@@ -218,7 +182,7 @@ AddStateBagChangeHandler('rpiCivilMode', ('player:%d'):format(GetPlayerServerId(
 end)
 
 AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() then setBlur(0) end
+    if resource == GetCurrentResourceName() then setBlur(false) end
 end)
 
 -- Fermeture (touche Échap ou bouton de fermeture dans l'UI)

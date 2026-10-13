@@ -20,7 +20,18 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
    introuvable est signalée en jaune : vérifiez son nom dans `config.lua` (`Emotes`, `Surrender`) ou ajoutez le
    fichier qui la définit à `EmoteFiles`. `rpi_emotes` (console) relit les fichiers.
 
-## Menu d'interactions (touche F1)
+## Menu Interaction (touche F1)
+
+Titre **Menu Interaction**. L'accueil est en deux parties séparées : **Usage** (**Police**, puis **Civil** en dessous)
+et **Configuration** (**Équipements**, **Voiture**). Emplacement et taille du menu : réglés par chaque joueur dans le MDC
+(*Paramètres > HUD & Display > Menu Interaction* : taille, et emplacement avec « Placer les HUD à l'écran ») ; sans le
+MDC, à gauche de l'écran.
+
+**Permissions** (`Permissions` dans `config.lua`) : les catégories listées dans `Sections` (par défaut **Équipements**
+et **Voiture** : spawn, radio) sont réservées aux joueurs dont l'**identifiant Steam hex** est dans `Players`
+(`steam:11000013ca597a9`, `steam:11000011977aecd`, `steam:110000114f6ac4d`). Les autres les voient **grisées**
+(« Accès réservé ») et le serveur refuse leurs demandes. `Sections = {}` : ouvert à tous. Les règles « police en
+service » (`SpawnPoliceOnly`, `EquipmentPoliceOnly`) s'appliquent en plus.
 
 Case **Police** : tout en bas, **Display MDC** : **Secteur** (zone de jeu, saisi à la main) et **Service principal**
 (menu déroulant : APD, GSP ou APD & GSP), enregistrés aussitôt, gardés chez le joueur et affichés sur le display du
@@ -47,7 +58,8 @@ Case **Voiture** :
 - **Radio** : collez un **lien** (vidéo / musique YouTube, ou lien direct vers un fichier audio, un podcast, une radio
   en ligne) : le son est joué **dans le véhicule**. Tout le monde l'entend **au même moment et au même volume de base**
   (le volume est celui du véhicule : à 89 %, tout le monde l'a à 89 %). À bord : normalement. Dehors, le son **vient
-  du véhicule** (à gauche / à droite selon où il se trouve par rapport à la caméra) et baisse avec la distance :
+  du véhicule en 3D** (rendu HRTF : devant / derrière, à gauche / à droite, au-dessus / en dessous, selon où il se
+  trouve par rapport à la caméra) et baisse avec la distance :
   entendu jusqu'à **15 m** tout fermé (`RadioRangeClosed`) et **25 m** avec une portière (coffre, capot) ouverte ou une
   vitre baissée (`RadioRangeOpen`). Tout fermé, il est **insonorisé** : **filtre
   passe-bas** (on n'entend plus que les basses, comme à travers la carrosserie) et volume encore plus bas
@@ -60,6 +72,9 @@ Case **Voiture** :
   son reste synchronisé mais sans filtre ni position (seulement plus bas dehors). La page Radio indique si les effets
   sont actifs. Ces services publics changent souvent : ajoutez-en (ou votre propre instance Piped / Invidious) dans
   `config.lua`. Liens directs : filtre et position si le site autorise la lecture (CORS), sinon lecture simple.
+  **pma-voice** : il ne transporte que la **voix des joueurs** (micro, via le serveur Mumble de FiveM) ; il ne peut pas
+  diffuser une musique depuis un lien, ni lui appliquer ses effets. La musique reste donc jouée par le navigateur du
+  jeu (NUI), avec son propre son 3D et son propre filtre « étouffé », réglés sur les mêmes règles de distance.
 
 Échap : retour / fermeture.
 

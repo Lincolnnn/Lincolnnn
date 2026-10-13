@@ -3,9 +3,22 @@
 ]]
 InteractConfig = {
     -- Touches par défaut (modifiables par chaque joueur : Échap > Paramètres > Raccourcis
-    -- clavier > FiveM > "Menu d'interactions" et "Œil : interagir (maintenir)")
+    -- clavier > FiveM > "Menu Interaction" et "Œil : interagir (maintenir)")
     MenuKey = 'F1',
     TargetKey = 'LMENU',          -- Alt gauche
+
+    -- PERMISSIONS (identifiant Steam hex, "steam:1100001..." : visible dans la console du serveur, commande
+    -- "status", ou sur un site de conversion SteamID). Les catégories de la partie "Configuration" du
+    -- Menu Interaction listées dans Sections sont réservées à ces joueurs (les autres les voient grisées,
+    -- le serveur refuse leurs demandes). Sections = {} : ouvertes à tous.
+    Permissions = {
+        Players = {
+            'steam:11000013ca597a9',
+            'steam:11000011977aecd',
+            'steam:110000114f6ac4d',
+        },
+        Sections = { equipment = true, car = true }, -- Équipements, Voiture (spawn, radio)
+    },
 
     -- MENU > VOITURE (véhicules listés dans data/vehicles.txt) et ÉQUIPEMENTS (data/equipment.lua)
     SpawnPoliceOnly = true,         -- véhicules de police (APD / GSP) réservés aux policiers en service

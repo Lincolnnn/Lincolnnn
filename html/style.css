@@ -958,6 +958,12 @@ input.invalid, select.invalid, textarea.invalid { border-color: #ff5a5a; backgro
 .car-notice-text b { color: #fff; font-size: 13px; }
 .car-notice-text small { color: #a9a9a9; font-size: 11px; }
 
+/* Menu Interaction (rp_interact) : cadre de placement, mêmes dimensions que le vrai menu (320 px) */
+.hud-menu { width: 320px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.hud-menu .hm-title { font-weight: bold; font-size: 15px; color: #fff; padding-bottom: 8px; border-bottom: 1px solid rgba(122, 122, 122, .45); }
+.hud-menu .hm-section { font-size: 11px; font-weight: bold; letter-spacing: .6px; text-transform: uppercase; color: #a9a9a9; margin-top: 4px; }
+.hud-menu .hm-case { padding: 10px 12px; border: 1px solid rgba(122, 122, 122, .6); border-radius: 6px; background: rgba(255, 255, 255, .05); font-weight: bold; }
+
 /* Mode placement : HUD déplaçables, MDC masqué */
 body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed rgba(255, 255, 255, .7); outline-offset: 4px; }
 .hud-placebar {
@@ -1372,5 +1378,5 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 
 /* ---- MDC ouvert : HUD floutés (le jeu derrière est flouté par client/client.lua) ---- */
 .hud, .car-notice-anchor { transition: filter .25s; }
-body.mdc-blur .hud, body.mdc-blur .car-notice-anchor { filter: blur(var(--hud-blur, 4px)); }
-body.mdc-blur .hud-car.car-off { filter: blur(var(--hud-blur, 4px)) grayscale(1) brightness(.75); }
+body.mdc-blur .hud, body.mdc-blur .car-notice-anchor { filter: blur(4px); }
+body.mdc-blur .hud-car.car-off { filter: blur(4px) grayscale(1) brightness(.75); }

@@ -78,11 +78,17 @@ end, false)
 
 local function isPolice(src) return S.policeUnit(src) ~= nil end
 
+-- Permissions (config.lua : Permissions) : catégories réservées à certains joueurs
+local DENIED = { ok = false, error = 'Accès réservé : vous n\'avez pas la permission.' }
+local function allowed(src, section) return not S.hasPermission or S.hasPermission(src, section) end
+
 S.on('vehicleList', function(src)
+    if not allowed(src, 'car') then return DENIED end
     return { ok = true, vehicles = Vehicles, police = isPolice(src), policeOnly = Config.SpawnPoliceOnly ~= false }
 end)
 
 S.on('spawnVehicle', function(src, p)
+    if not allowed(src, 'car') then return DENIED end
     local entry = byCode[type(p.code) == 'string' and p.code:lower() or '']
     if not entry then return { ok = false, error = 'Véhicule inconnu.' } end
     if entry.service ~= 'other' and Config.SpawnPoliceOnly ~= false and not isPolice(src) then
@@ -213,6 +219,7 @@ local function attachStream(vehicle, radio)
 end
 
 S.on('radio', function(src, p)
+    if not allowed(src, 'car') then return DENIED end
     local vehicle = vehicleFromNet(p.netId)
     if not vehicle then return { ok = false, error = 'Véhicule introuvable.' } end
     if not canUseRadio(src, vehicle) then
@@ -244,6 +251,7 @@ end)
 -- ÉQUIPEMENTS (data/equipment.lua)
 -- =========================================================================
 S.on('equipment', function(src, p)
+    if not allowed(src, 'equipment') then return DENIED end
     if Config.EquipmentPoliceOnly ~= false and not isPolice(src) then
         return { ok = false, error = 'Réservé à la police : rejoignez une unité dans le MDC.' }
     end

@@ -324,8 +324,35 @@ local lastWrite, lastInspect = {}, {}
 
 local function on(name, fn) Handlers[name] = fn end
 
+-- ---- Permissions (Config.Permissions : identifiants Steam hex) ----
+local allowed = {}
+for _, id in ipairs(Config.Permissions and Config.Permissions.Players or {}) do
+    id = tostring(id):lower():gsub('%s', '')
+    if not id:find(':', 1, true) then id = 'steam:' .. id end -- "11000013ca597a9" accepté aussi
+    allowed[id] = true
+end
+
+--- Le joueur a-t-il accès à cette catégorie du menu ('equipment', 'car') ?
+local function hasPermission(src, section)
+    local sections = Config.Permissions and Config.Permissions.Sections or {}
+    if not sections[section] then return true end
+    for _, id in ipairs(GetPlayerIdentifiers(src) or {}) do
+        if allowed[id:lower()] then return true end
+    end
+    return false
+end
+
+--- Catégories verrouillées pour ce joueur : { equipment = true, … }
+local function lockedSections(src)
+    local locked = {}
+    for section in pairs(Config.Permissions and Config.Permissions.Sections or {}) do
+        if not hasPermission(src, section) then locked[section] = true end
+    end
+    return locked
+end
+
 -- Partagé avec les autres fichiers serveur (server/vehicles.lua : spawn, radio, équipements)
-RPIServer = { on = on, policeUnit = function(src) return policeUnit(src) end }
+RPIServer = { on = on, policeUnit = function(src) return policeUnit(src) end, hasPermission = hasPermission }
 
 RegisterNetEvent('rp_interact:server:request', function(name, id, payload)
     local src = source
@@ -357,7 +384,8 @@ end
 on('getMenuState', function(src)
     local active = activeProfileOf(getIdentifier(src))
     local unit = policeUnit(src)
-    return { ok = true, activeName = active and active.name or nil, police = unit and unit.name or nil }
+    return { ok = true, activeName = active and active.name or nil, police = unit and unit.name or nil,
+        locked = lockedSections(src) }
 end)
 
 -- ---- Profils civils (uniquement ceux du joueur) ----

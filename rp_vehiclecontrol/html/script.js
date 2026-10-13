@@ -4,7 +4,11 @@
     const TEXTS = { prompt: 'Pousser le véhicule', pushing: 'Arrêter de pousser' };
 
     // ---- Sons : fichiers réels, remplaçables (mêmes noms) dans html/sounds/ ----
+    // Chaque son : fichier -> filtre passe-bas ("étouffé" : entendu de l'extérieur, portières fermées)
+    // -> volume (au-delà de 100 % possible). Un son arrêté est coupé net.
     const SOUND_FILES = ['belt_on', 'belt_off', 'belt_chime', 'indicators_sound'];
+    const MUFFLED_HZ = 650;
+    const CLEAR_HZ = 20000;
     const cache = {};
     SOUND_FILES.forEach((name) => {
         const audio = new Audio(`sounds/${name}.ogg`);
@@ -12,72 +16,106 @@
         cache[name] = audio;
     });
 
-    // Volume au-delà de 100 % (ex. clignotants +25 %) : amplifié par Web Audio
     let ctx = null;
-    function setVolume(audio, volume) {
-        volume = Math.max(volume, 0);
-        if (volume <= 1 && !audio.gainNode) { audio.volume = volume; return; }
+    function audioContext() {
         try {
-            if (!audio.gainNode) {
-                ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-                audio.gainNode = ctx.createGain();
-                ctx.createMediaElementSource(audio).connect(audio.gainNode).connect(ctx.destination);
-            }
+            ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
             if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-            audio.volume = 1;
-            audio.gainNode.gain.value = Math.min(volume, 2);
+            return ctx;
         } catch (err) {
-            audio.volume = Math.min(volume, 1);
+            return null;
         }
     }
 
-    function play(name, volume, loop = false) {
+    /** Lecteur d'un son : { audio, gain, filter } (sans Web Audio : volume de l'élément seulement) */
+    function voice(name, loop) {
         const base = cache[name];
-        if (!base || !(volume > 0)) return null;
-        const audio = base.cloneNode(); // plusieurs sons en même temps (ex. clignotant + carillon)
-        audio.loop = loop;
-        setVolume(audio, volume);
-        audio.play().catch(() => {});
-        return audio;
+        if (!base) return null;
+        const v = { audio: base.cloneNode() }; // plusieurs sons en même temps (ex. clignotant + carillon)
+        v.audio.loop = loop;
+        const ac = audioContext();
+        if (ac) {
+            try {
+                v.filter = ac.createBiquadFilter();
+                v.filter.type = 'lowpass';
+                v.filter.Q.value = 0.8;
+                v.gain = ac.createGain();
+                ac.createMediaElementSource(v.audio).connect(v.filter).connect(v.gain).connect(ac.destination);
+            } catch (err) {
+                v.filter = null; v.gain = null;
+            }
+        }
+        return v;
     }
 
-    // Sons répétés (clignotant, alarme de ceinture) : un par identifiant, volume 0 = arrêt.
-    // loop : un seul fichier joué en boucle sans interruption (son des clignotants)
+    function setVoice(v, volume, muffled) {
+        volume = Math.max(Number(volume) || 0, 0);
+        if (v.gain) {
+            v.audio.volume = 1;
+            v.gain.gain.value = Math.min(volume, 2);
+            v.filter.frequency.value = muffled ? MUFFLED_HZ : CLEAR_HZ;
+        } else {
+            v.audio.volume = Math.min(volume, 1);
+        }
+    }
+
+    function stopVoice(v) {
+        if (!v) return;
+        v.audio.pause();
+        v.audio.currentTime = 0;
+    }
+
+    function play(name, volume, muffled, loop = false) {
+        if (!(volume > 0)) return null;
+        const v = voice(name, loop);
+        if (!v) return null;
+        setVoice(v, volume, muffled);
+        v.audio.play().catch(() => {});
+        return v;
+    }
+
+    // Sons répétés (clignotants, carillon de la ceinture) : un par identifiant, volume 0 = arrêt (coupé net).
+    //   loop : un seul fichier joué en boucle sans interruption ; sinon, rejoué toutes les `interval` ms.
     const loops = {};
-    function soundLoop({ id, names, interval, volume, loop: continuous }) {
+    function stopLoop(id) {
         const current = loops[id];
-        if (!(volume > 0) || !Array.isArray(names) || names.length === 0) {
-            if (current) {
-                clearInterval(current.timer);
-                if (current.audio) { current.audio.pause(); current.audio.currentTime = 0; }
-                delete loops[id];
-            }
+        if (!current) return;
+        clearInterval(current.timer);
+        current.voices.forEach(stopVoice);
+        delete loops[id];
+    }
+
+    function soundLoop({ id, names, interval, volume, loop: continuous, muffled }) {
+        if (!(volume > 0) || !Array.isArray(names) || names.length === 0) return stopLoop(id);
+        const current = loops[id];
+        if (current) { // déjà en cours : volume / étouffement mis à jour
+            current.volume = volume; current.muffled = !!muffled; current.names = names;
+            current.voices.forEach((v) => setVoice(v, volume, muffled));
             return;
         }
-        if (current) { // déjà en cours : volume mis à jour
-            current.volume = volume; current.names = names;
-            if (current.audio) setVolume(current.audio, volume);
-            return;
-        }
+        const entry = { names, volume, muffled: !!muffled, index: 0, voices: [] };
+        loops[id] = entry;
         if (continuous) {
-            loops[id] = { names, volume, audio: play(names[0], volume, true) };
+            const v = play(names[0], volume, muffled, true);
+            if (v) entry.voices.push(v);
             return;
         }
-        const loop = { names, volume, index: 0 };
         const tick = () => {
-            play(loop.names[loop.index % loop.names.length], loop.volume);
-            loop.index += 1;
+            const v = play(entry.names[entry.index % entry.names.length], entry.volume, entry.muffled);
+            entry.index += 1;
+            if (!v) return;
+            entry.voices.push(v);
+            v.audio.addEventListener('ended', () => { entry.voices = entry.voices.filter((x) => x !== v); }, { once: true });
         };
         tick();
-        loop.timer = setInterval(tick, Math.max(100, Number(interval) || 1000));
-        loops[id] = loop;
+        entry.timer = setInterval(tick, Math.max(100, Number(interval) || 1000));
     }
 
     window.addEventListener('message', (event) => {
         const msg = event.data || {};
         const data = msg.data || {};
         if (msg.action === 'sound') {
-            play(data.name, data.volume);
+            play(data.name, data.volume, data.muffled);
         } else if (msg.action === 'soundLoop') {
             soundLoop(data);
         } else if (msg.action === 'push') {

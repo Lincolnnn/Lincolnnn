@@ -4,12 +4,14 @@
     Touche G (Raccourcis clavier > FiveM > "Véhicule : attacher / détacher la ceinture").
       - Sons réels (html/sounds) à l'attache et au retrait ; attachée, impossible de descendre sans la
         détacher (touche F bloquée) ; retirée si le joueur est sorti du véhicule autrement.
-      - Détachée : bip au-dessus de 5 MPH, continu jusqu'à l'arrêt du véhicule (ou jusqu'à l'attache).
+      - Détachée : carillon au-dessus de 5 MPH ; coupé net dès que la ceinture est attachée, que le
+        joueur descend ou que le véhicule est arrêté (sous StopSpeed).
       - Détachée, accident violent (voir config.lua, Seatbelt) : éjecté à travers le pare-brise.
         Attachée : jamais éjecté (l'éjection automatique du jeu est désactivée, seule cette règle compte).
-      - Sons synchronisés : occupants du véhicule à 100 %, joueurs autour selon la distance (états du
-        joueur "seatbelt" / "seatbeltAlarm", lus par les autres clients).
-    Boucle du bip des autres joueurs (250 ms) uniquement pendant qu'une alarme est active à portée.
+      - Sons synchronisés (états du joueur "seatbelt" / "seatbeltAlarm", lus par les autres clients) :
+        occupants du véhicule à 100 %, joueurs autour du véhicule selon VehicleSounds (3 m portière
+        ouverte, 1 m tout fermé et étouffé).
+    Boucle du carillon (250 ms) uniquement pendant qu'une alarme est active à portée.
 ]]
 
 local Config = VCConfig.Seatbelt
@@ -29,48 +31,55 @@ local function serverIdOfBag(bagName)
     return tonumber(bagName:match('^player:(%d+)$'))
 end
 
---- Volume auquel ce client entend le joueur `serverId` (0 hors de portée, nil s'il n'est plus là)
+--- Volume (0 hors de portée, nil si le joueur n'est plus là) et étouffement auxquels ce client entend
+--- les sons de ceinture du joueur `serverId` : ils viennent de son véhicule (ou du dernier, s'il vient
+--- d'en descendre)
 local function hearVolume(serverId)
     local player = GetPlayerFromServerId(serverId)
     if player == -1 then return nil end
     local ped = GetPlayerPed(player)
     if not ped or ped == 0 or not DoesEntityExist(ped) then return nil end
-    local me = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
-    if vehicle ~= 0 and vehicle == GetVehiclePedIsIn(me, false) then return 1.0 end
-    local distance = #(GetEntityCoords(ped) - GetEntityCoords(me))
-    if distance >= Config.HearRange then return 0.0 end
-    return (1.0 - distance / Config.HearRange) * Config.OutsideVolume
+    if vehicle == 0 then vehicle = GetVehiclePedIsIn(ped, true) end
+    if vehicle == 0 then return 0.0, false end
+    return VC.hearVehicle(vehicle)
 end
 
-local function beltSound(kind, volume)
-    VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume)
+local function beltSound(kind, volume, muffled)
+    VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume, nil, muffled)
 end
 
---- Bip : le plus fort entre le sien (100 %) et ceux des joueurs à portée. Boucle seulement pendant une alarme.
+--- Carillon : le plus fort entre le sien (100 %) et ceux des joueurs à portée ; volume 0 = coupé net
+local lastChime = '0.00|false'
+local function refreshChime()
+    local volume, muffled = alarm and 1.0 or 0.0, false
+    for serverId in pairs(alarms) do
+        local v, m = hearVolume(serverId)
+        if v == nil then
+            alarms[serverId] = nil -- joueur parti / hors de portée réseau
+        elseif v > volume then
+            volume, muffled = v, m
+        end
+    end
+    volume = math.floor(volume * 20 + 0.5) / 20
+    local key = ('%.2f|%s'):format(volume, tostring(volume > 0 and muffled))
+    if key ~= lastChime then
+        lastChime = key
+        VC.soundLoop('chime', { 'belt_chime' }, 1100, volume, false, muffled) -- carillon du tableau de bord
+    end
+end
+
+--- Boucle seulement pendant une alarme (la sienne ou celle d'un joueur à portée)
 local function beepLoop()
+    refreshChime()
     if beepRunning then return end
     beepRunning = true
     CreateThread(function()
-        local last = 0.0
         while alarm or next(alarms) do
-            local volume = alarm and 1.0 or 0.0
-            for serverId in pairs(alarms) do
-                local v = hearVolume(serverId)
-                if v == nil then
-                    alarms[serverId] = nil -- joueur parti / hors de portée réseau
-                elseif v > volume then
-                    volume = v
-                end
-            end
-            volume = math.floor(volume * 20 + 0.5) / 20
-            if volume ~= last then
-                last = volume
-                VC.soundLoop('chime', { 'belt_chime' }, 1100, volume) -- carillon du tableau de bord
-            end
             Wait(250)
+            refreshChime()
         end
-        if last ~= 0.0 then VC.soundLoop('chime', { 'belt_chime' }, 1100, 0.0) end
+        refreshChime()
         beepRunning = false
     end)
 end
@@ -92,7 +101,7 @@ local function setBelt(state, silent)
     if VC.hud.belt ~= nil then VC.hud.belt = state end
     LocalPlayer.state:set('seatbelt', state, true) -- les joueurs proches entendent le son
     if state then setAlarm(false) end
-    if not silent then beltSound(state and 'on' or 'off', 1.0) end
+    if not silent then beltSound(state and 'on' or 'off', 1.0, false) end
 end
 
 function VC.isBuckled() return belt end
@@ -180,15 +189,15 @@ end)
 AddStateBagChangeHandler('seatbelt', nil, function(bagName, _, value)
     local serverId = serverIdOfBag(bagName)
     if not serverId or serverId == GetPlayerServerId(PlayerId()) then return end
-    local volume = hearVolume(serverId)
-    if volume and volume > 0.0 then beltSound(value == true and 'on' or 'off', volume) end
+    local volume, muffled = hearVolume(serverId)
+    if volume and volume > 0.0 then beltSound(value == true and 'on' or 'off', volume, muffled) end
 end)
 
 AddStateBagChangeHandler('seatbeltAlarm', nil, function(bagName, _, value)
     local serverId = serverIdOfBag(bagName)
     if not serverId or serverId == GetPlayerServerId(PlayerId()) then return end
     alarms[serverId] = value == true or nil
-    if value == true then beepLoop() end
+    beepLoop() -- démarre, ou coupe net le carillon de ce joueur
 end)
 
 -- Ressource redémarrée : état publié remis à zéro

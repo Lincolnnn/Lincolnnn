@@ -8,7 +8,8 @@
         tout le monde), réglé seulement par les places avant, ou avec l'œil en visant l'intérieur avant
         du véhicule portière avant ouverte.
       - Chaque joueur entend selon sa position : à bord, normalement ; dehors, le son VIENT DU VÉHICULE
-        (à gauche / à droite selon où il se trouve par rapport à la caméra), plus ou moins fort selon la
+        en 3D (devant / derrière, à gauche / à droite, au-dessus / en dessous par rapport à la caméra,
+        rendu HRTF du navigateur du jeu), plus ou moins fort selon la
         distance : jusqu'à 15 m tout fermé (RadioRangeClosed), 25 m avec une portière ouverte ou une vitre
         baissée (RadioRangeOpen). Tout fermé, le son est "insonorisé" : filtre passe-bas (son étouffé)
         et volume encore plus bas (RadioInsulation).
@@ -49,33 +50,35 @@ local function range(open)
     return open and (Config.RadioRangeOpen or 25.0) or (Config.RadioRangeClosed or 15.0)
 end
 
---- Facteur de volume (0..1), son étouffé et position gauche / droite (-1..1) pour ce joueur
+--- Position du véhicule vue de la caméra (m) : x à droite, y devant, z au-dessus (arrondie à 0,5 m)
+local function relativePosition(pos)
+    local cam, rot = GetGameplayCamCoord(), GetGameplayCamRot(2)
+    local dx, dy, dz = pos.x - cam.x, pos.y - cam.y, pos.z - cam.z
+    local heading = math.rad(rot.z)
+    local rightX, rightY = math.cos(heading), math.sin(heading)      -- droite de la caméra
+    local forwardX, forwardY = -math.sin(heading), math.cos(heading) -- devant la caméra
+    local function round(v) return math.floor(v * 2 + 0.5) / 2 end
+    return { x = round(dx * rightX + dy * rightY), y = round(dx * forwardX + dy * forwardY), z = round(dz) }
+end
+
+--- Facteur de volume (0..1), son étouffé et position du son (relative à la caméra ; nil = à bord)
 function RPI.radioHearing(vehicle)
     local ped = PlayerPedId()
-    if GetVehiclePedIsIn(ped, false) == vehicle then return 1.0, false, 0.0 end
+    if GetVehiclePedIsIn(ped, false) == vehicle then return 1.0, false, nil end
     local pos = GetEntityCoords(vehicle)
     local distance = #(GetEntityCoords(ped) - pos)
     local open = RPI.vehicleOpen(vehicle)
     local maxRange = range(open)
-    if distance >= maxRange then return 0.0, not open, 0.0 end
-    -- Le son vient du véhicule : côté gauche / droit par rapport à la caméra
-    local cam, rot = GetGameplayCamCoord(), GetGameplayCamRot(2)
-    local dx, dy = pos.x - cam.x, pos.y - cam.y
-    local len = math.sqrt(dx * dx + dy * dy)
-    local pan = 0.0
-    if len > 0.5 then
-        local heading = math.rad(rot.z)
-        local rightX, rightY = math.cos(heading), math.sin(heading) -- droite de la caméra
-        pan = math.max(-1.0, math.min(1.0, (dx * rightX + dy * rightY) / len)) * 0.85
-    end
+    if distance >= maxRange then return 0.0, not open, nil end
     local factor = (1.0 - distance / maxRange) ^ 1.6
-    if open then return factor, false, pan end
-    return factor * Config.RadioInsulation, true, pan
+    local where = relativePosition(pos) -- le son vient du véhicule
+    if open then return factor, false, where end
+    return factor * Config.RadioInsulation, true, where
 end
 
-local function send(id, radio, volume, muffled, pan)
+local function send(id, radio, volume, muffled, pos)
     SendNUIMessage({ action = 'radio', data = {
-        id = id, url = radio.url, volume = volume, muffled = muffled, pan = pan,
+        id = id, url = radio.url, volume = volume, muffled = muffled, pos = pos,
         stream = radio.stream, -- YouTube : flux audio (nil : recherche en cours, false : aucun)
         offset = math.max(0, GetCloudTimeAsInt() - (tonumber(radio.start) or 0)), -- même moment pour tous
     } })
@@ -98,18 +101,18 @@ local function startLoop()
                 if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
                     stop(id) -- hors de portée réseau : reprend quand il revient
                 else
-                    local factor, muffled, pan = RPI.radioHearing(vehicle)
+                    local factor, muffled, pos = RPI.radioHearing(vehicle)
                     local distance = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(vehicle))
                     if factor <= 0.0 and distance > range(true) + 20.0 then
                         stop(id) -- loin : lecteur fermé (rouvert à l'approche, au bon moment)
                     else
                         local volume = math.floor((radio.volume or 0) / 100 * factor * Config.RadioMaxVolume * 100 + 0.5) / 100
-                        pan = math.floor(pan * 20 + 0.5) / 20
-                        local key = ('%s|%s|%s|%.2f|%s|%.2f'):format(radio.url, radio.start, tostring(radio.stream),
-                            volume, tostring(muffled), pan)
+                        local where = pos and ('%.1f,%.1f,%.1f'):format(pos.x, pos.y, pos.z) or 'in'
+                        local key = ('%s|%s|%s|%.2f|%s|%s'):format(radio.url, radio.start, tostring(radio.stream),
+                            volume, tostring(muffled), where)
                         if playing[id] ~= key then
                             playing[id] = key
-                            send(id, radio, volume, muffled, pan)
+                            send(id, radio, volume, muffled, pos)
                         end
                     end
                 end

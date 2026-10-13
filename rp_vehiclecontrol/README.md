@@ -39,8 +39,9 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 ## Clignotants et warnings
 
 - **Flèche gauche / droite** : clignotant ; **flèche bas** : warnings. Les feux sont visibles par tous les joueurs.
-- **Son du relais** (un seul fichier, `indicators_sound.ogg`, pour les clignotants et les warnings) entendu par les
-  occupants, joué en boucle tant que le clignotant est allumé (`SignalSoundMode`), volume `SignalVolume` (+25 %).
+- **Son du relais** (un seul fichier, `indicators_sound.ogg`, pour les clignotants et les warnings) joué **en boucle
+  tant que le clignotant n'est pas coupé** (`SignalSoundMode`), volume `SignalVolume` (+25 %), **même si tout le monde
+  est descendu** : entendu à 100 % à bord et **autour du véhicule** (voir *Sons entendus autour du véhicule*).
   Comme dans une vraie voiture, le clignotant **s'arrête tout seul après le virage** (volant revenu droit après avoir tourné de 60°, `SignalCancelAngle`). Les warnings restent
   jusqu'à la touche, même véhicule laissé.
 
@@ -53,6 +54,14 @@ sangle qui se rembobine (`belt_off`), carillon du tableau de bord (`belt_chime`)
 le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes les `SignalInterval` ms (`'repeat'`).
 Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaque joueur dans le MDC
 (*Paramètres > HUD & Display > Volume des sons du véhicule*, bouton « Tester »).
+
+### Sons entendus autour du véhicule
+
+Clignotants / warnings, ceinture (attache, retrait) et carillon : **100 % pour les occupants** ; dehors, la distance est
+mesurée **depuis la carrosserie** (`VehicleSounds`) :
+- une portière (ou le coffre / le capot) **ouverte** : entendus jusqu'à **3 m**, son clair ;
+- tout **fermé** : jusqu'à **1 m** seulement, **étouffés** (filtre passe-bas) et moins forts (réduction du bruit).
+Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, même au milieu.
 
 ## Moteur
 
@@ -99,8 +108,10 @@ Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaq
 ## Ceinture de sécurité
 
 - Vrai son à l'attache et au retrait. **Attachée, impossible de descendre** (touche F bloquée) : il faut d'abord la
-  détacher. Détachée : **carillon au-dessus de 5 MPH**, répété jusqu'à l'arrêt du véhicule ou jusqu'à l'attache.
-- **Sons synchronisés** : les occupants entendent tout à 100 %, les joueurs autour (15 m) de moins en moins fort.
+  détacher. Détachée : **carillon au-dessus de 5 MPH**, **coupé net** dès que la ceinture est attachée, que le joueur
+  descend du véhicule, ou que le véhicule est **arrêté** (moins de 2 MPH, `StopSpeed`).
+- **Sons synchronisés** : les autres occupants les entendent à 100 %, les joueurs autour selon les règles ci-dessus
+  (3 m portière ouverte, 1 m tout fermé et étouffés).
 - **Éjection** (ceinture **détachée**), lors d'un **choc contre un objet fixe (mur…) ou un véhicule** (arrêté ou en
   mouvement) :
   - au-dessus de **55 MPH** : dès que le choc fait perdre au moins 15 MPH ;
@@ -139,7 +150,8 @@ Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaq
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume +25 %) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
-| `Seatbelt` | alarme (5 MPH), portée des sons, règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |
+| `Seatbelt` | carillon (au-dessus de 5 MPH, coupé sous 2 MPH), règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |
+| `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
 | `EngineNoticeDuration` | durée de la notification du moteur (8 s) |
 | `Push` | vitesse de poussée, zone devant / derrière, position du personnage, animation, classes poussables |
 

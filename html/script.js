@@ -328,14 +328,11 @@
     // MDC ouvert, hors mode placement des HUD
     let blurred = null;
     function syncBlur() {
-        const s = hud.settings.mdc;
-        const on = !!(state.open && !hud.placing && s.blur);
+        const on = !!(state.open && !hud.placing && hud.settings.mdc.blur);
         document.body.classList.toggle('mdc-blur', on);
-        document.body.style.setProperty('--hud-blur', `${(1 + s.blurStrength * 7).toFixed(1)}px`); // 1.7 à 8 px
-        const key = on ? s.blurStrength : 0;
-        if (key === blurred) return;
-        blurred = key;
-        post('mdcBlur', { enabled: on, strength: s.blurStrength });
+        if (on === blurred) return;
+        blurred = on;
+        post('mdcBlur', { enabled: on });
     }
 
     function showPage(page) {
@@ -3178,10 +3175,12 @@
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true, service: true },
         // Fenêtre : légère transparence (opacity) et flou du jeu et des HUD derrière, désactivables
-        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.93, blur: true, blurStrength: 0.6 },
+        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.93, blur: true },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
+        // Menu Interaction (rp_interact) : position (coin haut-gauche) et taille, lues par rp_interact
+        menu: { x: 0.04, y: 0.2, scale: 1 },
     };
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -3209,15 +3208,14 @@
                 if (typeof src[key] === typeof out[group][key]) out[group][key] = src[key];
             });
         });
-        ['pld', 'unit', 'car'].forEach((kind) => {
+        ['pld', 'unit', 'car', 'menu'].forEach((kind) => {
             const s = out[kind];
             s.x = Math.min(Math.max(s.x, 0), 0.98);
             s.y = Math.min(Math.max(s.y, 0), 0.98);
-            s.scale = Math.min(Math.max(s.scale, 0.5), 2);
+            s.scale = Math.min(Math.max(s.scale, kind === 'menu' ? 0.7 : 0.5), kind === 'menu' ? 1.5 : 2);
         });
         out.mdc.zoom = Math.min(Math.max(out.mdc.zoom, 0.8), 1.3);
         out.mdc.opacity = Math.min(Math.max(out.mdc.opacity, 0.5), 1);
-        out.mdc.blurStrength = Math.min(Math.max(out.mdc.blurStrength, 0.1), 1);
         out.notify.volume = Math.min(Math.max(out.notify.volume, 0), 1);
         out.car.volume = Math.min(Math.max(out.car.volume, 0), 1);
         if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
@@ -3245,6 +3243,10 @@
     }
 
     function renderHud() {
+        // Menu Interaction (rp_interact) : cadre visible seulement en mode placement
+        const menuEl = $('#hudMenu');
+        menuEl.classList.toggle('hidden', !hud.placing);
+        if (hud.placing) placeHud(menuEl, hud.settings.menu);
         const paused = !!(hud.pld && hud.pld.paused);
         const pldEl = $('#hudPld');
         const unitEl = $('#hudUnit');
@@ -3398,7 +3400,8 @@
             if (!hud.placing) return;
             e.preventDefault();
             const cfg = hud.settings[el.dataset.hud];
-            cfg.scale = Math.round(Math.min(Math.max(cfg.scale + (e.deltaY < 0 ? 0.05 : -0.05), 0.5), 2) * 100) / 100;
+            const [min, max] = el.dataset.hud === 'menu' ? [0.7, 1.5] : [0.5, 2];
+            cfg.scale = Math.round(Math.min(Math.max(cfg.scale + (e.deltaY < 0 ? 0.05 : -0.05), min), max) * 100) / 100;
             placeHud(el, cfg);
         }, { passive: false });
     });
@@ -3417,7 +3420,7 @@
 
     // ---- Onglet "Paramètres" ----
     const settingGet = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), hud.settings);
-    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'mdc.zoom', 'mdc.opacity', 'mdc.blurStrength', 'notify.volume', 'car.volume'];
+    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'menu.scale', 'mdc.zoom', 'mdc.opacity', 'notify.volume', 'car.volume'];
 
     function renderSettings() {
         $$('[data-setting]').forEach((input) => {

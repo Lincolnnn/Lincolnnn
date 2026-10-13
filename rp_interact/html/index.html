@@ -16,15 +16,16 @@
         <ul class="eye-options hidden" id="eyeOptions"></ul>
     </div>
 
-    <!-- ================= MENU D'INTERACTIONS ================= -->
+    <!-- ================= MENU INTERACTION ================= -->
     <div class="panel menu hidden" id="menu">
         <div class="menu-head">
             <button type="button" class="menu-back hidden" id="menuBack" title="Retour">&#8249;</button>
-            <span class="menu-title" id="menuTitle">Interactions</span>
+            <span class="menu-title" id="menuTitle">Menu Interaction</span>
             <button type="button" class="menu-close" id="menuClose" title="Fermer (Échap)">&#10005;</button>
         </div>
 
         <div class="menu-view" data-view="home">
+            <div class="menu-part">Usage</div>
             <button type="button" class="menu-case" data-go="police">
                 <span class="case-icon">
                     <svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
@@ -39,18 +40,19 @@
                 <span class="case-text"><b>Civil</b><small id="menuCivilHint">Profils et véhicule</small></span>
                 <span class="case-arrow">&#8250;</span>
             </button>
-            <button type="button" class="menu-case" data-go="equipment">
+            <div class="menu-part menu-part-config">Configuration</div>
+            <button type="button" class="menu-case" data-go="equipment" data-section="equipment">
                 <span class="case-icon">
                     <svg viewBox="0 0 24 24"><path d="M8 3 4 6l2 4 2-1v12h8V9l2 1 2-4-4-3c-.5 1.7-2 3-4 3S8.5 4.7 8 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
                 </span>
-                <span class="case-text"><b>Équipements</b><small>Tenues, armes</small></span>
+                <span class="case-text"><b>Équipements</b><small data-hint="Tenues, armes">Tenues, armes</small></span>
                 <span class="case-arrow">&#8250;</span>
             </button>
-            <button type="button" class="menu-case" data-go="car">
+            <button type="button" class="menu-case" data-go="car" data-section="car">
                 <span class="case-icon">
                     <svg viewBox="0 0 24 24"><path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
                 </span>
-                <span class="case-text"><b>Voiture</b><small>Spawn, radio</small></span>
+                <span class="case-text"><b>Voiture</b><small data-hint="Spawn, radio">Spawn, radio</small></span>
                 <span class="case-arrow">&#8250;</span>
             </button>
         </div>

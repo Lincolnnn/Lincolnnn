@@ -107,6 +107,7 @@ button { font: inherit; }
     top: 50%;
     left: 4vw;
     transform: translateY(-50%);
+    transform-origin: top left;
     width: 320px;
     padding: 10px;
     z-index: 40;
@@ -139,6 +140,14 @@ button { font: inherit; }
     cursor: pointer;
 }
 .menu-case:hover { background: rgba(111, 177, 255, .16); border-color: #8fb8e6; }
+/* Accueil : partie "Usage" (Police, Civil) puis, séparée, partie "Configuration" (Équipements, Voiture) */
+.menu-part { font-size: 11px; font-weight: bold; letter-spacing: .6px; text-transform: uppercase; color: var(--hud-muted); margin: 2px 2px 0; }
+.menu-part-config { margin-top: 8px; padding-top: 10px; border-top: 1px solid rgba(122, 122, 122, .45); }
+.menu-case.locked { opacity: .5; cursor: not-allowed; }
+.menu-case.locked:hover { background: rgba(255, 255, 255, .05); border-color: rgba(122, 122, 122, .6); }
+.menu-case.locked .case-text small { color: #e0a96d; }
+/* Aperçu (position / taille changées dans le MDC) : visible un instant, sans interaction */
+.menu.preview { pointer-events: none; }
 .case-icon { display: flex; width: 34px; height: 34px; padding: 6px; color: #fff; background: rgba(255, 255, 255, .08); border-radius: 6px; }
 .case-icon svg { width: 100%; height: 100%; }
 .menu-case[data-go="police"] .case-icon { color: #9cc4f5; }

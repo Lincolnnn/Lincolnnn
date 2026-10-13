@@ -145,11 +145,52 @@
     // =====================================================================
     const menu = { open: false, view: 'home', data: {} };
     const MENU_TITLES = {
-        home: 'Interactions', civil: 'Civil', police: 'Police', equipment: 'Équipements',
+        home: 'Menu Interaction', civil: 'Civil', police: 'Police', equipment: 'Équipements',
         car: 'Voiture', spawn: 'Spawn', 'spawn-police': 'Véhicules de police', 'spawn-other': 'Autres véhicules', radio: 'Radio',
     };
     // Page précédente (bouton retour / Échap)
     const MENU_PARENT = { civil: 'home', police: 'home', equipment: 'home', car: 'home', spawn: 'car', radio: 'car', 'spawn-police': 'spawn', 'spawn-other': 'spawn' };
+    // Catégories réservées (config.lua : Permissions) : page -> catégorie
+    const SECTION_OF = { equipment: 'equipment', car: 'car', spawn: 'car', 'spawn-police': 'car', 'spawn-other': 'car', radio: 'car' };
+    const isLocked = (view) => !!(SECTION_OF[view] && menu.data.locked && menu.data.locked[SECTION_OF[view]]);
+    const LOCKED_TEXT = 'Accès réservé : vous n\'avez pas la permission.';
+
+    // Position (fraction de l'écran, coin haut-gauche) et taille choisies dans le MDC ; sinon, par défaut
+    let menuLayout = null;
+    function applyMenuLayout() {
+        const el = $('#menu');
+        const l = menuLayout;
+        if (!l) {
+            el.style.left = ''; el.style.top = ''; el.style.transform = ''; el.style.maxHeight = '';
+            return;
+        }
+        const scale = Math.min(Math.max(Number(l.scale) || 1, 0.7), 1.5);
+        const top = Math.round(Math.min(Math.max(Number(l.y) || 0, 0), 0.95) * innerHeight);
+        el.style.left = `${Math.round(Math.min(Math.max(Number(l.x) || 0, 0), 0.95) * innerWidth)}px`;
+        el.style.top = `${top}px`;
+        el.style.transform = `scale(${scale})`;
+        el.style.maxHeight = `${Math.max(200, Math.floor((innerHeight - top - 12) / scale))}px`; // reste dans l'écran
+    }
+    window.addEventListener('resize', applyMenuLayout);
+
+    // Réglage modifié dans le MDC : menu montré un instant (accueil) s'il est fermé
+    let previewTimer = null;
+    function setMenuLayout(data) {
+        menuLayout = data && data.layout ? data.layout : null;
+        applyMenuLayout();
+        if (!data || !data.preview || menu.open) return;
+        const el = $('#menu');
+        menu.view = 'home';
+        renderMenu();
+        el.classList.add('preview');
+        el.classList.remove('hidden');
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(() => {
+            el.classList.remove('preview');
+            if (!menu.open) el.classList.add('hidden');
+        }, 2500);
+    }
+
     const goBack = () => {
         menu.view = MENU_PARENT[menu.view] || 'home';
         renderMenu();
@@ -165,6 +206,12 @@
             if (menu.view === 'radio') loadRadio();
         }
         $('#menuTitle').textContent = MENU_TITLES[menu.view];
+        $$('.menu-case[data-section]').forEach((c) => {
+            const locked = isLocked(c.dataset.section);
+            const hint = c.querySelector('small');
+            c.classList.toggle('locked', locked);
+            hint.textContent = locked ? 'Accès réservé' : hint.dataset.hint;
+        });
         $('#menuBack').classList.toggle('hidden', menu.view === 'home');
         $$('.menu-view').forEach((v) => v.classList.toggle('hidden', v.dataset.view !== menu.view));
 
@@ -255,6 +302,8 @@
 
     function setMenu(data) {
         menu.open = !!data.open;
+        clearTimeout(previewTimer);
+        $('#menu').classList.remove('preview');
         $('#menu').classList.toggle('hidden', !menu.open);
         if (!menu.open) {
             menu.lastView = null;
@@ -262,7 +311,13 @@
         }
         $$('[data-police-action]').forEach((btn) => { btn.disabled = true; });
         menu.data = data;
+        menuLayout = data.layout || null;
+        applyMenuLayout();
         menu.view = MENU_TITLES[data.view] ? data.view : 'home'; // ex. 'radio' depuis l'œil
+        if (isLocked(menu.view)) {
+            toast(LOCKED_TEXT, 'error');
+            menu.view = 'home';
+        }
         renderMenu();
         renderCivilMode();
         renderPoliceProfile();
@@ -382,7 +437,8 @@
 
     // ---- Lecteurs de la radio des véhicules (client/radio.lua) ----
     // Chaîne audio : source -> filtre passe-bas ("étouffé" dehors, portières et vitres fermées)
-    //                       -> position gauche / droite (le son vient du véhicule) -> volume.
+    //                       -> son 3D (HRTF : le son vient du véhicule, devant / derrière / côtés) -> volume.
+    // Le volume selon la distance est calculé par client/radio.lua (le son 3D ne donne que la direction).
     // YouTube : lu en flux audio (adresse cherchée par le serveur : "stream") pour pouvoir le filtrer et
     // le placer ; sans flux, lecteur YouTube classique (volume seulement).
     const radios = {};
@@ -417,9 +473,39 @@
             const t = audioCtx.currentTime;
             r.gain.gain.setTargetAtTime(v, t, 0.12);
             r.filter.frequency.setTargetAtTime(r.muffled ? MUFFLED_HZ : CLEAR_HZ, t, 0.15);
-            if (r.panner) r.panner.pan.setTargetAtTime(r.pan || 0, t, 0.1);
+            if (r.panner) placeRadio(r, t);
         } else if (r.audio) {
             r.audio.volume = v;
+        }
+    }
+
+    /** Son 3D (HRTF) : direction seulement, pas d'atténuation (déjà dans le volume) ; sinon gauche / droite */
+    function createPanner() {
+        try {
+            const p = audioCtx.createPanner();
+            p.panningModel = 'HRTF';
+            p.distanceModel = 'linear';
+            p.rolloffFactor = 0;
+            p.refDistance = 1;
+            return p;
+        } catch (err) {
+            return audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+        }
+    }
+
+    /** Position du véhicule vue de la caméra (x droite, y devant, z haut) -> repère Web Audio (devant = -Z) */
+    function placeRadio(r, t) {
+        const p = r.pos || { x: 0, y: 1, z: 0 }; // à bord : juste devant
+        const len = Math.hypot(p.x, p.y, p.z) || 1;
+        // Direction seule, ramenée à 1 m (le volume selon la distance vient de client/radio.lua)
+        const x = p.x / len, y = p.z / len, z = -p.y / len;
+        if (r.panner.pan) { r.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, x)) * 0.85, t, 0.1); return; }
+        if (r.panner.positionX) {
+            r.panner.positionX.setTargetAtTime(x, t, 0.1);
+            r.panner.positionY.setTargetAtTime(y, t, 0.1);
+            r.panner.positionZ.setTargetAtTime(z, t, 0.1);
+        } else {
+            r.panner.setPosition(x, y, z);
         }
     }
 
@@ -456,7 +542,7 @@
             r.filter = audioCtx.createBiquadFilter();
             r.filter.type = 'lowpass';
             r.filter.Q.value = 0.9;
-            r.panner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+            r.panner = createPanner();
             r.gain = audioCtx.createGain();
             r.gain.gain.value = 0;
             let node = source.connect(r.filter);
@@ -512,7 +598,7 @@
     }
 
     function createRadio(d) {
-        const r = { url: d.url, volume: d.volume, muffled: d.muffled, pan: d.pan, offset: d.offset };
+        const r = { url: d.url, volume: d.volume, muffled: d.muffled, pos: d.pos || null, offset: d.offset };
         r.holder = document.createElement('div');
         r.holder.className = 'radio-player';
         $('#radioPlayers').appendChild(r.holder);
@@ -543,7 +629,7 @@
         }
         r.volume = Number(d.volume) || 0;
         r.muffled = !!d.muffled;
-        r.pan = Number(d.pan) || 0;
+        r.pos = d.pos && typeof d.pos === 'object' ? { x: Number(d.pos.x) || 0, y: Number(d.pos.y) || 0, z: Number(d.pos.z) || 0 } : null;
         r.offset = d.offset;
         applyRadio(r);
     }
@@ -585,6 +671,7 @@
     }
 
     $$('[data-go]').forEach((btn) => btn.addEventListener('click', () => {
+        if (isLocked(btn.dataset.go)) return toast(LOCKED_TEXT, 'error');
         menu.view = btn.dataset.go;
         renderMenu();
     }));
@@ -1068,6 +1155,7 @@
             case 'eyeOptions': showEyeOptions(data.data || {}); break;
             case 'result': if (data.data) showResult(data.data); break;
             case 'menu': setMenu(data.data || {}); break;
+            case 'menuLayout': setMenuLayout(data.data || {}); break;
             case 'menuPolice': // entrée / sortie d'une unité du MDC pendant que le menu est ouvert
                 menu.data.police = data.data ? data.data.police : null;
                 if (menu.open) renderMenu();

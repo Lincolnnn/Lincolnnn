@@ -708,14 +708,9 @@
                                     <input type="range" min="50" max="100" step="1" data-setting="mdc.opacity">
                                     <span class="setting-value" data-setting-value="mdc.opacity"></span>
                                 </div>
-                                <label class="check"><input type="checkbox" data-setting="mdc.blur"> Flouter le jeu, la minimap et les HUD derrière le MDC</label>
-                                <div class="setting-row">
-                                    <span class="lbl-inline">Intensité du flou</span>
-                                    <input type="range" min="10" max="100" step="5" data-setting="mdc.blurStrength">
-                                    <span class="setting-value" data-setting-value="mdc.blurStrength"></span>
-                                </div>
-                                <p class="hint-text setting-text">La minimap du jeu ne peut pas être floutée (elle est dessinée par-dessus l'image) :
-                                    elle est masquée tant que le MDC est ouvert avec le flou, puis réaffichée.</p>
+                                <label class="check"><input type="checkbox" data-setting="mdc.blur"> Flouter l'arrière-plan (jeu, minimap et HUD) derrière le MDC</label>
+                                <p class="hint-text setting-text">Décochez pour garder le jeu et les HUD nets MDC ouvert. La minimap du jeu ne peut pas
+                                    être floutée (elle est dessinée par-dessus l'image) : elle est masquée pendant le flou, puis réaffichée.</p>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn" id="mdcResetWindow">Réinitialiser la fenêtre</button>
                                     <button type="button" class="btn btn-danger" id="settingsReset">Réglages par défaut</button>
@@ -819,9 +814,22 @@
                                 </div>
                             </div>
                             <div class="group">
+                                <span class="legend">Menu Interaction</span>
+                                <p class="hint-text setting-text">Menu de la ressource <b>rp_interact</b> (touche F1). Choisissez sa taille ici et
+                                    son emplacement avec « Placer les HUD à l'écran » (cadre « Menu Interaction »).</p>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Taille</span>
+                                    <input type="range" min="70" max="150" step="5" data-setting="menu.scale">
+                                    <span class="setting-value" data-setting-value="menu.scale"></span>
+                                </div>
+                                <div class="toolbar setting-actions">
+                                    <button type="button" class="btn" data-hud-reset="menu">Réinitialiser position et taille</button>
+                                </div>
+                            </div>
+                            <div class="group">
                                 <span class="legend">Position des HUD</span>
                                 <p class="hint-text setting-text">Le PLD est toujours affiché (sauf si vous le désactivez) ; le display MDC apparaît
-                                    dès que vous rejoignez une unité ; le car HUD, à bord d'un véhicule. Le mode placement masque le MDC : déplacez chaque HUD à la souris,
+                                    dès que vous rejoignez une unité ; le car HUD, à bord d'un véhicule ; le Menu Interaction, avec sa touche. Le mode placement masque le MDC : déplacez chaque HUD à la souris,
                                     la molette l'agrandit ou le rétrécit. Échap ou « Terminer » pour revenir.</p>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn btn-default" id="hudPlace">Placer les HUD à l'écran</button>
@@ -1040,6 +1048,17 @@
             <span class="car-notice-key" id="carNoticeKey">O</span>
             <span class="car-notice-text"><b id="carNoticeText">Allumer le moteur</b><small id="carNoticeHint">Il reste allumé, même en descendant</small></span>
         </div>
+    </div>
+
+    <!-- Menu Interaction (rp_interact) : cadre à placer en mode placement (position et taille du vrai menu) -->
+    <div class="hud hud-menu hidden" id="hudMenu" data-hud="menu">
+        <div class="hm-title">Menu Interaction</div>
+        <div class="hm-section">Usage</div>
+        <div class="hm-case">Police</div>
+        <div class="hm-case">Civil</div>
+        <div class="hm-section">Configuration</div>
+        <div class="hm-case">Équipements</div>
+        <div class="hm-case">Voiture</div>
     </div>
 
     <!-- Mode placement (onglet Paramètres) -->

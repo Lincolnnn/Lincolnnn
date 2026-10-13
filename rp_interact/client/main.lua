@@ -1,7 +1,8 @@
 --[[
     RP Interact - Client principal
     ------------------------------
-    - Menu d'interactions (touche F1 par défaut) : cases "Police", "Civil", "Équipements" et "Voiture"
+    - Menu Interaction (touche F1 par défaut) : partie "Usage" (Police, Civil) et partie "Configuration"
+      (Équipements, Voiture ; réservables à certains joueurs : config.lua, Permissions)
       (client/garage.lua : spawn et équipements ; client/radio.lua : radio du véhicule)
     - Fiche civile (interface séparée du MDC, même style) : profils permanents et profil du véhicule
     - Affichage des résultats d'inspection (à l'écran + copie dans le chat écrit)
@@ -356,6 +357,19 @@ RegisterNUICallback('setPoliceProfile', function(data, cb)
     cb({ ok = true, profile = profile })
 end)
 
+--- Position et taille du Menu Interaction, choisies dans le MDC (Paramètres > HUD & Display) ; nil : par défaut
+local function menuLayout()
+    local mdc = Config.MdcResource
+    if GetResourceState(mdc) ~= 'started' then return nil end
+    local ok, layout = pcall(function() return exports[mdc]:interactMenuLayout() end)
+    return ok and type(layout) == 'table' and layout or nil
+end
+
+-- Réglage modifié dans le MDC : appliqué tout de suite (menu montré un instant s'il est fermé)
+AddEventHandler('mdc:interactMenuLayout', function(layout, preview)
+    SendNUIMessage({ action = 'menuLayout', data = { layout = type(layout) == 'table' and layout or false, preview = preview == true } })
+end)
+
 --- Ouvre le menu (sur la page `view` si elle est donnée, ex. 'radio' depuis l'œil)
 local function openMenu(view)
     if RPI.uiOpen() or IsPauseMenuActive() then return end
@@ -372,6 +386,8 @@ local function openMenu(view)
             civilMode = RPI.civilMode and RPI.civilMode() or false,
             tipsManual = RPI.tipsManual and RPI.tipsManual() or false,
             policeProfile = policeProfile(),
+            locked = res and res.locked or {},  -- catégories réservées (config.lua : Permissions)
+            layout = menuLayout() or false,
         } })
     end)
 end
@@ -390,7 +406,7 @@ RPI.closeMenu = closeMenu
 RegisterCommand('interactions', function()
     if ui.menu then closeMenu() else openMenu(nil) end
 end, false)
-RegisterKeyMapping('interactions', 'Menu d\'interactions', 'keyboard', Config.MenuKey)
+RegisterKeyMapping('interactions', 'Menu Interaction', 'keyboard', Config.MenuKey)
 
 RegisterNUICallback('closeMenu', function(_, cb)
     closeMenu()

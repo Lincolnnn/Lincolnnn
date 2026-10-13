@@ -151,10 +151,10 @@ VCConfig = {
     -- CEINTURE
     -- ---------------------------------------------------------------------
     Seatbelt = {
-        AlarmSpeed = 5.0,         -- MPH : bip au-dessus (ceinture détachée), jusqu'à l'arrêt
-        StopSpeed = 1.0,          -- MPH : véhicule arrêté
-        HearRange = 15.0,         -- m : sons entendus par les joueurs autour
-        OutsideVolume = 0.7,      -- volume hors du véhicule (à 0 m) ; occupants : 100 %
+        AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
+        StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
+        -- Carillon coupé net : ceinture attachée, joueur descendu ou véhicule arrêté.
+        -- Sons entendus autour du véhicule : voir VehicleSounds.
         -- Éjection (ceinture détachée) lors d'un accident violent : choc contre un objet fixe ou un véhicule
         --   - au-dessus de HighSpeed MPH : dès que le choc fait perdre au moins HighSpeedDrop MPH ;
         --   - entre MinSpeed et HighSpeed : seulement si la vitesse chute brutalement d'au moins SuddenDrop
@@ -174,6 +174,14 @@ VCConfig = {
     -- Sons du véhicule (html/sounds/*.ogg, remplaçables par vos propres enregistrements) : volume réglé
     -- par chaque joueur dans le MDC (Paramètres > HUD & Display) ; sans le MDC : SoundVolume.
     SoundVolume = 0.7,
+    -- Clignotants / warnings, ceinture (attache, retrait) et carillon : entendus à 100 % par les occupants,
+    -- et autour du véhicule (distance mesurée depuis la carrosserie, même véhicule laissé vide) :
+    VehicleSounds = {
+        RangeOpen = 3.0,          -- m : une portière (ou le coffre / le capot) ouverte
+        RangeClosed = 1.0,        -- m : tout fermé ; le son est alors étouffé (filtre passe-bas)
+        OpenVolume = 0.8,         -- volume juste à côté, portière ouverte
+        ClosedVolume = 0.4,       -- volume juste à côté, tout fermé (réduction du bruit)
+    },
     -- Clignotants : arrêtés tout seuls après un virage (le volant revenu droit après avoir tourné de
     -- SignalCancelAngle degrés), comme dans une vraie voiture. 0 pour désactiver.
     SignalCancelAngle = 60.0,
