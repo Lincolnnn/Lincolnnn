@@ -4,8 +4,9 @@
     Écrit l'état des véhicules (lu par tous les clients) après vérification :
       - "fuel" (essence en %) : un joueur proche du véhicule ; la valeur ne monte qu'en faisant le plein,
         au rythme d'une pompe (Fuel.RefuelPerSecond) ;
-      - "vcEngine" (moteur toujours allumé), "vcBroken" (cassé),
-        "vcSignal" (clignotants / warnings) : le conducteur ;
+      - "vcEngine" (moteur toujours allumé), "vcBroken" (cassé), "vcSignal" (clignotants / warnings),
+        "vcStopLights" (feux stop à l'arrêt), "vcSteer" (angle des roues gardé à la descente) : le
+        conducteur (extinction des feux stop / angle des roues : aussi juste après sa descente) ;
       - "vcPushed" (véhicule poussé : par qui, sens, poussée en cours) : un joueur à côté du véhicule ;
       - "vcDoors" (qui a ouvert chaque portière avant) : conducteur (portières 0 et 1) ou passager avant
         (portière 1) ; le propriétaire réseau du véhicule applique l'ouverture / la fermeture.
@@ -64,7 +65,11 @@ local STATE_KEYS = {
     vcEngine = function(v) return type(v) == 'boolean' end,
     vcBroken = function(v) return type(v) == 'boolean' end,
     vcSignal = function(v) return v == false or SIGNALS[v] == true end,
+    vcStopLights = function(v) return type(v) == 'boolean' end,
+    vcSteer = function(v) return v == false or (type(v) == 'number' and v == v and math.abs(v) <= 90.0) end,
 }
+-- Envoyés aussi juste après la descente du conducteur (il est alors à côté du véhicule)
+local AFTER_LEAVING = { vcStopLights = function(v) return v == false end, vcSteer = function(v) return type(v) == 'number' end }
 
 --- Conducteur (siège -1) ; à défaut (siège pas encore à jour côté serveur), joueur à bord du véhicule
 local function isDriver(src, vehicle)
@@ -90,7 +95,10 @@ RegisterNetEvent('rp_vehiclecontrol:state', function(netId, key, value)
         return
     end
     local valid = STATE_KEYS[key]
-    if not valid or not valid(value) or not isDriver(src, vehicle) then return end
+    if not valid or not valid(value) then return end
+    if not isDriver(src, vehicle) and not (AFTER_LEAVING[key] and AFTER_LEAVING[key](value) and near(src, vehicle, 10.0)) then
+        return
+    end
     Entity(vehicle).state:set(key, value, true)
 end)
 

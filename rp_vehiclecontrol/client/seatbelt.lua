@@ -45,8 +45,9 @@ local function hearVolume(serverId)
     return VC.hearVehicle(vehicle)
 end
 
+--- Attache / retrait de la ceinture (volume renforcé : BeltSoundVolume)
 local function beltSound(kind, volume, muffled)
-    VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume, nil, muffled)
+    VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume * (Config.BeltSoundVolume or 1.5), nil, muffled)
 end
 
 --- Carillon : le plus fort entre le sien (100 %) et ceux des joueurs à portée ; volume 0 = coupé net
@@ -132,7 +133,7 @@ end)
 
 -- MDC : bouton "Tester" du volume des sons du véhicule
 AddEventHandler('rp_vehiclecontrol:testSound', function(volume)
-    VC.sound('belt_on', 1.0, volume)
+    VC.sound('belt_on', Config.BeltSoundVolume or 1.5, volume)
     SetTimeout(600, function() VC.sound('belt_chime', 1.0, volume) end)
 end)
 

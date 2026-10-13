@@ -151,6 +151,7 @@ VCConfig = {
     -- CEINTURE
     -- ---------------------------------------------------------------------
     Seatbelt = {
+        BeltSoundVolume = 1.5,    -- volume des sons d'attache / de retrait (x1,5 : plus forts que le reste)
         AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
         StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
         -- Carillon coupé net : ceinture attachée, joueur descendu ou véhicule arrêté.
@@ -193,6 +194,11 @@ VCConfig = {
     SignalVolume = 1.0625,        -- volume du son des clignotants (0,85 d'avant + 25 %), x réglage du joueur
 
     EngineNoticeDuration = 8000,  -- ms : notification "O" en montant côté conducteur (disparaît ensuite)
+    EngineStartTime = 1200,       -- ms : durée du démarrage (démarreur) pendant laquelle on ne peut pas accélérer
+    -- Feux stop : allumés quand le véhicule est à l'arrêt, moteur tournant, conducteur au volant (vus par tous)
+    StopLights = true,
+    -- Roues : en descendant, la position du volant (roues braquées) est gardée telle quelle (vue par tous)
+    KeepWheelAngle = true,
 
     -- ---------------------------------------------------------------------
     -- POUSSER UN VÉHICULE (à pied, devant le capot ou derrière le coffre, avec ou sans conducteur) :

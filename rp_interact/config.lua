@@ -62,6 +62,27 @@ InteractConfig = {
     ObjectDistance = 2.5,           -- s'asseoir, fouiller une poubelle
     DeleteDistance = 50.0,          -- "Supprimer" : seule option visible de loin (joueurs autorisés)
 
+    -- PROPS POSÉS avec le script de props du serveur (dossier "props") : avec l'œil, options "Déplacer le
+    -- props" et "Supprimer le props". Un objet est reconnu comme posé par ce script (le premier qui répond) :
+    --   1. automatiquement : le serveur demande au joueur qui l'a créé quel script l'a fait apparaître
+    --      (OneSync) ; si c'est Props.Resource, l'objet est marqué pour tout le monde (état "rpiProp") ;
+    --   2. un état de l'objet posé par le script de props (StateKeys) ;
+    --   3. un export du script de props (Export : exports.props:<Export>(entity) -> true).
+    --   Votre script peut aussi marquer lui-même ses objets : exports.rp_interact:registerProp(entity)
+    --   (client) ou TriggerServerEvent('rp_interact:server:registerProp', netId).
+    Props = {
+        Resource = 'props',
+        StateKeys = { 'rpiProp', 'prop', 'isProp', 'placedProp', 'propOwner', 'placedBy' },
+        Export = '',                -- ex. 'isProp' ; '' : pas d'export
+        Distance = 3.0,             -- m : distance pour déplacer / supprimer
+        MoveRange = 6.0,            -- m : jusqu'où le props peut être déplacé autour du joueur
+        Access = 'everyone',        -- 'everyone' | 'police' (joueurs dans une unité du MDC) | 'owner' (celui qui l'a posé)
+        -- Événements SERVEUR du script de props à prévenir (facultatif, ex. pour sa sauvegarde) :
+        --   DeletedEvent(netId, source) ; MovedEvent(netId, { x, y, z, heading }, source)
+        DeletedEvent = '',
+        MovedEvent = '',
+    },
+
     -- Test : viser son propre personnage (vue à la 3e personne) pour vérifier son profil actif.
     -- Mettez false en production si vous ne voulez pas de cette possibilité.
     AllowSelfTarget = true,

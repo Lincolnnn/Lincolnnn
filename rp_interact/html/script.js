@@ -65,6 +65,7 @@
         door: '<path d="M5 3h11v18H5Z M16 5l3 1v13l-3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="13" cy="12" r="1" fill="currentColor"/>',
         seat: '<path d="M7 3v9h10 M7 12l-1 8 M17 12v8 M7 16h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
         trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>',
+        move: '<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>',
         cuffs: '<circle cx="7" cy="14" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="14" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 10.5 12 8l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
         car: '<path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
         wave: '<path d="M8 13V6a1.5 1.5 0 0 1 3 0v5V4a1.5 1.5 0 0 1 3 0v7V5.5a1.5 1.5 0 0 1 3 0V15c0 3.5-2.5 6-6 6-2.5 0-4-1.2-5.5-3.5L3.5 14a1.6 1.6 0 0 1 2.6-1.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
@@ -362,11 +363,13 @@
         const fill = (sel, list, empty) => { $(sel).innerHTML = list.length ? list.map(item).join('') : `<div class="menu-empty">${esc(empty)}</div>`; };
         const apd = all.filter((v) => v.service === 'apd');
         const gsp = all.filter((v) => v.service === 'gsp');
+        const fcso = all.filter((v) => v.service === 'fcso');
         const other = all.filter((v) => v.service === 'other');
         fill('#spawnApd', apd, 'Aucun véhicule APD (data/vehicles.txt).');
         fill('#spawnGsp', gsp, 'Aucun véhicule GSP (data/vehicles.txt).');
+        fill('#spawnFcso', fcso, 'Aucun véhicule FCSO (data/vehicles.txt).');
         fill('#spawnOther', other, 'Aucun véhicule (data/vehicles.txt).');
-        $('#spawnPoliceHint').textContent = `${apd.length} APD, ${gsp.length} GSP${locked ? ' — réservé à la police' : ''}`;
+        $('#spawnPoliceHint').textContent = `${apd.length} APD, ${gsp.length} GSP, ${fcso.length} FCSO${locked ? ' — réservé à la police' : ''}`;
         $('#spawnOtherHint').textContent = `${other.length} véhicule(s)`;
         const notice = $('#spawnPoliceNotice');
         notice.classList.toggle('hidden', !locked);

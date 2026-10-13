@@ -632,13 +632,14 @@ input::placeholder { color: #6a6a6a; }
 .units-toolbar { margin: 0; }
 .dept-short { padding: 0 5px; font-size: 10px; font-weight: bold; color: #cfe0ff; border: 1px solid #3a5a8a; }
 /* Tag de service d'une unité / d'un appel : APD bleu foncé, GSP orange vif (distinct du tag spécial, ex. SUP.) */
-:root { --dept-apd: #12357a; --dept-gsp: #ff6a00; }
+:root { --dept-apd: #12357a; --dept-gsp: #ff6a00; --dept-fcso: #1e5631; }
 .dept-tag {
     display: inline-flex; align-items: center; flex-shrink: 0; height: 17px; padding: 0 6px; border-radius: 3px;
     font-size: 10px; font-weight: bold; letter-spacing: .6px; color: #fff; background: var(--dept-apd);
     text-shadow: none; white-space: nowrap;
 }
 .dept-tag.dept-gsp { background: var(--dept-gsp); color: #fff; }
+.dept-tag.dept-fcso { background: var(--dept-fcso); color: #fff; }
 .dept-tag.dept-both { background: linear-gradient(90deg, var(--dept-apd) 0 50%, var(--dept-gsp) 50% 100%); }
 .joint-row { display: flex; align-items: center; gap: 10px; min-height: 26px; }
 .readonly-value { display: block; padding: 4px 0; color: var(--text); }
@@ -1167,7 +1168,11 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .dept-fold > summary:hover { background: #333; }
 .dept-badge { padding: 1px 6px; border-radius: 3px; font-size: 11px; letter-spacing: .5px; color: #fff; background: var(--dept-apd); }
 .dept-fold[data-dept="gsp"] .dept-badge { background: var(--dept-gsp); }
-.dept-fold[data-dept="both"] .dept-badge { background: linear-gradient(90deg, var(--dept-apd) 0 50%, var(--dept-gsp) 50% 100%); }
+.dept-fold[data-dept="fcso"] .dept-badge { background: var(--dept-fcso); }
+.dept-fold[data-dept="common"] .dept-badge { background: #4a4a4a; }
+/* Cases des services (création d'intervention / d'incident) */
+.dept-checks { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 4px; }
+.dept-check { display: inline-flex; align-items: center; gap: 6px; font-weight: normal; }
 /* Listes toujours ouvertes (son service, appels communs) : pas de +/-, titre mis en avant */
 .dept-fold.locked > summary { cursor: default; }
 .dept-fold.locked > summary::before { content: ""; width: 0; }

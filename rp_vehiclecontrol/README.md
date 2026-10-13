@@ -47,10 +47,11 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 ## Sons
 
-Les sons du véhicule sont des **fichiers audio** (`html/sounds/*.ogg`) : verrou de ceinture (`belt_on`), déclic et
-sangle qui se rembobine (`belt_off`), carillon du tableau de bord (`belt_chime`) : imitations fabriquées pour ce script,
-**remplaçables par vos propres enregistrements** (mêmes noms de fichiers, format .ogg). Clignotants et warnings :
-**`indicators_sound.ogg`, à ajouter vous-même** dans `html/sounds/` ; il est joué en boucle (`SignalSoundMode = 'loop'`,
+Les sons du véhicule sont des **fichiers audio que vous déposez vous-même** dans `html/sounds/` (aucun n'est fourni,
+voir `html/sounds/LISEZMOI.txt`), au format .ogg : `belt_on` (ceinture attachée), `belt_off` (détachée), `belt_chime`
+(carillon), `indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
+**plus fort** (×1,5, `Seatbelt.BeltSoundVolume`). Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
+est joué en boucle (`SignalSoundMode = 'loop'`,
 le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes les `SignalInterval` ms (`'repeat'`).
 Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaque joueur dans le MDC
 (*Paramètres > HUD & Display > Volume des sons du véhicule*, bouton « Tester »).
@@ -66,14 +67,23 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 ## Moteur
 
 - Un véhicule **apparaît moteur coupé** : en montant, il reste coupé (le démarrage automatique du jeu est bloqué).
-- En montant **côté conducteur**, une notification **glisse depuis la gauche, juste au-dessus du car HUD** : touche
-  **O** « Allumer le moteur — il reste allumé, même en descendant » (ou « Couper le moteur » s'il tourne déjà).
-  Elle **disparaît 8 secondes** après la montée, même sans appuyer (`EngineNoticeDuration`), ou dès que **O** est
-  utilisée.
-- **O** allume le moteur et le marque **toujours allumé** : il le reste, **même quand le joueur descend**, et pour
-  le prochain conducteur. **O** de nouveau : coupé.
-- **Accélérer** démarre toujours le moteur, comme dans le jeu de base (sans le marquer « toujours allumé »).
+- En montant **côté conducteur**, une notification **glisse depuis la gauche, juste au-dessus du car HUD** :
+  « **O** » **Pour allumer le moteur et le maintenir allumé**, et en dessous « **ou accélérer pour allumer le moteur** »
+  (« Pour couper le moteur » s'il tourne déjà). Elle **disparaît 8 secondes** après la montée, même sans appuyer
+  (`EngineNoticeDuration`), ou dès que **O** est utilisée.
+- **O** (touche configurable), moteur coupé : il démarre et reste **toujours allumé**, **même quand le joueur
+  descend**, et pour le prochain conducteur. **O**, moteur allumé : coupé.
+- **Accélérer**, moteur coupé : il démarre aussi, mais **s'éteint quand le conducteur descend**.
+- **Vrai démarrage** : démarreur du jeu, durée complète conservée (pot d'échappement, etc.) ; on ne peut pas
+  accélérer pendant le démarrage (`EngineStartTime`, 1,2 s).
 - Panne sèche ou véhicule cassé : impossible à démarrer.
+
+## Feux stop et roues
+
+- **Feux stop** allumés quand le véhicule est **à l'arrêt, moteur tournant**, conducteur au volant (comme un pied sur
+  le frein), **vus par tous les joueurs** (`StopLights`).
+- **Position des roues** : en descendant, les roues gardent **exactement** l'angle du volant juste avant la descente
+  (le jeu les redresse d'habitude), pour tous les joueurs, même quand le véhicule revient à portée (`KeepWheelAngle`).
 
 ## Essence
 
@@ -152,7 +162,8 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
 | `Seatbelt` | carillon (au-dessus de 5 MPH, coupé sous 2 MPH), règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
-| `EngineNoticeDuration` | durée de la notification du moteur (8 s) |
+| `EngineNoticeDuration`, `EngineStartTime` | durée de la notification du moteur (8 s), durée du démarrage (1,2 s) |
+| `StopLights`, `KeepWheelAngle` | feux stop à l'arrêt moteur tournant, angle des roues gardé à la descente |
 | `Push` | vitesse de poussée, zone devant / derrière, position du personnage, animation, classes poussables |
 
 ## États des véhicules (pour d'autres scripts)
@@ -169,4 +180,6 @@ chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au
 - À bord : ~0.02 ms (chocs, puissance) ; essence, dégâts, alarme et car HUD toutes les 100 ms ; ce qui a été
   percuté n'est cherché qu'au moment d'un choc ;
   car HUD envoyé seulement quand il change.
+- Feux stop des véhicules des autres joueurs : boucle à chaque image seulement tant qu'un véhicule proche est arrêté
+  moteur tournant ; roues : 2 s après une descente.
 - Serveur : aucune boucle.

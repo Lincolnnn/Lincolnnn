@@ -25,6 +25,7 @@
     const DEPARTMENTS = {
         apd: { label: 'Atlanta Police Department', short: 'APD' },
         gsp: { label: 'Georgia State Patrol', short: 'GSP' },
+        fcso: { label: 'Fayette County Sheriff Office', short: 'FCSO' },
     };
     const KIND_LABELS = { identity: 'Identité', vehicle: 'Véhicule', intervention: 'Intervention' };
     const KIND_SAVED = { identity: 'Identité enregistrée', vehicle: 'Véhicule enregistré', intervention: 'Intervention enregistrée' };
@@ -438,7 +439,7 @@
     $$('.status-btn').forEach((btn) => btn.addEventListener('click', () => changeStatus(btn.dataset.status)));
 
     // ---- Liste des unités ----
-    // Une liste par service de police (APD / GSP)
+    // Une liste par service de police (APD / GSP / FCSO)
     function renderUnits() {
         Object.keys(DEPARTMENTS).forEach((dept) => {
             const units = state.units.filter((u) => u.dept === dept);
@@ -917,30 +918,37 @@
     const callFlag = (map, key) => (map[key] ? flag(map[key][0], map[key][1]) : '-');
     const findCall = (id) => state.interventions.find((c) => c.id === id) || null;
 
-    // Service d'un appel : APD, GSP, ou les deux (appel commun). Doit correspondre à CALL_DEPTS (server.lua)
-    const CALL_DEPTS = {
-        apd: { short: 'APD', label: 'Atlanta Police Department' },
-        gsp: { short: 'GSP', label: 'Georgia State Patrol' },
-        both: { short: 'APD & GSP', label: 'APD & GSP (appel commun)' },
+    // Services d'un appel (texte "apd", "apd+gsp", "apd+gsp+fcso" ; ancien "both" = APD & GSP), comme
+    // deptSet / normalizeDepts (server.lua). Un seul service : liste de ce service ; plusieurs : liste
+    // des appels communs (visible par les trois services, rejoignable seulement par les services cochés).
+    const DEPT_ORDER = ['apd', 'gsp', 'fcso'];
+    const callDepts = (c) => {
+        const v = c && c.dept;
+        const list = v === 'both' ? ['apd', 'gsp'] : String(v || '').split(/[+,\s]+/);
+        const out = DEPT_ORDER.filter((d) => list.includes(d));
+        return out.length ? out : ['apd'];
     };
-    const callDept = (c) => (CALL_DEPTS[c.dept] ? c.dept : 'apd');
-    const callServes = (c, dept) => callDept(c) === 'both' || callDept(c) === dept;
+    const callServes = (c, dept) => callDepts(c).includes(dept);
+    const callFold = (c) => (callDepts(c).length > 1 ? 'common' : callDepts(c)[0]);
+    const deptsShort = (c) => callDepts(c).map((d) => DEPARTMENTS[d].short).join(' & ');
+    const deptsTags = (c) => callDepts(c).map((d) => `<span class="dept-tag dept-${d}">${DEPARTMENTS[d].short}</span>`).join(' ');
+    const deptsLabel = (c) => callDepts(c).map((d) => DEPARTMENTS[d].label).join(', ');
 
     // Listes des interventions par service. Policier : la liste de SON service est en haut et toujours
-    // ouverte, la liste commune (APD & GSP, affichée seulement s'il y a des appels communs) vient en
-    // deuxième et est toujours ouverte, la liste de l'autre service est fermée par défaut (il peut
-    // l'ouvrir pour la consulter, sans pouvoir rejoindre ses appels). Hors unité : APD, communs, GSP.
+    // ouverte, la liste des appels communs (affichée seulement s'il y en a) vient en deuxième et est
+    // toujours ouverte, les listes des autres services sont fermées par défaut (consultables, sans pouvoir
+    // rejoindre leurs appels). Hors unité : APD, communs, GSP, FCSO, toutes ouvertes.
     let deptFoldsFor = null;
     function arrangeDeptFolds(hasCommon) {
         const unit = myUnit();
         const own = unit && DEPARTMENTS[unit.dept] ? unit.dept : null;
-        const other = own === 'apd' ? 'gsp' : (own === 'gsp' ? 'apd' : null);
+        const others = DEPT_ORDER.filter((d) => d !== own);
         const box = $('#interventionsLists');
         const fold = (dept) => box.querySelector(`.dept-fold[data-dept="${dept}"]`);
-        (own ? [own, 'both', other] : ['apd', 'both', 'gsp']).forEach((dept) => box.appendChild(fold(dept)));
-        fold('both').classList.toggle('hidden', !hasCommon);
+        (own ? [own, 'common', ...others] : ['apd', 'common', 'gsp', 'fcso']).forEach((dept) => box.appendChild(fold(dept)));
+        fold('common').classList.toggle('hidden', !hasCommon);
         $$('#interventionsLists .dept-fold').forEach((f) => {
-            const locked = f.dataset.dept === 'both' || f.dataset.dept === own;
+            const locked = f.dataset.dept === 'common' || f.dataset.dept === own;
             f.classList.toggle('locked', locked);
             f.classList.toggle('own', f.dataset.dept === own);
             if (locked) f.open = true;
@@ -948,8 +956,8 @@
         // Nouvelle unité / autre service : état par défaut (le choix du joueur est ensuite respecté)
         if (deptFoldsFor !== (own || 'none')) {
             deptFoldsFor = own || 'none';
-            if (other) fold(other).open = false;
-            else { fold('apd').open = true; fold('gsp').open = true; }
+            if (own) others.forEach((d) => { fold(d).open = false; });
+            else DEPT_ORDER.forEach((d) => { fold(d).open = true; });
         }
     }
 
@@ -964,7 +972,7 @@
         const prio = !c.closed && CALL_PRIORITY[c.priority] ? `prio prio-${c.priority}` : '';
         return `
             <tr data-id="${esc(c.id)}" class="${c.closed ? 'row-closed' : ''} ${prio} ${c.id === selected ? 'selected' : ''}">
-                <td class="cell-ellipsis"><b>${esc(c.title)}</b></td>
+                <td class="cell-ellipsis">${callDepts(c).length > 1 ? `${deptsTags(c)} ` : ''}<b>${esc(c.title)}</b></td>
                 <td>${c.kind === 'incident' ? '<span class="muted">Incident</span>' : esc(CALL_PRIORITY[c.priority] ? CALL_PRIORITY[c.priority][1] : '-')}</td>
                 <td class="cell-ellipsis">${esc(c.address)}${c.crossStreet ? `<span class="cross-inline"> × ${esc(c.crossStreet)}</span>` : ''}</td>
                 <td>${esc(c.block)}</td>
@@ -975,9 +983,9 @@
         const list = state.interventions;
         const selected = state.callPanel.id;
         $('#interventionsCount').textContent = `(${list.length})`;
-        arrangeDeptFolds(list.some((c) => callDept(c) === 'both'));
-        Object.keys(CALL_DEPTS).forEach((dept) => {
-            const items = list.filter((c) => callDept(c) === dept);
+        arrangeDeptFolds(list.some((c) => callFold(c) === 'common'));
+        [...DEPT_ORDER, 'common'].forEach((dept) => {
+            const items = list.filter((c) => callFold(c) === dept);
             const open = items.filter((c) => !c.closed).length;
             $(`[data-dept-count="${dept}"]`).textContent = `(${open} en cours / ${items.length})`;
             $(`[data-dept-empty="${dept}"]`).classList.toggle('hidden', items.length > 0);
@@ -1097,13 +1105,13 @@
         const incident = c.kind === 'incident';
         // Appel d'un seul service : seules ses unités peuvent le rejoindre (consultation pour les autres)
         const allowed = !unit || onCall || callServes(c, unit.dept);
-        const reservedTo = callDept(c) === 'gsp' ? 'à la GSP' : 'à l\'APD';
+        const reservedTo = `à : ${deptsShort(c)}`;
 
         let actions = '';
         if (!c.closed) {
             actions = `
                 ${unit ? '' : '<div class="hint-box">Seules les unités peuvent rejoindre un appel : rejoignez d\'abord une unité (onglet Unités).</div>'}
-                ${allowed ? '' : `<div class="hint-box">Appel réservé ${reservedTo} : seules ses unités peuvent le rejoindre (consultation uniquement).</div>`}
+                ${allowed ? '' : `<div class="hint-box">Appel réservé ${reservedTo} : seules leurs unités peuvent le rejoindre (consultation uniquement).</div>`}
                 <div class="toolbar call-actions">
                     ${unit && allowed ? (onCall
                         ? '<button type="button" class="btn" data-call-action="leave">Quitter l\'appel</button>'
@@ -1120,7 +1128,7 @@
             <dl class="sheet">
                 ${row('N° d\'incident', c.number)}
                 ${row('Catégorie', incident ? 'Incident (déclaré par une unité)' : 'Intervention (appel)')}
-                ${dd('Service de police', `<span class="dept-tag dept-${esc(callDept(c))}">${esc(CALL_DEPTS[callDept(c)].short)}</span> ${esc(CALL_DEPTS[callDept(c)].label)}`)}
+                ${dd(callDepts(c).length > 1 ? 'Services de police (appel commun)' : 'Service de police', `${deptsTags(c)} ${esc(deptsLabel(c))}`)}
                 ${incident ? '' : row('Unités idéales', c.idealUnits ? `${c.idealUnits} (${toArray(c.units).length} sur l'appel)` : '-')}
                 ${dd('Déroulé', callFlag(CALL_STATUS, c.status))}
                 ${row(incident ? 'Type d\'incident' : 'Type d\'intervention', c.title)}
@@ -1152,18 +1160,20 @@
             ${reportStarterHtml()}`;
     }
 
-    // Nouvel incident : service de l'unité par défaut ; case pour le joindre aussi à l'autre service
+    // Cases des services de police (un ou plusieurs : appel commun). `fixed` : service toujours coché
+    // (incident : service de l'unité déclarante).
+    function deptChecksHtml(fixed) {
+        return `<span class="dept-checks">${DEPT_ORDER.map((d) => `
+            <label class="check dept-check"><input type="checkbox" name="depts" value="${d}" ${d === fixed ? 'checked disabled' : ''}>
+                <span class="dept-tag dept-${d}">${DEPARTMENTS[d].short}</span> ${DEPARTMENTS[d].label}</label>`).join('')}
+        </span>`;
+    }
+
+    // Nouvel incident : service de l'unité (toujours) ; cocher d'autres services : incident commun
     function jointFieldHtml(unit) {
         const own = unit && DEPARTMENTS[unit.dept] ? unit.dept : null;
         if (!own) return '';
-        const to = own === 'apd' ? 'à la GSP' : 'à l\'APD';
-        return `
-            <div class="lbl span-2">Service
-                <span class="joint-row">
-                    <span class="dept-tag dept-${own}">${DEPARTMENTS[own].short}</span>
-                    <label class="check"><input type="checkbox" name="joint" value="1"> Joindre aussi l'incident ${to} (incident commun)</label>
-                </span>
-            </div>`;
+        return `<div class="lbl span-2">Services de police (cochez-en d'autres pour un incident commun)${deptChecksHtml(own)}</div>`;
     }
 
     // Formulaire : nouvel incident (call absent) ou modification d'une intervention / d'un incident
@@ -1186,7 +1196,7 @@
                 <div class="form-grid">
                     <label class="lbl span-2">${kind === 'incident' ? 'Type d\'incident' : 'Type d\'intervention'} *<input name="title" type="text" maxlength="60" value="${v('title')}"></label>
                     ${kind === 'incident' ? `<label class="lbl span-2">Nom de l'unité créant l'incident<input type="text" value="${esc(unitName)}" disabled></label>
-                        ${isNew ? jointFieldHtml(unit) : `<div class="lbl span-2">Service<span class="readonly-value">${esc(CALL_DEPTS[callDept(c)].label)}</span></div>`}` : `
+                        ${isNew ? jointFieldHtml(unit) : `<div class="lbl span-2">Service<span class="readonly-value">${deptsTags(c)} ${esc(deptsLabel(c))}</span></div>`}` : `
                         <label class="lbl">Requérant *<input name="caller" type="text" maxlength="60" value="${v('caller')}"></label>
                         <label class="lbl">N° de téléphone du requérant *
                             <span class="inline">
@@ -1424,6 +1434,7 @@
         e.preventDefault();
         const form = e.target;
         const payload = Object.fromEntries(new FormData(form).entries());
+        payload.depts = new FormData(form).getAll('depts'); // services cochés en plus (incident commun)
         const submit = form.querySelector('button[type="submit"]');
         submit.disabled = true;
 
@@ -2028,6 +2039,7 @@
     interventionForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const payload = { ...Object.fromEntries(new FormData(interventionForm).entries()), kind: 'intervention' };
+        payload.depts = new FormData(interventionForm).getAll('depts'); // un service, ou plusieurs (appel commun)
         const submit = interventionForm.querySelector('button[type="submit"]');
         submit.disabled = true;
         const res = await post('create', payload);
@@ -3043,7 +3055,7 @@
                 <span class="ct-number">${esc(c.number)}</span>
             </div>
             <div class="ct-title">${esc(c.title)}</div>
-            ${CALL_DEPTS[c.dept] ? `<div class="ct-row"><span class="hud-label">SERVICE</span>${esc(CALL_DEPTS[c.dept].short)}</div>` : ''}
+            ${c.dept ? `<div class="ct-row"><span class="hud-label">SERVICE</span>${esc(deptsShort(c))}</div>` : ''}
             ${incident
                 ? `<div class="ct-row"><span class="hud-label">UNITÉ</span>${esc(c.unitName || '-')}</div>`
                 : `<div class="ct-row"><span class="hud-label">PRIORITÉ</span>${prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-'}</div>`}
@@ -3230,7 +3242,10 @@
     // Exemple affiché en mode placement quand il n'y a pas encore de données
     const PLD_SAMPLE = { street: 'Nom de la rue', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
     const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', dept: 'apd', status: 'available', callNumber: '00-0000' };
-    const PROFILE_SERVICES = { apd: 'APD', gsp: 'GSP', both: 'APD & GSP' };
+    const PROFILE_SERVICES = {
+        apd: 'APD', gsp: 'GSP', fcso: 'FCSO', 'apd+gsp': 'APD & GSP', 'apd+fcso': 'APD & FCSO',
+        'gsp+fcso': 'GSP & FCSO', 'apd+gsp+fcso': 'APD, GSP & FCSO', both: 'APD & GSP',
+    };
     const CAR_SAMPLE = { inVehicle: true, show: true, mode: 'driver', speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true };
 
     function placeHud(el, cfg) {

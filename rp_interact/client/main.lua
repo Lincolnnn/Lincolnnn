@@ -326,9 +326,11 @@ end
 -- =========================================================================
 -- SECTEUR ET SERVICE PRINCIPAL DU POLICIER (menu > Police, en bas)
 -- Gardés chez le joueur (KVP) et publiés dans son état ("policeSector", "policeService") : le MDC les
--- affiche sur son display (zone de jeu et service : APD, GSP ou APD & GSP).
+-- affiche sur son display (zone de jeu et service : APD, GSP, FCSO ou plusieurs).
 -- =========================================================================
-local POLICE_SERVICES = { apd = true, gsp = true, both = true }
+local POLICE_SERVICES = {
+    apd = true, gsp = true, fcso = true, ['apd+gsp'] = true, ['apd+fcso'] = true, ['gsp+fcso'] = true, ['apd+gsp+fcso'] = true,
+}
 local KVP_SECTOR, KVP_SERVICE = 'rpi_police_sector', 'rpi_police_service'
 
 local function cleanSector(text)
@@ -339,6 +341,7 @@ end
 
 local function policeProfile()
     local service = GetResourceKvpString(KVP_SERVICE) or ''
+    if service == 'both' then service = 'apd+gsp' end -- ancien format
     return { sector = cleanSector(GetResourceKvpString(KVP_SECTOR)), service = POLICE_SERVICES[service] and service or '' }
 end
 
@@ -350,6 +353,7 @@ publishPoliceProfile(policeProfile()) -- à la connexion / au redémarrage de la
 
 RegisterNUICallback('setPoliceProfile', function(data, cb)
     data = type(data) == 'table' and data or {}
+    if data.service == 'both' then data.service = 'apd+gsp' end -- ancien format
     local profile = { sector = cleanSector(data.sector), service = POLICE_SERVICES[data.service] and data.service or '' }
     SetResourceKvp(KVP_SECTOR, profile.sector)
     SetResourceKvp(KVP_SERVICE, profile.service)

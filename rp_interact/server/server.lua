@@ -849,6 +849,81 @@ on('deleteEntity', function(src, p)
     return { ok = true }
 end)
 
+-- =========================================================================
+-- PROPS POSÉS AVEC LE SCRIPT DE PROPS DU SERVEUR (Config.Props, client/props.lua)
+-- Un objet reconnu est marqué pour tous ("rpiProp" = { by = joueur }). Avec OneSync, à chaque objet créé
+-- par un script, le serveur demande à son créateur quel script l'a fait apparaître.
+-- =========================================================================
+local Props = Config.Props or {}
+
+local function propEntity(netId)
+    local entity = NetworkGetEntityFromNetworkId(tonumber(netId) or -1)
+    if not entity or entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 3 then return nil end
+    return entity
+end
+
+local function isMarkedProp(entity)
+    local state = Entity(entity).state
+    for _, key in ipairs(Props.StateKeys or {}) do
+        if state[key] then return true end
+    end
+    return false
+end
+
+RegisterNetEvent('rp_interact:server:registerProp', function(netId)
+    local src = source
+    local entity = propEntity(netId)
+    if not entity or Entity(entity).state.rpiProp then return end
+    -- Seul le créateur de l'objet (son script l'a fait apparaître chez lui) peut le marquer
+    if NetworkGetFirstEntityOwner(entity) ~= src then return end
+    Entity(entity).state:set('rpiProp', { by = src }, true)
+end)
+
+if ONESYNC then
+    AddEventHandler('entityCreated', function(entity)
+        if not DoesEntityExist(entity) or GetEntityType(entity) ~= 3 then return end
+        if GetEntityPopulationType(entity) ~= 7 then return end -- objets créés par un script seulement
+        local owner = NetworkGetFirstEntityOwner(entity)
+        if owner and owner > 0 then
+            TriggerClientEvent('rp_interact:client:propCheck', owner, NetworkGetNetworkIdFromEntity(entity))
+        end
+    end)
+end
+
+--- Qui peut déplacer / supprimer ce props (Props.Access)
+local function canUseProp(src, entity)
+    if Props.Access == 'police' then return policeUnit(src) ~= nil end
+    if Props.Access == 'owner' then
+        local info = Entity(entity).state.rpiProp
+        return (type(info) == 'table' and info.by == src) or policeUnit(src) ~= nil
+    end
+    return true
+end
+
+on('propAction', function(src, p)
+    if not ONESYNC then return { ok = false, fallback = true } end -- sans OneSync : fait par le client
+    local entity = propEntity(p.netId)
+    if not entity then return { ok = false, error = 'Props introuvable.' } end
+    if not isMarkedProp(entity) then return { ok = false, error = 'Cet objet n\'a pas été posé avec le menu des props.' } end
+    if tooFar(playerCoords(src), coordsOfEntity(entity), (Props.MoveRange or 6.0) + (Props.Distance or 3.0) + 5.0) then
+        return { ok = false, error = 'Rapprochez-vous.' }
+    end
+    if not canUseProp(src, entity) then return { ok = false, error = 'Vous ne pouvez pas modifier ce props.' } end
+    local netId = tonumber(p.netId)
+    if p.action == 'delete' then
+        if Props.DeletedEvent and Props.DeletedEvent ~= '' then TriggerEvent(Props.DeletedEvent, netId, src) end
+        DeleteEntity(entity)
+        return { ok = true }
+    elseif p.action == 'moved' then
+        local c = type(p.coords) == 'table' and p.coords or {}
+        if Props.MovedEvent and Props.MovedEvent ~= '' and tonumber(c.x) and tonumber(c.y) and tonumber(c.z) then
+            TriggerEvent(Props.MovedEvent, netId, { x = tonumber(c.x), y = tonumber(c.y), z = tonumber(c.z), heading = tonumber(c.heading) or 0.0 }, src)
+        end
+        return { ok = true }
+    end
+    return { ok = false, error = 'Action inconnue.' }
+end)
+
 on('hideProp', function(src, p)
     if not canDelete(src) then return { ok = false, error = 'Vous ne pouvez pas supprimer d\'éléments.' } end
     local model, x, y, z = tonumber(p.model), tonumber(p.x), tonumber(p.y), tonumber(p.z)

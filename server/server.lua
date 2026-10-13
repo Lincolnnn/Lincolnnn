@@ -50,7 +50,8 @@ local Config = {
     MaxSharedHistory = 100, -- historique de recherches partagé par une unité
     MaxBolos = 200,         -- nombre max de BOLOs actifs
 
-    -- Appels des civils : service de police choisi (APD / GSP) et nombre idéal d'unités (1 à 4).
+    -- Appels des civils : services de police cochés (APD, GSP, FCSO : un, deux ou les trois) et nombre
+    -- idéal d'unités (1 à 4).
     -- Les N unités disponibles les plus proches (N = nombre idéal, hors superviseurs "SUP.") reçoivent
     -- "Vous êtes l'une des unités les plus proches" : Y pour accepter, N pour refuser (sans le MDC).
     -- Nécessite OneSync (position des joueurs côté serveur) ; sinon, notification classique pour tous.
@@ -890,14 +891,42 @@ local TAG_COLORS = { green = true, purple = true, blue = true, orange = true, re
 local DEPARTMENTS = {
     apd = 'Atlanta Police Department',
     gsp = 'Georgia State Patrol',
+    fcso = 'Fayette County Sheriff Office',
 }
+local DEPT_ORDER = { 'apd', 'gsp', 'fcso' }
+local DEPT_SHORT = { apd = 'APD', gsp = 'GSP', fcso = 'FCSO' }
 
--- Service d'un appel : un seul service, ou les deux ("both" : appel commun APD & GSP)
-local CALL_DEPTS = { apd = 'APD', gsp = 'GSP', both = 'APD & GSP' }
+-- Services d'un appel : texte "apd", "apd+gsp", "apd+gsp+fcso"… (un seul service : appel de ce service ;
+-- plusieurs : appel commun, que seuls ces services peuvent rejoindre). Ancien format "both" = APD & GSP.
+--- Ensemble des services d'un appel : { apd = true, … }
+local function deptSet(value)
+    local set = {}
+    if value == 'both' then return { apd = true, gsp = true } end
+    if type(value) == 'table' then
+        for _, d in pairs(value) do if DEPARTMENTS[d] then set[d] = true end end
+    elseif type(value) == 'string' then
+        for d in value:gmatch('[^+,%s]+') do if DEPARTMENTS[d] then set[d] = true end end
+    end
+    return set
+end
 
---- L'appel concerne-t-il ce service ? (appel du service, ou appel commun)
+--- Services cochés (liste ou texte) -> texte canonique ("apd+fcso"), nil si aucun
+local function normalizeDepts(value)
+    local set, list = deptSet(value), {}
+    for _, d in ipairs(DEPT_ORDER) do if set[d] then list[#list + 1] = d end end
+    return #list > 0 and table.concat(list, '+') or nil
+end
+
+--- "APD & GSP", "à la GSP"…
+local function deptsLabel(value)
+    local set, list = deptSet(value), {}
+    for _, d in ipairs(DEPT_ORDER) do if set[d] then list[#list + 1] = DEPT_SHORT[d] end end
+    return table.concat(list, ' & ')
+end
+
+--- L'appel concerne-t-il ce service ? (un des services cochés)
 local function callServes(call, dept)
-    return call.dept == 'both' or call.dept == dept
+    return deptSet(call.dept)[dept] == true
 end
 
 local NextUnitId = 1
@@ -1245,8 +1274,9 @@ local function buildCall(p, kind)
         if not PRIORITIES[p.priority] then return nil, 'Choisissez la priorité de l\'urgence.' end
         r.priority = p.priority
 
-        if not CALL_DEPTS[p.dept] then return nil, 'Choisissez le service de police (APD, GSP ou APD & GSP).' end
-        r.dept = p.dept
+        local depts = normalizeDepts(p.depts or p.dept)
+        if not depts then return nil, 'Cochez au moins un service de police (APD, GSP, FCSO).' end
+        r.dept = depts
         local ideal = math.tointeger(tonumber(p.idealUnits) or 0)
         if not ideal or ideal < 1 or ideal > Config.MaxIdealUnits then
             return nil, ('Choisissez le nombre idéal d\'unités (1 à %d).'):format(Config.MaxIdealUnits)
@@ -1456,8 +1486,14 @@ RegisterMDCCallback('createIncident', function(src, payload)
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
 
     call.unitName = unit.name -- nom de l'unité déclarante (automatique)
-    -- Service de l'unité déclarante ; case "joindre aussi l'autre service" : incident commun
-    call.dept = (payload.joint == true or payload.joint == '1' or payload.joint == 'on') and 'both' or unit.dept
+    -- Service de l'unité déclarante, toujours ; services cochés en plus : incident commun
+    local extra = type(payload.depts) == 'table' and payload.depts or {}
+    if payload.joint == true or payload.joint == '1' or payload.joint == 'on' then -- ancien formulaire (APD & GSP)
+        extra = { 'apd', 'gsp' }
+    end
+    local depts = { unit.dept }
+    for _, d in pairs(extra) do depts[#depts + 1] = d end
+    call.dept = normalizeDepts(depts) or unit.dept
     return addCall(src, call, 'incident', unit)
 end)
 
@@ -1480,8 +1516,7 @@ RegisterMDCCallback('interventionAction', function(src, payload)
     if payload.action == 'join' then
         -- Appel d'un seul service : réservé à ses unités (appel commun : les deux services)
         if not callServes(call, unit.dept) then
-            local to = ({ apd = 'à l\'APD', gsp = 'à la GSP' })[call.dept] or 'à un autre service'
-            return { ok = false, error = ('Cet appel est réservé %s : seules ses unités peuvent le rejoindre.'):format(to) }
+            return { ok = false, error = ('Cet appel est réservé à : %s. Seules leurs unités peuvent le rejoindre.'):format(deptsLabel(call.dept)) }
         end
         joinCall(call, unit) -- rejoindre un appel passe l'unité "En route"
         local offers = Offers[call.id]
@@ -1515,7 +1550,7 @@ RegisterMDCCallback('editIntervention', function(src, payload)
     if call.closed then return { ok = false, error = 'Une intervention terminée ne peut plus être modifiée.' } end
 
     -- Service et nombre idéal d'unités : fixés à la création (notifications déjà envoyées)
-    payload.dept, payload.idealUnits = call.dept, call.idealUnits
+    payload.depts, payload.dept, payload.idealUnits = nil, call.dept, call.idealUnits
     local data, err = buildCall(payload, call.kind)
     if not data then return { ok = false, error = err } end
 

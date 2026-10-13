@@ -19,6 +19,7 @@ local S = RPIServer
 local SERVICES = {
     ['atlanta police department'] = 'apd',
     ['georgia state patrol'] = 'gsp',
+    ['fayette county sheriff office'] = 'fcso',
 }
 
 -- =========================================================================

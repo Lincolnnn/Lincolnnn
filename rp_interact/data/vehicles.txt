@@ -6,8 +6,8 @@
 #    spawn code ; service ; nom affiché ; livery ; extras
 #
 #  - spawn code  : nom du modèle (celui du dossier stream / de la commande de spawn)
-#  - service     : Atlanta Police Department | Georgia State Patrol | Autres
-#                  (les deux premiers vont dans "Police", "Autres" dans la liste "Autres")
+#  - service     : Atlanta Police Department | Georgia State Patrol | Fayette County Sheriff Office | Autres
+#                  (les trois premiers vont dans "Police", "Autres" dans la liste "Autres")
 #  - nom affiché : ce qui apparaît dans le menu (ex : Atlanta Police Dept / FPIU 2016)
 #  - livery      : (facultatif) numéro de la livery activée à l'apparition, vide = livery par défaut
 #  - extras      : (facultatif) extras ACTIVÉS à l'apparition, séparés par des virgules (ex : 1,2,5) ;

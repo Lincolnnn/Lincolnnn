@@ -94,7 +94,7 @@
             </label>
             <button type="button" class="menu-case" data-go="spawn-police">
                 <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
-                <span class="case-text"><b>Police</b><small id="spawnPoliceHint">Atlanta Police Department, Georgia State Patrol</small></span>
+                <span class="case-text"><b>Police</b><small id="spawnPoliceHint">APD, GSP, FCSO</small></span>
                 <span class="case-arrow">&#8250;</span>
             </button>
             <button type="button" class="menu-case" data-go="spawn-other">
@@ -110,6 +110,8 @@
             <div class="menu-list" id="spawnApd"></div>
             <div class="menu-section"><span class="dept-chip dept-gsp">GSP</span>Georgia State Patrol</div>
             <div class="menu-list" id="spawnGsp"></div>
+            <div class="menu-section"><span class="dept-chip dept-fcso">FCSO</span>Fayette County Sheriff Office</div>
+            <div class="menu-list" id="spawnFcso"></div>
         </div>
 
         <div class="menu-view hidden" data-view="spawn-other">
@@ -167,7 +169,11 @@
                         <option value="">— Aucun —</option>
                         <option value="apd">APD</option>
                         <option value="gsp">GSP</option>
-                        <option value="both">APD &amp; GSP</option>
+                        <option value="fcso">FCSO</option>
+                        <option value="apd+gsp">APD &amp; GSP</option>
+                        <option value="apd+fcso">APD &amp; FCSO</option>
+                        <option value="gsp+fcso">GSP &amp; FCSO</option>
+                        <option value="apd+gsp+fcso">APD, GSP &amp; FCSO</option>
                     </select>
                 </label>
             </div>

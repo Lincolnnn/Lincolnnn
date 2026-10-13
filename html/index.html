@@ -76,6 +76,7 @@
                                     <option value="">— Choisir —</option>
                                     <option value="apd">Atlanta Police Department</option>
                                     <option value="gsp">Georgia State Patrol</option>
+                                    <option value="fcso">Fayette County Sheriff Office</option>
                                 </select>
                             </label>
                             <label class="lbl">Nom de l'unité *<input name="name" type="text" maxlength="30" placeholder="ex : Patrouille Centre"></label>
@@ -109,7 +110,7 @@
                     </div>
 
                     <div class="toolbar units-toolbar">
-                        <span class="hint-text">Rejoignez une unité pour définir son statut et prendre des appels. Chacun voit les unités des deux services.</span>
+                        <span class="hint-text">Rejoignez une unité pour définir son statut et prendre des appels. Chacun voit les unités des trois services.</span>
                         <span class="grow"></span>
                         <button class="btn" id="refreshUnits">Actualiser</button>
                     </div>
@@ -144,6 +145,22 @@
                                 <tbody class="units-body" data-dept="gsp"></tbody>
                             </table>
                             <div class="empty units-empty" data-dept="gsp">Aucune unité GSP.</div>
+                        </div>
+                    </div>
+
+                    <div class="group fill">
+                        <span class="legend">Fayette County Sheriff Office (FCSO) <span class="units-count" data-dept="fcso"></span></span>
+                        <div class="toolbar">
+                            <button class="btn btn-default" data-new-unit="fcso">+ Créer une unité FCSO</button>
+                        </div>
+                        <div class="well">
+                            <table class="grid">
+                                <thead>
+                                    <tr><th>Unité</th><th>Tag</th><th>Membres</th><th>Statut</th><th class="col-actions">Actions</th></tr>
+                                </thead>
+                                <tbody class="units-body" data-dept="fcso"></tbody>
+                            </table>
+                            <div class="empty units-empty" data-dept="fcso">Aucune unité FCSO.</div>
                         </div>
                     </div>
                 </section>
@@ -254,14 +271,15 @@
                                     </table>
                                     <div class="empty" data-dept-empty="apd">Aucune intervention.</div>
                                 </details>
-                                <!-- Appels communs aux deux services : liste affichée seulement s'il y en a, toujours ouverte -->
-                                <details class="dept-fold hidden" data-dept="both">
-                                    <summary><span class="dept-badge">APD &amp; GSP</span>Appels communs <span class="dept-count" data-dept-count="both"></span></summary>
+                                <!-- Appels communs (plusieurs services cochés) : visibles par les trois services ; affichée
+                                     seulement s'il y en a, toujours ouverte -->
+                                <details class="dept-fold hidden" data-dept="common">
+                                    <summary><span class="dept-badge">Communs</span>Appels communs (plusieurs services) <span class="dept-count" data-dept-count="common"></span></summary>
                                     <table class="grid selectable">
                                         <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
-                                        <tbody data-dept-body="both"></tbody>
+                                        <tbody data-dept-body="common"></tbody>
                                     </table>
-                                    <div class="empty" data-dept-empty="both">Aucune intervention.</div>
+                                    <div class="empty" data-dept-empty="common">Aucune intervention.</div>
                                 </details>
                                 <details class="dept-fold" data-dept="gsp">
                                     <summary><span class="dept-badge">GSP</span>Georgia State Patrol <span class="dept-count" data-dept-count="gsp"></span></summary>
@@ -270,6 +288,14 @@
                                         <tbody data-dept-body="gsp"></tbody>
                                     </table>
                                     <div class="empty" data-dept-empty="gsp">Aucune intervention.</div>
+                                </details>
+                                <details class="dept-fold" data-dept="fcso">
+                                    <summary><span class="dept-badge">FCSO</span>Fayette County Sheriff Office <span class="dept-count" data-dept-count="fcso"></span></summary>
+                                    <table class="grid selectable">
+                                        <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
+                                        <tbody data-dept-body="fcso"></tbody>
+                                    </table>
+                                    <div class="empty" data-dept-empty="fcso">Aucune intervention.</div>
                                 </details>
                             </div>
                         </div>
@@ -613,15 +639,15 @@
                                         <option value="p3">Priorité 3</option>
                                     </select>
                                 </label>
-                                <!-- Seules les unités de ce service reçoivent l'appel (doit correspondre à DEPARTMENTS) -->
-                                <label class="lbl">Service de police *
-                                    <select name="dept">
-                                        <option value="">— Choisir —</option>
-                                        <option value="apd">Atlanta Police Department</option>
-                                        <option value="gsp">Georgia State Patrol</option>
-                                        <option value="both">APD &amp; GSP (appel commun)</option>
-                                    </select>
-                                </label>
+                                <!-- Services missionnés (doivent correspondre à DEPARTMENTS) : un seul = appel de ce service ;
+                                     plusieurs = appel commun, que seuls les services cochés peuvent rejoindre -->
+                                <div class="lbl span-3">Services de police * <small class="muted">(un seul : réservé à ce service ; plusieurs : appel commun)</small>
+                                    <span class="dept-checks">
+                                        <label class="check dept-check"><input type="checkbox" name="depts" value="apd"> <span class="dept-tag dept-apd">APD</span> Atlanta Police Department</label>
+                                        <label class="check dept-check"><input type="checkbox" name="depts" value="gsp"> <span class="dept-tag dept-gsp">GSP</span> Georgia State Patrol</label>
+                                        <label class="check dept-check"><input type="checkbox" name="depts" value="fcso"> <span class="dept-tag dept-fcso">FCSO</span> Fayette County Sheriff Office</label>
+                                    </span>
+                                </div>
                                 <label class="lbl">Nombre idéal d'unités *
                                     <select name="idealUnits">
                                         <option value="1">1 unité</option>

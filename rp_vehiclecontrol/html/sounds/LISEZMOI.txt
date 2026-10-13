@@ -1,0 +1,9 @@
+Sons de Vehicle Control : déposez ici vos fichiers audio, au format .ogg, avec EXACTEMENT ces noms :
+
+  belt_on.ogg            ceinture attachée
+  belt_off.ogg           ceinture détachée
+  belt_chime.ogg         carillon "ceinture non attachée" (joué toutes les 1,1 s)
+  indicators_sound.ogg   clignotants / warnings (joué en boucle : SignalSoundMode dans config.lua)
+
+Un fichier absent : le son correspondant n'est simplement pas joué (le reste fonctionne).
+Après un ajout : restart rp_vehiclecontrol (ou redémarrage du serveur).

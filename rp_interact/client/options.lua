@@ -15,6 +15,8 @@
         menotter / prendre par le bras / faire s'asseoir (2 m), placer à l'arrière / faire sortir d'un véhicule.
       - joueurs autorisés : supprimer (PNJ, véhicules sans joueur, objets) jusqu'à 50 m (DeleteDistance),
         la seule option proposée de loin.
+    Props posés avec le script de props du serveur : "Déplacer le props" / "Supprimer le props"
+    (client/props.lua).
     Les options apparaissent quand on s'approche (jamais grisées pour une question de distance).
     Les inspections sont affichées en premier, puis les actions sur l'environnement.
 ]]
@@ -366,6 +368,8 @@ end
 
 local function objectOptions(ctx)
     local out = {}
+    -- Props posé avec le script de props (client/props.lua) : déplacer / supprimer
+    if RPI.propOptions and RPI.propOptions(ctx, out) then return out end
     local seat = SEATS[ctx.model]
     local near = within(ctx, Config.ObjectDistance)
     if near and seat and not seated and not IsPedInAnyVehicle(PlayerPedId(), false) then
@@ -403,5 +407,6 @@ function RPI.targetLabel(ctx)
     if ctx.type == 'vehicle' then return RPI.vehicleLabel(ctx.entity) end -- modèle, sans la plaque
     if SEATS[ctx.model] then return 'Siège' end
     if TRASH[ctx.model] then return 'Poubelle' end
+    if RPI.isPlacedProp and RPI.isPlacedProp(ctx.entity) then return 'Props' end
     return 'Objet'
 end

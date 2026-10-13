@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '2.3.0'
+version '2.4.0'
 
 ui_page 'html/index.html'
 
@@ -36,6 +36,7 @@ client_scripts {
     'client/policevehicles.lua', -- /policeon : véhicules de police réservés aux policiers
     'client/garage.lua',   -- Menu > Voiture > Spawn (data/vehicles.txt) et Équipements
     'client/radio.lua',    -- Menu > Voiture > Radio : son synchronisé dans le véhicule
+    'client/props.lua',    -- props posés (script "props") : déplacer / supprimer avec l'œil
 }
 
 server_scripts {

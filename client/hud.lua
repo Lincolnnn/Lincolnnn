@@ -245,7 +245,10 @@ local startLoop
 -- Secteur (zone de jeu) et service principal du policier : choisis dans le menu d'interactions
 -- (rp_interact, Police, tout en bas), publiés dans l'état du joueur ("policeSector", "policeService")
 -- et affichés sur le display MDC.
-local POLICE_SERVICES = { apd = 'APD', gsp = 'GSP', both = 'APD & GSP' }
+local POLICE_SERVICES = {
+    apd = 'APD', gsp = 'GSP', fcso = 'FCSO', ['apd+gsp'] = 'APD & GSP', ['apd+fcso'] = 'APD & FCSO',
+    ['gsp+fcso'] = 'GSP & FCSO', ['apd+gsp+fcso'] = 'APD, GSP & FCSO', both = 'APD & GSP', -- both : ancien format
+}
 
 local function policeProfile(sector, service)
     sector = type(sector) == 'string' and sector:sub(1, 40) or ''

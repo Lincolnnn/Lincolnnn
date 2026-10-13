@@ -424,6 +424,7 @@ input::placeholder, textarea::placeholder { color: #5f5f5f; font-style: italic; 
 .dept-chip { padding: 1px 6px; border-radius: 3px; font-size: 10px; letter-spacing: .6px; color: #fff; }
 .dept-chip.dept-apd { background: #12357a; }
 .dept-chip.dept-gsp { background: #ff6a00; }
+.dept-chip.dept-fcso { background: #1e5631; }
 
 /* Lecteurs de la radio : invisibles, hors de l'écran (YouTube exige une taille minimale) */
 .radio-players { position: fixed; left: -10000px; top: 0; width: 200px; height: 200px; overflow: hidden; pointer-events: none; opacity: 0; }

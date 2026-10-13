@@ -49,7 +49,8 @@ s'ajouter ici.
 Case **Voiture** :
 - **Spawn** : en haut, deux options gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
   fait apparaître, s'il n'y a pas d'autre joueur dedans) et **Apparaître dans le véhicule** (sinon devant vous). Puis
-  **Police** (deux listes : **Atlanta Police Department** et **Georgia State Patrol**, réservées aux policiers en service,
+  **Police** (trois listes : **Atlanta Police Department**, **Georgia State Patrol** et **Fayette County Sheriff
+  Office**, réservées aux policiers en service,
   `SpawnPoliceOnly`) et **Autres**. Seuls les véhicules de **`data/vehicles.txt`** sont proposés, une ligne par
   véhicule : `spawn code ; service ; nom affiché ; livery ; extras` (ex. `apdfordexplorer2016 ; Atlanta Police
   Department ; Atlanta Police Dept / FPIU 2016 ; 1 ; 1,3`). La **livery** et les **extras** indiqués sont appliqués à
@@ -171,6 +172,14 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     ainsi est **refermée par le joueur** dès qu'il est à bord et que le véhicule commence à avancer. Après `/policeon`,
     ces options n'apparaissent plus sur un véhicule d'urgence pour un joueur qui n'est pas policier ;
   - personne : saluer ;
+  - **props posé avec le script de props du serveur** (dossier `props`) : **Déplacer le props** (il suit la visée au
+    sol, jusqu'à 6 m de vous ; ← / → ou molette : tourner ; **E** : poser ; **Retour arrière** : annuler) et
+    **Supprimer le props**, à 3 m (`Props` dans `config.lua` : distance, accès `everyone` / `police` / `owner`).
+    Reconnaissance automatique (OneSync) : à chaque objet créé par un script, le serveur demande à son créateur quel
+    script l'a fait apparaître ; si c'est `props`, l'objet est marqué pour tout le monde. Votre script de props peut
+    aussi marquer ses objets (`exports.rp_interact:registerProp(entity)`) ou être reconnu par un état / un export
+    (`StateKeys`, `Export`), et être prévenu des suppressions / déplacements (`DeletedEvent`, `MovedEvent`, pour sa
+    sauvegarde) ;
   - **Supprimer** (jusqu'à **50 m**) : PNJ, véhicule sans joueur à bord, objet — **y compris les véhicules et objets
     créés par des joueurs ou des scripts**. Réservé aux policiers en service (`DeleteAccess`) ou à la permission ACE
     `rpinteract.delete`. Jamais un joueur, ni un véhicule où se trouve un joueur. Avec OneSync, le serveur supprime
