@@ -1418,3 +1418,35 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 }
 .sb-memo:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, .08); }
 .sb-memo:disabled { opacity: .5; cursor: not-allowed; }
+
+/* BOLOs actifs (barre latérale, sous les statuts) : une case dépliable par BOLO */
+.sidebar .side-bolos {
+    display: flex; flex-direction: column; flex: 1; min-height: 120px;
+    padding: 0; background: none; border: 0; box-shadow: none;
+}
+.side-bolos > .legend { padding: 0 12px; margin-bottom: 6px; }
+.side-bolos-count { color: var(--text); }
+.side-bolo-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 0 2px; }
+.side-bolo-list > .fold-empty { padding: 4px 12px; }
+.side-bolo.fold { margin: 0; flex-shrink: 0; border-radius: 6px; }
+.side-bolo > summary { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 12px; cursor: pointer; }
+.side-bolo > summary::before { flex-shrink: 0; width: 10px; }
+.side-bolo-kind {
+    flex-shrink: 0; padding: 1px 4px; border-radius: 3px;
+    font-size: 9px; font-weight: 700; letter-spacing: .4px; color: #fff;
+}
+.side-bolo-kind.per { background: #8a1c1c; }
+.side-bolo-kind.veh { background: #a0520e; }
+.side-bolo > summary { align-items: flex-start; }
+.side-bolo > summary::before { line-height: 17px; }
+.side-bolo-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; color: var(--text); }
+.side-bolo-line { display: flex; align-items: center; gap: 6px; }
+.side-bolo-reason { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); }
+.side-bolo[open] .side-bolo-reason { white-space: normal; color: var(--text); }
+.side-bolo .fold-body { padding: 6px 8px; font-size: 11.5px; }
+.side-bolo-sheet { grid-template-columns: auto 1fr; margin: 0; font-size: 11.5px; }
+.side-bolo-sheet dt { white-space: nowrap; }
+.side-bolo-sheet dd { overflow-wrap: anywhere; }
+.side-bolo-text { margin-top: 5px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); max-height: 90px; overflow-y: auto; }
+.side-bolo-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; }
+.side-bolo-sheet dt, .side-bolo-sheet dd { padding: 2px 5px; }

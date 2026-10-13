@@ -279,6 +279,7 @@
         state.clockTimer = setInterval(updateClock, 1000);
 
         refreshUnits(); // statut de l'unité du joueur (barre latérale)
+        refreshBolos(); // BOLOs actifs (barre latérale)
         const startTab = hud.settings.mdc.startTab;
         if (startTab && startTab !== 'last') showPage(startTab);
         else loadPage(state.page);
@@ -3875,6 +3876,7 @@
     function setBolos(list) {
         bolos.list = toArray(list);
         renderBoloList();
+        renderSideBolos();
         // BOLO affiché supprimé ou modifié par un autre agent
         if (bolos.mode === 'view' && bolos.selected != null) {
             const item = bolos.list.find((b) => b.id === bolos.selected);
@@ -3943,6 +3945,95 @@
         renderBoloPanel();
         if (changed) $('#boloDetail').scrollTop = 0;
     }
+
+    // ---- Barre latérale (sous les statuts) : BOLOs actifs, détails repliés ----
+    // Chaque BOLO est une case dépliable (comme les fiches des Recherches) : à l'ouverture, ses détails
+    // sont demandés au serveur (gardés jusqu'à sa prochaine modification) ; "Voir BOLO" ouvre la page
+    // des BOLOs sur ce BOLO.
+    const sideBolos = { open: new Set(), cache: new Map() }; // cache : id -> { updatedAt, bolo }
+
+    function sideBoloDetailHtml(b) {
+        const line = (label, value) => (value === '' || value == null ? '' : dd(label, esc(value)));
+        let rows;
+        if (b.kind === 'vehicle') {
+            rows = line('Immatriculation', b.plate) + line('Véhicule', [b.make, b.model].filter(Boolean).join(' '))
+                + line('Couleur', b.color) + line('Type', b.vtype);
+        } else {
+            const facial = b.facialKnown ? [b.facialType, b.facialColor].filter(Boolean).join(', ') : '';
+            const vehicles = toArray(b.vehicles).map((v) => v.plate || [v.make, v.model].filter(Boolean).join(' ')).filter(Boolean);
+            rows = line('Identité', b.identityId != null ? b.identityLabel : 'Non identifié')
+                + line('Cheveux', b.hairKnown ? b.hairColor : '') + line('Pilosité', facial)
+                + line('Peau', b.skin) + line('Taille', b.height != null ? `${b.height} cm` : '')
+                + line('Tenue', b.clothing) + line('Tatouages', b.tattooKnown ? b.tattoos : '')
+                + line('Véhicule(s)', vehicles.join(', '));
+        }
+        rows += line('Lieu', b.location);
+        return `${rows ? `<dl class="sheet side-bolo-sheet">${rows}</dl>` : ''}
+            ${b.details ? `<div class="side-bolo-text">${esc(b.details)}</div>` : ''}`;
+    }
+
+    function sideBoloBody(item) {
+        const cached = sideBolos.cache.get(item.id);
+        const detail = cached && cached.updatedAt === item.updatedAt
+            ? sideBoloDetailHtml(cached.bolo) : '<div class="fold-empty">Chargement…</div>';
+        return `${detail}
+            <div class="side-bolo-foot">
+                <span class="muted">${esc(formatDate(item.createdAt))}</span>
+                <button type="button" class="btn btn-small" data-side-bolo-view="${esc(item.id)}">Voir BOLO</button>
+            </div>`;
+    }
+
+    async function loadSideBolo(item) {
+        const res = await post('getBolo', { id: item.id });
+        if (!res || !res.ok) return;
+        sideBolos.cache.set(item.id, { updatedAt: item.updatedAt, bolo: res.bolo });
+        const body = $(`#sideBolos .side-bolo[data-id="${item.id}"] .fold-body`);
+        if (body) body.innerHTML = sideBoloBody(item);
+    }
+
+    function renderSideBolos() {
+        const list = bolos.list;
+        const ids = new Set(list.map((b) => b.id));
+        sideBolos.open.forEach((id) => { if (!ids.has(id)) sideBolos.open.delete(id); });
+        sideBolos.cache.forEach((_, id) => { if (!ids.has(id)) sideBolos.cache.delete(id); });
+        $('#sideBolosCount').textContent = list.length ? `(${list.length})` : '';
+        const box = $('#sideBolos');
+        const scroll = box.scrollTop;
+        box.innerHTML = list.length ? list.map((b) => `
+            <details class="fold side-bolo" data-id="${esc(b.id)}" ${sideBolos.open.has(b.id) ? 'open' : ''}>
+                <summary title="${esc(b.summary)}">
+                    <span class="side-bolo-head">
+                        <span class="side-bolo-line"><span class="side-bolo-kind ${b.kind === 'vehicle' ? 'veh' : 'per'}">${b.kind === 'vehicle' ? 'Véhicule' : 'Individu'}</span><b>n°${esc(b.number)}</b></span>
+                        <span class="side-bolo-reason">${esc(b.reason)}</span>
+                    </span>
+                </summary>
+                <div class="fold-body">${sideBolos.open.has(b.id) ? sideBoloBody(b) : ''}</div>
+            </details>`).join('') : '<div class="fold-empty">Aucun BOLO actif.</div>';
+        box.scrollTop = scroll;
+        // Détails d'un BOLO ouvert modifié entre-temps : redemandés
+        list.forEach((b) => {
+            const cached = sideBolos.cache.get(b.id);
+            if (sideBolos.open.has(b.id) && (!cached || cached.updatedAt !== b.updatedAt)) loadSideBolo(b);
+        });
+    }
+
+    $('#sideBolos').addEventListener('toggle', (e) => {
+        const el = e.target.closest && e.target.closest('.side-bolo');
+        if (!el) return;
+        const id = Number(el.dataset.id);
+        const item = bolos.list.find((b) => b.id === id);
+        if (!item) return;
+        if (!el.open) { sideBolos.open.delete(id); return; }
+        if (sideBolos.open.has(id)) return; // recréée déjà ouverte par renderSideBolos
+        sideBolos.open.add(id);
+        el.querySelector('.fold-body').innerHTML = sideBoloBody(item);
+        const cached = sideBolos.cache.get(id);
+        if (!cached || cached.updatedAt !== item.updatedAt) loadSideBolo(item);
+    }, true);
+    $('#sideBolos').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-side-bolo-view]');
+        if (btn) openBolo(Number(btn.dataset.sideBoloView));
+    });
 
     // ---- Panneau de droite ----
     function renderBoloPanel() {

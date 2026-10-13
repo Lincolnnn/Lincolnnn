@@ -31,7 +31,10 @@ se font dans l'onglet « Paramètres » du MDC. Le MDC fonctionne aussi sans ell
 ## Disposition de la fenêtre
 
 Interface moderne (mêmes couleurs, plus aucun effet « Windows ») en trois colonnes :
-- **à gauche, en haut** : le **nom RP** puis le **statut de l'unité**, à la verticale ;
+- **à gauche, en haut** : le **nom RP** puis le **statut de l'unité**, à la verticale ; en dessous, les **BOLO
+  actifs** (type, numéro, motif ; mis à jour en direct). Chaque BOLO est une case **repliée** : un clic l'ouvre et
+  affiche ses détails (description ou véhicule, lieu, détails, date), comme les cases des fiches des Recherches ;
+  le bouton **Voir BOLO** ouvre la vraie page des BOLOs (Recherches > BOLOs) sur ce BOLO ;
 - **au centre** : le contenu de la page ouverte ;
 - **à droite** : les **6 pages à la verticale** (Unités, Interventions, Recherches, Rapports, Créations, Paramètres) ;
 - **en bas** : une **case de notes propre à l'unité** (rappels, observations… 160 caractères, partagée par tous ses
