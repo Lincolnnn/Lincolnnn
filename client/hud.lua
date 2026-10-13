@@ -14,7 +14,8 @@
 
     Performance :
       - Le PLD utilise UNE boucle lente (Config.Interval ms, 500 par défaut) qui
-        n'envoie au NUI que ce qui a changé (~0.01ms). PLD désactivé : 0.00ms.
+        n'envoie au NUI que ce qui a changé (~0.01ms), et une boucle légère à chaque image qui masque
+        les textes du jeu concurrents (HideGameHud, ~0.01ms). PLD désactivé : 0.00ms.
       - Le display MDC et les notifications n'ont pas de boucle : le serveur envoie
         les changements (événements).
 
@@ -35,6 +36,11 @@ local Config = {
     -- Recherche du croisement le plus proche quand le joueur n'est pas sur une intersection :
     -- points testés devant et derrière le joueur (en mètres), du plus proche au plus loin.
     CrossingProbe = { 15, 30, 50, 75, 110, 150, 200, 260 },
+
+    -- PRIORITÉ AU PLD / CAR HUD / DISPLAY MDC : textes du jeu masqués tant que le PLD est affiché (ils se
+    -- superposent aux HUD) : 6 nom du véhicule, 7 nom de la zone, 8 classe du véhicule, 9 nom de la rue.
+    -- {} pour les garder. (Les scripts de HUD concurrents sont arrêtés par le serveur : ConflictingHuds.)
+    HideGameHud = { 6, 7, 8, 9 },
 }
 
 local RESOURCE = GetCurrentResourceName()
@@ -262,8 +268,23 @@ local function refreshHud()
     if pldActive() then startLoop() end
 end
 
+-- Textes du jeu (rue, zone, véhicule) masqués à chaque image tant que le PLD est affiché
+local hideRunning = false
+local function hideGameHud()
+    if hideRunning or #Config.HideGameHud == 0 then return end
+    hideRunning = true
+    CreateThread(function()
+        while pldActive() do
+            for _, component in ipairs(Config.HideGameHud) do HideHudComponentThisFrame(component) end
+            Wait(0)
+        end
+        hideRunning = false
+    end)
+end
+
 -- Boucle du PLD : uniquement quand il est affiché ; envoie seulement les changements
 startLoop = function()
+    hideGameHud()
     if loopRunning then return end
     loopRunning = true
     CreateThread(function()

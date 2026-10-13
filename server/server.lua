@@ -34,6 +34,19 @@
 -- CONFIGURATION
 -- =========================================================================
 local Config = {
+    -- PRIORITÉ AU PLD / CAR HUD / DISPLAY MDC : scripts de HUD qui feraient doublon (nom de rue,
+    -- compteur de vitesse, boussole…). S'ils sont démarrés, ils sont arrêtés au démarrage du MDC ou dès
+    -- qu'ils démarrent (sauf si une autre ressource en dépend : message dans la console). Ajoutez ici le
+    -- nom du dossier de vos scripts concurrents ; StopConflictingHuds = false pour ne rien arrêter.
+    -- (Les HUD complets de framework, ex. qb-hud / esx_hud, ne sont pas listés : ils affichent aussi la
+    -- vie, la faim… ; ajoutez-les si vous n'en avez pas besoin.)
+    StopConflictingHuds = true,
+    ConflictingHuds = {
+        'streetlabel', 'street_label', 'street-label', 'streetlabels', 'esx_streetlabel', 'qb-streetlabel',
+        'streetname', 'streetnames-hud', 'compass', 'hud_compass', 'speedometer', 'speedo', 'vehicle_hud',
+        'carhud-standalone', 'pld',
+    },
+
     -- Permissions ACE (optionnel). Si true, seuls les joueurs ayant l'ACE
     -- "mdc.use" peuvent utiliser le MDC. Exemple dans server.cfg :
     --   add_ace group.police mdc.use allow
@@ -877,6 +890,56 @@ RegisterMDCCallback('search', function(src, payload)
 
     shareUnitSearch(src, results) -- historique et résultat partagés avec l'unité du joueur
     return { ok = true, results = results }
+end)
+
+-- =========================================================================
+-- PRIORITÉ AU PLD / CAR HUD / DISPLAY MDC : scripts de HUD concurrents arrêtés (ConflictingHuds)
+-- =========================================================================
+local CONFLICTING = {}
+for _, name in ipairs(Config.ConflictingHuds or {}) do CONFLICTING[name] = true end
+
+local function isRunning(name)
+    local state = GetResourceState(name)
+    return state == 'started' or state == 'starting'
+end
+
+--- Ressources démarrées qui déclarent "dependency '<name>'" (l'arrêter les arrêterait aussi)
+local function runningDependents(name)
+    local list = {}
+    for i = 0, GetNumResources() - 1 do
+        local resource = GetResourceByFindIndex(i)
+        if resource and resource ~= GetCurrentResourceName() and isRunning(resource) then
+            for j = 0, GetNumResourceMetadata(resource, 'dependency') - 1 do
+                if GetResourceMetadata(resource, 'dependency', j) == name then
+                    list[#list + 1] = resource
+                    break
+                end
+            end
+        end
+    end
+    return list
+end
+
+local function stopConflictingHud(name)
+    if not Config.StopConflictingHuds or not CONFLICTING[name] or name == GetCurrentResourceName() then return end
+    if not isRunning(name) then return end
+    local dependents = runningDependents(name)
+    if #dependents > 0 then
+        print(('^3[MDC] HUD concurrent "%s" laissé démarré : %s en dépend. Retirez-le à la main si besoin.^0')
+            :format(name, table.concat(dependents, ', ')))
+        return
+    end
+    if StopResource(name) then
+        print(('^5[MDC]^0 HUD concurrent "%s" arrêté : le PLD, le car HUD et le display MDC ont la priorité.'):format(name))
+    end
+end
+
+AddEventHandler('onResourceStart', function(resource)
+    if resource == GetCurrentResourceName() then
+        for name in pairs(CONFLICTING) do stopConflictingHud(name) end
+    elseif CONFLICTING[resource] then
+        SetTimeout(0, function() stopConflictingHud(resource) end) -- démarré après le MDC
+    end
 end)
 
 -- =========================================================================

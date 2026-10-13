@@ -101,6 +101,14 @@ fond), visibles même MDC fermé :
   italique (toujours présent : largeur stable), **bloc** : celui où se trouve le joueur, sinon le plus proche, et
   sur la même ligne, décalée d'environ 2,5 cm, l'**heure du jeu** (HH:MM, sans libellé, masquable dans « Paramètres » ;
   écart réglable : `--pld-time-gap` dans `html/style.css`).
+  **Priorité au PLD, au car HUD et au display MDC** : tant que le PLD est affiché, les textes du jeu qui s'y
+  superposent (nom de la rue, de la zone, du véhicule et sa classe) sont masqués (`HideGameHud` dans
+  `client/hud.lua`). Les scripts de HUD concurrents listés dans `ConflictingHuds` (`server/server.lua` : street
+  labels, compteurs de vitesse, boussoles…) sont **arrêtés** au démarrage du MDC ou dès qu'ils démarrent (sauf si une
+  autre ressource en dépend : message dans la console) ; ajoutez-y le dossier de tout autre script de ce genre
+  (`StopConflictingHuds = false` pour ne rien arrêter). Pour que les HUD du MDC passent aussi **au-dessus** de
+  l'interface d'un autre script, démarrez `mdc_standalone` **après** lui dans `server.cfg` (la dernière interface
+  chargée s'affiche au-dessus).
   **Noms des rues et des zones** : pris dans la ressource **`rp_atlanta_streetnames`** (`client/streetnames.lua`) : les
   fichiers listés dans son `fxmanifest.lua` sont lus (`AddTextEntryByHash(0x…, "Nom")`, `AddTextEntry("CODE", "Nom")`,
   tables `[0x…] = "Nom"` / `["Nom du jeu"] = "Nom"` / `["CODE_ZONE"] = "Nom"`, fichiers JSON) ; sinon les noms du jeu.

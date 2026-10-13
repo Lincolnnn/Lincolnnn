@@ -334,7 +334,8 @@ end
 
 --- Le joueur a-t-il accès à cette catégorie du menu ('equipment', 'car') ?
 local function hasPermission(src, section)
-    local sections = Config.Permissions and Config.Permissions.Sections or {}
+    if not (Config.Permissions and Config.Permissions.Enabled) then return true end -- désactivées : accès pour tous
+    local sections = Config.Permissions.Sections or {}
     if not sections[section] then return true end
     for _, id in ipairs(GetPlayerIdentifiers(src) or {}) do
         if allowed[id:lower()] then return true end

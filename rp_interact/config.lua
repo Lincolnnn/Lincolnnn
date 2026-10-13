@@ -12,6 +12,9 @@ InteractConfig = {
     -- Menu Interaction listées dans Sections sont réservées à ces joueurs (les autres les voient grisées,
     -- le serveur refuse leurs demandes). Sections = {} : ouvertes à tous.
     Permissions = {
+        -- TEMPORAIREMENT DÉSACTIVÉES : tout le monde a accès à toutes les catégories. Remettre true pour
+        -- réserver les catégories de Sections aux joueurs de Players.
+        Enabled = false,
         Players = {
             'steam:11000013ca597a9',
             'steam:11000011977aecd',

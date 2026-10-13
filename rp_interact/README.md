@@ -27,7 +27,8 @@ et **Configuration** (**Équipements**, **Voiture**). Emplacement et taille du m
 (*Paramètres > HUD & Display > Menu Interaction* : taille, et emplacement avec « Placer les HUD à l'écran ») ; sans le
 MDC, à gauche de l'écran.
 
-**Permissions** (`Permissions` dans `config.lua`) : les catégories listées dans `Sections` (par défaut **Équipements**
+**Permissions** (`Permissions` dans `config.lua`) — **temporairement désactivées** (`Enabled = false` : tout le
+monde a accès à toutes les catégories ; remettre `true` pour les réactiver) : les catégories listées dans `Sections` (par défaut **Équipements**
 et **Voiture** : spawn, radio) sont réservées aux joueurs dont l'**identifiant Steam hex** est dans `Players`
 (`steam:11000013ca597a9`, `steam:11000011977aecd`, `steam:110000114f6ac4d`). Les autres les voient **grisées**
 (« Accès réservé ») et le serveur refuse leurs demandes. `Sections = {}` : ouvert à tous. Les règles « police en
