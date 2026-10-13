@@ -204,6 +204,38 @@ RegisterNetEvent('rp_chat:server:command', function(command, rawText)
     handler(src, text, name)
 end)
 
+-- /dv : supprime UN véhicule (choisi par le client : le sien, sinon celui regardé, sinon le plus proche)
+local ONESYNC_ON = GetConvar('onesync', 'off') ~= 'off'
+local lastDv = {}
+
+RegisterNetEvent('rp_chat:server:dv', function(netId)
+    local src = source
+    local function reply(result) TriggerClientEvent('rp_chat:client:dv', src, result, netId) end
+    if rpNameOf(src) == '' then return reply('Définissez d\'abord votre nom RP : /nomrp [nom RP]') end
+    if not hasPermission(src, 'dv') then return reply('Vous n\'avez pas la permission d\'utiliser /dv.') end
+    local now = GetGameTimer()
+    if lastDv[src] and now - lastDv[src] < Config.Cooldown then return reply('Patientez un instant.') end
+    lastDv[src] = now
+    if type(netId) ~= 'number' then return reply('Véhicule introuvable.') end
+    if not ONESYNC_ON then return reply('fallback') end -- sans OneSync : le client le supprime lui-même
+    local vehicle = NetworkGetEntityFromNetworkId(netId)
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) or GetEntityType(vehicle) ~= 2 then
+        return reply('Véhicule introuvable.')
+    end
+    local ped = GetPlayerPed(src)
+    if #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) > Config.DvDistance + 3.0 then
+        return reply('Rapprochez-vous du véhicule.')
+    end
+    for _, id in ipairs(GetPlayers()) do
+        local other = tonumber(id)
+        if other ~= src and GetVehiclePedIsIn(GetPlayerPed(other), false) == vehicle then
+            return reply('Un autre joueur est dans ce véhicule.')
+        end
+    end
+    DeleteEntity(vehicle)
+    reply('ok')
+end)
+
 -- /me envoyé par une autre ressource (ex. rp_interact : "fouille le coffre du véhicule").
 -- Même règles qu'un /me tapé (nom RP obligatoire, rayon de 50 m), sans délai entre deux messages.
 --   exports.rp_chat:sendMe(source, texte) -> true si envoyé
@@ -223,6 +255,7 @@ RegisterNetEvent('rp_chat:server:ready', function()
 end)
 
 AddEventHandler('playerDropped', function()
+    lastDv[source] = nil
     lastMessage[source] = nil
 end)
 

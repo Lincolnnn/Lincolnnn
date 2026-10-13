@@ -12,7 +12,7 @@ VCConfig = {
     -- Paramètres > Raccourcis clavier > FiveM)
     -- ---------------------------------------------------------------------
     Keys = {
-        engine = 'O',        -- moteur allumé en permanence / coupé (conducteur)
+        engine = 'O',        -- SEULE touche qui allume / coupe le moteur (conducteur)
         seatbelt = 'G',      -- attacher / détacher la ceinture (K ouvre le MDC)
         door = 'U',          -- sa portière : avant gauche (conducteur) / avant droite (passager avant)
         frontDoors = 'I',    -- les deux portières avant en même temps (conducteur uniquement)
@@ -151,7 +151,8 @@ VCConfig = {
     -- CEINTURE
     -- ---------------------------------------------------------------------
     Seatbelt = {
-        BeltSoundVolume = 1.5,    -- volume des sons d'attache / de retrait (x1,5 : plus forts que le reste)
+        BeltSoundVolume = 1.725,  -- volume des sons d'attache / de retrait (x1,5 puis +15 %)
+        ChimeVolume = 1.2,        -- volume du carillon "ceinture non attachée" (+20 %)
         AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
         StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
         -- Carillon coupé net : ceinture attachée, joueur descendu ou véhicule arrêté.
@@ -191,7 +192,7 @@ VCConfig = {
     --   'repeat' : le fichier est un seul "clic", rejoué toutes les SignalInterval ms.
     SignalSoundMode = 'loop',
     SignalInterval = 370,         -- ms entre deux clics (mode 'repeat' uniquement)
-    SignalVolume = 1.0625,        -- volume du son des clignotants (0,85 d'avant + 25 %), x réglage du joueur
+    SignalVolume = 1.594,         -- volume du son des clignotants / warnings (1,0625 + 50 %), x réglage du joueur
 
     EngineNoticeDuration = 8000,  -- ms : notification "O" en montant côté conducteur (disparaît ensuite)
     EngineStartTime = 1200,       -- ms : durée du démarrage (démarreur) pendant laquelle on ne peut pas accélérer

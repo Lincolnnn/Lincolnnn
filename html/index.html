@@ -734,8 +734,8 @@
                                     <input type="range" min="50" max="100" step="1" data-setting="mdc.opacity">
                                     <span class="setting-value" data-setting-value="mdc.opacity"></span>
                                 </div>
-                                <label class="check"><input type="checkbox" data-setting="mdc.blur"> Flouter l'arrière-plan (jeu, minimap et HUD) derrière le MDC</label>
-                                <p class="hint-text setting-text">Décochez pour garder le jeu et les HUD nets MDC ouvert. La minimap du jeu ne peut pas
+                                <label class="check"><input type="checkbox" data-setting="mdc.blur"> Flouter l'arrière-plan (le jeu) derrière le MDC</label>
+                                <p class="hint-text setting-text">Les HUD (PLD, car HUD, display MDC) restent toujours nets. La minimap du jeu ne peut pas
                                     être floutée (elle est dessinée par-dessus l'image) : elle est masquée pendant le flou, puis réaffichée.</p>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn" id="mdcResetWindow">Réinitialiser la fenêtre</button>
@@ -769,6 +769,7 @@
                                     <span class="subgroup-title">Éléments affichés</span>
                                     <div class="checks">
                                         <label class="check"><input type="checkbox" data-setting="pld.street"> Rue</label>
+                                        <label class="check"><input type="checkbox" data-setting="pld.zone"> Zone géographique</label>
                                         <label class="check"><input type="checkbox" data-setting="pld.crossing"> Croisement</label>
                                         <label class="check"><input type="checkbox" data-setting="pld.dir"> Direction</label>
                                         <label class="check"><input type="checkbox" data-setting="pld.block"> Bloc</label>
@@ -942,6 +943,7 @@
                                         <dt>/info [texte]</dt><dd><span class="chat-sample info">Texte de l'information</span> — tout le monde, sans nom RP</dd>
                                         <dt>/qst [texte]</dt><dd><span class="chat-sample qst"><b><u>John Carter</u></b> <b>Question :</b> …</span> — tout le monde</dd>
                                         <dt>/rep [texte]</dt><dd><span class="chat-sample rep"><b><u>John Carter</u></b> <b>Réponse :</b> …</span> — tout le monde</dd>
+                                        <dt>/dv</dt><dd>Supprime UN véhicule : celui où vous êtes, sinon celui que vous regardez, sinon le plus proche (5 m) ; jamais un véhicule où se trouve un autre joueur</dd>
                                     </dl>
                                 </div>
                                 <p class="hint-text setting-text">Ouvrir / fermer le chat : touche <b id="chatKey">T</b> (ou Échap pour fermer). Pour la changer :
@@ -1015,7 +1017,11 @@
     <div class="hud hud-pld hidden" id="hudPld" data-hud="pld">
         <div class="pld-dir" data-part="dir" id="pldDir">N</div>
         <div class="pld-info">
-            <div class="pld-street" data-part="street" id="pldStreet"></div>
+            <!-- Rue puis, à sa droite, la zone géographique (ex. Cypress Flats) -->
+            <div class="pld-streetline">
+                <span class="pld-street" data-part="street" id="pldStreet"></span>
+                <span class="pld-zone" data-part="zone" id="pldZone"></span>
+            </div>
             <div class="pld-line" data-part="crossing"><span class="hud-label">X</span><span id="pldCross"></span></div>
             <!-- Bloc puis, sur la même ligne et décalée, l'heure du jeu (sans libellé) -->
             <div class="pld-line pld-bottom">

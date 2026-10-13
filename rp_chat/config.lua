@@ -33,11 +33,16 @@ ChatConfig = {
     -- Permission ACE facultative par commande (false = tout le monde). Exemple :
     --   info = 'rpchat.info'   puis dans server.cfg :  add_ace group.admin rpchat.info allow
     Permissions = {
+        dv = false,          -- /dv (supprimer un véhicule), ex. 'rpchat.dv'
         me = false,
         info = false,
         qst = false,
         rep = false,
     },
+
+    -- /dv : supprime UN véhicule : celui où se trouve le joueur, sinon celui qu'il regarde, sinon le plus
+    -- proche, dans ce rayon (mètres). Jamais un véhicule où se trouve un autre joueur.
+    DvDistance = 5.0,
 
     -- /me au-dessus des têtes (option du joueur) : durée d'affichage (ms) et lignes max par joueur
     OverheadDuration = 7000,

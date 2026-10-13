@@ -330,7 +330,7 @@
     let blurred = null;
     function syncBlur() {
         const on = !!(state.open && !hud.placing && hud.settings.mdc.blur);
-        document.body.classList.toggle('mdc-blur', on);
+        document.body.classList.toggle('mdc-blur', on); // (repère : les HUD restent nets)
         if (on === blurred) return;
         blurred = on;
         post('mdcBlur', { enabled: on });
@@ -3184,7 +3184,7 @@
     // =====================================================================
     // Positions en fraction de l'écran (0 à 1, coin haut-gauche), taille en facteur (0.5 à 2)
     const HUD_DEFAULTS = {
-        pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, crossing: true, dir: true, block: true, time: true },
+        pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, zone: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true, service: true },
         // Fenêtre : légère transparence (opacity) et flou du jeu et des HUD derrière, désactivables
         mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.93, blur: true },
@@ -3240,7 +3240,7 @@
     }
 
     // Exemple affiché en mode placement quand il n'y a pas encore de données
-    const PLD_SAMPLE = { street: 'Nom de la rue', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
+    const PLD_SAMPLE = { street: 'Nom de la rue', zone: 'Zone', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
     const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', dept: 'apd', status: 'available', callNumber: '00-0000' };
     const PROFILE_SERVICES = {
         apd: 'APD', gsp: 'GSP', fcso: 'FCSO', 'apd+gsp': 'APD & GSP', 'apd+fcso': 'APD & FCSO',
@@ -3275,6 +3275,8 @@
         if (showPld) {
             $('#pldDir').textContent = loc.dir || '-';
             $('#pldStreet').textContent = loc.street || '-';
+            $('#pldZone').textContent = loc.zone || '';
+            $('#pldZone').classList.toggle('part-empty', !loc.zone);
             $('#pldCross').textContent = loc.crossing || '-'; // ligne toujours présente : taille stable
             $('#pldBlock').textContent = loc.block || '';
             pldEl.querySelector('[data-part="block"]').classList.toggle('part-empty', !loc.block);

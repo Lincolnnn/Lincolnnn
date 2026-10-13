@@ -47,7 +47,7 @@ end
 
 --- Attache / retrait de la ceinture (volume renforcé : BeltSoundVolume)
 local function beltSound(kind, volume, muffled)
-    VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume * (Config.BeltSoundVolume or 1.5), nil, muffled)
+    VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume * (Config.BeltSoundVolume or 1.725), nil, muffled)
 end
 
 --- Carillon : le plus fort entre le sien (100 %) et ceux des joueurs à portée ; volume 0 = coupé net
@@ -66,7 +66,8 @@ local function refreshChime()
     local key = ('%.2f|%s'):format(volume, tostring(volume > 0 and muffled))
     if key ~= lastChime then
         lastChime = key
-        VC.soundLoop('chime', { 'belt_chime' }, 1100, volume, false, muffled) -- carillon du tableau de bord
+        -- carillon du tableau de bord (volume renforcé : ChimeVolume)
+        VC.soundLoop('chime', { 'belt_chime' }, 1100, volume * (Config.ChimeVolume or 1.2), false, muffled)
     end
 end
 
@@ -133,8 +134,8 @@ end)
 
 -- MDC : bouton "Tester" du volume des sons du véhicule
 AddEventHandler('rp_vehiclecontrol:testSound', function(volume)
-    VC.sound('belt_on', Config.BeltSoundVolume or 1.5, volume)
-    SetTimeout(600, function() VC.sound('belt_chime', 1.0, volume) end)
+    VC.sound('belt_on', Config.BeltSoundVolume or 1.725, volume)
+    SetTimeout(600, function() VC.sound('belt_chime', Config.ChimeVolume or 1.2, volume) end)
 end)
 
 VC.on('tick', function(ped, vehicle)

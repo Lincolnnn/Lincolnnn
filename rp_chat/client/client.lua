@@ -168,7 +168,68 @@ RegisterNUICallback('ready', function(_, cb)
     cb({ ok = true })
 end)
 
-local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse].'
+local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv.'
+
+-- =========================================================================
+-- /dv : supprime UN véhicule (celui où l'on se trouve, sinon celui qu'on regarde, sinon le plus proche,
+-- dans un rayon de DvDistance mètres). La suppression est faite par le serveur (vérifications).
+-- =========================================================================
+--- Véhicule regardé (caméra), à DvDistance m du joueur au plus
+local function aimedVehicle(ped)
+    local cam, rot = GetGameplayCamCoord(), GetGameplayCamRot(2)
+    local pitch, yaw = math.rad(rot.x), math.rad(rot.z)
+    local dir = vector3(-math.sin(yaw) * math.cos(pitch), math.cos(yaw) * math.cos(pitch), math.sin(pitch))
+    local to = cam + dir * (Config.DvDistance + 10.0)
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(cam.x, cam.y, cam.z, to.x, to.y, to.z, 2, ped, 7)
+    local _, hit, _, _, entity = GetShapeTestResult(ray)
+    if hit == 1 and entity and entity ~= 0 and GetEntityType(entity) == 2
+        and #(GetEntityCoords(entity) - GetEntityCoords(ped)) <= Config.DvDistance then
+        return entity
+    end
+    return nil
+end
+
+local function closestVehicle(ped)
+    local pos, best, bestDistance = GetEntityCoords(ped), nil, Config.DvDistance
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        local d = #(GetEntityCoords(vehicle) - pos)
+        if d <= bestDistance then best, bestDistance = vehicle, d end
+    end
+    return best
+end
+
+local function deleteVehicle()
+    local ped = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle == 0 then vehicle = aimedVehicle(ped) or closestVehicle(ped) or 0 end
+    if vehicle == 0 then
+        return system(('Aucun véhicule dans un rayon de %d m.'):format(math.floor(Config.DvDistance)), 'error')
+    end
+    if NetworkGetEntityIsNetworked(vehicle) then
+        TriggerServerEvent('rp_chat:server:dv', VehToNet(vehicle)) -- une commande = un véhicule
+    else
+        -- Véhicule propre à ce joueur (non synchronisé) : supprimé ici
+        SetEntityAsMissionEntity(vehicle, true, true)
+        DeleteVehicle(vehicle)
+        system('Véhicule supprimé.')
+    end
+end
+RegisterCommand('dv', deleteVehicle, false)
+
+-- Réponse du serveur (sans OneSync : suppression par ce client, qui a le véhicule à portée)
+RegisterNetEvent('rp_chat:client:dv', function(result, netId)
+    if result == 'fallback' then
+        local vehicle = NetToVeh(netId)
+        if vehicle == 0 or not DoesEntityExist(vehicle) then return system('Véhicule introuvable.', 'error') end
+        NetworkRequestControlOfEntity(vehicle)
+        SetEntityAsMissionEntity(vehicle, true, true)
+        DeleteVehicle(vehicle)
+        if DoesEntityExist(vehicle) then DeleteEntity(vehicle) end
+        return system('Véhicule supprimé.')
+    end
+    if result == 'ok' then return system('Véhicule supprimé.') end
+    system(result, 'error')
+end)
 
 -- Ligne validée avec Entrée
 RegisterNUICallback('submit', function(data, cb)

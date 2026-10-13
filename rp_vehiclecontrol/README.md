@@ -40,7 +40,7 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 - **Flèche gauche / droite** : clignotant ; **flèche bas** : warnings. Les feux sont visibles par tous les joueurs.
 - **Son du relais** (un seul fichier, `indicators_sound.ogg`, pour les clignotants et les warnings) joué **en boucle
-  tant que le clignotant n'est pas coupé** (`SignalSoundMode`), volume `SignalVolume` (+25 %), **même si tout le monde
+  tant que le clignotant n'est pas coupé** (`SignalSoundMode`), volume `SignalVolume` (renforcé : 1,594), **même si tout le monde
   est descendu** : entendu à 100 % à bord et **autour du véhicule** (voir *Sons entendus autour du véhicule*).
   Comme dans une vraie voiture, le clignotant **s'arrête tout seul après le virage** (volant revenu droit après avoir tourné de 60°, `SignalCancelAngle`). Les warnings restent
   jusqu'à la touche, même véhicule laissé.
@@ -50,7 +50,7 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 Les sons du véhicule sont des **fichiers audio que vous déposez vous-même** dans `html/sounds/` (aucun n'est fourni,
 voir `html/sounds/LISEZMOI.txt`), au format .ogg : `belt_on` (ceinture attachée), `belt_off` (détachée), `belt_chime`
 (carillon), `indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
-**plus fort** (×1,5, `Seatbelt.BeltSoundVolume`). Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
+**plus fort** (×1,725, `Seatbelt.BeltSoundVolume`) et le carillon renforcé de 20 % (`Seatbelt.ChimeVolume`). Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
 est joué en boucle (`SignalSoundMode = 'loop'`,
 le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes les `SignalInterval` ms (`'repeat'`).
 Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaque joueur dans le MDC
@@ -66,14 +66,14 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 
 ## Moteur
 
-- Un véhicule **apparaît moteur coupé** : en montant, il reste coupé (le démarrage automatique du jeu est bloqué).
+- **Seule la touche** (O par défaut, configurable : Raccourcis clavier > FiveM) **allume et éteint le moteur**. Il ne
+  démarre **jamais tout seul** (ni en montant, ni en accélérant) et ne s'éteint **jamais tout seul** (ni en descendant :
+  allumé, il le reste pour le prochain conducteur ; coupé, il le reste). Exceptions : panne sèche et véhicule cassé.
+- Un véhicule **apparaît moteur coupé**.
 - En montant **côté conducteur**, une notification **glisse depuis la gauche, juste au-dessus du car HUD** :
-  « **O** » **Pour allumer le moteur et le maintenir allumé**, et en dessous « **ou accélérer pour allumer le moteur** »
-  (« Pour couper le moteur » s'il tourne déjà). Elle **disparaît 8 secondes** après la montée, même sans appuyer
-  (`EngineNoticeDuration`), ou dès que **O** est utilisée.
-- **O** (touche configurable), moteur coupé : il démarre et reste **toujours allumé**, **même quand le joueur
-  descend**, et pour le prochain conducteur. **O**, moteur allumé : coupé.
-- **Accélérer**, moteur coupé : il démarre aussi, mais **s'éteint quand le conducteur descend**.
+  « **O** » **Pour allumer le moteur** (« Seule cette touche l'allume et l'éteint »), ou « Pour couper le moteur » s'il
+  tourne. Elle **disparaît 8 secondes** après la montée, même sans appuyer (`EngineNoticeDuration`), ou dès que **O**
+  est utilisée.
 - **Vrai démarrage** : démarreur du jeu, durée complète conservée (pot d'échappement, etc.) ; on ne peut pas
   accélérer pendant le démarrage (`EngineStartTime`, 1,2 s).
 - Panne sèche ou véhicule cassé : impossible à démarrer.
@@ -157,7 +157,7 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | Clé | Rôle |
 |---|---|
 | `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓) |
-| `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume +25 %) |
+| `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume renforcé) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
 | `Seatbelt` | carillon (au-dessus de 5 MPH, coupé sous 2 MPH), règles d'éjection (55 / 40 MPH, pertes de vitesse), classes sans ceinture |

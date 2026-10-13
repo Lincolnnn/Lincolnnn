@@ -56,6 +56,7 @@ Conçu pour fonctionner avec le MDC du même dépôt (`mdc_standalone`), mais ut
 | `/info Route fermée` | Route fermée — rouge Torino surligné de rouge pâle, **sans nom RP** | tout le monde |
 | `/qst Qui est dispo ?` | <ins>**John Carter**</ins> **Question :** Qui est dispo ? — orange pâle | tout le monde |
 | `/rep Adam-12 dispo` | <ins>**John Carter**</ins> **Réponse :** Adam-12 dispo — violet pâle | tout le monde |
+| `/dv` | « Véhicule supprimé. » | le joueur |
 
 Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` et `/rep` (« Question : » et
 « Réponse : » en gras, non soulignés).
@@ -65,6 +66,10 @@ Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` e
 - Le nom RP est **le même que celui du MDC** : le changer dans le MDC le change dans le chat, et inversement. Il est gardé dans
   l'état du joueur côté serveur (`Player(source).state.rpName`) et **remis à zéro à chaque déconnexion**.
 - `/me` : un joueur qui entre dans le rayon après coup ne voit pas les anciens messages ; un joueur qui en sort garde ceux déjà reçus.
+- `/dv` supprime **un seul véhicule** : celui où se trouve le joueur, sinon **celui qu'il regarde**, sinon le **plus proche**,
+  dans un rayon de **5 m** (`DvDistance`). Le serveur vérifie la distance et refuse un véhicule où se trouve **un autre
+  joueur**. Permission ACE facultative (`Permissions.dv`). Si une autre ressource du serveur définit déjà `/dv`, retirez
+  l'une des deux.
 - `/info`, `/qst`, `/rep` restent dans le chat : les 50 derniers sont aussi envoyés aux joueurs qui se connectent
   (gardés en mémoire, perdus au redémarrage du serveur).
 - Un texte sans `/` n'est pas envoyé : le chat rappelle la liste des commandes. Les autres commandes (`/mdc`, commandes

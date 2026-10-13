@@ -868,7 +868,10 @@ input.invalid, select.invalid, textarea.invalid { border-color: #ff5a5a; backgro
 .pld-info { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 14px 6px 11px; }
 .pld-dir.part-off + .pld-info { padding-left: 12px; }
 /* Rue actuelle : en gros, pas en gras */
+.pld-streetline { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
 .pld-street { font-size: 17px; font-weight: normal; color: #fff; }
+.pld-zone { font-size: 12px; color: #a9a9a9; letter-spacing: .2px; }
+.pld-zone.part-empty { display: none; }
 /* Croisement : plus petit, en italique, gris */
 .pld-line { font-size: 12px; color: #a9a9a9; }
 .pld-line #pldCross { font-style: italic; }
@@ -1210,7 +1213,7 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
    les bordures, barre de titre classique) ; cartes arrondies, traits fins, police moderne.
    - Pages à la verticale à gauche, statuts de l'unité en dessous (même style), bien séparés
    - Fenêtre légèrement transparente (--glass-a, réglable / désactivable dans Paramètres > MDC) ;
-     le flou du jeu derrière est appliqué par client/client.lua, celui des HUD par body.mdc-blur
+     le flou du jeu derrière est appliqué par client/client.lua (les HUD restent nets)
    ========================================================================= */
 :root {
     --hi: rgba(255, 255, 255, .09);    /* anciens biseaux : simples traits fins */
@@ -1381,7 +1384,5 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .14); border: 2px solid transparent; border-radius: 10px; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .24); background-clip: padding-box; }
 
-/* ---- MDC ouvert : HUD floutés (le jeu derrière est flouté par client/client.lua) ---- */
-.hud, .car-notice-anchor { transition: filter .25s; }
-body.mdc-blur .hud, body.mdc-blur .car-notice-anchor { filter: blur(4px); }
-body.mdc-blur .hud-car.car-off { filter: blur(4px) grayscale(1) brightness(.75); }
+/* ---- MDC ouvert avec le flou : seul le jeu est flouté (client/client.lua) ; les HUD (PLD, car HUD,
+   display MDC) restent nets ---- */

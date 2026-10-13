@@ -19,6 +19,7 @@
         { name: 'info', usage: '/info [texte]', desc: 'Information pour tous (sans nom RP)' },
         { name: 'qst', usage: '/qst [question]', desc: 'Question pour tous' },
         { name: 'rep', usage: '/rep [réponse]', desc: 'Réponse pour tous' },
+        { name: 'dv', usage: '/dv', desc: 'Supprime votre véhicule, ou celui regardé / le plus proche (5 m)' },
     ];
 
     const $ = (sel) => document.querySelector(sel);

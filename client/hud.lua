@@ -181,10 +181,10 @@ loadBlocks()
 -- Cap GTA : 0 = Nord, 90 = Ouest, 180 = Sud, 270 = Est (sens inverse des aiguilles)
 local DIRECTIONS = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
 
+-- Noms des rues et des zones : ressource de noms de rues du serveur (client/streetnames.lua), sinon le jeu
 local function streetsAt(x, y, z)
     local streetHash, crossingHash = GetStreetNameAtCoord(x, y, z)
-    return streetHash ~= 0 and GetStreetNameFromHashKey(streetHash) or '',
-        crossingHash ~= 0 and GetStreetNameFromHashKey(crossingHash) or ''
+    return StreetNames.street(streetHash), StreetNames.street(crossingHash)
 end
 
 --- Rue de croisement la plus proche : on teste des points devant / derrière le joueur.
@@ -220,6 +220,7 @@ local function readLocation()
     return {
         street = street ~= '' and street or Config.UnknownStreet,
         crossing = crossing,
+        zone = StreetNames.zone(coords.x, coords.y, coords.z), -- zone géographique (ex. Cypress Flats)
         dir = DIRECTIONS[math.floor(((heading + 22.5) % 360) / 45) + 1],
         block = findBlock(coords.x, coords.y, street),
         time = ('%02d:%02d'):format(GetClockHours(), GetClockMinutes()), -- heure du jeu
@@ -270,7 +271,7 @@ startLoop = function()
         while pldActive() do
             local data = readLocation()
             -- (l'heure du jeu avance d'une minute toutes les 2 s : un envoi au plus toutes les 2 s)
-            local key = ('%s|%s|%s|%s|%s|%s'):format(data.street, data.crossing, data.dir, data.block, data.time, tostring(data.paused))
+            local key = ('%s|%s|%s|%s|%s|%s|%s'):format(data.street, data.zone, data.crossing, data.dir, data.block, data.time, tostring(data.paused))
             if key ~= last then
                 last = key
                 SendNUIMessage({ action = 'pld', data = data })
