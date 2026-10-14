@@ -427,7 +427,7 @@ input::placeholder, textarea::placeholder { color: #5f5f5f; font-style: italic; 
 .dept-chip.dept-fcso { background: #1e5631; }
 
 /* Radio : bouton "+" et file "Écouter ensuite" */
-.menu-row .radio-add { flex: 0 0 44px; font-size: 18px; font-weight: bold; }
+
 .radio-now { color: var(--hud-muted); word-break: break-all; }
 .radio-queue { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
 .radio-queue-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(122, 122, 122, .45); border-radius: 5px; font-size: 12px; }
@@ -553,3 +553,13 @@ input::placeholder, textarea::placeholder { color: #5f5f5f; font-style: italic; 
     display: inline-block; min-width: 16px; padding: 0 4px; margin-right: 2px; text-align: center;
     font: 600 10px/16px var(--font); color: #111; background: #e8e8e8; border-radius: 2px;
 }
+
+/* Radio : boutons à icônes (lancer, écouter ensuite, début / précédent, pause / reprise, suivant, arrêter) */
+.radio-row .radio-icon { display: flex; align-items: center; justify-content: center; height: 34px; padding: 0; }
+.radio-icon svg { width: 17px; height: 17px; display: block; }
+.radio-row .radio-main { flex: 1; }
+.radio-row #radioAdd { flex: 0 0 48px; }
+.radio-transport .radio-icon { flex: 1; }
+#radioPause .ico-resume, #radioPause.is-paused .ico-pause { display: none; }
+#radioPause.is-paused .ico-resume { display: block; }
+#radioPause.is-paused { border-color: #d9a441; color: #f2c76b; }

@@ -58,12 +58,17 @@ Conçu pour fonctionner avec le MDC du même dépôt (`mdc_standalone`), mais ut
 | `/rep Adam-12 dispo` | <ins>**John Carter**</ins> **Réponse :** Adam-12 dispo — violet pâle | tout le monde |
 | `/dv` | « Véhicule supprimé. » | le joueur |
 | `/eup` | ouvre le menu des tenues (ressource `rp_interact`) | le joueur |
+| `/tuto` | touches et fonctionnalités du serveur (étiquette **TUTO**), le chat s'ouvre pour les lire | le joueur |
 
 Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` et `/rep` (« Question : » et
 « Réponse : » en gras, non soulignés).
 
 - **`/nomrp` d'abord** : sans nom RP, aucune autre commande n'est possible (même celles des autres ressources tapées dans le
-  chat), et le MDC refuse de rejoindre une unité. **Exceptions** : `/dv` et `/eup` marchent aussi sans nom RP.
+  chat), et le MDC refuse de rejoindre une unité. **Exceptions** : `/dv`, `/eup` et `/tuto` marchent aussi sans nom RP.
+- **`/tuto`** : une ligne par thème (chat, MDC, Menu Interaction, œil, véhicule, interpellations, touches), en privé.
+  Textes modifiables dans `config.lua` (`Tuto.Sections`). À **chaque connexion**, quelques secondes après l'arrivée
+  en jeu, un message privé rappelle : « Faites /tuto pour découvrir les fonctionnalités du serveur ! »
+  (`Tuto.JoinMessage`, `''` pour le retirer).
 - Le nom RP est **le même que celui du MDC** : le changer dans le MDC le change dans le chat, et inversement. Il est gardé dans
   l'état du joueur côté serveur (`Player(source).state.rpName`) et **remis à zéro à chaque déconnexion**.
 - `/me` : un joueur qui entre dans le rayon après coup ne voit pas les anciens messages ; un joueur qui en sort garde ceux déjà reçus.

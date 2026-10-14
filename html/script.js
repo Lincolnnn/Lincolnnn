@@ -423,17 +423,32 @@
         const memo = $('#sbMemo');
         memo.disabled = !unit;
         memo.placeholder = unit ? `Note de l'unité ${unit.name} : rappels, observations…` : 'Note de l\'unité : rejoignez une unité';
-        if (document.activeElement !== memo) memo.value = unit ? (unit.memo || '') : '';
+        if (document.activeElement !== memo || !unit || unit.id !== memoUnitId) {
+            if (document.activeElement === memo) memo.blur(); // unité changée pendant la saisie
+            memo.value = unit ? (unit.memo || '') : '';
+        }
     }
 
     // Note de l'unité : envoyée au serveur pendant la frappe (après une courte pause) et à la sortie du champ
+    // La note est gardée dans l'unité (serveur) : en changeant d'unité, on voit celle de la nouvelle unité,
+    // et on retrouve l'ancienne en y revenant. Une saisie n'est jamais enregistrée dans une autre unité.
     let memoTimer = null;
+    let memoUnitId = null; // unité pour laquelle la note est en cours de saisie
     const saveMemo = () => {
         clearTimeout(memoTimer);
-        if (!myUnit()) return;
-        post('setUnitMemo', { memo: $('#sbMemo').value });
+        const unit = myUnit();
+        if (!unit || unit.id !== memoUnitId) return;
+        const memo = $('#sbMemo').value;
+        if (memo === (unit.memo || '')) return;
+        unit.memo = memo; // affichage immédiat (le serveur renvoie ensuite les unités)
+        post('setUnitMemo', { memo });
     };
-    $('#sbMemo').addEventListener('input', () => { clearTimeout(memoTimer); memoTimer = setTimeout(saveMemo, 700); });
+    $('#sbMemo').addEventListener('focus', () => { memoUnitId = myUnit() ? myUnit().id : null; });
+    $('#sbMemo').addEventListener('input', () => {
+        if (memoUnitId == null) memoUnitId = myUnit() ? myUnit().id : null;
+        clearTimeout(memoTimer);
+        memoTimer = setTimeout(saveMemo, 700);
+    });
     $('#sbMemo').addEventListener('change', saveMemo);
     $('#sbMemo').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
 
@@ -1240,6 +1255,9 @@
         const panel = state.callPanel;
         const call = findCall(panel.id);
         const title = $('#interventionPanelTitle');
+        // Aucun appel choisi (ni nouvel incident) : panneau des détails réduit, la liste prend la place
+        $('#interventionsSplit').classList.toggle('detail-min', panel.mode !== 'new' && !call);
+        $('#interventionDeselect').classList.toggle('hidden', panel.mode !== 'new' && !call);
 
         if (panel.mode === 'new') {
             title.textContent = 'Nouvel incident';
@@ -1291,21 +1309,26 @@
         renderInterventionDetail();
     }
 
-    // Clic sur une ligne : affiche ses détails ; nouveau clic sur la même ligne : les masque
+    // Désélectionne l'appel : détails réduits
+    function deselectCall() {
+        state.callPanel = { mode: 'view', id: null };
+        state.noteDraft = '';
+        state.noteEdit = null;
+        renderInterventionList();
+        renderInterventionDetail();
+    }
+
+    // Clic sur une ligne : affiche ses détails ; nouveau clic sur la même ligne (ou ✕) : les masque
     $('#interventionsLists').addEventListener('click', (e) => {
         const tr = e.target.closest('tr[data-id]');
         if (!tr) return;
         const id = Number(tr.dataset.id);
-        if (state.callPanel.id === id && state.callPanel.mode !== 'new') {
-            state.callPanel = { mode: 'view', id: null };
-            state.noteDraft = '';
-            state.noteEdit = null;
-            renderInterventionList();
-            renderInterventionDetail();
-            return;
-        }
+        if (state.callPanel.id === id && state.callPanel.mode !== 'new') return deselectCall();
         openCall(id);
     });
+    $('#interventionDeselect').addEventListener('click', deselectCall);
+    // Clic sur la colonne réduite : rappel
+    $('#interventionsSplit .detail-min-hint').addEventListener('click', () => toast('Cliquez sur une intervention de la liste pour voir ses détails.'));
 
     $('#newIncident').addEventListener('click', () => {
         if (!myUnit()) toast('Rejoignez une unité (onglet Unités) pour déclarer un incident.', 'error');
@@ -3819,7 +3842,7 @@
     // =====================================================================
     // Clés identiques à BOLO_ORIGINS / BOLO_VEHICLE_TYPES dans server.lua
     const BOLO_ORIGINS = [
-        ['white', 'Blanc'], ['hispanic', 'Hispanique'], ['black', 'Afro-américain'],
+        ['white', 'Nord-Américain / Européen'], ['hispanic', 'Hispanique'], ['black', 'Afro-américain'],
         ['asian', 'Asiatique'], ['native', 'Natif'], ['mideast', 'Moyen-Orient'],
     ];
     const BOLO_ORIGIN_LABELS = Object.fromEntries(BOLO_ORIGINS);
@@ -3861,7 +3884,7 @@
         if (b.kind === 'person') {
             draft.identityId = b.identityId != null ? String(b.identityId) : '';
             draft.height = b.height != null ? String(b.height) : '';
-            draft.origins = toArray(b.origins);
+            draft.origins = toArray(b.origins).slice(0, 1); // une seule origine (anciens BOLOs : la première)
             draft.vehicles = toArray(b.vehicles).map((v) => ({ ...emptyBoloVehicle(), ...v }));
         }
         return draft;
@@ -4130,7 +4153,7 @@
                 ${dd('Cheveux', knownIf(b.hairKnown, b.hairColor))}
                 ${dd('Pilosité faciale', knownIf(b.facialKnown, facial))}
                 ${dd('Couleur de peau', known(b.skin))}
-                ${dd('Origine(s)', known(origins.join(', ')))}
+                ${dd('Origine', known(origins.join(', ')))}
                 ${dd('Tatouages', knownIf(b.tattooKnown, b.tattoos))}
                 ${dd('Taille', known(b.height != null ? `${b.height} cm` : ''))}
                 ${dd('Tenue vestimentaire', known(b.clothing))}
@@ -4250,10 +4273,10 @@
                         </div>
                         <label class="lbl">Couleur de peau${bInput('skin', d.skin, `maxlength="40" placeholder="${UNKNOWN}"`)}</label>
                         <label class="lbl">Taille (cm)${bInput('height', d.height, `maxlength="3" class="digits" placeholder="${UNKNOWN}"`)}</label>
-                        <div class="lbl span-2">Origine(s)
+                        <div class="lbl span-2">Origine (une seule)
                             <div class="checks bolo-origins">
-                                <label class="check"><input type="checkbox" data-origin="" ${origins.length ? '' : 'checked'}> ${UNKNOWN}</label>
-                                ${BOLO_ORIGINS.map(([key, label]) => `<label class="check"><input type="checkbox" data-origin="${key}" ${origins.includes(key) ? 'checked' : ''}> ${esc(label)}</label>`).join('')}
+                                <label class="check"><input type="radio" name="boloOrigin" data-origin="" ${origins.length ? '' : 'checked'}> ${UNKNOWN}</label>
+                                ${BOLO_ORIGINS.map(([key, label]) => `<label class="check"><input type="radio" name="boloOrigin" data-origin="${key}" ${origins[0] === key ? 'checked' : ''}> ${esc(label)}</label>`).join('')}
                             </div>
                         </div>
                         <div class="lbl span-2">Tatouages
@@ -4475,15 +4498,9 @@
                 if (d.kind === 'vehicle' && el.dataset.k === 'plate') checkVehicleBoloPlate();
             }
         } else if (el.dataset.origin != null) {
-            // "Inconnue" exclusive ; aucune origine cochée = "Inconnue"
+            // Une seule origine (boutons radio) ; "Inconnue" = aucune
             const key = el.dataset.origin;
-            let origins = toArray(d.origins);
-            if (key === '') origins = [];
-            else origins = el.checked ? [...new Set([...origins, key])] : origins.filter((o) => o !== key);
-            d.origins = origins;
-            $$('#boloDetail [data-origin]').forEach((box) => {
-                box.checked = box.dataset.origin === '' ? origins.length === 0 : origins.includes(box.dataset.origin);
-            });
+            d.origins = key && el.checked ? [key] : [];
         } else if (el.dataset.vk) {
             const i = Number(el.dataset.vi);
             const v = d.vehicles[i];

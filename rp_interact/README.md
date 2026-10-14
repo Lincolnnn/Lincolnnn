@@ -57,14 +57,18 @@ Case **Voiture** :
   les **extras** indiqués sont appliqués à l'apparition (extras listés activés, les autres désactivés).
   `rpi_vehicles` (console) relit les fichiers JSON. Le véhicule apparaît moteur coupé, plein fait (Vehicle Control).
 - **Radio** : collez un **lien** (vidéo / musique YouTube, ou lien direct vers un fichier audio, un podcast, une radio
-  en ligne) puis **Lancer** : le son est joué **dans le véhicule**, tel quel (lecteur YouTube, ou lecteur audio pour un
+  en ligne) puis **▶** (lancer) : le son est joué **dans le véhicule**, tel quel (lecteur YouTube, ou lecteur audio pour un
   lien direct ; aucun effet ajouté). Tout le monde l'entend **au même moment et au même volume de base** (à 89 %,
   tout le monde l'a à 89 %). À bord : normalement. Dehors, plus bas avec la distance : entendu jusqu'à **15 m** tout
   fermé (`RadioRangeClosed`, volume réduit : `RadioInsulation`) et **25 m** avec une portière (coffre, capot) ouverte
   ou une vitre baissée (`RadioRangeOpen`). Seules les vitres que le véhicule possède comptent.
-  **Écouter ensuite** : le bouton **+** à côté de **Lancer** ajoute le lien à la file (jusqu'à **5** morceaux ; radio
-  éteinte : il est lancé tout de suite). À la fin d'un morceau, le suivant démarre pour tout le monde ; **Suivant**
-  passe au suivant, la croix d'une ligne la retire de la file, **Arrêter** coupe la radio et vide la file.
+  **Écouter ensuite** : le bouton **+** à côté de **▶** ajoute le lien à la file (jusqu'à **5** morceaux ; radio
+  éteinte : il est lancé tout de suite). À la fin d'un morceau, le suivant démarre pour tout le monde.
+  Boutons à icônes (infobulle au survol) du morceau en cours, pour tout le monde :
+  **⏮** revient au **début du morceau** ; **appuyé deux fois** (moins de 2,5 s) : **morceau précédent** (5 gardés,
+  le morceau en cours revient en tête de file) · **⏸ / ▶** **pause / reprise** (reprend là où il était, au même
+  moment pour tous) · **⏭** morceau **suivant** · **⏹** **arrêter** (vide la file). La croix d'une ligne de la file la
+  retire.
   Réglable seulement par les **places avant**, ou avec l'**œil** en visant l'intérieur avant du véhicule, **portière
   avant ouverte** (option « Radio du véhicule »).
   **pma-voice** : il ne transporte que la **voix des joueurs** (micro) ; il ne peut pas diffuser une musique depuis un

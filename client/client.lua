@@ -379,6 +379,7 @@ relay('joinUnit',           'joinUnit')
 relay('leaveUnit',          'leaveUnit')
 relay('deleteUnit',         'deleteUnit')
 relay('setStatus',          'setStatus')
+relay('setUnitMemo',        'setUnitMemo')        -- Note de l'unité (barre du bas), gardée dans l'unité
 
 -- Interventions / incidents
 relay('getInterventions',   'getInterventions')

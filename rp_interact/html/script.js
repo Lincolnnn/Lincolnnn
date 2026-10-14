@@ -402,13 +402,16 @@
         const radio = info.radio || null;
         const queue = radio ? toArray(radio.queue) : [];
         status.className = `menu-active ${radio ? 'on-air' : 'none'}`;
-        status.innerHTML = `${info.vehicle ? `<b>${esc(info.vehicle)}</b> — ` : ''}${radio ? 'radio allumée' : 'radio éteinte'}`
+        status.innerHTML = `${info.vehicle ? `<b>${esc(info.vehicle)}</b> — ` : ''}${radio ? (radio.paused ? 'radio en pause' : 'radio allumée') : 'radio éteinte'}`
             + (radio ? `<br><small class="radio-now">${esc(radio.url)}</small>` : '')
             + (info.canControl ? '' : '<br><small>Seules les places avant peuvent la régler.</small>');
         controls.classList.toggle('disabled', !info.canControl);
         controls.querySelectorAll('input, button').forEach((el) => { el.disabled = !info.canControl; });
-        $('#radioStop').disabled = !info.canControl || !radio;
-        $('#radioNext').disabled = !info.canControl || !radio;
+        ['#radioStop', '#radioNext', '#radioPause', '#radioRestart'].forEach((sel) => { $(sel).disabled = !info.canControl || !radio; });
+        const paused = !!(radio && radio.paused);
+        $('#radioPause').classList.toggle('is-paused', paused);
+        $('#radioPause').title = paused ? 'Reprendre' : 'Pause';
+        $('#radioPause').setAttribute('aria-label', paused ? 'Reprendre' : 'Pause');
         $('#radioAdd').disabled = !info.canControl || queue.length >= RADIO_QUEUE_MAX;
         const volume = radio ? radio.volume : Number($('#radioVolume').value);
         $('#radioVolume').value = volume;
@@ -439,6 +442,16 @@
         if (res) $('#radioUrl').value = '';
     });
     $('#radioNext').addEventListener('click', () => radioAction('next'));
+    $('#radioPause').addEventListener('click', () => radioAction('pause'));
+    // Début du morceau ; deux appuis rapprochés (moins de 2,5 s) : morceau précédent
+    const RADIO_DOUBLE_MS = 2500;
+    let radioRestartAt = 0;
+    $('#radioRestart').addEventListener('click', () => {
+        const now = Date.now();
+        const double = now - radioRestartAt < RADIO_DOUBLE_MS;
+        radioRestartAt = double ? 0 : now;
+        radioAction(double ? 'previous' : 'restart');
+    });
     $('#radioStop').addEventListener('click', () => radioAction('stop'));
     $('#radioQueue').addEventListener('click', (e) => {
         const btn = e.target.closest('[data-unqueue]');
@@ -495,7 +508,11 @@
                 width: 200, height: 200, videoId: id,
                 playerVars: { autoplay: 1, controls: 0, start: Math.floor(r.offset || 0), playsinline: 1 },
                 events: {
-                    onReady: (e) => { applyRadio(r); e.target.seekTo(Math.floor(r.offset || 0), true); e.target.playVideo(); },
+                    onReady: (e) => {
+                        applyRadio(r);
+                        e.target.seekTo(Math.floor(r.offset || 0), true);
+                        if (r.paused) e.target.pauseVideo(); else e.target.playVideo();
+                    },
                     onStateChange: (e) => { if (e.data === 0) radioEnded(r); }, // 0 : vidéo terminée
                     onError: () => radioEnded(r), // vidéo indisponible : morceau suivant
                 },
@@ -512,17 +529,33 @@
         audio.addEventListener('ended', () => radioEnded(r));
         r.audio = audio;
         applyRadio(r);
-        audio.play().catch(() => {});
+        if (!r.paused) audio.play().catch(() => {});
     }
 
     function createRadio(d) {
-        const r = { id: d.id, url: d.url, seq: d.seq, volume: d.volume, offset: d.offset };
+        const r = { id: d.id, url: d.url, seq: d.seq, volume: d.volume, offset: d.offset, paused: !!d.paused };
         r.holder = document.createElement('div');
         r.holder.className = 'radio-player';
         $('#radioPlayers').appendChild(r.holder);
         const id = youtubeId(d.url);
         if (id) playYouTube(r, id); else playAudio(r, d.url);
         return r;
+    }
+
+    /** Pause / reprise : à la reprise, même position pour tout le monde (calculée par client/radio.lua) */
+    function setRadioPaused(r, paused, offset) {
+        r.paused = paused;
+        if (r.player && r.player.pauseVideo) {
+            if (paused) r.player.pauseVideo();
+            else { r.player.seekTo(Math.floor(offset || 0), true); r.player.playVideo(); }
+        }
+        if (r.audio) {
+            if (paused) r.audio.pause();
+            else {
+                if (Number.isFinite(r.audio.duration) && offset < r.audio.duration) r.audio.currentTime = offset;
+                r.audio.play().catch(() => {});
+            }
+        }
     }
 
     function radioStop(id) {
@@ -544,6 +577,9 @@
         r.volume = Number(d.volume) || 0;
         r.offset = d.offset;
         applyRadio(r);
+        if (!created && r.paused !== !!d.paused) setRadioPaused(r, !!d.paused, d.offset);
+        if (!created && menu.open && menu.view === 'radio' && r.pausedShown !== r.paused) loadRadio();
+        r.pausedShown = r.paused;
         if (created && menu.open && menu.view === 'radio') loadRadio(); // morceau suivant : page Radio à jour
     }
 

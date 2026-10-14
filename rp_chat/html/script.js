@@ -21,6 +21,7 @@
         { name: 'rep', usage: '/rep [réponse]', desc: 'Réponse pour tous' },
         { name: 'dv', usage: '/dv', desc: 'Supprime votre véhicule, ou celui regardé / le plus proche (5 m)' },
         { name: 'eup', usage: '/eup', desc: 'Menu des tenues (Police, Civil), au clavier' },
+        { name: 'tuto', usage: '/tuto', desc: 'Touches et fonctionnalités du serveur (privé)' },
     ];
 
     const $ = (sel) => document.querySelector(sel);
@@ -149,6 +150,9 @@
             case 'private': // résultat visible uniquement par ce joueur (rp_interact)
                 el.append(span('private-tag', 'PRIVÉ'), ' ', span('label', m.title || ''),
                     m.name ? span('private-subject', ` (${m.name})`) : '', ` : ${m.text}`);
+                break;
+            case 'tuto': // /tuto et rappel à la connexion : visible uniquement par ce joueur
+                el.append(span('private-tag tuto-tag', 'TUTO'), ' ', span('label', m.title || ''), `\n${m.text}`);
                 break;
             case 'external': { // chat:addMessage d'autres ressources
                 if (m.name) el.append(span('name', `${m.name} : `));

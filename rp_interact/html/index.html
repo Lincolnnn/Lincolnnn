@@ -125,13 +125,20 @@
                 <label class="menu-field">Lien (YouTube, musique, podcast, radio en ligne)
                     <input type="text" id="radioUrl" maxlength="400" placeholder="https://…">
                 </label>
-                <div class="menu-row">
-                    <button type="button" class="menu-btn" id="radioPlay" title="Lancer ce lien maintenant">Lancer</button>
-                    <button type="button" class="menu-btn radio-add" id="radioAdd" title="Ajouter à « Écouter ensuite » (5 max)">+</button>
+                <!-- Lancer le lien / l'ajouter à « Écouter ensuite » -->
+                <div class="menu-row radio-row">
+                    <button type="button" class="menu-btn radio-icon radio-main" id="radioPlay" title="Lancer ce lien maintenant" aria-label="Lancer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5Z" fill="currentColor"/></svg></button>
+                    <button type="button" class="menu-btn radio-icon" id="radioAdd" title="Ajouter à « Écouter ensuite » (5 max)" aria-label="Écouter ensuite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
                 </div>
-                <div class="menu-row">
-                    <button type="button" class="menu-btn menu-btn-soft" id="radioNext" title="Passer au morceau suivant de la file">Suivant</button>
-                    <button type="button" class="menu-btn menu-btn-soft" id="radioStop">Arrêter</button>
+                <!-- Morceau en cours : début (deux fois : précédent), pause / reprise, suivant, arrêter -->
+                <div class="menu-row radio-row radio-transport">
+                    <button type="button" class="menu-btn menu-btn-soft radio-icon" id="radioRestart" title="Revenir au début du morceau (appuyez deux fois : morceau précédent)" aria-label="Début / précédent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M19 5v14L8.5 12Z" fill="currentColor"/></svg></button>
+                    <button type="button" class="menu-btn menu-btn-soft radio-icon" id="radioPause" title="Pause" aria-label="Pause">
+                        <svg class="ico-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>
+                        <svg class="ico-resume" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5Z" fill="currentColor"/></svg>
+                    </button>
+                    <button type="button" class="menu-btn menu-btn-soft radio-icon" id="radioNext" title="Morceau suivant de la file" aria-label="Suivant"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14L15.5 12Z" fill="currentColor"/><path d="M18 5v14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+                    <button type="button" class="menu-btn menu-btn-soft radio-icon" id="radioStop" title="Arrêter la radio (vide la file)" aria-label="Arrêter"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/></svg></button>
                 </div>
                 <div class="menu-section" id="radioQueueTitle">Écouter ensuite (0 / 5)</div>
                 <div class="radio-queue" id="radioQueue"></div>
@@ -141,7 +148,7 @@
             </div>
             <p class="menu-text" id="radioHint">Tout le monde l'entend au même moment et au même volume : à bord, et dehors selon
                 la distance (plus bas si vitres et portières sont fermées). « + » ajoute le lien à la file « Écouter ensuite »
-                (5 max), lue à la suite. Réglable seulement depuis les places avant (ou avec l'œil, portière avant ouverte).</p>
+                (5 max), lue à la suite. Début du morceau : appuyez deux fois pour revenir au morceau précédent. Réglable seulement depuis les places avant (ou avec l'œil, portière avant ouverte).</p>
         </div>
 
         <div class="menu-view hidden" data-view="civil">

@@ -6,10 +6,12 @@
       outfits.json (tenues du menu /eup). Seuls les véhicules de vehicles.json peuvent être demandés ;
       véhicules de police réservés aux policiers en service si SpawnPoliceOnly.
     - Radio : état du véhicule "rpiRadio" = { url, start (heure UTC de lancement, s), volume (0-100),
-      queue (file "Écouter ensuite", 5 liens max) }, lu par tous les clients (chacun joue le son, plus
-      ou moins fort selon sa distance et les vitres / portières). Réglable par les places AVANT, ou par
-      un joueur collé au véhicule (œil, portière avant ouverte). À la fin d'un morceau (signalée par un
-      joueur qui l'entend), le suivant de la file démarre.
+      queue (file "Écouter ensuite", 5 liens max), history (5 morceaux précédents), seq (n° du morceau),
+      paused (position en pause, s) }, lu par tous les clients (chacun joue le son, plus ou moins fort
+      selon sa distance et les vitres / portières). Réglable par les places AVANT, ou par un joueur collé
+      au véhicule (œil, portière avant ouverte) : lancer, ajouter à la file, pause / reprise, début du
+      morceau (deux fois : morceau précédent), suivant, arrêter, volume. À la fin d'un morceau (signalée
+      par un joueur qui l'entend), le suivant de la file démarre.
     - Équipements : armes de loadouts.json ; tenues de outfits.json (menu /eup, vérification de l'accès).
     Aucune boucle.
 ]]
@@ -230,21 +232,50 @@ local function validUrl(url)
 end
 
 local MAX_QUEUE = 5
+local MAX_HISTORY = 5 -- morceaux précédents gardés (bouton "revenir au début" appuyé deux fois)
 local trackSeq = 0 -- n° unique de chaque morceau lancé (deux morceaux peuvent démarrer dans la même seconde)
 
---- État de la radio ; `seq` : celui du morceau en cours (nil : nouveau morceau)
-local function radioState(url, start, volume, by, queue, seq)
-    if not seq then trackSeq = trackSeq + 1; seq = trackSeq end
-    return { url = url, start = start, volume = volume, by = by, queue = queue or {}, seq = seq }
+local function copyList(list, max)
+    local out = {}
+    for i, url in ipairs(type(list) == 'table' and list or {}) do
+        if i > max then break end
+        out[#out + 1] = url
+    end
+    return out
+end
+local function copyQueue(current) return copyList(current and current.queue, MAX_QUEUE) end
+local function copyHistory(current) return copyList(current and current.history, MAX_HISTORY) end
+
+--- État de la radio (champs absents : repris de `base`, l'état actuel) ; `seq = nil` dans `fields`
+--- avec `new = true` : nouveau morceau. `paused` : position (s) du morceau en pause, sinon nil.
+local function radioState(base, fields)
+    base = base or {}
+    local r = {
+        url = fields.url or base.url, start = fields.start or base.start,
+        volume = fields.volume or base.volume or 60, by = fields.by or base.by,
+        queue = fields.queue or copyQueue(base), history = fields.history or copyHistory(base),
+        seq = base.seq, paused = base.paused,
+    }
+    if fields.new then
+        trackSeq = trackSeq + 1
+        r.seq, r.paused = trackSeq, nil
+    end
+    if fields.paused ~= nil then r.paused = fields.paused or nil end
+    return r
 end
 
-local function copyQueue(current)
-    local queue = {}
-    for i, url in ipairs(current and type(current.queue) == 'table' and current.queue or {}) do
-        if i > MAX_QUEUE then break end
-        queue[#queue + 1] = url
+--- Lance `url` ; le morceau en cours passe dans l'historique (s'il y en a un)
+local function playTrack(state, current, url, fields)
+    fields = fields or {}
+    local history = copyHistory(current)
+    if current and current.url and not fields.noHistory then
+        table.insert(history, current.url)
+        while #history > MAX_HISTORY do table.remove(history, 1) end
     end
-    return queue
+    state:set('rpiRadio', radioState(current, {
+        url = url, start = os.time(), volume = fields.volume, by = fields.by,
+        queue = fields.queue, history = history, new = true,
+    }), true)
 end
 
 --- Morceau suivant de la file "Écouter ensuite" (ou radio coupée si la file est vide)
@@ -252,7 +283,7 @@ local function playNext(state, current)
     local queue = copyQueue(current)
     local nextUrl = table.remove(queue, 1)
     if nextUrl then
-        state:set('rpiRadio', radioState(nextUrl, os.time(), current.volume, current.by, queue), true)
+        playTrack(state, current, nextUrl, { queue = queue })
     else
         state:set('rpiRadio', false, true)
     end
@@ -267,7 +298,7 @@ S.on('radio', function(src, p)
 
     -- Fin d'un morceau (signalée par un joueur qui l'entend) : morceau suivant de la file
     if p.action == 'ended' then
-        if not current or current.seq ~= tonumber(p.seq) then return { ok = true } end -- déjà passé
+        if not current or current.seq ~= tonumber(p.seq) or current.paused then return { ok = true } end -- déjà passé
         local ped = GetPlayerPed(src)
         if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) > 40.0 then return { ok = false } end
         playNext(state, current)
@@ -277,40 +308,66 @@ S.on('radio', function(src, p)
     if not canUseRadio(src, vehicle) then
         return { ok = false, error = 'Seules les places avant peuvent régler la radio.' }
     end
+    local function needOn() return not current and { ok = false, error = 'La radio est éteinte.' } or nil end
     if p.action == 'play' then
         local url = validUrl(p.url)
         if not url then return { ok = false, error = 'Lien invalide (adresse http:// ou https://).' } end
         local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or (current and current.volume) or 60)))
-        state:set('rpiRadio', radioState(url, os.time(), volume, src, copyQueue(current)), true)
+        playTrack(state, current, url, { volume = volume, by = src })
     elseif p.action == 'queue' then
         -- "+" : ajouté à la file "Écouter ensuite" (radio éteinte : lancé tout de suite)
         local url = validUrl(p.url)
         if not url then return { ok = false, error = 'Lien invalide (adresse http:// ou https://).' } end
         if not current then
             local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or 60)))
-            state:set('rpiRadio', radioState(url, os.time(), volume, src), true)
+            playTrack(state, nil, url, { volume = volume, by = src })
         else
             local queue = copyQueue(current)
             if #queue >= MAX_QUEUE then return { ok = false, error = ('File pleine (%d morceaux au maximum).'):format(MAX_QUEUE) } end
             queue[#queue + 1] = url
-            state:set('rpiRadio', radioState(current.url, current.start, current.volume, current.by, queue, current.seq), true)
+            state:set('rpiRadio', radioState(current, { queue = queue }), true)
         end
     elseif p.action == 'unqueue' then
-        if not current then return { ok = false, error = 'La radio est éteinte.' } end
+        if needOn() then return needOn() end
         local queue = copyQueue(current)
         local index = math.tointeger(tonumber(p.index))
         if not index or not queue[index] then return { ok = false, error = 'Morceau introuvable.' } end
         table.remove(queue, index)
-        state:set('rpiRadio', radioState(current.url, current.start, current.volume, current.by, queue, current.seq), true)
+        state:set('rpiRadio', radioState(current, { queue = queue }), true)
     elseif p.action == 'next' then
-        if not current then return { ok = false, error = 'La radio est éteinte.' } end
+        if needOn() then return needOn() end
         playNext(state, current)
+    elseif p.action == 'pause' then
+        -- Pause / reprise : même morceau, repris là où il était (pour tout le monde)
+        if needOn() then return needOn() end
+        if current.paused then
+            state:set('rpiRadio', radioState(current, { start = os.time() - current.paused, paused = false }), true)
+        else
+            local position = math.max(0, os.time() - (tonumber(current.start) or os.time()))
+            state:set('rpiRadio', radioState(current, { paused = position }), true)
+        end
+    elseif p.action == 'restart' then
+        -- Retour au début du morceau (relancé pour tout le monde, pas d'entrée dans l'historique)
+        if needOn() then return needOn() end
+        playTrack(state, current, current.url, { queue = copyQueue(current), noHistory = true })
+    elseif p.action == 'previous' then
+        -- Morceau précédent (bouton "début" appuyé deux fois) : le morceau en cours revient en tête de file
+        if needOn() then return needOn() end
+        local history = copyHistory(current)
+        local previous = table.remove(history)
+        if not previous then return { ok = false, error = 'Aucun morceau précédent.' } end
+        local queue = copyQueue(current)
+        table.insert(queue, 1, current.url)
+        while #queue > MAX_QUEUE do table.remove(queue) end
+        state:set('rpiRadio', radioState(current, {
+            url = previous, start = os.time(), queue = queue, history = history, new = true,
+        }), true)
     elseif p.action == 'stop' then
         state:set('rpiRadio', false, true)
     elseif p.action == 'volume' then
-        if not current then return { ok = false, error = 'La radio est éteinte.' } end
+        if needOn() then return needOn() end
         local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or current.volume)))
-        state:set('rpiRadio', radioState(current.url, current.start, volume, current.by, copyQueue(current), current.seq), true)
+        state:set('rpiRadio', radioState(current, { volume = volume }), true)
     else
         return { ok = false, error = 'Action inconnue.' }
     end

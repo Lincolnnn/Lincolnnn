@@ -21,8 +21,8 @@ local KVP_KEY = 'rpchat_settings'
 -- Commandes gérées par ce chat (envoyées au serveur). Les autres commandes tapées dans le
 -- chat (/mdc, commandes d'autres ressources…) sont exécutées normalement.
 local RP_COMMANDS = { nomrp = true, me = true, info = true, qst = true, rep = true }
--- Commandes possibles même sans nom RP (/nomrp) : /dv (supprimer un véhicule), /eup (tenues, rp_interact)
-local NO_NAME_COMMANDS = { dv = true, eup = true }
+-- Commandes possibles même sans nom RP (/nomrp) : /dv (supprimer un véhicule), /eup (tenues, rp_interact), /tuto
+local NO_NAME_COMMANDS = { dv = true, eup = true, [(Config.Tuto and Config.Tuto.Command) or 'tuto'] = true }
 
 local isOpen = false
 local nuiReady = false
@@ -170,7 +170,7 @@ RegisterNUICallback('ready', function(_, cb)
     cb({ ok = true })
 end)
 
-local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup.'
+local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup, /tuto.'
 
 -- =========================================================================
 -- /dv : supprime UN véhicule (celui où l'on se trouve, sinon celui qu'on regarde, sinon le plus proche,
@@ -340,6 +340,31 @@ end)
 
 -- Chat d'origine : exports.chat:addMessage(...)
 exports('addMessage', externalMessage)
+
+-- =========================================================================
+-- /tuto : touches et fonctionnalités (config.lua : Tuto), en privé ; rappel à chaque connexion
+-- =========================================================================
+local Tuto = Config.Tuto or {}
+
+local function showTuto()
+    for _, section in ipairs(Tuto.Sections or {}) do
+        SendNUIMessage({ action = 'message', data = { type = 'tuto', title = section.title or '', text = section.text or '' } })
+    end
+    openChat() -- ouvert pour lire et faire défiler (Échap pour fermer)
+end
+RegisterCommand(Tuto.Command or 'tuto', showTuto, false)
+
+-- Rappel privé à la connexion : attend l'arrivée en jeu (fin de l'écran de chargement), une seule fois.
+-- Boucle courte (1 s) uniquement pendant le chargement, puis arrêtée.
+if type(Tuto.JoinMessage) == 'string' and Tuto.JoinMessage ~= '' then
+    CreateThread(function()
+        while not nuiReady or not NetworkIsPlayerActive(PlayerId()) or GetIsLoadingScreenActive() or IsScreenFadedOut() do
+            Wait(1000)
+        end
+        Wait(Tuto.JoinDelay or 5000)
+        SendNUIMessage({ action = 'message', data = { type = 'tuto', title = 'Bienvenue', text = Tuto.JoinMessage } })
+    end)
+end
 
 -- Message PRIVÉ (affiché uniquement chez ce joueur), ex. résultat d'une inspection rp_interact :
 --   exports.rp_chat:addPrivate({ title = 'Fouille du coffre', subject = 'Bravado Buffalo', text = '…' })

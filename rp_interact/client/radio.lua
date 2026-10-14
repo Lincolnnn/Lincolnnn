@@ -13,6 +13,8 @@
         (lecture telle quelle : lecteur YouTube, ou lecteur audio pour un lien direct).
       - File "Écouter ensuite" (5 liens max, bouton "+") : à la fin d'un morceau, le NUI d'un joueur qui
         l'entend le signale au serveur, qui lance le suivant pour tout le monde.
+      - Pause / reprise (même position pour tous), retour au début du morceau (deux appuis rapprochés :
+        morceau précédent), suivant, arrêter : boutons à icônes de la page Radio.
     Le son est joué par le NUI de ce script (html/script.js). Performance : boucle (150 ms) seulement
     tant qu'une radio est allumée dans un véhicule à portée réseau ; aucune sinon.
 ]]
@@ -61,9 +63,10 @@ function RPI.radioHearing(vehicle)
 end
 
 local function send(id, radio, volume)
+    -- Position dans le morceau : la même pour tous (heure de lancement), ou figée pendant la pause
+    local offset = radio.paused or math.max(0, GetCloudTimeAsInt() - (tonumber(radio.start) or 0))
     SendNUIMessage({ action = 'radio', data = {
-        id = id, url = radio.url, volume = volume, seq = radio.seq,
-        offset = math.max(0, GetCloudTimeAsInt() - (tonumber(radio.start) or 0)), -- même moment pour tous
+        id = id, url = radio.url, volume = volume, seq = radio.seq, offset = offset, paused = radio.paused ~= nil,
     } })
 end
 
@@ -90,7 +93,7 @@ local function startLoop()
                         stop(id) -- loin : lecteur fermé (rouvert à l'approche, au bon moment)
                     else
                         local volume = math.floor((radio.volume or 0) / 100 * factor * Config.RadioMaxVolume * 100 + 0.5) / 100
-                        local key = ('%s|%s|%s|%.2f'):format(radio.url, radio.start, tostring(radio.seq), volume)
+                        local key = ('%s|%s|%s|%s|%.2f'):format(radio.url, radio.start, tostring(radio.seq), tostring(radio.paused), volume)
                         if playing[id] ~= key then
                             playing[id] = key
                             send(id, radio, volume)
@@ -108,8 +111,10 @@ end
 AddStateBagChangeHandler('rpiRadio', nil, function(bagName, _, value)
     if type(value) == 'table' and type(value.url) == 'string' then
         local old = radios[bagName]
-        if old and (old.url ~= value.url or old.start ~= value.start or old.seq ~= value.seq) then stop(bagName) end
-        radios[bagName] = { url = value.url, start = value.start, volume = tonumber(value.volume) or 60, seq = value.seq }
+        -- Autre morceau (lien ou n° différent) : lecteur refermé ; pause / reprise : même lecteur
+        if old and (old.url ~= value.url or old.seq ~= value.seq) then stop(bagName) end
+        radios[bagName] = { url = value.url, start = value.start, volume = tonumber(value.volume) or 60, seq = value.seq,
+            paused = tonumber(value.paused) }
         startLoop()
     else
         radios[bagName] = nil
@@ -147,7 +152,8 @@ local function radioInfo()
     return {
         ok = true, available = true, canControl = canControl(vehicle, mode),
         vehicle = RPI.vehicleLabel and RPI.vehicleLabel(vehicle) or nil,
-        radio = type(radio) == 'table' and { url = radio.url, volume = radio.volume, queue = radio.queue or {} } or false,
+        radio = type(radio) == 'table' and { url = radio.url, volume = radio.volume, queue = radio.queue or {},
+            paused = radio.paused ~= nil, history = #(radio.history or {}) } or false,
     }
 end
 
@@ -164,7 +170,8 @@ RegisterNUICallback('radioAction', function(data, cb)
         if not res or not res.ok then return cb(res or { ok = false }) end
         local info = radioInfo()
         info.radio = type(res.radio) == 'table'
-            and { url = res.radio.url, volume = res.radio.volume, queue = res.radio.queue or {} } or false
+            and { url = res.radio.url, volume = res.radio.volume, queue = res.radio.queue or {},
+                paused = res.radio.paused ~= nil, history = #(res.radio.history or {}) } or false
         cb(info)
     end)
 end)

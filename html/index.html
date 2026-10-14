@@ -249,7 +249,8 @@
 
                 <!-- ============ INTERVENTIONS ============ -->
                 <section class="page" id="page-interventions">
-                    <div class="split split-list">
+                    <!-- Aucun appel choisi : détails réduits à une fine colonne, la liste prend la place -->
+                    <div class="split split-list detail-min" id="interventionsSplit">
                         <div class="group">
                             <span class="legend">Interventions et incidents <span id="interventionsCount"></span></span>
                             <div class="toolbar">
@@ -295,8 +296,12 @@
                                 </details>
                             </div>
                         </div>
-                        <div class="group">
-                            <span class="legend" id="interventionPanelTitle">Détails</span>
+                        <div class="group call-detail-group">
+                            <div class="detail-head">
+                                <span class="legend" id="interventionPanelTitle">Détails</span>
+                                <button type="button" class="btn btn-small detail-close hidden" id="interventionDeselect" title="Désélectionner (réduire les détails)">&#10005;</button>
+                            </div>
+                            <div class="detail-min-hint">Détails : sélectionnez une intervention</div>
                             <div class="well detail" id="interventionDetail">
                                 <div class="empty">Sélectionnez une intervention dans la liste.</div>
                             </div>
@@ -934,13 +939,14 @@
                                 <div class="subgroup">
                                     <span class="subgroup-title">Liste des commandes</span>
                                     <dl class="chat-commands">
-                                        <dt>/nomrp [nom]</dt><dd>Nom RP, aussi celui du MDC (à refaire à chaque connexion). Obligatoire avant toute autre commande (sauf /dv et /eup) et pour rejoindre une unité.</dd>
+                                        <dt>/nomrp [nom]</dt><dd>Nom RP, aussi celui du MDC (à refaire à chaque connexion). Obligatoire avant toute autre commande (sauf /dv, /eup et /tuto) et pour rejoindre une unité.</dd>
                                         <dt>/me [action]</dt><dd><span class="chat-sample me"><b>John Carter</b> jette l'arme au sol</span> — rayon de 100 m</dd>
                                         <dt>/info [texte]</dt><dd><span class="chat-sample info">Texte de l'information</span> — tout le monde, sans nom RP</dd>
                                         <dt>/qst [texte]</dt><dd><span class="chat-sample qst"><b><u>John Carter</u></b> <b>Question :</b> …</span> — tout le monde</dd>
                                         <dt>/rep [texte]</dt><dd><span class="chat-sample rep"><b><u>John Carter</u></b> <b>Réponse :</b> …</span> — tout le monde</dd>
                                         <dt>/dv</dt><dd>Supprime UN véhicule : celui où vous êtes, sinon celui que vous regardez, sinon le plus proche (5 m) ; jamais un véhicule où se trouve un autre joueur. Sans nom RP aussi.</dd>
                                         <dt>/eup</dt><dd>Menu des tenues (Police : APD, FCSO, GSP ; Civil), au clavier : flèches, Entrée, Retour arrière. Sans nom RP aussi.</dd>
+                                        <dt>/tuto</dt><dd>Touches et fonctionnalités du serveur, en privé dans le chat. Sans nom RP aussi.</dd>
                                     </dl>
                                 </div>
                                 <p class="hint-text setting-text">Ouvrir / fermer le chat : touche <b id="chatKey">T</b> (ou Échap pour fermer). Pour la changer :

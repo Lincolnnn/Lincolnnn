@@ -2352,13 +2352,13 @@ local function buildBolo(p)
     r.skin = clean(p.skin, 40)
     r.clothing = cleanMultiline(p.clothing, 500)
 
+    -- Une seule origine (liste gardée pour les anciens BOLOs) : la première valide
     r.origins = {}
     if type(p.origins) == 'table' then
-        local seen = {}
         for _, origin in ipairs(p.origins) do
-            if BOLO_ORIGINS[origin] and not seen[origin] then
-                seen[origin] = true
-                r.origins[#r.origins + 1] = origin
+            if BOLO_ORIGINS[origin] then
+                r.origins[1] = origin
+                break
             end
         end
     end
