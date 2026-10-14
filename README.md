@@ -21,6 +21,9 @@ Le dépôt contient aussi le **chat écrit RP** dans le dossier [`rp_chat/`](rp_
 séparée, à copier à part dans `resources/` (voir son README). Elle partage le nom RP avec le MDC et ses réglages
 se font dans l'onglet « Paramètres » du MDC. Le MDC fonctionne aussi sans elle.
 
+Et **RP CamShake** dans [`rp_camshake/`](rp_camshake/README.md) : petit script indépendant de tremblement de la caméra
+(marche, course, sprint, chocs, accidents).
+
 ## Fenêtre
 
 - Déplacement : glisser la barre de titre.
