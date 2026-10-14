@@ -126,3 +126,38 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 /* /tuto et rappel à la connexion : privé, titre en gras puis le texte */
 .msg-tuto { color: #e8dcae; }
 .msg-tuto .tuto-tag { color: #2b230b; background: #e8c86b; }
+
+/* =========================================================================
+   /tuto : affiche au milieu de l'écran, thème des menus (fond noir 80 %, contour gris, coins arrondis).
+   Large et peu haute ; ne capte ni la souris ni le clavier.
+   ========================================================================= */
+.tuto {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: min(1000px, 92vw); padding: 12px 16px 10px;
+    background: rgba(0, 0, 0, .80); border: 1.5px solid #7a7a7a; border-radius: 8px;
+    color: #e6e6e6; font: 13px var(--font); text-shadow: none;
+    pointer-events: none; user-select: none; z-index: 5;
+}
+.tuto-head {
+    display: flex; align-items: center; gap: 12px;
+    padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid rgba(122, 122, 122, .45);
+}
+.tuto-title { flex: 1; font-size: 15px; font-weight: bold; color: #fff; letter-spacing: .3px; }
+.tuto-close { font-size: 12px; color: #a9a9a9; }
+.tuto-cmd {
+    display: inline-block; padding: 1px 6px; margin: 0 2px;
+    font: bold 12px var(--font); color: #0b1a2b; background: #6fb1ff; border-radius: 4px;
+}
+.tuto-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 18px; }
+.tuto-section {
+    margin-bottom: 6px; font-size: 11px; font-weight: bold; letter-spacing: .6px; text-transform: uppercase; color: #a9a9a9;
+}
+.tuto-line { display: flex; align-items: baseline; gap: 7px; margin-bottom: 4px; line-height: 1.3; }
+.tuto-key {
+    flex-shrink: 0; min-width: 22px; padding: 1px 6px; text-align: center;
+    font-size: 11.5px; font-weight: bold; color: #fff;
+    background: rgba(255, 255, 255, .06); border: 1px solid rgba(122, 122, 122, .6); border-radius: 5px;
+}
+.tuto-text { color: #d6d6d6; font-size: 12.5px; }
+.tuto-foot { margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(122, 122, 122, .3); font-size: 11.5px; color: #a9a9a9; }
+.tuto.hidden { display: none; }

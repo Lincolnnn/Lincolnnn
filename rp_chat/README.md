@@ -58,15 +58,19 @@ Conçu pour fonctionner avec le MDC du même dépôt (`mdc_standalone`), mais ut
 | `/rep Adam-12 dispo` | <ins>**John Carter**</ins> **Réponse :** Adam-12 dispo — violet pâle | tout le monde |
 | `/dv` | « Véhicule supprimé. » | le joueur |
 | `/eup` | ouvre le menu des tenues (ressource `rp_interact`) | le joueur |
-| `/tuto` | touches et fonctionnalités du serveur (étiquette **TUTO**), le chat s'ouvre pour les lire | le joueur |
+| `/tuto` | affiche les touches et fonctionnalités au milieu de l'écran ; `/tuto` à nouveau la retire | le joueur |
 
 Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` et `/rep` (« Question : » et
 « Réponse : » en gras, non soulignés).
 
 - **`/nomrp` d'abord** : sans nom RP, aucune autre commande n'est possible (même celles des autres ressources tapées dans le
   chat), et le MDC refuse de rejoindre une unité. **Exceptions** : `/dv`, `/eup` et `/tuto` marchent aussi sans nom RP.
-- **`/tuto`** : une ligne par thème (chat, MDC, Menu Interaction, œil, véhicule, interpellations, touches), en privé.
-  Textes modifiables dans `config.lua` (`Tuto.Sections`). À **chaque connexion**, quelques secondes après l'arrivée
+- **`/tuto`** : une **affiche** au milieu de l'écran, large et peu haute, au thème des menus (fond noir, contour
+  gris) : en haut « Tapez /tuto pour fermer cette page », puis quatre colonnes (Chat écrit, MDC & menus, Véhicule,
+  Interpellations) de lignes « touche — description ». Elle ne prend **ni la souris ni le clavier** : on continue de
+  jouer, d'ouvrir le MDC, les menus, le chat… ; elle reste jusqu'à ce que le joueur refasse `/tuto`. Visible
+  uniquement par lui. Textes modifiables dans `config.lua` (`Tuto.Title`, `Tuto.Sections` : `{ touche, description }`,
+  `Tuto.Footer`). À **chaque connexion**, quelques secondes après l'arrivée
   en jeu, un message privé rappelle : « Faites /tuto pour découvrir les fonctionnalités du serveur ! »
   (`Tuto.JoinMessage`, `''` pour le retirer).
 - Le nom RP est **le même que celui du MDC** : le changer dans le MDC le change dans le chat, et inversement. Il est gardé dans

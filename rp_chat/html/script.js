@@ -21,7 +21,7 @@
         { name: 'rep', usage: '/rep [réponse]', desc: 'Réponse pour tous' },
         { name: 'dv', usage: '/dv', desc: 'Supprime votre véhicule, ou celui regardé / le plus proche (5 m)' },
         { name: 'eup', usage: '/eup', desc: 'Menu des tenues (Police, Civil), au clavier' },
-        { name: 'tuto', usage: '/tuto', desc: 'Touches et fonctionnalités du serveur (privé)' },
+        { name: 'tuto', usage: '/tuto', desc: 'Affiche / retire la page des touches et fonctionnalités' },
     ];
 
     const $ = (sel) => document.querySelector(sel);
@@ -151,7 +151,7 @@
                 el.append(span('private-tag', 'PRIVÉ'), ' ', span('label', m.title || ''),
                     m.name ? span('private-subject', ` (${m.name})`) : '', ` : ${m.text}`);
                 break;
-            case 'tuto': // /tuto et rappel à la connexion : visible uniquement par ce joueur
+            case 'tuto': // rappel à la connexion (« Faites /tuto… ») : visible uniquement par ce joueur
                 el.append(span('private-tag tuto-tag', 'TUTO'), ' ', span('label', m.title || ''), `\n${m.text}`);
                 break;
             case 'external': { // chat:addMessage d'autres ressources
@@ -306,6 +306,9 @@
             case 'clear':
                 list.replaceChildren();
                 break;
+            case 'tuto':
+                setTuto(data.data || {});
+                break;
             case 'settings':
                 if (data.data) applySettings(data.data);
                 if (data.preview) showFeed('preview'); // réglage depuis le MDC : aperçu du chat
@@ -314,4 +317,38 @@
     });
 
     post('ready');
+
+    // ---------------------------------------------------------------------
+    // /tuto : affiche des touches (textContent uniquement), non interactive
+    // ---------------------------------------------------------------------
+    function setTuto(d) {
+        const box = $('#tuto');
+        box.classList.toggle('hidden', !d.show);
+        if (!d.show) { box.replaceChildren(); return; }
+        const el = (tag, cls, text) => {
+            const e = document.createElement(tag);
+            if (cls) e.className = cls;
+            if (text != null) e.textContent = text;
+            return e;
+        };
+        const head = el('div', 'tuto-head');
+        const close = el('div', 'tuto-close');
+        close.append('Tapez ', el('kbd', 'tuto-cmd', d.command || '/tuto'), ' pour fermer cette page');
+        head.append(el('div', 'tuto-title', d.title || 'Tutoriel'), close);
+        const grid = el('div', 'tuto-grid');
+        const list = (v) => (Array.isArray(v) ? v : Object.values(v || {}));
+        list(d.sections).forEach((section) => {
+            const col = el('div', 'tuto-col');
+            col.append(el('div', 'tuto-section', section.title || ''));
+            list(section.items).forEach((item) => {
+                const [key, text] = list(item);
+                const line = el('div', 'tuto-line');
+                line.append(el('span', 'tuto-key', key || ''), el('span', 'tuto-text', text || ''));
+                col.append(line);
+            });
+            grid.append(col);
+        });
+        box.replaceChildren(head, grid);
+        if (d.footer) box.append(el('div', 'tuto-foot', d.footer));
+    }
 })();

@@ -342,17 +342,21 @@ end)
 exports('addMessage', externalMessage)
 
 -- =========================================================================
--- /tuto : touches et fonctionnalités (config.lua : Tuto), en privé ; rappel à chaque connexion
+-- /tuto : affiche des touches et fonctionnalités (config.lua : Tuto) au milieu de l'écran, sans focus
+-- (ni souris ni clavier : le joueur continue de jouer) ; /tuto à nouveau la retire.
+-- Rappel privé dans le chat à chaque connexion.
 -- =========================================================================
 local Tuto = Config.Tuto or {}
+local tutoShown = false
 
-local function showTuto()
-    for _, section in ipairs(Tuto.Sections or {}) do
-        SendNUIMessage({ action = 'message', data = { type = 'tuto', title = section.title or '', text = section.text or '' } })
-    end
-    openChat() -- ouvert pour lire et faire défiler (Échap pour fermer)
+local function toggleTuto()
+    tutoShown = not tutoShown
+    SendNUIMessage({ action = 'tuto', data = tutoShown and {
+        show = true, title = Tuto.Title or '', command = '/' .. (Tuto.Command or 'tuto'),
+        sections = Tuto.Sections or {}, footer = Tuto.Footer or '',
+    } or { show = false } })
 end
-RegisterCommand(Tuto.Command or 'tuto', showTuto, false)
+RegisterCommand(Tuto.Command or 'tuto', toggleTuto, false)
 
 -- Rappel privé à la connexion : attend l'arrivée en jeu (fin de l'écran de chargement), une seule fois.
 -- Boucle courte (1 s) uniquement pendant le chargement, puis arrêtée.
