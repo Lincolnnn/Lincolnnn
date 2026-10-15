@@ -167,7 +167,7 @@ VCConfig = {
     -- ---------------------------------------------------------------------
     DoorChime = {
         Enabled = true,
-        Volume = 1.56,            -- volume du carillon de portière
+        Volume = 1.0,             -- volume du carillon de portière (x réglage du joueur dans le MDC)
         FollowDistance = 15.0,
     },
 
@@ -175,10 +175,10 @@ VCConfig = {
     -- CEINTURE
     -- ---------------------------------------------------------------------
     Seatbelt = {
-        BeltSoundVolume = 1.725,  -- volume des sons d'attache / de retrait (x1,5 puis +15 %)
+        BeltSoundVolume = 1.0,    -- volume des sons d'attache / de retrait (x réglage du joueur)
         -- Carillon de ceinture, par véhicule roulant, en boucle : UN occupant détaché -> html/sounds/belt_chime.ogg ;
         -- PLUSIEURS détachés en même temps -> fast_belt_chime.ogg (belt_chime coupé net, et inversement)
-        ChimeVolume = 1.56,       -- volume des carillons de ceinture (1,2 + 30 %)
+        ChimeVolume = 1.0,        -- volume des carillons de ceinture (x réglage du joueur)
         AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
         StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
         -- Coupé net : plus personne de détaché, véhicule arrêté (relancé du début quand il repart).
@@ -228,7 +228,7 @@ VCConfig = {
     --   'repeat' : le fichier est un seul "clic", rejoué toutes les SignalInterval ms.
     SignalSoundMode = 'loop',
     SignalInterval = 370,         -- ms entre deux clics (mode 'repeat' uniquement)
-    SignalVolume = 4.782,         -- volume du son des clignotants / warnings (1,594 + 200 %), x réglage du joueur
+    SignalVolume = 1.0,           -- volume du son des clignotants / warnings, x réglage du joueur
 
     EngineNoticeDuration = 8000,  -- ms : notification "O" en montant côté conducteur (disparaît ensuite)
     EngineStartTime = 1200,       -- ms : durée du démarrage (démarreur) pendant laquelle on ne peut pas accélérer

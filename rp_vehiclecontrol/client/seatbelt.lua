@@ -56,9 +56,9 @@ local function hearVolume(serverId)
     return VC.hearVehicle(vehicle)
 end
 
---- Attache / retrait de la ceinture (volume renforcé : BeltSoundVolume)
+--- Attache / retrait de la ceinture (volume : BeltSoundVolume)
 local function beltSound(kind, volume, muffled)
-    VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume * (Config.BeltSoundVolume or 1.725), nil, muffled)
+    VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume * (Config.BeltSoundVolume or 1.0), nil, muffled)
 end
 
 local lastBelt, lastDoor = '|0.00|false', '0.00|false'
@@ -96,7 +96,7 @@ local function refreshChimes()
     if key ~= lastBelt then
         lastBelt = key
         -- Un seul fichier en boucle ; changer de fichier (1 <-> plusieurs détachés) coupe net l'autre
-        VC.soundLoop('chime', { file }, 0, volume * (Config.ChimeVolume or 1.56), true, muffled)
+        VC.soundLoop('chime', { file }, 0, volume * (Config.ChimeVolume or 1.0), true, muffled)
     end
 
     -- Carillon de portière : le sien (à bord : 100 % ; descendu : selon la distance), puis les autres
@@ -114,7 +114,7 @@ local function refreshChimes()
     key = ('%.2f|%s'):format(dVolume, tostring(dVolume > 0 and dMuffled))
     if key ~= lastDoor then
         lastDoor = key
-        VC.soundLoop('door', { 'door_chime' }, 0, dVolume * (Chime.Volume or 1.56), true, dMuffled)
+        VC.soundLoop('door', { 'door_chime' }, 0, dVolume * (Chime.Volume or 1.0), true, dMuffled)
     end
 end
 
@@ -228,8 +228,8 @@ end)
 
 -- MDC : bouton "Tester" du volume des sons du véhicule
 AddEventHandler('rp_vehiclecontrol:testSound', function(volume)
-    VC.sound('belt_on', Config.BeltSoundVolume or 1.725, volume)
-    SetTimeout(600, function() VC.sound('belt_chime', Config.ChimeVolume or 1.56, volume) end)
+    VC.sound('belt_on', Config.BeltSoundVolume or 1.0, volume)
+    SetTimeout(600, function() VC.sound('belt_chime', Config.ChimeVolume or 1.0, volume) end)
 end)
 
 VC.on('tick', function(ped, vehicle)

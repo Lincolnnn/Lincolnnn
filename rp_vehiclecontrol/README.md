@@ -40,7 +40,7 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 - **Flèche gauche / droite** : clignotant ; **flèche bas** : warnings. Les feux sont visibles par tous les joueurs.
 - **Son du relais** (un seul fichier, `indicators_sound.ogg`, pour les clignotants et les warnings) joué **en boucle
-  tant que le clignotant n'est pas coupé** (`SignalSoundMode`), volume `SignalVolume` (renforcé : 4,782, soit +200 %), **même si tout le monde
+  tant que le clignotant n'est pas coupé** (`SignalSoundMode`), volume `SignalVolume` (1,0), **même si tout le monde
   est descendu** : entendu à 100 % à bord et **autour du véhicule** (voir *Sons entendus autour du véhicule*).
   Comme dans une vraie voiture, le clignotant **s'arrête tout seul après le virage** (volant revenu droit après avoir tourné de 60°, `SignalCancelAngle`). Les warnings restent
   jusqu'à la touche, même véhicule laissé.
@@ -51,7 +51,7 @@ Les sons du véhicule sont des **fichiers audio que vous déposez vous-même** d
 voir `html/sounds/LISEZMOI.txt`), au format .ogg : `belt_on` (ceinture attachée), `belt_off` (détachée), `belt_chime`
 (carillon de ceinture : un occupant détaché), `fast_belt_chime` (carillon rapide : plusieurs occupants détachés),
 `door_chime` (carillon : portière ouverte), `indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
-**plus fort** (×1,725, `Seatbelt.BeltSoundVolume`) et les carillons renforcés (1,56 : `Seatbelt.ChimeVolume`, `DoorChime.Volume`). Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
+au volume `Seatbelt.BeltSoundVolume` (1,0) et les carillons à `Seatbelt.ChimeVolume` / `DoorChime.Volume` (1,0), multipliés par le réglage du joueur dans le MDC. Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
 est joué en boucle (`SignalSoundMode = 'loop'`,
 le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes les `SignalInterval` ms (`'repeat'`).
 Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaque joueur dans le MDC
@@ -179,7 +179,7 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | Clé | Rôle |
 |---|---|
 | `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓) |
-| `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume renforcé) |
+| `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
 | `DoorChime` | carillon de portière (moteur allumé, portière ouverte) : activé, volume, distance après la descente |
