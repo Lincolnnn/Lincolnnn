@@ -64,7 +64,7 @@ Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` e
 « Réponse : » en gras, non soulignés).
 
 - **`/nomrp` d'abord** : sans nom RP, aucune autre commande n'est possible (même celles des autres ressources tapées dans le
-  chat), et le MDC refuse de rejoindre une unité. **Exceptions** : `/dv`, `/eup` et `/tuto` marchent aussi sans nom RP.
+  chat), et le MDC refuse de rejoindre une unité. **Exceptions** : `/tuto`, `/dv`, `/fichecivil`, `/eup` et `/repair` marchent aussi sans nom RP.
 - **`/tuto`** : une **affiche** en haut de l'écran, au milieu, large et peu haute, au thème des menus (fond noir, contour
   gris) : en haut « Tapez /tuto pour fermer cette page », puis quatre colonnes (Chat écrit, MDC & menus, Véhicule,
   Interpellations) de lignes « touche — description ». Elle ne prend **ni la souris ni le clavier** : on continue de

@@ -4,19 +4,24 @@
     Touche G (Raccourcis clavier > FiveM > "Véhicule : attacher / détacher la ceinture").
       - Sons réels (html/sounds) à l'attache et au retrait ; attachée, impossible de descendre sans la
         détacher (touche F bloquée) ; retirée si le joueur est sorti du véhicule autrement.
-      - Détachée : carillon au-dessus de 5 MPH ; coupé net dès que la ceinture est attachée, que le
-        joueur descend ou que le véhicule est arrêté (sous StopSpeed).
+      - CARILLON DE PORTIÈRE (son belt_chime.ogg) : moteur tournant et une portière ouverte, comme une clé
+        restée sur le contact. Publié par le conducteur, puis, s'il descend en laissant le moteur tourner,
+        tant qu'il reste près du véhicule (DoorChime.FollowDistance) et qu'aucun autre conducteur n'y monte.
+        Coupé net dès que les portières sont fermées ou le moteur coupé. (Plus de carillon de ceinture.)
       - Détachée, accident violent (voir config.lua, Seatbelt) : éjecté à travers le pare-brise.
         Attachée : jamais éjecté (l'éjection automatique du jeu est désactivée, seule cette règle compte).
-      - Sons synchronisés (états du joueur "seatbelt" / "seatbeltAlarm", lus par les autres clients) :
+      - Sons synchronisés (états du joueur "seatbelt" / "seatbeltAlarm" = carillon, lus par les autres clients) :
         occupants du véhicule à 100 %, joueurs autour du véhicule selon VehicleSounds (3 m portière
         ouverte, 1 m tout fermé et étouffé).
-    Boucle du carillon (250 ms) uniquement pendant qu'une alarme est active à portée.
+    Boucle du carillon (250 ms) uniquement pendant qu'un carillon est actif à portée ; surveillance (250 ms)
+    après la descente seulement si le moteur tourne, portière ouverte, joueur à côté.
 ]]
 
 local Config = VCConfig.Seatbelt
+local Chime = VCConfig.DoorChime or {}
 
 local belt, alarm = false, false
+local watching = 0     -- véhicule laissé moteur tournant par ce joueur (carillon tant qu'une portière est ouverte)
 local alarms = {}      -- [id serveur] = true : autres joueurs dont l'alarme est active
 local beepRunning = false
 
@@ -53,7 +58,9 @@ end
 --- Carillon : le plus fort entre le sien (100 %) et ceux des joueurs à portée ; volume 0 = coupé net
 local lastChime = '0.00|false'
 local function refreshChime()
+    -- Le sien : 100 % à bord ; descendu (moteur laissé tournant), selon sa distance au véhicule
     local volume, muffled = alarm and 1.0 or 0.0, false
+    if alarm and watching ~= 0 then volume, muffled = VC.hearVehicle(watching) end
     for serverId in pairs(alarms) do
         local v, m = hearVolume(serverId)
         if v == nil then
@@ -67,7 +74,7 @@ local function refreshChime()
     if key ~= lastChime then
         lastChime = key
         -- carillon du tableau de bord (volume renforcé : ChimeVolume)
-        VC.soundLoop('chime', { 'belt_chime' }, 1100, volume * (Config.ChimeVolume or 1.56), false, muffled)
+        VC.soundLoop('chime', { 'belt_chime' }, 1100, volume * (Chime.Volume or 1.56), false, muffled)
     end
 end
 
@@ -87,8 +94,21 @@ local function beepLoop()
 end
 
 -- =========================================================================
--- CEINTURE DU JOUEUR
+-- CEINTURE DU JOUEUR ET CARILLON DE PORTIÈRE
 -- =========================================================================
+--- Une portière (avant / arrière) ouverte ?
+local function doorOpen(vehicle)
+    for door = 0, 3 do
+        if GetVehicleDoorAngleRatio(vehicle, door) > 0.05 then return true end
+    end
+    return false
+end
+
+--- Carillon voulu pour ce véhicule : moteur tournant, une portière ouverte
+local function chimeWanted(vehicle)
+    return Chime.Enabled ~= false and DoesEntityExist(vehicle) and GetIsVehicleEngineRunning(vehicle) and doorOpen(vehicle)
+end
+
 local function setAlarm(state)
     if state == alarm then return end
     alarm = state
@@ -102,7 +122,6 @@ local function setBelt(state, silent)
     belt = state
     if VC.hud.belt ~= nil then VC.hud.belt = state end
     LocalPlayer.state:set('seatbelt', state, true) -- les joueurs proches entendent le son
-    if state then setAlarm(false) end
     if not silent then beltSound(state and 'on' or 'off', 1.0, false) end
 end
 
@@ -121,10 +140,33 @@ VC.on('enter', function(ped, vehicle)
     VC.hud.alarm = false
 end)
 
-VC.on('leave', function()
+--- Après la descente du conducteur : carillon tant que le moteur tourne, portière ouverte, joueur à côté
+local function watchLeftVehicle(vehicle)
+    watching = vehicle
+    CreateThread(function()
+        while watching == vehicle do
+            local ped = PlayerPedId()
+            local driver = DoesEntityExist(vehicle) and GetPedInVehicleSeat(vehicle, -1) or 0
+            if not DoesEntityExist(vehicle) or GetVehiclePedIsIn(ped, false) ~= 0 or (driver ~= 0 and driver ~= ped)
+                or #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) > (Chime.FollowDistance or 15.0)
+                or not GetIsVehicleEngineRunning(vehicle) then
+                break
+            end
+            setAlarm(chimeWanted(vehicle))
+            Wait(250)
+        end
+        if watching == vehicle then watching = 0; setAlarm(false) end
+    end)
+end
+
+VC.on('leave', function(vehicle, seat)
     if belt then setBelt(false) end
-    setAlarm(false)
     VC.hud.belt, VC.hud.alarm = nil, false
+    if seat == -1 and vehicle and vehicle ~= 0 and DoesEntityExist(vehicle) and GetIsVehicleEngineRunning(vehicle) then
+        watchLeftVehicle(vehicle) -- moteur laissé allumé : le carillon continue si une portière est ouverte
+    else
+        setAlarm(false)
+    end
 end)
 
 -- Attaché : impossible de descendre (touche F bloquée) sans détacher la ceinture d'abord
@@ -135,22 +177,15 @@ end)
 -- MDC : bouton "Tester" du volume des sons du véhicule
 AddEventHandler('rp_vehiclecontrol:testSound', function(volume)
     VC.sound('belt_on', Config.BeltSoundVolume or 1.725, volume)
-    SetTimeout(600, function() VC.sound('belt_chime', Config.ChimeVolume or 1.56, volume) end)
+    SetTimeout(600, function() VC.sound('belt_chime', Chime.Volume or 1.56, volume) end)
 end)
 
 VC.on('tick', function(ped, vehicle)
-    local speed = GetEntitySpeed(vehicle) * VC.MPH
     -- Descend du véhicule : ceinture retirée (avec le son)
     if belt and GetIsTaskActive(ped, 2) then setBelt(false) end
-    if hasBelt(vehicle) and not belt then
-        if not alarm and speed > Config.AlarmSpeed then
-            setAlarm(true)
-        elseif alarm and speed < Config.StopSpeed then
-            setAlarm(false)
-        end
-    elseif alarm then
-        setAlarm(false)
-    end
+    -- Carillon de portière : publié par le conducteur
+    watching = 0
+    setAlarm(VC.seat == -1 and chimeWanted(vehicle))
 end)
 
 -- =========================================================================
@@ -158,9 +193,9 @@ end)
 --   - arrêt brutal (vitesse tombée à SuddenStopSpeed MPH ou moins, ex. 60 -> 20) : SuddenChance (70 %) ;
 --   - accident sans chute brutale (perte d'au moins AccidentDrop MPH) : CrashChance (45 %) ;
 --   - jamais sous MinSpeed, jamais pour un simple accrochage, jamais ceinture attachée.
--- Le joueur est PROJETÉ loin de l'accident : entre MinDistance et MaxDistance m du véhicule (plus loin
--- s'il roulait plus vite), par-dessus le toit, dans le sens de la course (ou de côté si l'obstacle percuté
--- bloque la trajectoire). Son élan horizontal est entretenu pendant le vol jusqu'à la distance voulue.
+-- Le joueur est PROJETÉ par l'élan du véhicule : distance et vitesse de projection selon la vitesse avant le
+-- choc (MinDistance à MinSpeed MPH, MaxDistance à MaxDistanceSpeed MPH), par-dessus le toit, dans le sens de
+-- la course. Même trajectoire quoi qu'il y ait devant : un obstacle l'arrête plus tôt, tant pis.
 -- =========================================================================
 local MPS = 0.44704 -- 1 MPH en m/s
 
@@ -171,40 +206,24 @@ function VC.ejectChance(before, drop)
     return Config.CrashChance
 end
 
---- Distance de projection (m) : de MinDistance (à MinSpeed) à MaxDistance (à MaxDistanceSpeed), +/- 15 %
-local function throwDistance(before)
+--- Distance de projection (m) selon la vitesse : MinDistance à MinSpeed MPH -> MaxDistance à MaxDistanceSpeed MPH
+function VC.throwDistance(before)
     local t = math.min(math.max((before - Config.MinSpeed) / math.max(Config.MaxDistanceSpeed - Config.MinSpeed, 1.0), 0.0), 1.0)
-    local d = Config.MinDistance + (Config.MaxDistance - Config.MinDistance) * t
-    d = d * (0.85 + math.random() * 0.3)
-    return math.min(math.max(d, Config.MinDistance), Config.MaxDistance)
+    return Config.MinDistance + (Config.MaxDistance - Config.MinDistance) * t
 end
 
---- Direction libre (horizontale) : sens de la course, sinon de côté (l'obstacle percuté bloque)
-local function throwDirection(vehicle, velocity, start)
+local function eject(ped, vehicle, before, velocity)
+    local origin = GetEntityCoords(vehicle)
+    local _, max = GetModelDimensions(GetEntityModel(vehicle))
+    -- Départ : au-dessus du pare-brise ; direction : celle de la course (sinon l'avant du véhicule)
+    local start = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, max.y * 0.3, max.z + 0.7)
     local dir = vector3(velocity.x, velocity.y, 0.0)
     if #dir < 1.0 then
         local f = GetEntityForwardVector(vehicle)
         dir = vector3(f.x, f.y, 0.0)
     end
     dir = dir / #dir
-    for _, angle in ipairs({ 0, 20, -20, 45, -45, 75, -75, 110, -110, 180 }) do
-        local r = math.rad(angle)
-        local d = vector3(dir.x * math.cos(r) - dir.y * math.sin(r), dir.x * math.sin(r) + dir.y * math.cos(r), 0.0)
-        local to = start + d * 10.0
-        local ray = StartExpensiveSynchronousShapeTestLosProbe(start.x, start.y, start.z, to.x, to.y, to.z, 19, vehicle, 7)
-        local _, hit = GetShapeTestResult(ray)
-        if hit ~= 1 and hit ~= true then return d end
-    end
-    return dir
-end
-
-local function eject(ped, vehicle, before, velocity)
-    local origin = GetEntityCoords(vehicle)
-    local _, max = GetModelDimensions(GetEntityModel(vehicle))
-    -- Départ : au-dessus du pare-brise (par-dessus un muret, une voiture percutée…)
-    local start = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, max.y * 0.3, max.z + 0.7)
-    local dir = throwDirection(vehicle, velocity, start)
-    local distance = throwDistance(before)
+    local distance = VC.throwDistance(before)
     local hSpeed = math.max(before * MPS * Config.ThrowSpeedFactor, Config.ThrowMinSpeed)
     local vSpeed = hSpeed * Config.ThrowLift
 
@@ -214,30 +233,21 @@ local function eject(ped, vehicle, before, velocity)
         SetPedToRagdoll(ped, 6000, 6000, 0, false, false, false)
         SetEntityVelocity(ped, dir.x * hSpeed, dir.y * hSpeed, vSpeed)
         SetEntityHealth(ped, math.max(GetEntityHealth(ped) - Config.EjectDamage, 102))
-        -- Vol guidé : vitesse horizontale entretenue jusqu'à la distance voulue (4 s max) ; arrêt si un
-        -- obstacle le bloque (plus d'avancée pendant 300 ms)
+        -- Élan entretenu jusqu'à la distance due à la vitesse (4 s max) ; s'arrête là où un obstacle le bloque
         local deadline, lastGain, best = GetGameTimer() + 4000, GetGameTimer(), 0.0
         while GetGameTimer() < deadline and DoesEntityExist(ped) and not IsEntityDead(ped) do
             local pos = GetEntityCoords(ped)
             local travelled = #(vector3(pos.x - origin.x, pos.y - origin.y, 0.0))
             if travelled >= distance - hSpeed * 0.04 then -- (une image d'avance)
-                -- Distance atteinte : élan horizontal coupé (il retombe ici, pas plus loin que MaxDistance)
+                -- Distance atteinte : élan horizontal coupé (il retombe ici)
                 SetEntityVelocity(ped, 0.0, 0.0, GetEntityVelocity(ped).z)
                 break
             end
             if travelled > best + 0.05 then best, lastGain = travelled, GetGameTimer()
-            elseif GetGameTimer() - lastGain > 300 then break end
+            elseif GetGameTimer() - lastGain > 300 then break end -- bloqué : il reste là
             local v = GetEntityVelocity(ped)
             SetEntityVelocity(ped, dir.x * hSpeed, dir.y * hSpeed, v.z)
             Wait(0)
-        end
-        -- Bloqué trop près de l'accident : posé au sol à MinDistance, dans la direction libre
-        local pos = GetEntityCoords(ped)
-        if #(vector3(pos.x - origin.x, pos.y - origin.y, 0.0)) < Config.MinDistance and not IsEntityDead(ped) then
-            local target = origin + dir * Config.MinDistance
-            local found, groundZ = GetGroundZFor_3dCoord(target.x, target.y, target.z + 5.0, false)
-            SetEntityCoords(ped, target.x, target.y, found and groundZ + 0.3 or target.z, false, false, false, false)
-            SetPedToRagdoll(ped, 3000, 3000, 0, false, false, false)
         end
     end)
 end

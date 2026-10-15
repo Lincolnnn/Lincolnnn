@@ -66,7 +66,7 @@ ChatConfig = {
         JoinDelay = 5000, -- ms après l'apparition du personnage
         Sections = {
             { title = "Chat écrit", items = {
-                { "T", "ouvrir le chat" }, { "/nomrp", "votre nom RP (obligatoire)" },
+                { "T", "ouvrir le chat" }, { "/nomrp", "votre nom RP (avant /me, /info…)" },
                 { "/me", "action RP (50 m)" }, { "/info /qst /rep", "info, question, réponse" },
                 { "/dv", "supprimer un véhicule (5 m)" }, { "/eup", "tenues" },
                 { "/fichecivil", "vos profils civils" }, { "/repair", "réparer le moteur" },

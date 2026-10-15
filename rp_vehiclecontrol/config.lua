@@ -160,20 +160,28 @@ VCConfig = {
     },
 
     -- ---------------------------------------------------------------------
+    -- CARILLON DE PORTIÈRE (son html/sounds/belt_chime.ogg) : moteur tournant et une portière ouverte,
+    -- comme une clé restée sur le contact ; continue après la descente du conducteur tant qu'il reste à
+    -- FollowDistance m. Coupé net portières fermées ou moteur coupé. Entendu autour : VehicleSounds.
+    -- (La ceinture détachée n'a plus de carillon : seul son logo clignote sur le car HUD.)
+    -- ---------------------------------------------------------------------
+    DoorChime = {
+        Enabled = true,
+        Volume = 1.56,            -- volume du carillon (renforcé)
+        FollowDistance = 15.0,
+    },
+
+    -- ---------------------------------------------------------------------
     -- CEINTURE
     -- ---------------------------------------------------------------------
     Seatbelt = {
         BeltSoundVolume = 1.725,  -- volume des sons d'attache / de retrait (x1,5 puis +15 %)
-        ChimeVolume = 1.56,       -- volume du carillon "ceinture non attachée" (1,2 + 30 %)
-        AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
-        StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
-        -- Carillon coupé net : ceinture attachée, joueur descendu ou véhicule arrêté.
-        -- Sons entendus autour du véhicule : voir VehicleSounds.
         -- ÉJECTION (ceinture détachée uniquement), jamais lors d'un simple accrochage :
         --   - pas en dessous de MinSpeed MPH (vitesse avant le choc) ;
         --   - arrêt brutal (vitesse tombée à SuddenStopSpeed MPH ou moins, ex. 60 -> 20) : SuddenChance ;
         --   - accident (perte d'au moins AccidentDrop MPH) sans chute aussi brutale : CrashChance.
-        -- Projeté entre MinDistance et MaxDistance m du véhicule (MaxDistance atteint à MaxDistanceSpeed MPH).
+        -- Projeté par l'élan du véhicule : de MinDistance m (à MinSpeed MPH) à MaxDistance m (à MaxDistanceSpeed
+        -- MPH et plus), dans le sens de la course, même si un obstacle l'arrête plus tôt.
         Eject = true,
         MinSpeed = 60.0,
         SuddenStopSpeed = 20.0,

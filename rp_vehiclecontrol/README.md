@@ -49,8 +49,8 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 Les sons du véhicule sont des **fichiers audio que vous déposez vous-même** dans `html/sounds/` (aucun n'est fourni,
 voir `html/sounds/LISEZMOI.txt`), au format .ogg : `belt_on` (ceinture attachée), `belt_off` (détachée), `belt_chime`
-(carillon), `indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
-**plus fort** (×1,725, `Seatbelt.BeltSoundVolume`) et le carillon renforcé (1,56, `Seatbelt.ChimeVolume`). Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
+(carillon de portière), `indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
+**plus fort** (×1,725, `Seatbelt.BeltSoundVolume`) et le carillon renforcé (1,56, `DoorChime.Volume`). Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
 est joué en boucle (`SignalSoundMode = 'loop'`,
 le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes les `SignalInterval` ms (`'repeat'`).
 Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaque joueur dans le MDC
@@ -113,7 +113,8 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   - Les véhicules sont **~8 % plus résistants** qu'auparavant (tous ces coefficients baissés d'autant).
 - Moteur **abîmé** (< 500) : puissance réduite (80 %) ; **critique** (< 300) : 60 % de puissance et **calages** au
   hasard en roulant ; **cassé** (< 100) : moteur coupé, impossible à redémarrer ; le **car HUD reste allumé**, tout
-  en **rouge vif clignotant**, avec le **logo du moteur** en rouge plus foncé, fixe. Réparé (script de mécanicien ou
+  en **rouge vif clignotant**, avec le **logo du moteur** en rouge plus foncé, fixe ; le logo de la ceinture ne clignote plus : attachée, rempli de **rouge fixe** ;
+  détachée, seulement son **contour en rouge**, centre transparent, fixe. Réparé (script de mécanicien ou
   `/repair`) : tout redevient normal.
 - **`/repair`** : répare **uniquement le moteur** du véhicule où l'on est (sinon du plus proche, 5 m) : santé du
   moteur remise à neuf, véhicule de nouveau utilisable. La carrosserie, les vitres et les **dégâts visibles restent**.
@@ -123,8 +124,11 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 ## Ceinture de sécurité
 
 - Vrai son à l'attache et au retrait. **Attachée, impossible de descendre** (touche F bloquée) : il faut d'abord la
-  détacher. Détachée : **carillon au-dessus de 5 MPH**, **coupé net** dès que la ceinture est attachée, que le joueur
-  descend du véhicule, ou que le véhicule est **arrêté** (moins de 2 MPH, `StopSpeed`).
+  détacher. Détachée : plus de carillon, seul le logo de la ceinture clignote sur le car HUD en roulant.
+- **Carillon de portière** (son `belt_chime.ogg`, comme une clé restée sur le contact) : **moteur tournant et une
+  portière ouverte**. Il continue si le conducteur descend en laissant le moteur tourner, tant qu'il reste à moins de
+  15 m (`DoorChime.FollowDistance`) ; **coupé net** dès que les portières sont fermées ou le moteur coupé. Entendu par
+  les occupants et autour du véhicule (règles ci-dessus). `DoorChime.Enabled = false` pour le retirer.
 - **Sons synchronisés** : les autres occupants les entendent à 100 %, les joueurs autour selon les règles ci-dessus
   (3 m portière ouverte, 1 m tout fermé et étouffés).
 - **Éjection** (ceinture **détachée** uniquement ; l'éjection automatique du jeu reste désactivée) lors d'un vrai
@@ -132,10 +136,9 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   - **jamais en dessous de 60 MPH** (vitesse juste avant le choc) ;
   - **arrêt brutal** (de 60 MPH ou plus à **20 MPH ou moins**) : **70 %** de chances d'être éjecté ;
   - accident à 60 MPH ou plus **sans** chute aussi brutale : **45 %** de chances.
-  Le joueur est **projeté entre 20 et 60 m** du véhicule (plus il roulait vite, plus loin : 60 m vers 120 MPH), par
-  le pare-brise et par-dessus le toit, dans le sens de la course ; si l'obstacle percuté bloque ce chemin, il part de
-  côté. Il ne reste jamais sur le lieu de l'accident : arrêté trop tôt par un obstacle, il est posé au sol à 20 m. Il
-  perd des points de vie. Attaché : jamais éjecté. Réglages : `Seatbelt` (`MinSpeed`, `SuddenStopSpeed`,
+  C'est la **vitesse du véhicule** qui donne l'élan et la distance : **20 m à 60 MPH**, jusqu'à **60 m à 120 MPH**
+  et plus. Il part par le pare-brise, par-dessus le toit, **dans le sens de la course** : même trajectoire quoi qu'il
+  y ait devant (un obstacle l'arrête plus tôt : il n'ira pas loin). Il perd des points de vie. Attaché : jamais éjecté. Réglages : `Seatbelt` (`MinSpeed`, `SuddenStopSpeed`,
   `SuddenChance`, `AccidentDrop`, `CrashChance`, `MinDistance`, `MaxDistance`…).
 
 ## Portières (depuis l'intérieur)
@@ -168,7 +171,8 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume renforcé) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
-| `Seatbelt` | carillon (au-dessus de 5 MPH, coupé sous 2 MPH), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté à 20-60 m), classes sans ceinture |
+| `DoorChime` | carillon de portière (moteur tournant + portière ouverte) : activé, volume, distance après la descente |
+| `Seatbelt` | sons de la ceinture, éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté à 20-60 m selon la vitesse), classes sans ceinture |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
 | `EngineNoticeDuration`, `EngineStartTime` | durée de la notification du moteur (8 s), durée du démarrage (1,2 s) |

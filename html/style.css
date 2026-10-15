@@ -1472,13 +1472,13 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .hud-car.car-is-broken, .hud-car.car-is-broken.car-off { filter: none; opacity: 1; }
 .hud-car.car-is-broken .car-fuel,
 .hud-car.car-is-broken .car-speed,
-.hud-car.car-is-broken .car-belt,
 .hud-car.car-is-broken .car-rpm { animation: car-broken-blink .9s steps(1, end) infinite; }
 .hud-car.car-is-broken #carSpeed, .hud-car.car-is-broken .car-unit, .hud-car.car-is-broken .car-fuel-icon { color: #ff1a1a; }
 .hud-car.car-is-broken .car-rpm, .hud-car.car-is-broken .car-fuel-bar { background: rgba(255, 26, 26, .35); }
 .hud-car.car-is-broken .car-rpm-fill, .hud-car.car-is-broken .car-fuel-fill { background: #ff1a1a; }
-.hud-car.car-is-broken .car-belt svg * { stroke: rgba(255, 26, 26, .8); }
-.hud-car.car-is-broken .car-belt.belt-on svg * { fill: #ff1a1a; }
-.hud-car.car-is-broken .car-belt.belt-blink svg * { animation: none; fill: transparent; }
+/* Ceinture du véhicule cassé : jamais de clignotement. Attachée : remplie de rouge, fixe ; détachée :
+   seulement le contour en rouge, centre transparent */
+.hud-car.car-is-broken .car-belt svg * { animation: none; fill: transparent; stroke: #ff1a1a; stroke-width: 1.4; }
+.hud-car.car-is-broken .car-belt.belt-on svg * { fill: #ff1a1a; stroke: rgba(0, 0, 0, .14); stroke-width: .8; }
 .hud-car.car-is-broken .car-broken { color: #9e0b0b; animation: none; opacity: 1; }
 @keyframes car-broken-blink { 0% { opacity: 1; } 50% { opacity: .25; } }
