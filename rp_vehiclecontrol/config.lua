@@ -161,14 +161,12 @@ VCConfig = {
 
     -- ---------------------------------------------------------------------
     -- CARILLON DE PORTIÈRE (html/sounds/door_chime.ogg, en boucle), moteur allumé uniquement : une portière ou
-    -- plus ouverte(s), jusqu'à ce qu'elles soient refermées ou que le moteur soit coupé (entendu autour :
-    -- VehicleSounds). Continue après la descente du conducteur (moteur laissé allumé) tant qu'il reste à
-    -- FollowDistance m.
+    -- plus ouverte(s), jusqu'à ce qu'elles soient refermées ou que le moteur soit coupé. Il vient du véhicule,
+    -- même vide (personne à bord) : entendu à bord, et dehors autour de la carrosserie (VehicleSounds).
     -- ---------------------------------------------------------------------
     DoorChime = {
         Enabled = true,
         Volume = 1.0,             -- volume du carillon de portière (x réglage du joueur dans le MDC)
-        FollowDistance = 15.0,
     },
 
     -- ---------------------------------------------------------------------

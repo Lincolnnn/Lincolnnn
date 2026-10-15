@@ -132,8 +132,10 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
     n'en reste qu'un (l'un s'attache), `fast_belt_chime` s'arrête et `belt_chime` repart **du début** ;
   - **coupé net** quand le véhicule s'arrête (moins de 2 MPH, `StopSpeed`), relancé **du début** quand il repart.
 - **Carillon de portière** (`door_chime.ogg`, **moteur allumé uniquement**) : une portière ou plus ouverte(s), jusqu'à ce
-  qu'elles soient **refermées** ou que le moteur soit coupé. Il continue si le conducteur descend en laissant le moteur
-  tourner, tant qu'il reste à moins de 15 m (`DoorChime.FollowDistance`). `DoorChime.Enabled = false` pour le retirer.
+  qu'elles soient **refermées** ou que le moteur soit coupé. Il vient **du véhicule**, même **vide** (personne à bord) :
+  chaque joueur le calcule lui-même à partir de l'état du véhicule (moteur `vcEngine`, portières) et l'entend à bord ou
+  dehors autour de la carrosserie (`VehicleSounds.RangeOpen`, 3 m portière ouverte). `DoorChime.Enabled = false` pour le
+  retirer.
 - **Aucun son ne se multiplie** : chaque carillon (et le clignotant) est **un seul** fichier qui repart du début quand
   il arrive à sa fin (boucle), jamais relancé par-dessus lui-même, même si on met du temps à s'attacher ; `belt_on` /
   `belt_off` coupent le précédent avant de rejouer. Entendus par les occupants et autour du véhicule (règles ci-dessus).
@@ -182,7 +184,7 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
-| `DoorChime` | carillon de portière (moteur allumé, portière ouverte) : activé, volume, distance après la descente |
+| `DoorChime` | carillon de portière (moteur allumé, portière ouverte, même véhicule vide) : activé, volume |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; au-dessus de 5 MPH, coupé sous 2 MPH), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
@@ -194,7 +196,7 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 
 `Entity(vehicle).state` : `fuel` (0–100), `vcEngine` (toujours allumé), `vcBroken`
 (cassé), `vcDoors` (qui a ouvert les portières avant), `vcSignal` (clignotants / warnings), `vcPushed` (poussé : par
-qui, sens, poussée en cours). État du joueur : `seatbelt`, `seatbeltAlarm` (carillon de ceinture), `doorChime` (0 / 1). Le serveur vérifie
+qui, sens, poussée en cours). État du joueur : `seatbelt`, `seatbeltAlarm` (carillon de ceinture), (le carillon de portière n'a pas d'état : il se déduit de `vcEngine` et des portières). Le serveur vérifie
 chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au rythme d'une pompe).
 
 ## Performance
