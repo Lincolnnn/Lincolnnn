@@ -167,6 +167,9 @@ VCConfig = {
     DoorChime = {
         Enabled = true,
         Volume = 1.0,             -- volume du carillon de portière (x réglage du joueur dans le MDC)
+        -- Une portière qui bouge un instant (vent, choc, joueur qui passe contre) ne coupe pas le carillon :
+        -- considérée encore ouverte pendant DoorHold ms après avoir été vue ouverte
+        DoorHold = 800,
     },
 
     -- ---------------------------------------------------------------------
@@ -179,6 +182,7 @@ VCConfig = {
         ChimeVolume = 1.0,        -- volume des carillons de ceinture (x réglage du joueur)
         AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
         StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
+        StopDelay = 400,          -- ms passées sous StopSpeed avant la coupure (une lecture isolée ne coupe rien)
         -- Coupé net : plus personne de détaché, véhicule arrêté (relancé du début quand il repart).
         -- ÉJECTION (ceinture détachée uniquement), jamais lors d'un simple accrochage :
         --   - pas en dessous de MinSpeed MPH (vitesse avant le choc) ;

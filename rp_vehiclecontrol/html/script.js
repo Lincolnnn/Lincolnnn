@@ -120,27 +120,44 @@
 
     // Sons répétés (clignotants, carillons de ceinture et de portière) : un par identifiant, volume 0 = arrêt (coupé net).
     //   loop : un seul fichier joué en boucle sans interruption ; sinon, rejoué toutes les `interval` ms.
+    //   Boucle continue coupée (volume 0) : muette TOUT DE SUITE, mais gardée HOLD_MS ; redemandée entre-temps
+    //   (portière qui bouge, pas hors de portée, lecture isolée), elle reprend là où elle en était, sans
+    //   repartir du début. Au-delà : arrêtée, et relancée du début la fois suivante.
+    const HOLD_MS = 1500;
     const loops = {};
     const oneShots = {}; // [nom] = dernier son ponctuel joué
     function stopLoop(id) {
         const current = loops[id];
         if (!current) return;
         clearInterval(current.timer);
+        clearTimeout(current.holdTimer);
         current.voices.forEach(stopVoice);
         delete loops[id];
     }
 
+    function holdLoop(id, current) {
+        if (current.holdTimer) return;
+        current.voices.forEach((v) => setVoice(v, 0, current.muffled));
+        current.holdTimer = setTimeout(() => { if (loops[id] === current) stopLoop(id); }, HOLD_MS);
+    }
+
     function soundLoop({ id, names, interval, volume, loop: continuous, muffled }) {
-        if (!(volume > 0) || !Array.isArray(names) || names.length === 0) return stopLoop(id);
         let current = loops[id];
-        // Autre fichier en boucle (ex. belt_chime -> fast_belt_chime) : l'ancien est coupé net
-        if (current && continuous && current.names[0] !== names[0]) { stopLoop(id); current = null; }
-        if (current) { // déjà en cours : volume / étouffement mis à jour
+        if (!(volume > 0) || !Array.isArray(names) || names.length === 0) {
+            if (current && current.continuous && current.voices.length > 0) return holdLoop(id, current);
+            return stopLoop(id);
+        }
+        // Autre fichier en boucle (ex. belt_chime -> fast_belt_chime) : l'ancien est coupé net ;
+        // boucle gardée muette dont le lecteur s'est arrêté entre-temps : relancée du début
+        if (current && continuous && (current.names[0] !== names[0] || current.voices.length === 0)) { stopLoop(id); current = null; }
+        if (current) { // déjà en cours (ou gardé muet) : reprend, volume / étouffement mis à jour
+            clearTimeout(current.holdTimer);
+            current.holdTimer = null;
             current.volume = volume; current.muffled = !!muffled; current.names = names;
             current.voices.forEach((v) => setVoice(v, volume, muffled));
             return;
         }
-        const entry = { names, volume, muffled: !!muffled, index: 0, voices: [] };
+        const entry = { names, volume, muffled: !!muffled, index: 0, voices: [], continuous: !!continuous };
         loops[id] = entry;
         if (continuous) {
             // Boucle sans limite tant qu'elle est demandée ; si le son s'arrête quand même (lecteur perdu),
@@ -150,7 +167,11 @@
                 const v = play(entry.names[0], entry.volume, entry.muffled, true);
                 if (!v) return;
                 entry.voices = [v];
-                v.onEnded(() => { if (loops[id] === entry && !v.stopped) start(); });
+                v.onEnded(() => {
+                    if (loops[id] !== entry || v.stopped) return;
+                    if (entry.holdTimer) { entry.voices = []; return; } // gardé muet : relancé s'il est redemandé
+                    start();
+                });
             };
             start();
             return;
