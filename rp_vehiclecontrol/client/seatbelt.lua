@@ -4,7 +4,8 @@
     Touche G (Raccourcis clavier > FiveM > "Véhicule : attacher / détacher la ceinture").
       - Sons réels (html/sounds) à l'attache et au retrait ; attachée, impossible de descendre sans la
         détacher (touche F bloquée) ; retirée si le joueur est sorti du véhicule autrement.
-      - CARILLON DE CEINTURE, par véhicule, véhicule roulant (au-dessus de AlarmSpeed MPH) :
+      - CARILLON DE CEINTURE, par véhicule, dès que le véhicule roule (au-dessus de AlarmSpeed MPH, 1) : en boucle,
+        sans jamais s'arrêter, jusqu'à l'arrêt du véhicule ou l'attache (muet hors de portée, jamais coupé) :
           UN occupant détaché          -> belt_chime.ogg (un seul, en boucle) ;
           PLUSIEURS détachés en même temps -> belt_chime coupé net, fast_belt_chime.ogg (en boucle) ;
           l'un d'eux s'attache (il n'en reste qu'un) -> fast_belt_chime coupé, belt_chime relancé du début.
@@ -14,7 +15,8 @@
         ouverte(s), jusqu'à ce qu'elles soient refermées ou que le moteur soit coupé. Il vient du VÉHICULE :
         chaque joueur le calcule lui-même pour les véhicules au moteur allumé (état "vcEngine"), même vides
         (personne à bord) : entendu à bord, et dehors autour de la carrosserie (VehicleSounds), en continu comme
-        à bord (une portière qui bouge un instant ou un pas hors de portée ne le relance pas du début).
+        à bord : en boucle sans jamais s'arrêter tant que le moteur tourne portière ouverte (muet hors de
+        portée, réentendu là où il en est) ; arrêté seulement moteur coupé ou portière refermée.
       - Diagnostic : "setr vc_debug_sound 1" (console F8) affiche chaque changement des carillons.
       - Jamais deux fois le même son en même temps (le NUI coupe le précédent avant de rejouer).
       - Détachée, accident violent (voir config.lua, Seatbelt) : éjecté à travers le pare-brise.
@@ -93,7 +95,7 @@ local function debugSound(text)
     if GetConvarInt('vc_debug_sound', 0) == 1 then print(('[rp_vehiclecontrol] %s'):format(text)) end
 end
 
-local lastBelt, lastDoor = '|0.00|false', '0.00|false'
+local lastBelt, lastDoor = '|0.00|false', 'false|0.00|false'
 
 --- Véhicule d'où viennent les sons du joueur `serverId` (0 : aucun, nil : joueur parti)
 local function vehicleOf(serverId)
@@ -117,23 +119,26 @@ local function refreshChimes()
         if vehicle == nil then alarms[serverId] = nil
         elseif vehicle ~= 0 then unbuckled[vehicle] = (unbuckled[vehicle] or 0) + 1 end
     end
+    -- Le véhicule le plus fort donne le son ; aucun à portée mais un carillon en cours : gardé muet (keep)
     local count, volume, muffled = 0, 0.0, false
     for vehicle, n in pairs(unbuckled) do
         local v, m = VC.hearVehicle(vehicle)
-        if v > volume then count, volume, muffled = n, v, m end
+        if v > volume or count == 0 then count, volume, muffled = n, v, m end
     end
     volume = math.floor(volume * 20 + 0.5) / 20
+    local active = count > 0
     local file = count >= 2 and 'fast_belt_chime' or 'belt_chime'
-    local key = ('%s|%.2f|%s'):format(volume > 0 and file or '', volume, tostring(volume > 0 and muffled))
+    local key = ('%s|%.2f|%s'):format(active and file or '', volume, tostring(volume > 0 and muffled))
     if key ~= lastBelt then
         lastBelt = key
         debugSound(('carillon de ceinture : %s (alarme %s, autres %d)'):format(key, tostring(alarm), (function() local n = 0 for _ in pairs(alarms) do n = n + 1 end return n end)()))
-        -- Un seul fichier en boucle ; changer de fichier (1 <-> plusieurs détachés) coupe net l'autre
-        VC.soundLoop('chime', { file }, 0, volume * (Config.ChimeVolume or 1.0), true, muffled)
+        -- Un seul fichier en boucle, sans jamais s'arrêter tant qu'un occupant est détaché véhicule roulant ;
+        -- changer de fichier (1 <-> plusieurs détachés) coupe net l'autre
+        VC.soundLoop('chime', { file }, 0, volume * (Config.ChimeVolume or 1.0), true, muffled, active)
     end
 
     -- Carillon de portière : vient du véhicule (moteur allumé + portière ouverte), même vide ; le plus fort
-    local dVolume, dMuffled = 0.0, false
+    local dVolume, dMuffled, dActive = 0.0, false, false
     for vehicle in pairs(doorSeen) do
         if not DoesEntityExist(vehicle) then doorSeen[vehicle] = nil end -- véhicule supprimé
     end
@@ -144,7 +149,8 @@ local function refreshChimes()
             checked[vehicle] = true
             if not engineOn(vehicle) or not doorOpen(vehicle) then return end
             local v, m = VC.hearVehicle(vehicle)
-            if v > dVolume then dVolume, dMuffled = v, m end
+            if v > dVolume or not dActive then dVolume, dMuffled = v, m end
+            dActive = true
         end
         consider(VC.vehicle or 0) -- le sien (même sans état vcEngine)
         for bagName in pairs(engines) do
@@ -154,11 +160,12 @@ local function refreshChimes()
         end
     end
     dVolume = math.floor(dVolume * 20 + 0.5) / 20
-    key = ('%.2f|%s'):format(dVolume, tostring(dVolume > 0 and dMuffled))
+    key = ('%s|%.2f|%s'):format(tostring(dActive), dVolume, tostring(dVolume > 0 and dMuffled))
     if key ~= lastDoor then
         lastDoor = key
         debugSound(('carillon de portière : %s'):format(key))
-        VC.soundLoop('door', { 'door_chime' }, 0, dVolume * (Chime.Volume or 1.0), true, dMuffled)
+        -- En boucle sans jamais s'arrêter tant que le moteur tourne portière ouverte (muet hors de portée)
+        VC.soundLoop('door', { 'door_chime' }, 0, dVolume * (Chime.Volume or 1.0), true, dMuffled, dActive)
     end
 end
 
@@ -305,12 +312,19 @@ end
 ---   distance : distance IDÉALE (m), une part en vol (AirShare), le reste en glissade ;
 ---   cap      : vitesse horizontale maximale (m/s) : c'est la vitesse du véhicule qui donne l'élan ;
 ---   start    : point de départ (nil : là où se trouve le joueur, ex. déjà désarçonné par le jeu) ;
----   height   : hauteur du départ au-dessus du sol (m) ; lift : élan vers le haut ; damage : points de vie perdus.
+---   height   : hauteur du départ au-dessus du sol (m) ; lift : élan vers le haut ; damage : points de vie perdus ;
+---   velocity : vitesse de départ imposée (vector3) à la place de dir / distance (ex. chute de moto : son élan) ;
+---   pushTime : ms pendant lesquelles l'élan est réappliqué (PushTime par défaut).
 function VC.launch(ped, opts)
-    local lift = opts.lift or Config.ThrowLift
-    local hSpeed = VC.throwSpeed(opts.distance * Config.AirShare, lift, math.max(opts.height or 1.0, 0.5))
-    if opts.cap then hSpeed = math.min(hSpeed, opts.cap) end
-    local vx, vy, vz = opts.dir.x * hSpeed, opts.dir.y * hSpeed, hSpeed * lift
+    local vx, vy, vz
+    if opts.velocity then
+        vx, vy, vz = opts.velocity.x, opts.velocity.y, opts.velocity.z
+    else
+        local lift = opts.lift or Config.ThrowLift
+        local hSpeed = VC.throwSpeed(opts.distance * Config.AirShare, lift, math.max(opts.height or 1.0, 0.5))
+        if opts.cap then hSpeed = math.min(hSpeed, opts.cap) end
+        vx, vy, vz = opts.dir.x * hSpeed, opts.dir.y * hSpeed, hSpeed * lift
+    end
 
     -- Sorti du véhicule tout de suite (sinon le jeu le garde assis / debout), corps inerte autorisé
     if GetVehiclePedIsIn(ped, false) ~= 0 then ClearPedTasksImmediately(ped) end
@@ -323,7 +337,7 @@ function VC.launch(ped, opts)
         -- Premières images : l'impulsion est réappliquée (le ragdoll du jeu peut la perdre en s'activant).
         -- Pendant tout le vol : ragdoll maintenu (jamais debout en l'air). Aucune vitesse coupée ensuite.
         local now = GetGameTimer()
-        local pushUntil, flyUntil = now + Config.PushTime, now + 4000
+        local pushUntil, flyUntil = now + (opts.pushTime or Config.PushTime), now + 4000
         while GetGameTimer() < flyUntil and DoesEntityExist(ped) and not IsEntityDead(ped) do
             if not IsPedRagdoll(ped) then SetPedToRagdoll(ped, 4000, 6000, 0, false, false, false) end
             if GetGameTimer() < pushUntil then

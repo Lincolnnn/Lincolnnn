@@ -62,6 +62,10 @@ clignotants en mode `'loop'` tournent alors en boucle **sans fin et sans coupure
 quelle que soit la durée du fichier. Ils ne s'arrêtent que sur l'arrêt voulu : attaché, véhicule arrêté, sorti,
 portière refermée… Si un son en boucle s'arrête quand même, il est relancé aussitôt.
 
+**Toujours en cours tant que leur condition dure** : le carillon de ceinture (véhicule qui roule, quelqu'un de
+détaché) et celui de portière (moteur allumé, portière ouverte) ne s'arrêtent jamais hors de portée : ils
+continuent, muets, et se réentendent là où ils en sont.
+
 **Jamais relancés du début pour une micro-coupure** : un carillon coupé devient muet tout de suite. S'il est redemandé
 dans les 1,5 s, il reprend **là où il en était**, sans repartir du début. Cela couvre une portière qui bouge un instant,
 un pas hors de portée ou une lecture de vitesse isolée. Au-delà de 1,5 s, il est arrêté pour de bon et repartira du
@@ -139,14 +143,18 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 
 - Vrai son à l'attache et au retrait. **Attachée, impossible de descendre** (touche F bloquée) : il faut d'abord la
   détacher.
-- **Carillon de ceinture**, par véhicule, véhicule **roulant** (au-dessus de 5 MPH) :
+- **Carillon de ceinture**, par véhicule, **dès que le véhicule roule à plus de 1 MPH** (`AlarmSpeed`) : il sonne
+  **en boucle sans jamais s'arrêter**, jusqu'à ce que le véhicule s'arrête ou que la personne s'attache. Hors de portée,
+  il continue muet et se réentend là où il en est :
   - **un** occupant détaché : `belt_chime.ogg` ;
   - **plusieurs** détachés en même temps : `belt_chime` **coupé net**, `fast_belt_chime.ogg` à la place ; dès qu'il
     n'en reste qu'un (l'un s'attache), `fast_belt_chime` s'arrête et `belt_chime` repart **du début** ;
-  - **coupé net** quand le véhicule s'arrête (moins de 2 MPH, `StopSpeed`, pendant 0,4 s d'affilée, `StopDelay` : une
-    lecture isolée ne le coupe pas), relancé **du début** quand il repart.
+  - **coupé net** quand le véhicule s'arrête (moins de 0,5 MPH, `StopSpeed`, pendant 0,4 s d'affilée, `StopDelay` :
+    une lecture isolée ne le coupe pas), relancé **du début** quand il repart.
 - **Carillon de portière** (`door_chime.ogg`, **moteur allumé uniquement**) : une portière ou plus ouverte(s), jusqu'à ce
-  qu'elles soient **refermées** ou que le moteur soit coupé. **En continu dehors comme à bord** : le moteur compte
+  qu'elles soient **refermées** ou que le moteur soit coupé. **En boucle sans jamais s'arrêter tant que le moteur
+  tourne** portière ouverte, dehors comme à bord. Hors de portée, il continue muet et se réentend là où il en est.
+  Il ne s'arrête que **moteur coupé** ou **portière refermée** : le moteur compte
   comme allumé tant qu'il l'est pour Vehicle Control (`vcEngine`), même si le jeu coupe un instant celui d'un véhicule
   laissé vide. Une portière qui bouge un instant compte encore comme ouverte (0,8 s, `DoorChime.DoorHold`).
   Il vient **du véhicule**, même **vide** (personne à bord) :
@@ -189,7 +197,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
       Contre un mur, un poteau ou une autre moto, il part sur le côté.
   - Si le jeu désarçonne lui-même le motard pendant le choc, la même règle de projection s'applique, depuis l'endroit
     où il se trouve.
-- **Chute de la moto** (ragdoll **sans projection**, avec l'élan de la moto) pour les **petits incidents** :
+- **Chute de la moto** (ragdoll **sans projection**) pour les **petits incidents** :
   **80 %** de chances. Cela s'ajoute à ce que le jeu fait déjà, donc le motard tombe beaucoup plus facilement.
   Un petit incident, à partir de 8 MPH, c'est :
   - un **piéton renversé** ;
@@ -198,6 +206,9 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
   - un mur ou un élément du décor (perte d'au moins 6 MPH, plus qu'un freinage).
 - Un accident de 35 MPH ou plus **sans projection** (les 15 % restants) peut aussi finir en **chute** (80 %) :
   `FallIfNotThrown`.
+- Le motard **tombe avec la moto**, jamais arrêté net ni posé à côté. Il part en ragdoll **depuis la selle**, avec
+  la **vitesse de la moto** (`FallCarry`) et un peu vers un côté (`FallSide`) : il bascule, glisse et roule au sol dans
+  la même course. Même chose quand le jeu le désarçonne lui-même sans projection.
 - **Une seule décision par choc** : le même accident n'est jamais tiré deux fois.
 - Une descente normale (touche F) ne déclenche rien.
 - Vélos : ajoutez `[13] = true` dans `Bike.Classes`.
@@ -233,7 +244,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
 | `DoorChime` | carillon de portière (moteur allumé, portière ouverte, même véhicule vide) : activé, volume, portière qui bouge un instant (`DoorHold`) |
-| `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; au-dessus de 5 MPH, coupé sous 2 MPH pendant 0,4 s), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
+| `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH en boucle sans arrêt, coupé à l'arrêt : sous 0,5 MPH pendant 0,4 s), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), chute de la moto sur les petits incidents (80 % : piéton, poteau, trottoir…), seuils, dégâts |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |

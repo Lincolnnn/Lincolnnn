@@ -10,7 +10,9 @@
         Si le jeu désarçonne lui-même le motard dans un tel choc, la même règle s'applique (même tirage).
       - CHUTE (ragdoll de la moto, sans projection) : petit incident (piéton renversé, poteau, objet,
         véhicule touché, trottoir, mur) -> FallChance (80 %). Un accident sans projection peut aussi
-        finir en chute (FallIfNotThrown).
+        finir en chute (FallIfNotThrown). Le motard TOMBE AVEC LA MOTO : ragdoll depuis la selle, avec
+        l'élan de la moto (il glisse et roule dans la même course), jamais arrêté net ni posé à côté.
+        Désarçonné par le jeu lui-même : il garde aussi cet élan.
       - Une seule décision par choc (le même accident n'est jamais tiré deux fois).
     Performance : aucune boucle à part, branché sur la boucle du véhicule (main.lua) ; à bord d'une moto,
     une lecture de vitesse verticale par image (trottoirs) ; rien à pied ni dans les autres véhicules.
@@ -101,21 +103,29 @@ local function throw(ped, vehicle, before, velocity, hit, fromGame)
     })
 end
 
---- Chute : désarçonné en ragdoll, avec l'élan de la moto (pas de projection)
-local function fall(ped, vehicle)
-    SetPedCanRagdoll(ped, true)
-    KnockPedOffVehicle(ped)
-    if (Config.FallDamage or 0) > 0 then SetEntityHealth(ped, math.max(GetEntityHealth(ped) - Config.FallDamage, 102)) end
-    CreateThread(function()
-        Wait(0)
-        if GetVehiclePedIsIn(ped, false) == vehicle then
-            -- Le jeu l'a gardé en selle : sorti à la main, en gardant la vitesse de la moto
-            local v = GetEntityVelocity(vehicle)
-            ClearPedTasksImmediately(ped)
-            SetEntityVelocity(ped, v.x, v.y, v.z)
-        end
-        if not IsPedRagdoll(ped) then SetPedToRagdoll(ped, 1500, 2500, 0, false, false, false) end
-    end)
+--- Chute : le motard tombe AVEC la moto. Il part en ragdoll de là où il est assis, avec la vitesse de la moto
+--- (FallCarry) et un peu vers un côté (FallSide) : il bascule, glisse et roule au sol dans la même course.
+--- Jamais arrêté net, jamais déposé debout à côté. `velocity` : élan de la moto (juste avant le choc).
+local function fall(ped, vehicle, velocity, fromGame)
+    local carry = Config.FallCarry or 1.0
+    local v = velocity or GetEntityVelocity(vehicle)
+    local dir = vector3(v.x, v.y, 0.0)
+    local side = vector3(0.0, 0.0, 0.0)
+    if #dir > 0.5 then
+        dir = dir / #dir
+        local s = (math.random() < 0.5 and -1.0 or 1.0) * (Config.FallSide or 0.0)
+        side = vector3(-dir.y * s, dir.x * s, 0.0) -- perpendiculaire à la course
+    end
+    local start = nil
+    if not fromGame then
+        -- Retiré de la selle sur place (un peu au-dessus, dégagé de la moto) : pas déplacé à côté
+        local seat = GetEntityCoords(ped)
+        start = vector3(seat.x + side.x * 0.15, seat.y + side.y * 0.15, seat.z + 0.3)
+    end
+    VC.launch(ped, {
+        velocity = vector3(v.x * carry + side.x, v.y * carry + side.y, math.max(v.z, 0.0) + 0.5),
+        start = start, damage = Config.FallDamage, pushTime = Config.FallPushTime or 200,
+    })
 end
 
 local function decide(ped, vehicle, before, drop, velocity, hit, fromGame)
@@ -127,8 +137,9 @@ local function decide(ped, vehicle, before, drop, velocity, hit, fromGame)
     local outcome = VC.bikeOutcome(incident, math.random(), math.random())
     if outcome == 'throw' then
         throw(ped, vehicle, before, velocity, hit, fromGame)
-    elseif outcome == 'fall' and not fromGame then
-        fall(ped, vehicle)
+    elseif outcome == 'fall' or fromGame then
+        -- Chute (ou déjà désarçonné par le jeu) : il garde l'élan de la moto, jamais arrêté net
+        fall(ped, vehicle, velocity, fromGame)
     end
 end
 

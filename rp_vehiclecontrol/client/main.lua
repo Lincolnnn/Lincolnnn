@@ -127,10 +127,12 @@ end
 --- Son répété (clignotant, alarme) : `names` joués à tour de rôle toutes les `interval` ms ; volume 0 = arrêt
 --- (coupé net). `loop` : un seul fichier joué en boucle sans interruption (interval ignoré). Volume au-delà de 1
 --- possible ; `muffled` : étouffé.
-function VC.soundLoop(id, names, interval, volume, loop, muffled)
+--- `keep` : boucle toujours en cours même à volume 0 (hors de portée) : gardée muette, sans jamais s'arrêter,
+--- et réentendue là où elle en est ; sans `keep`, volume 0 = arrêt.
+function VC.soundLoop(id, names, interval, volume, loop, muffled, keep)
     SendNUIMessage({ action = 'soundLoop', data = {
         id = id, names = names, interval = interval, volume = (volume or 0.0) * VC.volume(), loop = loop == true,
-        muffled = muffled == true,
+        muffled = muffled == true, keep = keep == true,
     } })
 end
 

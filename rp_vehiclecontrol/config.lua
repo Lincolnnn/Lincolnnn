@@ -180,9 +180,10 @@ VCConfig = {
         -- Carillon de ceinture, par véhicule roulant, en boucle : UN occupant détaché -> html/sounds/belt_chime.ogg ;
         -- PLUSIEURS détachés en même temps -> fast_belt_chime.ogg (belt_chime coupé net, et inversement)
         ChimeVolume = 1.0,        -- volume des carillons de ceinture (x réglage du joueur)
-        AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
-        StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
+        AlarmSpeed = 1.0,         -- MPH : carillon dès que le véhicule roule au-dessus (ceinture détachée)
+        StopSpeed = 0.5,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
         StopDelay = 400,          -- ms passées sous StopSpeed avant la coupure (une lecture isolée ne coupe rien)
+        -- Entre les deux : il sonne en boucle SANS JAMAIS S'ARRÊTER, jusqu'à l'arrêt du véhicule ou l'attache.
         -- Coupé net : plus personne de détaché, véhicule arrêté (relancé du début quand il repart).
         -- ÉJECTION (ceinture détachée uniquement), jamais lors d'un simple accrochage :
         --   - pas en dessous de MinSpeed MPH (vitesse avant le choc) ;
@@ -250,6 +251,12 @@ VCConfig = {
         CurbJolt = 3.5,
         FallIfNotThrown = true,   -- accident sans projection (les 15 % restants) : chute possible (FallChance)
         FallDamage = 5,
+        -- Une chute garde l'élan de la moto : le motard part en ragdoll AVEC la moto (même vitesse, il glisse et
+        -- roule au sol), jamais arrêté net ni posé à côté. FallCarry : part de la vitesse de la moto gardée ;
+        -- FallSide : m/s vers un côté (il bascule) ; FallPushTime : ms pendant lesquelles l'élan est réappliqué.
+        FallCarry = 1.0,
+        FallSide = 1.5,
+        FallPushTime = 200,
     },
 
     -- ---------------------------------------------------------------------
