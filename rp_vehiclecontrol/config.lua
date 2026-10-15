@@ -186,20 +186,21 @@ VCConfig = {
         --   - pas en dessous de MinSpeed MPH (vitesse avant le choc) ;
         --   - arrêt brutal (vitesse tombée à SuddenStopSpeed MPH ou moins, ex. 60 -> 20) : SuddenChance ;
         --   - accident (perte d'au moins AccidentDrop MPH) sans chute aussi brutale : CrashChance.
-        -- Projeté par l'élan du véhicule : de MinDistance m (à MinSpeed MPH) à MaxDistance m (à MaxDistanceSpeed
-        -- MPH et plus), dans le sens de la course, même si un obstacle l'arrête plus tôt.
+        -- Projeté par l'élan du véhicule, en ragdoll, dans le sens de la course. Distance IDÉALE (pas une limite) :
+        -- IdealMinDistance m à MinSpeed MPH -> IdealMaxDistance m à MaxDistanceSpeed MPH et plus. Une impulsion de
+        -- départ seulement : la physique du jeu fait le reste (un peu plus loin en roulant, moins loin si obstacle).
         Eject = true,
         MinSpeed = 60.0,
         SuddenStopSpeed = 20.0,
         SuddenChance = 0.70,      -- 70 %
         AccidentDrop = 10.0,
         CrashChance = 0.45,       -- 45 %
-        MinDistance = 20.0,
-        MaxDistance = 60.0,
+        IdealMinDistance = 20.0,
+        IdealMaxDistance = 60.0,  -- distance idéale à ne pas trop dépasser : la propulsion est limitée pour ça
         MaxDistanceSpeed = 120.0,
-        ThrowSpeedFactor = 0.6,   -- vitesse de projection = 60 % de la vitesse du véhicule…
-        ThrowMinSpeed = 15.0,     -- …et au moins 15 m/s
+        AirShare = 0.8,           -- part de la distance idéale faite en vol (le reste : glissade / roulé au sol)
         ThrowLift = 0.35,         -- élan vers le haut (part de la vitesse horizontale)
+        PushTime = 150,           -- ms pendant lesquelles l'impulsion de départ est réappliquée
         EjectDamage = 35,         -- points de vie perdus par l'éjection
         -- Classes sans ceinture : motos, vélos, bateaux, hélicoptères, avions, trains
         NoBeltClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },

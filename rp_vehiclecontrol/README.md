@@ -141,10 +141,13 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   - **jamais en dessous de 60 MPH** (vitesse juste avant le choc) ;
   - **arrêt brutal** (de 60 MPH ou plus à **20 MPH ou moins**) : **70 %** de chances d'être éjecté ;
   - accident à 60 MPH ou plus **sans** chute aussi brutale : **45 %** de chances.
-  C'est la **vitesse du véhicule** qui donne l'élan et la distance : **20 m à 60 MPH**, jusqu'à **60 m à 120 MPH**
-  et plus. Il part par le pare-brise, par-dessus le toit, **dans le sens de la course** : même trajectoire quoi qu'il
-  y ait devant (un obstacle l'arrête plus tôt : il n'ira pas loin). Il perd des points de vie. Attaché : jamais éjecté. Réglages : `Seatbelt` (`MinSpeed`, `SuddenStopSpeed`,
-  `SuddenChance`, `AccidentDrop`, `CrashChance`, `MinDistance`, `MaxDistance`…).
+  Le joueur est **projeté en ragdoll** (corps inerte, jamais debout en l'air) par le pare-brise, par-dessus le toit,
+  **dans le sens de la course**. C'est la **vitesse du véhicule** qui donne l'élan : une **impulsion de départ**
+  calculée pour une distance **idéale** de **20 m à 60 MPH** à **60 m vers 120 MPH** (jamais plus rapide que le
+  véhicule). Ce n'est **pas une limite** : ensuite la physique du jeu décide (il peut rouler un peu plus loin, ou
+  s'arrêter plus tôt contre un obstacle), sans arrêt net. Il perd des points de vie. Attaché : jamais éjecté.
+  Réglages : `Seatbelt` (`MinSpeed`, `SuddenStopSpeed`, `SuddenChance`, `AccidentDrop`, `CrashChance`,
+  `IdealMinDistance`, `IdealMaxDistance`, `AirShare`, `ThrowLift`…).
 
 ## Portières (depuis l'intérieur)
 
@@ -177,7 +180,7 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
 | `DoorChime` | carillons de portière (moteur allumé : une portière / plusieurs) : activé, volume, distance après la descente |
-| `Seatbelt` | sons et carillon de la ceinture (au-dessus de 5 MPH, coupé sous 2 MPH), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté à 20-60 m selon la vitesse), classes sans ceinture |
+| `Seatbelt` | sons et carillon de la ceinture (au-dessus de 5 MPH, coupé sous 2 MPH), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
 | `EngineNoticeDuration`, `EngineStartTime` | durée de la notification du moteur (8 s), durée du démarrage (1,2 s) |

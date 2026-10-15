@@ -238,9 +238,10 @@ end)
 --   - arrêt brutal (vitesse tombée à SuddenStopSpeed MPH ou moins, ex. 60 -> 20) : SuddenChance (70 %) ;
 --   - accident sans chute brutale (perte d'au moins AccidentDrop MPH) : CrashChance (45 %) ;
 --   - jamais sous MinSpeed, jamais pour un simple accrochage, jamais ceinture attachée.
--- Le joueur est PROJETÉ par l'élan du véhicule : distance et vitesse de projection selon la vitesse avant le
--- choc (MinDistance à MinSpeed MPH, MaxDistance à MaxDistanceSpeed MPH), par-dessus le toit, dans le sens de
--- la course. Même trajectoire quoi qu'il y ait devant : un obstacle l'arrête plus tôt, tant pis.
+-- Le joueur est PROJETÉ par l'élan du véhicule, en ragdoll (corps inerte du jeu) : une impulsion de départ,
+-- calculée pour une distance IDÉALE selon la vitesse (IdealMinDistance à MinSpeed MPH -> IdealMaxDistance à
+-- MaxDistanceSpeed MPH), jamais plus rapide que le véhicule. Ensuite, la physique du jeu décide : il peut
+-- aller un peu plus loin (glissade, roulé) ou moins loin (obstacle), sans arrêt net.
 -- =========================================================================
 local MPS = 0.44704 -- 1 MPH en m/s
 
@@ -251,15 +252,32 @@ function VC.ejectChance(before, drop)
     return Config.CrashChance
 end
 
---- Distance de projection (m) selon la vitesse : MinDistance à MinSpeed MPH -> MaxDistance à MaxDistanceSpeed MPH
+--- Distance idéale de projection (m) selon la vitesse (pas une limite)
 function VC.throwDistance(before)
     local t = math.min(math.max((before - Config.MinSpeed) / math.max(Config.MaxDistanceSpeed - Config.MinSpeed, 1.0), 0.0), 1.0)
-    return Config.MinDistance + (Config.MaxDistance - Config.MinDistance) * t
+    return Config.IdealMinDistance + (Config.IdealMaxDistance - Config.IdealMinDistance) * t
+end
+
+local GRAVITY = 9.81
+
+--- Portée en l'air (m) d'un départ à `h` m du sol, vitesse horizontale `vh`, verticale vh * lift
+local function airRange(vh, lift, h)
+    local vz = vh * lift
+    return vh * (vz + math.sqrt(vz * vz + 2.0 * GRAVITY * h)) / GRAVITY
+end
+
+--- Vitesse horizontale (m/s) pour que le vol (avant la glissade) fasse `range` m
+function VC.throwSpeed(range, lift, h)
+    local lo, hi = 1.0, 80.0
+    for _ = 1, 30 do
+        local mid = (lo + hi) / 2
+        if airRange(mid, lift, h) < range then lo = mid else hi = mid end
+    end
+    return (lo + hi) / 2
 end
 
 local function eject(ped, vehicle, before, velocity)
-    local origin = GetEntityCoords(vehicle)
-    local _, max = GetModelDimensions(GetEntityModel(vehicle))
+    local min, max = GetModelDimensions(GetEntityModel(vehicle))
     -- Départ : au-dessus du pare-brise ; direction : celle de la course (sinon l'avant du véhicule)
     local start = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, max.y * 0.3, max.z + 0.7)
     local dir = vector3(velocity.x, velocity.y, 0.0)
@@ -268,30 +286,33 @@ local function eject(ped, vehicle, before, velocity)
         dir = vector3(f.x, f.y, 0.0)
     end
     dir = dir / #dir
-    local distance = VC.throwDistance(before)
-    local hSpeed = math.max(before * MPS * Config.ThrowSpeedFactor, Config.ThrowMinSpeed)
-    local vSpeed = hSpeed * Config.ThrowLift
+    -- Impulsion calculée pour la distance idéale (une part en vol, le reste en glissade), plafonnée à la
+    -- vitesse du véhicule : c'est sa vitesse qui donne l'élan
+    local height = math.max((max.z + 0.7) - min.z, 1.0)
+    local lift = Config.ThrowLift
+    local hSpeed = VC.throwSpeed(VC.throwDistance(before) * Config.AirShare, lift, height)
+    hSpeed = math.min(hSpeed, before * MPS)
+    local vx, vy, vz = dir.x * hSpeed, dir.y * hSpeed, hSpeed * lift
 
+    -- Sorti du véhicule tout de suite (sinon le jeu le garde assis / debout), corps inerte autorisé
+    ClearPedTasksImmediately(ped)
+    SetPedCanRagdoll(ped, true)
     SetEntityCoords(ped, start.x, start.y, start.z, false, false, false, false)
+    SetPedToRagdoll(ped, 5000, 7000, 0, false, false, false)
+    SetEntityVelocity(ped, vx, vy, vz)
+    SetEntityHealth(ped, math.max(GetEntityHealth(ped) - Config.EjectDamage, 102))
     CreateThread(function()
-        Wait(1)
-        SetPedToRagdoll(ped, 6000, 6000, 0, false, false, false)
-        SetEntityVelocity(ped, dir.x * hSpeed, dir.y * hSpeed, vSpeed)
-        SetEntityHealth(ped, math.max(GetEntityHealth(ped) - Config.EjectDamage, 102))
-        -- Élan entretenu jusqu'à la distance due à la vitesse (4 s max) ; s'arrête là où un obstacle le bloque
-        local deadline, lastGain, best = GetGameTimer() + 4000, GetGameTimer(), 0.0
-        while GetGameTimer() < deadline and DoesEntityExist(ped) and not IsEntityDead(ped) do
-            local pos = GetEntityCoords(ped)
-            local travelled = #(vector3(pos.x - origin.x, pos.y - origin.y, 0.0))
-            if travelled >= distance - hSpeed * 0.04 then -- (une image d'avance)
-                -- Distance atteinte : élan horizontal coupé (il retombe ici)
-                SetEntityVelocity(ped, 0.0, 0.0, GetEntityVelocity(ped).z)
-                break
+        -- Premières images : l'impulsion est réappliquée (le ragdoll du jeu peut la perdre en s'activant).
+        -- Pendant tout le vol : ragdoll maintenu (jamais debout en l'air). Aucune vitesse coupée ensuite.
+        local now = GetGameTimer()
+        local pushUntil, flyUntil = now + Config.PushTime, now + 4000
+        while GetGameTimer() < flyUntil and DoesEntityExist(ped) and not IsEntityDead(ped) do
+            if not IsPedRagdoll(ped) then SetPedToRagdoll(ped, 4000, 6000, 0, false, false, false) end
+            if GetGameTimer() < pushUntil then
+                SetEntityVelocity(ped, vx, vy, GetEntityVelocity(ped).z)
+            elseif not IsPedFalling(ped) and #GetEntityVelocity(ped) < 1.5 then
+                break -- retombé et arrêté
             end
-            if travelled > best + 0.05 then best, lastGain = travelled, GetGameTimer()
-            elseif GetGameTimer() - lastGain > 300 then break end -- bloqué : il reste là
-            local v = GetEntityVelocity(ped)
-            SetEntityVelocity(ped, dir.x * hSpeed, dir.y * hSpeed, v.z)
             Wait(0)
         end
     end)
