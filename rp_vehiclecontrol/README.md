@@ -57,6 +57,11 @@ le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes 
 Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaque joueur dans le MDC
 (*Paramètres > HUD & Display > Volume des sons du véhicule*, bouton « Tester »).
 
+**Boucles sans limite** : chaque fichier est chargé une fois en mémoire au démarrage. Les carillons et les
+clignotants en mode `'loop'` tournent alors en boucle **sans fin et sans coupure** tant qu'ils sont demandés,
+quelle que soit la durée du fichier. Ils ne s'arrêtent que sur l'arrêt voulu : attaché, véhicule arrêté, sorti,
+portière refermée… Si un son en boucle s'arrête quand même, il est relancé aussitôt.
+
 ### Sons entendus autour du véhicule
 
 Clignotants / warnings, ceinture (attache, retrait) et carillon : **100 % pour les occupants** ; dehors, la distance est

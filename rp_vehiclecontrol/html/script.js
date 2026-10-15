@@ -6,10 +6,14 @@
     // ---- Sons : fichiers réels, remplaçables (mêmes noms) dans html/sounds/ ----
     // Chaque son : fichier -> filtre passe-bas ("étouffé" : entendu de l'extérieur, portières fermées)
     // -> volume (au-delà de 100 % possible). Un son arrêté est coupé net.
+    // Lecture : fichier décodé une fois en mémoire (Web Audio) ; une boucle tourne alors SANS LIMITE, sans
+    // dépendre du serveur de fichiers du NUI. Secours (fichier pas encore décodé, Web Audio indisponible) :
+    // élément <audio>, rejoué du début à chaque fin tant que la boucle est demandée (soundLoop).
     const SOUND_FILES = ['belt_on', 'belt_off', 'belt_chime', 'fast_belt_chime', 'door_chime', 'indicators_sound'];
     const MUFFLED_HZ = 650;
     const CLEAR_HZ = 20000;
     const cache = {};
+    const buffers = {}; // [nom] = AudioBuffer décodé
     SOUND_FILES.forEach((name) => {
         const audio = new Audio(`sounds/${name}.ogg`);
         audio.preload = 'auto';
@@ -27,42 +31,82 @@
         }
     }
 
-    /** Lecteur d'un son : { audio, gain, filter } (sans Web Audio : volume de l'élément seulement) */
+    // Décodage des fichiers au démarrage (une seule fois)
+    (() => {
+        const ac = audioContext();
+        if (!ac || typeof fetch !== 'function') return;
+        SOUND_FILES.forEach((name) => {
+            fetch(`sounds/${name}.ogg`)
+                .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error('absent'))))
+                .then((data) => new Promise((resolve, reject) => {
+                    const p = ac.decodeAudioData(data, resolve, reject);
+                    if (p && typeof p.then === 'function') p.then(resolve, reject);
+                }))
+                .then((buffer) => { buffers[name] = buffer; })
+                .catch(() => {}); // fichier absent / illisible : secours <audio>
+        });
+    })();
+
+    function chain(ac, input) {
+        const filter = ac.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.Q.value = 0.8;
+        const gain = ac.createGain();
+        input.connect(filter).connect(gain).connect(ac.destination);
+        return { filter, gain };
+    }
+
+    /** Lecteur d'un son : { start, stop, onEnded, gain, filter } ; loop : rejoué sans fin jusqu'à l'arrêt */
     function voice(name, loop) {
+        const ac = audioContext();
+        if (ac && buffers[name]) {
+            try {
+                const source = ac.createBufferSource();
+                source.buffer = buffers[name];
+                source.loop = loop; // boucle sans coupure ni limite
+                const v = chain(ac, source);
+                v.start = () => source.start();
+                v.stop = () => {
+                    v.stopped = true;
+                    try { source.stop(); } catch (err) { /* déjà arrêté */ }
+                    source.disconnect();
+                };
+                v.onEnded = (fn) => source.addEventListener('ended', fn, { once: true });
+                return v;
+            } catch (err) { /* secours ci-dessous */ }
+        }
         const base = cache[name];
         if (!base) return null;
-        const v = { audio: base.cloneNode() }; // plusieurs sons en même temps (ex. clignotant + carillon)
-        v.audio.loop = loop;
-        const ac = audioContext();
+        const audio = base.cloneNode(); // plusieurs sons en même temps (ex. clignotant + carillon)
+        const v = { audio, filter: null, gain: null, stopped: false };
         if (ac) {
-            try {
-                v.filter = ac.createBiquadFilter();
-                v.filter.type = 'lowpass';
-                v.filter.Q.value = 0.8;
-                v.gain = ac.createGain();
-                ac.createMediaElementSource(v.audio).connect(v.filter).connect(v.gain).connect(ac.destination);
-            } catch (err) {
-                v.filter = null; v.gain = null;
-            }
+            try { Object.assign(v, chain(ac, ac.createMediaElementSource(audio))); } catch (err) { v.filter = null; v.gain = null; }
         }
+        // Pas de audio.loop : le serveur du NUI ne permet pas toujours de revenir au début du fichier (la boucle
+        // s'arrêtait à la fin du premier passage) ; une boucle est relancée à chaque fin par soundLoop()
+        v.start = () => audio.play().catch(() => {});
+        v.stop = () => {
+            v.stopped = true;
+            audio.pause();
+            try { audio.currentTime = 0; } catch (err) { /* pas de retour au début possible */ }
+        };
+        v.onEnded = (fn) => audio.addEventListener('ended', fn, { once: true });
         return v;
     }
 
     function setVoice(v, volume, muffled) {
         volume = Math.max(Number(volume) || 0, 0);
         if (v.gain) {
-            v.audio.volume = 1;
+            if (v.audio) v.audio.volume = 1;
             v.gain.gain.value = Math.min(volume, 6); // amplification jusqu'à x6 (clignotants renforcés)
             v.filter.frequency.value = muffled ? MUFFLED_HZ : CLEAR_HZ;
-        } else {
+        } else if (v.audio) {
             v.audio.volume = Math.min(volume, 1);
         }
     }
 
     function stopVoice(v) {
-        if (!v) return;
-        v.audio.pause();
-        v.audio.currentTime = 0;
+        if (v) v.stop();
     }
 
     function play(name, volume, muffled, loop = false) {
@@ -70,7 +114,7 @@
         const v = voice(name, loop);
         if (!v) return null;
         setVoice(v, volume, muffled);
-        v.audio.play().catch(() => {});
+        v.start();
         return v;
     }
 
@@ -99,8 +143,16 @@
         const entry = { names, volume, muffled: !!muffled, index: 0, voices: [] };
         loops[id] = entry;
         if (continuous) {
-            const v = play(names[0], volume, muffled, true);
-            if (v) entry.voices.push(v);
+            // Boucle sans limite tant qu'elle est demandée ; si le son s'arrête quand même (lecteur perdu),
+            // il est relancé aussitôt : seul un volume 0 (ou un autre fichier) l'arrête
+            const start = () => {
+                if (loops[id] !== entry) return;
+                const v = play(entry.names[0], entry.volume, entry.muffled, true);
+                if (!v) return;
+                entry.voices = [v];
+                v.onEnded(() => { if (loops[id] === entry && !v.stopped) start(); });
+            };
+            start();
             return;
         }
         const tick = () => {
@@ -111,7 +163,7 @@
             entry.index += 1;
             if (!v) return;
             entry.voices.push(v);
-            v.audio.addEventListener('ended', () => { entry.voices = entry.voices.filter((x) => x !== v); }, { once: true });
+            v.onEnded(() => { entry.voices = entry.voices.filter((x) => x !== v); });
         };
         tick();
         entry.timer = setInterval(tick, Math.max(100, Number(interval) || 1000));
