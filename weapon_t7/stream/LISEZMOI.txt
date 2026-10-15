@@ -1,0 +1,16 @@
+Dossier du MODÈLE 3D du taser T7.
+
+Placez ici les fichiers de votre modèle, renommés exactement :
+    w_pi_t7.ydr   (le modèle)
+    w_pi_t7.ytd   (les textures)
+
+Votre modèle de taser vient peut-être d'un pack "replace" et s'appelle w_pi_stungun.ydr / .ytd :
+copiez-les ici et renommez-les en w_pi_t7.ydr / w_pi_t7.ytd. Le taser replace (WEAPON_STUNGUN)
+reste intact : les deux armes coexistent.
+
+Si le pack contient aussi un fichier de modèle "hi" (w_pi_stungun_hi.ydr), il n'est pas nécessaire.
+
+Sans modèle dans ce dossier, l'arme fonctionne mais elle est INVISIBLE en main.
+Pour utiliser le modèle du taser du jeu (ou de votre replace) à la place :
+  1. dans meta/weapon.meta, remplacez  <Model>w_pi_t7</Model>  par  <Model>w_pi_stungun</Model>
+  2. dans fxmanifest.lua, supprimez les 2 lignes qui parlent de weaponarchetypes.meta
