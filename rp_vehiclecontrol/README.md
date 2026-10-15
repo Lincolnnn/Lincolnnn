@@ -73,10 +73,15 @@ portière refermée… Si un son en boucle s'arrête quand même, il est relanc�
 - `Seatbelt.ChimeSoundMode` : `'loop'` (le fichier en boucle) ou `'repeat'` (rejoué toutes les `ChimeInterval` ms, pour un
   fichier qui ne contient qu'un seul « ding »), comme `SignalSoundMode` pour les clignotants.
 
-**Fichiers avec un long silence** : un fichier de carillon qui finit (ou commence) par un long silence donnerait
-l'impression que le son s'arrête puis reprend tout seul, à chaque passage de la boucle. Le silence de début et de fin est
-ramené à 1 s au plus entre deux passages (`Seatbelt.ChimeMaxGap`, `0` = fichiers joués tels quels). Le silence au
-milieu du fichier n'est jamais touché : le diagnostic l'indique.
+**Boucle recollée, sans pause** (`Seatbelt.ChimeSeamless`) : un fichier de carillon qui finit (ou commence) par un
+silence ferait une pause à chaque passage de la boucle. Le fichier est analysé au chargement :
+- **plusieurs « ding »** : la boucle commence au premier et finit un écart habituel après le dernier (la médiane des
+  écarts du fichier). Le passage de la fin au début garde exactement le rythme du carillon, sans pause ;
+- **son continu** (sans silence au milieu) : son silence de début et de fin est retiré ;
+- **un seul « ding » court** : le silence de début et de fin est ramené à 1 s au plus (`Seatbelt.ChimeMaxGap`, `0` =
+  fichier joué tel quel), ou utilisez `ChimeSoundMode = 'repeat'`.
+
+Le silence au milieu du fichier n'est jamais touché : le diagnostic l'indique.
 
 **Jamais relancés du début pour une micro-coupure** : un carillon coupé devient muet tout de suite. S'il est redemandé
 dans les 1,5 s, il reprend **là où il en était**, sans repartir du début. Cela couvre une portière qui bouge un instant,
@@ -172,6 +177,9 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   tourne** portière ouverte, dehors comme à bord. Il ne s'arrête que **moteur coupé** ou **portière refermée** : le moteur compte
   comme allumé tant qu'il l'est pour Vehicle Control (`vcEngine`), même si le jeu coupe un instant celui d'un véhicule
   laissé vide. Une portière qui bouge un instant compte encore comme ouverte (0,8 s, `DoorChime.DoorHold`).
+  Une portière compte comme ouverte **au-delà de 20 %** d'ouverture (`DoorChime.OpenRatio`) : une portière refermée
+  qui « flotte » à quelques % ne fait pas sonner. Une portière **arrachée** (accident) ou **absente du modèle**
+  (coupé, 2 portes) ne compte jamais.
   **En descendant** portière ouverte, moteur allumé : le véhicule reste suivi directement, sans attendre son état réseau,
   jusqu'à 60 m (`DoorChime.TrackDistance`). Le carillon continue donc dehors.
   **Descendre portière ouverte** : elle **reste ouverte**. Le jeu referme la portière à la fin de la descente ; une
@@ -198,13 +206,13 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   Réglages : `Seatbelt` (`MinSpeed`, `SuddenStopSpeed`, `SuddenChance`, `AccidentDrop`, `CrashChance`,
   `IdealMinDistance`, `IdealMaxDistance`, `AirShare`, `ThrowLift`…).
 
-## Motos : projections et chutes
+## Motos : projection lors des accidents
 
 Les motos n'ont pas de ceinture : ces règles s'appliquent au **pilote comme au passager**. Chaque joueur les applique
 pour lui-même. Réglages : `Bike` dans `config.lua`.
 
 - **Projection** pour **tout accident à partir de 35 MPH** (vitesse juste avant le choc) : **85 %** de chances.
-  Un accident, c'est un choc qui fait perdre au moins 8 MPH, ou un choc contre un véhicule.
+  Un accident, c'est un choc qui fait perdre au moins 8 MPH, ou un choc contre un véhicule (perte d'au moins 3 MPH).
   - C'est le **même système** que l'éjection des voitures : ragdoll dès le départ, une impulsion de départ, puis la
     physique du jeu, sans arrêt net.
   - La **distance idéale grandit avec la vitesse** : **12 m à 35 MPH**, environ 26 m à 60 MPH, **60 m vers 120 MPH**.
@@ -216,18 +224,8 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
       Contre un mur, un poteau ou une autre moto, il part sur le côté.
   - Si le jeu désarçonne lui-même le motard pendant le choc, la même règle de projection s'applique, depuis l'endroit
     où il se trouve.
-- **Chute de la moto** (ragdoll **sans projection**) pour les **petits incidents** :
-  **80 %** de chances. Cela s'ajoute à ce que le jeu fait déjà, donc le motard tombe beaucoup plus facilement.
-  Un petit incident, à partir de 8 MPH, c'est :
-  - un **piéton renversé** ;
-  - un **poteau**, un panneau, un objet ou un véhicule touché (perte d'au moins 3 MPH) ;
-  - un **trottoir** (secousse verticale brusque, roues au sol juste avant ; l'atterrissage d'un saut ne compte pas) ;
-  - un mur ou un élément du décor (perte d'au moins 6 MPH, plus qu'un freinage).
-- Un accident de 35 MPH ou plus **sans projection** (les 15 % restants) peut aussi finir en **chute** (80 %) :
-  `FallIfNotThrown`.
-- Le motard **tombe avec la moto**, jamais arrêté net ni posé à côté. Il part en ragdoll **depuis la selle**, avec
-  la **vitesse de la moto** (`FallCarry`) et un peu vers un côté (`FallSide`) : il bascule, glisse et roule au sol dans
-  la même course. Même chose quand le jeu le désarçonne lui-même sans projection.
+- **Rien d'autre** : aucune chute n'est ajoutée pour les petits incidents (trottoir, piéton, poteau, accident sous
+  35 MPH ou sans projection). Le jeu garde son comportement normal.
 - **Une seule décision par choc** : le même accident n'est jamais tiré deux fois.
 - Une descente normale (touche F) ne déclenche rien.
 - Vélos : ajoutez `[13] = true` dans `Bike.Classes`.
@@ -262,9 +260,9 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
-| `DoorChime` | carillon de portière (moteur allumé, portière ouverte, même véhicule vide) : activé, volume, portière qui bouge un instant (`DoorHold`), suivi après la descente (`TrackDistance`), portière gardée ouverte en descendant (`KeepDoorOpenOnExit`) |
-| `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle sans arrêt jusqu'à l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
-| `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), chute de la moto sur les petits incidents (80 % : piéton, poteau, trottoir…), seuils, dégâts |
+| `DoorChime` | carillon de portière (moteur allumé, portière ouverte, même véhicule vide) : activé, volume, portière qui bouge un instant (`DoorHold`), suivi après la descente (`TrackDistance`), portière gardée ouverte en descendant (`KeepDoorOpenOnExit`), ouverture minimale (`OpenRatio`) |
+| `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle sans arrêt jusqu'à l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
+| `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), aucune chute ajoutée pour les petits incidents (comportement du jeu), seuils, dégâts |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
 | `EngineNoticeDuration`, `EngineStartTime` | durée de la notification du moteur (8 s), durée du démarrage (1,2 s) |

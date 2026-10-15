@@ -51,14 +51,20 @@ local function vehicleOf(serverId)
     return vehicle
 end
 
---- Une portière (avant / arrière) ouverte ? Encore vraie DoorHold ms après (une portière qui bouge un
---- instant ne coupe pas le carillon)
+--- Une portière (avant / arrière) ouverte ? Seulement les portières qui existent sur ce modèle et ne sont pas
+--- arrachées, ouvertes à plus de OpenRatio (une portière fermée qui « flotte » à quelques % ne compte pas).
+--- Encore vraie DoorHold ms après (une portière qui bouge un instant ne coupe pas le carillon).
+--- Renvoie aussi la portière et son ouverture (diagnostic).
 local function doorOpen(vehicle)
     local now = GetGameTimer()
+    local ratio = Chime.OpenRatio or 0.2
     for door = 0, 3 do
-        if GetVehicleDoorAngleRatio(vehicle, door) > 0.05 then
-            doorSeen[vehicle] = now
-            return true
+        if GetIsDoorValid(vehicle, door) and not IsVehicleDoorDamaged(vehicle, door) then
+            local open = GetVehicleDoorAngleRatio(vehicle, door)
+            if open > ratio then
+                doorSeen[vehicle] = now
+                return true, door, open
+            end
         end
     end
     local seen = doorSeen[vehicle]
@@ -73,7 +79,11 @@ local function sendConfig()
     if configSent then return end
     configSent = true
     local gap = tonumber(Config.ChimeMaxGap) or 0
-    SendNUIMessage({ action = 'soundConfig', data = { maxGap = { belt_chime = gap, fast_belt_chime = gap, door_chime = gap } } })
+    local glue = Config.ChimeSeamless ~= false
+    SendNUIMessage({ action = 'soundConfig', data = {
+        maxGap = { belt_chime = gap, fast_belt_chime = gap, door_chime = gap },
+        seamless = { belt_chime = glue, fast_belt_chime = glue, door_chime = glue },
+    } })
 end
 
 --- Envoi au NUI (comme les clignotants) : seulement ce qui change
@@ -138,9 +148,12 @@ local function update(vehicle, playing)
         playing[id] = true
     end
     -- Portière : moteur allumé et portière ouverte
-    if Chime.Enabled ~= false and VC.engineOn(vehicle) and doorOpen(vehicle) then
+    local open, door, ratio = false, nil, nil
+    if Chime.Enabled ~= false and VC.engineOn(vehicle) then open, door, ratio = doorOpen(vehicle) end
+    if open then
         if not hear then hear, muffled = VC.hearVehicle(vehicle) end
         local id = 'door:' .. key
+        if not sent[id] and door then VC.debugSound(('%s : portière %d ouverte à %d %%'):format(id, door, math.floor(ratio * 100))) end
         sendSound(id, 'door_chime', hear * (Chime.Volume or 1.0), muffled)
         playing[id] = true
     end

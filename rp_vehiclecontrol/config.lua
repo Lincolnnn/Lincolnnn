@@ -170,6 +170,9 @@ VCConfig = {
         -- Une portière qui bouge un instant (vent, choc, joueur qui passe contre) ne coupe pas le carillon :
         -- considérée encore ouverte pendant DoorHold ms après avoir été vue ouverte
         DoorHold = 800,
+        -- Portière comptée ouverte au-delà de cette ouverture (0..1) : une portière fermée qui « flotte » à
+        -- quelques % ne fait pas sonner. Les portières absentes du modèle ou arrachées ne comptent jamais.
+        OpenRatio = 0.2,
         -- Après la descente, le carillon du véhicule laissé moteur allumé est suivi jusqu'à TrackDistance m
         TrackDistance = 60.0,
         -- Descendre portière ouverte : elle RESTE ouverte (le jeu referme la portière à la fin de la descente)
@@ -189,7 +192,10 @@ VCConfig = {
         --   'repeat' : le fichier est rejoué toutes les ChimeInterval ms (un seul "ding" dans le fichier).
         ChimeSoundMode = 'loop',
         ChimeInterval = 1000,     -- ms ('repeat' uniquement)
-        -- Silence maximal (s) entre deux passages d'un carillon en boucle : un fichier qui finit (ou commence) par
+        -- Boucle RECOLLÉE : la fin du fichier rejoint le début au rythme du carillon (l'écart habituel entre deux
+        -- « ding » du fichier), sans pause au passage de la boucle ; un son continu perd son silence de début / fin.
+        ChimeSeamless = true,
+        -- Sinon (un seul « ding » court dans le fichier) : silence maximal (s) entre deux passages en boucle : un fichier qui finit (ou commence) par
         -- un long silence est raccourci d'autant, sinon le carillon semble s'arrêter puis reprendre tout seul.
         -- 0 : fichiers joués tels quels. (Le silence au milieu du fichier n'est jamais touché.)
         ChimeMaxGap = 1.0,
@@ -232,10 +238,12 @@ VCConfig = {
         Classes = { [8] = true },  -- 8 = motos (ajoutez [13] = true pour les vélos)
         -- PROJECTION (même système que les voitures : ragdoll, impulsion de départ, la physique fait le reste)
         --   accident à partir de MinSpeed MPH (vitesse avant le choc) : ThrowChance (85 %) ;
-        --   accident = perte d'au moins AccidentDrop MPH, ou choc contre un véhicule (perte d'au moins SmallDrop) ;
+        --   accident = perte d'au moins AccidentDrop MPH, ou choc contre un véhicule (perte d'au moins VehicleDrop) ;
         --   aussi quand le jeu désarçonne lui-même le motard dans un choc à partir de MinSpeed.
+        -- Rien d'autre : pas de chute ajoutée pour les petits incidents (le jeu garde son comportement normal).
         MinSpeed = 35.0,
         AccidentDrop = 8.0,
+        VehicleDrop = 3.0,
         ThrowChance = 0.85,       -- 85 %
         -- Distance IDÉALE (pas une limite), plus grande avec la vitesse :
         -- IdealMinDistance m à MinSpeed MPH -> IdealMaxDistance m à MaxDistanceSpeed MPH et plus
@@ -254,24 +262,6 @@ VCConfig = {
         RearSpread = 25.0,
         RearDistance = 0.4,
         ThrowDamage = 30,         -- points de vie perdus par la projection
-        -- CHUTE de la moto (ragdoll SANS projection, élan de la moto gardé) : petits incidents à partir de
-        -- FallMinSpeed MPH : FallChance (80 %). Petit incident : piéton renversé, poteau / panneau / objet ou
-        -- véhicule touché (perte d'au moins SmallDrop MPH), trottoir (secousse verticale brusque d'au moins
-        -- CurbJolt m/s, roues au sol juste avant ; 0 = pas de détection des trottoirs), mur / décor (perte
-        -- d'au moins SmallWorldDrop MPH, plus qu'un freinage).
-        FallChance = 0.80,        -- 80 %
-        FallMinSpeed = 8.0,
-        SmallDrop = 3.0,
-        SmallWorldDrop = 6.0,
-        CurbJolt = 3.5,
-        FallIfNotThrown = true,   -- accident sans projection (les 15 % restants) : chute possible (FallChance)
-        FallDamage = 5,
-        -- Une chute garde l'élan de la moto : le motard part en ragdoll AVEC la moto (même vitesse, il glisse et
-        -- roule au sol), jamais arrêté net ni posé à côté. FallCarry : part de la vitesse de la moto gardée ;
-        -- FallSide : m/s vers un côté (il bascule) ; FallPushTime : ms pendant lesquelles l'élan est réappliqué.
-        FallCarry = 1.0,
-        FallSide = 1.5,
-        FallPushTime = 200,
     },
 
     -- ---------------------------------------------------------------------

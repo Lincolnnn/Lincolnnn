@@ -17,6 +17,7 @@
     const rawBuffers = {}; // [nom] = AudioBuffer décodé tel quel
     const fileInfo = {};   // [nom] = analyse du fichier (durée, silences) : affichée par le diagnostic
     const maxGap = {};     // [nom] = silence maximal (s) entre deux passages en boucle (réglé par le Lua)
+    const seamless = {};   // [nom] = true : boucle recollée au rythme du fichier (réglé par le Lua)
     SOUND_FILES.forEach((name) => {
         const audio = new Audio(`sounds/${name}.ogg`);
         audio.preload = 'auto';
@@ -100,27 +101,88 @@
         return { duration: len / rate, lead: first / rate, trail: (len - 1 - last) / rate, gap: gap / rate, first, last };
     }
 
-    /** Fichier joué : silence de début + fin ramené à maxGap secondes (d'abord la fin gardée, puis le début) */
+    /** Rythme d'un fichier de carillon : débuts des « ding » (après au moins 50 ms de silence), par fenêtres de 10 ms */
+    function rhythm(buffer) {
+        const rate = buffer.sampleRate;
+        const win = Math.max(1, Math.round(rate * 0.01));
+        const data = [];
+        for (let c = 0; c < buffer.numberOfChannels; c += 1) data.push(buffer.getChannelData(c));
+        const count = Math.floor(buffer.length / win);
+        const onsets = [];
+        let quiet = 5;
+        let lastLoud = -1;
+        for (let w = 0; w < count; w += 1) {
+            let peak = 0;
+            for (let k = w * win; k < (w + 1) * win; k += 1) {
+                for (const d of data) { const a = Math.abs(d[k]); if (a > peak) peak = a; }
+            }
+            if (peak > SILENT) {
+                if (quiet >= 5) onsets.push(w);
+                quiet = 0;
+                lastLoud = w;
+            } else quiet += 1;
+        }
+        if (onsets.length === 0) return null;
+        const diffs = onsets.slice(1).map((o, n) => o - onsets[n]).sort((a, b) => a - b);
+        const period = diffs.length ? diffs[Math.floor(diffs.length / 2)] : 0; // médiane : écart habituel
+        return { win, onsets, period, lastLoud };
+    }
+
+    /** Copie [start, end[ d'un fichier (complétée de silence au-delà de la fin), avec un fondu de 8 ms à la fin */
+    function slice(raw, start, end) {
+        const out = ctx.createBuffer(raw.numberOfChannels, end - start, raw.sampleRate);
+        const fade = Math.min(Math.round(raw.sampleRate * 0.008), end - start);
+        for (let c = 0; c < raw.numberOfChannels; c += 1) {
+            const part = new Float32Array(end - start);
+            part.set(raw.getChannelData(c).subarray(start, Math.min(end, raw.length)));
+            for (let k = 0; k < fade; k += 1) part[part.length - 1 - k] *= k / fade;
+            out.copyToChannel(part, c);
+        }
+        return out;
+    }
+
+    /**
+     * Fichier joué en boucle, RECOLLÉ (carillons) :
+     *  - plusieurs « ding » : la boucle commence au premier et finit un écart habituel (médiane des écarts du
+     *    fichier) après le dernier : le passage de la fin au début garde exactement le rythme du carillon,
+     *    sans pause ;
+     *  - un son continu (un seul bloc d'au moins 0,8 s) : silence de début et de fin retiré ;
+     *  - un seul « ding » court : silence de début + fin ramené à maxGap secondes au plus.
+     */
     function prepare(name) {
         const raw = rawBuffers[name];
         if (!raw) return;
         const info = fileInfo[name] || (fileInfo[name] = analyse(raw));
         const limit = Number(maxGap[name]) || 0;
         info.trimmed = false;
+        info.mode = '';
         buffers[name] = raw;
-        if (info.silent || !(limit > 0) || info.lead + info.trail <= limit || !ctx) return;
+        if (info.silent || !ctx) return;
         const rate = raw.sampleRate;
-        const keepTrail = Math.min(info.trail, limit);
-        const keepLead = Math.min(info.lead, Math.max(limit - keepTrail, 0));
-        const start = Math.max(info.first - Math.round(keepLead * rate), 0);
-        const end = Math.min(info.last + 1 + Math.round(keepTrail * rate), raw.length);
         try {
-            const out = ctx.createBuffer(raw.numberOfChannels, end - start, rate);
-            for (let c = 0; c < raw.numberOfChannels; c += 1) out.copyToChannel(raw.getChannelData(c).subarray(start, end), c);
-            buffers[name] = out;
-            info.trimmed = true;
-            info.played = out.length / rate;
-        } catch (err) { /* fichier gardé tel quel */ }
+            if (seamless[name]) {
+                const r = info.rhythm || (info.rhythm = rhythm(raw));
+                if (r && r.onsets.length >= 2 && r.period > 0) {
+                    const start = Math.max(r.onsets[0] - 1, 0) * r.win;
+                    const end = (r.onsets[r.onsets.length - 1] - 1 + r.period) * r.win;
+                    buffers[name] = slice(raw, start, Math.max(end, start + r.win));
+                    info.mode = `boucle recollée au rythme du carillon (un « ding » toutes les ${(r.period * r.win / rate).toFixed(2)} s)`;
+                } else if (r && r.onsets.length === 1 && info.last - info.first >= rate * 0.8) {
+                    buffers[name] = slice(raw, Math.max(info.first - r.win, 0), info.last + 1);
+                    info.mode = 'son continu : silence de début et de fin retiré';
+                }
+            }
+            if (!info.mode && limit > 0 && info.lead + info.trail > limit) {
+                const keepTrail = Math.min(info.trail, limit);
+                const keepLead = Math.min(info.lead, Math.max(limit - keepTrail, 0));
+                const start = Math.max(info.first - Math.round(keepLead * rate), 0);
+                const end = Math.min(info.last + 1 + Math.round(keepTrail * rate), raw.length);
+                buffers[name] = slice(raw, start, end);
+                info.mode = 'silence de début / fin raccourci';
+            }
+        } catch (err) { buffers[name] = raw; info.mode = ''; }
+        info.trimmed = info.mode !== '';
+        info.played = buffers[name].length / rate;
     }
 
     function describe(name) {
@@ -129,7 +191,7 @@
         if (i.silent) return `, fichier ${i.duration.toFixed(1)} s entièrement silencieux !`;
         const f = (x) => x.toFixed(1);
         return `, fichier ${f(i.duration)} s (silence : début ${f(i.lead)} s, fin ${f(i.trail)} s, plus long au milieu ${f(i.gap)} s)`
-            + (i.trimmed ? `, joué en ${f(i.played)} s (silence de début / fin raccourci)` : '');
+            + (i.trimmed ? `, joué en boucle de ${i.played.toFixed(2)} s : ${i.mode}` : '');
     }
 
     function chain(ac, input) {
@@ -329,10 +391,9 @@
             oneShots[data.name] = play(data.name, data.volume, data.muffled);
         } else if (msg.action === 'soundConfig') {
             // Silence maximal entre deux passages des carillons en boucle (config.lua : Seatbelt.ChimeMaxGap)
-            Object.entries((data && data.maxGap) || {}).forEach(([name, gap]) => {
-                maxGap[name] = Number(gap) || 0;
-                prepare(name);
-            });
+            Object.entries((data && data.seamless) || {}).forEach(([name, on]) => { seamless[name] = on === true; });
+            Object.entries((data && data.maxGap) || {}).forEach(([name, gap]) => { maxGap[name] = Number(gap) || 0; });
+            new Set([...Object.keys((data && data.seamless) || {}), ...Object.keys((data && data.maxGap) || {})]).forEach(prepare);
         } else if (msg.action === 'soundLoop') {
             soundLoop(data);
         } else if (msg.action === 'push') {
