@@ -205,6 +205,37 @@ RegisterCommand('vc_frontdoors', function() doorKey('front') end, false)
 RegisterKeyMapping('vc_door', 'Véhicule : ouvrir / fermer sa portière (avant)', 'keyboard', Config.Keys.door)
 RegisterKeyMapping('vc_frontdoors', 'Véhicule : ouvrir / fermer les deux portières avant (conducteur)', 'keyboard', Config.Keys.frontDoors)
 
+-- Descendre portière ouverte : elle RESTE ouverte. Le jeu referme la portière à la fin de la descente ; les
+-- portières déjà ouvertes avant de descendre (touche U / I, ou ouvertes par quelqu'un) sont rouvertes.
+local exitDoors = nil -- { vehicle, doors = { [n°] = true } } : portières ouvertes au début de la descente
+VC.on('frame', function(ped, vehicle)
+    if not GetIsTaskActive(ped, 2) then exitDoors = nil return end
+    if exitDoors and exitDoors.vehicle == vehicle then return end
+    local doors = {}
+    for door = 0, 3 do
+        if GetVehicleDoorAngleRatio(vehicle, door) > 0.5 then doors[door] = true end
+    end
+    exitDoors = { vehicle = vehicle, doors = doors }
+end)
+
+VC.on('leave', function(vehicle)
+    local snapshot = exitDoors
+    exitDoors = nil
+    if Config.DoorChime and Config.DoorChime.KeepDoorOpenOnExit == false then return end
+    if not snapshot or snapshot.vehicle ~= vehicle or not next(snapshot.doors) then return end
+    CreateThread(function()
+        local untilTime = GetGameTimer() + 3000
+        while GetGameTimer() < untilTime and DoesEntityExist(vehicle) and VC.vehicle == 0 do
+            if controlled(vehicle) then
+                for door in pairs(snapshot.doors) do
+                    if GetVehicleDoorAngleRatio(vehicle, door) < 0.3 then SetVehicleDoorOpen(vehicle, door, false, false) end
+                end
+            end
+            Wait(100)
+        end
+    end)
+end)
+
 -- Le serveur demande au propriétaire réseau du véhicule d'appliquer les portières
 RegisterNetEvent('rp_vehiclecontrol:applyDoors', function(netId, actions)
     local vehicle = NetToVeh(netId)

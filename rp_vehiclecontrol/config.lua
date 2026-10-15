@@ -172,6 +172,8 @@ VCConfig = {
         DoorHold = 800,
         -- Après la descente, le carillon du véhicule laissé moteur allumé est suivi jusqu'à TrackDistance m
         TrackDistance = 60.0,
+        -- Descendre portière ouverte : elle RESTE ouverte (le jeu referme la portière à la fin de la descente)
+        KeepDoorOpenOnExit = true,
     },
 
     -- ---------------------------------------------------------------------
@@ -182,6 +184,15 @@ VCConfig = {
         -- Carillon de ceinture, par véhicule roulant, en boucle : UN occupant détaché -> html/sounds/belt_chime.ogg ;
         -- PLUSIEURS détachés en même temps -> fast_belt_chime.ogg (belt_chime coupé net, et inversement)
         ChimeVolume = 1.0,        -- volume des carillons de ceinture (x réglage du joueur)
+        -- Lecture des carillons (ceinture ET portière), comme les clignotants :
+        --   'loop'   : le fichier est joué en boucle tant que le carillon a lieu d'être ;
+        --   'repeat' : le fichier est rejoué toutes les ChimeInterval ms (un seul "ding" dans le fichier).
+        ChimeSoundMode = 'loop',
+        ChimeInterval = 1000,     -- ms ('repeat' uniquement)
+        -- Silence maximal (s) entre deux passages d'un carillon en boucle : un fichier qui finit (ou commence) par
+        -- un long silence est raccourci d'autant, sinon le carillon semble s'arrêter puis reprendre tout seul.
+        -- 0 : fichiers joués tels quels. (Le silence au milieu du fichier n'est jamais touché.)
+        ChimeMaxGap = 1.0,
         AlarmSpeed = 1.0,         -- MPH : carillon dès que le véhicule roule au-dessus (ceinture détachée, moteur allumé)
         -- Ensuite il sonne en boucle SANS JAMAIS S'ARRÊTER, jusqu'à ce que la ceinture soit attachée, le moteur
         -- coupé ou la personne descendue. Un deuxième occupant détaché : fast_belt_chime ; il s'attache : belt_chime.

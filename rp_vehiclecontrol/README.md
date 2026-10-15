@@ -64,21 +64,31 @@ portière refermée… Si un son en boucle s'arrête quand même, il est relanc�
 
 **Ils se rétablissent seuls** :
 - si le lecteur audio du navigateur du jeu se met en pause, il est relancé aussitôt (vérifié chaque seconde) ;
-- s'il refuse de repartir, les sons passent par un autre lecteur, sans étouffement, pour ne jamais rester muets ;
-- tant qu'un carillon est en cours, son état est renvoyé au lecteur toutes les 2 s : un son perdu repart tout seul.
+- s'il refuse de repartir, les sons passent par un autre lecteur, sans étouffement, pour ne jamais rester muets.
 
-**Toujours en cours tant que leur condition dure** : le carillon de ceinture (quelqu'un de détaché, moteur
-allumé) et celui de portière (moteur allumé, portière ouverte) ne s'arrêtent jamais hors de portée : ils
-continuent, muets, et se réentendent là où ils en sont.
+**Carillons = même fonctionnement que les clignotants** (`client/chimes.lua`, sur le modèle de `client/signals.lua`) :
+- un son **par véhicule**, jamais partagé ni disputé entre plusieurs véhicules ;
+- le véhicule est **suivi** tant que son carillon a lieu d'être ; toutes les 200 ms, seul le volume est recalculé selon
+  la position du joueur, et seul ce qui change est envoyé : rien n'est relancé tant que rien ne change ;
+- `Seatbelt.ChimeSoundMode` : `'loop'` (le fichier en boucle) ou `'repeat'` (rejoué toutes les `ChimeInterval` ms, pour un
+  fichier qui ne contient qu'un seul « ding »), comme `SignalSoundMode` pour les clignotants.
+
+**Fichiers avec un long silence** : un fichier de carillon qui finit (ou commence) par un long silence donnerait
+l'impression que le son s'arrête puis reprend tout seul, à chaque passage de la boucle. Le silence de début et de fin est
+ramené à 1 s au plus entre deux passages (`Seatbelt.ChimeMaxGap`, `0` = fichiers joués tels quels). Le silence au
+milieu du fichier n'est jamais touché : le diagnostic l'indique.
 
 **Jamais relancés du début pour une micro-coupure** : un carillon coupé devient muet tout de suite. S'il est redemandé
 dans les 1,5 s, il reprend **là où il en était**, sans repartir du début. Cela couvre une portière qui bouge un instant,
 un pas hors de portée ou une lecture de vitesse isolée. Au-delà de 1,5 s, il est arrêté pour de bon et repartira du
 début la fois suivante.
 
-**Diagnostic** : `setr vc_debug_sound 1` dans la console F8 affiche chaque changement des carillons, avec ce qui l'a
-causé, et ce que fait le lecteur audio : démarrage, arrêt, relance, lecteur suspendu ou relancé. `setr vc_debug_sound 0`
-pour arrêter.
+**Diagnostic** : `setr vc_debug_sound 1` dans la console F8 affiche :
+- chaque carillon démarré ou coupé, avec la raison ;
+- l'analyse de son fichier : durée, silence au début, à la fin et plus long silence au milieu ;
+- ce que fait le lecteur audio : démarrage, arrêt, relance, lecteur suspendu ou relancé.
+
+`setr vc_debug_sound 0` pour arrêter.
 
 ### Sons entendus autour du véhicule
 
@@ -151,7 +161,7 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   détacher.
 - **Carillon de ceinture**, par véhicule, moteur allumé, **dès que le véhicule roule à plus de 1 MPH** (`AlarmSpeed`) :
   il sonne **en boucle sans jamais s'arrêter**, même véhicule arrêté, jusqu'à ce que la personne **s'attache**, que le
-  **moteur soit coupé** ou qu'elle **descende**. Hors de portée, il continue muet et se réentend là où il en est :
+  **moteur soit coupé** ou qu'elle **descende** :
   - **un** occupant détaché : `belt_chime.ogg` ;
   - **plusieurs** détachés en même temps : `belt_chime` **coupé net**, `fast_belt_chime.ogg` à la place ; dès qu'il
     n'en reste qu'un (l'un s'attache), `fast_belt_chime` s'arrête et `belt_chime` repart **du début** ;
@@ -159,12 +169,13 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
     0,5 MPH pendant 0,4 s, `StopSpeed` / `StopDelay`).
 - **Carillon de portière** (`door_chime.ogg`, **moteur allumé uniquement**) : une portière ou plus ouverte(s), jusqu'à ce
   qu'elles soient **refermées** ou que le moteur soit coupé. **En boucle sans jamais s'arrêter tant que le moteur
-  tourne** portière ouverte, dehors comme à bord. Hors de portée, il continue muet et se réentend là où il en est.
-  Il ne s'arrête que **moteur coupé** ou **portière refermée** : le moteur compte
+  tourne** portière ouverte, dehors comme à bord. Il ne s'arrête que **moteur coupé** ou **portière refermée** : le moteur compte
   comme allumé tant qu'il l'est pour Vehicle Control (`vcEngine`), même si le jeu coupe un instant celui d'un véhicule
   laissé vide. Une portière qui bouge un instant compte encore comme ouverte (0,8 s, `DoorChime.DoorHold`).
   **En descendant** portière ouverte, moteur allumé : le véhicule reste suivi directement, sans attendre son état réseau,
   jusqu'à 60 m (`DoorChime.TrackDistance`). Le carillon continue donc dehors.
+  **Descendre portière ouverte** : elle **reste ouverte**. Le jeu referme la portière à la fin de la descente ; une
+  portière déjà ouverte avant de descendre (touche U / I…) est rouverte aussitôt (`DoorChime.KeepDoorOpenOnExit`).
   Il vient **du véhicule**, même **vide** (personne à bord) :
   chaque joueur le calcule lui-même à partir de l'état du véhicule (moteur `vcEngine`, portières) et l'entend à bord ou
   dehors autour de la carrosserie (`VehicleSounds.RangeOpen`, 3 m portière ouverte). `DoorChime.Enabled = false` pour le
@@ -251,8 +262,8 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
-| `DoorChime` | carillon de portière (moteur allumé, portière ouverte, même véhicule vide) : activé, volume, portière qui bouge un instant (`DoorHold`), suivi après la descente (`TrackDistance`) |
-| `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle sans arrêt jusqu'à l'attache, le moteur coupé ou la descente), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
+| `DoorChime` | carillon de portière (moteur allumé, portière ouverte, même véhicule vide) : activé, volume, portière qui bouge un instant (`DoorHold`), suivi après la descente (`TrackDistance`), portière gardée ouverte en descendant (`KeepDoorOpenOnExit`) |
+| `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle sans arrêt jusqu'à l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), chute de la moto sur les petits incidents (80 % : piéton, poteau, trottoir…), seuils, dégâts |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |

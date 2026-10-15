@@ -13,7 +13,10 @@
     const MUFFLED_HZ = 650;
     const CLEAR_HZ = 20000;
     const cache = {};
-    const buffers = {}; // [nom] = AudioBuffer décodé
+    const buffers = {}; // [nom] = AudioBuffer joué (décodé, silence de début / fin éventuellement raccourci)
+    const rawBuffers = {}; // [nom] = AudioBuffer décodé tel quel
+    const fileInfo = {};   // [nom] = analyse du fichier (durée, silences) : affichée par le diagnostic
+    const maxGap = {};     // [nom] = silence maximal (s) entre deux passages en boucle (réglé par le Lua)
     SOUND_FILES.forEach((name) => {
         const audio = new Audio(`sounds/${name}.ogg`);
         audio.preload = 'auto';
@@ -71,10 +74,63 @@
                     const p = ac.decodeAudioData(data, resolve, reject);
                     if (p && typeof p.then === 'function') p.then(resolve, reject);
                 }))
-                .then((buffer) => { buffers[name] = buffer; })
+                .then((buffer) => { rawBuffers[name] = buffer; prepare(name); })
                 .catch(() => {}); // fichier absent / illisible : secours <audio>
         });
     })();
+
+    // ---- Analyse d'un fichier : durée, silence au début, à la fin, plus long silence au milieu ----
+    const SILENT = 0.008; // amplitude sous laquelle un échantillon est considéré silencieux (~ -42 dB)
+    function analyse(buffer) {
+        const len = buffer.length;
+        const rate = buffer.sampleRate;
+        const data = [];
+        for (let c = 0; c < buffer.numberOfChannels; c += 1) data.push(buffer.getChannelData(c));
+        const loud = (i) => data.some((d) => Math.abs(d[i]) > SILENT);
+        let first = 0;
+        while (first < len && !loud(first)) first += 1;
+        if (first >= len) return { duration: len / rate, silent: true };
+        let last = len - 1;
+        while (last > first && !loud(last)) last -= 1;
+        let gap = 0;
+        let run = 0;
+        for (let i = first; i <= last; i += 1) {
+            if (loud(i)) { if (run > gap) gap = run; run = 0; } else run += 1;
+        }
+        return { duration: len / rate, lead: first / rate, trail: (len - 1 - last) / rate, gap: gap / rate, first, last };
+    }
+
+    /** Fichier joué : silence de début + fin ramené à maxGap secondes (d'abord la fin gardée, puis le début) */
+    function prepare(name) {
+        const raw = rawBuffers[name];
+        if (!raw) return;
+        const info = fileInfo[name] || (fileInfo[name] = analyse(raw));
+        const limit = Number(maxGap[name]) || 0;
+        info.trimmed = false;
+        buffers[name] = raw;
+        if (info.silent || !(limit > 0) || info.lead + info.trail <= limit || !ctx) return;
+        const rate = raw.sampleRate;
+        const keepTrail = Math.min(info.trail, limit);
+        const keepLead = Math.min(info.lead, Math.max(limit - keepTrail, 0));
+        const start = Math.max(info.first - Math.round(keepLead * rate), 0);
+        const end = Math.min(info.last + 1 + Math.round(keepTrail * rate), raw.length);
+        try {
+            const out = ctx.createBuffer(raw.numberOfChannels, end - start, rate);
+            for (let c = 0; c < raw.numberOfChannels; c += 1) out.copyToChannel(raw.getChannelData(c).subarray(start, end), c);
+            buffers[name] = out;
+            info.trimmed = true;
+            info.played = out.length / rate;
+        } catch (err) { /* fichier gardé tel quel */ }
+    }
+
+    function describe(name) {
+        const i = fileInfo[name];
+        if (!i) return buffers[name] ? '' : ', fichier pas encore chargé : lecteur <audio>';
+        if (i.silent) return `, fichier ${i.duration.toFixed(1)} s entièrement silencieux !`;
+        const f = (x) => x.toFixed(1);
+        return `, fichier ${f(i.duration)} s (silence : début ${f(i.lead)} s, fin ${f(i.trail)} s, plus long au milieu ${f(i.gap)} s)`
+            + (i.trimmed ? `, joué en ${f(i.played)} s (silence de début / fin raccourci)` : '');
+    }
 
     function chain(ac, input) {
         const filter = ac.createBiquadFilter();
@@ -246,7 +302,7 @@
                 });
             };
             entry.start = start;
-            debug(`${id} : démarré (${names[0]}, volume ${Number(volume).toFixed(2)}${kept ? ', gardé' : ''})`);
+            debug(`${id} : démarré (${names[0]}, volume ${Number(volume).toFixed(2)}${kept ? ', gardé' : ''}${describe(names[0])})`);
             start();
             return;
         }
@@ -271,6 +327,12 @@
             // Son ponctuel (attache / retrait de la ceinture) : un seul à la fois, le précédent est coupé
             stopVoice(oneShots[data.name]);
             oneShots[data.name] = play(data.name, data.volume, data.muffled);
+        } else if (msg.action === 'soundConfig') {
+            // Silence maximal entre deux passages des carillons en boucle (config.lua : Seatbelt.ChimeMaxGap)
+            Object.entries((data && data.maxGap) || {}).forEach(([name, gap]) => {
+                maxGap[name] = Number(gap) || 0;
+                prepare(name);
+            });
         } else if (msg.action === 'soundLoop') {
             soundLoop(data);
         } else if (msg.action === 'push') {

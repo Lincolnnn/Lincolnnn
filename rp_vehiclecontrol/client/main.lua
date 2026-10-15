@@ -127,6 +127,17 @@ end
 --- Son répété (clignotant, alarme) : `names` joués à tour de rôle toutes les `interval` ms ; volume 0 = arrêt
 --- (coupé net). `loop` : un seul fichier joué en boucle sans interruption (interval ignoré). Volume au-delà de 1
 --- possible ; `muffled` : étouffé.
+--- Moteur allumé ? État voulu "vcEngine" (le même pour tous, stable même véhicule laissé vide, quand le jeu
+--- le coupe un instant avant que Vehicle Control le relance) ou moteur qui tourne
+function VC.engineOn(vehicle)
+    return VC.state(vehicle, 'vcEngine') == true or GetIsVehicleEngineRunning(vehicle)
+end
+
+--- Diagnostic des sons (console F8) : setr vc_debug_sound 1
+function VC.debugSound(text)
+    if GetConvarInt('vc_debug_sound', 0) == 1 then print(('[rp_vehiclecontrol] %s'):format(text)) end
+end
+
 -- Diagnostic du lecteur du NUI (démarrage, arrêt, relance, lecteur audio suspendu) : setr vc_debug_sound 1
 RegisterNUICallback('soundDebug', function(data, cb)
     cb('ok')
