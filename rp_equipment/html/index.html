@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Équipement</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="equip" class="equip hidden" role="dialog" aria-label="Équipement du véhicule">
+        <header class="eq-head">
+            <div class="eq-title">
+                <span class="eq-tag" id="eqTag">APD</span>
+                <div>
+                    <div class="eq-name">Équipement</div>
+                    <div class="eq-sub" id="eqSub">Coffre</div>
+                </div>
+            </div>
+            <button class="eq-close" id="eqClose" title="Fermer (Échap)">✕</button>
+        </header>
+
+        <section class="eq-section">
+            <div class="eq-legend">Matériel</div>
+            <div class="eq-items" id="eqItems"></div>
+        </section>
+
+        <section class="eq-section" id="eqRackSection">
+            <div class="eq-legend">Armes longues</div>
+            <div class="eq-slots" id="eqSlots"></div>
+            <button class="eq-btn eq-primary eq-store" id="eqStore">Ranger l'arme longue</button>
+            <div class="eq-hint" id="eqHeld"></div>
+        </section>
+
+        <div class="eq-message" id="eqMessage"></div>
+        <footer class="eq-foot" id="eqFoot"></footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

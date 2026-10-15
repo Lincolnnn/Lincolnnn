@@ -1,2 +1,3 @@
 data/*.json
 rp_interact/data/*.json
+rp_equipment/data/*.json
