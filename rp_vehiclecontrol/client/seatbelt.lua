@@ -89,8 +89,9 @@ VC.on('enter', function(ped, vehicle)
 end)
 
 
-VC.on('leave', function()
-    if belt then setBelt(false) end
+VC.on('leave', function(_, _, info)
+    -- Passé directement dans un autre véhicule : ceinture retirée sans bruit (le nouveau part de zéro)
+    if belt then setBelt(false, info and info.swap) end
     if alarm then VC.debugSound('descendu du véhicule : carillon de ceinture coupé') end
     setAlarm(false)
     VC.hud.belt, VC.hud.alarm = nil, false

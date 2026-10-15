@@ -76,6 +76,13 @@ local AFTER_LEAVING = {
     vcSteer = function(v) return type(v) == 'number' end,
     vcBroken = function(v) return v == false end,
 }
+-- Coupés par son DERNIER conducteur passé directement dans un autre véhicule (nouveau véhicule apparu) :
+-- moteur éteint, clignotants / warnings coupés sur l'ancien
+local LAST_DRIVER = {
+    vcEngine = function(v) return v == false end,
+    vcSignal = function(v) return v == false end,
+}
+local lastDriver = {} -- [véhicule] = id serveur de son dernier conducteur
 
 --- Conducteur (siège -1) ; à défaut (siège pas encore à jour côté serveur), joueur à bord du véhicule
 local function isDriver(src, vehicle)
@@ -102,7 +109,11 @@ RegisterNetEvent('rp_vehiclecontrol:state', function(netId, key, value)
     end
     local valid = STATE_KEYS[key]
     if not valid or not valid(value) then return end
-    if not isDriver(src, vehicle) and not (AFTER_LEAVING[key] and AFTER_LEAVING[key](value) and near(src, vehicle, 10.0)) then
+    local driver = isDriver(src, vehicle)
+    if driver then
+        lastDriver[vehicle] = src
+    elseif not (AFTER_LEAVING[key] and AFTER_LEAVING[key](value) and near(src, vehicle, 10.0))
+        and not (LAST_DRIVER[key] and LAST_DRIVER[key](value) and lastDriver[vehicle] == src) then
         return
     end
     Entity(vehicle).state:set(key, value, true)
@@ -144,6 +155,8 @@ RegisterNetEvent('rp_vehiclecontrol:doors', function(netId, actions)
     local owner = NetworkGetEntityOwner(vehicle)
     if owner and owner > 0 then TriggerClientEvent('rp_vehiclecontrol:applyDoors', owner, netId, valid) end
 end)
+
+AddEventHandler('entityRemoved', function(entity) lastDriver[entity] = nil end)
 
 AddEventHandler('playerDropped', function()
     refuelClock[source] = nil

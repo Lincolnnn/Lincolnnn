@@ -3,8 +3,9 @@
     --------------------------------
     Une seule boucle suit le véhicule du joueur et appelle les modules (ceinture, essence, dégâts,
     moteur, portières, clignotants, poussée) :
-      - 'enter' / 'leave' / 'seat' : montée, descente (avec la vitesse juste avant et le choc en cours),
-        changement de place ;
+      - 'enter' / 'leave' / 'seat' : montée, descente (avec la vitesse juste avant et le choc en cours ;
+        swap = passé directement dans un autre véhicule, ex. un véhicule qu'il vient de faire apparaître ;
+        gone = l'ancien n'existe plus), changement de place ;
       - 'frame' : à chaque image, UNIQUEMENT à bord d'un véhicule (ceinture, véhicule poussé,
         puissance réduite d'un moteur abîmé, détection des chocs) ;
       - 'tick'  : toutes les 100 ms à bord (essence, dégâts, alarme de ceinture, car HUD) ;
@@ -23,6 +24,8 @@ local Config = VCConfig
 VC = {
     MPH = 2.236936,  -- m/s -> MPH
     vehicle = 0,     -- véhicule où se trouve le joueur
+    model = nil,     -- son modèle et son identifiant réseau (reconnaître un véhicule tout neuf au même numéro)
+    net = 0,
     seat = nil,      -- -1 conducteur, 0 passager avant, 1+ arrière
     hud = {},        -- données du car HUD remplies par les modules
 }
@@ -91,6 +94,20 @@ end
 function VC.setPending(vehicle, key, value)
     pending[vehicle] = pending[vehicle] or {}
     pending[vehicle][key] = { value = value, before = stored(vehicle, key), untilTime = GetGameTimer() + PENDING_MS }
+end
+
+--- Oublie ce qui est gardé ici pour ce numéro de véhicule (véhicule supprimé : le jeu peut redonner son numéro
+--- à un véhicule tout neuf, qui ne doit rien hériter de l'ancien)
+function VC.forget(vehicle)
+    pending[vehicle], localStates[vehicle] = nil, nil
+end
+
+--- Véhicule qui vient d'apparaître de la main du joueur (script : véhicule de mission créé par ce client),
+--- par opposition à un véhicule ambiant (circulation, garé) ou laissé par un autre joueur
+function VC.isFreshSpawn(vehicle)
+    local population = GetEntityPopulationType(vehicle)
+    if population ~= 6 and population ~= 7 then return false end
+    return not NetworkGetEntityIsNetworked(vehicle) or NetworkGetEntityOwner(vehicle) == PlayerId()
 end
 
 function VC.setState(vehicle, key, value)
@@ -305,14 +322,29 @@ end
 -- =========================================================================
 -- BOUCLE PRINCIPALE
 -- =========================================================================
-local function leave()
+--- swap : passé directement dans un autre véhicule (nouveau véhicule apparu, sans descendre) ;
+--- gone : l'ancien véhicule n'existe plus, ou son numéro est déjà celui du nouveau (ne plus y toucher)
+local function leave(swap, gone)
     local vehicle, seat = VC.vehicle, VC.seat
     -- Dernier état de la course (ex. désarçonné d'une moto par le jeu au moment du choc) :
-    -- { peak = vitesse la plus haute des 400 dernières ms (MPH), crash = choc en cours ou nil, velocity }
-    local info = { peak = recentPeak(GetGameTimer()), crash = crash, velocity = lastVelocity }
-    VC.vehicle, VC.seat = 0, nil
+    -- { peak = vitesse la plus haute des 400 dernières ms (MPH), crash = choc en cours ou nil, velocity,
+    --   swap, gone }
+    gone = gone == true or not DoesEntityExist(vehicle)
+    local info = { peak = recentPeak(GetGameTimer()), crash = crash, velocity = lastVelocity, swap = swap == true, gone = gone }
+    VC.vehicle, VC.seat, VC.model, VC.net = 0, nil, nil, 0
     history, crash, lastHit = {}, nil, nil
+    if gone then VC.forget(vehicle) end
     emit('leave', vehicle, seat, info)
+end
+
+--- Toujours le même véhicule ? Le jeu peut redonner le numéro d'un véhicule supprimé à un véhicule tout neuf
+--- (nouveau véhicule qui remplace l'ancien) : modèle ou identifiant réseau différents = autre véhicule
+local function sameVehicle(vehicle)
+    if vehicle ~= VC.vehicle or GetEntityModel(vehicle) ~= VC.model then return false end
+    local net = NetworkGetEntityIsNetworked(vehicle) and VehToNet(vehicle) or 0
+    if VC.net ~= 0 and net ~= 0 and net ~= VC.net then return false end
+    if net ~= 0 then VC.net = net end -- devenu réseau en cours de route : toujours le même
+    return true
 end
 
 CreateThread(function()
@@ -322,9 +354,12 @@ CreateThread(function()
         local ped = PlayerPedId()
         local vehicle = GetVehiclePedIsIn(ped, false)
         if vehicle ~= 0 then
-            if vehicle ~= VC.vehicle then
-                if VC.vehicle ~= 0 then leave() end
+            if not sameVehicle(vehicle) then
+                -- Passé directement dans un autre véhicule : tout ce qui concernait l'ancien s'arrête
+                if VC.vehicle ~= 0 then leave(true, vehicle == VC.vehicle) end
                 VC.vehicle, VC.seat = vehicle, seatOf(ped, vehicle)
+                VC.model = GetEntityModel(vehicle)
+                VC.net = NetworkGetEntityIsNetworked(vehicle) and VehToNet(vehicle) or 0
                 lastTick = 0
                 emit('enter', ped, vehicle, VC.seat)
             else

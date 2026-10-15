@@ -9,7 +9,7 @@
     // Lecture : fichier décodé une fois en mémoire (Web Audio) ; une boucle tourne alors SANS LIMITE, sans
     // dépendre du serveur de fichiers du NUI. Secours (fichier pas encore décodé, Web Audio indisponible) :
     // élément <audio>, rejoué du début à chaque fin tant que la boucle est demandée (soundLoop).
-    const SOUND_FILES = ['belt_on', 'belt_off', 'belt_chime', 'fast_belt_chime', 'door_chime', 'indicators_sound'];
+    const SOUND_FILES = ['belt_on', 'belt_off', 'belt_chime', 'fast_belt_chime', 'indicators_sound'];
     const MUFFLED_HZ = 650;
     const CLEAR_HZ = 20000;
     const cache = {};
@@ -265,7 +265,7 @@
         return v;
     }
 
-    // Sons répétés (clignotants, carillons de ceinture et de portière) : un par identifiant, volume 0 = arrêt (coupé net).
+    // Sons répétés (clignotants, carillons de ceinture) : un par identifiant, volume 0 = arrêt (coupé net).
     //   loop : un seul fichier joué en boucle sans interruption ; sinon, rejoué toutes les `interval` ms.
     //   Boucle continue coupée (volume 0) : muette TOUT DE SUITE, mais gardée HOLD_MS ; redemandée entre-temps
     //   (portière qui bouge, pas hors de portée, lecture isolée), elle reprend là où elle en était, sans

@@ -133,9 +133,10 @@ end)
 
 -- Descend du véhicule (conducteur) : dernière valeur envoyée ; moteur laissé allumé : ce client
 -- continue de compter (ralenti), tant que personne ne prend le volant et qu'il reste à moins de 300 m.
-VC.on('leave', function(vehicle, seat)
+VC.on('leave', function(vehicle, seat, info)
     local t = tracked[vehicle]
     if not t then return end
+    if info and info.gone then tracked[vehicle] = nil return end -- supprimé : son essence ne passe à aucun autre
     if seat == -1 and DoesEntityExist(vehicle) then setFuel(vehicle, t.fuel, true) end
     CreateThread(function()
         Wait(1500) -- fin de la descente (le moteur "toujours allumé" est relancé entre-temps)

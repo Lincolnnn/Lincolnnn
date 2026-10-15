@@ -159,25 +159,9 @@ VCConfig = {
         Distance = 5.0,
     },
 
-    -- ---------------------------------------------------------------------
-    -- CARILLON DE PORTIÈRE (html/sounds/door_chime.ogg, en boucle), moteur allumé uniquement : une portière ou
-    -- plus ouverte(s), jusqu'à ce qu'elles soient refermées ou que le moteur soit coupé. Il vient du véhicule,
-    -- même vide (personne à bord) : entendu à bord, et dehors autour de la carrosserie (VehicleSounds).
-    -- ---------------------------------------------------------------------
-    DoorChime = {
-        Enabled = true,
-        Volume = 1.0,             -- volume du carillon de portière (x réglage du joueur dans le MDC)
-        -- Une portière qui bouge un instant (vent, choc, joueur qui passe contre) ne coupe pas le carillon :
-        -- considérée encore ouverte pendant DoorHold ms après avoir été vue ouverte
-        DoorHold = 800,
-        -- Portière comptée ouverte au-delà de cette ouverture (0..1) : une portière fermée qui « flotte » à
-        -- quelques % ne fait pas sonner. Les portières absentes du modèle ou arrachées ne comptent jamais.
-        OpenRatio = 0.2,
-        -- Après la descente, le carillon du véhicule laissé moteur allumé est suivi jusqu'à TrackDistance m
-        TrackDistance = 60.0,
-        -- Descendre portière ouverte : elle RESTE ouverte (le jeu referme la portière à la fin de la descente)
-        KeepDoorOpenOnExit = true,
-    },
+    -- PORTIÈRES : descendre portière ouverte, elle RESTE ouverte (le jeu referme la portière à la fin de la descente ; une
+    -- portière déjà ouverte avant de descendre, touche U / I, est rouverte aussitôt)
+    KeepDoorOpenOnExit = true,
 
     -- ---------------------------------------------------------------------
     -- CEINTURE
@@ -187,7 +171,7 @@ VCConfig = {
         -- Carillon de ceinture, par véhicule roulant, en boucle : UN occupant détaché -> html/sounds/belt_chime.ogg ;
         -- PLUSIEURS détachés en même temps -> fast_belt_chime.ogg (belt_chime coupé net, et inversement)
         ChimeVolume = 1.0,        -- volume des carillons de ceinture (x réglage du joueur)
-        -- Lecture des carillons (ceinture ET portière), comme les clignotants :
+        -- Lecture des carillons de ceinture, comme les clignotants :
         --   'loop'   : le fichier est joué en boucle tant que le carillon a lieu d'être ;
         --   'repeat' : le fichier est rejoué toutes les ChimeInterval ms (un seul "ding" dans le fichier).
         ChimeSoundMode = 'loop',

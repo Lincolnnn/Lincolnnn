@@ -150,8 +150,13 @@ VC.on('enter', function(_, vehicle, seat)
     end
 end)
 
-VC.on('leave', function()
+VC.on('leave', function(vehicle, seat, info)
     turn = nil -- le son continue (véhicule suivi) tant que les clignotants restent allumés
+    -- Passé directement dans un autre véhicule (conducteur) : clignotants / warnings de l'ancien coupés
+    if info and info.swap and not info.gone and seat == -1 and DoesEntityExist(vehicle)
+        and SIGNALS[VC.state(vehicle, 'vcSignal')] then
+        setSignal(vehicle, false)
+    end
 end)
 
 -- Tous les joueurs : feux du véhicule appliqués dès que son état change (ou qu'il arrive à portée)

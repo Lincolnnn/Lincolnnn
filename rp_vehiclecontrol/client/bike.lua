@@ -110,7 +110,7 @@ end)
 
 -- Désarçonné par le jeu lui-même pendant un choc : même règle de projection (vitesse juste avant)
 VC.on('leave', function(vehicle, _, info)
-    if not info or not isBike(vehicle) or not DoesEntityExist(vehicle) then return end
+    if not info or info.swap or info.gone or not isBike(vehicle) or not DoesEntityExist(vehicle) then return end
     local ped = PlayerPedId()
     if IsEntityDead(ped) or GetIsTaskActive(ped, 2) then return end -- descendu normalement
     local crash = info.crash

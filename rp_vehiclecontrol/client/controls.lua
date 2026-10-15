@@ -53,9 +53,15 @@ end
 
 local function becomeDriver(ped, vehicle)
     SetPedConfigFlag(ped, 429, true) -- le personnage ne démarre plus le moteur en montant
-    if wanted(vehicle) then
+    local state = VC.state(vehicle, 'vcEngine')
+    if state == nil and GetIsVehicleEngineRunning(vehicle) and not VC.isFreshSpawn(vehicle) and canStart(vehicle) then
+        -- Véhicule ambiant (circulation, PNJ) ou laissé moteur allumé par un autre joueur : il le reste
+        VC.setState(vehicle, 'vcEngine', true)
+        SetVehicleKeepEngineOnWhenAbandoned(vehicle, true)
+    elseif wanted(vehicle) then
         if canStart(vehicle) and not GetIsVehicleEngineRunning(vehicle) then SetVehicleEngineOn(vehicle, true, true, false) end
     else
+        -- Véhicule qui vient d'apparaître de la main du joueur, ou coupé : moteur éteint, seule la touche l'allume
         -- Jamais démarré par la touche (véhicule qui vient d'apparaître, de la circulation…) : coupé
         SetVehicleEngineOn(vehicle, false, true, true)
         if VC.state(vehicle, 'vcEngine') == nil and NetworkGetEntityIsNetworked(vehicle) then VC.setState(vehicle, 'vcEngine', false) end
@@ -111,9 +117,16 @@ VC.on('frame', function(_, vehicle)
 end)
 
 -- Descente du conducteur : le moteur garde son état (allumé par la touche : il le reste ; coupé : il le reste)
-VC.on('leave', function(vehicle, seat)
+VC.on('leave', function(vehicle, seat, info)
     startingUntil = 0
-    if seat ~= -1 or not DoesEntityExist(vehicle) then return end
+    if seat ~= -1 or not DoesEntityExist(vehicle) or (info and info.gone) then return end
+    if info and info.swap then
+        -- Passé directement dans un autre véhicule : l'ancien s'arrête (moteur coupé, plus "toujours allumé")
+        VC.setState(vehicle, 'vcEngine', false)
+        SetVehicleKeepEngineOnWhenAbandoned(vehicle, false)
+        if controlled(vehicle) then SetVehicleEngineOn(vehicle, false, true, true) end
+        return
+    end
     local keep = wanted(vehicle)
     SetVehicleKeepEngineOnWhenAbandoned(vehicle, keep)
     CreateThread(function()
@@ -218,17 +231,22 @@ VC.on('frame', function(ped, vehicle)
     exitDoors = { vehicle = vehicle, doors = doors }
 end)
 
-VC.on('leave', function(vehicle)
+VC.on('leave', function(vehicle, _, info)
     local snapshot = exitDoors
     exitDoors = nil
-    if Config.DoorChime and Config.DoorChime.KeepDoorOpenOnExit == false then return end
+    if Config.KeepDoorOpenOnExit == false or (info and (info.swap or info.gone)) then return end
     if not snapshot or snapshot.vehicle ~= vehicle or not next(snapshot.doors) then return end
     CreateThread(function()
         local untilTime = GetGameTimer() + 3000
-        while GetGameTimer() < untilTime and DoesEntityExist(vehicle) and VC.vehicle == 0 do
+        -- Chaque portière n'est rouverte qu'une fois (quand le jeu la referme) : on ne lutte jamais contre une
+        -- fermeture voulue ensuite
+        while GetGameTimer() < untilTime and DoesEntityExist(vehicle) and VC.vehicle == 0 and next(snapshot.doors) do
             if controlled(vehicle) then
                 for door in pairs(snapshot.doors) do
-                    if GetVehicleDoorAngleRatio(vehicle, door) < 0.3 then SetVehicleDoorOpen(vehicle, door, false, false) end
+                    if GetVehicleDoorAngleRatio(vehicle, door) < 0.3 then
+                        SetVehicleDoorOpen(vehicle, door, false, false)
+                        snapshot.doors[door] = nil
+                    end
                 end
             end
             Wait(100)

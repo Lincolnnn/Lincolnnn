@@ -50,8 +50,8 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 Les sons du véhicule sont des **fichiers audio que vous déposez vous-même** dans `html/sounds/` (aucun n'est fourni,
 voir `html/sounds/LISEZMOI.txt`), au format .ogg : `belt_on` (ceinture attachée), `belt_off` (détachée), `belt_chime`
 (carillon de ceinture : un occupant détaché), `fast_belt_chime` (carillon rapide : plusieurs occupants détachés),
-`door_chime` (carillon : portière ouverte), `indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
-au volume `Seatbelt.BeltSoundVolume` (1,0) et les carillons à `Seatbelt.ChimeVolume` / `DoorChime.Volume` (1,0), multipliés par le réglage du joueur dans le MDC. Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
+`indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
+au volume `Seatbelt.BeltSoundVolume` (1,0) et les carillons à `Seatbelt.ChimeVolume` (1,0), multipliés par le réglage du joueur dans le MDC. Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
 est joué en boucle (`SignalSoundMode = 'loop'`,
 le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes les `SignalInterval` ms (`'repeat'`).
 Sans ce fichier, les clignotants marchent mais sans son. Volume réglé par chaque joueur dans le MDC
@@ -108,7 +108,14 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 - **Seule la touche** (O par défaut, configurable : Raccourcis clavier > FiveM) **allume et éteint le moteur**. Il ne
   démarre **jamais tout seul** (ni en montant, ni en accélérant) et ne s'éteint **jamais tout seul** (ni en descendant :
   allumé, il le reste pour le prochain conducteur ; coupé, il le reste). Exceptions : panne sèche et véhicule cassé.
-- Un véhicule **apparaît moteur coupé**.
+- Un véhicule que le joueur **vient de faire apparaître** est **remis à zéro** : moteur coupé, rien de l'ancien.
+- **Véhicule ambiant** (circulation, PNJ) ou **laissé moteur allumé par un autre joueur** : il reste allumé pour le
+  joueur qui monte (pas de remise à zéro).
+- **Nouveau véhicule alors qu'il est déjà dans un véhicule** (apparition depuis un menu) : tout ce qui concernait
+  l'ancien s'arrête (ceinture retirée sans bruit, carillon coupé, moteur et clignotants / warnings de l'ancien coupés)
+  et le nouveau part de zéro (moteur coupé, ceinture détachée, aucun réglage repris). C'est vrai même quand le jeu
+  redonne au nouveau véhicule le numéro de l'ancien supprimé : un modèle ou un identifiant réseau différent suffit à
+  le reconnaître.
 - En montant **côté conducteur**, une notification **glisse depuis la gauche, juste au-dessus du car HUD** :
   « **O** » **Pour allumer le moteur** (« Seule cette touche l'allume et l'éteint »), ou « Pour couper le moteur » s'il
   tourne. Elle **disparaît 8 secondes** après la montée, même sans appuyer (`EngineNoticeDuration`), ou dès que **O**
@@ -172,22 +179,8 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
     n'en reste qu'un (l'un s'attache), `fast_belt_chime` s'arrête et `belt_chime` repart **du début** ;
   - véhicule immobile : moins de 0,3 MPH pendant 0,25 s (`StopSpeed` / `StopDelay` : une lecture isolée ne le coupe
     pas). `StopWhenStopped = false` pour qu'il continue à l'arrêt.
-- **Carillon de portière** (`door_chime.ogg`, **moteur allumé uniquement**) : une portière ou plus ouverte(s), jusqu'à ce
-  qu'elles soient **refermées** ou que le moteur soit coupé. **En boucle sans jamais s'arrêter tant que le moteur
-  tourne** portière ouverte, dehors comme à bord. Il ne s'arrête que **moteur coupé** ou **portière refermée** : le moteur compte
-  comme allumé tant qu'il l'est pour Vehicle Control (`vcEngine`), même si le jeu coupe un instant celui d'un véhicule
-  laissé vide. Une portière qui bouge un instant compte encore comme ouverte (0,8 s, `DoorChime.DoorHold`).
-  Une portière compte comme ouverte **au-delà de 20 %** d'ouverture (`DoorChime.OpenRatio`) : une portière refermée
-  qui « flotte » à quelques % ne fait pas sonner. Une portière **arrachée** (accident) ou **absente du modèle**
-  (coupé, 2 portes) ne compte jamais.
-  **En descendant** portière ouverte, moteur allumé : le véhicule reste suivi directement, sans attendre son état réseau,
-  jusqu'à 60 m (`DoorChime.TrackDistance`). Le carillon continue donc dehors.
-  **Descendre portière ouverte** : elle **reste ouverte**. Le jeu referme la portière à la fin de la descente ; une
-  portière déjà ouverte avant de descendre (touche U / I…) est rouverte aussitôt (`DoorChime.KeepDoorOpenOnExit`).
-  Il vient **du véhicule**, même **vide** (personne à bord) :
-  chaque joueur le calcule lui-même à partir de l'état du véhicule (moteur `vcEngine`, portières) et l'entend à bord ou
-  dehors autour de la carrosserie (`VehicleSounds.RangeOpen`, 3 m portière ouverte). `DoorChime.Enabled = false` pour le
-  retirer.
+- **Descendre portière ouverte** : elle **reste ouverte**. Le jeu referme la portière à la fin de la descente ; une
+  portière déjà ouverte avant de descendre (touche U / I…) est rouverte aussitôt, une seule fois (`KeepDoorOpenOnExit`).
 - **Aucun son ne se multiplie** : chaque carillon (et le clignotant) est **un seul** fichier qui repart du début quand
   il arrive à sa fin (boucle), jamais relancé par-dessus lui-même, même si on met du temps à s'attacher ; `belt_on` /
   `belt_off` coupent le précédent avant de rejouer. Entendus par les occupants et autour du véhicule (règles ci-dessus).
@@ -260,7 +253,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
-| `DoorChime` | carillon de portière (moteur allumé, portière ouverte, même véhicule vide) : activé, volume, portière qui bouge un instant (`DoorHold`), suivi après la descente (`TrackDistance`), portière gardée ouverte en descendant (`KeepDoorOpenOnExit`), ouverture minimale (`OpenRatio`) |
+| `KeepDoorOpenOnExit` | portière ouverte gardée ouverte en descendant |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle jusqu'à l'arrêt complet, l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), aucune chute ajoutée pour les petits incidents (comportement du jeu), seuils, dégâts |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
@@ -273,7 +266,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 
 `Entity(vehicle).state` : `fuel` (0–100), `vcEngine` (toujours allumé), `vcBroken`
 (cassé), `vcDoors` (qui a ouvert les portières avant), `vcSignal` (clignotants / warnings), `vcPushed` (poussé : par
-qui, sens, poussée en cours). État du joueur : `seatbelt`, `seatbeltAlarm` (carillon de ceinture), (le carillon de portière n'a pas d'état : il se déduit de `vcEngine` et des portières). Le serveur vérifie
+qui, sens, poussée en cours). État du joueur : `seatbelt`, `seatbeltAlarm` (carillon de ceinture). Le serveur vérifie
 chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au rythme d'une pompe).
 
 ## Performance

@@ -116,8 +116,11 @@ end
 VC.on('enter', function(_, vehicle, seat) if seat == -1 then takeWheel(vehicle) end end)
 VC.on('seat', function(_, vehicle, seat) if seat == -1 then takeWheel(vehicle) end end)
 
-VC.on('leave', function(vehicle, seat)
-    if seat ~= -1 or not DoesEntityExist(vehicle) then return end
+VC.on('leave', function(vehicle, seat, info)
+    if seat ~= -1 or not DoesEntityExist(vehicle) or (info and info.gone) then
+        published, stoppedSince, exiting = nil, nil, false
+        return
+    end
     if published then publishStopLights(vehicle, false) end
     published, stoppedSince = nil, nil
     if Config.KeepWheelAngle and exiting then holdAngle(vehicle, steer) end
