@@ -125,6 +125,12 @@ local VEHICLE_OPTIONS = {
     { field = 'trunk', label = 'Fouille du coffre', icon = 'search', police = true, search = true, range = Config.SearchDistance },
 }
 
+local VEHICLE_INSPECTIONS, VEHICLE_POLICE = {}, {}
+for _, def in ipairs(VEHICLE_OPTIONS) do
+    local list = def.police and VEHICLE_POLICE or VEHICLE_INSPECTIONS
+    list[#list + 1] = def
+end
+
 local function inspectionOptions(list, ctx, kind)
     local out = {}
     for _, def in ipairs(list) do
@@ -140,6 +146,57 @@ local function inspectionOptions(list, ctx, kind)
         end
     end
     return out
+end
+
+-- =========================================================================
+-- OCCUPANTS D'UN VÉHICULE : en visant le véhicule, inspections visuelle et olfactive de l'occupant le
+-- plus proche du joueur (près de la place conducteur : le conducteur ; près du passager avant : lui…).
+-- Un occupant visé directement (à travers une vitre ouverte) a ses options de personne habituelles.
+-- =========================================================================
+local SEAT_NAMES = { [-1] = 'conducteur', [0] = 'passager avant', [1] = 'passager arrière gauche', [2] = 'passager arrière droit' }
+local OCCUPANT_OPTIONS = {
+    { field = 'visual', label = 'Inspection visuelle', icon = 'eye' },
+    { field = 'olfactory', label = 'Inspection olfactive', icon = 'nose' },
+}
+
+--- Occupant (hors soi) le plus proche du joueur, et sa place ; nil si le véhicule est vide
+local function nearestOccupant(vehicle)
+    local me = PlayerPedId()
+    local origin = GetEntityCoords(me)
+    local best, bestSeat, bestDistance = nil, nil, math.huge
+    for seat = -1, GetVehicleMaxNumberOfPassengers(vehicle) - 1 do
+        local ped = GetPedInVehicleSeat(vehicle, seat)
+        if ped ~= 0 and ped ~= me and DoesEntityExist(ped) then
+            local d = #(origin - GetEntityCoords(ped))
+            if d < bestDistance then best, bestSeat, bestDistance = ped, seat, d end
+        end
+    end
+    return best, bestSeat, bestDistance
+end
+
+local function occupantOptions(ctx, out)
+    local ped, seat, distance = nearestOccupant(ctx.entity)
+    if not ped or distance > Config.ObserveDistance then return end
+    local isPlayer = IsPedAPlayer(ped)
+    local target = {
+        entity = ped, type = 'ped', model = GetEntityModel(ped), isPlayer = isPlayer, pedDistance = distance,
+        serverId = isPlayer and GetPlayerServerId(NetworkGetPlayerIndexFromPed(ped)) or nil,
+        netId = NetworkGetEntityIsNetworked(ped) and NetworkGetNetworkIdFromEntity(ped) or nil,
+    }
+    local kind = isPlayer and 'player' or 'npc'
+    local who = SEAT_NAMES[seat] or ('place ' .. (seat + 2))
+    for _, def in ipairs(OCCUPANT_OPTIONS) do
+        out[#out + 1] = {
+            id = 'occupant:' .. def.field, label = ('%s (%s)'):format(def.label, who), icon = def.icon,
+            run = function()
+                if not DoesEntityExist(ped) or GetVehiclePedIsIn(ped, false) ~= ctx.entity then
+                    return RPI.notify('Cette personne n\'est plus dans le véhicule.', 'error')
+                end
+                faceEntity(ped)
+                RPI.request('inspect', inspectPayload(target, kind, def.field), showResult)
+            end,
+        }
+    end
 end
 
 --- Supprimer un PNJ, un véhicule sans joueur ou un objet (même créé par un joueur), jusqu'à 50 m
@@ -223,7 +280,10 @@ local function isLocked(vehicle)
 end
 
 local function vehicleOptions(ctx)
-    local out = inspectionOptions(VEHICLE_OPTIONS, ctx, 'vehicle')
+    -- Inspections du véhicule, puis celles de l'occupant le plus proche, puis détail notoire et fouilles (police)
+    local out = inspectionOptions(VEHICLE_INSPECTIONS, ctx, 'vehicle')
+    occupantOptions(ctx, out)
+    for _, option in ipairs(inspectionOptions(VEHICLE_POLICE, ctx, 'vehicle')) do out[#out + 1] = option end
     local vehicle = ctx.entity
     local Police = RPI.Police
 

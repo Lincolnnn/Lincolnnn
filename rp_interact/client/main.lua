@@ -4,7 +4,8 @@
     - Menu Interaction (touche F1 par défaut) : partie "Usage" (Police, Civil) et partie "Configuration"
       (Équipements, Voiture ; réservables à certains joueurs : config.lua, Permissions)
       (client/garage.lua : spawn et équipements ; client/radio.lua : radio du véhicule)
-    - Fiche civile (interface séparée du MDC, même style) : profils permanents et profil du véhicule
+    - Fiche civile (interface séparée du MDC, même style) : profils permanents et profil du véhicule ;
+      ouverte par Menu Interaction > Civil, ou par la commande /fichecivil (Config.EditorCommand)
     - Affichage des résultats d'inspection (à l'écran + copie dans le chat écrit)
 
     Performance : aucune boucle dans ce fichier. L'œil (client/target.lua) ne tourne que pendant
@@ -452,6 +453,19 @@ RegisterNUICallback('openEditor', function(data, cb)
     end
     openEditor(view, nil, cb)
 end)
+
+-- /fichecivil : ouvre la fiche civile (profils) sans passer par le Menu Interaction ; à nouveau : la ferme
+if Config.EditorCommand then
+    RegisterCommand(Config.EditorCommand, function()
+        if ui.editor then
+            RPI.setUi('editor', false)
+            SendNUIMessage({ action = 'editor', data = { open = false } })
+            return
+        end
+        if RPI.targetActive and RPI.targetActive() then return end
+        openEditor('profiles', nil)
+    end, false)
+end
 
 -- Onglet "Véhicule" de la fiche : cherche le véhicule actuel / le plus proche
 RegisterNUICallback('findVehicle', function(_, cb)

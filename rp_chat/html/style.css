@@ -26,6 +26,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 
 .chat {
     position: fixed;
+    z-index: 2;
     top: 2.5vh;
     left: 1.2vw;
     width: var(--chat-w);
@@ -128,15 +129,15 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .msg-tuto .tuto-tag { color: #2b230b; background: #e8c86b; }
 
 /* =========================================================================
-   /tuto : affiche au milieu de l'écran, thème des menus (fond noir 80 %, contour gris, coins arrondis).
+   /tuto : affiche en haut de l'écran, au milieu, thème des menus (fond noir 80 %, contour gris, coins arrondis).
    Large et peu haute ; ne capte ni la souris ni le clavier.
    ========================================================================= */
 .tuto {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    position: fixed; top: 2.5vh; left: 50%; transform: translateX(-50%);
     width: min(1000px, 92vw); padding: 12px 16px 10px;
     background: rgba(0, 0, 0, .80); border: 1.5px solid #7a7a7a; border-radius: 8px;
     color: #e6e6e6; font: 13px var(--font); text-shadow: none;
-    pointer-events: none; user-select: none; z-index: 5;
+    pointer-events: none; user-select: none; z-index: 1; /* sous le chat, qui reste lisible s'ils se croisent */
 }
 .tuto-head {
     display: flex; align-items: center; gap: 12px;

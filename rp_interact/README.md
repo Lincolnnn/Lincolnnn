@@ -146,6 +146,9 @@ Thème : celui du HUD (contour gris fin, angles légèrement arrondis), fond noi
 
 ## Fiche civile (style MDC, en dehors du MDC)
 
+S'ouvre par Menu Interaction > Civil (**Créer un profil** / **Créer un véhicule**) ou par la commande **`/fichecivil`**
+(`EditorCommand` ; à nouveau : la ferme).
+
 ### Profils (permanents : `data/profiles.json`)
 
 Liste de **vos** profils uniquement (20 max). Cliquer sur un profil affiche son détail avec **Définir comme profil
@@ -184,8 +187,11 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
 | Cible | Tout le monde | Policier (dans une unité du MDC) en plus |
 |---|---|---|
 | Personne | Inspection visuelle, Inspection olfactive (10 m) | Détail notoire (10 m) ; Fouiller la partie supérieure / inférieure du corps (3 m, **6 s** chacune) ; Menotter / Retirer les menottes, Prendre / Lâcher le bras, Faire s'asseoir / se relever (2 m) |
-| Véhicule | Inspection visuelle intérieure / extérieure, Inspection olfactive (10 m) | Détail notoire (10 m) ; Fouille de l'habitacle, de la banquette arrière, du coffre (3 m, **35 s**) ; Placer l'individu à l'arrière (6 m, en le tenant par le bras) ; Faire sortir l'individu (arrière) |
+| Véhicule | Inspection visuelle intérieure / extérieure, Inspection olfactive (10 m), puis **Inspection visuelle / olfactive de l'occupant le plus proche** (conducteur, passager avant…, selon la portière dont on est le plus près ; seul à bord : lui) | Détail notoire (10 m) ; Fouille de l'habitacle, de la banquette arrière, du coffre (3 m, **35 s**) ; Placer l'individu à l'arrière (6 m, en le tenant par le bras) ; Faire sortir l'individu (arrière) |
 
+- **Occupants d'un véhicule** : on peut aussi viser directement la personne assise (si le rayon l'atteint, par
+  une vitre ouverte par exemple) : ses options de personne s'affichent. Sinon, en visant le véhicule, les
+  inspections de l'occupant le plus proche sont proposées juste après celles du véhicule.
 - **Distances** : les observations se font jusqu'à **10 m**, les fouilles à **3 m**, menottes et bras à **2 m**. Les options
   apparaissent au fur et à mesure qu'on s'approche (elles ne sont jamais grisées pour une question de distance).
   Seule exception : **Supprimer**, proposée jusqu'à **50 m** (`DeleteDistance`) aux joueurs autorisés ; c'est la seule

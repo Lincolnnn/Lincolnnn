@@ -58,14 +58,14 @@ Conçu pour fonctionner avec le MDC du même dépôt (`mdc_standalone`), mais ut
 | `/rep Adam-12 dispo` | <ins>**John Carter**</ins> **Réponse :** Adam-12 dispo — violet pâle | tout le monde |
 | `/dv` | « Véhicule supprimé. » | le joueur |
 | `/eup` | ouvre le menu des tenues (ressource `rp_interact`) | le joueur |
-| `/tuto` | affiche les touches et fonctionnalités au milieu de l'écran ; `/tuto` à nouveau la retire | le joueur |
+| `/tuto` | affiche les touches et fonctionnalités en haut de l'écran, au milieu ; `/tuto` à nouveau la retire | le joueur |
 
 Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` et `/rep` (« Question : » et
 « Réponse : » en gras, non soulignés).
 
 - **`/nomrp` d'abord** : sans nom RP, aucune autre commande n'est possible (même celles des autres ressources tapées dans le
   chat), et le MDC refuse de rejoindre une unité. **Exceptions** : `/dv`, `/eup` et `/tuto` marchent aussi sans nom RP.
-- **`/tuto`** : une **affiche** au milieu de l'écran, large et peu haute, au thème des menus (fond noir, contour
+- **`/tuto`** : une **affiche** en haut de l'écran, au milieu, large et peu haute, au thème des menus (fond noir, contour
   gris) : en haut « Tapez /tuto pour fermer cette page », puis quatre colonnes (Chat écrit, MDC & menus, Véhicule,
   Interpellations) de lignes « touche — description ». Elle ne prend **ni la souris ni le clavier** : on continue de
   jouer, d'ouvrir le MDC, les menus, le chat… ; elle reste jusqu'à ce que le joueur refasse `/tuto`. Visible

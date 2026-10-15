@@ -6,6 +6,7 @@ InteractConfig = {
     -- clavier > FiveM > "Menu Interaction" et "Œil : interagir (maintenir)")
     MenuKey = 'F1',
     TargetKey = 'LMENU',          -- Alt gauche
+    EditorCommand = 'fichecivil', -- commande qui ouvre la fiche civile (création de profils) ; false = aucune
 
     -- PERMISSIONS (identifiant Steam hex, "steam:1100001..." : visible dans la console du serveur, commande
     -- "status", ou sur un site de conversion SteamID). Les catégories de la partie "Configuration" du

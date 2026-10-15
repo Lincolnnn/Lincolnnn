@@ -170,7 +170,7 @@ RegisterNUICallback('ready', function(_, cb)
     cb({ ok = true })
 end)
 
-local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup, /tuto.'
+local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup, /tuto, /fichecivil, /repair.'
 
 -- =========================================================================
 -- /dv : supprime UN véhicule (celui où l'on se trouve, sinon celui qu'on regarde, sinon le plus proche,
@@ -342,7 +342,7 @@ end)
 exports('addMessage', externalMessage)
 
 -- =========================================================================
--- /tuto : affiche des touches et fonctionnalités (config.lua : Tuto) au milieu de l'écran, sans focus
+-- /tuto : affiche des touches et fonctionnalités (config.lua : Tuto) en haut de l'écran, au milieu, sans focus
 -- (ni souris ni clavier : le joueur continue de jouer) ; /tuto à nouveau la retire.
 -- Rappel privé dans le chat à chaque connexion.
 -- =========================================================================

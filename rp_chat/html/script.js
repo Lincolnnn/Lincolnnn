@@ -22,6 +22,8 @@
         { name: 'dv', usage: '/dv', desc: 'Supprime votre véhicule, ou celui regardé / le plus proche (5 m)' },
         { name: 'eup', usage: '/eup', desc: 'Menu des tenues (Police, Civil), au clavier' },
         { name: 'tuto', usage: '/tuto', desc: 'Affiche / retire la page des touches et fonctionnalités' },
+        { name: 'fichecivil', usage: '/fichecivil', desc: 'Fiche civile : créer / gérer vos profils' },
+        { name: 'repair', usage: '/repair', desc: 'Répare le moteur du véhicule (pas la carrosserie)' },
     ];
 
     const $ = (sel) => document.querySelector(sel);

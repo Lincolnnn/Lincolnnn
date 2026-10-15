@@ -3371,8 +3371,10 @@
         // Moteur coupé : tout est grisé ; il s'illumine au démarrage
         el.classList.toggle('car-off', car.engine === false);
         $('#carSpeed').textContent = Math.max(0, Math.round(car.speed || 0));
-        // Véhicule cassé : logo rouge, jamais visible autrement
+        // Véhicule cassé : logo du moteur rouge foncé (fixe) ; tout le reste du car HUD reste allumé, en
+        // rouge vif clignotant (même moteur coupé)
         $('#carBroken').classList.toggle('part-empty', !car.broken);
+        el.classList.toggle('car-is-broken', !!car.broken && car.mode !== 'passenger');
         const rpm = Math.min(Math.max(Number(car.rpm) || 0, 0), 1);
         const rpmFill = $('#carRpm');
         rpmFill.style.width = `${Math.round(rpm * 100)}%`;

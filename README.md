@@ -139,8 +139,9 @@ fond), visibles même MDC fermé :
   ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple nombre), une fine **barre horizontale
   d'accélération** (régime du moteur, rouge près du maximum), une **jauge d'essence verticale** (orange sous 15 %, rouge
   sous 5 %), le petit **logo de la ceinture** (contour noir : vide = détachée, blanc = attachée, clignote en rouge pâle
-  en roulant sans ceinture) et, à côté, un **logo rouge « véhicule cassé »**, jamais visible sauf quand
-  le véhicule est hors d'usage. En montant côté conducteur, une **notification glisse depuis la gauche juste au-dessus
+  en roulant sans ceinture) et, à côté, un **logo « véhicule cassé »**, jamais visible sauf quand
+  le véhicule est hors d'usage : le car HUD reste alors **allumé, tout en rouge vif clignotant**, et ce logo du moteur
+  est **rouge foncé, fixe**. En montant côté conducteur, une **notification glisse depuis la gauche juste au-dessus
   du car HUD** et présente la touche du moteur (**O**) ; elle disparaît après 8 secondes. Déplaçable et redimensionnable comme les autres HUD ; chaque
   élément se masque dans « Paramètres », avec le volume des sons de la ceinture.
   Les données (essence, dégâts, ceinture, moteur) viennent de **Vehicle Control**

@@ -103,16 +103,21 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 
 - Le véhicule **encaisse comme un vrai** : au moment du choc, ce qui a été percuté est reconnu.
   - **Dégâts légers** : piéton, moto, vélo, barrière de chantier, plot, compteur / boîtier électrique, poubelle,
-    panneau et autres petits objets (`LightModels`, objet inconnu : `UnknownObject`) : le moteur ne reçoit que 25 %
+    panneau et autres petits objets (`LightModels`, objet inconnu : `UnknownObject`) : le moteur ne reçoit que 23 %
     des dégâts du jeu, rien de plus.
   - **Dégâts forts** : mur, bâtiment, rocher (décor fixe), voiture, camion, lampadaire, poteau, feu tricolore, bouche
-    d'incendie, borne, glissière béton (`HeavyModels`) : 90 % des dégâts du jeu, une petite part des dégâts de
+    d'incendie, borne, glissière béton (`HeavyModels`) : 83 % des dégâts du jeu, une petite part des dégâts de
     carrosserie et, si le choc est **violent** (perte de vitesse brutale de plus de 20 MPH), des dégâts selon sa
-    violence : mur à 40 MPH ≈ −220, à 60 MPH ≈ −630, à 70 MPH et plus : véhicule cassé.
-  - Sans choc (balles, explosion, chute) : 80 % des dégâts du jeu.
+    violence : mur à 40 MPH ≈ −205, à 60 MPH ≈ −580, à 70 MPH et plus : véhicule cassé.
+  - Sans choc (balles, explosion, chute) : 74 % des dégâts du jeu.
+  - Les véhicules sont **~8 % plus résistants** qu'auparavant (tous ces coefficients baissés d'autant).
 - Moteur **abîmé** (< 500) : puissance réduite (80 %) ; **critique** (< 300) : 60 % de puissance et **calages** au
-  hasard en roulant ; **cassé** (< 100) : moteur coupé, impossible à redémarrer, et **logo rouge « véhicule cassé »**
-  sur le car HUD (jamais visible autrement). Réparé par un script de mécanicien : tout redevient normal.
+  hasard en roulant ; **cassé** (< 100) : moteur coupé, impossible à redémarrer ; le **car HUD reste allumé**, tout
+  en **rouge vif clignotant**, avec le **logo du moteur** en rouge plus foncé, fixe. Réparé (script de mécanicien ou
+  `/repair`) : tout redevient normal.
+- **`/repair`** : répare **uniquement le moteur** du véhicule où l'on est (sinon du plus proche, 5 m) : santé du
+  moteur remise à neuf, véhicule de nouveau utilisable. La carrosserie, les vitres et les **dégâts visibles restent**.
+  `Repair.Restricted = true` la réserve à la permission ACE `command.repair`.
 - Ce script ne fait jamais prendre feu un véhicule (il ne descend pas le moteur sous 10).
 
 ## Ceinture de sécurité
@@ -122,13 +127,16 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   descend du véhicule, ou que le véhicule est **arrêté** (moins de 2 MPH, `StopSpeed`).
 - **Sons synchronisés** : les autres occupants les entendent à 100 %, les joueurs autour selon les règles ci-dessus
   (3 m portière ouverte, 1 m tout fermé et étouffés).
-- **Éjection : désactivée** par défaut (`Seatbelt.Eject = false`) : sans ceinture, le joueur n'est **jamais éjecté**
-  (l'éjection automatique du jeu reste désactivée elle aussi). Avec `Seatbelt.Eject = true`, éjection (ceinture
-  **détachée**) lors d'un **choc contre un objet fixe (mur…) ou un véhicule** (arrêté ou en mouvement) :
-  - au-dessus de **55 MPH** : dès que le choc fait perdre au moins 15 MPH ;
-  - entre **40 et 55 MPH** : si la vitesse chute brutalement (au moins 30 MPH, ex. **45 → 0**) ;
-  - **jamais en dessous de 40 MPH**.
-  Le joueur traverse le pare-brise avec l'élan du véhicule et perd des points de vie. Attaché : jamais éjecté.
+- **Éjection** (ceinture **détachée** uniquement ; l'éjection automatique du jeu reste désactivée) lors d'un vrai
+  accident (choc qui fait perdre au moins 10 MPH, jamais un simple accrochage) :
+  - **jamais en dessous de 60 MPH** (vitesse juste avant le choc) ;
+  - **arrêt brutal** (de 60 MPH ou plus à **20 MPH ou moins**) : **70 %** de chances d'être éjecté ;
+  - accident à 60 MPH ou plus **sans** chute aussi brutale : **45 %** de chances.
+  Le joueur est **projeté entre 20 et 60 m** du véhicule (plus il roulait vite, plus loin : 60 m vers 120 MPH), par
+  le pare-brise et par-dessus le toit, dans le sens de la course ; si l'obstacle percuté bloque ce chemin, il part de
+  côté. Il ne reste jamais sur le lieu de l'accident : arrêté trop tôt par un obstacle, il est posé au sol à 20 m. Il
+  perd des points de vie. Attaché : jamais éjecté. Réglages : `Seatbelt` (`MinSpeed`, `SuddenStopSpeed`,
+  `SuddenChance`, `AccidentDrop`, `CrashChance`, `MinDistance`, `MaxDistance`…).
 
 ## Portières (depuis l'intérieur)
 
@@ -160,7 +168,8 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume renforcé) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
-| `Seatbelt` | carillon (au-dessus de 5 MPH, coupé sous 2 MPH), éjection (`Eject`, désactivée par défaut ; règles 55 / 40 MPH, pertes de vitesse), classes sans ceinture |
+| `Seatbelt` | carillon (au-dessus de 5 MPH, coupé sous 2 MPH), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté à 20-60 m), classes sans ceinture |
+| `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
 | `EngineNoticeDuration`, `EngineStartTime` | durée de la notification du moteur (8 s), durée du démarrage (1,2 s) |
 | `StopLights`, `KeepWheelAngle` | feux stop à l'arrêt moteur tournant, angle des roues gardé à la descente |

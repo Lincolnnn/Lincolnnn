@@ -114,3 +114,44 @@ end)
 VC.on('leave', function()
     power = 1.0
 end)
+
+-- =========================================================================
+-- /repair : moteur seul remis à neuf (carrosserie et dégâts visibles inchangés)
+-- =========================================================================
+local Repair = VCConfig.Repair or {}
+
+local function repairTarget()
+    local ped = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle ~= 0 then return vehicle end
+    local pos, best, bestDistance = GetEntityCoords(ped), nil, Repair.Distance or 5.0
+    for _, v in ipairs(GetGamePool('CVehicle')) do
+        local d = #(GetEntityCoords(v) - pos)
+        if d <= bestDistance then best, bestDistance = v, d end
+    end
+    return best
+end
+
+if Repair.Command then
+    RegisterCommand(Repair.Command, function()
+        local vehicle = repairTarget()
+        if not vehicle then
+            return VC.chat(('Aucun véhicule dans un rayon de %d m.'):format(math.floor(Repair.Distance or 5.0)))
+        end
+        NetworkRequestControlOfEntity(vehicle)
+        CreateThread(function()
+            local timeout = GetGameTimer() + 1500
+            while NetworkGetEntityIsNetworked(vehicle) and not NetworkHasControlOfEntity(vehicle) and GetGameTimer() < timeout do
+                Wait(50)
+                NetworkRequestControlOfEntity(vehicle)
+            end
+            if not DoesEntityExist(vehicle) then return end
+            SetVehicleEngineHealth(vehicle, 1000.0) -- moteur seulement : ni SetVehicleFixed, ni carrosserie
+            SetVehicleUndriveable(vehicle, false)
+            if last.vehicle == vehicle then last.engine = 1000.0 end
+            if VC.state(vehicle, 'vcBroken') == true then VC.setState(vehicle, 'vcBroken', false) end
+            if VC.vehicle == vehicle and VC.seat == -1 then updateState(vehicle, 1000.0) end
+            VC.chat('Moteur réparé (la carrosserie n\'est pas réparée).')
+        end)
+    end, Repair.Restricted == true)
+end

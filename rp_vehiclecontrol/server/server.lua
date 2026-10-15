@@ -69,7 +69,13 @@ local STATE_KEYS = {
     vcSteer = function(v) return v == false or (type(v) == 'number' and v == v and math.abs(v) <= 90.0) end,
 }
 -- Envoyés aussi juste après la descente du conducteur (il est alors à côté du véhicule)
-local AFTER_LEAVING = { vcStopLights = function(v) return v == false end, vcSteer = function(v) return type(v) == 'number' end }
+-- Clés modifiables par un joueur à côté du véhicule (pas à bord) : feux stop éteints, angle des roues,
+-- véhicule réparé (/repair depuis l'extérieur)
+local AFTER_LEAVING = {
+    vcStopLights = function(v) return v == false end,
+    vcSteer = function(v) return type(v) == 'number' end,
+    vcBroken = function(v) return v == false end,
+}
 
 --- Conducteur (siège -1) ; à défaut (siège pas encore à jour côté serveur), joueur à bord du véhicule
 local function isDriver(src, vehicle)

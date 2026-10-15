@@ -79,15 +79,16 @@ VCConfig = {
     --     bouche d'incendie… : dégâts du jeu + dégâts selon la violence du choc.
     -- ---------------------------------------------------------------------
     Damage = {
-        -- Dégâts du moteur reçus du jeu, multipliés (1.0 = jeu de base ; moins = plus solide)
-        LightMultiplier = 0.25,   -- choc léger
-        HeavyMultiplier = 0.9,    -- choc fort
-        OtherMultiplier = 0.8,    -- sans choc (balles, explosion, chute…)
-        BodyToEngine = 0.15,      -- choc fort : part des dégâts de carrosserie reportée sur le moteur
+        -- Dégâts du moteur reçus du jeu, multipliés (1.0 = jeu de base ; moins = plus solide).
+        -- Véhicules ~8 % plus résistants qu'avant (0.25 / 0.9 / 0.8 / 0.15 / 2.5).
+        LightMultiplier = 0.23,   -- choc léger
+        HeavyMultiplier = 0.83,   -- choc fort
+        OtherMultiplier = 0.74,   -- sans choc (balles, explosion, chute…)
+        BodyToEngine = 0.14,      -- choc fort : part des dégâts de carrosserie reportée sur le moteur
         -- Choc fort et violent (perte de vitesse brutale, en MPH) : dégâts supplémentaires du moteur
         ImpactMinDrop = 20.0,     -- en dessous : rien de plus (un accrochage n'abîme pas le moteur)
-        ImpactFactor = 2.5,       -- dégâts = (perte - ImpactMinDrop) ^ 1.5 * ImpactFactor
-                                  -- ex. mur à 40 MPH -> ~220 ; à 60 MPH -> ~630 ; à 80 MPH -> ~1160
+        ImpactFactor = 2.3,       -- dégâts = (perte - ImpactMinDrop) ^ 1.5 * ImpactFactor
+                                  -- ex. mur à 40 MPH -> ~205 ; à 60 MPH -> ~580 ; à 80 MPH -> ~1070
         EngineFloor = 10.0,       -- ce script n'abaisse jamais le moteur sous cette valeur (pas d'incendie)
         -- Paliers : puissance réduite, calages, véhicule cassé
         Damaged = 500.0,          -- puissance x DamagedPower
@@ -148,26 +149,43 @@ VCConfig = {
     },
 
     -- ---------------------------------------------------------------------
+    -- /repair : répare UNIQUEMENT le moteur (santé du moteur remise à neuf, véhicule de nouveau
+    -- utilisable) ; la carrosserie, les vitres et les dégâts visibles restent tels quels.
+    -- Véhicule : celui où l'on est, sinon le plus proche (Distance m).
+    -- ---------------------------------------------------------------------
+    Repair = {
+        Command = 'repair',
+        Restricted = false,       -- true : réservé à la permission ACE "command.repair" (server.cfg)
+        Distance = 5.0,
+    },
+
+    -- ---------------------------------------------------------------------
     -- CEINTURE
     -- ---------------------------------------------------------------------
     Seatbelt = {
         BeltSoundVolume = 1.725,  -- volume des sons d'attache / de retrait (x1,5 puis +15 %)
         ChimeVolume = 1.56,       -- volume du carillon "ceinture non attachée" (1,2 + 30 %)
-        -- Éjection à travers le pare-brise sans ceinture : DÉSACTIVÉE (true pour la réactiver ; règles
-        -- ci-dessous). L'éjection automatique du jeu reste désactivée dans tous les cas.
         AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
         StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
         -- Carillon coupé net : ceinture attachée, joueur descendu ou véhicule arrêté.
         -- Sons entendus autour du véhicule : voir VehicleSounds.
-        Eject = false,
-        -- Éjection (ceinture détachée) lors d'un accident violent : choc contre un objet fixe ou un véhicule
-        --   - au-dessus de HighSpeed MPH : dès que le choc fait perdre au moins HighSpeedDrop MPH ;
-        --   - entre MinSpeed et HighSpeed : seulement si la vitesse chute brutalement d'au moins SuddenDrop
-        --     MPH (ex. 45 -> 0) ; jamais en dessous de MinSpeed.
-        HighSpeed = 55.0,
-        HighSpeedDrop = 15.0,
-        MinSpeed = 40.0,
-        SuddenDrop = 30.0,
+        -- ÉJECTION (ceinture détachée uniquement), jamais lors d'un simple accrochage :
+        --   - pas en dessous de MinSpeed MPH (vitesse avant le choc) ;
+        --   - arrêt brutal (vitesse tombée à SuddenStopSpeed MPH ou moins, ex. 60 -> 20) : SuddenChance ;
+        --   - accident (perte d'au moins AccidentDrop MPH) sans chute aussi brutale : CrashChance.
+        -- Projeté entre MinDistance et MaxDistance m du véhicule (MaxDistance atteint à MaxDistanceSpeed MPH).
+        Eject = true,
+        MinSpeed = 60.0,
+        SuddenStopSpeed = 20.0,
+        SuddenChance = 0.70,      -- 70 %
+        AccidentDrop = 10.0,
+        CrashChance = 0.45,       -- 45 %
+        MinDistance = 20.0,
+        MaxDistance = 60.0,
+        MaxDistanceSpeed = 120.0,
+        ThrowSpeedFactor = 0.6,   -- vitesse de projection = 60 % de la vitesse du véhicule…
+        ThrowMinSpeed = 15.0,     -- …et au moins 15 m/s
+        ThrowLift = 0.35,         -- élan vers le haut (part de la vitesse horizontale)
         EjectDamage = 35,         -- points de vie perdus par l'éjection
         -- Classes sans ceinture : motos, vélos, bateaux, hélicoptères, avions, trains
         NoBeltClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },

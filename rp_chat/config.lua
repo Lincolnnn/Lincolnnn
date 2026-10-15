@@ -54,7 +54,7 @@ ChatConfig = {
     OverheadMinScale = 0.25,   -- facteur minimal au loin (atteint vers 30 m, texte toujours lisible)
     OverheadMaxScale = 1.50,   -- facteur maximal tout près
 
-    -- /tuto : affiche des touches et fonctionnalités du serveur, au milieu de l'écran. Elle ne prend ni
+    -- /tuto : affiche des touches et fonctionnalités du serveur, en haut de l'écran, au milieu. Elle ne prend ni
     -- la souris ni le clavier (on peut jouer, ouvrir le MDC, les menus, le chat…) ; /tuto à nouveau la
     -- retire. Touches par défaut : chaque joueur peut les changer dans Échap > Paramètres > Raccourcis
     -- clavier > FiveM. Modifiez librement les textes : chaque ligne = { touche ou commande, description }.
@@ -69,6 +69,7 @@ ChatConfig = {
                 { "T", "ouvrir le chat" }, { "/nomrp", "votre nom RP (obligatoire)" },
                 { "/me", "action RP (50 m)" }, { "/info /qst /rep", "info, question, réponse" },
                 { "/dv", "supprimer un véhicule (5 m)" }, { "/eup", "tenues" },
+                { "/fichecivil", "vos profils civils" }, { "/repair", "réparer le moteur" },
             } },
             { title = "MDC & menus", items = {
                 { "K", "MDC : unités, appels, recherches, BOLO, rapports" }, { "Y / N", "accepter / refuser un appel" },

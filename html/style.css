@@ -1466,3 +1466,19 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
     font-size: 11px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; color: var(--muted);
     white-space: nowrap;
 }
+
+/* Véhicule cassé : car HUD gardé allumé (jamais grisé), tout en rouge vif clignotant ; le logo du
+   moteur reste fixe, d'un rouge plus foncé */
+.hud-car.car-is-broken, .hud-car.car-is-broken.car-off { filter: none; opacity: 1; }
+.hud-car.car-is-broken .car-fuel,
+.hud-car.car-is-broken .car-speed,
+.hud-car.car-is-broken .car-belt,
+.hud-car.car-is-broken .car-rpm { animation: car-broken-blink .9s steps(1, end) infinite; }
+.hud-car.car-is-broken #carSpeed, .hud-car.car-is-broken .car-unit, .hud-car.car-is-broken .car-fuel-icon { color: #ff1a1a; }
+.hud-car.car-is-broken .car-rpm, .hud-car.car-is-broken .car-fuel-bar { background: rgba(255, 26, 26, .35); }
+.hud-car.car-is-broken .car-rpm-fill, .hud-car.car-is-broken .car-fuel-fill { background: #ff1a1a; }
+.hud-car.car-is-broken .car-belt svg * { stroke: rgba(255, 26, 26, .8); }
+.hud-car.car-is-broken .car-belt.belt-on svg * { fill: #ff1a1a; }
+.hud-car.car-is-broken .car-belt.belt-blink svg * { animation: none; fill: transparent; }
+.hud-car.car-is-broken .car-broken { color: #9e0b0b; animation: none; opacity: 1; }
+@keyframes car-broken-blink { 0% { opacity: 1; } 50% { opacity: .25; } }

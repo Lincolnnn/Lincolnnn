@@ -154,36 +154,102 @@ VC.on('tick', function(ped, vehicle)
 end)
 
 -- =========================================================================
--- ÉJECTION : ceinture détachée, accident violent
---   - plus de HighSpeed MPH avant le choc : dès que le choc fait perdre HighSpeedDrop MPH ;
---   - entre MinSpeed et HighSpeed : chute brutale d'au moins SuddenDrop MPH (ex. 45 -> 0) ;
---   - jamais sous MinSpeed.
+-- ÉJECTION : ceinture détachée, à partir de MinSpeed MPH (60) avant le choc, vrai accident seulement
+--   - arrêt brutal (vitesse tombée à SuddenStopSpeed MPH ou moins, ex. 60 -> 20) : SuddenChance (70 %) ;
+--   - accident sans chute brutale (perte d'au moins AccidentDrop MPH) : CrashChance (45 %) ;
+--   - jamais sous MinSpeed, jamais pour un simple accrochage, jamais ceinture attachée.
+-- Le joueur est PROJETÉ loin de l'accident : entre MinDistance et MaxDistance m du véhicule (plus loin
+-- s'il roulait plus vite), par-dessus le toit, dans le sens de la course (ou de côté si l'obstacle percuté
+-- bloque la trajectoire). Son élan horizontal est entretenu pendant le vol jusqu'à la distance voulue.
 -- =========================================================================
-function VC.isViolentCrash(before, drop)
-    if before < Config.MinSpeed then return false end
-    if before > Config.HighSpeed and drop >= Config.HighSpeedDrop then return true end
-    return drop >= Config.SuddenDrop
+local MPS = 0.44704 -- 1 MPH en m/s
+
+--- Chance d'éjection (0..1) pour ce choc : 0 si pas d'éjection possible
+function VC.ejectChance(before, drop)
+    if before < Config.MinSpeed or drop < Config.AccidentDrop then return 0.0 end
+    if before - drop <= Config.SuddenStopSpeed then return Config.SuddenChance end
+    return Config.CrashChance
 end
 
-local function eject(ped, vehicle, velocity)
-    local forward = GetEntityForwardVector(vehicle)
-    local pos = GetEntityCoords(vehicle)
-    SetEntityCoords(ped, pos.x + forward.x * 1.8, pos.y + forward.y * 1.8, pos.z + 0.6, false, false, false, false)
+--- Distance de projection (m) : de MinDistance (à MinSpeed) à MaxDistance (à MaxDistanceSpeed), +/- 15 %
+local function throwDistance(before)
+    local t = math.min(math.max((before - Config.MinSpeed) / math.max(Config.MaxDistanceSpeed - Config.MinSpeed, 1.0), 0.0), 1.0)
+    local d = Config.MinDistance + (Config.MaxDistance - Config.MinDistance) * t
+    d = d * (0.85 + math.random() * 0.3)
+    return math.min(math.max(d, Config.MinDistance), Config.MaxDistance)
+end
+
+--- Direction libre (horizontale) : sens de la course, sinon de côté (l'obstacle percuté bloque)
+local function throwDirection(vehicle, velocity, start)
+    local dir = vector3(velocity.x, velocity.y, 0.0)
+    if #dir < 1.0 then
+        local f = GetEntityForwardVector(vehicle)
+        dir = vector3(f.x, f.y, 0.0)
+    end
+    dir = dir / #dir
+    for _, angle in ipairs({ 0, 20, -20, 45, -45, 75, -75, 110, -110, 180 }) do
+        local r = math.rad(angle)
+        local d = vector3(dir.x * math.cos(r) - dir.y * math.sin(r), dir.x * math.sin(r) + dir.y * math.cos(r), 0.0)
+        local to = start + d * 10.0
+        local ray = StartExpensiveSynchronousShapeTestLosProbe(start.x, start.y, start.z, to.x, to.y, to.z, 19, vehicle, 7)
+        local _, hit = GetShapeTestResult(ray)
+        if hit ~= 1 and hit ~= true then return d end
+    end
+    return dir
+end
+
+local function eject(ped, vehicle, before, velocity)
+    local origin = GetEntityCoords(vehicle)
+    local _, max = GetModelDimensions(GetEntityModel(vehicle))
+    -- Départ : au-dessus du pare-brise (par-dessus un muret, une voiture percutée…)
+    local start = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, max.y * 0.3, max.z + 0.7)
+    local dir = throwDirection(vehicle, velocity, start)
+    local distance = throwDistance(before)
+    local hSpeed = math.max(before * MPS * Config.ThrowSpeedFactor, Config.ThrowMinSpeed)
+    local vSpeed = hSpeed * Config.ThrowLift
+
+    SetEntityCoords(ped, start.x, start.y, start.z, false, false, false, false)
     CreateThread(function()
         Wait(1)
-        SetEntityVelocity(ped, velocity.x, velocity.y, velocity.z + 1.5) -- garde l'élan du véhicule
-        SetPedToRagdoll(ped, 3500, 3500, 0, false, false, false)
+        SetPedToRagdoll(ped, 6000, 6000, 0, false, false, false)
+        SetEntityVelocity(ped, dir.x * hSpeed, dir.y * hSpeed, vSpeed)
         SetEntityHealth(ped, math.max(GetEntityHealth(ped) - Config.EjectDamage, 102))
+        -- Vol guidé : vitesse horizontale entretenue jusqu'à la distance voulue (4 s max) ; arrêt si un
+        -- obstacle le bloque (plus d'avancée pendant 300 ms)
+        local deadline, lastGain, best = GetGameTimer() + 4000, GetGameTimer(), 0.0
+        while GetGameTimer() < deadline and DoesEntityExist(ped) and not IsEntityDead(ped) do
+            local pos = GetEntityCoords(ped)
+            local travelled = #(vector3(pos.x - origin.x, pos.y - origin.y, 0.0))
+            if travelled >= distance - hSpeed * 0.04 then -- (une image d'avance)
+                -- Distance atteinte : élan horizontal coupé (il retombe ici, pas plus loin que MaxDistance)
+                SetEntityVelocity(ped, 0.0, 0.0, GetEntityVelocity(ped).z)
+                break
+            end
+            if travelled > best + 0.05 then best, lastGain = travelled, GetGameTimer()
+            elseif GetGameTimer() - lastGain > 300 then break end
+            local v = GetEntityVelocity(ped)
+            SetEntityVelocity(ped, dir.x * hSpeed, dir.y * hSpeed, v.z)
+            Wait(0)
+        end
+        -- Bloqué trop près de l'accident : posé au sol à MinDistance, dans la direction libre
+        local pos = GetEntityCoords(ped)
+        if #(vector3(pos.x - origin.x, pos.y - origin.y, 0.0)) < Config.MinDistance and not IsEntityDead(ped) then
+            local target = origin + dir * Config.MinDistance
+            local found, groundZ = GetGroundZFor_3dCoord(target.x, target.y, target.z + 5.0, false)
+            SetEntityCoords(ped, target.x, target.y, found and groundZ + 0.3 or target.z, false, false, false, false)
+            SetPedToRagdoll(ped, 3000, 3000, 0, false, false, false)
+        end
     end)
 end
 
 VC.on('impact', function(vehicle, before, drop, velocity)
     if not Config.Eject then return end -- éjection désactivée (config.lua : Seatbelt.Eject)
     if belt or not hasBelt(vehicle) then return end
-    if not VC.isViolentCrash(before, drop) then return end
+    local chance = VC.ejectChance(before, drop)
+    if chance <= 0.0 or math.random() >= chance then return end
     local ped = PlayerPedId()
     if GetVehiclePedIsIn(ped, false) ~= vehicle then return end
-    eject(ped, vehicle, velocity)
+    eject(ped, vehicle, before, velocity)
 end)
 
 -- =========================================================================
