@@ -40,7 +40,7 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 - **Flèche gauche / droite** : clignotant ; **flèche bas** : warnings. Les feux sont visibles par tous les joueurs.
 - **Son du relais** (un seul fichier, `indicators_sound.ogg`, pour les clignotants et les warnings) joué **en boucle
-  tant que le clignotant n'est pas coupé** (`SignalSoundMode`), volume `SignalVolume` (1,0), **même si tout le monde
+  tant que le clignotant n'est pas coupé** (`SignalSoundMode`), volume `SignalVolume` (1,6), **même si tout le monde
   est descendu** : entendu à 100 % à bord et **autour du véhicule** (voir *Sons entendus autour du véhicule*).
   Comme dans une vraie voiture, le clignotant **s'arrête tout seul après le virage** (volant revenu droit après avoir tourné de 60°, `SignalCancelAngle`). Les warnings restent
   jusqu'à la touche, même véhicule laissé.

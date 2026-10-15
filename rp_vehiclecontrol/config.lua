@@ -270,7 +270,7 @@ VCConfig = {
     --   'repeat' : le fichier est un seul "clic", rejoué toutes les SignalInterval ms.
     SignalSoundMode = 'loop',
     SignalInterval = 370,         -- ms entre deux clics (mode 'repeat' uniquement)
-    SignalVolume = 1.0,           -- volume du son des clignotants / warnings, x réglage du joueur
+    SignalVolume = 1.6,           -- volume du son des clignotants / warnings, x réglage du joueur
 
     EngineNoticeDuration = 8000,  -- ms : notification "O" en montant côté conducteur (disparaît ensuite)
     EngineStartTime = 1200,       -- ms : durée du démarrage (démarreur) pendant laquelle on ne peut pas accélérer
