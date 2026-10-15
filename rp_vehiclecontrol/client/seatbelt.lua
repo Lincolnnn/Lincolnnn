@@ -236,10 +236,12 @@ function VC.ejectChance(before, drop)
     return Config.CrashChance
 end
 
---- Distance idéale de projection (m) selon la vitesse (pas une limite)
-function VC.throwDistance(before)
-    local t = math.min(math.max((before - Config.MinSpeed) / math.max(Config.MaxDistanceSpeed - Config.MinSpeed, 1.0), 0.0), 1.0)
-    return Config.IdealMinDistance + (Config.IdealMaxDistance - Config.IdealMinDistance) * t
+--- Distance idéale de projection (m) selon la vitesse (pas une limite) ; `cfg` : réglages (voitures par défaut,
+--- VCConfig.Bike pour les motos) avec MinSpeed, IdealMinDistance, IdealMaxDistance, MaxDistanceSpeed
+function VC.throwDistance(before, cfg)
+    cfg = cfg or Config
+    local t = math.min(math.max((before - cfg.MinSpeed) / math.max(cfg.MaxDistanceSpeed - cfg.MinSpeed, 1.0), 0.0), 1.0)
+    return cfg.IdealMinDistance + (cfg.IdealMaxDistance - cfg.IdealMinDistance) * t
 end
 
 local GRAVITY = 9.81
@@ -260,31 +262,25 @@ function VC.throwSpeed(range, lift, h)
     return (lo + hi) / 2
 end
 
-local function eject(ped, vehicle, before, velocity)
-    local min, max = GetModelDimensions(GetEntityModel(vehicle))
-    -- Départ : au-dessus du pare-brise ; direction : celle de la course (sinon l'avant du véhicule)
-    local start = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, max.y * 0.3, max.z + 0.7)
-    local dir = vector3(velocity.x, velocity.y, 0.0)
-    if #dir < 1.0 then
-        local f = GetEntityForwardVector(vehicle)
-        dir = vector3(f.x, f.y, 0.0)
-    end
-    dir = dir / #dir
-    -- Impulsion calculée pour la distance idéale (une part en vol, le reste en glissade), plafonnée à la
-    -- vitesse du véhicule : c'est sa vitesse qui donne l'élan
-    local height = math.max((max.z + 0.7) - min.z, 1.0)
-    local lift = Config.ThrowLift
-    local hSpeed = VC.throwSpeed(VC.throwDistance(before) * Config.AirShare, lift, height)
-    hSpeed = math.min(hSpeed, before * MPS)
-    local vx, vy, vz = dir.x * hSpeed, dir.y * hSpeed, hSpeed * lift
+--- Projette le joueur en ragdoll (voitures et motos). opts :
+---   dir      : direction horizontale (vecteur unitaire) ;
+---   distance : distance IDÉALE (m), une part en vol (AirShare), le reste en glissade ;
+---   cap      : vitesse horizontale maximale (m/s) : c'est la vitesse du véhicule qui donne l'élan ;
+---   start    : point de départ (nil : là où se trouve le joueur, ex. déjà désarçonné par le jeu) ;
+---   height   : hauteur du départ au-dessus du sol (m) ; lift : élan vers le haut ; damage : points de vie perdus.
+function VC.launch(ped, opts)
+    local lift = opts.lift or Config.ThrowLift
+    local hSpeed = VC.throwSpeed(opts.distance * Config.AirShare, lift, math.max(opts.height or 1.0, 0.5))
+    if opts.cap then hSpeed = math.min(hSpeed, opts.cap) end
+    local vx, vy, vz = opts.dir.x * hSpeed, opts.dir.y * hSpeed, hSpeed * lift
 
     -- Sorti du véhicule tout de suite (sinon le jeu le garde assis / debout), corps inerte autorisé
-    ClearPedTasksImmediately(ped)
+    if GetVehiclePedIsIn(ped, false) ~= 0 then ClearPedTasksImmediately(ped) end
     SetPedCanRagdoll(ped, true)
-    SetEntityCoords(ped, start.x, start.y, start.z, false, false, false, false)
+    if opts.start then SetEntityCoords(ped, opts.start.x, opts.start.y, opts.start.z, false, false, false, false) end
     SetPedToRagdoll(ped, 5000, 7000, 0, false, false, false)
     SetEntityVelocity(ped, vx, vy, vz)
-    SetEntityHealth(ped, math.max(GetEntityHealth(ped) - Config.EjectDamage, 102))
+    if (opts.damage or 0) > 0 then SetEntityHealth(ped, math.max(GetEntityHealth(ped) - opts.damage, 102)) end
     CreateThread(function()
         -- Premières images : l'impulsion est réappliquée (le ragdoll du jeu peut la perdre en s'activant).
         -- Pendant tout le vol : ragdoll maintenu (jamais debout en l'air). Aucune vitesse coupée ensuite.
@@ -300,6 +296,21 @@ local function eject(ped, vehicle, before, velocity)
             Wait(0)
         end
     end)
+end
+
+local function eject(ped, vehicle, before, velocity)
+    local min, max = GetModelDimensions(GetEntityModel(vehicle))
+    -- Départ : au-dessus du pare-brise ; direction : celle de la course (sinon l'avant du véhicule)
+    local start = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, max.y * 0.3, max.z + 0.7)
+    local dir = vector3(velocity.x, velocity.y, 0.0)
+    if #dir < 1.0 then
+        local f = GetEntityForwardVector(vehicle)
+        dir = vector3(f.x, f.y, 0.0)
+    end
+    VC.launch(ped, {
+        dir = dir / #dir, distance = VC.throwDistance(before), cap = before * MPS,
+        start = start, height = (max.z + 0.7) - min.z, damage = Config.EjectDamage,
+    })
 end
 
 VC.on('impact', function(vehicle, before, drop, velocity)

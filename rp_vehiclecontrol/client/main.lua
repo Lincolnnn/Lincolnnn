@@ -3,7 +3,8 @@
     --------------------------------
     Une seule boucle suit le véhicule du joueur et appelle les modules (ceinture, essence, dégâts,
     moteur, portières, clignotants, poussée) :
-      - 'enter' / 'leave' / 'seat' : montée, descente, changement de place ;
+      - 'enter' / 'leave' / 'seat' : montée, descente (avec la vitesse juste avant et le choc en cours),
+        changement de place ;
       - 'frame' : à chaque image, UNIQUEMENT à bord d'un véhicule (ceinture, véhicule poussé,
         puissance réduite d'un moteur abîmé, détection des chocs) ;
       - 'tick'  : toutes les 100 ms à bord (essence, dégâts, alarme de ceinture, car HUD) ;
@@ -284,9 +285,12 @@ end
 -- =========================================================================
 local function leave()
     local vehicle, seat = VC.vehicle, VC.seat
+    -- Dernier état de la course (ex. désarçonné d'une moto par le jeu au moment du choc) :
+    -- { peak = vitesse la plus haute des 400 dernières ms (MPH), crash = choc en cours ou nil, velocity }
+    local info = { peak = recentPeak(GetGameTimer()), crash = crash, velocity = lastVelocity }
     VC.vehicle, VC.seat = 0, nil
     history, crash, lastHit = {}, nil, nil
-    emit('leave', vehicle, seat)
+    emit('leave', vehicle, seat, info)
 end
 
 CreateThread(function()

@@ -154,6 +154,37 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   Réglages : `Seatbelt` (`MinSpeed`, `SuddenStopSpeed`, `SuddenChance`, `AccidentDrop`, `CrashChance`,
   `IdealMinDistance`, `IdealMaxDistance`, `AirShare`, `ThrowLift`…).
 
+## Motos : projections et chutes
+
+Les motos n'ont pas de ceinture : ces règles s'appliquent au **pilote comme au passager**. Chaque joueur les applique
+pour lui-même. Réglages : `Bike` dans `config.lua`.
+
+- **Projection** pour **tout accident à partir de 35 MPH** (vitesse juste avant le choc) : **85 %** de chances.
+  Un accident, c'est un choc qui fait perdre au moins 8 MPH, ou un choc contre un véhicule.
+  - C'est le **même système** que l'éjection des voitures : ragdoll dès le départ, une impulsion de départ, puis la
+    physique du jeu, sans arrêt net.
+  - La **distance idéale grandit avec la vitesse** : **12 m à 35 MPH**, environ 26 m à 60 MPH, **60 m vers 120 MPH**.
+    La projection n'est jamais plus rapide que la moto.
+  - **Sens** : dans le sens de la course, avec un petit écart d'environ 10°.
+  - **25 %** des projections partent ailleurs :
+    - **sur le côté**, à gauche ou à droite (45 à 80° de la course, 75 % de la distance) ;
+    - **vers l'arrière** (40 % de la distance), seulement quand c'est probable : choc contre une voiture ou un camion.
+      Contre un mur, un poteau ou une autre moto, il part sur le côté.
+  - Si le jeu désarçonne lui-même le motard pendant le choc, la même règle de projection s'applique, depuis l'endroit
+    où il se trouve.
+- **Chute de la moto** (ragdoll **sans projection**, avec l'élan de la moto) pour les **petits incidents** :
+  **80 %** de chances. Cela s'ajoute à ce que le jeu fait déjà, donc le motard tombe beaucoup plus facilement.
+  Un petit incident, à partir de 8 MPH, c'est :
+  - un **piéton renversé** ;
+  - un **poteau**, un panneau, un objet ou un véhicule touché (perte d'au moins 3 MPH) ;
+  - un **trottoir** (secousse verticale brusque, roues au sol juste avant ; l'atterrissage d'un saut ne compte pas) ;
+  - un mur ou un élément du décor (perte d'au moins 6 MPH, plus qu'un freinage).
+- Un accident de 35 MPH ou plus **sans projection** (les 15 % restants) peut aussi finir en **chute** (80 %) :
+  `FallIfNotThrown`.
+- **Une seule décision par choc** : le même accident n'est jamais tiré deux fois.
+- Une descente normale (touche F) ne déclenche rien.
+- Vélos : ajoutez `[13] = true` dans `Bike.Classes`.
+
 ## Portières (depuis l'intérieur)
 
 - **U** : conducteur → portière avant gauche ; passager avant → portière avant droite. **I** (conducteur) : les deux
@@ -186,6 +217,7 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
 | `DoorChime` | carillon de portière (moteur allumé, portière ouverte, même véhicule vide) : activé, volume |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; au-dessus de 5 MPH, coupé sous 2 MPH), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
+| `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), chute de la moto sur les petits incidents (80 % : piéton, poteau, trottoir…), seuils, dégâts |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
 | `EngineNoticeDuration`, `EngineStartTime` | durée de la notification du moteur (8 s), durée du démarrage (1,2 s) |
@@ -203,7 +235,7 @@ chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au
 
 - À pied : une vérification toutes les 500 ms (~0.00 ms). Près d'un véhicule poussable (6 m) : toutes les 100 ms.
   Boucle à chaque image seulement près d'une pompe, jerrican en main, ou pendant la poussée.
-- À bord : ~0.02 ms (chocs, puissance) ; essence, dégâts, alarme et car HUD toutes les 100 ms ; ce qui a été
+- À bord : ~0.02 ms (chocs, puissance ; à moto, en plus, une lecture de vitesse verticale pour les trottoirs) ; essence, dégâts, alarme et car HUD toutes les 100 ms ; ce qui a été
   percuté n'est cherché qu'au moment d'un choc ;
   car HUD envoyé seulement quand il change.
 - Feux stop des véhicules des autres joueurs : boucle à chaque image seulement tant qu'un véhicule proche est arrêté

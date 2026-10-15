@@ -10,8 +10,8 @@ lua54 'yes'
 
 name 'rp_vehiclecontrol'
 author 'Lincolnnn'
-description 'Vehicle Control : essence, dégâts, ceinture, moteur, portières, clignotants et poussée - standalone'
-version '1.14.0'
+description 'Vehicle Control : essence, dégâts, ceinture, motos, moteur, portières, clignotants et poussée - standalone'
+version '1.15.0'
 
 ui_page 'html/index.html' -- message "pousser le véhicule" et sons du véhicule (le car HUD est dessiné par le MDC)
 
@@ -27,6 +27,7 @@ shared_script 'config.lua'
 client_scripts {
     'client/main.lua',      -- boucle du véhicule, chocs, liaison avec le car HUD du MDC
     'client/seatbelt.lua',  -- ceinture, alarme, éjection, sons synchronisés
+    'client/bike.lua',      -- motos : projections et chutes
     'client/fuel.lua',      -- essence : consommation, pompes, jerrican
     'client/damage.lua',    -- dégâts réalistes, véhicule cassé
     'client/controls.lua',  -- moteur (O), portières (U / I)
