@@ -3,6 +3,8 @@ Sons de Vehicle Control : déposez ici vos fichiers audio, au format .ogg, avec 
   belt_on.ogg            ceinture attachée
   belt_off.ogg           ceinture détachée
   belt_chime.ogg         carillon "ceinture non attachée" (joué toutes les 1,1 s)
+  door_chime.ogg         carillon "portière ouverte" (UNE portière, moteur allumé) : joué en boucle
+  fast_door_chime.ogg    carillon rapide (PLUSIEURS portières ouvertes, moteur allumé) : joué en boucle
   indicators_sound.ogg   clignotants / warnings (joué en boucle : SignalSoundMode dans config.lua)
 
 Un fichier absent : le son correspondant n'est simplement pas joué (le reste fonctionne).

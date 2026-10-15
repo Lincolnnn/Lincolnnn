@@ -160,14 +160,15 @@ VCConfig = {
     },
 
     -- ---------------------------------------------------------------------
-    -- CARILLON DE PORTIÈRE (son html/sounds/belt_chime.ogg) : moteur tournant et une portière ouverte,
-    -- comme une clé restée sur le contact ; continue après la descente du conducteur tant qu'il reste à
-    -- FollowDistance m. Coupé net portières fermées ou moteur coupé. Entendu autour : VehicleSounds.
-    -- (La ceinture détachée n'a plus de carillon : seul son logo clignote sur le car HUD.)
+    -- CARILLON DE PORTIÈRE, moteur allumé uniquement (entendu autour : VehicleSounds) :
+    --   1 portière ouverte : html/sounds/door_chime.ogg en boucle, jusqu'à ce qu'elle soit refermée ;
+    --   plusieurs ouvertes : door_chime coupé net, fast_door_chime.ogg en boucle jusqu'à ce qu'il n'en reste
+    --   qu'une (retour à door_chime) ou que le moteur soit coupé.
+    -- Continue après la descente du conducteur (moteur laissé allumé) tant qu'il reste à FollowDistance m.
     -- ---------------------------------------------------------------------
     DoorChime = {
         Enabled = true,
-        Volume = 1.56,            -- volume du carillon (renforcé)
+        Volume = 1.56,            -- volume des deux carillons de portière
         FollowDistance = 15.0,
     },
 
@@ -176,6 +177,11 @@ VCConfig = {
     -- ---------------------------------------------------------------------
     Seatbelt = {
         BeltSoundVolume = 1.725,  -- volume des sons d'attache / de retrait (x1,5 puis +15 %)
+        -- Carillon de ceinture (html/sounds/belt_chime.ogg, rejoué toutes les 1,1 s) : ceinture détachée
+        ChimeVolume = 1.56,       -- volume du carillon (1,2 + 30 %)
+        AlarmSpeed = 5.0,         -- MPH : carillon au-dessus (ceinture détachée)
+        StopSpeed = 2.0,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
+        -- Coupé net : ceinture attachée, joueur descendu ou véhicule arrêté.
         -- ÉJECTION (ceinture détachée uniquement), jamais lors d'un simple accrochage :
         --   - pas en dessous de MinSpeed MPH (vitesse avant le choc) ;
         --   - arrêt brutal (vitesse tombée à SuddenStopSpeed MPH ou moins, ex. 60 -> 20) : SuddenChance ;

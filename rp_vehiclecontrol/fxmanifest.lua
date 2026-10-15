@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_vehiclecontrol'
 author 'Lincolnnn'
 description 'Vehicle Control : essence, dégâts, ceinture, moteur, portières, clignotants et poussée - standalone'
-version '1.10.0'
+version '1.11.0'
 
 ui_page 'html/index.html' -- message "pousser le véhicule" et sons du véhicule (le car HUD est dessiné par le MDC)
 
@@ -19,7 +19,7 @@ files {
     'html/index.html',
     'html/style.css',
     'html/script.js',
-    'html/sounds/*.ogg', -- sons du véhicule (ceinture, carillon, clignotants) : à déposer vous-même (voir LISEZMOI.txt)
+    'html/sounds/*.ogg', -- sons du véhicule (ceinture, carillons de ceinture et de portière, clignotants) : à déposer vous-même (voir LISEZMOI.txt)
 }
 
 shared_script 'config.lua'

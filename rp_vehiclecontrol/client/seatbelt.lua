@@ -1,29 +1,34 @@
 --[[
-    Vehicle Control - ceinture de sécurité (client)
-    -----------------------------------------------
+    Vehicle Control - ceinture de sécurité et carillons (client)
+    -----------------------------------------------------------
     Touche G (Raccourcis clavier > FiveM > "Véhicule : attacher / détacher la ceinture").
       - Sons réels (html/sounds) à l'attache et au retrait ; attachée, impossible de descendre sans la
         détacher (touche F bloquée) ; retirée si le joueur est sorti du véhicule autrement.
-      - CARILLON DE PORTIÈRE (son belt_chime.ogg) : moteur tournant et une portière ouverte, comme une clé
-        restée sur le contact. Publié par le conducteur, puis, s'il descend en laissant le moteur tourner,
-        tant qu'il reste près du véhicule (DoorChime.FollowDistance) et qu'aucun autre conducteur n'y monte.
-        Coupé net dès que les portières sont fermées ou le moteur coupé. (Plus de carillon de ceinture.)
+      - CARILLON DE CEINTURE (belt_chime.ogg) : ceinture détachée au-dessus de AlarmSpeed MPH ; coupé net dès
+        que la ceinture est attachée, que le joueur descend ou que le véhicule est arrêté (sous StopSpeed).
+      - CARILLON DE PORTIÈRE, moteur allumé uniquement :
+          1 portière ouverte          -> door_chime.ogg (en boucle, jusqu'à ce qu'elle soit refermée) ;
+          plusieurs ouvertes en même temps -> door_chime coupé net, fast_door_chime.ogg (en boucle) jusqu'à
+          ce qu'il n'en reste qu'une ouverte (retour à door_chime) ou que le moteur soit coupé.
+        Publié par le conducteur, puis, s'il descend en laissant le moteur tourner, tant qu'il reste près
+        du véhicule (DoorChime.FollowDistance) et qu'aucun autre conducteur n'y monte.
       - Détachée, accident violent (voir config.lua, Seatbelt) : éjecté à travers le pare-brise.
         Attachée : jamais éjecté (l'éjection automatique du jeu est désactivée, seule cette règle compte).
-      - Sons synchronisés (états du joueur "seatbelt" / "seatbeltAlarm" = carillon, lus par les autres clients) :
-        occupants du véhicule à 100 %, joueurs autour du véhicule selon VehicleSounds (3 m portière
-        ouverte, 1 m tout fermé et étouffé).
-    Boucle du carillon (250 ms) uniquement pendant qu'un carillon est actif à portée ; surveillance (250 ms)
-    après la descente seulement si le moteur tourne, portière ouverte, joueur à côté.
+      - Sons synchronisés (états du joueur "seatbelt", "seatbeltAlarm" = carillon de ceinture, "doorChime" =
+        0 / 1 / 2 portières, lus par les autres clients) : occupants du véhicule à 100 %, joueurs autour du
+        véhicule selon VehicleSounds (3 m portière ouverte, 1 m tout fermé et étouffé).
+    Boucle des carillons (250 ms) uniquement pendant qu'un carillon est actif à portée ; surveillance (250 ms)
+    après la descente seulement si le moteur tourne et qu'une portière est ouverte, joueur à côté.
 ]]
 
 local Config = VCConfig.Seatbelt
 local Chime = VCConfig.DoorChime or {}
 
-local belt, alarm = false, false
+local belt, alarm, doorLevel = false, false, 0
 local watching = 0     -- véhicule laissé moteur tournant par ce joueur (carillon tant qu'une portière est ouverte)
-local alarms = {}      -- [id serveur] = true : autres joueurs dont l'alarme est active
-local beepRunning = false
+local alarms = {}      -- [id serveur] = true : autres joueurs dont le carillon de ceinture sonne
+local doorChimes = {}  -- [id serveur] = 1 / 2 : autres joueurs dont le carillon de portière sonne
+local chimeRunning = false
 
 local function hasBelt(vehicle)
     return not Config.NoBeltClasses[GetVehicleClass(vehicle)]
@@ -37,8 +42,7 @@ local function serverIdOfBag(bagName)
 end
 
 --- Volume (0 hors de portée, nil si le joueur n'est plus là) et étouffement auxquels ce client entend
---- les sons de ceinture du joueur `serverId` : ils viennent de son véhicule (ou du dernier, s'il vient
---- d'en descendre)
+--- les sons du joueur `serverId` : ils viennent de son véhicule (ou du dernier, s'il vient d'en descendre)
 local function hearVolume(serverId)
     local player = GetPlayerFromServerId(serverId)
     if player == -1 then return nil end
@@ -55,58 +59,78 @@ local function beltSound(kind, volume, muffled)
     VC.sound(kind == 'on' and 'belt_on' or 'belt_off', volume * (Config.BeltSoundVolume or 1.725), nil, muffled)
 end
 
---- Carillon : le plus fort entre le sien (100 %) et ceux des joueurs à portée ; volume 0 = coupé net
-local lastChime = '0.00|false'
-local function refreshChime()
-    -- Le sien : 100 % à bord ; descendu (moteur laissé tournant), selon sa distance au véhicule
+local DOOR_FILES = { [1] = 'door_chime', [2] = 'fast_door_chime' }
+local lastBelt, lastDoor = '0.00|false', '0|0.00|false'
+
+--- Carillons : le plus fort entre le sien et ceux des joueurs à portée ; volume 0 = coupé net
+local function refreshChimes()
+    -- Carillon de ceinture (à bord : 100 %)
     local volume, muffled = alarm and 1.0 or 0.0, false
-    if alarm and watching ~= 0 then volume, muffled = VC.hearVehicle(watching) end
     for serverId in pairs(alarms) do
         local v, m = hearVolume(serverId)
-        if v == nil then
-            alarms[serverId] = nil -- joueur parti / hors de portée réseau
-        elseif v > volume then
-            volume, muffled = v, m
-        end
+        if v == nil then alarms[serverId] = nil
+        elseif v > volume then volume, muffled = v, m end
     end
     volume = math.floor(volume * 20 + 0.5) / 20
     local key = ('%.2f|%s'):format(volume, tostring(volume > 0 and muffled))
-    if key ~= lastChime then
-        lastChime = key
-        -- carillon du tableau de bord (volume renforcé : ChimeVolume)
-        VC.soundLoop('chime', { 'belt_chime' }, 1100, volume * (Chime.Volume or 1.56), false, muffled)
+    if key ~= lastBelt then
+        lastBelt = key
+        VC.soundLoop('chime', { 'belt_chime' }, 1100, volume * (Config.ChimeVolume or 1.56), false, muffled)
+    end
+
+    -- Carillon de portière : le sien (à bord : 100 % ; descendu : selon la distance), puis les autres
+    local level, dVolume, dMuffled = 0, 0.0, false
+    if doorLevel > 0 then
+        level, dVolume = doorLevel, 1.0
+        if watching ~= 0 then dVolume, dMuffled = VC.hearVehicle(watching) end
+    end
+    for serverId, l in pairs(doorChimes) do
+        local v, m = hearVolume(serverId)
+        if v == nil then doorChimes[serverId] = nil
+        elseif v > dVolume then level, dVolume, dMuffled = l, v, m end
+    end
+    dVolume = math.floor(dVolume * 20 + 0.5) / 20
+    if dVolume <= 0 then level = 0 end
+    key = ('%d|%.2f|%s'):format(level, dVolume, tostring(dVolume > 0 and dMuffled))
+    if key ~= lastDoor then
+        lastDoor = key
+        -- Fichier joué en boucle ; changer de fichier (1 <-> plusieurs portières) coupe net l'autre
+        VC.soundLoop('door', { DOOR_FILES[level] or 'door_chime' }, 0, dVolume * (Chime.Volume or 1.56), true, dMuffled)
     end
 end
 
---- Boucle seulement pendant une alarme (la sienne ou celle d'un joueur à portée)
-local function beepLoop()
-    refreshChime()
-    if beepRunning then return end
-    beepRunning = true
+--- Boucle seulement pendant un carillon (le sien ou celui d'un joueur à portée)
+local function chimeLoop()
+    refreshChimes()
+    if chimeRunning then return end
+    chimeRunning = true
     CreateThread(function()
-        while alarm or next(alarms) do
+        while alarm or doorLevel > 0 or next(alarms) or next(doorChimes) do
             Wait(250)
-            refreshChime()
+            refreshChimes()
         end
-        refreshChime()
-        beepRunning = false
+        refreshChimes()
+        chimeRunning = false
     end)
 end
 
 -- =========================================================================
 -- CEINTURE DU JOUEUR ET CARILLON DE PORTIÈRE
 -- =========================================================================
---- Une portière (avant / arrière) ouverte ?
-local function doorOpen(vehicle)
+--- Nombre de portières (avant / arrière) ouvertes
+local function openDoors(vehicle)
+    local n = 0
     for door = 0, 3 do
-        if GetVehicleDoorAngleRatio(vehicle, door) > 0.05 then return true end
+        if GetVehicleDoorAngleRatio(vehicle, door) > 0.05 then n = n + 1 end
     end
-    return false
+    return n
 end
 
---- Carillon voulu pour ce véhicule : moteur tournant, une portière ouverte
-local function chimeWanted(vehicle)
-    return Chime.Enabled ~= false and DoesEntityExist(vehicle) and GetIsVehicleEngineRunning(vehicle) and doorOpen(vehicle)
+--- Carillon de portière voulu : 0 (aucun), 1 (une portière ouverte), 2 (plusieurs) ; moteur allumé seulement
+local function doorChimeLevel(vehicle)
+    if Chime.Enabled == false or not DoesEntityExist(vehicle) or not GetIsVehicleEngineRunning(vehicle) then return 0 end
+    local n = openDoors(vehicle)
+    return n >= 2 and 2 or n
 end
 
 local function setAlarm(state)
@@ -114,7 +138,14 @@ local function setAlarm(state)
     alarm = state
     VC.hud.alarm = state
     LocalPlayer.state:set('seatbeltAlarm', state, true) -- entendu par les joueurs proches
-    beepLoop()
+    chimeLoop()
+end
+
+local function setDoorChime(level)
+    if level == doorLevel then return end
+    doorLevel = level
+    LocalPlayer.state:set('doorChime', level, true) -- entendu par les joueurs proches
+    chimeLoop()
 end
 
 local function setBelt(state, silent)
@@ -122,6 +153,7 @@ local function setBelt(state, silent)
     belt = state
     if VC.hud.belt ~= nil then VC.hud.belt = state end
     LocalPlayer.state:set('seatbelt', state, true) -- les joueurs proches entendent le son
+    if state then setAlarm(false) end
     if not silent then beltSound(state and 'on' or 'off', 1.0, false) end
 end
 
@@ -140,7 +172,8 @@ VC.on('enter', function(ped, vehicle)
     VC.hud.alarm = false
 end)
 
---- Après la descente du conducteur : carillon tant que le moteur tourne, portière ouverte, joueur à côté
+--- Après la descente du conducteur : carillon de portière tant que le moteur tourne, portière ouverte,
+--- joueur à côté
 local function watchLeftVehicle(vehicle)
     watching = vehicle
     CreateThread(function()
@@ -152,20 +185,21 @@ local function watchLeftVehicle(vehicle)
                 or not GetIsVehicleEngineRunning(vehicle) then
                 break
             end
-            setAlarm(chimeWanted(vehicle))
+            setDoorChime(doorChimeLevel(vehicle))
             Wait(250)
         end
-        if watching == vehicle then watching = 0; setAlarm(false) end
+        if watching == vehicle then watching = 0; setDoorChime(0) end
     end)
 end
 
 VC.on('leave', function(vehicle, seat)
     if belt then setBelt(false) end
+    setAlarm(false)
     VC.hud.belt, VC.hud.alarm = nil, false
     if seat == -1 and vehicle and vehicle ~= 0 and DoesEntityExist(vehicle) and GetIsVehicleEngineRunning(vehicle) then
-        watchLeftVehicle(vehicle) -- moteur laissé allumé : le carillon continue si une portière est ouverte
+        watchLeftVehicle(vehicle) -- moteur laissé allumé : le carillon de portière continue si une portière est ouverte
     else
-        setAlarm(false)
+        setDoorChime(0)
     end
 end)
 
@@ -177,15 +211,26 @@ end)
 -- MDC : bouton "Tester" du volume des sons du véhicule
 AddEventHandler('rp_vehiclecontrol:testSound', function(volume)
     VC.sound('belt_on', Config.BeltSoundVolume or 1.725, volume)
-    SetTimeout(600, function() VC.sound('belt_chime', Chime.Volume or 1.56, volume) end)
+    SetTimeout(600, function() VC.sound('belt_chime', Config.ChimeVolume or 1.56, volume) end)
 end)
 
 VC.on('tick', function(ped, vehicle)
+    local speed = GetEntitySpeed(vehicle) * VC.MPH
     -- Descend du véhicule : ceinture retirée (avec le son)
     if belt and GetIsTaskActive(ped, 2) then setBelt(false) end
+    -- Carillon de ceinture : détachée, au-dessus de AlarmSpeed ; coupé sous StopSpeed
+    if hasBelt(vehicle) and not belt then
+        if not alarm and speed > Config.AlarmSpeed then
+            setAlarm(true)
+        elseif alarm and speed < Config.StopSpeed then
+            setAlarm(false)
+        end
+    elseif alarm then
+        setAlarm(false)
+    end
     -- Carillon de portière : publié par le conducteur
     watching = 0
-    setAlarm(VC.seat == -1 and chimeWanted(vehicle))
+    setDoorChime(VC.seat == -1 and doorChimeLevel(vehicle) or 0)
 end)
 
 -- =========================================================================
@@ -276,17 +321,28 @@ AddStateBagChangeHandler('seatbeltAlarm', nil, function(bagName, _, value)
     local serverId = serverIdOfBag(bagName)
     if not serverId or serverId == GetPlayerServerId(PlayerId()) then return end
     alarms[serverId] = value == true or nil
-    beepLoop() -- démarre, ou coupe net le carillon de ce joueur
+    chimeLoop() -- démarre, ou coupe net le carillon de ce joueur
+end)
+
+AddStateBagChangeHandler('doorChime', nil, function(bagName, _, value)
+    local serverId = serverIdOfBag(bagName)
+    if not serverId or serverId == GetPlayerServerId(PlayerId()) then return end
+    local level = tonumber(value) or 0
+    doorChimes[serverId] = level > 0 and math.min(level, 2) or nil
+    chimeLoop() -- démarre, change de son (1 / plusieurs portières), ou coupe net
 end)
 
 -- Ressource redémarrée : état publié remis à zéro
 if LocalPlayer.state.seatbelt then LocalPlayer.state:set('seatbelt', false, true) end
 if LocalPlayer.state.seatbeltAlarm then LocalPlayer.state:set('seatbeltAlarm', false, true) end
+if LocalPlayer.state.doorChime then LocalPlayer.state:set('doorChime', 0, true) end
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     SetPedConfigFlag(PlayerPedId(), 32, true)
     LocalPlayer.state:set('seatbelt', false, true)
     LocalPlayer.state:set('seatbeltAlarm', false, true)
+    LocalPlayer.state:set('doorChime', 0, true)
     VC.soundLoop('chime', { 'belt_chime' }, 1100, 0.0)
+    VC.soundLoop('door', { 'door_chime' }, 0, 0.0)
 end)
