@@ -3,10 +3,11 @@
     ----------------------
     - Types de véhicules : modèles de config.lua + services de rp_interact/data/vehicles.json, publiés à tous
       les clients (GlobalState.rpEquipModels : [hash du modèle] = type).
-    - Vérifie chaque demande : policier en service (unité du MDC), près du véhicule, objet / emplacement permis
+    - Vérifie chaque demande : policier en service (unité du MDC), près du véhicule, pièce / emplacement permis
       pour ce type de véhicule.
+    - Équipement EUP par catégorie de véhicule (equipment.json, même format que les tenues du /eup).
     - Râtelier d'armes longues par plaque (data/racks.json) : rangé / ressorti à l'identique (modèle,
-      accessoires, teintes, munitions). Une seule arme par emplacement, même si deux policiers cliquent ensemble.
+      accessoires, teintes). Une seule arme par emplacement, même si deux policiers cliquent ensemble.
     Performance : aucune boucle.
 ]]
 
@@ -57,10 +58,86 @@ local function buildModels()
 end
 local Models = buildModels()
 
+-- =========================================================================
+-- ÉQUIPEMENT EUP PAR CATÉGORIE (equipment.json)
+-- =========================================================================
+local OUTFIT_PARTS = {
+    Hat = { prop = 0 }, Glasses = { prop = 1 }, Ear = { prop = 2 }, Watch = { prop = 6 }, Bracelet = { prop = 7 },
+    Mask = { component = 1 }, UpperSkin = { component = 3 }, Pants = { component = 4 }, Parachute = { component = 5 },
+    Shoes = { component = 6 }, Accessories = { component = 7 }, UnderCoat = { component = 8 }, Armor = { component = 9 },
+    Decal = { component = 10 }, Top = { component = 11 },
+}
+local Assets = {}   -- [type] = { { id, name, gender, components = { {n°, modèle, texture} }, props = {...} } }
+
+--- Type d'une catégorie du fichier : "Atlanta Police Department" (ServiceTypes) ou directement "apd"
+local function typeOfCategory(name)
+    local key = trim(name):lower()
+    local kind = (Config.ServiceTypes or {})[key] or key
+    return Config.Types[kind] and kind or nil
+end
+
+local function parseAsset(o, oneBased)
+    local name = trim(field(o, 'Name'))
+    if name == '' then return nil end
+    local gender = trim(field(o, 'Gender')):lower()
+    gender = (gender == 'female' or gender == 'femme' or gender == 'f') and 'female'
+        or ((gender == 'male' or gender == 'homme' or gender == 'm') and 'male' or nil)
+    local components, props = {}, {}
+    for part, target in pairs(OUTFIT_PARTS) do
+        local d, t = tostring(field(o, part) or ''):match('^%s*(%-?%d+)%s*:%s*(%-?%d+)%s*$')
+        d, t = tonumber(d), tonumber(t)
+        if d then
+            if oneBased then d, t = d - 1, math.max((t or 1) - 1, 0) end
+            if target.prop then props[#props + 1] = { target.prop, d, t or 0 }
+            else components[#components + 1] = { target.component, math.max(d, 0), t or 0 } end
+        end
+    end
+    if #components == 0 and #props == 0 then return nil end
+    return { name = name:sub(1, 60), gender = gender, components = components, props = props }
+end
+
+local function loadAssets()
+    Assets = {}
+    local file = Config.EquipmentFile or 'equipment.json'
+    local raw = LoadResourceFile(GetCurrentResourceName(), file)
+    if not raw or raw == '' then
+        print(('^3[rp_equipment] %s introuvable : aucun équipement EUP^7'):format(file))
+        return
+    end
+    local ok, data = pcall(json.decode, raw)
+    if not ok or type(data) ~= 'table' then
+        print(('^1[rp_equipment] %s illisible (JSON invalide) : aucun équipement EUP^7'):format(file))
+        return
+    end
+    local oneBased = not (Config.Eup and Config.Eup.OneBased == false)
+    local count = 0
+    for category, list in pairs(data) do
+        local kind = typeOfCategory(category)
+        if not kind then
+            print(('^3[rp_equipment] %s : catégorie "%s" inconnue (ignorée)^7'):format(file, tostring(category)))
+        elseif type(list) == 'table' then
+            Assets[kind] = Assets[kind] or {}
+            for i, o in ipairs(list) do
+                local asset = parseAsset(o, oneBased)
+                if asset then
+                    asset.id = ('%s:%d'):format(kind, #Assets[kind] + 1)
+                    Assets[kind][#Assets[kind] + 1] = asset
+                    count = count + 1
+                else
+                    print(('^3[rp_equipment] %s : "%s" n°%d ignoré (Name ou pièce manquant)^7'):format(file, category, i))
+                end
+            end
+        end
+    end
+    print(('^5[rp_equipment]^7 %d pièce(s) d\'équipement EUP (%s)'):format(count, file))
+end
+loadAssets()
+
 RegisterCommand('rpequip_reload', function(src)
     if src ~= 0 then return end
     Models = buildModels()
-    print('[rp_equipment] types de véhicules relus')
+    loadAssets()
+    print('[rp_equipment] types de véhicules et équipement relus')
 end, true)
 
 --- Type d'un véhicule : modèle connu, sinon celui annoncé par le client si ce type se reconnaît à la classe
@@ -101,7 +178,7 @@ local function rackSummary(plate)
     local out = {}
     for _, slot in ipairs(Config.LongGuns.Slots) do
         local w = rack[slot.Id]
-        out[slot.Id] = w and { label = w.label, components = #(w.components or {}), ammo = w.ammo } or false
+        out[slot.Id] = w and { label = w.label, components = #(w.components or {}) } or false
     end
     return out
 end
@@ -109,12 +186,18 @@ end
 -- =========================================================================
 -- VÉRIFICATIONS
 -- =========================================================================
+--- Unité MDC du joueur (policier en service) ou nil. Le MDC publie son nom de ressource (GlobalState.mdcResource),
+--- quel que soit le nom de son dossier ; en secours : l'état "mdcUnit" que le MDC donne au joueur.
 local function policeUnit(src)
     if not Config.PoliceOnly then return { name = 'Tous' } end
-    local resource = Config.MdcResource or 'mdc_standalone'
-    if GetResourceState(resource) ~= 'started' then return nil end
-    local ok, unit = pcall(function() return exports[resource]:getPlayerUnit(src) end)
-    return ok and type(unit) == 'table' and unit or nil
+    local resource = GlobalState.mdcResource or Config.MdcResource or 'mdc_standalone'
+    if GetResourceState(resource) == 'started' then
+        local ok, unit = pcall(function() return exports[resource]:getPlayerUnit(src) end)
+        if ok and type(unit) == 'table' then return unit end
+    end
+    local name = Player(src).state.mdcUnit
+    if type(name) == 'string' and name ~= '' then return { name = name } end
+    return nil
 end
 
 local function nearVehicle(src, netId)
@@ -137,8 +220,6 @@ local function allowedWhere(entryWhere, where)
     return entryWhere == 'both' or entryWhere == nil or entryWhere == where
 end
 
-local ITEMS = {}
-for _, item in ipairs(Config.Equipment) do ITEMS[item.Id] = item end
 local SLOTS = {}
 for _, slot in ipairs(Config.LongGuns.Slots) do SLOTS[slot.Id] = slot end
 
@@ -168,17 +249,20 @@ local Handlers = {}
 function Handlers.open(src, data)
     local ctx, err = context(src, data)
     if not ctx then return { ok = false, error = err } end
-    return { ok = true, type = ctx.kind, plate = ctx.plate, rack = rackAllowed(ctx) and ctx.plate and rackSummary(ctx.plate) or false }
+    return {
+        ok = true, type = ctx.kind, plate = ctx.plate, assets = Assets[ctx.kind] or {},
+        rack = rackAllowed(ctx) and ctx.plate and rackSummary(ctx.plate) or false,
+    }
 end
 
-function Handlers.take(src, data)
+--- Pièce d'équipement EUP de ce véhicule (le client la met ou la retire de la tenue du joueur)
+function Handlers.wear(src, data)
     local ctx, err = context(src, data)
     if not ctx then return { ok = false, error = err } end
-    local item = ITEMS[tostring(data.item)]
-    if not item or not allowedFor(item, ctx.kind) or not allowedWhere(item.Where, ctx.where) then
-        return { ok = false, error = 'Cet équipement n\'est pas dans ce véhicule.' }
+    for _, asset in ipairs(Assets[ctx.kind] or {}) do
+        if asset.id == data.asset then return { ok = true, asset = asset } end
     end
-    return { ok = true, item = item.Id }
+    return { ok = false, error = 'Cet équipement n\'est pas dans ce véhicule.' }
 end
 
 --- Rangement : le joueur tient l'arme (vérifié ici), l'emplacement est libre ; l'arme lui est retirée
@@ -207,7 +291,6 @@ function Handlers.store(src, data)
         hash = w.hash,
         name = type(w.name) == 'string' and w.name:sub(1, 64) or nil,
         label = type(w.label) == 'string' and w.label:sub(1, 60) or slot.Label,
-        ammo = math.max(0, math.min(math.floor(tonumber(w.ammo) or 0), 9999)),
         tint = math.floor(tonumber(w.tint) or 0),
         components = components,
         componentTints = tints,

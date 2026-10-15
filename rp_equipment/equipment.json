@@ -1,0 +1,26 @@
+{
+    "Atlanta Police Department": [
+        { "Name": "Gilet pare-balles APD", "Gender": "Male", "Armor": "13:1" },
+        { "Name": "Gilet pare-balles APD", "Gender": "Female", "Armor": "13:1" },
+        { "Name": "Gilet tactique APD", "Gender": "Male", "Armor": "16:1" },
+        { "Name": "Gilet tactique APD", "Gender": "Female", "Armor": "16:1" },
+        { "Name": "Gilet haute visibilité", "Gender": "Male", "Accessories": "9:1" },
+        { "Name": "Gilet haute visibilité", "Gender": "Female", "Accessories": "9:1" },
+        { "Name": "Casquette APD", "Gender": "Male", "Hat": "47:1" },
+        { "Name": "Casquette APD", "Gender": "Female", "Hat": "46:1" }
+    ],
+    "Georgia State Patrol": [
+        { "Name": "Gilet pare-balles GSP", "Gender": "Male", "Armor": "14:1" },
+        { "Name": "Gilet pare-balles GSP", "Gender": "Female", "Armor": "14:1" },
+        { "Name": "Chapeau de Trooper", "Gender": "Male", "Hat": "14:1" },
+        { "Name": "Chapeau de Trooper", "Gender": "Female", "Hat": "14:1" },
+        { "Name": "Gilet haute visibilité GSP", "Gender": "Male", "Accessories": "10:1" },
+        { "Name": "Gilet haute visibilité GSP", "Gender": "Female", "Accessories": "10:1" }
+    ],
+    "Fayette County Sheriff Office": [
+        { "Name": "Gilet pare-balles FCSO", "Gender": "Male", "Armor": "15:1" },
+        { "Name": "Gilet pare-balles FCSO", "Gender": "Female", "Armor": "15:1" },
+        { "Name": "Chapeau de Sheriff", "Gender": "Male", "Hat": "11:1" },
+        { "Name": "Chapeau de Sheriff", "Gender": "Female", "Hat": "11:1" }
+    ]
+}

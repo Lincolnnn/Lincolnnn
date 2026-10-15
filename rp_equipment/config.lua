@@ -8,7 +8,7 @@
 EquipConfig = {
     Key = 'E',                    -- touche par défaut (chaque joueur peut la changer)
     PoliceOnly = true,            -- réservé aux policiers en service (dans une unité du MDC)
-    MdcResource = 'mdc_standalone',
+    MdcResource = 'mdc_standalone', -- nom du dossier du MDC si le MDC ne le publie pas lui-même
     ChatResource = 'rp_chat',     -- messages privés (sans rp_chat : notification du jeu)
 
     InteractDistance = 1.6,       -- m d'une portière avant / du coffre pour voir la proposition et ouvrir le menu
@@ -16,15 +16,15 @@ EquipConfig = {
     OpenTrunk = true,             -- menu ouvert au coffre : le coffre s'ouvre (refermé à la fermeture du menu)
 
     -- ---------------------------------------------------------------------
-    -- TYPES DE VÉHICULES : chaque type a son équipement (voir Equipment.Vehicles)
+    -- TYPES DE VÉHICULES : un type par catégorie (son équipement : equipment.json)
     -- Un véhicule est d'un type si son modèle est dans Models, sinon si rp_interact (data/vehicles.json) le
-    -- range dans un service (ServiceTypes), sinon si sa classe est dans Classes.
+    -- range dans une catégorie ("Service" : ServiceTypes), sinon si sa classe est dans Classes.
     -- ---------------------------------------------------------------------
     Types = {
         apd    = { Label = 'Atlanta Police Department',     Short = 'APD',  Color = '#12357a', Models = {} },
         gsp    = { Label = 'Georgia State Patrol',          Short = 'GSP',  Color = '#ff6a00', Models = {} },
         fcso   = { Label = 'Fayette County Sheriff Office', Short = 'FCSO', Color = '#1e5631', Models = {} },
-        -- Véhicules d'urgence (classe 18) qui ne sont dans aucun service : équipement commun
+        -- Véhicules d'urgence (classe 18) qui ne sont dans aucune catégorie : râtelier seulement
         police = { Label = 'Véhicule de police',            Short = 'POLICE', Color = '#3a3a3a', Models = {}, Classes = { 18 } },
     },
     -- Services de rp_interact/data/vehicles.json ("Service") -> type
@@ -36,34 +36,19 @@ EquipConfig = {
     },
 
     -- ---------------------------------------------------------------------
-    -- ÉQUIPEMENT : ce qu'on prend dans le véhicule
-    --   Type   : 'weapon' (Weapon, Ammo, Components), 'ammo' (AmmoType, Amount), 'armor' (Amount),
-    --            'health' (Amount) ou 'event' (Event : événement client déclenché, pour un autre script)
-    --   Where  : 'front' (portières avant), 'trunk' (coffre) ou 'both'
-    --   Vehicles : types de véhicules qui l'ont (absent : tous les types)
+    -- ÉQUIPEMENT EUP (casque, gilet, casquette…) : fichier equipment.json de ce dossier, une liste par
+    -- catégorie de véhicule ("Atlanta Police Department", "Georgia State Patrol", "Fayette County Sheriff
+    -- Office" : la catégorie du véhicule dans rp_interact/data/vehicles.json, champ "Service"). Chaque pièce
+    -- s'écrit comme une tenue du /eup ("Name", "Gender", et seulement les parties qu'elle change, ex.
+    -- "Armor": "13:1") : le policier la met et la retire de sa tenue depuis le menu.
     -- ---------------------------------------------------------------------
-    Equipment = {
-        { Id = 'flashlight',   Label = 'Lampe torche',               Type = 'weapon', Weapon = 'WEAPON_FLASHLIGHT', Ammo = 1, Where = 'front' },
-        { Id = 'nightstick',   Label = 'Matraque',                   Type = 'weapon', Weapon = 'WEAPON_NIGHTSTICK', Ammo = 1, Where = 'front' },
-        { Id = 'stungun',      Label = 'Taser',                      Type = 'weapon', Weapon = 'WEAPON_STUNGUN', Ammo = 1, Where = 'front' },
-        { Id = 'pistol_ammo',  Label = 'Chargeurs de pistolet (x3)', Type = 'ammo', AmmoType = 'AMMO_PISTOL', Amount = 36, Where = 'front' },
-        { Id = 'armor',        Label = 'Gilet pare-balles',          Type = 'armor', Amount = 100, Where = 'trunk' },
-        { Id = 'medkit',       Label = 'Trousse de premiers secours', Type = 'health', Amount = 50, Where = 'trunk' },
-        { Id = 'extinguisher', Label = 'Extincteur',                 Type = 'weapon', Weapon = 'WEAPON_FIREEXTINGUISHER', Ammo = 2000, Where = 'trunk' },
-        { Id = 'flares',       Label = 'Fusées de détresse (x5)',    Type = 'weapon', Weapon = 'WEAPON_FLARE', Ammo = 5, Where = 'trunk' },
-        { Id = 'rifle_ammo',   Label = 'Munitions de fusil (x60)',   Type = 'ammo', AmmoType = 'AMMO_RIFLE', Amount = 60, Where = 'trunk' },
-        { Id = 'shotgun_ammo', Label = 'Cartouches (x16)',           Type = 'ammo', AmmoType = 'AMMO_SHOTGUN', Amount = 16, Where = 'trunk' },
-        -- Uniquement dans certains véhicules (exemples)
-        { Id = 'flaregun',     Label = 'Pistolet lance-fusées',      Type = 'weapon', Weapon = 'WEAPON_FLAREGUN', Ammo = 10, Where = 'trunk', Vehicles = { 'gsp' } },
-        { Id = 'parachute',    Label = 'Parachute',                  Type = 'weapon', Weapon = 'GADGET_PARACHUTE', Ammo = 1, Where = 'trunk', Vehicles = { 'gsp' } },
-        -- Exemple pour un autre script (événement client) :
-        -- { Id = 'cones', Label = 'Cônes de signalisation', Type = 'event', Event = 'monscript:ouvrirProps', Where = 'trunk', Vehicles = { 'gsp' } },
-    },
+    EquipmentFile = 'equipment.json',
+    Eup = { OneBased = true },    -- numéros comptés à partir de 1, comme les tenues du /eup (rp_interact)
 
     -- ---------------------------------------------------------------------
     -- RÂTELIER D'ARMES LONGUES : vide par défaut, un emplacement par sorte d'arme. Le policier range l'arme
-    -- qu'il TIENT EN MAIN ("Ranger l'arme longue") : modèle, accessoires, teinte et munitions sont gardés ;
-    -- lui ou un collègue la ressort à l'identique. Sauvegardé par plaque (data/racks.json) : gardé au
+    -- qu'il TIENT EN MAIN ("Ranger l'arme longue") : modèle, accessoires et teintes sont gardés ; lui ou un
+    -- collègue la ressort à l'identique (pas de gestion des munitions : l'arme ressort avec GiveAmmo). Sauvegardé par plaque (data/racks.json) : gardé au
     -- redémarrage du serveur et quand le véhicule réapparaît avec la même plaque.
     -- ---------------------------------------------------------------------
     LongGuns = {
@@ -74,6 +59,7 @@ EquipConfig = {
             { Id = 'rifle',   Label = 'Fusil d\'assaut', Groups = { 'GROUP_RIFLE' } },
         },
         SaveFile = 'data/racks.json',
+        GiveAmmo = 250,           -- munitions données avec l'arme quand elle est sortie
         -- Accessoires d'armes ajoutées (addon) à reconnaître en plus de ceux du jeu, ex. { 'COMPONENT_MON_VISEUR' }
         ExtraComponents = {},
         -- Noms affichés (armes du jeu déjà connues ; ajoutez vos armes addon : ['WEAPON_MONFUSIL'] = 'Mon fusil')

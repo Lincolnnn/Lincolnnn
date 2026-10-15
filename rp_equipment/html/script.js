@@ -18,15 +18,20 @@
         return String(text == null ? '' : text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
-    function renderItems(items) {
+    // Pièces EUP de la catégorie du véhicule : "Mettre" / "Retirer" selon ce que le joueur porte
+    function renderAssets(assets) {
         const list = $('eqItems');
-        list.innerHTML = items.length
-            ? items.map((it) => `
-                <div class="eq-item">
-                    <span class="eq-item-label">${esc(it.label)}</span>
-                    <button class="eq-btn eq-primary" data-take="${esc(it.id)}">Prendre</button>
+        if (!state.freemode) {
+            list.innerHTML = '<div class="eq-empty">Équipement disponible uniquement avec un personnage multijoueur.</div>';
+            return;
+        }
+        list.innerHTML = assets.length
+            ? assets.map((a) => `
+                <div class="eq-item${a.worn ? ' worn' : ''}">
+                    <span class="eq-item-label">${a.worn ? '<span class="eq-check">✓</span>' : ''}${esc(a.name)}</span>
+                    <button class="eq-btn${a.worn ? '' : ' eq-primary'}" data-wear="${esc(a.id)}">${a.worn ? 'Retirer' : 'Mettre'}</button>
                 </div>`).join('')
-            : '<div class="eq-empty">Rien ici : essayez l\'autre côté du véhicule.</div>';
+            : '<div class="eq-empty">Aucun équipement pour cette catégorie de véhicule.</div>';
     }
 
     function renderRack() {
@@ -42,14 +47,12 @@
                     <div class="eq-slot-weapon">Vide</div>
                 </div>`;
             }
-            const parts = [];
-            if (w.components) parts.push(`${w.components} accessoire${w.components > 1 ? 's' : ''}`);
-            parts.push(`${w.ammo || 0} munition${(w.ammo || 0) > 1 ? 's' : ''}`);
+            const info = w.components ? `${w.components} accessoire${w.components > 1 ? 's' : ''}` : 'Sans accessoire';
             return `
                 <div class="eq-slot full">
                     <div class="eq-slot-name">${esc(slot.label)}</div>
                     <div class="eq-slot-weapon">${esc(w.label)}</div>
-                    <div class="eq-slot-info">${esc(parts.join(' · '))}</div>
+                    <div class="eq-slot-info">${esc(info)}</div>
                     <button class="eq-btn eq-primary" data-retrieve="${esc(slot.id)}">Sortir l'arme</button>
                 </div>`;
         }).join('');
@@ -76,8 +79,8 @@
         $('eqTag').title = t.label || '';
         $('eqSub').textContent = `${data.where === 'trunk' ? 'Coffre' : 'Portières avant'}${data.plate ? ` · ${data.plate}` : ''}`;
         $('eqFoot').textContent = `Se ferme à plus de ${data.closeDistance || 4} m du véhicule · Échap pour fermer`;
-        state = { slots: data.slots || [], rack: data.rack || {}, held: false };
-        renderItems(data.items || []);
+        state = { slots: Array.isArray(data.slots) ? data.slots : [], rack: data.rack || {}, held: false, freemode: data.freemode !== false };
+        renderAssets(Array.isArray(data.assets) ? data.assets : []);
         renderRack();
         message('');
         box.classList.remove('hidden');
@@ -88,8 +91,8 @@
     }
 
     box.addEventListener('click', (e) => {
-        const take = e.target.closest('[data-take]');
-        if (take) return post('take', { id: take.dataset.take });
+        const wear = e.target.closest('[data-wear]');
+        if (wear) return post('wear', { id: wear.dataset.wear });
         const retrieve = e.target.closest('[data-retrieve]');
         if (retrieve) return post('retrieve', { slot: retrieve.dataset.retrieve });
         if (e.target.closest('#eqStore')) return post('store');
@@ -107,6 +110,7 @@
         if (msg.action === 'open') open(data || {});
         else if (msg.action === 'close') close();
         else if (msg.action === 'rack') { state.rack = data || {}; renderRack(); }
+        else if (msg.action === 'assets') renderAssets(Array.isArray(data) ? data : []);
         else if (msg.action === 'held') { state.held = data || false; renderRack(); }
         else if (msg.action === 'message') message(data && data.text, data && data.error);
     });

@@ -4,9 +4,10 @@
     À pied, près d'une PORTIÈRE AVANT ou du COFFRE d'un véhicule équipé (type de config.lua) : proposition à
     l'écran, la touche (Key) ouvre le menu "Équipement". Le joueur peut marcher menu ouvert (souris pour
     cliquer, caméra et armes bloquées) ; au-delà de CloseDistance m du véhicule, le menu se ferme.
-      - Équipement : ce que ce type de véhicule contient à cet endroit (portières avant / coffre).
+      - Équipement : pièces EUP de la catégorie du véhicule (equipment.json : casque, gilet…), à mettre et
+        retirer de sa tenue ; en les retirant, ce qu'il portait avant revient.
       - Armes longues : "Ranger l'arme longue" range l'arme TENUE EN MAIN dans son emplacement (fusil à pompe /
-        fusil d'assaut) avec ses accessoires, teintes et munitions ; "Sortir" la rend à l'identique.
+        fusil d'assaut) avec ses accessoires et teintes ; "Sortir" la rend à l'identique.
     Performance : à pied et en service, une recherche toutes les 500 ms (~0.01 ms) ; à chaque image
     seulement près d'une portière avant / du coffre (proposition) ou menu ouvert ; rien en véhicule.
 ]]
@@ -63,12 +64,6 @@ local function vehicleType(vehicle)
     return nil
 end
 
-local function allowedFor(entry, kind)
-    if not entry.Vehicles then return true end
-    for _, k in ipairs(entry.Vehicles) do if k == kind then return true end end
-    return false
-end
-local function allowedWhere(entryWhere, where) return entryWhere == nil or entryWhere == 'both' or entryWhere == where end
 
 -- =========================================================================
 -- POINTS D'ACCÈS : portières avant et coffre
@@ -183,7 +178,7 @@ local function slotFor(hash)
     return nil
 end
 
---- Arme tenue en main, telle quelle : modèle, accessoires, teintes, munitions
+--- Arme tenue en main, telle quelle : modèle, accessoires, teintes
 local function capture(ped, hash)
     local components, tints = {}, {}
     for _, name in ipairs(COMPONENTS) do
@@ -197,15 +192,15 @@ local function capture(ped, hash)
     local label, name = weaponLabel(hash)
     return {
         hash = hash, name = name, label = label,
-        ammo = GetAmmoInPedWeapon(ped, hash), tint = GetPedWeaponTintIndex(ped, hash),
+        tint = GetPedWeaponTintIndex(ped, hash),
         components = components, componentTints = tints,
     }
 end
 
---- Rend l'arme à l'identique et la met en main
+--- Rend l'arme à l'identique (avec GiveAmmo munitions) et la met en main
 local function giveStored(ped, w)
     local hash = w.hash
-    GiveWeaponToPed(ped, hash, 0, false, true)
+    GiveWeaponToPed(ped, hash, Config.LongGuns.GiveAmmo or 250, false, true)
     for _, name in ipairs(w.components or {}) do
         local c = GetHashKey(name)
         GiveWeaponComponentToPed(ped, hash, c)
@@ -213,7 +208,6 @@ local function giveStored(ped, w)
         if tint then pcall(SetPedWeaponComponentTintIndex, ped, hash, c, tint) end
     end
     if w.tint and w.tint >= 0 then SetPedWeaponTintIndex(ped, hash, w.tint) end
-    SetPedAmmo(ped, hash, w.ammo or 0)
     SetCurrentPedWeapon(ped, hash, true)
 end
 
@@ -233,14 +227,76 @@ local open = nil          -- { vehicle, kind, where, plate, trunk = true si ouve
 local near = nil          -- point d'accès à portée (proposition)
 local lastHeld = nil
 
-local function itemsFor(kind, where)
-    local list = {}
-    for _, item in ipairs(Config.Equipment) do
-        if allowedFor(item, kind) and allowedWhere(item.Where, where) then
-            list[#list + 1] = { id = item.Id, label = item.Label, type = item.Type }
+-- =========================================================================
+-- ÉQUIPEMENT EUP : pièces mises / retirées de la tenue
+-- =========================================================================
+local MALE, FEMALE = GetHashKey('mp_m_freemode_01'), GetHashKey('mp_f_freemode_01')
+local previous = {}   -- [id de la pièce] = ce que le joueur portait avant de la mettre
+local assets = {}     -- pièces du véhicule ouvert, pour ce personnage
+
+local function gender(ped)
+    local model = GetEntityModel(ped)
+    if model == MALE then return 'male' end
+    if model == FEMALE then return 'female' end
+    return nil
+end
+
+--- La pièce est-elle portée (toutes ses parties identiques sur le personnage) ?
+local function isWorn(ped, a)
+    for _, c in ipairs(a.components or {}) do
+        if GetPedDrawableVariation(ped, c[1]) ~= c[2] or GetPedTextureVariation(ped, c[1]) ~= c[3] then return false end
+    end
+    for _, p in ipairs(a.props or {}) do
+        if p[2] < 0 then
+            if GetPedPropIndex(ped, p[1]) ~= -1 then return false end
+        elseif GetPedPropIndex(ped, p[1]) ~= p[2] or GetPedPropTextureIndex(ped, p[1]) ~= p[3] then
+            return false
         end
     end
+    return true
+end
+
+local function putOn(ped, a)
+    local saved = { components = {}, props = {} }
+    for _, c in ipairs(a.components or {}) do
+        saved.components[#saved.components + 1] = { c[1], GetPedDrawableVariation(ped, c[1]), GetPedTextureVariation(ped, c[1]) }
+        SetPedComponentVariation(ped, c[1], c[2], c[3], 0)
+    end
+    for _, p in ipairs(a.props or {}) do
+        saved.props[#saved.props + 1] = { p[1], GetPedPropIndex(ped, p[1]), GetPedPropTextureIndex(ped, p[1]) }
+        if p[2] < 0 then ClearPedProp(ped, p[1]) else SetPedPropIndex(ped, p[1], p[2], p[3], true) end
+    end
+    previous[a.id] = saved
+end
+
+--- Retire la pièce : ce qu'il portait avant revient (sinon : rien à cet emplacement)
+local function takeOff(ped, a)
+    local saved = previous[a.id]
+    previous[a.id] = nil
+    if saved then
+        for _, c in ipairs(saved.components) do SetPedComponentVariation(ped, c[1], c[2], c[3], 0) end
+        for _, p in ipairs(saved.props) do
+            if p[2] < 0 then ClearPedProp(ped, p[1]) else SetPedPropIndex(ped, p[1], p[2], p[3], true) end
+        end
+        return
+    end
+    for _, c in ipairs(a.components or {}) do SetPedComponentVariation(ped, c[1], 0, 0, 0) end
+    for _, p in ipairs(a.props or {}) do ClearPedProp(ped, p[1]) end
+end
+
+local function assetsView()
+    local ped = PlayerPedId()
+    local list = {}
+    for _, a in ipairs(assets) do list[#list + 1] = { id = a.id, name = a.name, worn = isWorn(ped, a) } end
     return list
+end
+
+local function setAssets(all)
+    local sex = gender(PlayerPedId())
+    assets = {}
+    for _, a in ipairs(all or {}) do
+        if a.gender == nil or a.gender == sex then assets[#assets + 1] = a end
+    end
 end
 
 local function slotsView()
@@ -318,7 +374,8 @@ local function openMenu(access)
         SendNUIMessage({ action = 'open', data = {
             type = { short = t.Short or kind:upper(), label = t.Label or kind, color = t.Color },
             where = access.where, plate = res.plate,
-            items = itemsFor(kind, access.where),
+            assets = (function() setAssets(res.assets) return assetsView() end)(),
+            freemode = gender(PlayerPedId()) ~= nil,
             slots = res.rack and slotsView() or {}, rack = res.rack or {},
             closeDistance = Config.CloseDistance or 4.0,
         } })
@@ -340,38 +397,23 @@ local function context()
     return { net = VehToNet(open.vehicle), type = open.kind, where = open.where }
 end
 
-local function giveItem(item)
-    local ped = PlayerPedId()
-    if item.Type == 'weapon' then
-        local hash = GetHashKey(item.Weapon)
-        GiveWeaponToPed(ped, hash, item.Ammo or 0, false, false)
-        for _, c in ipairs(item.Components or {}) do GiveWeaponComponentToPed(ped, hash, GetHashKey(c)) end
-        if (item.Ammo or 0) > 0 and GetAmmoInPedWeapon(ped, hash) < item.Ammo then SetPedAmmo(ped, hash, item.Ammo) end
-    elseif item.Type == 'ammo' then
-        AddAmmoToPedByType(ped, GetHashKey(item.AmmoType), item.Amount or 0)
-    elseif item.Type == 'armor' then
-        SetPedArmour(ped, math.min(100, math.max(GetPedArmour(ped), item.Amount or 100)))
-    elseif item.Type == 'health' then
-        local max = GetEntityMaxHealth(ped)
-        SetEntityHealth(ped, math.min(max, GetEntityHealth(ped) + (item.Amount or 50)))
-    elseif item.Type == 'event' and item.Event then
-        TriggerEvent(item.Event, open and open.vehicle or 0)
-    end
-end
-
-local ITEMS = {}
-for _, item in ipairs(Config.Equipment) do ITEMS[item.Id] = item end
-
-RegisterNUICallback('take', function(data, cb)
+RegisterNUICallback('wear', function(data, cb)
     cb({ ok = true })
     if not open or type(data) ~= 'table' then return end
-    request('take', { net = context().net, type = open.kind, where = open.where, item = data.id }, function(res)
+    local payload = context()
+    payload.asset = data.id
+    request('wear', payload, function(res)
         if not res.ok then return SendNUIMessage({ action = 'message', data = { text = res.error, error = true } }) end
-        local item = ITEMS[res.item]
-        if item then
-            giveItem(item)
-            SendNUIMessage({ action = 'message', data = { text = ('%s : pris.'):format(item.Label) } })
+        local ped = PlayerPedId()
+        local a = res.asset
+        if isWorn(ped, a) then
+            takeOff(ped, a)
+            SendNUIMessage({ action = 'message', data = { text = ('%s : retiré.'):format(a.name) } })
+        else
+            putOn(ped, a)
+            SendNUIMessage({ action = 'message', data = { text = ('%s : mis.'):format(a.name) } })
         end
+        SendNUIMessage({ action = 'assets', data = assetsView() })
     end)
 end)
 

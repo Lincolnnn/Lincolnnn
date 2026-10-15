@@ -44,6 +44,8 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 }
 .eq-item:hover { background: rgba(255, 255, 255, .06); }
 .eq-item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eq-item.worn { background: rgba(var(--accent-rgb), .08); box-shadow: inset 2px 0 0 var(--accent); }
+.eq-check { margin-right: 7px; color: var(--accent); font-weight: 700; }
 .eq-empty { padding: 6px 2px; color: var(--muted); font-style: italic; }
 
 .eq-btn {

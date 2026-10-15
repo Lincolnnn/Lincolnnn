@@ -13,8 +13,9 @@ la touche **E** (modifiable) ouvre le menu **Équipement** du véhicule.
 
 ## Qui y a accès
 
-Les **policiers en service** : les joueurs dans une unité du MDC (`mdc_standalone`). C'est vérifié par le serveur
-à chaque action. `PoliceOnly = false` pour l'ouvrir à tout le monde.
+Les **policiers en service** : les joueurs dans une unité du MDC. Le MDC est trouvé **quel que soit le nom de son
+dossier** (il publie lui-même son nom) ; en secours, l'unité que le MDC donne au joueur suffit. C'est vérifié par le
+serveur à chaque action. `PoliceOnly = false` pour l'ouvrir à tout le monde.
 
 ## Le menu
 
@@ -23,11 +24,35 @@ Les **policiers en service** : les joueurs dans une unité du MDC (`mdc_standalo
 - On peut **marcher** menu ouvert (souris pour cliquer ; caméra et armes bloquées). Le menu **se ferme tout seul** à
   plus de **4 m** du véhicule (`CloseDistance`), en montant dans un véhicule, en mourant ou en quittant le service.
   **Échap** ou ✕ le ferme aussi.
-- **Matériel** : ce que **ce type de véhicule** contient **à cet endroit** (portières avant ou coffre), bouton
-  « Prendre ». Exemples fournis :
-  - portières avant : lampe torche, matraque, Taser, chargeurs de pistolet ;
-  - coffre : gilet pare-balles, trousse de secours, extincteur, fusées de détresse, munitions de fusil et cartouches ;
-  - **GSP uniquement** : pistolet lance-fusées et parachute.
+- **Équipement** : les pièces EUP de la **catégorie du véhicule** (voir ci-dessous), à **mettre** et **retirer** de sa
+  tenue. Une pièce portée est cochée (bouton « Retirer »). En la retirant, ce que le policier portait avant revient.
+  Seules les pièces de son personnage (homme / femme) sont proposées.
+
+## Équipement EUP par catégorie : `equipment.json`
+
+Le fichier `equipment.json` (dans le dossier `rp_equipment`) a **une liste par catégorie** de véhicule :
+`"Atlanta Police Department"`, `"Georgia State Patrol"`, `"Fayette County Sheriff Office"`. Ce sont les catégories
+des véhicules dans `rp_interact/data/vehicles.json` (champ `Service`).
+
+Chaque pièce s'écrit **comme une tenue du `/eup`** (`data/outfits.json` de rp_interact), avec **seulement les parties
+qu'elle change** :
+
+```json
+{
+    "Atlanta Police Department": [
+        { "Name": "Gilet pare-balles APD", "Gender": "Male", "Armor": "13:1" },
+        { "Name": "Casquette APD", "Gender": "Male", "Hat": "47:1" }
+    ]
+}
+```
+
+- Parties possibles : `Hat`, `Glasses`, `Ear`, `Watch`, `Bracelet` (accessoires), `Mask`, `UpperSkin`, `Pants`,
+  `Parachute`, `Shoes`, `Accessories`, `UnderCoat`, `Armor`, `Decal`, `Top`.
+- Numéros `"modèle:texture"` comptés **à partir de 1**, comme le `/eup` (`Eup.OneBased`).
+- `Gender` : `Male` / `Female` (absent : les deux).
+- Un véhicule de police qui n'est dans aucune catégorie n'a que le râtelier.
+
+Après une modification : tapez `rpequip_reload` dans la console serveur.
 
 ## Types de véhicules
 
@@ -35,10 +60,9 @@ Chaque véhicule a un type, qui décide de son équipement :
 
 | Type | Véhicules |
 |---|---|
-| `apd`, `gsp`, `fcso` | modèles listés dans `Types.<type>.Models`, **ou** rangés dans ce service dans `rp_interact/data/vehicles.json` (« Service ») |
-| `police` | véhicules d'urgence (classe 18) qui ne sont dans aucun service : équipement commun |
+| `apd`, `gsp`, `fcso` | véhicules de cette catégorie dans `rp_interact/data/vehicles.json` (« Service »), **ou** modèles listés dans `Types.<type>.Models` |
+| `police` | véhicules d'urgence (classe 18) qui ne sont dans aucune catégorie : râtelier seulement |
 
-Un objet sans `Vehicles` est dans tous les types. `Vehicles = { 'gsp' }` le réserve aux véhicules de la GSP.
 Après avoir modifié `rp_interact/data/vehicles.json` : tapez `rpequip_reload` dans la console serveur.
 
 ## Armes longues (râtelier)
@@ -48,8 +72,9 @@ Après avoir modifié `rp_interact/data/vehicles.json` : tapez `rpequip_reload` 
 - **« Ranger l'arme longue »** : le policier doit **tenir l'arme dans les mains**. Elle va dans l'emplacement qui
   lui correspond, s'il est libre. Le menu indique l'arme tenue et si son emplacement est déjà occupé.
 - L'arme est **sauvegardée telle quelle** : modèle, **accessoires** (lampe, viseur, poignée, silencieux, chargeur,
-  bouche, canon, camouflage…), **teinte** de l'arme et des accessoires, **munitions**.
-- **« Sortir l'arme »** : lui **ou un collègue** la récupère **identique**, directement en main. L'emplacement se
+  bouche, canon, camouflage…), **teinte** de l'arme et des accessoires. Pas de gestion des munitions.
+- **« Sortir l'arme »** : lui **ou un collègue** la récupère **identique**, directement en main, avec 250 munitions
+  (`LongGuns.GiveAmmo`). L'emplacement se
   vide pour tout le monde (deux policiers ne peuvent pas sortir la même arme).
 - Sauvegardé **par plaque** dans `data/racks.json` : gardé au redémarrage du serveur et quand le véhicule réapparaît
   avec la même plaque.
@@ -60,15 +85,13 @@ Après avoir modifié `rp_interact/data/vehicles.json` : tapez `rpequip_reload` 
 | Clé | Rôle |
 |---|---|
 | `Key` | touche par défaut (E) |
-| `PoliceOnly`, `MdcResource` | accès réservé aux policiers en service (unité du MDC) |
+| `PoliceOnly`, `MdcResource` | accès réservé aux policiers en service (unité du MDC ; `MdcResource` seulement si le MDC ne publie pas son nom) |
 | `InteractDistance` | distance d'une portière avant / du coffre pour la proposition (1,6 m) |
 | `CloseDistance` | au-delà, le menu se ferme (4 m de la carrosserie) |
 | `OpenTrunk` | ouvrir le coffre pendant le menu |
-| `Types`, `InteractVehicles`, `ServiceTypes` | types de véhicules (modèles, services de rp_interact, classes) |
-| `Equipment` | matériel : `Type` (`weapon`, `ammo`, `armor`, `health`, `event`), `Where` (`front`, `trunk`, `both`), `Vehicles` |
-| `LongGuns` | râtelier : endroit (`Where`), types concernés, emplacements et groupes d'armes, fichier de sauvegarde, accessoires et noms en plus |
-
-`Type = 'event'` déclenche un événement client (`Event`) : pour brancher un autre script (cônes, herse…).
+| `Types`, `InteractVehicles`, `ServiceTypes` | types de véhicules (catégories de rp_interact, modèles, classes) |
+| `EquipmentFile`, `Eup` | fichier de l'équipement EUP (`equipment.json`), numéros comptés à partir de 1 |
+| `LongGuns` | râtelier : endroit (`Where`), types concernés, emplacements et groupes d'armes, munitions données (`GiveAmmo`), fichier de sauvegarde, accessoires et noms en plus |
 
 ## Performance
 
