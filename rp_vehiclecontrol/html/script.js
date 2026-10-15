@@ -6,7 +6,7 @@
     // ---- Sons : fichiers réels, remplaçables (mêmes noms) dans html/sounds/ ----
     // Chaque son : fichier -> filtre passe-bas ("étouffé" : entendu de l'extérieur, portières fermées)
     // -> volume (au-delà de 100 % possible). Un son arrêté est coupé net.
-    const SOUND_FILES = ['belt_on', 'belt_off', 'belt_chime', 'door_chime', 'fast_door_chime', 'indicators_sound'];
+    const SOUND_FILES = ['belt_on', 'belt_off', 'belt_chime', 'fast_belt_chime', 'door_chime', 'indicators_sound'];
     const MUFFLED_HZ = 650;
     const CLEAR_HZ = 20000;
     const cache = {};
@@ -77,6 +77,7 @@
     // Sons répétés (clignotants, carillons de ceinture et de portière) : un par identifiant, volume 0 = arrêt (coupé net).
     //   loop : un seul fichier joué en boucle sans interruption ; sinon, rejoué toutes les `interval` ms.
     const loops = {};
+    const oneShots = {}; // [nom] = dernier son ponctuel joué
     function stopLoop(id) {
         const current = loops[id];
         if (!current) return;
@@ -88,7 +89,7 @@
     function soundLoop({ id, names, interval, volume, loop: continuous, muffled }) {
         if (!(volume > 0) || !Array.isArray(names) || names.length === 0) return stopLoop(id);
         let current = loops[id];
-        // Autre fichier en boucle (ex. door_chime -> fast_door_chime) : l'ancien est coupé net
+        // Autre fichier en boucle (ex. belt_chime -> fast_belt_chime) : l'ancien est coupé net
         if (current && continuous && current.names[0] !== names[0]) { stopLoop(id); current = null; }
         if (current) { // déjà en cours : volume / étouffement mis à jour
             current.volume = volume; current.muffled = !!muffled; current.names = names;
@@ -103,6 +104,9 @@
             return;
         }
         const tick = () => {
+            // Jamais deux fois en même temps : le précédent est coupé avant de rejouer
+            entry.voices.forEach(stopVoice);
+            entry.voices = [];
             const v = play(entry.names[entry.index % entry.names.length], entry.volume, entry.muffled);
             entry.index += 1;
             if (!v) return;
@@ -117,7 +121,9 @@
         const msg = event.data || {};
         const data = msg.data || {};
         if (msg.action === 'sound') {
-            play(data.name, data.volume, data.muffled);
+            // Son ponctuel (attache / retrait de la ceinture) : un seul à la fois, le précédent est coupé
+            stopVoice(oneShots[data.name]);
+            oneShots[data.name] = play(data.name, data.volume, data.muffled);
         } else if (msg.action === 'soundLoop') {
             soundLoop(data);
         } else if (msg.action === 'push') {

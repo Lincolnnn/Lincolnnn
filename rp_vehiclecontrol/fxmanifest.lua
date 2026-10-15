@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_vehiclecontrol'
 author 'Lincolnnn'
 description 'Vehicle Control : essence, dégâts, ceinture, moteur, portières, clignotants et poussée - standalone'
-version '1.12.0'
+version '1.13.0'
 
 ui_page 'html/index.html' -- message "pousser le véhicule" et sons du véhicule (le car HUD est dessiné par le MDC)
 

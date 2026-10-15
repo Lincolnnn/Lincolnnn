@@ -49,8 +49,8 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 
 Les sons du véhicule sont des **fichiers audio que vous déposez vous-même** dans `html/sounds/` (aucun n'est fourni,
 voir `html/sounds/LISEZMOI.txt`), au format .ogg : `belt_on` (ceinture attachée), `belt_off` (détachée), `belt_chime`
-(carillon de ceinture), `door_chime` (carillon : une portière ouverte), `fast_door_chime` (carillon rapide :
-plusieurs portières ouvertes), `indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
+(carillon de ceinture : un occupant détaché), `fast_belt_chime` (carillon rapide : plusieurs occupants détachés),
+`door_chime` (carillon : portière ouverte), `indicators_sound` (clignotants / warnings). Les sons d'attache et de retrait de la ceinture sont joués
 **plus fort** (×1,725, `Seatbelt.BeltSoundVolume`) et les carillons renforcés (1,56 : `Seatbelt.ChimeVolume`, `DoorChime.Volume`). Un fichier absent : ce son n'est pas joué. Clignotants : le fichier
 est joué en boucle (`SignalSoundMode = 'loop'`,
 le fichier contient le « tic-tac ») ou, si c'est un seul clic, rejoué toutes les `SignalInterval` ms (`'repeat'`).
@@ -125,15 +125,18 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 ## Ceinture de sécurité
 
 - Vrai son à l'attache et au retrait. **Attachée, impossible de descendre** (touche F bloquée) : il faut d'abord la
-  détacher. Détachée : **carillon de ceinture** (`belt_chime.ogg`) au-dessus de 5 MPH, **coupé net** dès que la
-  ceinture est attachée, que le joueur descend ou que le véhicule est **arrêté** (moins de 2 MPH, `StopSpeed`).
-- **Carillons de portière** (**moteur allumé uniquement**) :
-  - **une** portière ouverte : `door_chime.ogg` en boucle, jusqu'à ce qu'elle soit **refermée** ;
-  - **plusieurs** portières ouvertes en même temps : `door_chime` **coupé net**, `fast_door_chime.ogg` en boucle,
-    jusqu'à ce qu'il **n'en reste qu'une** ouverte (retour à `door_chime`) ou que le **moteur soit coupé**.
-  Ils continuent si le conducteur descend en laissant le moteur tourner, tant qu'il reste à moins de 15 m
-  (`DoorChime.FollowDistance`). Entendus par les occupants et autour du véhicule (règles ci-dessus).
-  `DoorChime.Enabled = false` pour les retirer.
+  détacher.
+- **Carillon de ceinture**, par véhicule, véhicule **roulant** (au-dessus de 5 MPH) :
+  - **un** occupant détaché : `belt_chime.ogg` ;
+  - **plusieurs** détachés en même temps : `belt_chime` **coupé net**, `fast_belt_chime.ogg` à la place ; dès qu'il
+    n'en reste qu'un (l'un s'attache), `fast_belt_chime` s'arrête et `belt_chime` repart **du début** ;
+  - **coupé net** quand le véhicule s'arrête (moins de 2 MPH, `StopSpeed`), relancé **du début** quand il repart.
+- **Carillon de portière** (`door_chime.ogg`, **moteur allumé uniquement**) : une portière ou plus ouverte(s), jusqu'à ce
+  qu'elles soient **refermées** ou que le moteur soit coupé. Il continue si le conducteur descend en laissant le moteur
+  tourner, tant qu'il reste à moins de 15 m (`DoorChime.FollowDistance`). `DoorChime.Enabled = false` pour le retirer.
+- **Aucun son ne se multiplie** : chaque carillon (et le clignotant) est **un seul** fichier qui repart du début quand
+  il arrive à sa fin (boucle), jamais relancé par-dessus lui-même, même si on met du temps à s'attacher ; `belt_on` /
+  `belt_off` coupent le précédent avant de rejouer. Entendus par les occupants et autour du véhicule (règles ci-dessus).
 - **Sons synchronisés** : les autres occupants les entendent à 100 %, les joueurs autour selon les règles ci-dessus
   (3 m portière ouverte, 1 m tout fermé et étouffés).
 - **Éjection** (ceinture **détachée** uniquement ; l'éjection automatique du jeu reste désactivée) lors d'un vrai
@@ -179,8 +182,8 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume renforcé) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
-| `DoorChime` | carillons de portière (moteur allumé : une portière / plusieurs) : activé, volume, distance après la descente |
-| `Seatbelt` | sons et carillon de la ceinture (au-dessus de 5 MPH, coupé sous 2 MPH), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
+| `DoorChime` | carillon de portière (moteur allumé, portière ouverte) : activé, volume, distance après la descente |
+| `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; au-dessus de 5 MPH, coupé sous 2 MPH), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |
 | `EngineNoticeDuration`, `EngineStartTime` | durée de la notification du moteur (8 s), durée du démarrage (1,2 s) |
@@ -191,7 +194,7 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 
 `Entity(vehicle).state` : `fuel` (0–100), `vcEngine` (toujours allumé), `vcBroken`
 (cassé), `vcDoors` (qui a ouvert les portières avant), `vcSignal` (clignotants / warnings), `vcPushed` (poussé : par
-qui, sens, poussée en cours). État du joueur : `seatbelt`, `seatbeltAlarm` (carillon de ceinture), `doorChime` (0 / 1 / 2 portières). Le serveur vérifie
+qui, sens, poussée en cours). État du joueur : `seatbelt`, `seatbeltAlarm` (carillon de ceinture), `doorChime` (0 / 1). Le serveur vérifie
 chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au rythme d'une pompe).
 
 ## Performance
