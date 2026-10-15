@@ -127,12 +127,21 @@ end
 --- Son répété (clignotant, alarme) : `names` joués à tour de rôle toutes les `interval` ms ; volume 0 = arrêt
 --- (coupé net). `loop` : un seul fichier joué en boucle sans interruption (interval ignoré). Volume au-delà de 1
 --- possible ; `muffled` : étouffé.
+-- Diagnostic du lecteur du NUI (démarrage, arrêt, relance, lecteur audio suspendu) : setr vc_debug_sound 1
+RegisterNUICallback('soundDebug', function(data, cb)
+    cb('ok')
+    if GetConvarInt('vc_debug_sound', 0) == 1 and type(data) == 'table' then
+        print(('[rp_vehiclecontrol] NUI : %s'):format(tostring(data.text)))
+    end
+end)
+
 --- `keep` : boucle toujours en cours même à volume 0 (hors de portée) : gardée muette, sans jamais s'arrêter,
---- et réentendue là où elle en est ; sans `keep`, volume 0 = arrêt.
-function VC.soundLoop(id, names, interval, volume, loop, muffled, keep)
+--- et réentendue là où elle en est ; sans `keep`, volume 0 = arrêt. `resend` : simple renvoi du même état
+--- (le NUI le traite pareil : rien ne change s'il joue déjà, relancé s'il l'avait perdu).
+function VC.soundLoop(id, names, interval, volume, loop, muffled, keep, resend)
     SendNUIMessage({ action = 'soundLoop', data = {
         id = id, names = names, interval = interval, volume = (volume or 0.0) * VC.volume(), loop = loop == true,
-        muffled = muffled == true, keep = keep == true,
+        muffled = muffled == true, keep = keep == true, resend = resend == true,
     } })
 end
 

@@ -170,6 +170,8 @@ VCConfig = {
         -- Une portière qui bouge un instant (vent, choc, joueur qui passe contre) ne coupe pas le carillon :
         -- considérée encore ouverte pendant DoorHold ms après avoir été vue ouverte
         DoorHold = 800,
+        -- Après la descente, le carillon du véhicule laissé moteur allumé est suivi jusqu'à TrackDistance m
+        TrackDistance = 60.0,
     },
 
     -- ---------------------------------------------------------------------
@@ -180,10 +182,12 @@ VCConfig = {
         -- Carillon de ceinture, par véhicule roulant, en boucle : UN occupant détaché -> html/sounds/belt_chime.ogg ;
         -- PLUSIEURS détachés en même temps -> fast_belt_chime.ogg (belt_chime coupé net, et inversement)
         ChimeVolume = 1.0,        -- volume des carillons de ceinture (x réglage du joueur)
-        AlarmSpeed = 1.0,         -- MPH : carillon dès que le véhicule roule au-dessus (ceinture détachée)
-        StopSpeed = 0.5,          -- MPH : en dessous, véhicule arrêté : le carillon se coupe
-        StopDelay = 400,          -- ms passées sous StopSpeed avant la coupure (une lecture isolée ne coupe rien)
-        -- Entre les deux : il sonne en boucle SANS JAMAIS S'ARRÊTER, jusqu'à l'arrêt du véhicule ou l'attache.
+        AlarmSpeed = 1.0,         -- MPH : carillon dès que le véhicule roule au-dessus (ceinture détachée, moteur allumé)
+        -- Ensuite il sonne en boucle SANS JAMAIS S'ARRÊTER, jusqu'à ce que la ceinture soit attachée, le moteur
+        -- coupé ou la personne descendue. Un deuxième occupant détaché : fast_belt_chime ; il s'attache : belt_chime.
+        StopWhenStopped = false,  -- true : coupé aussi quand le véhicule s'arrête (sous StopSpeed pendant StopDelay ms)
+        StopSpeed = 0.5,          -- MPH (StopWhenStopped uniquement)
+        StopDelay = 400,          -- ms (StopWhenStopped uniquement)
         -- Coupé net : plus personne de détaché, véhicule arrêté (relancé du début quand il repart).
         -- ÉJECTION (ceinture détachée uniquement), jamais lors d'un simple accrochage :
         --   - pas en dessous de MinSpeed MPH (vitesse avant le choc) ;

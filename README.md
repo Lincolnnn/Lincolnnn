@@ -1,6 +1,6 @@
 # MDC Standalone (FiveM)
 
-Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), interface NUI en HTML/CSS/Vanilla JS, style « Windows classique » sombre.
+Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), interface NUI en HTML/CSS/Vanilla JS, style sombre moderne : boutons principaux en verre teinté (contour lumineux fin), élément sélectionné en surbrillance claire avec un trait d'accent (couleur réglable : `--accent` / `--accent-rgb` à la fin de `html/style.css`).
 
 ## Installation
 

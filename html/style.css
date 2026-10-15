@@ -1482,3 +1482,72 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .hud-car.car-is-broken .car-belt.belt-on svg * { fill: #ff1a1a; stroke: rgba(0, 0, 0, .14); stroke-width: .8; }
 .hud-car.car-is-broken .car-broken { color: #9e0b0b; animation: none; opacity: 1; }
 @keyframes car-broken-blink { 0% { opacity: 1; } 50% { opacity: .25; } }
+
+/* =========================================================================
+   BOUTONS PRINCIPAUX ET SURBRILLANCE
+   - Boutons principaux (anciennement bleu plein) : verre teinté, contour lumineux fin, léger reflet en haut ;
+   - Sélection (ligne d'un tableau, page active, suggestion, liste) : surface claire neutre + trait d'accent,
+     au lieu d'un aplat bleu.
+   ========================================================================= */
+:root {
+    --accent: #6ea8ff;
+    --accent-rgb: 110, 168, 255;
+    --sel-bg: rgba(255, 255, 255, .075);
+}
+
+/* ---- Boutons principaux ---- */
+.btn-default {
+    background: linear-gradient(180deg, rgba(var(--accent-rgb), .28), rgba(var(--accent-rgb), .14));
+    border: 1px solid rgba(var(--accent-rgb), .5);
+    color: #eaf2ff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 1px 3px rgba(0, 0, 0, .35);
+}
+.btn-default:hover {
+    background: linear-gradient(180deg, rgba(var(--accent-rgb), .38), rgba(var(--accent-rgb), .22));
+    border-color: rgba(var(--accent-rgb), .75);
+    color: #fff;
+}
+.btn-default:active, .btn-default.active {
+    background: rgba(var(--accent-rgb), .16);
+    border-color: rgba(var(--accent-rgb), .6);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, .4);
+}
+.btn-default:disabled { background: rgba(var(--accent-rgb), .08); border-color: rgba(var(--accent-rgb), .25); color: var(--muted); box-shadow: none; }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .3); }
+.btn.subtab.active {
+    background: rgba(var(--accent-rgb), .15);
+    border-color: rgba(var(--accent-rgb), .55);
+    color: #eaf2ff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.title-icon {
+    background: rgba(var(--accent-rgb), .16);
+    border: 1px solid rgba(var(--accent-rgb), .5);
+    color: #d4e5ff;
+}
+
+/* ---- Surbrillance ---- */
+.sidenav .tab.active {
+    background: var(--sel-bg); color: #fff;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06);
+}
+.sidenav .tab.active svg { color: var(--accent); }
+.sidenav .tab.active::before { background: var(--accent); box-shadow: 0 0 8px rgba(var(--accent-rgb), .6); }
+.grid.selectable tbody tr:hover td { background: rgba(255, 255, 255, .045); }
+.grid.selectable tbody tr.selected td { background: rgba(var(--accent-rgb), .11); color: #fff; }
+.grid.selectable tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.grid.selectable tbody tr.selected:hover td { background: rgba(var(--accent-rgb), .15); }
+.grid tr.me td { background: rgba(var(--accent-rgb), .07); }
+.suggest-item.active, .suggest-item:hover, .multi-panel label:hover {
+    background: rgba(var(--accent-rgb), .14); color: #fff;
+    box-shadow: inset 2px 0 0 var(--accent);
+}
+.suggest-item.active .muted, .suggest-item:hover .muted { color: #bcd3f5; }
+input:focus, textarea:focus, select:focus { border-color: rgba(var(--accent-rgb), .7); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .2); }
+.check input, .radio input, .setting-row input[type="range"], .mx-cell input[type="checkbox"], .multi-panel input { accent-color: var(--accent); }
+.report-section-title {
+    background: rgba(255, 255, 255, .05); color: var(--text);
+    border: 0; border-left: 3px solid var(--accent); border-radius: 6px;
+}
+.entry-report { border-left-color: var(--accent); }
+.toast::before { background: rgba(var(--accent-rgb), .25); color: #eaf2ff; }

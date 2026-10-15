@@ -20,15 +20,44 @@
         cache[name] = audio;
     });
 
+    // ---- Diagnostic (en jeu : setr vc_debug_sound 1, console F8) : envoyé au script Lua qui l'affiche ----
+    function debug(text) {
+        try {
+            const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_vehiclecontrol';
+            fetch(`https://${resource}/soundDebug`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+                body: JSON.stringify({ text }),
+            }).catch(() => {});
+        } catch (err) { /* hors du jeu */ }
+    }
+
+    // Lecteur Web Audio. S'il est suspendu par le navigateur du jeu, TOUS ses sons se taisent : il est relancé
+    // aussitôt (et vérifié chaque seconde, voir watchdog) ; s'il reste suspendu, les sons passent par de simples
+    // éléments <audio> (sans étouffement) pour ne jamais rester muets.
     let ctx = null;
+    let webAudioOff = false; // lecteur Web Audio inutilisable : simples éléments <audio>
     function audioContext() {
         try {
-            ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+            if (!ctx) {
+                ctx = new (window.AudioContext || window.webkitAudioContext)();
+                ctx.onstatechange = () => {
+                    debug(`lecteur audio : ${ctx.state}`);
+                    if (ctx.state === 'running') webAudioOff = false;
+                    else if (ctx.state !== 'closed') ctx.resume().catch(() => {});
+                };
+            }
+            if (ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
             return ctx;
         } catch (err) {
             return null;
         }
+    }
+
+    /** Lecteur Web Audio utilisable maintenant (en marche) ? */
+    function liveContext() {
+        const ac = audioContext();
+        return ac && ac.state === 'running' && !webAudioOff ? ac : null;
     }
 
     // Décodage des fichiers au démarrage (une seule fois)
@@ -58,7 +87,7 @@
 
     /** Lecteur d'un son : { start, stop, onEnded, gain, filter } ; loop : rejoué sans fin jusqu'à l'arrêt */
     function voice(name, loop) {
-        const ac = audioContext();
+        const ac = liveContext(); // lecteur suspendu : élément <audio> simple (un son relié à lui serait muet)
         if (ac && buffers[name]) {
             try {
                 const source = ac.createBufferSource();
@@ -133,6 +162,7 @@
         clearTimeout(current.holdTimer);
         current.voices.forEach(stopVoice);
         delete loops[id];
+        debug(`${id} : arrêté`);
     }
 
     function holdLoop(id, current) {
@@ -140,6 +170,41 @@
         current.voices.forEach((v) => setVoice(v, 0, current.muffled));
         current.holdTimer = setTimeout(() => { if (loops[id] === current) stopLoop(id); }, HOLD_MS);
     }
+
+    // Surveillance (chaque seconde, seulement pendant un son en boucle) : lecteur audio suspendu -> relancé, puis
+    // remplacé par des éléments <audio> s'il le reste ; boucle demandée sans lecteur -> relancée.
+    let suspendedSince = 0;
+    function watchdog() {
+        const ids = Object.keys(loops).filter((id) => loops[id].continuous);
+        if (ids.length === 0) return;
+        if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') {
+            ctx.resume().catch(() => {});
+            if (!suspendedSince) {
+                suspendedSince = Date.now();
+                debug(`lecteur audio ${ctx.state} : relance`);
+            } else if (!webAudioOff && Date.now() - suspendedSince > 2000) {
+                webAudioOff = true;
+                debug('lecteur audio toujours suspendu : sons rejoués par des éléments <audio>');
+                ids.forEach((id) => {
+                    const e = loops[id];
+                    e.voices.forEach(stopVoice);
+                    e.voices = [];
+                    if (!e.holdTimer && e.start) e.start();
+                });
+            }
+        } else if (suspendedSince) {
+            suspendedSince = 0;
+            debug('lecteur audio de nouveau en marche');
+        }
+        ids.forEach((id) => {
+            const e = loops[id];
+            if (!e.holdTimer && e.voices.length === 0 && e.start) {
+                debug(`${id} : lecteur perdu, relancé`);
+                e.start();
+            }
+        });
+    }
+    setInterval(watchdog, 1000);
 
     //   keep : boucle continue toujours en cours même à volume 0 (hors de portée) : muette, SANS limite de temps,
     //   réentendue là où elle en est ; seul un message sans keep (volume 0) l'arrête.
@@ -175,10 +240,13 @@
                 entry.voices = [v];
                 v.onEnded(() => {
                     if (loops[id] !== entry || v.stopped) return;
-                    if (entry.holdTimer) { entry.voices = []; return; } // gardé muet : relancé s'il est redemandé
+                    entry.voices = [];
+                    if (entry.holdTimer) return; // gardé muet : relancé s'il est redemandé
                     start();
                 });
             };
+            entry.start = start;
+            debug(`${id} : démarré (${names[0]}, volume ${Number(volume).toFixed(2)}${kept ? ', gardé' : ''})`);
             start();
             return;
         }
