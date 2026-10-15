@@ -15,6 +15,12 @@ ChatConfig = {
     -- (une fois le raccourci enregistré chez un joueur, changer cette valeur ne l'affecte plus)
     DefaultKey = 'T',
 
+    -- Naviguer dans la conversation (remonter / redescendre), chat ouvert OU fermé : le chat s'affiche et défile.
+    -- Modifiables : Raccourcis clavier > FiveM > "Chat : remonter / descendre dans la conversation".
+    -- Chat ouvert : aussi la molette de la souris.
+    ScrollUpKey = 'PAGEUP',
+    ScrollDownKey = 'PAGEDOWN',
+
     -- /me : visible uniquement par les joueurs dans ce rayon (mètres) au moment de l'envoi
     MeDistance = 50.0,
 
@@ -66,7 +72,8 @@ ChatConfig = {
         JoinDelay = 5000, -- ms après l'apparition du personnage
         Sections = {
             { title = "Chat écrit", items = {
-                { "T", "ouvrir le chat" }, { "/nomrp", "votre nom RP (avant /me, /info…)" },
+                { "T", "ouvrir le chat" }, { "PgUp / PgDn", "remonter / descendre dans le chat" },
+                { "/nomrp", "votre nom RP (avant /me, /info…)" },
                 { "/me", "action RP (50 m)" }, { "/info /qst /rep", "info, question, réponse" },
                 { "/dv", "supprimer un véhicule (5 m)" }, { "/eup", "tenues" },
                 { "/fichecivil", "vos profils civils" }, { "/repair", "réparer le moteur" },

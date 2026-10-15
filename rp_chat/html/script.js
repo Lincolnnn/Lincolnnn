@@ -86,7 +86,7 @@
         clearTimeout(state.feedTimer);
         chat.classList.remove('hidden', 'fading');
         chat.classList.add('feed');
-        scrollToBottom();
+        if (!state.browsing || nearBottom()) { state.browsing = false; scrollToBottom(); } else updateHint();
         if (mode === 'always') return;
         state.feedTimer = setTimeout(() => {
             chat.classList.add('fading');
@@ -107,7 +107,8 @@
             : 'Définissez votre nom RP : /nomrp [nom RP]';
         state.typedIndex = -1;
         renderSuggest();
-        scrollToBottom();
+        if (!state.browsing) scrollToBottom(); else updateHint(); // garde la position s'il lisait l'historique
+        state.browsing = false;
         setTimeout(() => input.focus(), 0);
     }
 
@@ -173,16 +174,45 @@
         return list.scrollHeight - list.scrollTop - list.clientHeight < 40;
     }
 
+    // Repère "plus récents en bas" quand on a remonté dans la conversation
+    function updateHint() {
+        $('#browseHint').classList.toggle('hidden', nearBottom());
+    }
+
     function scrollToBottom() {
         list.scrollTop = list.scrollHeight;
+        updateHint();
+    }
+
+    // Remonter (-1) / redescendre (1) d'une page (80 % de la hauteur visible)
+    function scrollPage(dir) {
+        list.scrollTop += dir * list.clientHeight * 0.8;
+        updateHint();
+    }
+
+    // Chat fermé : touche de navigation -> le chat s'affiche (sans saisie) le temps de lire, à la position voulue
+    function browse(dir) {
+        if (state.open) return scrollPage(dir);
+        const wasShown = !chat.classList.contains('hidden') && !chat.classList.contains('fading');
+        state.browsing = true;
+        clearTimeout(state.feedTimer);
+        chat.classList.remove('hidden', 'fading');
+        chat.classList.add('feed');
+        if (wasShown || dir < 0) scrollPage(dir);
+        if (state.settings && state.settings.feed === 'always') return;
+        state.feedTimer = setTimeout(() => {
+            chat.classList.add('fading');
+            state.feedTimer = setTimeout(() => { if (!state.open) { hideChat(); state.browsing = false; } }, 600);
+        }, FEED_DURATION);
     }
 
     function addMessage(m, quiet) {
         if (!m || typeof m.text !== 'string' || m.text === '') return;
-        const stick = !state.open || nearBottom(); // ne fait pas sauter la lecture des anciens messages
+        // ne fait pas sauter la lecture des anciens messages (chat ouvert, ou fermé en train de remonter)
+        const stick = (!state.open && !state.browsing) || nearBottom();
         list.appendChild(buildMessage(m));
         while (list.children.length > MAX_MESSAGES) list.firstElementChild.remove();
-        if (stick) scrollToBottom();
+        if (stick) scrollToBottom(); else updateHint();
         if (!state.open && !quiet) showFeed();
     }
 
@@ -273,14 +303,22 @@
                 break;
             case 'PageUp':
                 e.preventDefault();
-                list.scrollTop -= list.clientHeight * 0.8;
+                scrollPage(-1);
                 break;
             case 'PageDown':
                 e.preventDefault();
-                list.scrollTop += list.clientHeight * 0.8;
+                scrollPage(1);
                 break;
         }
     });
+
+    // Chat ouvert : molette de la souris (même sans curseur visible)
+    document.addEventListener('wheel', (e) => {
+        if (!state.open) return;
+        list.scrollTop += e.deltaY;
+        updateHint();
+    }, { passive: true });
+    list.addEventListener('scroll', updateHint, { passive: true });
 
     input.addEventListener('input', () => {
         state.suggestIndex = 0;
@@ -301,6 +339,9 @@
                 break;
             case 'message':
                 addMessage(data.data);
+                break;
+            case 'scroll': // touche de navigation, chat fermé
+                browse(data.data && data.data.dir < 0 ? -1 : 1);
                 break;
             case 'history': // derniers /info, /qst, /rep (connexion)
                 (Array.isArray(data.data) ? data.data : Object.values(data.data || {})).forEach((m) => addMessage(m, true));

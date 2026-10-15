@@ -44,7 +44,11 @@ Conçu pour fonctionner avec le MDC du même dépôt (`mdc_standalone`), mais ut
   *Échap > Paramètres > Raccourcis clavier > FiveM > « Chat : ouvrir / fermer »*.
 - **Fermer** : **Échap**, ou la même touche quand la ligne de saisie est vide (sinon la lettre s'écrit normalement).
 - **Entrée** envoie ; **Tab** complète la commande ; **↑ / ↓** rappellent les lignes déjà envoyées (ou parcourent les
-  suggestions) ; **Page ↑ / Page ↓** font défiler les messages.
+  suggestions).
+- **Naviguer dans la conversation** : **Page ↑** remonte, **Page ↓** redescend, chat **ouvert ou fermé** (chat fermé,
+  il s'affiche le temps de lire puis disparaît). Chat ouvert : aussi la **molette** de la souris. Quand on est remonté,
+  un repère « ▼ Messages plus récents en bas » s'affiche et les nouveaux messages ne font pas sauter la lecture.
+  Touches modifiables : *Raccourcis clavier > FiveM > « Chat : remonter / descendre dans la conversation »*.
 - Chat fermé : les nouveaux messages s'affichent quelques secondes puis disparaissent (réglable).
 
 ## Commandes
@@ -105,6 +109,7 @@ Le chat apparaît en aperçu pendant les réglages. Sans le MDC, les réglages p
 | Clé | Rôle |
 |---|---|
 | `DefaultKey` | touche d'ouverture par défaut (`T`) |
+| `ScrollUpKey`, `ScrollDownKey` | touches par défaut pour remonter / descendre dans le chat (`PAGEUP`, `PAGEDOWN`) |
 | `MeDistance` | rayon des `/me` (50 m) |
 | `MaxLength`, `Cooldown` | longueur max d'un message, délai entre deux messages |
 | `NameMin`, `NameMax` | longueur du nom RP (2 à 40) |

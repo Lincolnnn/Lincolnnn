@@ -8,6 +8,8 @@
 
     Ouverture : touche T par défaut (RegisterKeyMapping). Chaque joueur la change dans
       Échap > Paramètres > Raccourcis clavier > FiveM > "Chat : ouvrir / fermer".
+    Navigation : PageUp / PageDown par défaut ("Chat : remonter / descendre dans la conversation"), chat
+      ouvert ou fermé (fermé : il s'affiche le temps de lire) ; chat ouvert, aussi la molette.
     Fermeture : Échap, ou la même touche quand la ligne de saisie est vide (géré par le NUI).
 
     Réglages : propres à chaque joueur (KVP "rpchat_settings"), modifiables dans l'onglet
@@ -156,6 +158,17 @@ RegisterCommand(COMMAND, function()
     if isOpen then closeChat() else openChat() end
 end, false)
 RegisterKeyMapping(COMMAND, 'Chat : ouvrir / fermer', 'keyboard', Config.DefaultKey)
+
+-- Naviguer dans la conversation : chat fermé, il s'affiche et défile (chat ouvert, le NUI a la main et gère
+-- lui-même ces touches et la molette)
+local function scrollChat(dir)
+    if isOpen or IsPauseMenuActive() then return end
+    SendNUIMessage({ action = 'scroll', data = { dir = dir } })
+end
+RegisterCommand('rpchat_up', function() scrollChat(-1) end, false)
+RegisterCommand('rpchat_down', function() scrollChat(1) end, false)
+RegisterKeyMapping('rpchat_up', 'Chat : remonter dans la conversation', 'keyboard', Config.ScrollUpKey or 'PAGEUP')
+RegisterKeyMapping('rpchat_down', 'Chat : descendre dans la conversation', 'keyboard', Config.ScrollDownKey or 'PAGEDOWN')
 
 -- =========================================================================
 -- CALLBACKS NUI
