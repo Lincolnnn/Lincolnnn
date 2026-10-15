@@ -165,13 +165,13 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 - Vrai son à l'attache et au retrait. **Attachée, impossible de descendre** (touche F bloquée) : il faut d'abord la
   détacher.
 - **Carillon de ceinture**, par véhicule, moteur allumé, **dès que le véhicule roule à plus de 1 MPH** (`AlarmSpeed`) :
-  il sonne **en boucle sans jamais s'arrêter**, même véhicule arrêté, jusqu'à ce que la personne **s'attache**, que le
-  **moteur soit coupé** ou qu'elle **descende** :
+  il sonne **en boucle sans s'arrêter** jusqu'à ce que le véhicule soit **immobile** (0 MPH), que la personne
+  **s'attache**, que le **moteur soit coupé** ou qu'elle **descende**. Il repart dès que le véhicule roule à nouveau :
   - **un** occupant détaché : `belt_chime.ogg` ;
   - **plusieurs** détachés en même temps : `belt_chime` **coupé net**, `fast_belt_chime.ogg` à la place ; dès qu'il
     n'en reste qu'un (l'un s'attache), `fast_belt_chime` s'arrête et `belt_chime` repart **du début** ;
-  - véhicule arrêté (feu rouge…) : il **continue**. `StopWhenStopped = true` pour le couper à l'arrêt (moins de
-    0,5 MPH pendant 0,4 s, `StopSpeed` / `StopDelay`).
+  - véhicule immobile : moins de 0,3 MPH pendant 0,25 s (`StopSpeed` / `StopDelay` : une lecture isolée ne le coupe
+    pas). `StopWhenStopped = false` pour qu'il continue à l'arrêt.
 - **Carillon de portière** (`door_chime.ogg`, **moteur allumé uniquement**) : une portière ou plus ouverte(s), jusqu'à ce
   qu'elles soient **refermées** ou que le moteur soit coupé. **En boucle sans jamais s'arrêter tant que le moteur
   tourne** portière ouverte, dehors comme à bord. Il ne s'arrête que **moteur coupé** ou **portière refermée** : le moteur compte
@@ -261,7 +261,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
 | `DoorChime` | carillon de portière (moteur allumé, portière ouverte, même véhicule vide) : activé, volume, portière qui bouge un instant (`DoorHold`), suivi après la descente (`TrackDistance`), portière gardée ouverte en descendant (`KeepDoorOpenOnExit`), ouverture minimale (`OpenRatio`) |
-| `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle sans arrêt jusqu'à l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
+| `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle jusqu'à l'arrêt complet, l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), aucune chute ajoutée pour les petits incidents (comportement du jeu), seuils, dégâts |
 | `Repair` | commande `/repair` (moteur seulement), permission, distance |
 | `VehicleSounds` | sons entendus autour du véhicule : 3 m portière ouverte, 1 m tout fermé (étouffé), volumes |

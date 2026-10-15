@@ -6,7 +6,7 @@
         détacher (touche F bloquée) ; retirée si le joueur est sorti du véhicule autrement.
       - CARILLON DE CEINTURE (son : client/chimes.lua) : l'alarme du joueur ("seatbeltAlarm") s'allume
         ceinture détachée, moteur allumé, dès que le véhicule dépasse AlarmSpeed MPH (1), et ne s'éteint QUE
-        ceinture attachée, moteur coupé ou personne descendue (StopWhenStopped : aussi véhicule arrêté).
+        véhicule immobile (StopWhenStopped), ceinture attachée, moteur coupé ou personne descendue.
       - CARILLON DE PORTIÈRE : client/chimes.lua.
       - Jamais deux fois le même son en même temps (le NUI coupe le précédent avant de rejouer).
       - Détachée, accident violent (voir config.lua, Seatbelt) : éjecté à travers le pare-brise.
@@ -112,8 +112,8 @@ VC.on('tick', function(ped, vehicle)
     -- Descend du véhicule : ceinture retirée (avec le son)
     if belt and GetIsTaskActive(ped, 2) then setBelt(false) end
     -- Carillon de ceinture : détachée, moteur allumé, dès que le véhicule dépasse AlarmSpeed (1 MPH). Ensuite il
-    -- ne s'arrête QUE si la ceinture est attachée, le moteur coupé ou la personne descendue (voir 'leave') ;
-    -- véhicule arrêté : seulement avec StopWhenStopped (sous StopSpeed pendant StopDelay ms).
+    -- ne s'arrête QUE véhicule immobile (StopWhenStopped : sous StopSpeed pendant StopDelay ms), ceinture
+    -- attachée, moteur coupé ou personne descendue (voir 'leave').
     local running = VC.engineOn(vehicle)
     if hasBelt(vehicle) and not belt and running then
         if speed >= Config.StopSpeed then stoppedSince = nil end

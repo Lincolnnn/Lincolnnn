@@ -200,11 +200,12 @@ VCConfig = {
         -- 0 : fichiers joués tels quels. (Le silence au milieu du fichier n'est jamais touché.)
         ChimeMaxGap = 1.0,
         AlarmSpeed = 1.0,         -- MPH : carillon dès que le véhicule roule au-dessus (ceinture détachée, moteur allumé)
-        -- Ensuite il sonne en boucle SANS JAMAIS S'ARRÊTER, jusqu'à ce que la ceinture soit attachée, le moteur
-        -- coupé ou la personne descendue. Un deuxième occupant détaché : fast_belt_chime ; il s'attache : belt_chime.
-        StopWhenStopped = false,  -- true : coupé aussi quand le véhicule s'arrête (sous StopSpeed pendant StopDelay ms)
-        StopSpeed = 0.5,          -- MPH (StopWhenStopped uniquement)
-        StopDelay = 400,          -- ms (StopWhenStopped uniquement)
+        -- Ensuite il sonne en boucle sans s'arrêter, jusqu'à ce que le véhicule soit IMMOBILE, la ceinture attachée,
+        -- le moteur coupé ou la personne descendue ; il repart dès que le véhicule roule à nouveau.
+        -- Un deuxième occupant détaché : fast_belt_chime ; il s'attache : belt_chime.
+        StopWhenStopped = true,   -- coupé quand le véhicule est immobile (false : il continue à l'arrêt)
+        StopSpeed = 0.3,          -- MPH : en dessous, véhicule immobile (0 MPH, à l'imprécision du jeu près)
+        StopDelay = 250,          -- ms d'affilée sous StopSpeed (une lecture isolée ne coupe rien)
         -- Coupé net : plus personne de détaché, véhicule arrêté (relancé du début quand il repart).
         -- ÉJECTION (ceinture détachée uniquement), jamais lors d'un simple accrochage :
         --   - pas en dessous de MinSpeed MPH (vitesse avant le choc) ;

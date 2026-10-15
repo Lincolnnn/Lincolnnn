@@ -9,7 +9,7 @@
       - carillon fini : son coupé net.
     CARILLON DE CEINTURE (belt_chime.ogg ; deux occupants ou plus détachés : fast_belt_chime.ogg) :
       sonne en boucle dès qu'un occupant détaché a son alarme (seatbelt.lua : moteur allumé, plus de 1 MPH) et
-      ne s'arrête QUE si la ceinture est attachée, le moteur coupé ou la personne descendue. Le deuxième
+      ne s'arrête QUE véhicule immobile, ceinture attachée, moteur coupé ou personne descendue. Le deuxième
       s'attache : fast_belt_chime coupé, belt_chime reprend.
     CARILLON DE PORTIÈRE (door_chime.ogg) : moteur allumé et une portière (avant / arrière) ouverte, à bord
       comme dehors, même véhicule vide ; ne s'arrête QUE moteur coupé ou portières refermées. Le véhicule dont
