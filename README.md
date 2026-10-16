@@ -31,6 +31,10 @@ de 0.0 à 3.0.
 Et **RP Flares** dans [`rp_flares/`](rp_flares/README.md) : fusées de détresse posées au sol (touche G, fusée en main),
 retirées avec l'œil, lumière rouge renforcée la nuit.
 
+Et **RP TrafficControl** dans [`rp_TrafficControl/`](rp_TrafficControl/README.md) : gestion du trafic **sans supprimer
+de véhicules** : routes barrées (les nœuds de circulation du jeu sont fermés, les PNJ prennent une déviation),
+limitations de vitesse et arrêts du trafic par zone, posés en visant la route (`/trafic`, policiers en service).
+
 ## Fenêtre
 
 - Déplacement : glisser la barre de titre.

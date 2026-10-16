@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_chat'
 author 'Lincolnnn'
 description 'Chat écrit rôleplay standalone (commandes police / RP) - NUI Vanilla JS'
-version '1.12.1'
+version '1.12.2'
 
 -- Remplace la ressource "chat" d'origine : les ressources qui dépendent de "chat"
 -- (ou qui envoient "chat:addMessage") fonctionnent avec ce chat.

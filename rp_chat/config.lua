@@ -81,6 +81,7 @@ ChatConfig = {
             { title = "MDC & menus", items = {
                 { "K", "MDC : unités, appels, recherches, BOLO, rapports" }, { "Y / N", "accepter / refuser un appel" },
                 { "F1", "Menu Interaction : civil, police, équipements, voiture" },
+                { "/trafic", "police : route barrée, limitation de vitesse, arrêt du trafic" },
                 { "Alt", "œil (maintenir) : inspecter, fouiller, portières, s'asseoir…" },
             } },
             { title = "Véhicule", items = {
