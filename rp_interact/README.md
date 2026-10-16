@@ -48,8 +48,8 @@ Case **Équipements** : **Tenues** → bouton **Accéder aux tenues** (ferme ce 
   (arme de service, taser, lampe, matraque, **10 fusées de détresse** à poser au sol avec `rp_flares`…), en remplaçant
   les armes portées : **toujours l'équipement de base**,
   jamais modifié automatiquement. Chaque service a **son propre équipement** (fichier **`equipment_services.json`**,
-  fourni et modifiable). Le bouton choisi est **sélectionné** (trait bleu) ; au départ, c'est celui du **service
-  principal** choisi dans la vue Police.
+  fourni et modifiable). Le bouton choisi est **sélectionné** (trait bleu) ; au départ, **aucun** : le joueur choisit
+  lui-même son équipement, quel que soit son service (rien n'est imposé).
 - **Équipements modifiés** (4e entrée, sous les trois équipements de base) : page des équipements que le joueur a
   **personnalisés, nommés et enregistrés** (10 au maximum, `MaxCustomEquipment`), avec la pastille de leur service.
   Un clic les **équipe** (et les sélectionne) ; **✎** les modifie. Ils sont **gardés pour toujours** (reconnexion,

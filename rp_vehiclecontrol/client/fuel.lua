@@ -43,10 +43,16 @@ function VC.hasFuel(vehicle)
     return fuel == nil or fuel > 0.0
 end
 
---- Essence d'un véhicule jamais vu : créé par un script = plein, circulation = au hasard
+--- Valeur au hasard dans { min, max } (ou le nombre lui-même)
+local function between(range)
+    if type(range) == 'number' then return range end
+    return range.min + math.random() * (range.max - range.min)
+end
+
+--- Essence d'un véhicule jamais vu : créé par un script (quel qu'il soit) = entre 35 et 87 %, circulation = au hasard
 local function initialFuel(vehicle)
-    if GetEntityPopulationType(vehicle) == 7 then return Config.SpawnedFuel end
-    return Config.AmbientFuel.min + math.random() * (Config.AmbientFuel.max - Config.AmbientFuel.min)
+    if GetEntityPopulationType(vehicle) == 7 then return between(Config.SpawnedFuel) end
+    return between(Config.AmbientFuel)
 end
 
 --- Envoi au serveur (état du véhicule, lu par tous)

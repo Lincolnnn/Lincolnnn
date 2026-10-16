@@ -6,6 +6,8 @@
       désactivés. Les PNJ / véhicules d'urgence du jeu encore présents (démarrage de la ressource) sont retirés.
       Les entités créées par un joueur ou un script (population "mission") ne sont JAMAIS touchées.
     - Indice de recherche : jamais.
+    - Chasse à l'homme (GlobalState.npcManhunt, config Manhunt) : la police du jeu redevient normale (étoiles,
+      policiers PNJ, renforts, poursuites, tirs) ; pompiers / ambulanciers restent supprimés, les autres PNJ calmes.
     - « Everyone ignore player » : les PNJ ignorent les joueurs, n'ont plus peur, ne réagissent plus aux fusillades,
       aux explosions ni aux morts, et ne se battent pas (véhicule volé, klaxon, bousculade).
     - Densité du trafic, des véhicules garés et des piétons (0.0 à 3.0), réglée par le serveur (GlobalState.npcDensity).
@@ -21,9 +23,29 @@ local Config = NPCConfig
 local MISSION = { [6] = true, [7] = true } -- PNJ / véhicules créés par un script (joueurs, menus) : jamais touchés
 local PLAYER_GROUP = GetHashKey('PLAYER')
 
-local emergencyPed, emergencyVehicle = {}, {}
+local COP_GROUP = GetHashKey('COP')
+local emergencyPed, emergencyVehicle, nonPolice = {}, {}, {}
 for _, name in ipairs(Config.EmergencyPeds or {}) do emergencyPed[GetHashKey(name)] = true end
 for _, name in ipairs(Config.EmergencyVehicles or {}) do emergencyVehicle[GetHashKey(name)] = true end
+for _, name in ipairs(Config.NonPoliceModels or {}) do nonPolice[GetHashKey(name)] = true end
+-- Renforts de police du jeu (types de "dispatch") : voitures, hélicoptères, SWAT, motards, barrages, bateaux
+local POLICE_SERVICES = { [1] = true, [2] = true, [4] = true, [6] = true, [7] = true, [8] = true, [9] = true,
+    [10] = true, [12] = true, [13] = true }
+
+--- Chasse à l'homme active (la police du jeu redevient normale)
+local function manhunt() return GlobalState.npcManhunt == true end
+
+--- Modèle d'urgence supprimé en ce moment (en chasse à l'homme : seulement pompiers / ambulanciers)
+local function blockedModel(hash, list)
+    return list[hash] == true and (not manhunt() or nonPolice[hash] == true)
+end
+
+--- Policier du jeu (modèle de police ou groupe COP) : en chasse à l'homme, jamais calmé ni retiré
+local function isCop(ped)
+    local model = GetEntityModel(ped)
+    return (emergencyPed[model] and not nonPolice[model]) or GetPedRelationshipGroupHash(ped) == COP_GROUP
+end
+local function huntingCop(ped) return manhunt() and isCop(ped) end
 
 local function clampDensity(value)
     value = tonumber(value) or 1.0
@@ -41,23 +63,31 @@ end
 -- =========================================================================
 local function applyRules()
     local player = PlayerId()
+    local hunt = manhunt()
     if Config.DisableEmergencyServices then
         for service = 1, 15 do
-            EnableDispatchService(service, false)            -- plus de renforts (police, pompiers, ambulances…)
-            BlockDispatchServiceResourceCreation(service, true)
+            -- plus de renforts (police, pompiers, ambulances…) ; chasse à l'homme : ceux de la police reviennent
+            local allow = hunt and POLICE_SERVICES[service] == true
+            EnableDispatchService(service, allow)
+            BlockDispatchServiceResourceCreation(service, not allow)
         end
-        SetCreateRandomCops(false)                           -- plus de policiers au hasard (trafic, à pied)
-        SetCreateRandomCopsNotOnScenarios(false)
-        SetCreateRandomCopsOnScenarios(false)                -- ni aux commissariats (scénarios)
+        SetCreateRandomCops(hunt)                            -- policiers au hasard (trafic, à pied)
+        SetCreateRandomCopsNotOnScenarios(hunt)
+        SetCreateRandomCopsOnScenarios(hunt)                 -- aux commissariats (scénarios)
         SetRandomEventFlag(false)                            -- plus de courses-poursuites / événements aléatoires
-        DistantCopCarSirens(false)
-        SetDispatchCopsForPlayer(player, false)
-        SetAudioFlag('PoliceScannerDisabled', true)
-        for hash in pairs(emergencyPed) do SetPedModelIsSuppressed(hash, true) end
-        for hash in pairs(emergencyVehicle) do SetVehicleModelIsSuppressed(hash, true) end
-        for _, scenario in ipairs(Config.EmergencyScenarios or {}) do SetScenarioTypeEnabled(scenario, false) end
+        DistantCopCarSirens(hunt)
+        SetDispatchCopsForPlayer(player, hunt)
+        SetAudioFlag('PoliceScannerDisabled', not hunt)
+        for hash in pairs(emergencyPed) do SetPedModelIsSuppressed(hash, blockedModel(hash, emergencyPed)) end
+        for hash in pairs(emergencyVehicle) do SetVehicleModelIsSuppressed(hash, blockedModel(hash, emergencyVehicle)) end
+        for _, scenario in ipairs(Config.EmergencyScenarios or {}) do SetScenarioTypeEnabled(scenario, hunt) end
     end
-    if Config.DisableWantedLevel then
+    if hunt then
+        -- Chasse à l'homme : étoiles et police du jeu normales (elle ne l'ignore plus)
+        SetMaxWantedLevel(5)
+        SetWantedLevelMultiplier(1.0)
+        SetPoliceIgnorePlayer(player, false)
+    elseif Config.DisableWantedLevel then
         SetMaxWantedLevel(0)
         SetWantedLevelMultiplier(0.0)
         SetPoliceIgnorePlayer(player, true)
@@ -67,7 +97,7 @@ local function applyRules()
         end
     end
     if Config.EveryoneIgnorePlayer then
-        SetEveryoneIgnorePlayer(player, true)
+        SetEveryoneIgnorePlayer(player, not hunt) -- chasse à l'homme : la police doit le voir (civils calmés à part)
         SetPlayerCanBeHassledByGangs(player, false)
         SetIgnoreLowPriorityShockingEvents(player, true)
         -- Groupes de PNJ (civils, vigiles, gangs…) : respect envers les joueurs, jamais hostiles
@@ -166,7 +196,7 @@ local DRIVE_WANDER = GetHashKey('SCRIPT_TASK_VEHICLE_DRIVE_WANDER')
 local function calmAimed()
     local found, ped = GetEntityPlayerIsFreeAimingAt(PlayerId())
     if not found or not ped or ped == 0 or not DoesEntityExist(ped) or GetEntityType(ped) ~= 1 then return end
-    if IsPedAPlayer(ped) or MISSION[GetEntityPopulationType(ped)] or IsPedDeadOrDying(ped, true) then return end
+    if IsPedAPlayer(ped) or MISSION[GetEntityPopulationType(ped)] or IsPedDeadOrDying(ped, true) or huntingCop(ped) then return end
     if not controlled(ped) then
         NetworkRequestControlOfEntity(ped)
         return
@@ -192,7 +222,7 @@ local function calmDrivers()
         if not IsPedAPlayer(ped) and not IsPedInAnyVehicle(ped, true) and not IsPedDeadOrDying(ped, true)
             and not IsPedRagdoll(ped) and not IsPedBeingJacked(ped) and not MISSION[GetEntityPopulationType(ped)]
             and controlled(ped) and #(GetEntityCoords(ped) - pos) < (Config.CalmRange or 40.0)
-            and (IsPedFleeing(ped) or fightingPlayer(ped)) then
+            and not huntingCop(ped) and (IsPedFleeing(ped) or fightingPlayer(ped)) then
             local last = calmedDrivers[ped]
             if not last or now - last > 500 then
                 calmedDrivers[ped] = now
@@ -203,7 +233,8 @@ local function calmDrivers()
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
         local ped = GetPedInVehicleSeat(vehicle, -1)
         if ped ~= 0 and not IsPedAPlayer(ped) and not MISSION[GetEntityPopulationType(ped)] and controlled(ped)
-            and #(GetEntityCoords(vehicle) - pos) < (Config.DriverRange or 80.0) then
+            and #(GetEntityCoords(vehicle) - pos) < (Config.DriverRange or 80.0)
+            and not huntingCop(ped) and not (manhunt() and emergencyVehicle[GetEntityModel(vehicle)]) then
             local last = calmedDrivers[ped]
             if not last or IsPedFleeing(ped) or fightingPlayer(ped) then
                 if not last or now - last > 500 then
@@ -254,9 +285,11 @@ local function scan()
     local seen = {}
     for _, ped in ipairs(GetGamePool('CPed')) do
         if not IsPedAPlayer(ped) and not MISSION[GetEntityPopulationType(ped)] then
-            if Config.DisableEmergencyServices and emergencyPed[GetEntityModel(ped)] then
+            if Config.DisableEmergencyServices and blockedModel(GetEntityModel(ped), emergencyPed) then
                 local vehicle = GetVehiclePedIsIn(ped, false)
                 if vehicle == 0 or not hasPlayerInside(vehicle) then remove(ped, false) end
+            elseif huntingCop(ped) then
+                -- chasse à l'homme : policier du jeu laissé tel quel (il poursuit, il tire)
             elseif Config.NoFear and controlled(ped) then
                 seen[ped] = true
                 if not calmed[ped] then calm(ped) end
@@ -276,7 +309,7 @@ local function scan()
     -- Véhicules d'urgence du jeu (vides ou conduits par un PNJ), toutes les 3 s
     if Config.DisableEmergencyServices and tick % 3 == 0 then
         for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-            if emergencyVehicle[GetEntityModel(vehicle)] and not MISSION[GetEntityPopulationType(vehicle)]
+            if blockedModel(GetEntityModel(vehicle), emergencyVehicle) and not MISSION[GetEntityPopulationType(vehicle)]
                 and not hasPlayerInside(vehicle) then
                 remove(vehicle, true)
             end
@@ -301,6 +334,19 @@ end)
 
 -- Personnage (ré)apparu (spawnmanager) : réglages du joueur redonnés tout de suite
 AddEventHandler('playerSpawned', applyRules)
+
+-- Chasse à l'homme activée / coupée (npcmanhunt) : réglages redonnés tout de suite ; coupée : étoiles effacées, les
+-- policiers du jeu sont retirés au passage suivant
+AddStateBagChangeHandler('npcManhunt', 'global', function()
+    SetTimeout(0, function()
+        applyRules()
+        if not manhunt() and Config.DisableWantedLevel then
+            local player = PlayerId()
+            ClearPlayerWantedLevel(player)
+            SetPlayerWantedLevelNow(player, false)
+        end
+    end)
+end)
 
 -- =========================================================================
 -- À CHAQUE IMAGE (seulement si nécessaire) : densités, réactions "choquées" des passants

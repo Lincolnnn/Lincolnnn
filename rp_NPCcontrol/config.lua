@@ -16,6 +16,20 @@ NPCConfig = {
     DisableWantedLevel = true,
 
     -- ---------------------------------------------------------------------
+    -- MODE « CHASSE À L'HOMME » (false = désactivé, par défaut). true : la POLICE du jeu redevient normale :
+    -- indice de recherche (étoiles) de retour, policiers PNJ et leurs véhicules / hélicoptères réapparaissent
+    -- (trafic, commissariats, renforts envoyés), ils viennent chercher le joueur recherché, le poursuivent et lui
+    -- tirent dessus (ils ne l'ignorent plus). Pompiers et ambulanciers restent supprimés ; les autres PNJ (civils,
+    -- gangs…) gardent leurs réglages « ignore player ».
+    -- Commande (console ou permission ACE "command.npcmanhunt") pour l'activer / le couper sans redémarrer :
+    -- npcmanhunt on | npcmanhunt off (jusqu'au prochain redémarrage : la valeur gardée est celle de ce fichier).
+    -- ---------------------------------------------------------------------
+    Manhunt = false,
+    ManhuntCommand = 'npcmanhunt',
+    -- Modèles d'urgence qui ne sont PAS de la police : toujours supprimés, même en chasse à l'homme
+    NonPoliceModels = { 's_m_m_paramedic_01', 's_m_y_fireman_01', 'firetruk', 'ambulance' },
+
+    -- ---------------------------------------------------------------------
     -- « EVERYONE IGNORE PLAYER » : les PNJ ne réagissent plus aux joueurs (ni insultes, ni agressions, ni fuite),
     -- plus aux fusillades, aux explosions ni aux morts, n'ont plus peur et ne se battent pas (véhicule volé, klaxon) :
     -- piétons, passagers ET conducteurs.

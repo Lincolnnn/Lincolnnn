@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_equipment'
 author 'Lincolnnn'
 description 'Équipement des véhicules de police, râtelier d\'armes longues et coffre (plots, fusées) - standalone, NUI Vanilla JS'
-version '1.4.0'
+version '1.5.0'
 
 ui_page 'html/index.html'
 
@@ -23,5 +23,8 @@ files {
 }
 
 shared_script 'config.lua'
-client_script 'client/client.lua'
+client_scripts {
+    'client/client.lua',
+    'client/traffic.lua',
+}
 server_script 'server/server.lua'

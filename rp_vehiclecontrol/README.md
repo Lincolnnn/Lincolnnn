@@ -164,7 +164,8 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 - **Jerrican** : rempli à la pompe (**G**, 3 s) ou **pris dans l'équipement d'un véhicule de police** (`rp_equipment`,
   fourni par défaut pour tous les services). Plein, il remplit **2/5 d'un réservoir** (40 %, `JerrycanFuel`) ; en main
   près de la trappe (arrière gauche) : **E « Verser le jerrican »** (4 % par seconde, **E** pour arrêter).
-- Véhicule jamais vu : créé par un script (garage, menu) = plein ; véhicule de la circulation = 25 à 85 %.
+- Véhicule jamais vu : créé par un script (**n'importe lequel** : garage, menu de spawn, /car…) = **au hasard entre 35 et
+  87 %** du plein (`SpawnedFuel`) ; véhicule de la circulation = 25 à 85 % (`AmbientFuel`).
 - L'essence est dans l'état du véhicule `fuel` (0 à 100, même format qu'**ox_fuel**) : lisible par d'autres scripts.
 
 ## Dégâts réalistes

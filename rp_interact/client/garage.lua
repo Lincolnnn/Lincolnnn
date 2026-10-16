@@ -151,7 +151,7 @@ RegisterNUICallback('equipmentList', function(_, cb)
     RPI.request('loadoutList', {}, function(res)
         res = res or {}
         cb({ ok = res.ok == true, loadouts = res.loadouts or {}, services = res.services or {}, police = res.police == true,
-            policeOnly = res.policeOnly ~= false, policeService = LocalPlayer.state.policeService or '' })
+            policeOnly = res.policeOnly ~= false, customs = res.customs or {}, maxCustom = res.maxCustom })
     end)
 end)
 

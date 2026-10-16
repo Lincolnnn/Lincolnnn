@@ -8,7 +8,8 @@ ambulance, un camion de pompiers ou un policier.
 
 1. Copier le dossier `rp_NPCcontrol` dans `resources/`.
 2. Dans `server.cfg` : `ensure rp_NPCcontrol`.
-3. (Facultatif) commande de densité pour un groupe : `add_ace group.admin command.npcdensity allow`.
+3. (Facultatif) commandes pour un groupe : `add_ace group.admin command.npcdensity allow` et
+   `add_ace group.admin command.npcmanhunt allow`.
 
 ## Ce que fait le script
 
@@ -28,6 +29,20 @@ ambulance, un camion de pompiers ou un policier.
 ### Plus d'indice de recherche (`DisableWantedLevel`)
 
 Jamais d'étoiles, pour personne.
+
+### Mode « chasse à l'homme » (`Manhunt`, désactivé par défaut)
+
+`Manhunt = false` dans `config.lua` (par défaut). Avec `true` (ou la commande **`npcmanhunt on`**, console ou
+permission ACE `command.npcmanhunt`, sans redémarrer), **la police du jeu redevient normale** :
+- **indice de recherche** (étoiles) de retour ;
+- **policiers PNJ** et leurs véhicules, motos et hélicoptères **réapparaissent** (trafic, commissariats) ;
+- **renforts** envoyés (voitures, hélicoptères, SWAT, barrages) ;
+- ils **ne vous ignorent plus** : ils viennent vous chercher, vous poursuivent et vous tirent dessus. Le script ne les
+  calme jamais (pas de remise en conduite normale, pas de « pas de peur »).
+
+Les **pompiers et ambulanciers** restent supprimés (`NonPoliceModels`). Les autres PNJ (civils, gangs…) gardent leurs
+réglages « ignore player ». **`npcmanhunt off`** : étoiles effacées, policiers du jeu retirés. Au redémarrage, la
+valeur de `config.lua` revient.
 
 ### « Everyone ignore player » (`EveryoneIgnorePlayer`, `NoFear`, `SuppressShockingEvents`)
 

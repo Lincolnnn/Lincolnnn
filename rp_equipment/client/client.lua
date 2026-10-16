@@ -76,16 +76,17 @@ local function bonePos(vehicle, name)
     return GetWorldPositionOfEntityBone(vehicle, index)
 end
 
---- { { where = 'front' | 'trunk', pos } } : portières avant (un peu à l'extérieur) et coffre (derrière)
+--- { { where = 'front' | 'trunk', pos, door } } : portières avant (un peu à l'extérieur) et coffre (derrière) ;
+--- door : porte du jeu à ouvrir (0 conducteur à gauche, 1 passager avant à droite, 5 coffre)
 local function accessPoints(vehicle)
     local min, max = GetModelDimensions(GetEntityModel(vehicle))
     local points = {}
-    for _, side in ipairs({ { bone = 'door_dside_f', x = min.x - 0.5 }, { bone = 'door_pside_f', x = max.x + 0.5 } }) do
+    for _, side in ipairs({ { bone = 'door_dside_f', x = min.x - 0.5, door = 0 }, { bone = 'door_pside_f', x = max.x + 0.5, door = 1 } }) do
         local door = bonePos(vehicle, side.bone)
         local y = door and GetOffsetFromEntityGivenWorldCoords(vehicle, door.x, door.y, door.z).y or max.y * 0.25
-        points[#points + 1] = { where = 'front', pos = GetOffsetFromEntityInWorldCoords(vehicle, side.x, y - 0.4, 0.0) }
+        points[#points + 1] = { where = 'front', door = side.door, pos = GetOffsetFromEntityInWorldCoords(vehicle, side.x, y - 0.4, 0.0) }
     end
-    points[#points + 1] = { where = 'trunk', pos = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, min.y - 0.5, 0.0) }
+    points[#points + 1] = { where = 'trunk', door = 5, pos = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, min.y - 0.5, 0.0) }
     return points
 end
 
@@ -109,7 +110,7 @@ local function findAccess(ped)
             if kind then
                 for _, point in ipairs(accessPoints(vehicle)) do
                     local d = #(point.pos - pos)
-                    if d < bestDist then best, bestDist = { vehicle = vehicle, kind = kind, where = point.where }, d end
+                    if d < bestDist then best, bestDist = { vehicle = vehicle, kind = kind, where = point.where, door = point.door }, d end
                 end
             end
         end
@@ -321,6 +322,21 @@ local function controlled(vehicle)
     return not NetworkGetEntityIsNetworked(vehicle) or NetworkHasControlOfEntity(vehicle)
 end
 
+-- Échap : le menu pause du jeu s'ouvre au RELÂCHEMENT de la touche ; après la fermeture du menu, les commandes de
+-- pause restent bloquées jusqu'à ce qu'Échap soit relâché (+ quelques images, 3 s au plus)
+local PAUSE_KEYS = { 199, 200, 322 }
+local function blockPauseAfterClose()
+    CreateThread(function()
+        local untilTime, extra = GetGameTimer() + 3000, 10
+        while extra > 0 and GetGameTimer() < untilTime and not open do
+            for _, c in ipairs(PAUSE_KEYS) do DisableControlAction(0, c, true) end
+            if IsPauseMenuActive() then SetPauseMenuActive(false) end
+            if not (IsDisabledControlPressed(0, 200) or IsDisabledControlPressed(0, 322)) then extra = extra - 1 end
+            Wait(0)
+        end
+    end)
+end
+
 local function closeMenu()
     if not open then return end
     local state = open
@@ -329,8 +345,11 @@ local function closeMenu()
     SetNuiFocus(false, false)
     SetNuiFocusKeepInput(false)
     SendNUIMessage({ action = 'close' })
-    if state.trunk and DoesEntityExist(state.vehicle) and controlled(state.vehicle) then
-        SetVehicleDoorShut(state.vehicle, 5, false)
+    blockPauseAfterClose()
+    -- Portière avant / coffre : refermé à la fermeture du menu (même s'il était déjà ouvert avant)
+    if state.door and DoesEntityExist(state.vehicle) then
+        if not controlled(state.vehicle) then NetworkRequestControlOfEntity(state.vehicle) end
+        SetVehicleDoorShut(state.vehicle, state.door, false)
     end
 end
 
@@ -370,9 +389,14 @@ local function openMenu(access)
         local kind = res.type or access.kind
         local t = Config.Types[kind] or {}
         open = { vehicle = vehicle, kind = kind, where = access.where, plate = res.plate }
-        if access.where == 'trunk' and Config.OpenTrunk and controlled(vehicle) and GetVehicleDoorAngleRatio(vehicle, 5) < 0.1 then
-            SetVehicleDoorOpen(vehicle, 5, false, false)
-            open.trunk = true
+        -- Portière avant la plus proche (gauche : conducteur, droite : passager avant) ou coffre : ouvert s'il ne l'est
+        -- pas déjà (jamais rouvert), refermé à la fermeture du menu
+        local door = access.door or (access.where == 'trunk' and 5 or nil)
+        local wanted = door and ((door == 5 and Config.OpenTrunk) or (door ~= 5 and Config.OpenFrontDoor ~= false))
+        if wanted and GetIsDoorValid(vehicle, door) then
+            if not controlled(vehicle) then NetworkRequestControlOfEntity(vehicle) end
+            if GetVehicleDoorAngleRatio(vehicle, door) < 0.1 then SetVehicleDoorOpen(vehicle, door, false, false) end
+            open.door = door
         end
         SetNuiFocus(true, true)
         SetNuiFocusKeepInput(true) -- le joueur peut marcher, menu ouvert
@@ -540,7 +564,7 @@ local function showHint(text, ms)
         hintUntil = 0
     end)
 end
-local TARGET_HINT = 'Utiliser le target pour reprendre les plots posés (un seul, ou tous ceux autour)'
+local TARGET_HINT = 'Utiliser le target pour récupérer les plots posés.'
 
 local function deleteProp(prop)
     if DoesEntityExist(prop) then
@@ -610,9 +634,31 @@ local function placeCone(dropAll)
     TriggerServerEvent('rp_equipment:cone:place', { spots = spots })
 end
 
+--- Touche de pose choisie par le joueur (raccourci FiveM), "G" par défaut
+local function placeKeyName()
+    local name = GetControlInstructionalButton(0, (GetHashKey('rp_cone_place') | 0x80000000) & 0xFFFFFFFF, true)
+    if type(name) == 'string' and name:sub(1, 2) == 't_' then return name:sub(3) end
+    return S.PlaceKey or 'G'
+end
+
+--- Texte découpé en morceaux de 90 octets au plus, coupés entre deux mots (limite du jeu : 99 par morceau ;
+--- CELL_EMAIL_BCON les met bout à bout)
+local function helpParts(text)
+    local parts, current = {}, ''
+    for word in text:gmatch('%S+%s*') do
+        if #current + #word > 90 and current ~= '' then
+            parts[#parts + 1] = current
+            current = ''
+        end
+        current = current .. word
+    end
+    if current ~= '' then parts[#parts + 1] = current end
+    return parts
+end
+
 local function carryLoop()
     CreateThread(function()
-        local key = ('~INPUT_%X~'):format((GetHashKey('rp_cone_place') | 0x80000000) & 0xFFFFFFFF)
+        local parts, partsFor = nil, nil -- texte d'aide, refait seulement quand le nombre de plots change
         while carried do
             local ped = PlayerPedId()
             if IsEntityDead(ped) then
@@ -624,10 +670,14 @@ local function carryLoop()
                 local anim = SC.Carry and SC.Carry.Anim
                 if anim and not IsEntityPlayingAnim(ped, anim[1], anim[2], 3) and not IsPedRagdoll(ped) then playCarry(ped) end
                 if not open and not IsPauseMenuActive() then
-                    local n = carried.count
-                    BeginTextCommandDisplayHelp('STRING')
-                    AddTextComponentSubstringPlayerName(('%s Poser un plot (%d en main)~n~Utiliser le target pour reprendre les plots posés~n~Coffre d\'un véhicule de police : %s'):format(
-                        key, n, n > 1 and 'les ranger' or 'le ranger'))
+                    -- Texte d'aide : 99 caractères au plus par morceau (au-delà, le jeu l'affiche mal) : découpé
+                    if partsFor ~= carried.count then
+                        partsFor = carried.count
+                        parts = helpParts(('"%s" pour poser un plot (%d en mains), utiliser le target pour récupérer les plots posés.'):format(
+                            placeKeyName(), carried.count))
+                    end
+                    BeginTextCommandDisplayHelp('CELL_EMAIL_BCON')
+                    for _, part in ipairs(parts) do AddTextComponentSubstringPlayerName(part) end
                     EndTextCommandDisplayHelp(0, false, false, -1)
                 end
             end
@@ -688,6 +738,30 @@ local function stockResult(res, text)
     if text then SendNUIMessage({ action = 'message', data = { text = text } }) end
     return true
 end
+
+-- /restock : remplit le coffre du véhicule de police (celui où l'on est assis, sinon le plus proche à 6 m) à 100 %
+RegisterCommand(S.RestockCommand or 'restock', function()
+    local ped = PlayerPedId()
+    local vehicle, kind = GetVehiclePedIsIn(ped, false), nil
+    if vehicle ~= 0 then kind = vehicleType(vehicle) end
+    if not kind then
+        vehicle = nil
+        local pos, best = GetEntityCoords(ped), S.RestockDistance or 6.0
+        for _, v in ipairs(GetGamePool('CVehicle')) do
+            local d = #(GetEntityCoords(v) - pos)
+            if d < best then
+                local k = vehicleType(v)
+                if k then vehicle, kind, best = v, k, d end
+            end
+        end
+    end
+    if not vehicle then return notify('Aucun véhicule de police à côté de vous.') end
+    request('restock', { net = VehToNet(vehicle), type = kind, where = 'trunk' }, function(res)
+        if not res.ok then return notify(res.error or 'Action impossible.') end
+        notify(('Véhicule %s réapprovisionné : %d / %d plots, %d / %d fusées (armes longues : à ranger vous-même).'):format(
+            res.plate or '', res.stock.cones, res.stock.maxCones, res.stock.flares, res.stock.maxFlares))
+    end)
+end, false)
 
 local function plural(n, word) return ('%d %s%s'):format(n, word, n > 1 and 's' or '') end
 

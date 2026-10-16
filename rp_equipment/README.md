@@ -20,10 +20,13 @@ serveur à chaque action. `PoliceOnly = false` pour l'ouvrir à tout le monde.
 ## Le menu
 
 - Il **s'ouvre** près d'une portière avant (« Équipement du véhicule (portière) ») ou derrière le véhicule
-  (« … (coffre) »). Au coffre, le coffre s'ouvre, et se referme à la fermeture du menu (`OpenTrunk`).
+  (« … (coffre) »). La **portière avant la plus proche** s'ouvre (côté gauche : **conducteur** ; côté droit :
+  **passager avant**, `OpenFrontDoor`), ou le **coffre** (`OpenTrunk`). Déjà ouverte : elle n'est pas rouverte. Dans
+  tous les cas elle **se referme à la fermeture du menu**.
 - On peut **marcher** menu ouvert (souris pour cliquer ; caméra et armes bloquées). Le menu **se ferme tout seul** à
   plus de **4 m** du véhicule (`CloseDistance`), en montant dans un véhicule, en mourant ou en quittant le service.
-  **Échap** ou ✕ le ferme aussi.
+  **Échap** ou ✕ le ferme aussi ; **Échap n'ouvre pas le menu pause du jeu** (bloqué jusqu'au relâchement de la
+  touche, comme pour les tips civils).
 - **Équipement** : les pièces EUP de la **catégorie du véhicule** (voir ci-dessous), à **mettre** et **retirer** de sa
   tenue. Une pièce portée est cochée (bouton « Retirer »). En la retirant, ce que le policier portait avant revient.
   Seules les pièces de son personnage (homme / femme) sont proposées.
@@ -94,13 +97,16 @@ Au **coffre** d'un véhicule de police, la partie **« Coffre »** du menu se g�
 plaque). C'est le **même coffre pour tous** les policiers.
 
 **Plots de circulation** (cône orange à bandes blanches, `prop_roadcone02a`)
-- **6 plots d'origine** dans chaque coffre (`Stock.Cones.Default`), **10 au maximum** (`Stock.Cones.Max`).
+- **7 plots d'origine** dans chaque véhicule de police (`Stock.Cones.Default`), **10 au maximum** (`Stock.Cones.Max`).
+- **`/restock`** (policier en service, assis dans le véhicule de police ou à 6 m de lui) : coffre rempli à **100 %** :
+  **10 / 10 plots** et **20 / 20 fusées**. Les **armes longues** ne sont pas touchées (à ranger soi-même).
 - **Prendre** : le policier **choisit le nombre** avec **− / +** (de 1 à ce que le coffre contient et ce qu'il peut
   encore porter, `Stock.Cones.MaxCarry` = 10), puis **« Prendre N plots »**. Il les **porte en pile dans les mains**.
   Plots en main : pas d'arme, pas de coup, pas de visée, pas de montée en véhicule.
-- **Aide en haut à gauche** tant qu'il porte des plots : **« G Poser un plot (N en main) »**, **« Utiliser le target pour
-  reprendre les plots posés »**, et le rangement au coffre. Après avoir posé le **dernier** plot, le rappel « Utiliser le
-  target pour reprendre les plots posés » reste affiché quelques secondes.
+- **Aide en haut à gauche** tant qu'il porte des plots : **« "G" pour poser un plot (N en mains), utiliser le target
+  pour récupérer les plots posés. »** (la touche réellement choisie par le joueur). Le texte est envoyé au jeu en
+  morceaux de moins de 99 caractères : au-delà, le jeu l'affichait mal. Après avoir posé le **dernier** plot, le rappel
+  « Utiliser le target pour récupérer les plots posés. » reste affiché quelques secondes.
 - **G** (modifiable : *Raccourcis clavier > FiveM > « Plot de circulation : poser au sol »*) : **un** plot posé **debout
   au sol**, devant lui ; on rappuie pour le suivant. Les plots sont créés **par le serveur** : visibles par tous, figés,
   ils restent même si le policier se déconnecte. Mort avec des plots en main : ils tombent autour de ses pieds.
@@ -114,6 +120,19 @@ plaque). C'est le **même coffre pour tous** les policiers.
   prendre (10 max), il range ce qui rentre et garde le reste en main.
 - **Un plot pris et pas remis n'est plus dans le coffre** : le coffre garde son compte.
 - Des plots portés au moment d'une déconnexion sont perdus ; les plots au sol sont retirés si `rp_equipment` redémarre.
+
+**Trafic PNJ autour des plots** (`client/traffic.lua`, `Stock.Cones.Traffic`) : **seulement les plots posés avec ce
+menu** (jamais ceux du décor).
+- Plots à moins de 6 m les uns des autres = **un dispositif** (ligne, biseau en diagonale…). Autour, une zone de
+  vitesse du jeu fait **ralentir** les véhicules qui approchent.
+- Un véhicule PNJ qui a un plot du dispositif **dans sa trajectoire à moins de 10 m** (`Detect`) **anticipe** : il
+  cherche le passage le plus proche de lui, à gauche ou à droite, assez large pour lui et **sur la route** (voie
+  voisine ou **voie d'en face**), s'y engage à allure réduite, dépasse le dernier plot puis reprend sa route. Ex. :
+  3 plots en diagonale qui ferment la voie de droite : les PNJ passent sur l'autre voie.
+- **Aucune autre voie** (route à une voie, dispositif qui ferme toute la route) : le dispositif est
+  **infranchissable**, les véhicules s'arrêtent devant ; ils repartent quand les plots sont retirés.
+- Chaque joueur ne dirige que les PNJ que son jeu contrôle (réseau). Aucune boucle sans plot posé ; plot à plus de
+  200 m (`Range`) : rien n'est fait.
 
 **Fusées de détresse** (`WEAPON_FLARE`, posées au sol avec `rp_flares`)
 - Rangeables **comme les armes longues** : **« Ranger 1 »** / **« Tout ranger »** (celles que le policier a sur lui) et
@@ -132,7 +151,8 @@ plaque). C'est le **même coffre pour tous** les policiers.
 | `OpenTrunk` | ouvrir le coffre pendant le menu |
 | `Types`, `InteractVehicles`, `ServiceTypes` | types de véhicules (catégories de rp_interact, modèles, classes) |
 | `EquipmentFile`, `Eup` | fichier de l'équipement EUP (`equipment.json`), numéros comptés à partir de 1 |
-| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 6 d'origine, 10 max, `MaxCarry` portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), touche de pose (`PlaceKey`, G) |
+| `OpenFrontDoor` | ouvrir la portière avant la plus proche pendant le menu |
+| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |
 | `LongGuns` | râtelier : endroit (`Where`), types concernés, emplacements et groupes d'armes, munitions données (`GiveAmmo`), fichier de sauvegarde, accessoires et noms en plus |
 
 ## Performance
@@ -142,4 +162,7 @@ plaque). C'est le **même coffre pour tous** les policiers.
   avant / du coffre (proposition) ou menu ouvert.
 - Plots portés : une boucle à chaque image **seulement tant qu'ils sont dans les mains** (aide, touches bloquées) ;
   rappel du target quelques secondes après le dernier plot posé.
+- Trafic PNJ : **aucune boucle sans plot posé** ; plots à plus de 200 m : réveil léger toutes les 250 ms (aucun calcul) ;
+  dispositif à portée : vérification des véhicules proches toutes les 250 ms.
+- Menu fermé avec Échap : quelques images de blocage du menu pause, puis plus rien.
 - Serveur : aucune boucle.

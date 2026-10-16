@@ -332,7 +332,7 @@
             ${x.service ? `<small>${esc(x.service)}</small>` : ''}</button>`).join('') : `<div class="menu-empty">${esc(empty)}</div>`);
 
     // Équipement sélectionné : de base ({ key }) ou modifié ({ id }) ; c'est lui que "Customiser équipement" modifie.
-    // Au départ : celui du service principal choisi dans la vue Police.
+    // Au départ : aucun, le joueur choisit lui-même (quel que soit son service).
     const equip = { services: [], customs: [], max: 10, selected: null, locked: false, custom: null };
     const DEPT = { apd: 'APD', gsp: 'GSP', fcso: 'FCSO' };
     const deptChip = (code) => (DEPT[code] ? `<span class="dept-chip dept-${code}">${DEPT[code]}</span>` : '');
@@ -366,7 +366,7 @@
             : '<div class="menu-empty">Aucun équipement modifié. Choisissez un équipement de base, « Customiser équipement », donnez-lui un nom puis « Enregistrer ».</div>';
         const kit = selectedKit();
         $('#equipCustomize').disabled = equip.locked || !kit;
-        $('#equipCustomizeHint').textContent = kit ? kit.name : '';
+        $('#equipCustomizeHint').textContent = kit ? kit.name : 'Choisissez d\'abord un équipement';
     }
 
     async function loadEquipment() {
@@ -376,12 +376,7 @@
         equip.services = toArray(res.services);
         equip.customs = toArray(res.customs);
         equip.max = Number(res.maxCustom) || 10;
-        if (!selectedKit()) {
-            // Service principal (vue Police : "apd", "gsp", "fcso", "apd+gsp"…) : le premier qui a un équipement
-            const mine = String(res.policeService || '').split('+');
-            const match = equip.services.find((x) => x.code && mine.includes(x.code)) || equip.services[0];
-            equip.selected = match ? { key: match.key } : null;
-        }
+        if (!selectedKit()) equip.selected = null; // rien d'imposé : le joueur choisit son équipement
         const notice = $('#equipNotice');
         notice.classList.toggle('hidden', !equip.locked);
         notice.textContent = 'Armes réservées à la police : rejoignez une unité dans le MDC.';

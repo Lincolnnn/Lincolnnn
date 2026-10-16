@@ -37,9 +37,10 @@ VCConfig = {
         ClassFactor = {},
         -- Véhicules sans essence (vélos, trains) : jauge masquée, aucune consommation
         NoFuelClasses = { [13] = true, [21] = true },
-        -- Essence d'un véhicule jamais vu : créé par un script (garage, menu de spawn) = plein ;
-        -- véhicule de la circulation = au hasard entre Min et Max.
-        SpawnedFuel = 100.0,
+        -- Essence d'un véhicule jamais vu, au hasard entre min et max (% du plein) : créé par un script (n'importe
+        -- lequel : garage, menu de spawn, /car…) = SpawnedFuel ; véhicule de la circulation = AmbientFuel.
+        -- (Un nombre seul, ex. SpawnedFuel = 100.0, donne toujours cette valeur.)
+        SpawnedFuel = { min = 35.0, max = 87.0 },
         AmbientFuel = { min = 25.0, max = 85.0 },
         -- Réservoir percé (santé du réservoir sous LeakBelow) : fuite jusqu'à LeakPerMinute % par minute
         LeakBelow = 700.0,

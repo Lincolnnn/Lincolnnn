@@ -12,13 +12,25 @@
 local Config = NPCConfig
 local AMBIENT = { [1] = true, [2] = true, [3] = true, [4] = true, [5] = true } -- population créée par le jeu
 
-local blocked = {}
-for _, name in ipairs(Config.EmergencyPeds or {}) do blocked[GetHashKey(name)] = true end
-for _, name in ipairs(Config.EmergencyVehicles or {}) do blocked[GetHashKey(name)] = true end
+local blocked, police = {}, {}
+local nonPolice = {}
+for _, name in ipairs(Config.NonPoliceModels or {}) do nonPolice[GetHashKey(name)] = true end
+for _, list in ipairs({ Config.EmergencyPeds or {}, Config.EmergencyVehicles or {} }) do
+    for _, name in ipairs(list) do
+        local hash = GetHashKey(name)
+        blocked[hash] = true
+        if not nonPolice[hash] then police[hash] = true end
+    end
+end
+
+-- Chasse à l'homme (config.lua : Manhunt) : la police du jeu redevient normale ; publié pour tous les clients
+GlobalState.npcManhunt = Config.Manhunt == true
 
 if Config.DisableEmergencyServices then
     AddEventHandler('entityCreating', function(entity)
-        if blocked[GetEntityModel(entity)] and AMBIENT[GetEntityPopulationType(entity)] then
+        local model = GetEntityModel(entity)
+        if blocked[model] and AMBIENT[GetEntityPopulationType(entity)]
+            and not (police[model] and GlobalState.npcManhunt == true) then
             CancelEvent() -- jamais créé : ni au commissariat, ni à la caserne, ni à l'hôpital, ni dans le trafic
         end
     end)
@@ -63,5 +75,18 @@ RegisterCommand(Config.DensityCommand or 'npcdensity', function(src, args)
     reply(src, ('Densité : trafic %.2f, garés %.2f, piétons %.2f'):format(new.Traffic, new.Parked, new.Peds))
 end, true)
 
+-- npcmanhunt on|off : chasse à l'homme sans redémarrer (la valeur de config.lua revient au redémarrage)
+RegisterCommand(Config.ManhuntCommand or 'npcmanhunt', function(src, args)
+    local value = (args[1] or ''):lower()
+    if value ~= 'on' and value ~= 'off' then
+        return reply(src, ('Utilisation : npcmanhunt on|off (actuel : %s)'):format(GlobalState.npcManhunt and 'activée' or 'désactivée'))
+    end
+    GlobalState.npcManhunt = value == 'on'
+    reply(src, GlobalState.npcManhunt
+        and 'Chasse à l\'homme ACTIVÉE : étoiles, policiers PNJ et renforts de retour, ils poursuivent et tirent.'
+        or 'Chasse à l\'homme désactivée : plus d\'étoiles ni de policiers PNJ.')
+end, true)
+
+print(('^5[rp_NPCcontrol]^0 chasse à l\'homme : %s'):format(GlobalState.npcManhunt and 'ACTIVÉE' or 'désactivée'))
 print(('^5[rp_NPCcontrol]^0 services d\'urgence du jeu : %s ; densité : trafic %.2f, garés %.2f, piétons %.2f')
     :format(Config.DisableEmergencyServices and 'supprimés' or 'actifs', density.Traffic, density.Parked, density.Peds))

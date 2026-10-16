@@ -261,7 +261,7 @@ local Handlers = {}
 local S = Config.Stock or {}
 local Stock = {}       -- [plaque] = { cones, flares }
 local carrying = {}    -- [joueur] = nombre de plots portés (pris dans un coffre ou ramassés au sol)
-local placedCones = {} -- [objet] = true
+local placedCones = {} -- [objet] = { x, y, z } : plots posés (publiés pour la déviation du trafic PNJ)
 local MAX_CARRY = math.max(1, math.floor(tonumber(S.Cones and S.Cones.MaxCarry) or 10))
 
 local function carried(src) return carrying[src] or 0 end
@@ -314,6 +314,18 @@ function Handlers.open(src, data)
         rack = rackAllowed(ctx) and ctx.plate and rackSummary(ctx.plate) or false,
         stock = stockAllowed(ctx) and stockView(ctx.plate) or false, carrying = carried(src), maxCarry = MAX_CARRY,
     }
+end
+
+--- /restock : coffre du véhicule rempli à 100 % (plots et fusées au maximum) ; les armes longues ne sont pas touchées
+function Handlers.restock(src, data)
+    local ctx, err = context(src, data)
+    if not ctx then return { ok = false, error = err } end
+    if S.Enabled == false or not ctx.plate then return { ok = false, error = 'Ce véhicule n\'a pas de coffre.' } end
+    local st = stockOf(ctx.plate)
+    st.cones = S.Cones and S.Cones.Max or 10
+    st.flares = S.Flares and S.Flares.Max or 20
+    stockChanged(ctx.plate)
+    return { ok = true, plate = ctx.plate, stock = stockView(ctx.plate) }
 end
 
 --- Prendre `count` plots dans le coffre (le joueur les porte, en plus de ceux qu'il a déjà, MaxCarry au plus)
@@ -369,6 +381,20 @@ function Handlers.flares(src, data)
     return { ok = true, mode = data.mode == 'take' and 'take' or 'store', count = count, stock = stockView(ctx.plate) }
 end
 
+--- Plots posés publiés à tous les joueurs (GlobalState.rpCones = { { x, y, z }, ... }) : leurs clients font dévier
+--- le trafic PNJ (client/traffic.lua). Regroupé : une seule publication par image serveur.
+local publishPending = false
+local function publishCones()
+    if publishPending then return end
+    publishPending = true
+    SetTimeout(0, function()
+        publishPending = false
+        local list = {}
+        for _, pos in pairs(placedCones) do list[#list + 1] = pos end
+        GlobalState.rpCones = list
+    end)
+end
+
 --- Plot posé au sol : créé ici (visible par tous, reste en place), marqué "rpCone" (repris avec l'œil)
 local function createCone(src, x, y, z, heading)
     local object = CreateObjectNoOffset(GetHashKey(S.Cones.Model or 'prop_roadcone02a'), x, y, z, true, true, false)
@@ -378,7 +404,8 @@ local function createCone(src, x, y, z, heading)
     SetEntityHeading(object, heading)
     FreezeEntityPosition(object, true)
     Entity(object).state:set('rpCone', { by = src }, true)
-    placedCones[object] = true
+    placedCones[object] = { x = x, y = y, z = z }
+    publishCones()
     return true
 end
 
@@ -404,6 +431,7 @@ end)
 --- Plot au sol retiré et porté par ce joueur
 local function takeFromGround(src, object)
     placedCones[object] = nil
+    publishCones()
     Entity(object).state:set('rpCone', nil, true)
     DeleteEntity(object)
     setCarried(src, carried(src) + 1)
@@ -460,13 +488,17 @@ end)
 
 -- Plot porté perdu (mort : posé à ses pieds par le client ; déconnexion : perdu)
 AddEventHandler('playerDropped', function() carrying[source] = nil end)
-AddEventHandler('entityRemoved', function(entity) placedCones[entity] = nil end)
+AddEventHandler('entityRemoved', function(entity)
+    if placedCones[entity] then placedCones[entity] = nil; publishCones() end
+end)
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     for object in pairs(placedCones) do
         if DoesEntityExist(object) then DeleteEntity(object) end
     end
+    GlobalState.rpCones = {}
 end)
+GlobalState.rpCones = {} -- démarrage : aucun plot posé
 
 --- Pièce d'équipement EUP de ce véhicule (le client la met ou la retire de la tenue du joueur)
 function Handlers.wear(src, data)

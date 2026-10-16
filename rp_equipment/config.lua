@@ -14,6 +14,8 @@ EquipConfig = {
     InteractDistance = 1.6,       -- m d'une portière avant / du coffre pour voir la proposition et ouvrir le menu
     CloseDistance = 4.0,          -- m du véhicule (carrosserie) : au-delà, le menu se ferme
     OpenTrunk = true,             -- menu ouvert au coffre : le coffre s'ouvre (refermé à la fermeture du menu)
+    OpenFrontDoor = true,         -- menu ouvert à l'avant : portière la plus proche (gauche : conducteur, droite :
+                                  -- passager avant) ouverte, refermée à la fermeture ; jamais rouverte si déjà ouverte
 
     -- ---------------------------------------------------------------------
     -- TYPES DE VÉHICULES : un type par catégorie (son équipement : equipment.json)
@@ -83,7 +85,7 @@ EquipConfig = {
         Where = 'trunk',          -- 'trunk', 'front' ou 'both'
         SaveFile = 'data/stock.json',
         Cones = {
-            Default = 6, Max = 10,
+            Default = 7, Max = 10,  -- 7 / 10 dans chaque véhicule de police jamais utilisé
             MaxCarry = 10,        -- plots qu'un policier porte en même temps (il choisit combien il en prend)
             PickupRadius = 8.0,   -- œil « Ramasser les plots autour » : plots à moins de 8 m du plot visé
             Model = 'prop_roadcone02a',
@@ -92,8 +94,27 @@ EquipConfig = {
             -- pile : un objet par plot (MaxProps au plus), chacun StackStep m au-dessus du précédent
             Carry = { Bone = 28422, Offset = { 0.0, -0.05, -0.15, 0.0, 0.0, 0.0 }, Anim = { 'anim@heists@box_carry@', 'idle' },
                 MaxProps = 5, StackStep = 0.07 },
+            -- Trafic PNJ (client/traffic.lua) : seulement les plots posés avec ce menu
+            Traffic = {
+                Enabled = true,
+                Detect = 10.0,        -- m : un plot dans sa trajectoire à moins de 10 m devant : contournement anticipé
+                GroupDistance = 6.0,  -- plots à moins de 6 m les uns des autres = un même dispositif (ligne, biseau)
+                Margin = 0.8,         -- m laissés entre la carrosserie et les plots
+                MaxShift = 9.0,       -- m de décalage latéral au plus pour trouver un passage (voie voisine / d'en face)
+                PassSpeed = 7.0,      -- m/s pendant le contournement (~25 km/h)
+                PassBeyond = 8.0,     -- m après le dernier plot avant de reprendre la route
+                ResumeSpeed = 17.0,   -- m/s : vitesse de croisière rendue après le contournement
+                SlowSpeed = 8.0,      -- m/s : zone de vitesse du jeu autour du dispositif (0 : aucune)
+                SlowRadius = 25.0,    -- m autour du dispositif
+                Range = 200.0,        -- m : rien n'est fait pour les dispositifs plus loin du joueur
+                Interval = 250,       -- ms entre deux vérifications (dispositif à portée)
+                MaxDeviateTime = 15000,
+                DrivingStyle = 820,   -- éviter véhicules (4), piétons (16), objets (32), clignotants (256), voie d'en face (512)
+            },
         },
         Flares = { Default = 0, Max = 20, Weapon = 'WEAPON_FLARE' },
         PlaceKey = 'G',
+        RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots et fusées), sauf armes longues
+        RestockDistance = 6.0,      -- m : véhicule de police le plus proche (ou celui où l'on est assis)
     },
 }
