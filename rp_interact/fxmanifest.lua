@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '2.15.0'
+version '2.16.0'
 
 ui_page 'html/index.html'
 
@@ -36,6 +36,7 @@ client_scripts {
     'client/radio.lua',    -- Menu > Voiture > Radio : son synchronisé dans le véhicule
     'client/props.lua',    -- props posés (script "props") : déplacer / supprimer avec l'œil
     'client/eup.lua',      -- /eup : menu des tenues au clavier (data/outfits.json)
+    'client/combat.lua',   -- arme à feu en main : ni coup de crosse / coup dans le vide, ni roulade
 }
 
 server_scripts {

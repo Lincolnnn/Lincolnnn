@@ -294,6 +294,14 @@ placez-y **`rp_interact/stream/p_cs_cuffs_02_s.ydr`** (FiveM le charge automatiq
 Aucune restriction : **tout le monde** (policier ou non, mode civil ou non) monte dans **tous les véhicules de
 police**, en tout temps et en tout lieu. Les anciennes commandes `/policeon` et `/policeoff` sont supprimées.
 
+### Arme à feu en main : ni coup de crosse, ni roulade
+
+- **Plus de corps à corps avec une arme à feu** (`NoFirearmMelee`) : impossible de donner un **coup de crosse** à
+  quelqu'un ou de **taper dans le vide** (attaques légère, lourde et alternative du jeu bloquées). Viser, tirer et
+  recharger fonctionnent normalement.
+- **Plus de roulade** (`NoCombatRoll`) : le saut est bloqué pendant la visée (c'est ce qui déclenche la roulade).
+- Mains nues ou arme blanche (couteau, matraque…) : rien ne change.
+
 Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seats`, `TrashBins`).
 
 ## Configuration (`config.lua`)
@@ -314,6 +322,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragTurnSpeed`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position / rotation de l'individu tenu, touche pour lâcher le bras, distance du véhicule |
 | `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) : `'everyone'` (défaut) ou `'police'`, + permission ACE |
 | `AdminAce` | permission ACE des commandes d'administration (rechargement des emotes et des véhicules) |
+| `NoFirearmMelee`, `NoCombatRoll` | arme à feu en main : pas de coup de crosse / coup dans le vide ; pas de roulade |
 | `MaxProfiles`, `TextMax` | profils par joueur, longueur des textes |
 | `AnnounceWithMe`, `ResultsInChat`, `ResultDuration` | `/me` automatiques, copie dans le chat, durée d'affichage |
 | `Defaults` | réponses par défaut |
@@ -386,6 +395,8 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 - Aucune boucle quand rien n'est utilisé (0.00 ms dans le resmon). Radio : une vérification toutes les 150 ms
   seulement tant qu'une radio est allumée dans un véhicule à portée réseau.
 - Menu `/eup` : lecture des touches à chaque image **uniquement pendant qu'il est ouvert**.
+- Arme à feu : une vérification toutes les 250 ms (arme en main) ; touches bloquées à chaque image **seulement tant
+  qu'une arme à feu est en main**, à pied.
 - L'œil tourne uniquement pendant que la touche est maintenue (visée toutes les 50 ms, tir bloqué) et s'arrête ensuite.
 - Assis sur un banc : une petite boucle attend la touche pour se lever, puis s'arrête.
 - Portière ouverte avec l'œil : surveillance légère (250 ms) jusqu'à ce qu'elle soit refermée.

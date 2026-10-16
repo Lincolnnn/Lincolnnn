@@ -136,6 +136,10 @@ InteractConfig = {
     -- Permission ACE des commandes d'administration (rechargement des fichiers : emotes, véhicules)
     AdminAce = 'rpinteract.admin',
 
+    -- ARME À FEU EN MAIN (client/combat.lua)
+    NoFirearmMelee = true,          -- plus de coup de crosse ni de coup donné dans le vide (corps à corps léger / lourd)
+    NoCombatRoll = true,            -- plus de roulade (saut pendant la visée)
+
     MaxProfiles = 20,               -- profils civils par joueur
     TextMax = 1000,                 -- caractères max par case de texte
 
