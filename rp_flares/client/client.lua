@@ -7,7 +7,9 @@
       "rpFlare" (sommet de la fusée) ; on la retire avec l'œil de rp_interact ("Retirer la fusée").
     - Chaque client dessine la flamme (particules) et une LUMIÈRE rouge vive qui vacille, bien plus forte et plus
       large la nuit.
-    Performance : aucune boucle sans fusée connue. Fusées posées dans les environs : vérification toutes les secondes ;
+    - Fusée en main : aide en haut à gauche ("G Poser la fusée au sol" / "Utiliser le target pour la reprendre").
+    Performance : arme en main vérifiée toutes les 500 ms (aide à chaque image seulement fusée en main) ; aucune
+    autre boucle sans fusée connue. Fusées posées dans les environs : vérification toutes les secondes ;
     lumière dessinée à chaque image seulement quand une fusée est à moins de Light.Distance m.
 ]]
 
@@ -107,6 +109,37 @@ end
 
 RegisterCommand('rp_flare_place', place, false)
 RegisterKeyMapping('rp_flare_place', 'Fusée de détresse : poser au sol (fusée en main)', 'keyboard', Config.Key or 'G')
+
+-- =========================================================================
+-- AIDE EN HAUT À GAUCHE, fusée en main : la touche (celle réellement choisie par le joueur) et comment la reprendre.
+-- Performance : vérification de l'arme en main toutes les 500 ms ; aide redonnée à chaque image seulement pendant
+-- que la fusée est en main.
+-- =========================================================================
+local KEY = ('~INPUT_%X~'):format((GetHashKey('rp_flare_place') | 0x80000000) & 0xFFFFFFFF)
+
+local function holdingFlare(ped)
+    return GetSelectedPedWeapon(ped) == WEAPON and not IsPedInAnyVehicle(ped, true) and not IsEntityDead(ped)
+end
+
+CreateThread(function()
+    while true do
+        local ped = PlayerPedId()
+        if Config.Help ~= false and holdingFlare(ped) then
+            local text = ('%s %s~n~%s'):format(KEY, Config.HelpPlace or 'Poser la fusée au sol',
+                Config.HelpTake or 'Utiliser le target pour la reprendre')
+            while holdingFlare(PlayerPedId()) do
+                -- (une action d'essence à la pompe / trappe affiche déjà sa propre aide : pas de clignotement)
+                if not IsPauseMenuActive() and not LocalPlayer.state.vcFuelPrompt then
+                    BeginTextCommandDisplayHelp('STRING')
+                    AddTextComponentSubstringPlayerName(text)
+                    EndTextCommandDisplayHelp(0, false, false, -1)
+                end
+                Wait(0)
+            end
+        end
+        Wait(500)
+    end
+end)
 
 -- =========================================================================
 -- FUSÉES POSÉES : flamme et lumière (tous les joueurs)

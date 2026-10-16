@@ -6,6 +6,10 @@ FlareConfig = {
     -- Échap > Paramètres > Raccourcis clavier > FiveM > « Fusée de détresse : poser au sol ».
     Weapon = 'WEAPON_FLARE',
     Key = 'G',
+    -- Aide en haut à gauche de l'écran tant que la fusée est en main (false : aucune)
+    Help = true,
+    HelpPlace = 'Poser la fusée au sol',
+    HelpTake = 'Utiliser le target pour la reprendre',
 
     -- Objet posé (debout : le script le redresse tout seul selon sa forme). Modèle de secours si le premier n'existe pas.
     Model = 'prop_flare_01',

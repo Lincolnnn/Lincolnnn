@@ -13,6 +13,9 @@
 - **Fusée en main** (`WEAPON_FLARE`) : touche **G** (modifiable : *Échap > Paramètres > Raccourcis clavier > FiveM >
   « Fusée de détresse : poser au sol »*). Le personnage se baisse et pose une fusée **allumée**, **debout**, à 70 cm
   devant lui, posée sur le sol.
+- Tant que la fusée est **en main**, une aide s'affiche **en haut à gauche** : **« G Poser la fusée au sol »** (la
+  touche réellement choisie par le joueur) et, en dessous, **« Utiliser le target pour la reprendre »** (`Help`,
+  `HelpPlace`, `HelpTake`).
 - La fusée **reste dans ses armes** : il peut en poser **autant qu'il veut** (`MaxPerPlayer` pour limiter).
 - **Retirer** : avec l'**œil** (rp_interact, **Alt**), viser la fusée : **« Retirer la fusée »** (n'importe quel
   joueur, à moins de 2,5 m).
@@ -27,6 +30,7 @@
 | Clé | Rôle |
 |---|---|
 | `Weapon`, `Key` | arme tenue (`WEAPON_FLARE`), touche par défaut (`G`) |
+| `Help`, `HelpPlace`, `HelpTake` | aide en haut à gauche, fusée en main, et ses deux lignes |
 | `Model`, `FallbackModel` | objet posé (`prop_flare_01`, sinon `w_am_flare`) ; redressé tout seul (son plus grand côté à la verticale) |
 | `PlaceDistance`, `PlaceTime` | distance devant le joueur, durée du geste |
 | `MaxPerPlayer` | fusées posées en même temps par joueur (0 : illimité) |
@@ -37,7 +41,8 @@
 
 ## Performance
 
-- Aucune boucle sans fusée posée.
+- Arme en main vérifiée toutes les 500 ms ; aide redonnée à chaque image **seulement fusée en main**.
+- Aucune autre boucle sans fusée posée.
 - Fusées connues : vérification toutes les secondes ; lumière dessinée **à chaque image seulement** quand une fusée
   est à moins de `Light.Distance` m (150).
 - Serveur : aucune boucle.
