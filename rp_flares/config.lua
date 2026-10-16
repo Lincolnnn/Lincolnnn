@@ -16,7 +16,9 @@ FlareConfig = {
     FallbackModel = 'w_am_flare',
     PlaceDistance = 0.7,          -- m devant le joueur
     PlaceTime = 900,              -- ms : le joueur se baisse pour la poser
-    MaxPerPlayer = 0,             -- fusées posées en même temps par joueur (0 : illimité)
+    -- Poser une fusée en retire une au joueur ; la reprendre (œil) en rend une. MaxPerPlayer : fusées posées en même
+    -- temps par joueur, en plus (0 : seulement le nombre de fusées qu'il a sur lui)
+    MaxPerPlayer = 0,
     BurnMinutes = 0,              -- durée de combustion (0 : jusqu'à ce qu'on la retire)
     RemoveDistance = 3.0,         -- m : retirer une fusée (œil de rp_interact)
 

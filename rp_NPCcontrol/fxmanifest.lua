@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_NPCcontrol'
 author 'Lincolnnn'
 description 'Contrôle des PNJ : services d\'urgence du jeu supprimés, indice de recherche, PNJ ignorent les joueurs, densité - standalone'
-version '1.1.0'
+version '1.2.0'
 
 shared_scripts {
     'config.lua',

@@ -3,7 +3,8 @@
     -------------------
     - Pose : vérifiée (fusée en main, à côté du joueur, modèle prévu, pas trop vite, limite par joueur), puis l'objet est
       créé ICI : il reste même si le joueur se déconnecte, figé, marqué "rpFlare" (sommet de la fusée, poseur).
-    - Retrait (œil de rp_interact, "rp_flares:remove") : joueur à côté de la fusée.
+    - Pose confirmée : une fusée retirée au joueur ("rp_flares:placed"). Retrait (œil de rp_interact,
+      "rp_flares:remove") : joueur à côté de la fusée, qui la récupère ("rp_flares:pickedUp").
     - Combustion limitée (BurnMinutes > 0) : la fusée disparaît toute seule.
     Aucune boucle.
 ]]
@@ -62,6 +63,7 @@ RegisterNetEvent('rp_flares:place', function(data)
     FreezeEntityPosition(object, true)
     Entity(object).state:set('rpFlare', { by = src, top = { x = top.x, y = top.y, z = top.z }, at = os.time() }, true)
     flares[object] = src
+    TriggerClientEvent('rp_flares:placed', src) -- une fusée de moins chez le joueur
     if (Config.BurnMinutes or 0) > 0 then
         SetTimeout(Config.BurnMinutes * 60000, function()
             if flares[object] then removeFlare(object) end
@@ -76,6 +78,7 @@ RegisterNetEvent('rp_flares:remove', function(netId)
     local ped = GetPlayerPed(src)
     if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(object)) > (Config.RemoveDistance or 3.0) + 1.0 then return end
     removeFlare(object)
+    TriggerClientEvent('rp_flares:pickedUp', src) -- reprise : une fusée de plus pour celui qui la ramasse
 end)
 
 AddEventHandler('entityRemoved', function(entity) flares[entity] = nil end)

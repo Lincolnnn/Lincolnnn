@@ -19,7 +19,7 @@
             { "Weapon": "WEAPON_STUNGUN", "Label": "Taser", "Ammo": 1, "Required": true },
             { "Weapon": "WEAPON_FLASHLIGHT", "Label": "Lampe torche", "Ammo": 1 },
             { "Weapon": "WEAPON_NIGHTSTICK", "Label": "Matraque", "Ammo": 1 },
-            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse (accidents, routes)", "Ammo": 10 },
+            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse (10)", "Ammo": 10 },
             { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": false }
         ]
     },
@@ -43,7 +43,7 @@
             { "Weapon": "WEAPON_STUNGUN", "Label": "Taser", "Ammo": 1, "Required": true },
             { "Weapon": "WEAPON_FLASHLIGHT", "Label": "Lampe torche", "Ammo": 1 },
             { "Weapon": "WEAPON_NIGHTSTICK", "Label": "Matraque", "Ammo": 1 },
-            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse", "Ammo": 5, "Default": false },
+            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse (10)", "Ammo": 10 },
             { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": false }
         ]
     },
@@ -77,7 +77,7 @@
                 ],
                 "Tints": true
             },
-            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse", "Ammo": 5, "Default": false },
+            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse (10)", "Ammo": 10 },
             { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": false }
         ]
     }

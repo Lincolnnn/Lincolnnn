@@ -1,13 +1,15 @@
 --[[
     RP Flares - client
     ------------------
-    - Fusée de détresse en main (WEAPON_FLARE) : la touche (G par défaut) la POSE au sol, debout, allumée. Le joueur la
-      garde dans ses armes : il peut en poser autant qu'il veut (FlareConfig.MaxPerPlayer pour limiter).
+    - Fusée de détresse en main (WEAPON_FLARE) : la touche (G par défaut) la POSE au sol, debout, allumée : une fusée
+      de moins (10 dans les équipements de service de rp_interact) ; la reprendre avec l'œil en rend une.
+      FlareConfig.MaxPerPlayer limite en plus le nombre de fusées posées en même temps.
     - Fusée posée : objet créé par le serveur (visible par tous, gardé même si le joueur se déconnecte), marqué
       "rpFlare" (sommet de la fusée) ; on la retire avec l'œil de rp_interact ("Retirer la fusée").
     - Chaque client dessine la flamme (particules) et une LUMIÈRE rouge vive qui vacille, bien plus forte et plus
       large la nuit.
-    - Fusée en main : aide en haut à gauche ("G Poser la fusée au sol" / "Utiliser le target pour la reprendre").
+    - Fusée en main : aide en haut à gauche ("G Poser la fusée au sol (fusées restantes)" / "Utiliser le target pour la
+      reprendre").
     Performance : arme en main vérifiée toutes les 500 ms (aide à chaque image seulement fusée en main) ; aucune
     autre boucle sans fusée connue. Fusées posées dans les environs : vérification toutes les secondes ;
     lumière dessinée à chaque image seulement quand une fusée est à moins de Light.Distance m.
@@ -82,6 +84,7 @@ local function place()
         or IsPedSwimming(ped) or GetSelectedPedWeapon(ped) ~= WEAPON then
         return
     end
+    if GetAmmoInPedWeapon(ped, WEAPON) <= 0 then return notify('Plus de fusée.') end
     placing = true
     CreateThread(function()
         local name = modelName()
@@ -108,6 +111,31 @@ local function place()
 end
 
 RegisterCommand('rp_flare_place', place, false)
+
+-- Fusée posée (confirmé par le serveur) : une fusée de moins ; la dernière posée, l'arme disparaît
+RegisterNetEvent('rp_flares:placed', function()
+    local ped = PlayerPedId()
+    local count = GetAmmoInPedWeapon(ped, WEAPON)
+    if count <= 1 then
+        RemoveWeaponFromPed(ped, WEAPON)
+    else
+        SetPedAmmo(ped, WEAPON, count - 1)
+    end
+end)
+
+-- Fusée reprise avec l'œil (confirmé par le serveur) : une fusée de plus, ramassée
+RegisterNetEvent('rp_flares:pickedUp', function()
+    local ped = PlayerPedId()
+    if HasPedGotWeapon(ped, WEAPON, false) then
+        AddAmmoToPed(ped, WEAPON, 1)
+    else
+        GiveWeaponToPed(ped, WEAPON, 1, false, false)
+    end
+    RequestAnimDict(PLACE_ANIM[1])
+    local timeout = GetGameTimer() + 1000
+    while not HasAnimDictLoaded(PLACE_ANIM[1]) and GetGameTimer() < timeout do Wait(10) end
+    TaskPlayAnim(ped, PLACE_ANIM[1], PLACE_ANIM[2], 8.0, -8.0, Config.PlaceTime or 900, 0, 0.0, false, false, false)
+end)
 RegisterKeyMapping('rp_flare_place', 'Fusée de détresse : poser au sol (fusée en main)', 'keyboard', Config.Key or 'G')
 
 -- =========================================================================
@@ -125,11 +153,11 @@ CreateThread(function()
     while true do
         local ped = PlayerPedId()
         if Config.Help ~= false and holdingFlare(ped) then
-            local text = ('%s %s~n~%s'):format(KEY, Config.HelpPlace or 'Poser la fusée au sol',
-                Config.HelpTake or 'Utiliser le target pour la reprendre')
             while holdingFlare(PlayerPedId()) do
                 -- (une action d'essence à la pompe / trappe affiche déjà sa propre aide : pas de clignotement)
                 if not IsPauseMenuActive() and not LocalPlayer.state.vcFuelPrompt then
+                    local text = ('%s %s (%d)~n~%s'):format(KEY, Config.HelpPlace or 'Poser la fusée au sol',
+                        GetAmmoInPedWeapon(PlayerPedId(), WEAPON), Config.HelpTake or 'Utiliser le target pour la reprendre')
                     BeginTextCommandDisplayHelp('STRING')
                     AddTextComponentSubstringPlayerName(text)
                     EndTextCommandDisplayHelp(0, false, false, -1)

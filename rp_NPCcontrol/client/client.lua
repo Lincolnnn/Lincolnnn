@@ -6,18 +6,20 @@
       désactivés. Les PNJ / véhicules d'urgence du jeu encore présents (démarrage de la ressource) sont retirés.
       Les entités créées par un joueur ou un script (population "mission") ne sont JAMAIS touchées.
     - Indice de recherche : jamais.
-    - « Everyone ignore player » : les PNJ ignorent les joueurs, n'ont plus peur, ne réagissent plus aux fusillades
-      ni aux explosions.
+    - « Everyone ignore player » : les PNJ ignorent les joueurs, n'ont plus peur, ne réagissent plus aux fusillades,
+      aux explosions ni aux morts, et ne se battent pas (véhicule volé, klaxon, bousculade).
     - Densité du trafic, des véhicules garés et des piétons (0.0 à 3.0), réglée par le serveur (GlobalState.npcDensity).
     Performance :
       - boucle d'1 s (PNJ du jeu à proximité : réglages "pas de peur", retrait des services d'urgence) : ~0.01 ms ;
-      - conducteurs : boucle de 250 ms seulement pendant une alerte (le joueur vise, tire, explosion proche) ;
+      - alerte (le joueur vise, tire, vole un véhicule, klaxonne, se bat, explosion ou PNJ mort à proximité) : boucle
+        de 250 ms seulement pendant ce moment (PNJ proches calmés : conducteurs et piétons) ;
       - boucle à chaque image SEULEMENT si une densité n'est pas 1.0 ou si SuppressShockingEvents est actif
         (les densités du jeu doivent être redonnées à chaque image) : ~0.01 ms ; sinon aucune.
 ]]
 
 local Config = NPCConfig
 local MISSION = { [6] = true, [7] = true } -- PNJ / véhicules créés par un script (joueurs, menus) : jamais touchés
+local PLAYER_GROUP = GetHashKey('PLAYER')
 
 local emergencyPed, emergencyVehicle = {}, {}
 for _, name in ipairs(Config.EmergencyPeds or {}) do emergencyPed[GetHashKey(name)] = true end
@@ -68,6 +70,10 @@ local function applyRules()
         SetEveryoneIgnorePlayer(player, true)
         SetPlayerCanBeHassledByGangs(player, false)
         SetIgnoreLowPriorityShockingEvents(player, true)
+        -- Groupes de PNJ (civils, vigiles, gangs…) : respect envers les joueurs, jamais hostiles
+        for _, group in ipairs(Config.CalmGroups or {}) do
+            SetRelationshipBetweenGroups(1, GetHashKey(group), PLAYER_GROUP)
+        end
     end
 end
 
@@ -105,12 +111,22 @@ local function calm(ped)
     SetPedFleeAttributes(ped, 0, false)        -- ne fuit plus
     SetPedCombatAttributes(ped, 17, false)     -- "toujours fuir" désactivé
     SetPedCombatAttributes(ped, 58, true)      -- ne fuit pas un combat
+    SetPedCombatAttributes(ped, 5, false)      -- ne se bat pas (même contre quelqu'un d'armé)
+    SetPedCombatAttributes(ped, 46, false)     -- ne cherche jamais le combat (véhicule volé, klaxon, bousculade)
+    if Config.NoPerception ~= false then
+        -- Ne voit plus les morts / les armes et n'entend plus les tirs / klaxons : rien qui puisse lui faire peur
+        SetPedSeeingRange(ped, Config.SeeingRange or 0.0)
+        SetPedHearingRange(ped, Config.HearingRange or 0.0)
+        SetPedAlertness(ped, 0)
+    end
 end
 
 -- =========================================================================
--- CONDUCTEURS : un PNJ au volant panique autrement (il accélère, slalome, s'enfuit) quand on le vise, qu'on tire ou
--- qu'une explosion a lieu. Pendant ces moments (et AlertTime ms après), les conducteurs du jeu proches que ce client
--- contrôle reprennent une conduite normale : une fois au début de l'alerte, puis dès qu'ils se remettent à fuir.
+-- ALERTE : le joueur vise, tire, vole un véhicule (tire le conducteur dehors), klaxonne, se bat, une explosion ou un
+-- PNJ mort à proximité. Pendant ces moments (et AlertTime ms après), les PNJ du jeu proches que ce client contrôle :
+--   - conducteurs : reprennent une conduite normale (une fois au début de l'alerte, puis s'ils se remettent à fuir) ;
+--   - à pied (CalmRange m) : s'ils fuient ou veulent se battre avec un joueur (conducteur tiré de son véhicule,
+--     klaxonné…), ils se calment et reprennent leur promenade.
 -- Performance : boucle de 250 ms seulement pendant une alerte.
 -- =========================================================================
 local alertUntil, driversRunning = 0, false
@@ -123,16 +139,45 @@ local function driveCalmly(ped, vehicle)
     SetPedKeepTask(ped, true)
 end
 
+--- Veut se battre avec un joueur (n'importe lequel à proximité) ?
+local function fightingPlayer(ped)
+    if IsPedInMeleeCombat(ped) then return true end
+    for _, player in ipairs(GetActivePlayers()) do
+        if IsPedInCombat(ped, GetPlayerPed(player)) then return true end
+    end
+    return false
+end
+
+local function calmOnFoot(ped)
+    ClearPedTasks(ped)
+    calm(ped)
+    TaskWanderStandard(ped, 10.0, 10)
+    SetPedKeepTask(ped, true)
+end
+
 local function calmDrivers()
     local me = PlayerPedId()
     local pos = GetEntityCoords(me)
     local now = GetGameTimer()
+    -- À pied : plus de fuite ni de bagarre avec les joueurs
+    for _, ped in ipairs(GetGamePool('CPed')) do
+        if not IsPedAPlayer(ped) and not IsPedInAnyVehicle(ped, true) and not IsPedDeadOrDying(ped, true)
+            and not IsPedRagdoll(ped) and not IsPedBeingJacked(ped) and not MISSION[GetEntityPopulationType(ped)]
+            and controlled(ped) and #(GetEntityCoords(ped) - pos) < (Config.CalmRange or 40.0)
+            and (IsPedFleeing(ped) or fightingPlayer(ped)) then
+            local last = calmedDrivers[ped]
+            if not last or now - last > 500 then
+                calmedDrivers[ped] = now
+                calmOnFoot(ped)
+            end
+        end
+    end
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
         local ped = GetPedInVehicleSeat(vehicle, -1)
         if ped ~= 0 and not IsPedAPlayer(ped) and not MISSION[GetEntityPopulationType(ped)] and controlled(ped)
             and #(GetEntityCoords(vehicle) - pos) < (Config.DriverRange or 80.0) then
             local last = calmedDrivers[ped]
-            if not last or IsPedFleeing(ped) or IsPedInCombat(ped, me) then
+            if not last or IsPedFleeing(ped) or fightingPlayer(ped) then
                 if not last or now - last > 500 then
                     calmedDrivers[ped] = now
                     driveCalmly(ped, vehicle)
@@ -155,18 +200,27 @@ local function driversLoop()
     end)
 end
 
---- Le joueur vise, tire, ou une explosion a lieu près de lui : alerte (conducteurs calmés)
+--- Alerte (PNJ proches calmés)
+local function raiseAlert()
+    alertUntil = GetGameTimer() + (Config.AlertTime or 4000)
+    driversLoop()
+end
+
+--- Le joueur vise, tire, vole un véhicule, klaxonne, se bat, ou une explosion a lieu près de lui : alerte
 local function checkAlert()
     if not Config.NoFear then return end
     local ped = PlayerPedId()
-    if IsPlayerFreeAiming(PlayerId()) or IsPedShooting(ped)
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if IsPlayerFreeAiming(PlayerId()) or IsPedShooting(ped) or IsPedJacking(ped) or IsPedInMeleeCombat(ped)
+        or (vehicle ~= 0 and IsControlPressed(0, 86))  -- klaxon
+        or (GetVehiclePedIsTryingToEnter(ped) ~= 0)      -- monte dans un véhicule (peut-être le vole)
         or IsExplosionInSphere(-1, GetEntityCoords(ped), Config.DriverRange or 80.0) then
-        alertUntil = GetGameTimer() + (Config.AlertTime or 4000)
-        driversLoop()
+        raiseAlert()
     end
 end
 
 local tick = 0
+local deadSeen = {} -- [PNJ mort] = déjà signalé
 local function scan()
     tick = tick + 1
     local seen = {}
@@ -178,10 +232,19 @@ local function scan()
             elseif Config.NoFear and controlled(ped) then
                 seen[ped] = true
                 if not calmed[ped] then calm(ped) end
+                -- PNJ mort à proximité : les autres ne doivent pas avoir peur en le voyant
+                if IsPedDeadOrDying(ped, true) and not deadSeen[ped]
+                    and #(GetEntityCoords(ped) - GetEntityCoords(PlayerPedId())) < (Config.CalmRange or 40.0) then
+                    deadSeen[ped] = true
+                    raiseAlert()
+                end
             end
         end
     end
     calmed = seen
+    for ped in pairs(deadSeen) do
+        if not DoesEntityExist(ped) then deadSeen[ped] = nil end
+    end
     -- Véhicules d'urgence du jeu (vides ou conduits par un PNJ), toutes les 3 s
     if Config.DisableEmergencyServices and tick % 3 == 0 then
         for _, vehicle in ipairs(GetGamePool('CVehicle')) do
@@ -233,7 +296,10 @@ local function frameLoop()
                 SetPedDensityMultiplierThisFrame(d.Peds)
                 SetScenarioPedDensityMultiplierThisFrame(d.Peds, d.Peds)
             end
-            if Config.SuppressShockingEvents then SuppressShockingEventsNextFrame() end
+            if Config.SuppressShockingEvents then
+                SuppressShockingEventsNextFrame()
+                SuppressAgitationEventsNextFrame() -- klaxon, bousculade, véhicule volé : pas d'énervement
+            end
             checkAlert()
             Wait(0)
         end
@@ -275,6 +341,7 @@ AddEventHandler('onResourceStop', function(resource)
     SetWantedLevelMultiplier(1.0)
     SetPoliceIgnorePlayer(player, false)
     SetEveryoneIgnorePlayer(player, false)
+    for _, group in ipairs(Config.CalmGroups or {}) do ClearRelationshipBetweenGroups(1, GetHashKey(group), PLAYER_GROUP) end
     SetDispatchCopsForPlayer(player, true)
     SetAudioFlag('PoliceScannerDisabled', false)
     for hash in pairs(emergencyPed) do SetPedModelIsSuppressed(hash, false) end

@@ -35,10 +35,18 @@ Les PNJ **ne réagissent plus aux joueurs** (ni agressions, ni insultes, ni fuit
 explosions**, et **n'ont plus peur** : piétons, passagers **et conducteurs**. Réglé sur chaque PNJ du jeu par le client
 qui le contrôle (les PNJ créés par un script ne sont pas touchés).
 
-Les **conducteurs** paniquent autrement que les piétons (ils accélèrent, slaloment, s'enfuient en voiture) : dès que
-le joueur **vise, tire** ou qu'une **explosion** a lieu, les conducteurs du jeu à moins de `DriverRange` m (80)
-reprennent aussitôt une **conduite normale** (`DriverSpeed`, `DrivingStyle`), et encore pendant `AlertTime` ms (4 s)
-dès qu'ils se remettent à fuir.
+Renforcé :
+- **Perception coupée** (`NoPerception`, `SeeingRange`, `HearingRange`) : les PNJ du jeu ne **voient** plus les morts
+  ni les armes et n'**entendent** plus les tirs ni les klaxons. Ils n'ont donc **pas peur en voyant un PNJ mort**.
+- **Jamais hostiles** : les groupes de PNJ (civils, vigiles, dealers, gangs : `CalmGroups`) sont en « respect » envers
+  les joueurs, ne cherchent jamais le combat ; l'énervement (klaxon, bousculade, véhicule volé) est supprimé à chaque
+  image.
+- **Alerte** : dès que le joueur **vise, tire, vole un véhicule** (tire le conducteur dehors), **klaxonne**, **se bat**,
+  ou qu'une **explosion** ou un **PNJ mort** est à proximité, pendant `AlertTime` ms (4 s) :
+  - les **conducteurs** du jeu à moins de `DriverRange` m (80) reprennent une **conduite normale** (`DriverSpeed`,
+    `DrivingStyle`), encore dès qu'ils se remettent à fuir ;
+  - les **piétons** à moins de `CalmRange` m (40) qui fuient ou **veulent se battre** avec un joueur (le conducteur
+    qu'on vient de sortir de sa voiture, celui qu'on a klaxonné…) se **calment** et reprennent leur promenade.
 
 ### Densité des PNJ (`Density`)
 
@@ -70,7 +78,10 @@ La valeur revient à celle de `config.lua` au redémarrage (c'est le fichier qui
 | `DisableWantedLevel` | indice de recherche supprimé |
 | `EveryoneIgnorePlayer`, `NoFear` | PNJ qui ignorent les joueurs, sans peur |
 | `SuppressShockingEvents` | réactions « choquées » des passants (coups de feu, explosions) supprimées à chaque image |
-| `DriverRange`, `DriverSpeed`, `DrivingStyle`, `AlertTime` | conducteurs calmés quand le joueur vise / tire (distance, vitesse et style de conduite repris, durée de l'alerte) |
+| `DriverRange`, `DriverSpeed`, `DrivingStyle`, `AlertTime` | conducteurs calmés pendant une alerte (distance, vitesse et style de conduite repris, durée de l'alerte) |
+| `CalmRange` | piétons calmés pendant une alerte (fuite, bagarre avec un joueur) |
+| `NoPerception`, `SeeingRange`, `HearingRange` | perception des PNJ du jeu coupée (ne voient plus les morts / armes, n'entendent plus tirs / klaxons) |
+| `CalmGroups` | groupes de PNJ toujours en « respect » envers les joueurs |
 | `Density` | densités `Traffic`, `Parked`, `Peds` (0.0 à 3.0) |
 | `DensityCommand` | nom de la commande (`npcdensity`) |
 | `EmergencyPeds`, `EmergencyVehicles`, `EmergencyScenarios` | modèles et scénarios des services d'urgence |
@@ -79,7 +90,8 @@ La valeur revient à celle de `config.lua` au redémarrage (c'est le fichier qui
 
 - Boucle d'**1 seconde** (PNJ du jeu à proximité : réglages « sans peur », retrait des services d'urgence) :
   ~0.01 ms.
-- Conducteurs : boucle de 250 ms **seulement pendant une alerte** (le joueur vise, tire, explosion proche).
+- PNJ proches calmés : boucle de 250 ms **seulement pendant une alerte** (le joueur vise, tire, vole un véhicule,
+  klaxonne, se bat, explosion ou PNJ mort à proximité).
 - Boucle **à chaque image** seulement si une densité n'est pas `1.0` (le jeu exige qu'elle soit redonnée à chaque
   image) ou si `SuppressShockingEvents` est actif : ~0.01 ms. Avec toutes les densités à `1.0` et
   `SuppressShockingEvents = false`, il n'y en a aucune.

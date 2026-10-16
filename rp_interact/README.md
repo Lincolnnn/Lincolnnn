@@ -45,7 +45,8 @@ Case **Civil** : rappel du **profil actif** en haut, la case **Mode civil**, pui
 Case **Équipements** : **Tenues** → bouton **Accéder aux tenues** (ferme ce menu et ouvre le menu `/eup`, ci-dessous) ;
 **Armes** (réservées aux policiers en service, `EquipmentPoliceOnly`) :
 - **Équipement GSP**, **Équipement APD**, **Équipement FCSO** : donnent **tout l'équipement de départ** du service
-  (arme de service, taser, lampe, matraque…), en remplaçant les armes portées : **toujours l'équipement de base**,
+  (arme de service, taser, lampe, matraque, **10 fusées de détresse** à poser au sol avec `rp_flares`…), en remplaçant
+  les armes portées : **toujours l'équipement de base**,
   jamais modifié automatiquement. Chaque service a **son propre équipement** (fichier **`equipment_services.json`**,
   fourni et modifiable). Le bouton choisi est **sélectionné** (trait bleu) ; au départ, c'est celui du **service
   principal** choisi dans la vue Police.

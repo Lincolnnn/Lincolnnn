@@ -17,7 +17,8 @@ NPCConfig = {
 
     -- ---------------------------------------------------------------------
     -- « EVERYONE IGNORE PLAYER » : les PNJ ne réagissent plus aux joueurs (ni insultes, ni agressions, ni fuite),
-    -- plus aux fusillades ni aux explosions, et n'ont plus peur : piétons, passagers ET conducteurs.
+    -- plus aux fusillades, aux explosions ni aux morts, n'ont plus peur et ne se battent pas (véhicule volé, klaxon) :
+    -- piétons, passagers ET conducteurs.
     -- ---------------------------------------------------------------------
     EveryoneIgnorePlayer = true,
     NoFear = true,
@@ -31,6 +32,22 @@ NPCConfig = {
     DriverSpeed = 15.0,
     DrivingStyle = 786603,
     AlertTime = 4000,
+    -- PIÉTONS : pendant une alerte (le joueur vise, tire, VOLE un véhicule, KLAXONNE, se bat, explosion, PNJ MORT à
+    -- proximité), ceux du jeu à moins de CalmRange m qui fuient ou veulent se battre avec un joueur se calment et
+    -- reprennent leur promenade.
+    CalmRange = 40.0,
+    -- PERCEPTION des PNJ du jeu coupée : ils ne voient plus les morts ni les armes et n'entendent plus les tirs ni les
+    -- klaxons (portées en m ; false : perception du jeu)
+    NoPerception = true,
+    SeeingRange = 0.0,
+    HearingRange = 0.0,
+    -- Groupes de PNJ toujours en « respect » envers les joueurs (jamais hostiles : ni bagarre, ni agression)
+    CalmGroups = {
+        'CIVMALE', 'CIVFEMALE', 'SECURITY_GUARD', 'PRIVATE_SECURITY', 'DEALER', 'HATES_PLAYER', 'NO_RELATIONSHIP',
+        'GANG_1', 'GANG_2', 'GANG_9', 'GANG_10', 'AMBIENT_GANG_LOST', 'AMBIENT_GANG_MEXICAN', 'AMBIENT_GANG_FAMILY',
+        'AMBIENT_GANG_BALLAS', 'AMBIENT_GANG_MARABUNTE', 'AMBIENT_GANG_CULT', 'AMBIENT_GANG_SALVA',
+        'AMBIENT_GANG_WEICHENG', 'AMBIENT_GANG_HILLBILLY',
+    },
 
     -- ---------------------------------------------------------------------
     -- DENSITÉ DES PNJ : 1.0 = jeu de base ; 0.0 = aucun ; jusqu'à 3.0 (le triple).
