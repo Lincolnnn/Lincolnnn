@@ -3373,7 +3373,10 @@
         $('#carSpeed').textContent = Math.max(0, Math.round(car.speed || 0));
         // Véhicule cassé : logo du moteur rouge foncé (fixe) ; tout le reste du car HUD reste allumé, en
         // rouge vif clignotant (même moteur coupé)
-        $('#carBroken').classList.toggle('part-empty', !car.broken);
+        // Moteur très abîmé (palier 1 : il roule lentement, cale, fume) : le même logo, en orange
+        $('#carBroken').classList.toggle('part-empty', !car.broken && !car.damaged);
+        $('#carBroken').classList.toggle('car-damaged', !car.broken && !!car.damaged);
+        $('#carBroken').title = car.broken ? 'Moteur détruit : véhicule hors d\'usage' : 'Moteur très abîmé';
         el.classList.toggle('car-is-broken', !!car.broken && car.mode !== 'passenger');
         const rpm = Math.min(Math.max(Number(car.rpm) || 0, 0), 1);
         const rpmFill = $('#carRpm');

@@ -104,6 +104,10 @@ local function setSignal(vehicle, signal)
     turn = (signal == 'left' or signal == 'right') and { heading = GetEntityHeading(vehicle), turned = false } or nil
 end
 
+--- Clignotants / warnings d'un véhicule ('left', 'right', 'hazard' ou false), ex. warnings automatiques d'un
+--- moteur très abîmé (client/damage.lua)
+VC.setSignal = setSignal
+
 local function press(kind)
     local vehicle = VC.vehicle
     if not VC.isDriver() or IsPauseMenuActive() then return end

@@ -186,6 +186,15 @@ RegisterNUICallback('radioEnded', function(data, cb)
     if netId then RPI.request('radio', { netId = netId, action = 'ended', seq = radio.seq }, function() end) end
 end)
 
+-- Passé directement dans un autre véhicule (nouveau véhicule apparu, rp_vehiclecontrol) depuis une place avant :
+-- la radio de l'ancien s'arrête aussi
+AddEventHandler('rp_vehiclecontrol:swapped', function(netId, seat)
+    if type(netId) ~= 'number' or (seat ~= -1 and seat ~= 0) then return end
+    local vehicle = NetworkDoesNetworkIdExist(netId) and NetToVeh(netId) or 0
+    if vehicle == 0 or type(Entity(vehicle).state.rpiRadio) ~= 'table' then return end
+    RPI.request('radio', { netId = netId, action = 'swapStop' }, function() end)
+end)
+
 --- Œil : visée de l'intérieur avant, portière avant ouverte -> menu ouvert sur la page Radio
 function RPI.openRadio(vehicle)
     RPI.radioTarget = vehicle

@@ -31,7 +31,7 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
 ## Car HUD (dessiné par le MDC)
 
 - **Toujours affiché pour le conducteur** : moteur coupé, tout est **grisé** ; au démarrage, tout s'illumine.
-- **Conducteur** : car HUD complet (vitesse, accélération, essence, ceinture, véhicule cassé).
+- **Conducteur** : car HUD complet (vitesse, accélération, essence, ceinture, moteur très abîmé / détruit).
   **Passagers** : uniquement le **logo de la ceinture**.
 - **Logo de la ceinture** : contour noir ; **transparent, sans couleur** quand elle n'est pas mise, **rempli de
   blanc** quand elle est mise, **clignote en rouge pâle** quand le véhicule roule sans ceinture.
@@ -107,22 +107,28 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 
 - **Seule la touche** (O par défaut, configurable : Raccourcis clavier > FiveM) **allume et éteint le moteur**. Il ne
   démarre **jamais tout seul** (ni en montant, ni en accélérant) et ne s'éteint **jamais tout seul** (ni en descendant :
-  allumé, il le reste pour le prochain conducteur ; coupé, il le reste). Exceptions : panne sèche et véhicule cassé.
+  allumé, il le reste pour le prochain conducteur ; coupé, il le reste). Exceptions : panne sèche, moteur détruit et
+  calage d'un moteur très abîmé (il repart tout seul après quelques secondes, ou tout de suite avec **O**).
 - Un véhicule que le joueur **vient de faire apparaître** est **remis à zéro** : moteur coupé, rien de l'ancien.
 - **Véhicule ambiant** (circulation, PNJ) ou **laissé moteur allumé par un autre joueur** : il reste allumé pour le
   joueur qui monte (pas de remise à zéro).
 - **Nouveau véhicule alors qu'il est déjà dans un véhicule** (apparition depuis un menu) : tout ce qui concernait
-  l'ancien s'arrête (ceinture retirée sans bruit, carillon coupé, moteur et clignotants / warnings de l'ancien coupés)
-  et le nouveau part de zéro (moteur coupé, ceinture détachée, aucun réglage repris). C'est vrai même quand le jeu
-  redonne au nouveau véhicule le numéro de l'ancien supprimé : un modèle ou un identifiant réseau différent suffit à
-  le reconnaître.
+  l'ancien s'arrête (ceinture retirée sans bruit, carillon coupé, moteur et clignotants / warnings de l'ancien coupés,
+  radio de l'ancien véhicule coupée avec `rp_interact`) et le nouveau part de zéro (moteur coupé, ceinture détachée,
+  aucun réglage repris). C'est vrai :
+  - que l'ancien véhicule soit **supprimé d'abord** (menu Spawn « Supprimer l'ancien véhicule », vMenu…) : le joueur
+    se retrouve un instant debout sans être descendu ; pendant **1 seconde** le script attend de voir s'il est mis dans
+    un nouveau véhicule (une vraie descente avec **F**, une éjection, une chute de moto, la mort : sortie immédiate) ;
+  - ou **gardé** (le joueur est mis directement dans le nouveau) ;
+  - même quand le jeu redonne au nouveau véhicule le numéro de l'ancien supprimé : un modèle ou un identifiant réseau
+    différent suffit à le reconnaître.
 - En montant **côté conducteur**, une notification **glisse depuis la gauche, juste au-dessus du car HUD** :
   « **O** » **Pour allumer le moteur** (« Seule cette touche l'allume et l'éteint »), ou « Pour couper le moteur » s'il
   tourne. Elle **disparaît 8 secondes** après la montée, même sans appuyer (`EngineNoticeDuration`), ou dès que **O**
   est utilisée.
 - **Vrai démarrage** : démarreur du jeu, durée complète conservée (pot d'échappement, etc.) ; on ne peut pas
   accélérer pendant le démarrage (`EngineStartTime`, 1,2 s).
-- Panne sèche ou véhicule cassé : impossible à démarrer.
+- Panne sèche ou moteur détruit : impossible à démarrer.
 
 ## Feux stop et roues
 
@@ -154,14 +160,24 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   - **Dégâts forts** : mur, bâtiment, rocher (décor fixe), voiture, camion, lampadaire, poteau, feu tricolore, bouche
     d'incendie, borne, glissière béton (`HeavyModels`) : 83 % des dégâts du jeu, une petite part des dégâts de
     carrosserie et, si le choc est **violent** (perte de vitesse brutale de plus de 20 MPH), des dégâts selon sa
-    violence : mur à 40 MPH ≈ −205, à 60 MPH ≈ −580, à 70 MPH et plus : véhicule cassé.
+    violence : mur à 40 MPH ≈ −205, à 60 MPH ≈ −580, à 70 MPH et plus : moteur détruit.
   - Sans choc (balles, explosion, chute) : 74 % des dégâts du jeu.
   - Les véhicules sont **~8 % plus résistants** qu'auparavant (tous ces coefficients baissés d'autant).
-- Moteur **abîmé** (< 500) : puissance réduite (80 %) ; **critique** (< 300) : 60 % de puissance et **calages** au
-  hasard en roulant ; **cassé** (< 100) : moteur coupé, impossible à redémarrer ; le **car HUD reste allumé**, tout
-  en **rouge vif clignotant**, avec le **logo du moteur** en rouge plus foncé, fixe ; le logo de la ceinture ne clignote plus : attachée, rempli de **rouge fixe** ;
-  détachée, seulement son **contour en rouge**, centre transparent, fixe. Réparé (script de mécanicien ou
-  `/repair`) : tout redevient normal.
+- Moteur **abîmé** (< 500) : puissance un peu réduite (80 %).
+- **Palier 1 — moteur TRÈS ABÎMÉ** (< 300, `Critical`) :
+  - il **roule très lentement** : 35 % de puissance (`CriticalPower`) et **25 MPH maximum** (`CriticalMaxSpeed`) ;
+  - il **cale** au hasard en roulant (`StallChance`) : moteur coupé quelques secondes (`StallTime`, 2 à 4,5 s), puis
+    il **repart tout seul** avec le démarreur (ou tout de suite avec **O**) ;
+  - de la **fumée sort du capot**, vue par **tous les joueurs** (`Smoke` ; le jeu ajoute aussi sa propre fumée) ;
+  - les **warnings s'allument tout seuls** (moteur allumé) ; ils **s'éteignent tout seuls** quand le moteur est
+    **coupé avec O**, quand il **passe au palier 2** ou quand il est **réparé**. Éteints à la main par le conducteur :
+    ils ne sont pas rallumés de force (seulement au prochain démarrage). Un calage ne les éteint pas ;
+  - **logo du moteur orange** sur le car HUD (`CriticalHazards = false` : pas de warnings automatiques).
+- **Palier 2 — moteur DÉTRUIT** (< 100, `Broken`) : véhicule **éteint, moteur coupé, impossible à rallumer** ; le
+  **car HUD reste allumé**, tout en **rouge vif clignotant**, avec le **logo du moteur** en rouge plus foncé, fixe ; le
+  logo de la ceinture ne clignote plus : attachée, rempli de **rouge fixe** ; détachée, seulement son **contour en
+  rouge**, centre transparent, fixe. La fumée continue.
+- Réparé (script de mécanicien ou `/repair`) : tout redevient normal (vitesse, fumée, warnings automatiques, logo).
 - **`/repair`** : répare **uniquement le moteur** du véhicule où l'on est (sinon du plus proche, 5 m) : santé du
   moteur remise à neuf, véhicule de nouveau utilisable. La carrosserie, les vitres et les **dégâts visibles restent**.
   `Repair.Restricted = true` la réserve à la permission ACE `command.repair`.
@@ -252,7 +268,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓) |
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
-| `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé / critique / cassé), puissance, calages, classes de véhicules légères, listes d'objets légers / forts |
+| `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé ; 1 très abîmé : puissance, vitesse maxi, calages, warnings automatiques ; 2 détruit), fumée (`Smoke`), classes de véhicules légères, listes d'objets légers / forts |
 | `KeepDoorOpenOnExit` | portière ouverte gardée ouverte en descendant |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle jusqu'à l'arrêt complet, l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), aucune chute ajoutée pour les petits incidents (comportement du jeu), seuils, dégâts |
@@ -265,9 +281,11 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 ## États des véhicules (pour d'autres scripts)
 
 `Entity(vehicle).state` : `fuel` (0–100), `vcEngine` (toujours allumé), `vcBroken`
-(cassé), `vcDoors` (qui a ouvert les portières avant), `vcSignal` (clignotants / warnings), `vcPushed` (poussé : par
+(moteur détruit), `vcDamaged` (moteur très abîmé ou détruit : fumée), `vcDoors` (qui a ouvert les portières avant), `vcSignal` (clignotants / warnings), `vcPushed` (poussé : par
 qui, sens, poussée en cours). État du joueur : `seatbelt`, `seatbeltAlarm` (carillon de ceinture). Le serveur vérifie
 chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au rythme d'une pompe).
+Événement local (client) `rp_vehiclecontrol:swapped` (`netId` de l'ancien véhicule, place) : le joueur est passé
+directement dans un autre véhicule, l'ancien existe toujours (ex. `rp_interact` y coupe la radio).
 
 ## Performance
 
@@ -278,4 +296,7 @@ chaque changement (conducteur, distance, essence qui ne monte qu'à la pompe, au
   car HUD envoyé seulement quand il change.
 - Feux stop des véhicules des autres joueurs : boucle à chaque image seulement tant qu'un véhicule proche est arrêté
   moteur tournant ; roues : 2 s après une descente.
+- Fumée des moteurs très abîmés : boucle d'1 s seulement tant qu'un véhicule fumant est connu (aucune sinon).
+- Sorti d'un véhicule sans en descendre (véhicule supprimé, téléporté) : vérification à chaque image pendant 1 s au
+  plus (nouveau véhicule ?), puis retour à la boucle à pied.
 - Serveur : aucune boucle.

@@ -4,8 +4,13 @@ Dossier de données de RP Interact.
                    rempli automatiquement par le serveur
   vehicles.json -> VÉHICULES du menu d'interactions (F1 > Voiture > Spawn) : à remplir vous-même,
                    un objet par véhicule { "Code", "Service", "Name", "Livery", "Extras" }
-  loadouts.json -> ARMES du menu d'interactions (F1 > Équipements) : à remplir vous-même,
+  loadouts.json -> AUTRES ARMES du menu d'interactions (F1 > Équipements, facultatif) : à remplir vous-même,
                    un objet par lot { "Name", "Replace", "Weapons": [ { "Weapon", "Ammo", "Components" } ] }
+                   (les boutons "Équipement GSP / APD / FCSO" sont dans ../equipment_services.json, voir README.md)
+  custom_equipment.json -> équipements PERSONNALISÉS ("Customiser équipement" > "Enregistrer"), rempli
+                   automatiquement par le serveur : un par joueur (licence Rockstar) et par service. Chaque joueur
+                   ne retrouve que le sien. Pour en effacer un : supprimez sa ligne (le fichier doit rester un
+                   JSON valide) puis redémarrez la ressource.
   outfits.json  -> TENUES du menu /eup (ou F1 > Équipements > Accéder aux tenues) : à remplir vous-même,
                    un objet par tenue au format EUP ("Name", "Gender", "Category2", "Cate", "Hat": "24:1"...)
                    (voir README.md, partie "Menu des tenues")

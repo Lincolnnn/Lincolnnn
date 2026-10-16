@@ -4,7 +4,8 @@
     Écrit l'état des véhicules (lu par tous les clients) après vérification :
       - "fuel" (essence en %) : un joueur proche du véhicule ; la valeur ne monte qu'en faisant le plein,
         au rythme d'une pompe (Fuel.RefuelPerSecond) ;
-      - "vcEngine" (moteur toujours allumé), "vcBroken" (cassé), "vcSignal" (clignotants / warnings),
+      - "vcEngine" (moteur toujours allumé), "vcBroken" (moteur détruit), "vcDamaged" (moteur très abîmé :
+        fumée), "vcSignal" (clignotants / warnings),
         "vcStopLights" (feux stop à l'arrêt), "vcSteer" (angle des roues gardé à la descente) : le
         conducteur (extinction des feux stop / angle des roues : aussi juste après sa descente) ;
       - "vcPushed" (véhicule poussé : par qui, sens, poussée en cours) : un joueur à côté du véhicule ;
@@ -64,6 +65,7 @@ local SIGNALS = { left = true, right = true, hazard = true }
 local STATE_KEYS = {
     vcEngine = function(v) return type(v) == 'boolean' end,
     vcBroken = function(v) return type(v) == 'boolean' end,
+    vcDamaged = function(v) return type(v) == 'boolean' end,
     vcSignal = function(v) return v == false or SIGNALS[v] == true end,
     vcStopLights = function(v) return type(v) == 'boolean' end,
     vcSteer = function(v) return v == false or (type(v) == 'number' and v == v and math.abs(v) <= 90.0) end,
@@ -75,6 +77,7 @@ local AFTER_LEAVING = {
     vcStopLights = function(v) return v == false end,
     vcSteer = function(v) return type(v) == 'number' end,
     vcBroken = function(v) return v == false end,
+    vcDamaged = function(v) return v == false end,
 }
 -- Coupés par son DERNIER conducteur passé directement dans un autre véhicule (nouveau véhicule apparu) :
 -- moteur éteint, clignotants / warnings coupés sur l'ancien

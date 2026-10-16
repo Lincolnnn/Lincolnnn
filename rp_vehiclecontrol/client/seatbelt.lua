@@ -7,7 +7,6 @@
       - CARILLON DE CEINTURE (son : client/chimes.lua) : l'alarme du joueur ("seatbeltAlarm") s'allume
         ceinture détachée, moteur allumé, dès que le véhicule dépasse AlarmSpeed MPH (1), et ne s'éteint QUE
         véhicule immobile (StopWhenStopped), ceinture attachée, moteur coupé ou personne descendue.
-      - CARILLON DE PORTIÈRE : client/chimes.lua.
       - Jamais deux fois le même son en même temps (le NUI coupe le précédent avant de rejouer).
       - Détachée, accident violent (voir config.lua, Seatbelt) : éjecté à travers le pare-brise.
         Attachée : jamais éjecté (l'éjection automatique du jeu est désactivée, seule cette règle compte).
@@ -66,7 +65,10 @@ local function setBelt(state, silent)
     if state == belt then return end
     belt = state
     if VC.hud.belt ~= nil then VC.hud.belt = state end
-    LocalPlayer.state:set('seatbelt', state, true) -- les joueurs proches entendent le son
+    -- Les joueurs proches entendent le son ; retrait sans bruit (changement de véhicule) : nil, rien à entendre
+    local published = state
+    if not state and silent then published = nil end
+    LocalPlayer.state:set('seatbelt', published, true)
     if state then setAlarm(false) end
     if not silent then beltSound(state and 'on' or 'off', 1.0, false) end
 end
@@ -90,8 +92,8 @@ end)
 
 
 VC.on('leave', function(_, _, info)
-    -- Passé directement dans un autre véhicule : ceinture retirée sans bruit (le nouveau part de zéro)
-    if belt then setBelt(false, info and info.swap) end
+    -- Passé directement dans un autre véhicule / véhicule supprimé : ceinture retirée sans bruit (le nouveau part de zéro)
+    if belt then setBelt(false, info and (info.swap or info.gone)) end
     if alarm then VC.debugSound('descendu du véhicule : carillon de ceinture coupé') end
     setAlarm(false)
     VC.hud.belt, VC.hud.alarm = nil, false
@@ -252,7 +254,7 @@ end)
 -- =========================================================================
 AddStateBagChangeHandler('seatbelt', nil, function(bagName, _, value)
     local serverId = serverIdOfBag(bagName)
-    if not serverId or serverId == GetPlayerServerId(PlayerId()) then return end
+    if value == nil or not serverId or serverId == GetPlayerServerId(PlayerId()) then return end -- nil : sans bruit
     local volume, muffled = hearVolume(serverId)
     if volume and volume > 0.0 then beltSound(value == true and 'on' or 'off', volume, muffled) end
 end)

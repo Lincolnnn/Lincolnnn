@@ -322,7 +322,8 @@ end
 -- =========================================================================
 -- BOUCLE PRINCIPALE
 -- =========================================================================
---- swap : passé directement dans un autre véhicule (nouveau véhicule apparu, sans descendre) ;
+--- swap : passé directement dans un autre véhicule (nouveau véhicule apparu, sans descendre, l'ancien étant
+--- supprimé ou non) ;
 --- gone : l'ancien véhicule n'existe plus, ou son numéro est déjà celui du nouveau (ne plus y toucher)
 local function leave(swap, gone)
     local vehicle, seat = VC.vehicle, VC.seat
@@ -335,6 +336,10 @@ local function leave(swap, gone)
     history, crash, lastHit = {}, nil, nil
     if gone then VC.forget(vehicle) end
     emit('leave', vehicle, seat, info)
+    -- Autres ressources (radio du véhicule de rp_interact…) : l'ancien véhicule, toujours là, s'arrête aussi
+    if info.swap and not gone and NetworkGetEntityIsNetworked(vehicle) then
+        TriggerEvent('rp_vehiclecontrol:swapped', VehToNet(vehicle), seat)
+    end
 end
 
 --- Toujours le même véhicule ? Le jeu peut redonner le numéro d'un véhicule supprimé à un véhicule tout neuf
@@ -347,15 +352,32 @@ local function sameVehicle(vehicle)
     return true
 end
 
+-- Sorti du véhicule SANS en descendre (véhicule supprimé pour en faire apparaître un autre, mis directement dans
+-- un nouveau véhicule…) : la sortie attend jusqu'à SWAP_WINDOW ms. Si le joueur se retrouve entre-temps dans un
+-- autre véhicule, c'est un changement de véhicule (swap : tout ce qui concernait l'ancien s'arrête, le nouveau
+-- part de zéro). Une vraie descente (touche F), une éjection, une chute de moto (corps inerte), un joueur
+-- sorti de force ou la mort : sortie immédiate. (Pas IsPedFalling : un personnage dont le véhicule est supprimé
+-- tombe de la hauteur du siège.)
+local SWAP_WINDOW = 1000
+local exitSeenAt = 0  -- dernière fois que le personnage descendait / était désarçonné (à bord)
+
+local function realExit(ped, now)
+    return now - exitSeenAt < 1500 or IsPedRagdoll(ped) or IsEntityDead(ped) or IsPedBeingJacked(ped)
+end
+
 CreateThread(function()
     Wait(0) -- tous les fichiers du script chargés (modules enregistrés)
     local lastTick = 0
+    local outSince = nil -- sorti sans descendre depuis (ms) : changement de véhicule possible
     while true do
         local ped = PlayerPedId()
         local vehicle = GetVehiclePedIsIn(ped, false)
         if vehicle ~= 0 then
+            outSince = nil
+            if GetIsTaskActive(ped, 2) or IsPedRagdoll(ped) then exitSeenAt = GetGameTimer() end -- descend / désarçonné
             if not sameVehicle(vehicle) then
                 -- Passé directement dans un autre véhicule : tout ce qui concernait l'ancien s'arrête
+                -- (gone : l'ancien n'existe plus, ou son numéro est déjà celui du nouveau)
                 if VC.vehicle ~= 0 then leave(true, vehicle == VC.vehicle) end
                 VC.vehicle, VC.seat = vehicle, seatOf(ped, vehicle)
                 VC.model = GetEntityModel(vehicle)
@@ -380,9 +402,20 @@ CreateThread(function()
             end
             Wait(0)
         else
-            if VC.vehicle ~= 0 then leave() end
-            emit('idle', ped)
-            Wait(500)
+            if VC.vehicle ~= 0 then
+                local now = GetGameTimer()
+                outSince = outSince or now
+                if realExit(ped, now) or now - outSince >= SWAP_WINDOW then
+                    outSince = nil
+                    leave()
+                end
+            end
+            if VC.vehicle ~= 0 then
+                Wait(0) -- un nouveau véhicule va-t-il apparaître ? (au plus SWAP_WINDOW ms)
+            else
+                emit('idle', ped)
+                Wait(500)
+            end
         end
     end
 end)
@@ -392,7 +425,7 @@ end)
 -- =========================================================================
 local lastKey = nil
 
-local HUD_KEYS = { 'inVehicle', 'show', 'mode', 'engine', 'speed', 'rpm', 'fuel', 'belt', 'alarm', 'broken', 'paused' }
+local HUD_KEYS = { 'inVehicle', 'show', 'mode', 'engine', 'speed', 'rpm', 'fuel', 'belt', 'alarm', 'broken', 'damaged', 'paused' }
 
 local function sendHud(data)
     local parts = {}
@@ -404,7 +437,7 @@ local function sendHud(data)
 end
 
 -- Enregistré en dernier (fichier hud.lua) : les modules ont déjà rempli VC.hud.
---   - conducteur : car HUD complet (vitesse, accélération, essence, ceinture, véhicule cassé), toujours
+--   - conducteur : car HUD complet (vitesse, accélération, essence, ceinture, moteur très abîmé / détruit), toujours
 --     affiché ; moteur coupé, tout est grisé (engine = false), il s'illumine au démarrage ;
 --   - passagers : uniquement le logo de la ceinture.
 function VC.sendHud(vehicle)
@@ -425,7 +458,8 @@ function VC.sendHud(vehicle)
         rpm = math.floor(rpm * 50 + 0.5) / 50,
         fuel = h.fuel and math.floor(h.fuel + 0.5) or nil, -- nil : pas de réservoir (jauge masquée)
         alarm = h.alarm == true,
-        broken = broken,                                   -- logo rouge "véhicule cassé"
+        broken = broken,                                   -- logo rouge : moteur détruit (palier 2)
+        damaged = not broken and VC.state(vehicle, 'vcDamaged') == true, -- logo orange : très abîmé (palier 1)
         paused = IsPauseMenuActive() or IsScreenFadedOut(),
     }
     if h.belt ~= nil then data.belt = h.belt end -- absent : pas de ceinture (logo masqué)

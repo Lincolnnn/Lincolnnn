@@ -6,7 +6,10 @@
         EngineStartTime ms). Il reste allumé, même quand le joueur descend, jusqu'à ce qu'on le coupe.
       - O, moteur allumé : coupé.
       - Il ne démarre jamais tout seul (ni en montant, ni en accélérant) et ne s'éteint jamais tout seul
-        (ni en descendant) ; seules exceptions : panne sèche et véhicule cassé.
+        (ni en descendant) ; seules exceptions : panne sèche, moteur détruit, et calage d'un moteur très abîmé
+        (il repart tout seul après quelques secondes, ou tout de suite avec la touche).
+      - Nouveau véhicule apparu de la main du joueur : moteur coupé ; véhicule de la circulation / d'un PNJ ou
+        laissé allumé par un autre joueur : il reste allumé.
       L'état voulu est porté par le véhicule ("vcEngine" : true allumé, false coupé), pour tous les joueurs.
       En montant côté conducteur, une notification (car HUD du MDC) présente la touche ; elle disparaît au
       bout de 8 s (EngineNoticeDuration), même sans appuyer, ou dès que la touche est utilisée.
@@ -30,6 +33,23 @@ end
 -- MOTEUR
 -- =========================================================================
 local startingUntil = 0    -- démarrage en cours : pas d'accélération avant la fin (vrai démarrage)
+local stalledUntil = 0     -- moteur calé (très abîmé) : il repart tout seul à cette heure (vrai démarrage)
+
+--- Le moteur cale (moteur très abîmé, client/damage.lua) : coupé `duration` ms, puis il repart tout seul avec
+--- le démarreur (ou tout de suite avec la touche du moteur). Il reste "voulu allumé" : les warnings restent.
+function VC.stall(vehicle, duration)
+    if VC.vehicle ~= vehicle or VC.seat ~= -1 then return end
+    stalledUntil = GetGameTimer() + (duration or 3000)
+    SetVehicleEngineOn(vehicle, false, true, true)
+end
+
+function VC.isStalled() return GetGameTimer() < stalledUntil end
+
+local function restart(vehicle)
+    stalledUntil = 0
+    SetVehicleEngineOn(vehicle, true, false, true) -- vrai démarrage (pas instantané)
+    startingUntil = GetGameTimer() + (Config.EngineStartTime or 1200)
+end
 
 local function canStart(vehicle)
     return not VC.isBroken(vehicle) and VC.hasFuel(vehicle)
@@ -73,11 +93,14 @@ local function toggleEngine()
     local vehicle = VC.vehicle
     if not VC.isDriver() or IsPauseMenuActive() then return end
     VC.toHud('carNoticeHide', {}) -- touche utilisée : la notification disparaît
+    if stalledUntil ~= 0 and wanted(vehicle) and canStart(vehicle) then
+        return restart(vehicle) -- calé : la touche le relance tout de suite
+    end
     if wanted(vehicle) or GetIsVehicleEngineRunning(vehicle) then
         VC.setState(vehicle, 'vcEngine', false)
         SetVehicleKeepEngineOnWhenAbandoned(vehicle, false)
         SetVehicleEngineOn(vehicle, false, false, true)
-        startingUntil = 0
+        startingUntil, stalledUntil = 0, 0
         return
     end
     if VC.isBroken(vehicle) then return VC.chat('Le véhicule est hors d\'usage.') end
@@ -108,17 +131,21 @@ VC.on('frame', function(_, vehicle)
     end
     -- Panne sèche / véhicule cassé : le moteur n'est plus voulu allumé (pas de redémarrage tout seul ensuite)
     if wanted(vehicle) and not canStart(vehicle) then VC.setState(vehicle, 'vcEngine', false) end
+    local now = GetGameTimer()
+    if stalledUntil ~= 0 and (not wanted(vehicle) or not canStart(vehicle)) then stalledUntil = 0 end
     if running then
-        -- Le jeu le démarre tout seul (montée, accélération) : coupé, seule la touche compte
-        if not wanted(vehicle) or not canStart(vehicle) then SetVehicleEngineOn(vehicle, false, true, true) end
-    elseif wanted(vehicle) and canStart(vehicle) and GetGameTimer() >= startingUntil then
+        -- Le jeu le démarre tout seul (montée, accélération) : coupé, seule la touche compte ; calé : il reste coupé
+        if not wanted(vehicle) or not canStart(vehicle) or now < stalledUntil then SetVehicleEngineOn(vehicle, false, true, true) end
+    elseif stalledUntil ~= 0 then
+        if now >= stalledUntil then restart(vehicle) end -- calé : il repart tout seul, avec le démarreur
+    elseif wanted(vehicle) and canStart(vehicle) and now >= startingUntil then
         SetVehicleEngineOn(vehicle, true, true, false) -- le jeu l'a coupé tout seul : relancé
     end
 end)
 
 -- Descente du conducteur : le moteur garde son état (allumé par la touche : il le reste ; coupé : il le reste)
 VC.on('leave', function(vehicle, seat, info)
-    startingUntil = 0
+    startingUntil, stalledUntil = 0, 0
     if seat ~= -1 or not DoesEntityExist(vehicle) or (info and info.gone) then return end
     if info and info.swap then
         -- Passé directement dans un autre véhicule : l'ancien s'arrête (moteur coupé, plus "toujours allumé")

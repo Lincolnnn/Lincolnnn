@@ -90,13 +90,22 @@ VCConfig = {
         ImpactFactor = 2.3,       -- dégâts = (perte - ImpactMinDrop) ^ 1.5 * ImpactFactor
                                   -- ex. mur à 40 MPH -> ~205 ; à 60 MPH -> ~580 ; à 80 MPH -> ~1070
         EngineFloor = 10.0,       -- ce script n'abaisse jamais le moteur sous cette valeur (pas d'incendie)
-        -- Paliers : puissance réduite, calages, véhicule cassé
+        -- Moteur abîmé (sous Damaged) : un peu moins de puissance
         Damaged = 500.0,          -- puissance x DamagedPower
         DamagedPower = 0.8,
-        Critical = 300.0,         -- puissance x CriticalPower + calages au hasard
-        CriticalPower = 0.6,
-        StallChance = 0.03,       -- chance de caler par seconde (moteur critique, en roulant)
-        Broken = 100.0,           -- en dessous : cassé (moteur coupé, impossible à démarrer, logo rouge)
+        -- PALIER 1 : moteur TRÈS ABÎMÉ (sous Critical) : roule très lentement, cale, fumée sous le capot,
+        -- warnings allumés tout seuls (éteints tout seuls au moteur coupé ou au palier 2), logo moteur orange
+        Critical = 300.0,
+        CriticalPower = 0.35,     -- puissance x CriticalPower
+        CriticalMaxSpeed = 25.0,  -- vitesse maximale (MPH)
+        StallChance = 0.06,       -- chance de caler par seconde (en roulant)
+        StallTime = { 2000, 4500 }, -- calé : il repart tout seul au bout de 2 à 4,5 s (ou tout de suite avec la touche)
+        CriticalHazards = true,   -- warnings automatiques
+        -- PALIER 2 : moteur DÉTRUIT (sous Broken) : véhicule éteint, moteur coupé, impossible à rallumer, logo rouge
+        Broken = 100.0,
+        -- Fumée sous le capot (paliers 1 et 2), vue par tous les joueurs jusqu'à Distance m. Le jeu ajoute aussi
+        -- sa propre fumée à un moteur très abîmé. Effet : Asset / Name (particules du jeu), Scale (taille).
+        Smoke = { Enabled = true, Asset = 'core', Name = 'ent_amb_smoke_foundry', Scale = 0.35, Offset = { 0.0, 0.0, 0.25 }, Distance = 120.0 },
 
         -- Ce qui a été percuté : véhicules selon leur classe, objets selon leur modèle
         LightVehicleClasses = { [8] = true, [13] = true }, -- motos, vélos (les autres véhicules : choc fort)

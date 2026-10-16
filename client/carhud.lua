@@ -12,7 +12,7 @@
 ]]
 
 local ACTIONS = {
-    carHud = true,     -- { inVehicle, show, mode = 'driver' | 'passenger', engine, speed, rpm, fuel, belt, alarm, broken, paused }
+    carHud = true,     -- { inVehicle, show, mode = 'driver' | 'passenger', engine, speed, rpm, fuel, belt, alarm, broken, damaged, paused }
     carNotice = true,  -- { key, text, hint, duration } : notification au-dessus du car HUD
     carNoticeHide = true, -- touche du moteur utilisée : notification masquée
 }

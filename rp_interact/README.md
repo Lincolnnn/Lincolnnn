@@ -43,8 +43,19 @@ sur l'individu le plus proche.
 Case **Civil** : rappel du **profil actif** en haut, la case **Mode civil**, puis **Créer un profil** et
 **Créer un véhicule** (ouvrent la **fiche civile** et ferment le menu) et, en mode civil, **Tips arrestation**.
 Case **Équipements** : **Tenues** → bouton **Accéder aux tenues** (ferme ce menu et ouvre le menu `/eup`, ci-dessous) ;
-**Armes** : lots d'armes que vous enregistrez dans **`data/loadouts.json`**, réservés aux policiers en service
-(`EquipmentPoliceOnly`), et **Retirer mes armes**. D'autres options pourront s'ajouter ici.
+**Armes** (réservées aux policiers en service, `EquipmentPoliceOnly`) :
+- **Équipement GSP**, **Équipement APD**, **Équipement FCSO** : donnent **tout l'équipement de départ** du service
+  (arme de service, taser, lampe, matraque…), en remplaçant les armes portées. Chaque service a **son propre
+  équipement** (fichier **`equipment_services.json`**, fourni et modifiable). Le bouton choisi est **sélectionné**
+  (trait bleu) ; au départ, c'est celui du **service principal** choisi dans la vue Police.
+- **Customiser équipement** (sous ces boutons) : reconnaît l'**équipement sélectionné** et propose **uniquement les
+  modifications de ce service** : accessoires de chaque arme (lampe, chargeur grande capacité…), **teinte**, armes
+  **en plus** (ex. arme de secours au FCSO, extincteur, fusées) ou en moins (l'arme de service et le taser sont
+  **obligatoires**). Boutons **Équiper** (sans enregistrer), **Enregistrer** (équipe et **garde** cet équipement :
+  le bouton « Équipement … » le redonne ensuite, **même après une reconnexion ou un redémarrage du serveur**) et
+  **Rétablir l'équipement de base**. L'équipement enregistré est **propre au joueur** (sa licence Rockstar) : **lui
+  seul** y a accès ; le serveur revérifie chaque choix (seulement ce que le fichier prévoit pour ce service).
+- **Autres armes** : lots de **`data/loadouts.json`** (facultatif, affiché s'il en contient) ; **Retirer mes armes**.
 Case **Voiture** :
 - **Spawn** : en haut, deux options gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
   fait apparaître, s'il n'y a pas d'autre joueur dedans) et **Apparaître dans le véhicule** (sinon devant vous). Puis
@@ -64,6 +75,8 @@ Case **Voiture** :
   ou une vitre baissée (`RadioRangeOpen`). Seules les vitres que le véhicule possède comptent.
   **Écouter ensuite** : le bouton **+** à côté de **▶** ajoute le lien à la file (jusqu'à **5** morceaux ; radio
   éteinte : il est lancé tout de suite). À la fin d'un morceau, le suivant démarre pour tout le monde.
+  Passé directement dans un **nouveau véhicule** depuis une place avant (Spawn, avec Vehicle Control) : la radio de
+  l'ancien véhicule, laissé vide à l'avant, **s'arrête**.
   Boutons à icônes (infobulle au survol) du morceau en cours, pour tout le monde :
   **⏮** revient au **début du morceau** ; **appuyé deux fois** (moins de 2,5 s) : **morceau précédent** (5 gardés,
   le morceau en cours revient en tête de file) · **⏸ / ▶** **pause / reprise** (reprend là où il était, au même
@@ -334,9 +347,50 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 
 ## Données
 
-`data/profiles.json` (voir `data/LISEZMOI.txt`). **À remplir vous-même**, en **JSON** : `data/vehicles.json`
-(véhicules du menu Voiture > Spawn), `data/loadouts.json` (armes du menu Équipements) et `data/outfits.json` (tenues
-du menu `/eup`) ; `rpi_vehicles` (console) les relit. Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`
+`data/profiles.json` et `data/custom_equipment.json` (équipements personnalisés enregistrés par les joueurs, rempli
+par le serveur), voir `data/LISEZMOI.txt`. **À remplir vous-même**, en **JSON** : `data/vehicles.json`
+(véhicules du menu Voiture > Spawn), `data/loadouts.json` (autres lots d'armes du menu Équipements) et
+`data/outfits.json` (tenues du menu `/eup`) ; `rpi_vehicles` (console) les relit, ainsi que
+**`equipment_services.json`** (à la racine de la ressource, fourni avec trois exemples GSP / APD / FCSO).
+
+### `equipment_services.json` : équipement de chaque service
+
+Un objet par bouton « Équipement … », dans l'ordre d'affichage :
+
+```json
+{
+    "Service": "Georgia State Patrol",
+    "Name": "Équipement GSP",
+    "Replace": true,
+    "Weapons": [
+        {
+            "Weapon": "WEAPON_PISTOL50", "Label": "Arme de service (Pistol .50)", "Ammo": 120, "Required": true,
+            "Components": ["COMPONENT_AT_PI_FLSH"],
+            "Options": [
+                { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "COMPONENT_AT_PI_FLSH" } ] },
+                { "Label": "Chargeur", "Choices": [ { "Label": "Chargeur grande capacité", "Component": "COMPONENT_PISTOL50_CLIP_02" } ] }
+            ],
+            "Tints": true
+        },
+        { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": false }
+    ]
+}
+```
+
+| Champ | Rôle |
+|---|---|
+| `Service` | `Atlanta Police Department`, `Georgia State Patrol` ou `Fayette County Sheriff Office` (pastille APD / GSP / FCSO ; présélection selon le service principal) ; un autre nom est accepté (sans pastille) |
+| `Name` | texte du bouton |
+| `Replace` | `true` : les armes portées sont retirées avant (défaut) |
+| `Weapon`, `Label`, `Ammo` | arme, nom affiché, munitions |
+| `Required` | `true` : toujours donnée, impossible à retirer en personnalisant |
+| `Default` | `false` : pas dans l'équipement de base, le joueur peut l'**ajouter** en personnalisant |
+| `Components` | accessoires de l'équipement de base |
+| `Options` | ce que le joueur peut choisir : un groupe = un emplacement (une case à cocher s'il n'a qu'un choix, sinon une liste « Aucun / … ») ; un seul accessoire par groupe |
+| `Tints` | `true` : teinte de l'arme au choix (8 teintes des armes classiques ; pas pour les armes Mk II) |
+
+Une personnalisation enregistrée ne garde que ce que le fichier prévoit encore : un accessoire retiré du fichier n'est
+plus donné, une arme ajoutée apparaît avec son réglage de base. Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`
 dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 
 ## Performance

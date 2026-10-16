@@ -353,7 +353,8 @@ local function lockedSections(src)
 end
 
 -- Partagé avec les autres fichiers serveur (server/vehicles.lua : spawn, radio, équipements)
-RPIServer = { on = on, policeUnit = function(src) return policeUnit(src) end, hasPermission = hasPermission }
+RPIServer = { on = on, policeUnit = function(src) return policeUnit(src) end, hasPermission = hasPermission,
+    identifier = getIdentifier }
 
 RegisterNetEvent('rp_interact:server:request', function(name, id, payload)
     local src = source

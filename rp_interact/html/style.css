@@ -563,3 +563,41 @@ input::placeholder, textarea::placeholder { color: #5f5f5f; font-style: italic; 
 #radioPause .ico-resume, #radioPause.is-paused .ico-pause { display: none; }
 #radioPause.is-paused .ico-resume { display: block; }
 #radioPause.is-paused { border-color: #d9a441; color: #f2c76b; }
+
+/* =========================================================================
+   ÉQUIPEMENTS : Équipement GSP / APD / FCSO (sélectionné : trait d'accent), Customiser équipement
+   ========================================================================= */
+.kit-item .kit-name { display: flex; align-items: center; gap: 7px; }
+.kit-item.selected { border-color: #8fb8e6; background: rgba(111, 177, 255, .12); box-shadow: inset 3px 0 0 #6fb1ff; }
+.equip-customize { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.equip-customize small { font-size: 11px; font-weight: normal; color: var(--hud-muted); }
+.equip-customize small:not(:empty)::before { content: "Équipement sélectionné : "; }
+
+.custom-head { display: block; line-height: 1.5; }
+.custom-head .dept-chip { margin-right: 6px; }
+.custom-list { display: flex; flex-direction: column; gap: 6px; }
+.custom-weapon {
+    display: flex; flex-direction: column; gap: 6px; padding: 8px 10px;
+    background: rgba(255, 255, 255, .04); border: 1px solid rgba(122, 122, 122, .45); border-radius: 7px;
+}
+.custom-name, .custom-opt { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.custom-name b { flex: 1; color: #fff; font-size: 13px; }
+.custom-name small { padding: 1px 6px; font-size: 10px; letter-spacing: .4px; color: #e0c27a; background: rgba(224, 194, 122, .12); border-radius: 3px; }
+.custom-name input, .custom-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.custom-tick {
+    flex-shrink: 0; width: 15px; height: 15px; border: 1px solid #8a8a8a; border-radius: 4px; background: rgba(0, 0, 0, .35);
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.custom-name input:checked + .custom-tick, .custom-opt input:checked + .custom-tick { background: #2f7a43; border-color: #4caf72; }
+.custom-name input:checked + .custom-tick::after, .custom-opt input:checked + .custom-tick::after { content: "✓"; color: #fff; font-size: 11px; line-height: 1; }
+.custom-name input:disabled + .custom-tick { opacity: .6; }
+.custom-name:has(input:disabled) { cursor: default; }
+.custom-opts { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 0 23px; border-top: 1px solid rgba(122, 122, 122, .25); }
+.custom-opt { font-size: 12px; color: var(--hud-text); }
+.custom-field { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+.custom-field span { color: var(--hud-muted); font-size: 12px; }
+.custom-field select { flex: 0 1 170px; min-width: 0; }
+.custom-weapon.off .custom-opts { opacity: .4; pointer-events: none; }
+.custom-weapon.off .custom-name b { color: var(--hud-muted); font-weight: normal; }
+.custom-save { border-color: #4caf72; background: rgba(47, 122, 67, .25); }
+.custom-save:hover { background: rgba(47, 122, 67, .4); border-color: #6fd08f; }

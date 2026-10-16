@@ -57,14 +57,31 @@
             </button>
         </div>
 
-        <!-- ================= ÉQUIPEMENTS (tenues : data/outfits.json, armes : data/loadouts.json) ================= -->
+        <!-- ================= ÉQUIPEMENTS (tenues : data/outfits.json ; armes : equipment_services.json, data/loadouts.json) ================= -->
         <div class="menu-view hidden" data-view="equipment">
             <div class="menu-section">Tenues</div>
             <button type="button" class="menu-btn" id="openEup">Accéder aux tenues</button>
             <div class="menu-section">Armes</div>
             <div class="menu-active none hidden" id="equipNotice"></div>
+            <!-- Équipement GSP / APD / FCSO : tout l'équipement de départ du service (sélectionné pour "Customiser") -->
+            <div class="menu-list" id="kitList"></div>
+            <button type="button" class="menu-btn equip-customize" id="equipCustomize">
+                <span>Customiser équipement</span><small id="equipCustomizeHint"></small>
+            </button>
+            <div class="menu-section hidden" id="loadoutSection">Autres armes</div>
             <div class="menu-list" id="loadoutList"></div>
             <button type="button" class="menu-btn menu-btn-soft" id="weaponsRemove">Retirer mes armes</button>
+        </div>
+
+        <!-- Customiser équipement : propre au joueur, selon le service sélectionné -->
+        <div class="menu-view hidden" data-view="equipment-custom">
+            <div class="menu-active custom-head" id="customHead"></div>
+            <div class="custom-list" id="customList"></div>
+            <div class="menu-row">
+                <button type="button" class="menu-btn" id="customApply">Équiper</button>
+                <button type="button" class="menu-btn custom-save" id="customSave">Enregistrer</button>
+            </div>
+            <button type="button" class="menu-btn menu-btn-soft" id="customReset">Rétablir l'équipement de base</button>
         </div>
 
         <!-- ================= VOITURE ================= -->

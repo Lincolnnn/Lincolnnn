@@ -146,13 +146,13 @@
     // =====================================================================
     const menu = { open: false, view: 'home', data: {} };
     const MENU_TITLES = {
-        home: 'Menu Interaction', civil: 'Civil', police: 'Police', equipment: 'Équipements',
+        home: 'Menu Interaction', civil: 'Civil', police: 'Police', equipment: 'Équipements', 'equipment-custom': 'Customiser équipement',
         car: 'Voiture', spawn: 'Spawn', 'spawn-police': 'Véhicules de police', 'spawn-other': 'Autres véhicules', radio: 'Radio',
     };
     // Page précédente (bouton retour / Échap)
-    const MENU_PARENT = { civil: 'home', police: 'home', equipment: 'home', car: 'home', spawn: 'car', radio: 'car', 'spawn-police': 'spawn', 'spawn-other': 'spawn' };
+    const MENU_PARENT = { civil: 'home', police: 'home', equipment: 'home', 'equipment-custom': 'equipment', car: 'home', spawn: 'car', radio: 'car', 'spawn-police': 'spawn', 'spawn-other': 'spawn' };
     // Catégories réservées (config.lua : Permissions) : page -> catégorie
-    const SECTION_OF = { equipment: 'equipment', car: 'car', spawn: 'car', 'spawn-police': 'car', 'spawn-other': 'car', radio: 'car' };
+    const SECTION_OF = { equipment: 'equipment', 'equipment-custom': 'equipment', car: 'car', spawn: 'car', 'spawn-police': 'car', 'spawn-other': 'car', radio: 'car' };
     const isLocked = (view) => !!(SECTION_OF[view] && menu.data.locked && menu.data.locked[SECTION_OF[view]]);
     const LOCKED_TEXT = 'Accès réservé : vous n\'avez pas la permission.';
 
@@ -203,6 +203,7 @@
             menu.lastView = menu.view;
             post('menuView', { view: menu.view }); // la vue Police reçoit l'état des actions en direct
             if (menu.view === 'equipment') loadEquipment();
+            if (menu.view === 'equipment-custom') loadCustom();
             if (menu.view.startsWith('spawn')) loadVehicles();
             if (menu.view === 'radio') loadRadio();
         }
@@ -324,29 +325,158 @@
         renderPoliceProfile();
     }
 
-    // ---- Équipements : armes (data/loadouts.json) ; tenues dans le menu /eup ----
+    // ---- Équipements : équipements de service (Équipement GSP / APD / FCSO), autres lots d'armes ; tenues : menu /eup ----
     const listButtons = (items, kind, empty) => (items.length ? items.map((x) => `
         <button type="button" class="menu-item" data-kind="${kind}" data-index="${x.index}">${esc(x.name)}
             ${x.service ? `<small>${esc(x.service)}</small>` : ''}</button>`).join('') : `<div class="menu-empty">${esc(empty)}</div>`);
 
+    // Équipement sélectionné (dernier pris, sinon celui du service principal choisi dans la vue Police) : c'est lui
+    // que "Customiser équipement" modifie
+    const equip = { services: [], selected: null, locked: false, custom: null };
+    const DEPT = { apd: 'APD', gsp: 'GSP', fcso: 'FCSO' };
+    const deptChip = (code) => (DEPT[code] ? `<span class="dept-chip dept-${code}">${DEPT[code]}</span>` : '');
+    const selectedService = () => equip.services.find((x) => x.key === equip.selected) || null;
+
+    function renderKits() {
+        const list = $('#kitList');
+        list.innerHTML = equip.services.length ? equip.services.map((x) => `
+            <button type="button" class="menu-item kit-item${x.key === equip.selected ? ' selected' : ''}" data-key="${esc(x.key)}" ${equip.locked ? 'disabled' : ''}>
+                <span class="kit-name">${deptChip(x.code)}${esc(x.name)}</span>
+                <small>${x.custom ? 'Personnalisé (enregistré)' : 'Équipement de base'}</small>
+            </button>`).join('') : '<div class="menu-empty">Aucun équipement de service (equipment_services.json).</div>';
+        const sel = selectedService();
+        $('#equipCustomize').disabled = equip.locked || !sel;
+        $('#equipCustomizeHint').textContent = sel ? sel.name : '';
+    }
+
     async function loadEquipment() {
         const res = await post('equipmentList');
         if (!res || !res.ok) return;
-        const locked = res.policeOnly && !res.police;
+        equip.locked = !!(res.policeOnly && !res.police);
+        equip.services = toArray(res.services);
+        if (!equip.services.some((x) => x.key === equip.selected)) {
+            // Service principal (vue Police : "apd", "gsp", "fcso", "apd+gsp"…) : le premier qui a un équipement
+            const mine = String(res.policeService || '').split('+');
+            const match = equip.services.find((x) => x.code && mine.includes(x.code));
+            equip.selected = (match || equip.services[0] || {}).key || null;
+        }
         const notice = $('#equipNotice');
-        notice.classList.toggle('hidden', !locked);
+        notice.classList.toggle('hidden', !equip.locked);
         notice.textContent = 'Armes réservées à la police : rejoignez une unité dans le MDC.';
-        $('#loadoutList').innerHTML = listButtons(toArray(res.loadouts), 'loadout', 'Aucune arme configurée (data/loadouts.json).');
-        $$('#loadoutList .menu-item').forEach((b) => { b.disabled = locked; });
+        renderKits();
+        const loadouts = toArray(res.loadouts);
+        $('#loadoutSection').classList.toggle('hidden', !loadouts.length);
+        $('#loadoutList').innerHTML = loadouts.length ? listButtons(loadouts, 'loadout', '') : '';
+        $$('#loadoutList .menu-item').forEach((b) => { b.disabled = equip.locked; });
     }
 
     document.addEventListener('click', async (e) => {
+        const kit = e.target.closest('#kitList .kit-item');
+        if (kit && !kit.disabled) {
+            equip.selected = kit.dataset.key; // reconnu par "Customiser équipement"
+            renderKits();
+            post('useEquipment', { kind: 'service', key: kit.dataset.key });
+            return;
+        }
         const item = e.target.closest('#loadoutList .menu-item');
         if (!item || item.disabled) return;
         post('useEquipment', { kind: item.dataset.kind, index: Number(item.dataset.index) });
     });
     $('#openEup').addEventListener('click', () => post('openEup'));
     $('#weaponsRemove').addEventListener('click', () => post('useEquipment', { kind: 'removeWeapons' }));
+    $('#equipCustomize').addEventListener('click', () => {
+        if ($('#equipCustomize').disabled || !selectedService()) return;
+        menu.view = 'equipment-custom';
+        renderMenu();
+    });
+
+    // ---- Customiser équipement : armes du service sélectionné, accessoires, teintes (propre au joueur) ----
+    const TINTS = ['Noir (d\'origine)', 'Vert', 'Or', 'Rose', 'Kaki', 'Bleu police', 'Orange', 'Platine'];
+
+    function customHead() {
+        const c = equip.custom;
+        if (!c) return;
+        $('#customHead').innerHTML = `${deptChip(c.code)}<b>${esc(c.name)}</b><br><small>${c.saved
+            ? 'Équipement enregistré : vous le retrouvez à chaque connexion (vous seul).'
+            : 'Équipement de base : modifiez-le, puis « Enregistrer » pour le garder.'}</small>`;
+        $('#customReset').disabled = !c.saved;
+    }
+
+    function renderCustom() {
+        const c = equip.custom;
+        customHead();
+        $('#customList').innerHTML = toArray(c.weapons).map((w) => {
+            const choice = w.choice || {};
+            const comps = toArray(choice.components);
+            const groups = toArray(w.groups).map((g, gi) => {
+                const choices = toArray(g.choices);
+                if (choices.length === 1) {
+                    const ch = choices[0];
+                    return `<label class="custom-opt"><input type="checkbox" data-group="${gi}" value="${esc(ch.component)}" ${comps.includes(ch.component) ? 'checked' : ''}>
+                        <span class="custom-tick"></span>${esc(ch.label || g.label)}</label>`;
+                }
+                return `<label class="menu-field custom-field"><span>${esc(g.label)}</span><select data-group="${gi}">
+                    <option value="">Aucun</option>${choices.map((ch) => `<option value="${esc(ch.component)}" ${comps.includes(ch.component) ? 'selected' : ''}>${esc(ch.label)}</option>`).join('')}
+                </select></label>`;
+            }).join('');
+            const tint = w.tints ? `<label class="menu-field custom-field"><span>Teinte</span><select class="custom-tint">
+                ${TINTS.map((t, i) => `<option value="${i}" ${Number(choice.tint) === i ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : '';
+            const on = w.required || choice.on;
+            return `<div class="custom-weapon${on ? '' : ' off'}" data-weapon="${esc(w.weapon)}">
+                <label class="custom-name">
+                    <input type="checkbox" class="custom-on" ${on ? 'checked' : ''} ${w.required ? 'disabled' : ''}>
+                    <span class="custom-tick"></span><b>${esc(w.label)}</b>${w.required ? '<small>Obligatoire</small>' : ''}
+                </label>
+                ${groups || tint ? `<div class="custom-opts">${groups}${tint}</div>` : ''}
+            </div>`;
+        }).join('') || '<div class="menu-empty">Rien à personnaliser pour cet équipement.</div>';
+    }
+
+    async function loadCustom() {
+        const sel = selectedService();
+        $('#customList').innerHTML = '';
+        $('#customHead').textContent = 'Chargement…';
+        if (!sel) return;
+        const res = await post('equipmentCustom', { key: sel.key });
+        if (!res || !res.ok) {
+            $('#customHead').textContent = res?.error || 'Action impossible.';
+            return;
+        }
+        equip.custom = res;
+        renderCustom();
+    }
+
+    // Arme cochée / décochée : ses accessoires grisés
+    $('#customList').addEventListener('change', (e) => {
+        if (!e.target.classList.contains('custom-on')) return;
+        e.target.closest('.custom-weapon').classList.toggle('off', !e.target.checked);
+    });
+
+    function customChoices() {
+        const weapons = {};
+        $$('#customList .custom-weapon').forEach((el) => {
+            const components = [];
+            el.querySelectorAll('.custom-opt input:checked').forEach((i) => components.push(i.value));
+            el.querySelectorAll('select[data-group]').forEach((sel) => { if (sel.value) components.push(sel.value); });
+            const tint = el.querySelector('.custom-tint');
+            weapons[el.dataset.weapon] = { on: el.querySelector('.custom-on').checked, components, tint: tint ? Number(tint.value) : 0 };
+        });
+        return { weapons };
+    }
+
+    async function customAction(action) {
+        const c = equip.custom;
+        if (!c) return;
+        const res = await post('equipmentCustomSave', { key: c.key, action, choices: action === 'reset' ? null : customChoices() });
+        if (!res || !res.ok) return;
+        c.saved = !!res.saved;
+        const kit = equip.services.find((x) => x.key === c.key);
+        if (kit) kit.custom = c.saved;
+        if (action === 'reset') loadCustom(); else customHead();
+    }
+    $('#customApply').addEventListener('click', () => customAction('apply'));
+    $('#customSave').addEventListener('click', () => customAction('save'));
+    $('#customReset').addEventListener('click', () => { if (!$('#customReset').disabled) customAction('reset'); });
 
     // ---- Voiture > Spawn (data/vehicles.json) ----
     async function loadVehicles() {
