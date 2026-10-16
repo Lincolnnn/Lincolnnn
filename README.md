@@ -130,10 +130,13 @@ fond), visibles même MDC fermé :
   (`StopConflictingHuds = false` pour ne rien arrêter). Pour que les HUD du MDC passent aussi **au-dessus** de
   l'interface d'un autre script, démarrez `mdc_standalone` **après** lui dans `server.cfg` (la dernière interface
   chargée s'affiche au-dessus).
-  **Noms des rues et des zones** : pris dans la ressource **`rp_atlanta_streetnames`** (`client/streetnames.lua`) : les
-  fichiers listés dans son `fxmanifest.lua` sont lus (`AddTextEntryByHash(0x…, "Nom")`, `AddTextEntry("CODE", "Nom")`,
-  tables `[0x…] = "Nom"` / `["Nom du jeu"] = "Nom"` / `["CODE_ZONE"] = "Nom"`, fichiers JSON) ; sinon les noms du jeu.
-  Commande **`/mdc_streets`** (F8) : nombre de noms lus et noms à votre position, pour vérifier.
+  **Noms des rues et des quartiers** : **uniquement** ceux de **`config/atlanta_streets.lua`** (aucun autre fichier,
+  aucune autre ressource) : `streets` (nom du jeu -> nom d'Atlanta), `pool` (rues non listées : un nom de la liste,
+  toujours le même pour une même rue ; `autoRenameUnmapped = false` pour garder leur nom du jeu), `zones` (quartiers,
+  renommés aussi sur la carte du menu pause), `countyZones` / `cityName` / `countyName`. Utilisés par le PLD, le bouton
+  « Position actuelle » et les exports `GetStreetName`, `GetDistrictName`, `GetLocationText`, `RenameStreet`.
+  Le filtre `"street"` de `config/blocks.json` utilise le nom **affiché** (d'Atlanta, ex. « Aberdeen Pkwy »).
+  Commande **`/mdc_streets`** (F8) : noms à votre position (et ceux du jeu), pour vérifier.
   Les blocs se dessinent dans **`config/blocks.json`** (cercles, rectangles, polygones, filtre par rue) : voir
   `config/LISEZMOI.txt` ; la commande `/mdc_pos` (console F8) donne la ligne à copier.
 - **Display MDC** : affiché seulement dans une unité : « **[N° d'unité] • [SERVICE]** » (ex. `417 • GSP`, tag de

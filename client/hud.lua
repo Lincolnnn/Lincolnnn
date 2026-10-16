@@ -187,7 +187,7 @@ loadBlocks()
 -- Cap GTA : 0 = Nord, 90 = Ouest, 180 = Sud, 270 = Est (sens inverse des aiguilles)
 local DIRECTIONS = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
 
--- Noms des rues et des zones : ressource de noms de rues du serveur (client/streetnames.lua), sinon le jeu
+-- Noms des rues et des quartiers : config/atlanta_streets.lua uniquement (client/streetnames.lua)
 local function streetsAt(x, y, z)
     local streetHash, crossingHash = GetStreetNameAtCoord(x, y, z)
     return StreetNames.street(streetHash), StreetNames.street(crossingHash)

@@ -17,7 +17,10 @@ Formats (coordonnées x, y du jeu ; la hauteur z n'est pas utilisée) :
   Polygone  : { "name": "1800", "type": "poly",   "points": [[x1, y1], [x2, y2], [x3, y3], ...] }
 
 Option sur chaque bloc : "street": "Nom de la rue" -> le bloc ne s'applique que sur cette
-rue (nom exact affiché par le PLD, sans tenir compte des majuscules).
+rue (nom exact affiché par le PLD, sans tenir compte des majuscules) : le nom d'ATLANTA de
+config/atlanta_streets.lua (ex. "Aberdeen Pkwy", et non "Paleto Blvd").
+
+Noms des rues et des quartiers du PLD : config/atlanta_streets.lua, et rien d'autre.
 
 Trouver des coordonnées en jeu : commande  /mdc_pos  (console F8) : affiche la position
 actuelle et le bloc détecté, avec une ligne prête à copier.
