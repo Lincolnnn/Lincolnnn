@@ -255,7 +255,7 @@ end
 
 loadAll()
 RegisterCommand('rpi_vehicles', function(src)
-    if src == 0 or IsPlayerAceAllowed(src, Config.PoliceVehiclesAce) then loadAll() end
+    if src == 0 or IsPlayerAceAllowed(src, Config.AdminAce) then loadAll() end
 end, false)
 
 local function isPolice(src) return S.policeUnit(src) ~= nil end

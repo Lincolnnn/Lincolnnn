@@ -62,7 +62,7 @@ function RPI.notify(text, kind)
     SendNUIMessage({ action = 'notify', data = { text = text, type = kind or 'info' } })
 end
 
--- Notification envoyée par le serveur (ex. confirmation de /policeon, /policeoff)
+-- Notification envoyée par le serveur
 RegisterNetEvent('rp_interact:client:notify', function(text, kind)
     if type(text) == 'string' then RPI.notify(text, kind) end
 end)

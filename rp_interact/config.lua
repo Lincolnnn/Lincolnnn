@@ -133,18 +133,8 @@ InteractConfig = {
     DeleteAccess = 'everyone',
     DeleteAce = 'rpinteract.delete',
 
-    -- VÉHICULES DE POLICE : /policeon -> seuls les policiers (unité du MDC) y montent ; /policeoff (par
-    -- défaut à chaque démarrage du serveur) -> tout le monde. Voir client/policevehicles.lua.
-    -- Pas d'annonce : seul l'auteur de la commande reçoit une notification de confirmation.
-    -- Autorisés : console serveur, joueurs en unité du MDC, ou permission ACE ci-dessous.
-    PoliceVehiclesAce = 'rpinteract.admin',
-    PoliceVehicleClasses = { 18 },  -- classes du jeu considérées comme "véhicule de police" (18 = urgence)
-    PoliceVehicleModels = {},       -- modèles en plus (véhicules ajoutés d'une autre classe), ex. { 'police5' }
-    -- Animation jouée quand un non-policier tire sur la poignée d'un véhicule de police (/policeon)
-    LockedDoorAnim = { dict = 'veh@std@ds@enter_exit', clip = 'd_locked' },
-    -- Où se tient le joueur pour tirer sur la poignée : distance (m) entre le centre du personnage et la
-    -- poignée (0.38 = à ~3 cm de la portière), décalage le long du véhicule (m, + vers l'avant)
-    LockedDoorStand = { distance = 0.38, along = 0.0 },
+    -- Permission ACE des commandes d'administration (rechargement des fichiers : emotes, véhicules)
+    AdminAce = 'rpinteract.admin',
 
     MaxProfiles = 20,               -- profils civils par joueur
     TextMax = 1000,                 -- caractères max par case de texte

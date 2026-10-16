@@ -777,25 +777,6 @@ on('seat', function(src, p)
     return { ok = true }
 end)
 
--- Portière ouverte / fermée par un policier (œil, placer / faire sortir un individu) : notée dans l'état du
--- véhicule ("rpiPoliceDoors"). Avec /policeon, un civil peut monter par une portière ouverte par un policier.
-on('policeDoor', function(src, p)
-    if not policeUnit(src) then return { ok = false, error = 'Réservé à la police.' } end
-    local door = tonumber(p.door)
-    if not door or door < 0 or door > 5 then return { ok = false, error = 'Portière invalide.' } end
-    if not ONESYNC then return { ok = false, error = 'OneSync requis.' } end
-    local netId = tonumber(p.netId)
-    local entity = netId and vehicleEntity(netId)
-    if not entity or tooFar(playerCoords(src), coordsOfEntity(entity), Config.PlaceVehicleDistance + 6.0) then
-        return { ok = false, error = 'Rapprochez-vous du véhicule.' }
-    end
-    local doors = {}
-    for k, v in pairs(Entity(entity).state.rpiPoliceDoors or {}) do doors[k] = v end
-    doors[tostring(door)] = p.open == true or nil
-    Entity(entity).state:set('rpiPoliceDoors', doors, true)
-    return { ok = true }
-end)
-
 on('takeOut', function(src, p)
     local target, err = policeTarget(src, p, Config.PlaceVehicleDistance + 3.0)
     if not target then return { ok = false, error = err } end
@@ -949,34 +930,6 @@ RegisterCommand('rpi_showprops', function(src)
     print(('^5[RP Interact]^0 %d objet(s) masqué(s) réaffiché(s).'):format(#HiddenProps))
     HiddenProps = {}
 end, false)
-
--- =========================================================================
--- VÉHICULES DE POLICE : /policeon et /policeoff (sans annonce ; l'auteur reçoit une confirmation)
--- /policeon : seuls les policiers (unité du MDC) montent dans un véhicule de police. /policeoff : tout
--- le monde. Au démarrage du serveur (ou de la ressource) : /policeoff. Appliqué par chaque client sur
--- son propre personnage (client/policevehicles.lua) : aucun véhicule n'est verrouillé ni supprimé.
--- =========================================================================
-GlobalState.rpiPoliceVehicles = false
-
-local function canTogglePoliceVehicles(src)
-    return src == 0 or IsPlayerAceAllowed(src, Config.PoliceVehiclesAce) or policeUnit(src) ~= nil
-end
-
-local function setPoliceVehicles(src, enabled)
-    if not canTogglePoliceVehicles(src) then
-        return TriggerClientEvent('rp_interact:client:notify', src, 'Commande réservée à la police (unité du MDC).', 'error')
-    end
-    GlobalState.rpiPoliceVehicles = enabled
-    if src ~= 0 then
-        TriggerClientEvent('rp_interact:client:notify', src, enabled
-            and 'Véhicules de police réservés aux policiers (/policeon).'
-            or 'Véhicules de police de nouveau accessibles à tous (/policeoff).', 'success')
-    end
-    print(('^5[RP Interact]^0 Véhicules de police réservés aux policiers : %s (par %s)'):format(
-        enabled and 'ACTIVÉ' or 'désactivé', src == 0 and 'console' or (GetPlayerName(src) or tostring(src))))
-end
-RegisterCommand('policeon', function(src) setPoliceVehicles(src, true) end, false)
-RegisterCommand('policeoff', function(src) setPoliceVehicles(src, false) end, false)
 
 AddEventHandler('playerDropped', function()
     local src = source

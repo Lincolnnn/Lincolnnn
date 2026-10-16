@@ -89,7 +89,6 @@ ChatConfig = {
             } },
             { title = "Interpellations", items = {
                 { "H", "mains en l'air" }, { "J", "à genoux" }, { "L", "s'allonger" }, { "X", "arrêter l'emote / lâcher le bras" },
-                { "/policeon", "véhicules de police réservés" },
             } },
         },
         Footer = "Toutes les touches se changent dans Échap > Paramètres > Raccourcis clavier > FiveM.",

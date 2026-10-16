@@ -186,7 +186,7 @@ end)
 
 -- Pour les tests / la console : "rpi_emotes" relit les fichiers et affiche le résultat
 RegisterCommand('rpi_emotes', function(src)
-    if src == 0 or IsPlayerAceAllowed(src, Config.PoliceVehiclesAce) then scan() end
+    if src == 0 or IsPlayerAceAllowed(src, Config.AdminAce) then scan() end
 end, false)
 
 RPIEmotes = { scan = scan, parse = parseEmote, name = emoteName }

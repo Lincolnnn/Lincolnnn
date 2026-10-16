@@ -19,7 +19,6 @@
     "/e menotté2" du mode d'emotes du serveur (RPEMOTES), dont l'animation exacte y est lue
     (server/emotes.lua), pour ne jamais rejouer une autre animation que celle de l'emote.
 
-    Véhicules de police (/policeon, /policeoff) : voir client/policevehicles.lua.
 
     Performance : boucles actives uniquement pendant qu'on est menotté, tenu par le bras, qu'on tient
     quelqu'un ou que des PNJ sont menottés.
@@ -459,7 +458,6 @@ local function officerOpenDoor(vehicle, seat, door)
             Wait(300)
         end
     end
-    RPI.markPoliceDoor(vehicle, door, true) -- /policeon : portière ouverte par un policier
 end
 
 --- Le policier ouvre lui-même la portière arrière la plus proche, lâche le bras, l'individu monte
@@ -647,7 +645,6 @@ RegisterNetEvent('rp_interact:client:enterVehicle', function(netId, seat)
     local ped = PlayerPedId()
     draggedBy, seated = nil, false
     holdPed(ped, false)
-    RPI.allowPoliceVehicle(vehicle) -- /policeon : placé par un policier, il peut y monter
     ClearPedTasks(ped)
     vehicleMove.kind, vehicleMove.untilTime = 'enter', GetGameTimer() + 15000
     handcuffs(ped, false) -- le jeu empêche un personnage menotté de monter : remises une fois à bord
