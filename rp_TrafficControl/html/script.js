@@ -3,8 +3,13 @@
     const $ = (id) => document.getElementById(id);
     const box = $('tc');
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_TrafficControl';
-    const KIND = { close: 'Route barrée', speed: 'Limitation', stop: 'Trafic arrêté' };
-    let state = { measures: [], durations: [15, 30, 60, 120, 0], duration: 30, speed: 25, limits: { min: 5, max: 80, step: 5 }, unit: '' };
+    const KIND = { close: 'Fermeture', slow: 'Ralentissement', stop: 'Trafic arrêté' };
+    const CLOSE_HINT = {
+        lane: 'Les PNJ se rabattent sur une voie du même sens',
+        direction: 'Ce sens est fermé : les PNJ font demi-tour / une déviation',
+        road: 'Route fermée : les PNJ prennent une déviation',
+    };
+    let state = { measures: [], durations: [15, 30, 60, 120, 0], duration: 30, speed: 25, scope: 'lane', limits: { min: 5, max: 80, step: 5 }, unit: '' };
     let messageTimer = null;
     let tick = null;
 
@@ -31,13 +36,20 @@
         return `${s} s`;
     }
 
+    function laneName(i, n) {
+        if (!n || n <= 1) return 'voie unique';
+        if (i === 1) return 'voie de gauche';
+        if (i === n) return 'voie de droite';
+        return n === 3 ? 'voie centrale' : `voie ${i}`;
+    }
+
     function detail(m) {
-        if (m.kind === 'close') {
-            const dx = m.b.x - m.a.x; const dy = m.b.y - m.a.y;
-            return `${Math.round(Math.sqrt(dx * dx + dy * dy))} m × ${Math.round(m.width)} m`;
-        }
-        if (m.kind === 'speed') return `${m.speed} MPH · rayon ${Math.round(m.radius)} m`;
-        return `rayon ${Math.round(m.radius)} m`;
+        const dx = m.b.x - m.a.x; const dy = m.b.y - m.a.y;
+        const length = `${Math.round(Math.sqrt(dx * dx + dy * dy))} m`;
+        let scope = 'route entière';
+        if (m.scope === 'lane') scope = `${laneName(m.laneIndex, m.laneCount)} (${m.laneIndex}/${m.laneCount}), sens ${m.compass || ''}`;
+        else if (m.scope === 'direction') scope = `sens ${m.compass || ''}`;
+        return `${m.kind === 'slow' ? `${m.speed} MPH · ` : ''}${scope} · ${length}`;
     }
 
     function renderSettings() {
@@ -45,6 +57,8 @@
         $('tcSpeedIco').textContent = state.speed;
         box.querySelector('[data-speed="-1"]').disabled = state.speed <= state.limits.min;
         box.querySelector('[data-speed="1"]').disabled = state.speed >= state.limits.max;
+        box.querySelectorAll('[data-scope]').forEach((b) => b.classList.toggle('active', b.dataset.scope === state.scope));
+        $('tcCloseHint').textContent = CLOSE_HINT[state.scope] || '';
         $('tcDurations').innerHTML = state.durations.map((d) => `
             <button class="tc-chip${d === state.duration ? ' active' : ''}" data-duration="${d}">${durationLabel(d)}</button>`).join('');
     }
@@ -114,7 +128,9 @@
 
     box.addEventListener('click', (e) => {
         const kind = e.target.closest('[data-kind]');
-        if (kind) return post('pick', { kind: kind.dataset.kind, duration: state.duration, speed: state.speed });
+        if (kind) return post('pick', { kind: kind.dataset.kind, scope: state.scope, duration: state.duration, speed: state.speed });
+        const scope = e.target.closest('[data-scope]');
+        if (scope) { state.scope = scope.dataset.scope; return renderSettings(); }
         const sp = e.target.closest('[data-speed]');
         if (sp && !sp.disabled) {
             state.speed = Math.max(state.limits.min, Math.min(state.limits.max, state.speed + Number(sp.dataset.speed) * state.limits.step));

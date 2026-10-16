@@ -1,8 +1,8 @@
 --[[
     RP TrafficControl - client : menu (NUI, style du MDC) et commande /trafic
     -------------------------------------------------------------------------
-    Nouvelle mesure (route barrée / limitation de vitesse / arrêt du trafic, durée, vitesse) -> l'outil de pose
-    (editor.lua). Mesures actives : lieu, auteur, temps restant, « Repérer » (point GPS) et « Lever ».
+    Nouvelle mesure (fermeture / ralentissement / arrêt ; portée : voie, sens ou route entière ; durée, vitesse)
+    -> l'outil de pose (editor.lua). Mesures actives : lieu, auteur, temps restant, « Repérer » (point GPS) et « Lever ».
     Aucune boucle : le menu se met à jour quand les mesures changent (GlobalState.rpTraffic).
 ]]
 
@@ -79,9 +79,9 @@ RegisterCommand(Config.Command or 'trafic', function()
     if open then closeMenu() else openMenu() end
 end, false)
 if Config.Key and Config.Key ~= '' then
-    RegisterKeyMapping(Config.Command or 'trafic', 'Gestion du trafic (routes barrées, vitesse)', 'keyboard', Config.Key)
+    RegisterKeyMapping(Config.Command or 'trafic', 'Gestion du trafic (fermetures, ralentissements)', 'keyboard', Config.Key)
 end
-TriggerEvent('chat:addSuggestion', '/' .. (Config.Command or 'trafic'), 'Gestion du trafic : route barrée (déviation), limitation de vitesse, arrêt du trafic')
+TriggerEvent('chat:addSuggestion', '/' .. (Config.Command or 'trafic'), 'Gestion du trafic : fermer une voie / un sens / la route, ralentir, arrêter')
 
 -- =========================================================================
 -- CALLBACKS NUI
@@ -91,12 +91,12 @@ RegisterNUICallback('close', function(_, cb)
     closeMenu()
 end)
 
--- Nouvelle mesure : { kind, duration, speed } -> outil de pose
+-- Nouvelle mesure : { kind, scope, duration, speed } -> outil de pose
 RegisterNUICallback('pick', function(data, cb)
     cb({ ok = true })
-    if type(data) ~= 'table' or (data.kind ~= 'close' and data.kind ~= 'speed' and data.kind ~= 'stop') then return end
+    if type(data) ~= 'table' or (data.kind ~= 'close' and data.kind ~= 'slow' and data.kind ~= 'stop') then return end
     closeMenu()
-    TC.startEditor(data.kind, { duration = data.duration, speed = data.speed })
+    TC.startEditor(data.kind, { scope = data.scope, duration = data.duration, speed = data.speed })
 end)
 
 RegisterNUICallback('remove', function(data, cb)
@@ -122,7 +122,7 @@ RegisterNUICallback('locate', function(data, cb)
     local id = type(data) == 'table' and tonumber(data.id)
     for _, m in ipairs(TC.measures or {}) do
         if m.id == id then
-            local p = m.center or { x = (m.a.x + m.b.x) / 2, y = (m.a.y + m.b.y) / 2 }
+            local p = { x = (m.a.x + m.b.x) / 2, y = (m.a.y + m.b.y) / 2 }
             SetNewWaypoint(p.x + 0.0, p.y + 0.0)
             SendNUIMessage({ action = 'message', data = { text = 'Point GPS placé sur la mesure.' } })
             return

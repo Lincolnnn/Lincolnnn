@@ -1,8 +1,9 @@
 --[[
     RP TrafficControl - serveur
     ---------------------------
-    Mesures de trafic (route barrée, limitation de vitesse, arrêt du trafic) : vérifiées ici, publiées à tous les
-    joueurs (GlobalState.rpTraffic) ; chaque joueur les applique au réseau routier de SON jeu (client/network.lua).
+    Mesures de trafic (fermeture, ralentissement, arrêt) sur un TRONÇON précis (une voie, un sens ou la route
+    entière) : vérifiées ici, publiées à tous les joueurs (GlobalState.rpTraffic) ; chaque joueur les applique au
+    réseau routier de SON jeu et à ses PNJ (client/network.lua).
     Durée limitée (levée automatique) ou jusqu'à ce qu'on la lève. Aucune boucle : une minuterie par mesure.
 ]]
 
@@ -10,15 +11,18 @@ local Config = TrafficConfig
 local Measures = {} -- [id] = mesure
 local nextId = 1
 
-local KINDS = { close = true, speed = true, stop = true }
+local KINDS = { close = true, slow = true, stop = true }
+local SCOPES = { lane = true, direction = true, road = true }
 
 -- =========================================================================
 -- PUBLICATION
 -- =========================================================================
 --- Ce que les joueurs reçoivent (géométrie et réglages, pas de données privées)
 local function publicView(m)
-    return { id = m.id, kind = m.kind, a = m.a, b = m.b, width = m.width, center = m.center, radius = m.radius,
-        speed = m.speed, label = m.label }
+    return { id = m.id, kind = m.kind, scope = m.scope, a = m.a, b = m.b, vmin = m.vmin, vmax = m.vmax,
+        lanes = m.lanes, closedLane = m.closedLane, laneIndex = m.laneIndex, laneCount = m.laneCount,
+        oppositeLanes = m.oppositeLanes, median = m.median, laneWidth = m.laneWidth, compass = m.compass,
+        nodes = m.nodes, speed = m.speed, label = m.label }
 end
 
 local function publish()
@@ -137,29 +141,48 @@ function Handlers.create(src, data)
     here = { x = here.x, y = here.y, z = here.z }
     local reach = ((Config.Editor and Config.Editor.Range) or 150.0) + 60.0
 
-    local m = { kind = data.kind, owner = src, by = by, label = cleanLabel(data.label) }
-    if data.kind == 'close' then
-        local C = Config.Closure
-        local a, b = point(data.a), point(data.b)
-        if not a or not b then return { ok = false, error = 'Tronçon invalide.' } end
-        if dist(a, here) > reach and dist(b, here) > reach then return { ok = false, error = 'Trop loin de vous.' } end
-        local length = dist(a, b)
-        if length < (C.MinLength or 6.0) then return { ok = false, error = 'Tronçon trop court.' } end
-        if length > (C.MaxLength or 250.0) then return { ok = false, error = 'Tronçon trop long.' } end
-        m.a, m.b = a, b
-        m.width = num(data.width, C.MinWidth or 4.0, C.MaxWidth or 40.0) or C.DefaultWidth or 14.0
-    else
-        local S = Config.Speed
-        local center = point(data.center)
-        if not center then return { ok = false, error = 'Zone invalide.' } end
-        if dist(center, here) > reach then return { ok = false, error = 'Trop loin de vous.' } end
-        m.center = center
-        m.radius = num(data.radius, S.MinRadius or 10.0, S.MaxRadius or 200.0) or S.DefaultRadius or 40.0
-        if data.kind == 'speed' then
-            m.speed = math.floor(num(data.speed, S.MinLimit or 5, S.MaxLimit or 80) or S.DefaultLimit or 25)
-        else
-            m.speed = 0
-        end
+    local SEG = Config.Segment or {}
+    local m = { kind = data.kind, scope = SCOPES[data.scope] and data.scope or 'lane', owner = src, by = by,
+        label = cleanLabel(data.label) }
+    local a, b = point(data.a), point(data.b)
+    if not a or not b then return { ok = false, error = 'Tronçon invalide.' } end
+    if dist(a, here) > reach and dist(b, here) > reach then return { ok = false, error = 'Trop loin de vous.' } end
+    local length = dist(a, b)
+    if length < (SEG.MinLength or 6.0) then return { ok = false, error = 'Tronçon trop court.' } end
+    if length > (SEG.MaxLength or 200.0) + 1 then return { ok = false, error = 'Tronçon trop long.' } end
+    m.a, m.b = a, b
+    -- Bande concernée (à droite du sens : +), voies du sens
+    local vmin, vmax = num(data.vmin, -80, 80), num(data.vmax, -80, 80)
+    if not vmin or not vmax or vmax <= vmin or vmax - vmin > (SEG.MaxRoadWidth or 60.0) + 40 then
+        return { ok = false, error = 'Voie / sens invalide.' }
+    end
+    m.vmin, m.vmax = vmin, vmax
+    m.lanes = {}
+    for i, off in ipairs(type(data.lanes) == 'table' and data.lanes or {}) do
+        if i > 8 then break end
+        local v = num(off, -80, 80)
+        if v then m.lanes[#m.lanes + 1] = v end
+    end
+    m.closedLane = num(data.closedLane, -80, 80) or (vmin + vmax) / 2
+    m.laneCount = math.floor(num(data.laneCount, 1, 8) or #m.lanes)
+    m.laneIndex = math.floor(num(data.laneIndex, 1, m.laneCount) or 1)
+    m.oppositeLanes = math.floor(num(data.oppositeLanes, 0, 8) or 0)
+    m.median = num(data.median, 0, 60) or 0.0
+    m.laneWidth = num(data.laneWidth, 2, 10) or SEG.LaneWidth or 5.4
+    m.compass = cleanLabel(data.compass):sub(1, 12)
+    -- Nœuds du jeu retenus à la pose (fermés / ralentis par chaque joueur) : seulement près du tronçon
+    m.nodes = {}
+    local mid = { x = (a.x + b.x) / 2, y = (a.y + b.y) / 2, z = (a.z + b.z) / 2 }
+    for _, n in ipairs(type(data.nodes) == 'table' and data.nodes or {}) do
+        if #m.nodes >= (SEG.MaxNodes or 80) then break end
+        local p = point(n)
+        if p and dist(p, mid) <= length / 2 + 25.0 then m.nodes[#m.nodes + 1] = p end
+    end
+    if data.kind == 'slow' then
+        local S = Config.Speed or {}
+        m.speed = math.floor(num(data.speed, S.MinLimit or 5, S.MaxLimit or 80) or S.DefaultLimit or 25)
+    elseif data.kind == 'stop' then
+        m.speed = 0
     end
 
     -- Durée : une des durées proposées (0 = jusqu'à ce qu'on la lève)
@@ -179,8 +202,8 @@ function Handlers.create(src, data)
             if Measures[m.id] == m then removeMeasure(m.id) end
         end)
     end
-    print(('^5[rp_TrafficControl]^0 %s : %s n°%d (%s) par %s'):format(
-        os.date('%H:%M'), m.kind, m.id, m.label ~= '' and m.label or '?', by))
+    print(('^5[rp_TrafficControl]^0 %s : %s (%s) n°%d, %d nœud(s), %s, par %s'):format(
+        os.date('%H:%M'), m.kind, m.scope, m.id, #m.nodes, m.label ~= '' and m.label or '?', by))
     return { ok = true, id = m.id, measures = menuList(src) }
 end
 

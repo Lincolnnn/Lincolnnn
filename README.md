@@ -32,8 +32,9 @@ Et **RP Flares** dans [`rp_flares/`](rp_flares/README.md) : fusées de détresse
 retirées avec l'œil, lumière rouge renforcée la nuit.
 
 Et **RP TrafficControl** dans [`rp_TrafficControl/`](rp_TrafficControl/README.md) : gestion du trafic **sans supprimer
-de véhicules** : routes barrées (les nœuds de circulation du jeu sont fermés, les PNJ prennent une déviation),
-limitations de vitesse et arrêts du trafic par zone, posés en visant la route (`/trafic`, policiers en service).
+de véhicules**, sur un tronçon précis (**une voie**, **un sens** ou **la route entière**) : fermeture (nœuds du jeu
+fermés, PNJ rabattus sur une voie du même sens ou demi-tour), ralentissement et arrêt du trafic, posés en visant la
+route (`/trafic`, policiers en service).
 
 ## Fenêtre
 

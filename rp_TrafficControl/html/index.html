@@ -20,25 +20,33 @@
 
         <section class="tc-section">
             <div class="tc-legend">Nouvelle mesure</div>
+            <div class="tc-field tc-scope-field">
+                <span class="tc-label">Portée</span>
+                <div class="tc-seg" id="tcScopes">
+                    <button class="tc-seg-btn" data-scope="lane" title="Une voie de circulation (ex. voie de gauche)">Voie</button>
+                    <button class="tc-seg-btn" data-scope="direction" title="Un sens de circulation (toutes ses voies)">Sens</button>
+                    <button class="tc-seg-btn" data-scope="road" title="La route entière (les deux sens)">Route entière</button>
+                </div>
+            </div>
             <div class="tc-kinds">
                 <button class="tc-kind" data-kind="close">
                     <span class="tc-ico ico-close">
                         <svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="6" rx="1.5"/><path d="M6 8l-3 6M11 8l-3 6M16 8l-3 6M21 8l-3 6" /><path d="M5 14v6M19 14v6"/></svg>
                     </span>
-                    <span class="tc-kind-text"><b>Route barrée</b><small>Tronçon fermé : les PNJ prennent une déviation</small></span>
+                    <span class="tc-kind-text"><b>Fermeture</b><small id="tcCloseHint">Les PNJ changent de voie avant le tronçon</small></span>
                 </button>
-                <button class="tc-kind" data-kind="speed">
+                <button class="tc-kind" data-kind="slow">
                     <span class="tc-ico ico-speed"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><text x="12" y="15.5" id="tcSpeedIco">25</text></svg></span>
-                    <span class="tc-kind-text"><b>Limitation de vitesse</b><small>Zone ronde : les PNJ ralentissent</small></span>
+                    <span class="tc-kind-text"><b>Ralentissement</b><small>Les PNJ du tronçon ralentissent</small></span>
                 </button>
                 <button class="tc-kind" data-kind="stop">
                     <span class="tc-ico ico-stop"><svg viewBox="0 0 24 24"><path d="M8 2h8l6 6v8l-6 6H8l-6-6V8z"/><path d="M8 12h8"/></svg></span>
-                    <span class="tc-kind-text"><b>Arrêt du trafic</b><small>Zone ronde : les véhicules s'arrêtent</small></span>
+                    <span class="tc-kind-text"><b>Arrêt du trafic</b><small>Les PNJ s'arrêtent avant le tronçon</small></span>
                 </button>
             </div>
             <div class="tc-settings">
                 <div class="tc-field">
-                    <span class="tc-label">Vitesse (limitation)</span>
+                    <span class="tc-label">Vitesse (ralentissement)</span>
                     <div class="tc-qty">
                         <button class="tc-qty-btn" data-speed="-1" aria-label="Moins vite">−</button>
                         <span class="tc-qty-value" id="tcSpeed">25 MPH</span>
@@ -50,7 +58,7 @@
                     <div class="tc-chips" id="tcDurations"></div>
                 </div>
             </div>
-            <div class="tc-hint">Choisissez une mesure, puis posez-la en visant la route : <b>E</b> pour valider.</div>
+            <div class="tc-hint">Choisissez la portée et la mesure, puis visez la route : <b>E</b> au début, <b>E</b> à la fin du tronçon.</div>
         </section>
 
         <section class="tc-section">
