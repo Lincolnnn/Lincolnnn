@@ -7,8 +7,9 @@
       d'autre joueur dedans) et "Apparaître dans le véhicule". Livery et extras de la liste appliqués.
       Le véhicule est créé par ce script : Vehicle Control le considère comme neuf (plein, moteur coupé).
     ÉQUIPEMENTS : boutons "Équipement GSP / APD / FCSO" (equipment_services.json : tout l'équipement de départ
-      du service), "Customiser équipement" (accessoires, teintes, armes en plus, selon le service choisi ;
-      enregistrement propre au joueur, gardé par le serveur), autres lots (data/loadouts.json) ; bouton
+      du service, toujours la version de base), "Équipements modifiés" (ceux que le joueur a nommés et enregistrés,
+      gardés par le serveur, propres à lui), "Customiser équipement" (accessoires, teintes, armes en plus, selon le
+      service choisi), autres lots (data/loadouts.json) ; bouton
       "Accéder aux tenues" (menu /eup, client/eup.lua, tenues de data/outfits.json).
     Aucune boucle.
 ]]
@@ -165,28 +166,33 @@ local function giveLoadout(ped, loadout)
     SetCurrentPedWeapon(ped, GetHashKey('WEAPON_UNARMED'), true)
 end
 
--- Customiser équipement : armes, accessoires et teintes du service choisi (propres au joueur)
+-- Customiser équipement : armes, accessoires et teintes du service choisi (équipement de base ou équipement modifié)
 RegisterNUICallback('equipmentCustom', function(data, cb)
-    RPI.request('equipmentCustom', { key = type(data) == 'table' and data.key or nil }, function(res)
+    data = type(data) == 'table' and data or {}
+    RPI.request('equipmentCustom', { key = data.key, id = data.id }, function(res)
         cb(res or { ok = false })
     end)
 end)
 
--- "Équiper" (sans enregistrer), "Enregistrer mon équipement", "Rétablir l'équipement de base"
+-- "Équiper" (sans enregistrer), "Enregistrer" (équipement modifié nommé), "Supprimer"
 RegisterNUICallback('equipmentCustomSave', function(data, cb)
     data = type(data) == 'table' and data or {}
-    local action = (data.action == 'save' or data.action == 'reset') and data.action or 'apply'
-    RPI.request('equipmentCustomSave', { key = data.key, action = action, choices = data.choices }, function(res)
-        if not res or not res.ok or type(res.loadout) ~= 'table' then
-            cb(res or { ok = false })
-            return RPI.notify(res and res.error or 'Action impossible.', 'error')
-        end
-        giveLoadout(PlayerPedId(), res.loadout)
-        RPI.notify(action == 'save' and ('%s enregistré : retrouvé à chaque connexion.'):format(res.loadout.name)
-            or action == 'reset' and ('%s : équipement de base rétabli.'):format(res.loadout.name)
-            or ('Armes : %s (personnalisé, non enregistré)'):format(res.loadout.name), 'success')
-        cb({ ok = true, saved = res.saved == true })
-    end)
+    local action = (data.action == 'save' or data.action == 'delete') and data.action or 'apply'
+    RPI.request('equipmentCustomSave', { key = data.key, id = data.id, action = action, name = data.name, choices = data.choices },
+        function(res)
+            if not res or not res.ok then
+                cb(res or { ok = false })
+                return RPI.notify(res and res.error or 'Action impossible.', 'error')
+            end
+            if action == 'delete' then
+                RPI.notify('Équipement modifié supprimé.', 'success')
+                return cb({ ok = true, deleted = true, customs = res.customs or {} })
+            end
+            if type(res.loadout) == 'table' then giveLoadout(PlayerPedId(), res.loadout) end
+            RPI.notify(action == 'save' and ('« %s » enregistré dans Équipements modifiés.'):format(res.name or '')
+                or ('Armes : %s (non enregistré)'):format(res.loadout and res.loadout.name or ''), 'success')
+            cb({ ok = true, saved = res.saved == true, id = res.id, name = res.name, customs = res.customs })
+        end)
 end)
 
 RegisterNUICallback('useEquipment', function(data, cb)
@@ -197,14 +203,14 @@ RegisterNUICallback('useEquipment', function(data, cb)
         cb({ ok = true })
         return RPI.notify('Armes retirées.', 'success')
     end
-    if data.kind ~= 'loadout' and data.kind ~= 'service' then return cb({ ok = false }) end
-    RPI.request('equipment', { kind = data.kind, index = data.index, key = data.key }, function(res)
+    if data.kind ~= 'loadout' and data.kind ~= 'service' and data.kind ~= 'custom' then return cb({ ok = false }) end
+    RPI.request('equipment', { kind = data.kind, index = data.index, key = data.key, id = data.id }, function(res)
         if not res or not res.ok or type(res.loadout) ~= 'table' then
             cb({ ok = false, error = res and res.error })
             return RPI.notify(res and res.error or 'Action impossible.', 'error')
         end
         giveLoadout(PlayerPedId(), res.loadout)
-        RPI.notify(('Armes : %s%s'):format(res.loadout.name, res.custom and ' (personnalisé)' or ''), 'success')
+        RPI.notify(('Armes : %s%s'):format(res.loadout.name, res.custom and ' (équipement modifié)' or ''), 'success')
         cb({ ok = true })
     end)
 end)

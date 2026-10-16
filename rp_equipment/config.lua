@@ -24,7 +24,8 @@ EquipConfig = {
         apd    = { Label = 'Atlanta Police Department',     Short = 'APD',  Color = '#12357a', Models = {} },
         gsp    = { Label = 'Georgia State Patrol',          Short = 'GSP',  Color = '#ff6a00', Models = {} },
         fcso   = { Label = 'Fayette County Sheriff Office', Short = 'FCSO', Color = '#1e5631', Models = {} },
-        -- Véhicules d'urgence (classe 18) qui ne sont dans aucune catégorie : râtelier seulement
+        -- Véhicules d'urgence (classe 18) qui ne sont dans aucune catégorie : râtelier, et objets de la catégorie
+        -- "Police" d'equipment.json (jerrican)
         police = { Label = 'Véhicule de police',            Short = 'POLICE', Color = '#3a3a3a', Models = {}, Classes = { 18 } },
     },
     -- Services de rp_interact/data/vehicles.json ("Service") -> type
@@ -41,6 +42,9 @@ EquipConfig = {
     -- Office" : la catégorie du véhicule dans rp_interact/data/vehicles.json, champ "Service"). Chaque pièce
     -- s'écrit comme une tenue du /eup ("Name", "Gender", et seulement les parties qu'elle change, ex.
     -- "Armor": "13:1") : le policier la met et la retire de sa tenue depuis le menu.
+    -- OBJETS : une entrée avec "Weapon" (et "Ammo") est un objet que le policier PREND et RANGE, ex. le jerrican
+    -- d'essence (fourni dans toutes les catégories de police : { "Name", "Weapon": "WEAPON_PETROLCAN", "Ammo": 4500 },
+    -- plein = 2/5 d'un réservoir avec rp_vehiclecontrol). Catégorie "Police" : véhicules de police sans service.
     -- ---------------------------------------------------------------------
     EquipmentFile = 'equipment.json',
     Eup = { OneBased = true },    -- numéros comptés à partir de 1, comme les tenues du /eup (rp_interact)

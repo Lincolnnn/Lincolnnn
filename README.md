@@ -13,8 +13,8 @@ Le dépôt contient aussi le **menu d'interactions / fiches civiles / Eye Target
 `getPlayerUnit(source)` et l'état `Player(source).state.mdcUnit`). Le MDC publie son nom de ressource
 (`GlobalState.mdcResource`) : le nom de son dossier n'a pas d'importance.
 
-Le dépôt contient aussi **Vehicle Control** dans [`rp_vehiclecontrol/`](rp_vehiclecontrol/README.md) : essence (plein,
-jerrican), dégâts réalistes, ceinture, moteur toujours allumé, portières depuis l'intérieur, clignotants et poussée ; il
+Le dépôt contient aussi **Vehicle Control** dans [`rp_vehiclecontrol/`](rp_vehiclecontrol/README.md) : essence (plein à
+la pompe avec un vrai pistolet, jerrican), dégâts réalistes, ceinture, moteur toujours allumé, portières depuis l'intérieur, clignotants et poussée ; il
 alimente le car HUD du MDC.
 
 Le dépôt contient aussi le **chat écrit RP** dans le dossier [`rp_chat/`](rp_chat/README.md) : c'est une ressource
@@ -23,6 +23,10 @@ se font dans l'onglet « Paramètres » du MDC. Le MDC fonctionne aussi sans ell
 
 Et **RP CamShake** dans [`rp_camshake/`](rp_camshake/README.md) : petit script indépendant de tremblement de la caméra
 (marche, course, sprint, chocs, accidents).
+
+Et **RP NPC Control** dans [`rp_NPCcontrol/`](rp_NPCcontrol/README.md) : plus de police / pompiers / ambulanciers du
+jeu (ni leurs véhicules), plus d'indice de recherche, PNJ qui ignorent les joueurs, densité du trafic et des piétons
+de 0.0 à 3.0.
 
 ## Fenêtre
 

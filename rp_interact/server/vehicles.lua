@@ -465,10 +465,30 @@ end)
 -- =========================================================================
 -- ÉQUIPEMENTS : armes (data/loadouts.json) et tenues (data/outfits.json, menu /eup)
 -- =========================================================================
--- ---- Équipements personnalisés : propres à chaque joueur (licence Rockstar), PERMANENTS ----
---   data/custom_equipment.json : { [licence] = { [clé du service] = { weapons = { [ARME] = { on, components, tint } } } } }
+-- ---- Équipements modifiés : propres à chaque joueur (licence Rockstar), PERMANENTS, nommés par lui ----
+--   data/custom_equipment.json : { [licence] = { nextId, list = { { id, name, key (service), weapons, updatedAt } } } }
+--   Les boutons "Équipement GSP / APD / FCSO" donnent TOUJOURS l'équipement de base ; les équipements modifiés sont
+--   dans la page "Équipements modifiés".
 local CUSTOM_FILE = 'data/custom_equipment.json'
+local MAX_CUSTOM = Config.MaxCustomEquipment or 10
 local Custom, customLocked = {}, false
+
+--- Ancien format (un équipement personnalisé par service, sans nom) : converti en équipements modifiés nommés
+local function migrate(entry)
+    if type(entry) ~= 'table' then return nil end
+    if type(entry.list) == 'table' then return entry end
+    local out, nextId = { list = {} }, 1
+    for key, saved in pairs(entry) do
+        if type(saved) == 'table' and type(saved.weapons) == 'table' then
+            local service = serviceByKey[key]
+            out.list[#out.list + 1] = { id = nextId, key = key, weapons = saved.weapons, updatedAt = saved.updatedAt,
+                name = ('%s (personnalisé)'):format(service and service.name or key:upper()) }
+            nextId = nextId + 1
+        end
+    end
+    out.nextId = nextId
+    return out
+end
 
 local function loadCustom()
     Custom, customLocked = {}, false
@@ -476,10 +496,10 @@ local function loadCustom()
     if not raw or not raw:match('%S') then return end
     local ok, data = pcall(json.decode, raw)
     if ok and type(data) == 'table' then
-        Custom = data
+        for licence, entry in pairs(data) do Custom[licence] = migrate(entry) end
     else
         customLocked = true -- illisible : rien n'est écrasé
-        print(('^1[RP Interact] %s illisible (JSON invalide) : les équipements personnalisés ne seront pas enregistrés.^0'):format(CUSTOM_FILE))
+        print(('^1[RP Interact] %s illisible (JSON invalide) : les équipements modifiés ne seront pas enregistrés.^0'):format(CUSTOM_FILE))
     end
 end
 loadCustom()
@@ -513,26 +533,19 @@ local function cleanChoices(service, choices)
     return { weapons = out }
 end
 
---- Choix actuels d'un joueur pour ce service : enregistrés, sinon l'équipement de base
-local function choicesOf(src, service)
-    local mine = Custom[S.identifier(src)]
-    local saved = mine and mine[service.key]
-    -- Revérifié à chaque fois : un accessoire retiré du fichier depuis l'enregistrement n'est plus donné
+--- Choix complets (armes absentes : réglage de base) ; `saved` : choix enregistrés, revérifiés (un accessoire
+--- retiré du fichier depuis n'est plus donné, une arme ajoutée apparaît avec son réglage de base)
+local function fullChoices(service, saved)
     local cleaned = saved and cleanChoices(service, saved) or { weapons = {} }
     local weapons = {}
     for _, w in ipairs(service.weapons) do
-        local c = cleaned.weapons[w.weapon]
-        if c then
-            weapons[w.weapon] = c
-        else
-            weapons[w.weapon] = { on = w.default, components = w.components, tint = 0 }
-        end
+        weapons[w.weapon] = cleaned.weapons[w.weapon] or { on = w.default, components = w.components, tint = 0 }
     end
-    return { weapons = weapons }, saved ~= nil
+    return { weapons = weapons }
 end
 
 --- Armes à donner (lot final) selon les choix
-local function buildLoadout(service, choices)
+local function buildLoadout(service, choices, name)
     local weapons = {}
     for _, w in ipairs(service.weapons) do
         local c = choices.weapons[w.weapon] or { on = w.default, components = w.components, tint = 0 }
@@ -543,7 +556,7 @@ local function buildLoadout(service, choices)
             weapons[#weapons + 1] = { weapon = w.weapon, ammo = w.ammo, components = components, tint = w.tints and c.tint or nil }
         end
     end
-    return { name = service.name, replace = service.replace, weapons = weapons }
+    return { name = name or service.name, replace = service.replace, weapons = weapons }
 end
 
 local function policeOnlyError(src)
@@ -554,76 +567,129 @@ local function policeOnlyError(src)
     return nil
 end
 
+--- Équipement modifié n° `id` de ce joueur (et son service), nil s'il n'existe pas / plus
+local function customOf(src, id)
+    local mine = Custom[S.identifier(src)]
+    id = tonumber(id)
+    if not mine or not id then return nil end
+    for i, entry in ipairs(mine.list) do
+        if entry.id == id then return entry, serviceByKey[entry.key], i end
+    end
+    return nil
+end
+
+--- Liste affichée dans "Équipements modifiés" (seulement ceux dont le service existe encore)
+local function customList(src)
+    local list = {}
+    local mine = Custom[S.identifier(src)]
+    for _, entry in ipairs(mine and mine.list or {}) do
+        local service = serviceByKey[entry.key]
+        if service then
+            list[#list + 1] = { id = entry.id, name = entry.name, key = entry.key, code = service.code, service = service.name }
+        end
+    end
+    return list
+end
+
+local function cleanName(name, service)
+    name = type(name) == 'string' and name:gsub('[%c<>]', ''):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '') or ''
+    if name == '' then name = ('%s modifié'):format(service.name) end
+    return name:sub(1, 40)
+end
+
 S.on('loadoutList', function(src)
     local list = {}
     for i, l in ipairs(Loadouts) do list[#list + 1] = { index = i, name = l.name } end
-    local services, mine = {}, Custom[S.identifier(src)] or {}
-    for _, service in ipairs(Services) do
-        services[#services + 1] = { key = service.key, code = service.code, name = service.name, custom = mine[service.key] ~= nil }
-    end
-    return { ok = true, loadouts = list, services = services, police = isPolice(src),
-        policeOnly = Config.EquipmentPoliceOnly ~= false }
+    local services = {}
+    for _, service in ipairs(Services) do services[#services + 1] = { key = service.key, code = service.code, name = service.name } end
+    return { ok = true, loadouts = list, services = services, customs = customList(src), maxCustom = MAX_CUSTOM,
+        police = isPolice(src), policeOnly = Config.EquipmentPoliceOnly ~= false }
 end)
 
 S.on('equipment', function(src, p)
     local denied = policeOnlyError(src)
     if denied then return denied end
     if p.kind == 'service' then
-        -- Bouton "Équipement GSP / APD / FCSO" : celui que le joueur a enregistré, sinon l'équipement de base
+        -- Bouton "Équipement GSP / APD / FCSO" : toujours l'équipement de base du service
         local service = serviceByKey[type(p.key) == 'string' and p.key or '']
         if not service then return { ok = false, error = 'Équipement inconnu.' } end
-        local choices, custom = choicesOf(src, service)
-        return { ok = true, loadout = buildLoadout(service, choices), custom = custom }
+        return { ok = true, loadout = buildLoadout(service, fullChoices(service, nil)) }
+    end
+    if p.kind == 'custom' then
+        local entry, service = customOf(src, p.id)
+        if not entry or not service then return { ok = false, error = 'Équipement modifié introuvable.' } end
+        return { ok = true, custom = true, loadout = buildLoadout(service, fullChoices(service, entry), entry.name) }
     end
     local loadout = p.kind == 'loadout' and Loadouts[tonumber(p.index) or 0] or nil
     if not loadout then return { ok = false, error = 'Équipement inconnu.' } end
     return { ok = true, loadout = loadout }
 end)
 
---- Page "Customiser équipement" : armes du service, accessoires et teintes possibles, choix actuels du joueur
+--- Page "Customiser équipement" : armes du service, accessoires et teintes possibles, choix de départ : l'équipement
+--- de base (`key`) ou un équipement modifié du joueur (`id`)
 S.on('equipmentCustom', function(src, p)
     local denied = policeOnlyError(src)
     if denied then return denied end
-    local service = serviceByKey[type(p.key) == 'string' and p.key or '']
-    if not service then return { ok = false, error = 'Équipement inconnu.' } end
-    local choices, saved = choicesOf(src, service)
+    local service, entry
+    if p.id then
+        entry, service = customOf(src, p.id)
+        if not entry or not service then return { ok = false, error = 'Équipement modifié introuvable.' } end
+    else
+        service = serviceByKey[type(p.key) == 'string' and p.key or '']
+        if not service then return { ok = false, error = 'Équipement inconnu.' } end
+    end
+    local choices = fullChoices(service, entry)
     local weapons = {}
     for _, w in ipairs(service.weapons) do
         weapons[#weapons + 1] = { weapon = w.weapon, label = w.label, required = w.required, groups = w.groups,
             tints = w.tints, choice = choices.weapons[w.weapon] }
     end
-    return { ok = true, key = service.key, code = service.code, name = service.name, weapons = weapons, saved = saved }
+    return { ok = true, key = service.key, code = service.code, service = service.name, weapons = weapons,
+        id = entry and entry.id or nil, name = entry and entry.name or '', suggested = ('%s modifié'):format(service.name) }
 end)
 
---- Customiser : "Équiper" (sans enregistrer), "Enregistrer" (gardé pour toujours, propre au joueur) ou
---- "Rétablir l'équipement de base" (enregistrement supprimé)
+--- Customiser : "Équiper" (sans enregistrer), "Enregistrer" (nommé, gardé pour toujours, propre au joueur : nouvel
+--- équipement modifié, ou mise à jour de celui en cours de modification) ou "Supprimer"
 S.on('equipmentCustomSave', function(src, p)
     local denied = policeOnlyError(src)
     if denied then return denied end
-    local service = serviceByKey[type(p.key) == 'string' and p.key or '']
-    if not service then return { ok = false, error = 'Équipement inconnu.' } end
-    local id = S.identifier(src)
-    if p.action == 'reset' then
-        if Custom[id] and Custom[id][service.key] then
-            Custom[id][service.key] = nil
-            if not next(Custom[id]) then Custom[id] = nil end
-            saveCustom()
-        end
-        local choices = choicesOf(src, service)
-        return { ok = true, saved = false, loadout = buildLoadout(service, choices) }
+    local licence = S.identifier(src)
+    local entry, service, index
+    if p.id then
+        entry, service, index = customOf(src, p.id)
+        if not entry or not service then return { ok = false, error = 'Équipement modifié introuvable.' } end
+    else
+        service = serviceByKey[type(p.key) == 'string' and p.key or '']
+        if not service then return { ok = false, error = 'Équipement inconnu.' } end
     end
-    local choices = cleanChoices(service, p.choices)
-    for _, w in ipairs(service.weapons) do -- arme absente des choix : son état actuel
-        if not choices.weapons[w.weapon] then choices.weapons[w.weapon] = (choicesOf(src, service)).weapons[w.weapon] end
+    if p.action == 'delete' then
+        if not entry then return { ok = false, error = 'Équipement modifié introuvable.' } end
+        if customLocked then return { ok = false, error = 'Enregistrement bloqué : fichier illisible (voir console serveur).' } end
+        table.remove(Custom[licence].list, index)
+        saveCustom()
+        return { ok = true, deleted = true, customs = customList(src) }
     end
+    local choices = fullChoices(service, cleanChoices(service, p.choices))
+    local name = cleanName(p.name, service)
     if p.action == 'save' then
         if customLocked then return { ok = false, error = 'Enregistrement bloqué : fichier illisible (voir console serveur).' } end
-        Custom[id] = Custom[id] or {}
-        Custom[id][service.key] = { weapons = choices.weapons, updatedAt = os.time() }
+        Custom[licence] = Custom[licence] or { nextId = 1, list = {} }
+        local mine = Custom[licence]
+        if entry then
+            entry.name, entry.weapons, entry.updatedAt = name, choices.weapons, os.time()
+        else
+            if #mine.list >= MAX_CUSTOM then
+                return { ok = false, error = ('%d équipements modifiés maximum : supprimez-en un.'):format(MAX_CUSTOM) }
+            end
+            entry = { id = mine.nextId or (#mine.list + 1), name = name, key = service.key, weapons = choices.weapons, updatedAt = os.time() }
+            mine.nextId = entry.id + 1
+            mine.list[#mine.list + 1] = entry
+        end
         if not saveCustom() then return { ok = false, error = 'Enregistrement impossible (dossier data ?).' } end
+        return { ok = true, saved = true, id = entry.id, name = entry.name, customs = customList(src),
+            loadout = buildLoadout(service, choices, entry.name) }
     end
-    return { ok = true, saved = p.action == 'save' or (Custom[id] and Custom[id][service.key]) ~= nil,
-        loadout = buildLoadout(service, choices) }
+    return { ok = true, saved = false, id = entry and entry.id or nil, loadout = buildLoadout(service, choices, name) }
 end)
 
 --- Menu /eup : toutes les tenues (le client garde celles de son personnage homme / femme)

@@ -16,6 +16,8 @@
         du moteur), de la fumée sort du capot (vue par tous : état du véhicule "vcDamaged") et les WARNINGS
         s'allument tout seuls (moteur allumé). Ils s'éteignent tout seuls quand le moteur est coupé (touche du
         moteur), quand le moteur passe au palier 2 ou quand il est réparé. Logo moteur orange sur le car HUD ;
+      - ACCIDENT IMPORTANT (choc fort avec une grosse perte de vitesse, ou beaucoup de dégâts ; pas un simple
+        accrochage, AccidentHazards) : warnings allumés tout seuls, jusqu'à ce que le conducteur les éteigne ;
       - PALIER 2, sous Broken : moteur DÉTRUIT : véhicule éteint, moteur coupé, impossible à rallumer, logo
         rouge sur le car HUD (état du véhicule "vcBroken", vu par tous les occupants).
       Réparé (/repair, script de mécanicien, SetVehicleFixed…) : tout redevient normal tout seul.
@@ -83,9 +85,38 @@ end
 -- (touche), au palier 2 ou à la réparation. Le conducteur peut les éteindre lui-même : ils ne sont pas rallumés
 -- de force.
 local autoHazards = nil -- véhicule dont les warnings ont été allumés automatiquement
+-- Accident important (choc fort et violent, ou gros dégâts) : warnings allumés tout seuls ; ils restent jusqu'à ce
+-- que le conducteur les éteigne (ni le moteur coupé ni le palier 2 ne les éteignent)
+local accidentHazards = nil -- véhicule dont les warnings ont été allumés par un accident
+local crashDamage = { vehicle = 0, amount = 0.0, at = 0 } -- dégâts reçus pendant le choc en cours (moteur + carrosserie)
+local lastAccident = 0 -- un même accident n'est compté qu'une fois (dégâts reçus juste après le choc)
+
+--- Accident important : warnings allumés. `fromDamage` : reconnu aux dégâts reçus (une seule fois par accident :
+--- les dégâts qui arrivent juste après ne le recomptent pas, même si le conducteur a déjà éteint les warnings)
+local function accident(vehicle, fromDamage)
+    local now = GetGameTimer()
+    crashDamage = { vehicle = 0, amount = 0.0, at = 0 }
+    if (fromDamage and now - lastAccident < 1500) or not VC.setSignal then return end
+    lastAccident = now
+    accidentHazards = vehicle
+    if VC.state(vehicle, 'vcSignal') ~= 'hazard' then VC.setSignal(vehicle, 'hazard') end
+end
+
+--- Dégâts d'un choc fort ajoutés à ceux du choc en cours ; beaucoup de dégâts = accident important
+local function addCrashDamage(vehicle, amount)
+    local now = GetGameTimer()
+    if crashDamage.vehicle ~= vehicle or now - crashDamage.at > 1500 then crashDamage = { vehicle = vehicle, amount = 0.0, at = now } end
+    crashDamage.amount = crashDamage.amount + amount
+    crashDamage.at = now
+    local A = Config.AccidentHazards or {}
+    if A.Enabled ~= false and crashDamage.amount >= (A.MinDamage or 150.0) then accident(vehicle, true) end
+end
 
 local function updateHazards(vehicle, stage)
-    if Config.CriticalHazards == false or not VC.setSignal then return end
+    if not VC.setSignal then return end
+    -- Warnings d'accident éteints par le conducteur : ils ne comptent plus
+    if accidentHazards == vehicle and VC.state(vehicle, 'vcSignal') ~= 'hazard' then accidentHazards = nil end
+    if Config.CriticalHazards == false then return end
     local wantedOn = VC.state(vehicle, 'vcEngine') == true
     if stage == 1 and wantedOn then
         if autoHazards ~= vehicle then
@@ -95,7 +126,7 @@ local function updateHazards(vehicle, stage)
     elseif autoHazards == vehicle then
         -- Moteur coupé (touche du moteur), détruit (palier 2) ou réparé : warnings éteints
         autoHazards = nil
-        if VC.state(vehicle, 'vcSignal') == 'hazard' then VC.setSignal(vehicle, false) end
+        if accidentHazards ~= vehicle and VC.state(vehicle, 'vcSignal') == 'hazard' then VC.setSignal(vehicle, false) end
     end
 end
 
@@ -145,7 +176,11 @@ VC.on('tick', function(_, vehicle, dt)
         local hit = VC.currentHit(vehicle)
         local severity = hit and hit.severity or nil
         engine = scaleLoss(vehicle, engine, loss, Config[MULTIPLIER[severity] or 'OtherMultiplier'] or 1.0)
-        if severity == 'heavy' then engine = hurtEngine(vehicle, engine, bodyLoss * Config.BodyToEngine) end
+        if severity == 'heavy' then
+            engine = hurtEngine(vehicle, engine, bodyLoss * Config.BodyToEngine)
+            -- Dégâts du choc en cours (pour reconnaître un accident important)
+            addCrashDamage(vehicle, math.max(last.engine - engine, 0.0) + bodyLoss)
+        end
     end
     last.engine, last.body = engine, body
 
@@ -159,14 +194,21 @@ VC.on('tick', function(_, vehicle, dt)
     updateState(vehicle, engine)
 end)
 
--- Choc fort et violent (mur, voiture, lampadaire…) : dégâts supplémentaires selon la perte de vitesse
+-- Choc fort et violent (mur, voiture, lampadaire…) : dégâts supplémentaires selon la perte de vitesse ; accident
+-- important : warnings automatiques
 VC.on('impact', function(vehicle, _, drop, _, hit)
-    if VC.seat ~= -1 or drop <= Config.ImpactMinDrop then return end
-    if hit and hit.severity == 'light' then return end
-    local engine = GetVehicleEngineHealth(vehicle)
-    engine = hurtEngine(vehicle, engine, (drop - Config.ImpactMinDrop) ^ 1.5 * Config.ImpactFactor)
-    last.engine = engine
-    updateState(vehicle, engine)
+    if VC.seat ~= -1 then return end
+    local heavy = not (hit and hit.severity == 'light')
+    if drop > Config.ImpactMinDrop and heavy then
+        local engine = GetVehicleEngineHealth(vehicle)
+        engine = hurtEngine(vehicle, engine, (drop - Config.ImpactMinDrop) ^ 1.5 * Config.ImpactFactor)
+        last.engine = engine
+        updateState(vehicle, engine)
+    end
+    -- Accident important (pas un accrochage) : choc fort avec une grosse perte de vitesse (ou beaucoup de dégâts,
+    -- voir addCrashDamage)
+    local A = Config.AccidentHazards or {}
+    if A.Enabled ~= false and heavy and drop >= (A.MinDrop or 25.0) then accident(vehicle) end
 end)
 
 -- Puissance réduite (à chaque image, seulement au volant d'un véhicule abîmé)
@@ -176,7 +218,7 @@ end)
 
 VC.on('leave', function(vehicle, _, info)
     power = 1.0
-    autoHazards = nil
+    autoHazards, accidentHazards = nil, nil
     -- Vitesse d'origine rendue (le prochain conducteur bride lui-même si le moteur est très abîmé)
     if capped.vehicle ~= 0 then
         if not (info and info.gone) and DoesEntityExist(capped.vehicle) then SetVehicleMaxSpeed(capped.vehicle, 0.0) end

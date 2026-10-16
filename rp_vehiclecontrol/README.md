@@ -145,9 +145,20 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 - Moteur laissé allumé sans conducteur : il continue de consommer (ralenti).
 - **Réservoir percé** (accident) : fuite d'essence, jusqu'à 4 % par minute.
 - **Panne sèche** : le moteur s'arrête et ne redémarre plus.
-- **Faire le plein** : à pied près d'une pompe (toutes les stations de la carte, repérées par une icône), le véhicule
-  à moins de 6 m, **moteur coupé** : **E** (2,5 % par seconde, **E** pour arrêter). **G** à la pompe : prendre un
-  **jerrican** ; jerrican en main près d'un véhicule : **E** pour le vider dans le réservoir (25 % d'un plein).
+- **Faire le plein** (`client/refuel.lua`), aux pompes de toutes les stations de la carte (icônes) :
+  1. **moteur coupé** et **descendu du véhicule** ;
+  2. à la pompe : **E « Prendre le pistolet »** : un **vrai pistolet de pompe** dans la main, relié à la pompe par un
+     **tuyau** (vu par les joueurs proches). Pistolet en main : impossible de monter dans un véhicule, de frapper ou
+     de viser ;
+  3. aller à la **trappe à essence**, toujours à l'**ARRIÈRE GAUCHE** du véhicule (petit repère vert au-dessus) :
+     **E « Mettre le pistolet dans la trappe »** (refusé moteur allumé) ; le pistolet reste dans la trappe et le plein
+     se fait tout seul : **de vide à plein en 1 minute au maximum** (`RefuelPerSecond`), progression affichée ;
+  4. réservoir plein : arrêt tout seul ; moteur allumé pendant le plein : interrompu. **E** près de la trappe :
+     reprendre le pistolet ; **E** à la pompe : le raccrocher.
+  - Tuyau trop court (7 m, `Nozzle.HoseLength`) ou véhicule qui part avec le pistolet : il retourne à la pompe.
+- **Jerrican** : rempli à la pompe (**G**, 3 s) ou **pris dans l'équipement d'un véhicule de police** (`rp_equipment`,
+  fourni par défaut pour tous les services). Plein, il remplit **2/5 d'un réservoir** (40 %, `JerrycanFuel`) ; en main
+  près de la trappe (arrière gauche) : **E « Verser le jerrican »** (4 % par seconde, **E** pour arrêter).
 - Véhicule jamais vu : créé par un script (garage, menu) = plein ; véhicule de la circulation = 25 à 85 %.
 - L'essence est dans l'état du véhicule `fuel` (0 à 100, même format qu'**ox_fuel**) : lisible par d'autres scripts.
 
@@ -173,6 +184,10 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
     **coupé avec O**, quand il **passe au palier 2** ou quand il est **réparé**. Éteints à la main par le conducteur :
     ils ne sont pas rallumés de force (seulement au prochain démarrage). Un calage ne les éteint pas ;
   - **logo du moteur orange** sur le car HUD (`CriticalHazards = false` : pas de warnings automatiques).
+- **Accident important** (pas un simple accrochage) : choc **fort** (mur, voiture, poteau… pas un piéton, un plot ou
+  une barrière) avec une **perte de vitesse d'au moins 25 MPH**, ou au moins **150 de dégâts** (moteur + carrosserie)
+  pendant le choc (`AccidentHazards`) : **les warnings s'allument tout seuls**. Ils restent allumés (même moteur coupé
+  ou détruit) jusqu'à ce que le conducteur les éteigne (flèche bas).
 - **Palier 2 — moteur DÉTRUIT** (< 100, `Broken`) : véhicule **éteint, moteur coupé, impossible à rallumer** ; le
   **car HUD reste allumé**, tout en **rouge vif clignotant**, avec le **logo du moteur** en rouge plus foncé, fixe ; le
   logo de la ceinture ne clignote plus : attachée, rempli de **rouge fixe** ; détachée, seulement son **contour en
@@ -267,8 +282,8 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 |---|---|
 | `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓) |
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
-| `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, vitesse du plein, pompes, jerrican, stations (icônes) |
-| `Damage` | dégâts légers / forts / sans choc, chocs violents, paliers (abîmé ; 1 très abîmé : puissance, vitesse maxi, calages, warnings automatiques ; 2 détruit), fumée (`Smoke`), classes de véhicules légères, listes d'objets légers / forts |
+| `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, plein à la pompe (vitesse : 1 min max, distances, trappe arrière gauche `Flap`, pistolet et tuyau `Nozzle`), pompes, jerrican (2/5 d'un plein, vitesse, remplissage), stations (icônes) |
+| `Damage` | dégâts légers / forts / sans choc, chocs violents, warnings automatiques d'accident important (`AccidentHazards`), paliers (abîmé ; 1 très abîmé : puissance, vitesse maxi, calages, warnings automatiques ; 2 détruit), fumée (`Smoke`), classes de véhicules légères, listes d'objets légers / forts |
 | `KeepDoorOpenOnExit` | portière ouverte gardée ouverte en descendant |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle jusqu'à l'arrêt complet, l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), aucune chute ajoutée pour les petits incidents (comportement du jeu), seuils, dégâts |
@@ -290,7 +305,8 @@ directement dans un autre véhicule, l'ancien existe toujours (ex. `rp_interact`
 ## Performance
 
 - À pied : une vérification toutes les 500 ms (~0.00 ms). Près d'un véhicule poussable (6 m) : toutes les 100 ms.
-  Boucle à chaque image seulement près d'une pompe, jerrican en main, ou pendant la poussée.
+  Boucle à chaque image seulement près d'une pompe, pistolet de pompe sorti, jerrican en main, ou pendant la poussée.
+  Tuyaux des autres joueurs : aucune boucle (état du joueur `vcHose`).
 - À bord : ~0.02 ms (chocs, puissance ; à moto, en plus, une lecture de vitesse verticale pour les trottoirs) ; essence, dégâts, alarme et car HUD toutes les 100 ms ; ce qui a été
   percuté n'est cherché qu'au moment d'un choc ;
   car HUD envoyé seulement quand il change.

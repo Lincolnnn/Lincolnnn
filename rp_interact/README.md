@@ -45,16 +45,22 @@ Case **Civil** : rappel du **profil actif** en haut, la case **Mode civil**, pui
 Case **Équipements** : **Tenues** → bouton **Accéder aux tenues** (ferme ce menu et ouvre le menu `/eup`, ci-dessous) ;
 **Armes** (réservées aux policiers en service, `EquipmentPoliceOnly`) :
 - **Équipement GSP**, **Équipement APD**, **Équipement FCSO** : donnent **tout l'équipement de départ** du service
-  (arme de service, taser, lampe, matraque…), en remplaçant les armes portées. Chaque service a **son propre
-  équipement** (fichier **`equipment_services.json`**, fourni et modifiable). Le bouton choisi est **sélectionné**
-  (trait bleu) ; au départ, c'est celui du **service principal** choisi dans la vue Police.
-- **Customiser équipement** (sous ces boutons) : reconnaît l'**équipement sélectionné** et propose **uniquement les
-  modifications de ce service** : accessoires de chaque arme (lampe, chargeur grande capacité…), **teinte**, armes
+  (arme de service, taser, lampe, matraque…), en remplaçant les armes portées : **toujours l'équipement de base**,
+  jamais modifié automatiquement. Chaque service a **son propre équipement** (fichier **`equipment_services.json`**,
+  fourni et modifiable). Le bouton choisi est **sélectionné** (trait bleu) ; au départ, c'est celui du **service
+  principal** choisi dans la vue Police.
+- **Équipements modifiés** (4e entrée, sous les trois équipements de base) : page des équipements que le joueur a
+  **personnalisés, nommés et enregistrés** (10 au maximum, `MaxCustomEquipment`), avec la pastille de leur service.
+  Un clic les **équipe** (et les sélectionne) ; **✎** les modifie. Ils sont **gardés pour toujours** (reconnexion,
+  redémarrage du serveur) et **propres au joueur** (sa licence Rockstar) : **lui seul** y a accès.
+- **Customiser équipement** : reconnaît l'**équipement sélectionné** (de base ou modifié) et propose **uniquement les
+  modifications de son service** : accessoires de chaque arme (lampe, chargeur grande capacité…), **teinte**, armes
   **en plus** (ex. arme de secours au FCSO, extincteur, fusées) ou en moins (l'arme de service et le taser sont
-  **obligatoires**). Boutons **Équiper** (sans enregistrer), **Enregistrer** (équipe et **garde** cet équipement :
-  le bouton « Équipement … » le redonne ensuite, **même après une reconnexion ou un redémarrage du serveur**) et
-  **Rétablir l'équipement de base**. L'équipement enregistré est **propre au joueur** (sa licence Rockstar) : **lui
-  seul** y a accès ; le serveur revérifie chaque choix (seulement ce que le fichier prévoit pour ce service).
+  **obligatoires**). Champ **Nom de l'équipement** (vide : « Équipement GSP modifié »…). Boutons **Équiper** (sans
+  enregistrer) et **Enregistrer** : depuis un équipement de base, il **s'ajoute** aux Équipements modifiés (l'équipement
+  de base ne change pas) ; depuis un équipement modifié, il le **met à jour**. **Supprimer cet équipement modifié**
+  (seulement pour un équipement modifié). Le serveur revérifie chaque choix (seulement ce que le fichier prévoit pour
+  ce service).
 - **Autres armes** : lots de **`data/loadouts.json`** (facultatif, affiché s'il en contient) ; **Retirer mes armes**.
 Case **Voiture** :
 - **Spawn** : en haut, deux options gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
@@ -316,6 +322,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `MenuKey`, `TargetKey` | touches par défaut (F1, Alt gauche) ; chaque joueur les change dans Échap > Paramètres > Raccourcis clavier > FiveM |
 | `MdcResource`, `ChatResource` | noms des dossiers du MDC et du chat |
 | `SpawnPoliceOnly`, `EquipmentPoliceOnly` | véhicules de police (Voiture > Spawn) et armes réservés aux policiers en service |
+| `MaxCustomEquipment` | équipements modifiés (nommés, enregistrés) par joueur (10) |
 | `Eup` | menu des tenues : commande (`eup`), `PoliceOnly` (tenues de police réservées aux policiers en service, `false` par défaut), `OneBased` (numéros des tenues comptés à partir de 1) |
 | `RadioRangeClosed`, `RadioRangeOpen`, `RadioInsulation`, `RadioMaxVolume` | radio du véhicule : portée dehors tout fermé (15 m) / ouvert (25 m), volume quand tout est fermé, volume maximal |
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
@@ -347,8 +354,8 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 
 ## Données
 
-`data/profiles.json` et `data/custom_equipment.json` (équipements personnalisés enregistrés par les joueurs, rempli
-par le serveur), voir `data/LISEZMOI.txt`. **À remplir vous-même**, en **JSON** : `data/vehicles.json`
+`data/profiles.json` et `data/custom_equipment.json` (équipements modifiés, nommés et enregistrés par les joueurs,
+rempli par le serveur ; l'ancien format de la v2.8, un par service, est converti tout seul), voir `data/LISEZMOI.txt`. **À remplir vous-même**, en **JSON** : `data/vehicles.json`
 (véhicules du menu Voiture > Spawn), `data/loadouts.json` (autres lots d'armes du menu Équipements) et
 `data/outfits.json` (tenues du menu `/eup`) ; `rpi_vehicles` (console) les relit, ainsi que
 **`equipment_services.json`** (à la racine de la ressource, fourni avec trois exemples GSP / APD / FCSO).
@@ -389,7 +396,7 @@ Un objet par bouton « Équipement … », dans l'ordre d'affichage :
 | `Options` | ce que le joueur peut choisir : un groupe = un emplacement (une case à cocher s'il n'a qu'un choix, sinon une liste « Aucun / … ») ; un seul accessoire par groupe |
 | `Tints` | `true` : teinte de l'arme au choix (8 teintes des armes classiques ; pas pour les armes Mk II) |
 
-Une personnalisation enregistrée ne garde que ce que le fichier prévoit encore : un accessoire retiré du fichier n'est
+Un équipement modifié ne garde que ce que le fichier prévoit encore : un accessoire retiré du fichier n'est
 plus donné, une arme ajoutée apparaît avec son réglage de base. Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`
 dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 

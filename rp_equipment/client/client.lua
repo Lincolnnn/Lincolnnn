@@ -241,8 +241,9 @@ local function gender(ped)
     return nil
 end
 
---- La pièce est-elle portée (toutes ses parties identiques sur le personnage) ?
+--- La pièce est-elle portée (toutes ses parties identiques sur le personnage) ? Objet (jerrican…) : en sa possession
 local function isWorn(ped, a)
+    if a.item then return HasPedGotWeapon(ped, GetHashKey(a.weapon), false) end
     for _, c in ipairs(a.components or {}) do
         if GetPedDrawableVariation(ped, c[1]) ~= c[2] or GetPedTextureVariation(ped, c[1]) ~= c[3] then return false end
     end
@@ -287,7 +288,7 @@ end
 local function assetsView()
     local ped = PlayerPedId()
     local list = {}
-    for _, a in ipairs(assets) do list[#list + 1] = { id = a.id, name = a.name, worn = isWorn(ped, a) } end
+    for _, a in ipairs(assets) do list[#list + 1] = { id = a.id, name = a.name, worn = isWorn(ped, a), item = a.item == true } end
     return list
 end
 
@@ -406,7 +407,17 @@ RegisterNUICallback('wear', function(data, cb)
         if not res.ok then return SendNUIMessage({ action = 'message', data = { text = res.error, error = true } }) end
         local ped = PlayerPedId()
         local a = res.asset
-        if isWorn(ped, a) then
+        if a.item then
+            -- Objet : pris (dans les mains) ou rangé dans le véhicule
+            local hash = GetHashKey(a.weapon)
+            if HasPedGotWeapon(ped, hash, false) then
+                RemoveWeaponFromPed(ped, hash)
+                SendNUIMessage({ action = 'message', data = { text = ('%s : rangé.'):format(a.name) } })
+            else
+                GiveWeaponToPed(ped, hash, a.ammo or 0, false, true)
+                SendNUIMessage({ action = 'message', data = { text = ('%s : pris.'):format(a.name) } })
+            end
+        elseif isWorn(ped, a) then
             takeOff(ped, a)
             SendNUIMessage({ action = 'message', data = { text = ('%s : retiré.'):format(a.name) } })
         else
@@ -460,9 +471,13 @@ end)
 -- =========================================================================
 -- TOUCHE ET PROPOSITION
 -- =========================================================================
+--- Une action d'essence est proposée sur la même touche (pistolet de pompe / jerrican à la trappe, rp_vehiclecontrol) :
+--- elle passe en premier, le menu Équipement ne s'ouvre pas
+local function fuelPrompt() return LocalPlayer.state.vcFuelPrompt == true end
+
 RegisterCommand('rp_equipment', function()
     if open then return closeMenu() end
-    if not near or IsPauseMenuActive() then return end
+    if not near or IsPauseMenuActive() or fuelPrompt() then return end
     openMenu(near)
 end, false)
 RegisterKeyMapping('rp_equipment', 'Véhicule de police : menu Équipement', 'keyboard', Config.Key or 'E')
@@ -480,7 +495,7 @@ local function promptLoop()
     CreateThread(function()
         local key = ('~INPUT_%X~'):format((GetHashKey('rp_equipment') | 0x80000000) & 0xFFFFFFFF)
         while near do
-            if not open then
+            if not open and not fuelPrompt() then
                 BeginTextCommandDisplayHelp('STRING')
                 AddTextComponentSubstringPlayerName(('%s %s'):format(key, HELP[near.where] or HELP.front))
                 EndTextCommandDisplayHelp(0, false, false, -1)

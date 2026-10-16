@@ -3,7 +3,7 @@
     -------------------------
     Écrit l'état des véhicules (lu par tous les clients) après vérification :
       - "fuel" (essence en %) : un joueur proche du véhicule ; la valeur ne monte qu'en faisant le plein,
-        au rythme d'une pompe (Fuel.RefuelPerSecond) ;
+        au rythme d'une pompe (Fuel.RefuelPerSecond) ou d'un jerrican (Fuel.JerrycanPerSecond) ;
       - "vcEngine" (moteur toujours allumé), "vcBroken" (moteur détruit), "vcDamaged" (moteur très abîmé :
         fumée), "vcSignal" (clignotants / warnings),
         "vcStopLights" (feux stop à l'arrêt), "vcSteer" (angle des roues gardé à la descente) : le
@@ -55,7 +55,8 @@ RegisterNetEvent('rp_vehiclecontrol:fuel', function(netId, value, reason)
         local now = GetGameTimer()
         local elapsed = math.min((now - (refuelClock[src] or now - 1000)) / 1000, 10.0)
         refuelClock[src] = now
-        value = math.min(value, current + Config.Fuel.RefuelPerSecond * elapsed * 1.5 + 2.0)
+        local rate = reason == 'jerrycan' and (Config.Fuel.JerrycanPerSecond or 4.0) or Config.Fuel.RefuelPerSecond
+        value = math.min(value, current + rate * elapsed * 1.5 + 2.0)
     end
     state:set('fuel', math.floor(value * 100 + 0.5) / 100, true)
 end)
@@ -162,5 +163,12 @@ end)
 AddEventHandler('entityRemoved', function(entity) lastDriver[entity] = nil end)
 
 AddEventHandler('playerDropped', function()
-    refuelClock[source] = nil
+    local src = source
+    refuelClock[src] = nil
+    -- Pistolet de pompe encore sorti : retiré
+    local hose = Player(src).state.vcHose
+    if type(hose) == 'table' and hose.net then
+        local prop = NetworkGetEntityFromNetworkId(hose.net)
+        if prop and prop ~= 0 and DoesEntityExist(prop) then DeleteEntity(prop) end
+    end
 end)

@@ -27,6 +27,7 @@ InteractConfig = {
     -- MENU > VOITURE (véhicules de data/vehicles.json) et ÉQUIPEMENTS (armes de data/loadouts.json)
     SpawnPoliceOnly = true,         -- véhicules de police (APD / GSP / FCSO) réservés aux policiers en service
     EquipmentPoliceOnly = true,     -- armes réservées aux policiers en service
+    MaxCustomEquipment = 10,        -- "Équipements modifiés" (nommés, enregistrés) par joueur
 
     -- MENU DES TENUES (/eup, ou Menu Interaction > Équipements > "Accéder aux tenues") : tenues de
     -- data/outfits.json, uniquement dans ce fichier. Menu au clavier : flèches haut / bas, Entrée (ou

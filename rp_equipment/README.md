@@ -27,6 +27,9 @@ serveur à chaque action. `PoliceOnly = false` pour l'ouvrir à tout le monde.
 - **Équipement** : les pièces EUP de la **catégorie du véhicule** (voir ci-dessous), à **mettre** et **retirer** de sa
   tenue. Une pièce portée est cochée (bouton « Retirer »). En la retirant, ce que le policier portait avant revient.
   Seules les pièces de son personnage (homme / femme) sont proposées.
+  **Objets** (bouton « Prendre » / « Ranger ») : par défaut, un **jerrican d'essence** dans **tous les véhicules de
+  police** (APD, GSP, FCSO et véhicules de police sans service) : plein, il remplit **2/5 d'un réservoir** (en main près
+  de la trappe à essence, arrière gauche : **E**, voir `rp_vehiclecontrol`).
 
 ## Équipement EUP par catégorie : `equipment.json`
 
@@ -50,7 +53,11 @@ qu'elle change** :
   `Parachute`, `Shoes`, `Accessories`, `UnderCoat`, `Armor`, `Decal`, `Top`.
 - Numéros `"modèle:texture"` comptés **à partir de 1**, comme le `/eup` (`Eup.OneBased`).
 - `Gender` : `Male` / `Female` (absent : les deux).
-- Un véhicule de police qui n'est dans aucune catégorie n'a que le râtelier.
+- **Objet** (arme du jeu que le policier prend et range) : `"Weapon"` et `"Ammo"` au lieu des parties, ex.
+  `{ "Name": "Jerrican d'essence (2/5 d'un plein)", "Weapon": "WEAPON_PETROLCAN", "Ammo": 4500 }` (fourni dans chaque
+  catégorie).
+- Catégorie `"Police"` : véhicules de police qui ne sont dans aucune autre catégorie (râtelier + ses objets : le
+  jerrican par défaut).
 
 Après une modification : tapez `rpequip_reload` dans la console serveur.
 

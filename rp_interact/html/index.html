@@ -63,8 +63,14 @@
             <button type="button" class="menu-btn" id="openEup">Accéder aux tenues</button>
             <div class="menu-section">Armes</div>
             <div class="menu-active none hidden" id="equipNotice"></div>
-            <!-- Équipement GSP / APD / FCSO : tout l'équipement de départ du service (sélectionné pour "Customiser") -->
+            <!-- Équipement GSP / APD / FCSO : tout l'équipement de départ du service, toujours la version de base -->
             <div class="menu-list" id="kitList"></div>
+            <!-- 4e : les équipements modifiés, nommés et enregistrés par le joueur -->
+            <button type="button" class="menu-case saved-case" id="openSaved">
+                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6Z M9 3v5h6V3 M9 14h6M9 17h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+                <span class="case-text"><b>Équipements modifiés</b><small id="savedHint">Aucun</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
             <button type="button" class="menu-btn equip-customize" id="equipCustomize">
                 <span>Customiser équipement</span><small id="equipCustomizeHint"></small>
             </button>
@@ -73,15 +79,23 @@
             <button type="button" class="menu-btn menu-btn-soft" id="weaponsRemove">Retirer mes armes</button>
         </div>
 
+        <!-- Équipements modifiés : enregistrés et nommés par le joueur (lui seul y a accès) -->
+        <div class="menu-view hidden" data-view="equipment-saved">
+            <div class="menu-list" id="savedList"></div>
+        </div>
+
         <!-- Customiser équipement : propre au joueur, selon le service sélectionné -->
         <div class="menu-view hidden" data-view="equipment-custom">
             <div class="menu-active custom-head" id="customHead"></div>
+            <label class="menu-field custom-name-field"><span>Nom de l'équipement</span>
+                <input type="text" id="customName" maxlength="40" autocomplete="off">
+            </label>
             <div class="custom-list" id="customList"></div>
             <div class="menu-row">
                 <button type="button" class="menu-btn" id="customApply">Équiper</button>
                 <button type="button" class="menu-btn custom-save" id="customSave">Enregistrer</button>
             </div>
-            <button type="button" class="menu-btn menu-btn-soft" id="customReset">Rétablir l'équipement de base</button>
+            <button type="button" class="menu-btn menu-btn-soft custom-delete hidden" id="customDelete">Supprimer cet équipement modifié</button>
         </div>
 
         <!-- ================= VOITURE ================= -->

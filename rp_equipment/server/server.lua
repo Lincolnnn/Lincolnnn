@@ -79,6 +79,11 @@ end
 local function parseAsset(o, oneBased)
     local name = trim(field(o, 'Name'))
     if name == '' then return nil end
+    -- Objet (arme du jeu), ex. jerrican : { "Name": "Jerrican d'essence", "Weapon": "WEAPON_PETROLCAN", "Ammo": 4500 }
+    local weapon = trim(field(o, 'Weapon')):upper()
+    if weapon ~= '' then
+        return { name = name:sub(1, 60), item = true, weapon = weapon, ammo = math.max(0, math.floor(tonumber(field(o, 'Ammo')) or 0)) }
+    end
     local gender = trim(field(o, 'Gender')):lower()
     gender = (gender == 'female' or gender == 'femme' or gender == 'f') and 'female'
         or ((gender == 'male' or gender == 'homme' or gender == 'm') and 'male' or nil)

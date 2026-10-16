@@ -44,17 +44,32 @@ VCConfig = {
         -- Réservoir percé (santé du réservoir sous LeakBelow) : fuite jusqu'à LeakPerMinute % par minute
         LeakBelow = 700.0,
         LeakPerMinute = 4.0,
-        -- Plein à la pompe : % par seconde ; le moteur doit être coupé
-        RefuelPerSecond = 2.5,
+        -- PLEIN À LA POMPE (client/refuel.lua) : prendre le pistolet (E), le mettre dans la trappe (toujours à l'ARRIÈRE
+        -- GAUCHE), moteur coupé. Vitesse : % par seconde (100 / 60 : de vide à plein en 1 minute au maximum).
+        RefuelPerSecond = 100.0 / 60.0,
         PumpDistance = 2.5,       -- m : joueur à pied près d'une pompe
-        VehicleDistance = 6.0,    -- m : véhicule à faire le plein, autour de la pompe
+        FlapDistance = 1.3,       -- m : joueur près de la trappe à essence
+        -- Trappe : côté gauche, à Y (fraction de la longueur, depuis l'arrière) et Z (fraction de la hauteur, depuis le bas)
+        Flap = { Y = 0.22, Z = 0.5 },
+        Nozzle = {
+            Model = 'prop_cs_fuel_nozle',
+            HoseLength = 7.0,     -- m : longueur du tuyau (au-delà, le pistolet retourne à la pompe)
+            PumpHeight = 1.2,     -- m : hauteur du tuyau sur la pompe
+            Rope = true,          -- tuyau visible (corde du jeu), vu par les joueurs proches
+            Hand = { 0.13, 0.04, 0.01, -42.0, -115.0, -63.42 },  -- position du pistolet dans la main droite
+            InFlap = { 0.0, 0.0, 0.0, -125.0, -90.0, -90.0 },    -- décalage / rotation du pistolet dans la trappe
+        },
         PumpModels = {
             'prop_gas_pump_1a', 'prop_gas_pump_1b', 'prop_gas_pump_1c', 'prop_gas_pump_1d',
             'prop_gas_pump_old2', 'prop_gas_pump_old3', 'prop_vintage_pump',
         },
-        -- Jerrican (WEAPON_PETROLCAN) : pris à la pompe (touche G), il remplit JerrycanFuel % d'un réservoir
+        -- JERRICAN (WEAPON_PETROLCAN) : rempli à la pompe (touche G, JerrycanFillTime ms) ou pris dans l'équipement d'un
+        -- véhicule de police (rp_equipment). Plein, il remplit JerrycanFuel % d'un réservoir (2/5), versé à
+        -- JerrycanPerSecond % par seconde (en main près de la trappe : E).
         Jerrycan = true,
-        JerrycanFuel = 25.0,
+        JerrycanFuel = 40.0,
+        JerrycanPerSecond = 4.0,
+        JerrycanFillTime = 3000,
         -- Stations-service sur la carte
         Blips = true,
         Stations = {
@@ -101,6 +116,10 @@ VCConfig = {
         StallChance = 0.06,       -- chance de caler par seconde (en roulant)
         StallTime = { 2000, 4500 }, -- calé : il repart tout seul au bout de 2 à 4,5 s (ou tout de suite avec la touche)
         CriticalHazards = true,   -- warnings automatiques
+        -- ACCIDENT IMPORTANT (pas un accrochage) : warnings allumés tout seuls (éteints par le conducteur). Choc fort
+        -- (mur, voiture, poteau… pas un piéton / plot) avec une perte de vitesse d'au moins MinDrop MPH, ou au moins
+        -- MinDamage de dégâts (moteur + carrosserie, sur 1000) pendant le choc.
+        AccidentHazards = { Enabled = true, MinDrop = 25.0, MinDamage = 150.0 },
         -- PALIER 2 : moteur DÉTRUIT (sous Broken) : véhicule éteint, moteur coupé, impossible à rallumer, logo rouge
         Broken = 100.0,
         -- Fumée sous le capot (paliers 1 et 2), vue par tous les joueurs jusqu'à Distance m. Le jeu ajoute aussi

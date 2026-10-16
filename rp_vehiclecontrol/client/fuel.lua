@@ -8,17 +8,12 @@
       à 160 % (pied au plancher) de cette consommation. Moteur laissé allumé sans conducteur : le
       joueur qui l'a laissé continue de compter (ralenti). Réservoir percé : fuite.
     - Panne sèche : moteur coupé, impossible à redémarrer avant d'avoir remis de l'essence.
-    - Plein : à pied près d'une pompe (E), moteur coupé ; jerrican pris à la pompe (G) et utilisé
-      près d'un véhicule (E).
-    Performance : à pied, recherche d'une pompe toutes les 500 ms ; boucle à chaque image uniquement
-    près d'une pompe (aide affichée) ou jerrican en main.
+    - Plein (pompe avec un vrai pistolet, jerrican) : client/refuel.lua.
+    Performance : aucune boucle ici (mise à jour du véhicule de main.lua, à bord seulement).
 ]]
 
 local Config = VCConfig.Fuel
-local PETROLCAN = GetHashKey('WEAPON_PETROLCAN')
-local CAN_AMMO = 4500 -- jerrican plein
 local RATE = 100.0 / (Config.FullTankMinutes * 60.0) -- % par seconde en conduite normale
-local REFUEL_ANIM = { 'timetable@gardener@filling_can', 'gar_ig_5_filling_can' }
 
 local tracked = {} -- [véhicule] = { fuel, sent, sentAt } : véhicules dont CE client compte l'essence
 
@@ -158,133 +153,16 @@ VC.on('seat', function(_, vehicle, seat)
     if seat ~= -1 then tracked[vehicle] = nil end
 end)
 
--- =========================================================================
--- PLEIN : pompes et jerrican
--- =========================================================================
-local pumpHashes = {}
-for _, model in ipairs(Config.PumpModels) do pumpHashes[#pumpHashes + 1] = GetHashKey(model) end
+-- Partagé avec client/refuel.lua (plein à la pompe, jerrican)
+VC.hasTank = hasTank
+VC.sendFuel = sendFuel
+VC.initialFuel = initialFuel
 
-local function nearestPump(pos)
-    for _, hash in ipairs(pumpHashes) do
-        local pump = GetClosestObjectOfType(pos.x, pos.y, pos.z, Config.PumpDistance, hash, false, false, false)
-        if pump ~= 0 then return pump end
-    end
-    return nil
+--- Plein fait par ce client : la valeur comptée (s'il conduit ce véhicule) suit
+function VC.refueled(vehicle, fuel)
+    local t = tracked[vehicle]
+    if t then t.fuel, t.sent = fuel, fuel end
 end
-
-local function nearestVehicle(pos, range)
-    local best, bestDistance = nil, range
-    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-        local d = #(GetEntityCoords(vehicle) - pos)
-        if d <= bestDistance and hasTank(vehicle) then best, bestDistance = vehicle, d end
-    end
-    return best
-end
-
-local function help(text)
-    BeginTextCommandDisplayHelp('STRING')
-    AddTextComponentSubstringPlayerName(text)
-    EndTextCommandDisplayHelp(0, false, false, -1)
-end
-
-local function loadDict(dict)
-    RequestAnimDict(dict)
-    local timeout = GetGameTimer() + 2000
-    while not HasAnimDictLoaded(dict) and GetGameTimer() < timeout do Wait(10) end
-    return HasAnimDictLoaded(dict)
-end
-
---- Fait le plein (pompe) ou vide le jerrican dans le réservoir ; E pour arrêter. Dans un thread.
-local function refuel(vehicle, source, pump)
-    if GetIsVehicleEngineRunning(vehicle) then return VC.chat('Coupez le moteur avant de faire le plein.') end
-    local fuel = VC.fuel(vehicle)
-    if fuel == nil then fuel = initialFuel(vehicle) end
-    if fuel >= 99.5 then return VC.chat('Le réservoir est déjà plein.') end
-    local ped = PlayerPedId()
-    TaskTurnPedToFaceEntity(ped, vehicle, 700)
-    Wait(700)
-    if loadDict(REFUEL_ANIM[1]) then TaskPlayAnim(ped, REFUEL_ANIM[1], REFUEL_ANIM[2], 2.0, 8.0, -1, 50, 0, false, false, false) end
-    local lastSend, canDebt = GetGameTimer(), 0.0
-    while true do
-        Wait(0)
-        local pos = GetEntityCoords(ped)
-        if IsControlJustPressed(0, 38) or IsEntityDead(ped) or IsPedInAnyVehicle(ped, false)
-            or GetIsVehicleEngineRunning(vehicle) or not DoesEntityExist(vehicle)
-            or #(GetEntityCoords(vehicle) - pos) > Config.VehicleDistance + 1.0
-            or (pump and #(GetEntityCoords(pump) - pos) > Config.PumpDistance + 1.5) then
-            break
-        end
-        local add = Config.RefuelPerSecond * GetFrameTime()
-        if source == 'jerrycan' then
-            local ammo = GetAmmoInPedWeapon(ped, PETROLCAN)
-            if ammo <= 0 or GetSelectedPedWeapon(ped) ~= PETROLCAN then break end
-            canDebt = canDebt + add * CAN_AMMO / Config.JerrycanFuel
-            if canDebt >= 1.0 then
-                local used = math.floor(canDebt)
-                canDebt = canDebt - used
-                SetPedAmmo(ped, PETROLCAN, math.max(0, ammo - used))
-            end
-        end
-        fuel = math.min(100.0, fuel + add)
-        help(('Plein en cours : %d %%~n~~INPUT_CONTEXT~ Arrêter'):format(math.floor(fuel)))
-        if GetGameTimer() - lastSend >= 1000 then
-            lastSend = GetGameTimer()
-            sendFuel(vehicle, fuel, source)
-        end
-        if fuel >= 100.0 then break end
-    end
-    StopAnimTask(ped, REFUEL_ANIM[1], REFUEL_ANIM[2], 1.0)
-    if DoesEntityExist(vehicle) then
-        sendFuel(vehicle, fuel, source)
-        if tracked[vehicle] then tracked[vehicle].fuel, tracked[vehicle].sent = fuel, fuel end
-    end
-    VC.chat(('Réservoir : %d %%.'):format(math.floor(fuel)))
-end
-
-local stationActive = false
-
---- Près d'une pompe ou jerrican en main : aide affichée et touches (à chaque image, seulement ici)
-local function stationLoop(pump)
-    stationActive = true
-    CreateThread(function()
-        local nextScan, vehicle = 0, nil
-        while true do
-            local ped = PlayerPedId()
-            if IsPedInAnyVehicle(ped, false) or IsEntityDead(ped) then break end
-            local pos = GetEntityCoords(ped)
-            local can = Config.Jerrycan and GetSelectedPedWeapon(ped) == PETROLCAN
-            local atPump = pump ~= nil and DoesEntityExist(pump) and #(GetEntityCoords(pump) - pos) <= Config.PumpDistance + 0.5
-            if not atPump and not can then break end
-            local now = GetGameTimer()
-            if now >= nextScan then
-                nextScan = now + 500
-                vehicle = nearestVehicle(atPump and GetEntityCoords(pump) or pos, atPump and Config.VehicleDistance or 3.5)
-            end
-            local lines = {}
-            if vehicle then
-                local fuel = VC.fuel(vehicle)
-                local level = fuel and (' (%d %%)'):format(math.floor(fuel)) or ''
-                lines[#lines + 1] = (can and not atPump and '~INPUT_CONTEXT~ Remplir avec le jerrican' or '~INPUT_CONTEXT~ Faire le plein') .. level
-            end
-            if atPump and Config.Jerrycan and not can then lines[#lines + 1] = '~INPUT_DETONATE~ Prendre un jerrican' end
-            if #lines > 0 then help(table.concat(lines, '~n~')) end
-            if vehicle and IsControlJustPressed(0, 38) then
-                refuel(vehicle, (can and not atPump) and 'jerrycan' or 'pump', atPump and pump or nil)
-            elseif atPump and Config.Jerrycan and not can and IsControlJustPressed(0, 47) then
-                GiveWeaponToPed(ped, PETROLCAN, CAN_AMMO, false, true)
-                VC.chat('Jerrican rempli à la pompe.')
-            end
-            Wait(0)
-        end
-        stationActive = false
-    end)
-end
-
-VC.on('idle', function(ped)
-    if stationActive or IsEntityDead(ped) then return end
-    local pump = nearestPump(GetEntityCoords(ped))
-    if pump or (Config.Jerrycan and GetSelectedPedWeapon(ped) == PETROLCAN) then stationLoop(pump) end
-end)
 
 -- Stations-service sur la carte
 if Config.Blips then

@@ -29,7 +29,7 @@
             ? assets.map((a) => `
                 <div class="eq-item${a.worn ? ' worn' : ''}">
                     <span class="eq-item-label">${a.worn ? '<span class="eq-check">✓</span>' : ''}${esc(a.name)}</span>
-                    <button class="eq-btn${a.worn ? '' : ' eq-primary'}" data-wear="${esc(a.id)}">${a.worn ? 'Retirer' : 'Mettre'}</button>
+                    <button class="eq-btn${a.worn ? '' : ' eq-primary'}" data-wear="${esc(a.id)}">${a.item ? (a.worn ? 'Ranger' : 'Prendre') : (a.worn ? 'Retirer' : 'Mettre')}</button>
                 </div>`).join('')
             : '<div class="eq-empty">Aucun équipement pour cette catégorie de véhicule.</div>';
     }

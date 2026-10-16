@@ -7,9 +7,10 @@ Dossier de données de RP Interact.
   loadouts.json -> AUTRES ARMES du menu d'interactions (F1 > Équipements, facultatif) : à remplir vous-même,
                    un objet par lot { "Name", "Replace", "Weapons": [ { "Weapon", "Ammo", "Components" } ] }
                    (les boutons "Équipement GSP / APD / FCSO" sont dans ../equipment_services.json, voir README.md)
-  custom_equipment.json -> équipements PERSONNALISÉS ("Customiser équipement" > "Enregistrer"), rempli
-                   automatiquement par le serveur : un par joueur (licence Rockstar) et par service. Chaque joueur
-                   ne retrouve que le sien. Pour en effacer un : supprimez sa ligne (le fichier doit rester un
+  custom_equipment.json -> ÉQUIPEMENTS MODIFIÉS ("Customiser équipement" > nom > "Enregistrer"), rempli
+                   automatiquement par le serveur : une liste nommée par joueur (licence Rockstar), 10 au maximum
+                   (MaxCustomEquipment). Chaque joueur ne retrouve que les siens (et les supprime lui-même dans le
+                   menu). Pour en effacer à la main : retirez l'objet { ... } de la liste (le fichier doit rester un
                    JSON valide) puis redémarrez la ressource.
   outfits.json  -> TENUES du menu /eup (ou F1 > Équipements > Accéder aux tenues) : à remplir vous-même,
                    un objet par tenue au format EUP ("Name", "Gender", "Category2", "Cate", "Hat": "24:1"...)

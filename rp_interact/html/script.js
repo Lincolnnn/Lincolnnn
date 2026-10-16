@@ -147,12 +147,13 @@
     const menu = { open: false, view: 'home', data: {} };
     const MENU_TITLES = {
         home: 'Menu Interaction', civil: 'Civil', police: 'Police', equipment: 'Équipements', 'equipment-custom': 'Customiser équipement',
+        'equipment-saved': 'Équipements modifiés',
         car: 'Voiture', spawn: 'Spawn', 'spawn-police': 'Véhicules de police', 'spawn-other': 'Autres véhicules', radio: 'Radio',
     };
     // Page précédente (bouton retour / Échap)
-    const MENU_PARENT = { civil: 'home', police: 'home', equipment: 'home', 'equipment-custom': 'equipment', car: 'home', spawn: 'car', radio: 'car', 'spawn-police': 'spawn', 'spawn-other': 'spawn' };
+    const MENU_PARENT = { civil: 'home', police: 'home', equipment: 'home', 'equipment-custom': 'equipment', 'equipment-saved': 'equipment', car: 'home', spawn: 'car', radio: 'car', 'spawn-police': 'spawn', 'spawn-other': 'spawn' };
     // Catégories réservées (config.lua : Permissions) : page -> catégorie
-    const SECTION_OF = { equipment: 'equipment', 'equipment-custom': 'equipment', car: 'car', spawn: 'car', 'spawn-police': 'car', 'spawn-other': 'car', radio: 'car' };
+    const SECTION_OF = { equipment: 'equipment', 'equipment-custom': 'equipment', 'equipment-saved': 'equipment', car: 'car', spawn: 'car', 'spawn-police': 'car', 'spawn-other': 'car', radio: 'car' };
     const isLocked = (view) => !!(SECTION_OF[view] && menu.data.locked && menu.data.locked[SECTION_OF[view]]);
     const LOCKED_TEXT = 'Accès réservé : vous n\'avez pas la permission.';
 
@@ -202,7 +203,7 @@
         if (menu.lastView !== menu.view) {
             menu.lastView = menu.view;
             post('menuView', { view: menu.view }); // la vue Police reçoit l'état des actions en direct
-            if (menu.view === 'equipment') loadEquipment();
+            if (menu.view === 'equipment' || menu.view === 'equipment-saved') loadEquipment();
             if (menu.view === 'equipment-custom') loadCustom();
             if (menu.view.startsWith('spawn')) loadVehicles();
             if (menu.view === 'radio') loadRadio();
@@ -330,23 +331,42 @@
         <button type="button" class="menu-item" data-kind="${kind}" data-index="${x.index}">${esc(x.name)}
             ${x.service ? `<small>${esc(x.service)}</small>` : ''}</button>`).join('') : `<div class="menu-empty">${esc(empty)}</div>`);
 
-    // Équipement sélectionné (dernier pris, sinon celui du service principal choisi dans la vue Police) : c'est lui
-    // que "Customiser équipement" modifie
-    const equip = { services: [], selected: null, locked: false, custom: null };
+    // Équipement sélectionné : de base ({ key }) ou modifié ({ id }) ; c'est lui que "Customiser équipement" modifie.
+    // Au départ : celui du service principal choisi dans la vue Police.
+    const equip = { services: [], customs: [], max: 10, selected: null, locked: false, custom: null };
     const DEPT = { apd: 'APD', gsp: 'GSP', fcso: 'FCSO' };
     const deptChip = (code) => (DEPT[code] ? `<span class="dept-chip dept-${code}">${DEPT[code]}</span>` : '');
-    const selectedService = () => equip.services.find((x) => x.key === equip.selected) || null;
+    const selectedKit = () => {
+        const sel = equip.selected;
+        if (!sel) return null;
+        if (sel.id) {
+            const c = equip.customs.find((x) => x.id === sel.id);
+            return c ? { ...c, custom: true } : null;
+        }
+        return equip.services.find((x) => x.key === sel.key) || null;
+    };
 
     function renderKits() {
-        const list = $('#kitList');
-        list.innerHTML = equip.services.length ? equip.services.map((x) => `
-            <button type="button" class="menu-item kit-item${x.key === equip.selected ? ' selected' : ''}" data-key="${esc(x.key)}" ${equip.locked ? 'disabled' : ''}>
+        const sel = equip.selected || {};
+        $('#kitList').innerHTML = equip.services.length ? equip.services.map((x) => `
+            <button type="button" class="menu-item kit-item${!sel.id && x.key === sel.key ? ' selected' : ''}" data-key="${esc(x.key)}" ${equip.locked ? 'disabled' : ''}>
                 <span class="kit-name">${deptChip(x.code)}${esc(x.name)}</span>
-                <small>${x.custom ? 'Personnalisé (enregistré)' : 'Équipement de base'}</small>
+                <small>Équipement de base</small>
             </button>`).join('') : '<div class="menu-empty">Aucun équipement de service (equipment_services.json).</div>';
-        const sel = selectedService();
-        $('#equipCustomize').disabled = equip.locked || !sel;
-        $('#equipCustomizeHint').textContent = sel ? sel.name : '';
+        const n = equip.customs.length;
+        $('#savedHint').textContent = n ? `${n} enregistré${n > 1 ? 's' : ''}` : 'Aucun : « Customiser », puis « Enregistrer »';
+        $('#openSaved').classList.toggle('locked', equip.locked);
+        $('#savedList').innerHTML = n ? equip.customs.map((x) => `
+            <div class="saved-row${sel.id === x.id ? ' selected' : ''}">
+                <button type="button" class="menu-item kit-item saved-item" data-id="${x.id}" ${equip.locked ? 'disabled' : ''}>
+                    <span class="kit-name">${deptChip(x.code)}${esc(x.name)}</span><small>Modifié depuis : ${esc(x.service)}</small>
+                </button>
+                <button type="button" class="saved-edit" data-edit="${x.id}" title="Modifier" ${equip.locked ? 'disabled' : ''}>✎</button>
+            </div>`).join('')
+            : '<div class="menu-empty">Aucun équipement modifié. Choisissez un équipement de base, « Customiser équipement », donnez-lui un nom puis « Enregistrer ».</div>';
+        const kit = selectedKit();
+        $('#equipCustomize').disabled = equip.locked || !kit;
+        $('#equipCustomizeHint').textContent = kit ? kit.name : '';
     }
 
     async function loadEquipment() {
@@ -354,11 +374,13 @@
         if (!res || !res.ok) return;
         equip.locked = !!(res.policeOnly && !res.police);
         equip.services = toArray(res.services);
-        if (!equip.services.some((x) => x.key === equip.selected)) {
+        equip.customs = toArray(res.customs);
+        equip.max = Number(res.maxCustom) || 10;
+        if (!selectedKit()) {
             // Service principal (vue Police : "apd", "gsp", "fcso", "apd+gsp"…) : le premier qui a un équipement
             const mine = String(res.policeService || '').split('+');
-            const match = equip.services.find((x) => x.code && mine.includes(x.code));
-            equip.selected = (match || equip.services[0] || {}).key || null;
+            const match = equip.services.find((x) => x.code && mine.includes(x.code)) || equip.services[0];
+            equip.selected = match ? { key: match.key } : null;
         }
         const notice = $('#equipNotice');
         notice.classList.toggle('hidden', !equip.locked);
@@ -370,12 +392,32 @@
         $$('#loadoutList .menu-item').forEach((b) => { b.disabled = equip.locked; });
     }
 
+    function openCustomize(selection) {
+        if (selection) equip.selected = selection;
+        if (!selectedKit() || equip.locked) return;
+        menu.view = 'equipment-custom';
+        menu.lastView = null; // rechargée même si elle était déjà ouverte
+        renderMenu();
+    }
+
     document.addEventListener('click', async (e) => {
         const kit = e.target.closest('#kitList .kit-item');
         if (kit && !kit.disabled) {
-            equip.selected = kit.dataset.key; // reconnu par "Customiser équipement"
+            equip.selected = { key: kit.dataset.key }; // reconnu par "Customiser équipement"
             renderKits();
-            post('useEquipment', { kind: 'service', key: kit.dataset.key });
+            post('useEquipment', { kind: 'service', key: kit.dataset.key }); // toujours l'équipement de base
+            return;
+        }
+        const saved = e.target.closest('#savedList .saved-item');
+        if (saved && !saved.disabled) {
+            equip.selected = { id: Number(saved.dataset.id) };
+            renderKits();
+            post('useEquipment', { kind: 'custom', id: Number(saved.dataset.id) });
+            return;
+        }
+        const edit = e.target.closest('#savedList .saved-edit');
+        if (edit && !edit.disabled) {
+            openCustomize({ id: Number(edit.dataset.edit) });
             return;
         }
         const item = e.target.closest('#loadoutList .menu-item');
@@ -384,27 +426,32 @@
     });
     $('#openEup').addEventListener('click', () => post('openEup'));
     $('#weaponsRemove').addEventListener('click', () => post('useEquipment', { kind: 'removeWeapons' }));
-    $('#equipCustomize').addEventListener('click', () => {
-        if ($('#equipCustomize').disabled || !selectedService()) return;
-        menu.view = 'equipment-custom';
+    $('#openSaved').addEventListener('click', () => {
+        if (equip.locked) return;
+        menu.view = 'equipment-saved';
         renderMenu();
     });
+    $('#equipCustomize').addEventListener('click', () => {
+        if (!$('#equipCustomize').disabled) openCustomize();
+    });
 
-    // ---- Customiser équipement : armes du service sélectionné, accessoires, teintes (propre au joueur) ----
+    // ---- Customiser équipement : armes du service, accessoires, teintes ; nom ; enregistré = équipement modifié ----
     const TINTS = ['Noir (d\'origine)', 'Vert', 'Or', 'Rose', 'Kaki', 'Bleu police', 'Orange', 'Platine'];
 
     function customHead() {
         const c = equip.custom;
         if (!c) return;
-        $('#customHead').innerHTML = `${deptChip(c.code)}<b>${esc(c.name)}</b><br><small>${c.saved
-            ? 'Équipement enregistré : vous le retrouvez à chaque connexion (vous seul).'
-            : 'Équipement de base : modifiez-le, puis « Enregistrer » pour le garder.'}</small>`;
-        $('#customReset').disabled = !c.saved;
+        $('#customHead').innerHTML = `${deptChip(c.code)}<b>${esc(c.id ? c.name : c.service)}</b><br><small>${c.id
+            ? `Équipement modifié (depuis ${esc(c.service)}) : « Enregistrer » met à jour celui-ci.`
+            : `Équipement de base : modifiez-le, nommez-le, puis « Enregistrer » : il s'ajoute aux Équipements modifiés (l'équipement de base ne change pas).`}</small>`;
+        $('#customDelete').classList.toggle('hidden', !c.id);
     }
 
     function renderCustom() {
         const c = equip.custom;
         customHead();
+        $('#customName').value = c.name || '';
+        $('#customName').placeholder = c.suggested || 'Nom de l\'équipement';
         $('#customList').innerHTML = toArray(c.weapons).map((w) => {
             const choice = w.choice || {};
             const comps = toArray(choice.components);
@@ -433,11 +480,11 @@
     }
 
     async function loadCustom() {
-        const sel = selectedService();
+        const kit = selectedKit();
         $('#customList').innerHTML = '';
         $('#customHead').textContent = 'Chargement…';
-        if (!sel) return;
-        const res = await post('equipmentCustom', { key: sel.key });
+        if (!kit) return;
+        const res = await post('equipmentCustom', kit.custom ? { id: kit.id } : { key: kit.key });
         if (!res || !res.ok) {
             $('#customHead').textContent = res?.error || 'Action impossible.';
             return;
@@ -467,16 +514,32 @@
     async function customAction(action) {
         const c = equip.custom;
         if (!c) return;
-        const res = await post('equipmentCustomSave', { key: c.key, action, choices: action === 'reset' ? null : customChoices() });
+        const payload = { key: c.key, id: c.id || null, action, name: $('#customName').value.trim() };
+        if (action !== 'delete') payload.choices = customChoices();
+        const res = await post('equipmentCustomSave', payload);
         if (!res || !res.ok) return;
-        c.saved = !!res.saved;
-        const kit = equip.services.find((x) => x.key === c.key);
-        if (kit) kit.custom = c.saved;
-        if (action === 'reset') loadCustom(); else customHead();
+        if (res.customs) equip.customs = toArray(res.customs);
+        if (action === 'delete') {
+            equip.custom = null;
+            equip.selected = { key: c.key };
+            menu.view = 'equipment-saved';
+            renderMenu();
+            renderKits();
+            return;
+        }
+        if (action === 'save' && res.id) {
+            // Enregistré : c'est désormais cet équipement modifié qui est sélectionné (un nouvel enregistrement le met à jour)
+            c.id = res.id;
+            c.name = res.name || c.name;
+            $('#customName').value = c.name;
+            equip.selected = { id: res.id };
+            customHead();
+            renderKits();
+        }
     }
     $('#customApply').addEventListener('click', () => customAction('apply'));
     $('#customSave').addEventListener('click', () => customAction('save'));
-    $('#customReset').addEventListener('click', () => { if (!$('#customReset').disabled) customAction('reset'); });
+    $('#customDelete').addEventListener('click', () => customAction('delete'));
 
     // ---- Voiture > Spawn (data/vehicles.json) ----
     async function loadVehicles() {
