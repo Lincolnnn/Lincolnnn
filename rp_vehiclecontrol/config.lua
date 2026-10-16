@@ -57,7 +57,11 @@ VCConfig = {
             PumpHeight = 1.2,     -- m : hauteur du tuyau sur la pompe
             Rope = true,          -- tuyau visible (corde du jeu), vu par les joueurs proches
             Hand = { 0.13, 0.04, 0.01, -42.0, -115.0, -63.42 },  -- position du pistolet dans la main droite
-            InFlap = { 0.0, 0.0, 0.0, -125.0, -90.0, -90.0 },    -- décalage / rotation du pistolet dans la trappe
+            -- Pistolet dans la trappe : décalage x y z (m, par rapport à la carrosserie à la trappe ; x négatif = vers
+            -- l'extérieur) et rotation, ordre de rotation du jeu. Réglage en jeu : commande vc_nozzle x y z rx ry rz [ordre]
+            -- (pistolet dans une trappe), puis recopier les valeurs affichées dans la console F8.
+            InFlap = { -0.10, 0.0, 0.05, -125.0, -90.0, -90.0 },
+            RotationOrder = 1,
         },
         PumpModels = {
             'prop_gas_pump_1a', 'prop_gas_pump_1b', 'prop_gas_pump_1c', 'prop_gas_pump_1d',

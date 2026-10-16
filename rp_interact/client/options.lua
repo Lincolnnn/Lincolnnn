@@ -16,7 +16,8 @@
       - joueurs autorisés : supprimer (PNJ, véhicules sans joueur, objets) jusqu'à 50 m (DeleteDistance),
         la seule option proposée de loin.
     Props posés avec le script de props du serveur : "Déplacer le props" / "Supprimer le props"
-    (client/props.lua).
+    (client/props.lua). Objets d'autres scripts reconnus par leur état (Config.ExternalObjects, ex. fusée de
+    détresse de rp_flares : "Retirer la fusée").
     Les options apparaissent quand on s'approche (jamais grisées pour une question de distance).
     Les inspections sont affichées en premier, puis les actions sur l'environnement.
 ]]
@@ -426,8 +427,27 @@ local function sit(ctx, def)
     standUpLoop()
 end
 
+--- Objet d'un autre script (Config.ExternalObjects : fusée de détresse…) : sa définition, nil sinon
+local function externalObject(entity)
+    if not entity or entity == 0 or not DoesEntityExist(entity) or not NetworkGetEntityIsNetworked(entity) then return nil end
+    local state = Entity(entity).state
+    for key, def in pairs(Config.ExternalObjects or {}) do
+        if state[key] then return def end
+    end
+    return nil
+end
+
 local function objectOptions(ctx)
     local out = {}
+    -- Objet d'un autre script (fusée de détresse posée…) : son action, prévenue au serveur de ce script
+    local external = externalObject(ctx.entity)
+    if external then
+        if within(ctx, external.Distance or 2.5) and external.Event then
+            out[#out + 1] = { id = 'ext:' .. external.Event, label = external.Label or 'Retirer', icon = external.Icon or 'hand',
+                run = function(c) TriggerServerEvent(external.Event, ObjToNet(c.entity)) end }
+        end
+        return out
+    end
     -- Props posé avec le script de props (client/props.lua) : déplacer / supprimer
     if RPI.propOptions and RPI.propOptions(ctx, out) then return out end
     local seat = SEATS[ctx.model]
@@ -467,6 +487,8 @@ function RPI.targetLabel(ctx)
     if ctx.type == 'vehicle' then return RPI.vehicleLabel(ctx.entity) end -- modèle, sans la plaque
     if SEATS[ctx.model] then return 'Siège' end
     if TRASH[ctx.model] then return 'Poubelle' end
+    local external = externalObject(ctx.entity)
+    if external then return external.Name or 'Objet' end
     if RPI.isPlacedProp and RPI.isPlacedProp(ctx.entity) then return 'Props' end
     return 'Objet'
 end

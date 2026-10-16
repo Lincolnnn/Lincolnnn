@@ -17,13 +17,20 @@ NPCConfig = {
 
     -- ---------------------------------------------------------------------
     -- « EVERYONE IGNORE PLAYER » : les PNJ ne réagissent plus aux joueurs (ni insultes, ni agressions, ni fuite),
-    -- plus aux fusillades ni aux explosions, et n'ont plus peur.
+    -- plus aux fusillades ni aux explosions, et n'ont plus peur : piétons, passagers ET conducteurs.
     -- ---------------------------------------------------------------------
     EveryoneIgnorePlayer = true,
     NoFear = true,
     -- Réactions « choquées » des passants (coups de feu, explosions, accidents) supprimées à chaque image :
     -- ~0.01 ms ; false : seulement les réglages des PNJ (NoFear), aucune boucle à chaque image pour ça.
     SuppressShockingEvents = true,
+    -- CONDUCTEURS (PNJ au volant) : quand le joueur vise, tire ou qu'une explosion a lieu, ceux du jeu à moins de
+    -- DriverRange m reprennent aussitôt une conduite normale (vitesse DriverSpeed m/s, style de conduite du jeu), et
+    -- encore pendant AlertTime ms dès qu'ils se remettent à fuir.
+    DriverRange = 80.0,
+    DriverSpeed = 15.0,
+    DrivingStyle = 786603,
+    AlertTime = 4000,
 
     -- ---------------------------------------------------------------------
     -- DENSITÉ DES PNJ : 1.0 = jeu de base ; 0.0 = aucun ; jusqu'à 3.0 (le triple).

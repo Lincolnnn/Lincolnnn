@@ -32,8 +32,13 @@ Jamais d'étoiles, pour personne.
 ### « Everyone ignore player » (`EveryoneIgnorePlayer`, `NoFear`, `SuppressShockingEvents`)
 
 Les PNJ **ne réagissent plus aux joueurs** (ni agressions, ni insultes, ni fuite), **plus aux fusillades ni aux
-explosions**, et **n'ont plus peur**. Réglé sur chaque PNJ du jeu par le client qui le contrôle (les PNJ créés par un
-script ne sont pas touchés).
+explosions**, et **n'ont plus peur** : piétons, passagers **et conducteurs**. Réglé sur chaque PNJ du jeu par le client
+qui le contrôle (les PNJ créés par un script ne sont pas touchés).
+
+Les **conducteurs** paniquent autrement que les piétons (ils accélèrent, slaloment, s'enfuient en voiture) : dès que
+le joueur **vise, tire** ou qu'une **explosion** a lieu, les conducteurs du jeu à moins de `DriverRange` m (80)
+reprennent aussitôt une **conduite normale** (`DriverSpeed`, `DrivingStyle`), et encore pendant `AlertTime` ms (4 s)
+dès qu'ils se remettent à fuir.
 
 ### Densité des PNJ (`Density`)
 
@@ -65,6 +70,7 @@ La valeur revient à celle de `config.lua` au redémarrage (c'est le fichier qui
 | `DisableWantedLevel` | indice de recherche supprimé |
 | `EveryoneIgnorePlayer`, `NoFear` | PNJ qui ignorent les joueurs, sans peur |
 | `SuppressShockingEvents` | réactions « choquées » des passants (coups de feu, explosions) supprimées à chaque image |
+| `DriverRange`, `DriverSpeed`, `DrivingStyle`, `AlertTime` | conducteurs calmés quand le joueur vise / tire (distance, vitesse et style de conduite repris, durée de l'alerte) |
 | `Density` | densités `Traffic`, `Parked`, `Peds` (0.0 à 3.0) |
 | `DensityCommand` | nom de la commande (`npcdensity`) |
 | `EmergencyPeds`, `EmergencyVehicles`, `EmergencyScenarios` | modèles et scénarios des services d'urgence |
@@ -73,6 +79,7 @@ La valeur revient à celle de `config.lua` au redémarrage (c'est le fichier qui
 
 - Boucle d'**1 seconde** (PNJ du jeu à proximité : réglages « sans peur », retrait des services d'urgence) :
   ~0.01 ms.
+- Conducteurs : boucle de 250 ms **seulement pendant une alerte** (le joueur vise, tire, explosion proche).
 - Boucle **à chaque image** seulement si une densité n'est pas `1.0` (le jeu exige qu'elle soit redonnée à chaque
   image) ou si `SuppressShockingEvents` est actif : ~0.01 ms. Avec toutes les densités à `1.0` et
   `SuppressShockingEvents = false`, il n'y en a aucune.

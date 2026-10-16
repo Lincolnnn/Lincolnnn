@@ -11,6 +11,7 @@
     - Densité du trafic, des véhicules garés et des piétons (0.0 à 3.0), réglée par le serveur (GlobalState.npcDensity).
     Performance :
       - boucle d'1 s (PNJ du jeu à proximité : réglages "pas de peur", retrait des services d'urgence) : ~0.01 ms ;
+      - conducteurs : boucle de 250 ms seulement pendant une alerte (le joueur vise, tire, explosion proche) ;
       - boucle à chaque image SEULEMENT si une densité n'est pas 1.0 ou si SuppressShockingEvents est actif
         (les densités du jeu doivent être redonnées à chaque image) : ~0.01 ms ; sinon aucune.
 ]]
@@ -100,8 +101,69 @@ end
 
 local function calm(ped)
     SetBlockingOfNonTemporaryEvents(ped, true) -- ne réagit plus aux événements (joueurs, coups de feu, explosions)
+    TaskSetBlockingOfNonTemporaryEvents(ped, true)
     SetPedFleeAttributes(ped, 0, false)        -- ne fuit plus
     SetPedCombatAttributes(ped, 17, false)     -- "toujours fuir" désactivé
+    SetPedCombatAttributes(ped, 58, true)      -- ne fuit pas un combat
+end
+
+-- =========================================================================
+-- CONDUCTEURS : un PNJ au volant panique autrement (il accélère, slalome, s'enfuit) quand on le vise, qu'on tire ou
+-- qu'une explosion a lieu. Pendant ces moments (et AlertTime ms après), les conducteurs du jeu proches que ce client
+-- contrôle reprennent une conduite normale : une fois au début de l'alerte, puis dès qu'ils se remettent à fuir.
+-- Performance : boucle de 250 ms seulement pendant une alerte.
+-- =========================================================================
+local alertUntil, driversRunning = 0, false
+local calmedDrivers = {} -- [conducteur] = heure de la dernière remise en conduite normale
+
+local function driveCalmly(ped, vehicle)
+    ClearPedTasks(ped)
+    calm(ped)
+    TaskVehicleDriveWander(ped, vehicle, Config.DriverSpeed or 15.0, Config.DrivingStyle or 786603)
+    SetPedKeepTask(ped, true)
+end
+
+local function calmDrivers()
+    local me = PlayerPedId()
+    local pos = GetEntityCoords(me)
+    local now = GetGameTimer()
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        local ped = GetPedInVehicleSeat(vehicle, -1)
+        if ped ~= 0 and not IsPedAPlayer(ped) and not MISSION[GetEntityPopulationType(ped)] and controlled(ped)
+            and #(GetEntityCoords(vehicle) - pos) < (Config.DriverRange or 80.0) then
+            local last = calmedDrivers[ped]
+            if not last or IsPedFleeing(ped) or IsPedInCombat(ped, me) then
+                if not last or now - last > 500 then
+                    calmedDrivers[ped] = now
+                    driveCalmly(ped, vehicle)
+                end
+            end
+        end
+    end
+end
+
+local function driversLoop()
+    if driversRunning then return end
+    driversRunning = true
+    CreateThread(function()
+        while GetGameTimer() < alertUntil do
+            calmDrivers()
+            Wait(250)
+        end
+        calmedDrivers = {}
+        driversRunning = false
+    end)
+end
+
+--- Le joueur vise, tire, ou une explosion a lieu près de lui : alerte (conducteurs calmés)
+local function checkAlert()
+    if not Config.NoFear then return end
+    local ped = PlayerPedId()
+    if IsPlayerFreeAiming(PlayerId()) or IsPedShooting(ped)
+        or IsExplosionInSphere(-1, GetEntityCoords(ped), Config.DriverRange or 80.0) then
+        alertUntil = GetGameTimer() + (Config.AlertTime or 4000)
+        driversLoop()
+    end
 end
 
 local tick = 0
@@ -137,6 +199,7 @@ CreateThread(function()
     local lastRules = GetGameTimer()
     while true do
         if Config.NoFear or Config.DisableEmergencyServices then scan() end
+        checkAlert() -- (vérifié aussi à chaque image quand la boucle par image tourne)
         if GetGameTimer() - lastRules >= 10000 then
             lastRules = GetGameTimer()
             applyRules() -- certains réglages du joueur sont remis à zéro par le jeu (réapparition, changement de modèle)
@@ -171,6 +234,7 @@ local function frameLoop()
                 SetScenarioPedDensityMultiplierThisFrame(d.Peds, d.Peds)
             end
             if Config.SuppressShockingEvents then SuppressShockingEventsNextFrame() end
+            checkAlert()
             Wait(0)
         end
         frameRunning = false

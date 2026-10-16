@@ -6,9 +6,11 @@
          vu par tous les joueurs proches) ;
       2. aller à la TRAPPE À ESSENCE du véhicule, toujours côté ARRIÈRE GAUCHE (repère vert au sol de la trappe) ;
          moteur COUPÉ obligatoire (le joueur est forcément descendu : on ne prend pas le pistolet à bord) ;
-         E "Mettre le pistolet dans la trappe" : il reste dans la trappe et le plein se fait tout seul ;
+         E "Mettre le pistolet dans la trappe" : il reste dans la trappe (sur la carrosserie, bec vers l'intérieur) et le
+         plein se fait tout seul ;
       3. plein : de vide à plein en Fuel.RefuelPerSecond (1 minute au maximum) ; s'arrête tout seul réservoir plein,
-         ou moteur allumé ; E près de la trappe : reprendre le pistolet ; E à la pompe : le raccrocher.
+         ou moteur allumé ; plein fini : un seul message, "E pour ranger le pistolet" (il retourne à la pompe). Pistolet
+         en main, loin d'une trappe : E le range aussi (vc_nozzle : réglage en jeu de sa position dans la trappe).
       - Tuyau trop court (HoseLength m) ou véhicule qui part avec le pistolet : le pistolet retourne à la pompe.
       - Pistolet en main : impossible de monter dans un véhicule, de frapper ou de viser.
     JERRICAN (WEAPON_PETROLCAN) : rempli à la pompe (G) ou pris dans l'équipement d'un véhicule de police
@@ -22,6 +24,7 @@ local Config = VCConfig.Fuel
 local Nozzle = Config.Nozzle or {}
 local PETROLCAN = GetHashKey('WEAPON_PETROLCAN')
 local UNARMED = GetHashKey('WEAPON_UNARMED')
+local FLARE = GetHashKey('WEAPON_FLARE')
 local CAN_AMMO = 4500 -- jerrican plein
 local NOZZLE_MODEL = GetHashKey(Nozzle.Model or 'prop_cs_fuel_nozle')
 local HOSE = Nozzle.HoseLength or 7.0
@@ -66,13 +69,34 @@ local function playAnim(ped, anim, flag, duration)
     if loadDict(anim[1]) then TaskPlayAnim(ped, anim[1], anim[2], 4.0, 4.0, duration or -1, flag or 48, 0, false, false, false) end
 end
 
---- Trappe à essence : toujours à l'ARRIÈRE GAUCHE du véhicule (position dans le monde, et par rapport au véhicule)
+-- Carrosserie à la trappe (côté gauche), par modèle : le cadre du modèle déborde (rétroviseurs, roues) ; un rayon
+-- tiré depuis l'extérieur vers le véhicule trouve la vraie tôle. [modèle] = x local de la carrosserie
+local bodyX = {}
+
+local function bodySurfaceX(vehicle, minX, y, z)
+    local model = GetEntityModel(vehicle)
+    if bodyX[model] then return bodyX[model] end
+    local from = GetOffsetFromEntityInWorldCoords(vehicle, minX - 0.6, y, z)
+    local to = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, y, z)
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, -1, PlayerPedId(), 4)
+    local _, hit, coords, _, entity = GetShapeTestResult(ray)
+    if (hit == true or hit == 1) and entity == vehicle then
+        local x = GetOffsetFromEntityGivenWorldCoords(vehicle, coords.x, coords.y, coords.z).x
+        bodyX[model] = math.max(minX, math.min(x, -0.2))
+        return bodyX[model]
+    end
+    return minX + 0.12 -- rayon gêné (autre véhicule…) : estimation, réessayé la prochaine fois
+end
+
+--- Trappe à essence : toujours à l'ARRIÈRE GAUCHE du véhicule, sur la carrosserie (position dans le monde, et par
+--- rapport au véhicule)
 function VC.flapPosition(vehicle)
     local min, max = GetModelDimensions(GetEntityModel(vehicle))
     local flap = Config.Flap or {}
     local y = min.y + (max.y - min.y) * (flap.Y or 0.22)
     local z = min.z + (max.z - min.z) * (flap.Z or 0.5)
-    return GetOffsetFromEntityInWorldCoords(vehicle, min.x, y, z), vector3(min.x, y, z)
+    local x = bodySurfaceX(vehicle, min.x, y, z)
+    return GetOffsetFromEntityInWorldCoords(vehicle, x, y, z), vector3(x, y, z)
 end
 
 --- Véhicule (avec réservoir) dont la trappe est la plus proche, à moins de `range` m
@@ -186,28 +210,43 @@ local function hangUp(text)
     if text then VC.chat(text) end
 end
 
+--- Pistolet dans la trappe : sur la carrosserie, bec vers l'intérieur (Nozzle.InFlap : décalage x y z, rotation)
+local function attachInFlap(vehicle)
+    local _, offset = VC.flapPosition(vehicle)
+    local o = Nozzle.InFlap or { -0.10, 0.0, 0.05, -125.0, -90.0, -90.0 }
+    DetachEntity(nozzle.prop, true, true)
+    AttachEntityToEntity(nozzle.prop, vehicle, 0, offset.x + o[1], offset.y + o[2], offset.z + o[3], o[4], o[5], o[6],
+        false, false, false, false, Nozzle.RotationOrder or 1, true)
+end
+
 local function insertNozzle(vehicle)
     local ped = PlayerPedId()
     if GetIsVehicleEngineRunning(vehicle) then return VC.chat('Coupez le moteur avant de faire le plein.') end
     local fuel = fuelOf(vehicle)
     if fuel >= 99.5 then return VC.chat('Le réservoir est déjà plein.') end
-    local flap, offset = VC.flapPosition(vehicle)
+    local flap = VC.flapPosition(vehicle)
     TaskTurnPedToFaceCoord(ped, flap.x, flap.y, flap.z, 500)
     playAnim(ped, HAND_ANIM, 48, 700)
-    local o = Nozzle.InFlap or { 0.0, 0.0, 0.0, -125.0, -90.0, -90.0 }
-    DetachEntity(nozzle.prop, true, true)
-    AttachEntityToEntity(nozzle.prop, vehicle, 0, offset.x + o[1], offset.y + o[2], offset.z + o[3], o[4], o[5], o[6], false, false, false, false, 2, true)
+    attachInFlap(vehicle)
     nozzle.vehicle, nozzle.fuel, nozzle.at = vehicle, fuel, GetEntityCoords(vehicle)
     nozzle.lastSend, nozzle.stopped = GetGameTimer(), false
 end
 
-local function takeBack()
-    local ped = PlayerPedId()
-    stopFilling()
-    playAnim(ped, HAND_ANIM, 48, 700)
-    DetachEntity(nozzle.prop, true, true)
-    attachToHand(ped, nozzle.prop)
-end
+-- Réglage en jeu de la position du pistolet dans la trappe (essais) : vc_nozzle x y z rx ry rz [ordre]
+-- Les valeurs à recopier dans config.lua (Fuel.Nozzle.InFlap / RotationOrder) sont affichées dans la console F8.
+RegisterCommand('vc_nozzle', function(_, args)
+    local v = {}
+    for i = 1, 6 do v[i] = tonumber(args[i]) end
+    if not v[6] then
+        local o = Nozzle.InFlap or {}
+        return print(('[rp_vehiclecontrol] InFlap = { %s }, RotationOrder = %s (usage : vc_nozzle x y z rx ry rz [ordre])')
+            :format(table.concat(o, ', '), tostring(Nozzle.RotationOrder or 1)))
+    end
+    Nozzle.InFlap = v
+    if tonumber(args[7]) then Nozzle.RotationOrder = math.floor(tonumber(args[7])) end
+    if nozzle and nozzle.vehicle and DoesEntityExist(nozzle.vehicle) then attachInFlap(nozzle.vehicle) end
+    print(('[rp_vehiclecontrol] InFlap = { %s }, RotationOrder = %d'):format(table.concat(v, ', '), Nozzle.RotationOrder or 1))
+end, false)
 
 --- Plein en cours (pistolet dans la trappe), à chaque image
 local function fillTick(dt)
@@ -229,8 +268,7 @@ local function fillTick(dt)
     local now = GetGameTimer()
     if nozzle.fuel >= 100.0 then
         nozzle.stopped = true
-        sendNow(vehicle, 100.0, 'pump')
-        VC.chat('Plein terminé : réservoir à 100 %.')
+        sendNow(vehicle, 100.0, 'pump') -- seule l'aide reste : "E pour ranger le pistolet"
     elseif now - nozzle.lastSend >= 1000 then
         nozzle.lastSend = now
         sendNow(vehicle, nozzle.fuel, 'pump')
@@ -350,22 +388,25 @@ local function stationLoop()
                         lines[#lines + 1] = ('~INPUT_CONTEXT~ Mettre le pistolet dans la trappe (%d %%)'):format(math.floor(fuel))
                         if pressed then insertNozzle(flapVehicle) end
                     end
-                elseif pump then
-                    lines[#lines + 1] = '~INPUT_CONTEXT~ Raccrocher le pistolet'
-                    if pressed then hangUp() end
                 else
-                    lines[#lines + 1] = 'Trappe à essence : arrière gauche du véhicule.'
+                    -- Ailleurs : E le range (il retourne à la pompe)
+                    lines[#lines + 1] = '~INPUT_CONTEXT~ pour ranger le pistolet'
+                    if pressed then
+                        playAnim(ped, HAND_ANIM, 48, 700)
+                        hangUp()
+                    end
                 end
             elseif onFoot and nozzle and nozzle.vehicle then
-                local atFlap = #(VC.flapPosition(nozzle.vehicle) - pos) <= FLAP_DISTANCE + 0.5
-                local state = nozzle.stopped and nozzle.fuel >= 100.0 and 'Plein terminé' or nozzle.stopped and 'Plein interrompu'
-                    or 'Plein en cours'
-                if atFlap or #(GetEntityCoords(nozzle.vehicle) - pos) < 6.0 then
-                    lines[#lines + 1] = ('%s : %d %%'):format(state, math.floor(nozzle.fuel))
-                end
-                if atFlap then
-                    lines[#lines + 1] = '~INPUT_CONTEXT~ Reprendre le pistolet'
-                    if pressed then takeBack() end
+                -- Pistolet dans la trappe : E le range (plein arrêté s'il n'est pas fini) ; plein fini : seul ce message
+                if #(GetEntityCoords(nozzle.vehicle) - pos) < 8.0 then
+                    if not (nozzle.stopped and nozzle.fuel >= 100.0) then
+                        lines[#lines + 1] = ('%s : %d %%'):format(nozzle.stopped and 'Plein interrompu' or 'Plein en cours', math.floor(nozzle.fuel))
+                    end
+                    lines[#lines + 1] = '~INPUT_CONTEXT~ pour ranger le pistolet'
+                    if pressed then
+                        playAnim(ped, HAND_ANIM, 48, 700)
+                        hangUp()
+                    end
                 end
             elseif onFoot and pouring then
                 lines[#lines + 1] = ('Jerrican : réservoir %d %% · jerrican %d %%~n~~INPUT_CONTEXT~ Arrêter'):format(math.floor(pouring.fuel), canPercent(ped))
@@ -387,7 +428,8 @@ local function stationLoop()
                         local full = holdingCan and GetAmmoInPedWeapon(ped, PETROLCAN) >= CAN_AMMO
                         if not full then
                             lines[#lines + 1] = holdingCan and '~INPUT_DETONATE~ Remplir le jerrican' or '~INPUT_DETONATE~ Prendre un jerrican'
-                            if IsControlJustPressed(0, 47) then -- G
+                            -- G (sauf fusée de détresse en main : G la pose, rp_flares)
+                            if IsControlJustPressed(0, 47) and GetSelectedPedWeapon(ped) ~= FLARE then
                                 playAnim(ped, FILL_CAN_ANIM, 49, Config.JerrycanFillTime or 3000)
                                 fillingCan = now + (Config.JerrycanFillTime or 3000)
                             end

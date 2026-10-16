@@ -151,10 +151,15 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
      **tuyau** (vu par les joueurs proches). Pistolet en main : impossible de monter dans un véhicule, de frapper ou
      de viser ;
   3. aller à la **trappe à essence**, toujours à l'**ARRIÈRE GAUCHE** du véhicule (petit repère vert au-dessus) :
-     **E « Mettre le pistolet dans la trappe »** (refusé moteur allumé) ; le pistolet reste dans la trappe et le plein
-     se fait tout seul : **de vide à plein en 1 minute au maximum** (`RefuelPerSecond`), progression affichée ;
-  4. réservoir plein : arrêt tout seul ; moteur allumé pendant le plein : interrompu. **E** près de la trappe :
-     reprendre le pistolet ; **E** à la pompe : le raccrocher.
+     **E « Mettre le pistolet dans la trappe »** (refusé moteur allumé) ; le pistolet reste dans la trappe, **posé sur
+     la carrosserie** (la vraie tôle est trouvée par un rayon, pas le cadre du modèle qui déborde), bec vers
+     l'intérieur, et le plein se fait tout seul : **de vide à plein en 1 minute au maximum** (`RefuelPerSecond`),
+     progression affichée ;
+  4. réservoir plein : arrêt tout seul, et un **seul message** en haut à gauche : **« E pour ranger le pistolet »** (il
+     retourne à la pompe, inutile d'y retourner). Pendant le plein, **E** l'arrête et range le pistolet ; pistolet en
+     main loin d'une trappe : **E** le range aussi. Moteur allumé pendant le plein : interrompu.
+  - Position du pistolet dans la trappe : `Nozzle.InFlap` / `RotationOrder` ; réglage en jeu, pistolet dans une trappe :
+    commande **`vc_nozzle x y z rx ry rz [ordre]`** (valeurs affichées dans la console F8, à recopier dans `config.lua`).
   - Tuyau trop court (7 m, `Nozzle.HoseLength`) ou véhicule qui part avec le pistolet : il retourne à la pompe.
 - **Jerrican** : rempli à la pompe (**G**, 3 s) ou **pris dans l'équipement d'un véhicule de police** (`rp_equipment`,
   fourni par défaut pour tous les services). Plein, il remplit **2/5 d'un réservoir** (40 %, `JerrycanFuel`) ; en main

@@ -67,6 +67,12 @@ InteractConfig = {
     --   3. un export du script de props (Export : exports.props:<Export>(entity) -> true).
     --   Votre script peut aussi marquer lui-même ses objets : exports.rp_interact:registerProp(entity)
     --   (client) ou TriggerServerEvent('rp_interact:server:registerProp', netId).
+    -- Objets d'AUTRES scripts reconnus à l'œil par leur état (Entity(objet).state[clé]) : nom affiché sous l'œil et
+    -- une action qui prévient le SERVEUR de ce script (événement réseau, avec le n° réseau de l'objet).
+    ExternalObjects = {
+        rpFlare = { Name = 'Fusée de détresse', Label = 'Retirer la fusée', Icon = 'trash', Event = 'rp_flares:remove', Distance = 2.5 },
+    },
+
     Props = {
         Resource = 'props',
         StateKeys = { 'rpiProp', 'prop', 'isProp', 'placedProp', 'propOwner', 'placedBy' },
