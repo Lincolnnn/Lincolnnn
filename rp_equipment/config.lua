@@ -84,10 +84,14 @@ EquipConfig = {
         SaveFile = 'data/stock.json',
         Cones = {
             Default = 6, Max = 10,
+            MaxCarry = 10,        -- plots qu'un policier porte en même temps (il choisit combien il en prend)
+            PickupRadius = 8.0,   -- œil « Ramasser les plots autour » : plots à moins de 8 m du plot visé
             Model = 'prop_roadcone02a',
             PlaceDistance = 0.8,  -- m devant le joueur
-            -- Plot porté : os de la main droite, décalage x y z et rotation, animation (porter un carton)
-            Carry = { Bone = 28422, Offset = { 0.0, -0.05, -0.15, 0.0, 0.0, 0.0 }, Anim = { 'anim@heists@box_carry@', 'idle' } },
+            -- Plots portés : os de la main droite, décalage x y z et rotation, animation (porter un carton) ;
+            -- pile : un objet par plot (MaxProps au plus), chacun StackStep m au-dessus du précédent
+            Carry = { Bone = 28422, Offset = { 0.0, -0.05, -0.15, 0.0, 0.0, 0.0 }, Anim = { 'anim@heists@box_carry@', 'idle' },
+                MaxProps = 5, StackStep = 0.07 },
         },
         Flares = { Default = 0, Max = 20, Weapon = 'WEAPON_FLARE' },
         PlaceKey = 'G',

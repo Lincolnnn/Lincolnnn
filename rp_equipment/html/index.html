@@ -41,7 +41,12 @@
                         <div class="eq-stock-bar"><span id="eqConesBar"></span></div>
                     </div>
                     <div class="eq-stock-actions">
-                        <button class="eq-btn eq-primary" id="eqConeTake">Prendre un plot</button>
+                        <div class="eq-qty" title="Nombre de plots à prendre">
+                            <button class="eq-qty-btn" data-qty="-1" aria-label="Un de moins">−</button>
+                            <span class="eq-qty-value" id="eqConeQty">1</span>
+                            <button class="eq-qty-btn" data-qty="1" aria-label="Un de plus">+</button>
+                        </div>
+                        <button class="eq-btn eq-primary" id="eqConeTake">Prendre 1 plot</button>
                         <button class="eq-btn" id="eqConeStore">Ranger le plot</button>
                     </div>
                 </div>

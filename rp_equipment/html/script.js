@@ -3,7 +3,7 @@
     const $ = (id) => document.getElementById(id);
     const box = $('equip');
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_equipment';
-    let state = { slots: [], rack: {}, held: false, stock: false, inv: { carrying: false, flares: 0, maxHeld: 25 } };
+    let state = { slots: [], rack: {}, held: false, stock: false, inv: { carrying: 0, maxCarry: 10, flares: 0, maxHeld: 25 }, coneQty: 1 };
     let messageTimer = null;
 
     function post(name, data) {
@@ -72,15 +72,25 @@
         if (!st) return;
         $('eqCones').textContent = `${st.cones} / ${st.maxCones} dans le coffre`;
         $('eqConesBar').style.width = `${st.maxCones ? Math.round(st.cones / st.maxCones * 100) : 0}%`;
-        $('eqConeTake').disabled = inv.carrying || st.cones <= 0;
-        $('eqConeStore').disabled = !inv.carrying || st.cones >= st.maxCones;
+        // Prendre : le nombre choisi (1 → ce que le coffre a et ce que le policier peut encore porter)
+        const carrying = Number(inv.carrying) || 0;
+        const canTake = Math.max(0, Math.min(st.cones, (inv.maxCarry || 10) - carrying));
+        state.coneQty = Math.max(1, Math.min(state.coneQty || 1, canTake || 1));
+        $('eqConeQty').textContent = state.coneQty;
+        box.querySelector('[data-qty="-1"]').disabled = canTake <= 0 || state.coneQty <= 1;
+        box.querySelector('[data-qty="1"]').disabled = canTake <= 0 || state.coneQty >= canTake;
+        $('eqConeTake').disabled = canTake <= 0;
+        $('eqConeTake').textContent = `Prendre ${state.coneQty} plot${state.coneQty > 1 ? 's' : ''}`;
+        // Ranger : tous les plots portés d'un coup (un seul : « Ranger le plot »)
+        $('eqConeStore').disabled = carrying <= 0 || st.cones >= st.maxCones;
+        $('eqConeStore').textContent = carrying > 1 ? `Ranger les ${carrying} plots` : 'Ranger le plot';
         $('eqFlares').textContent = `${st.flares} / ${st.maxFlares} dans le coffre`;
         $('eqFlaresHeld').textContent = `Sur vous : ${inv.flares}`;
         box.querySelectorAll('[data-flares="take"]').forEach((b) => { b.disabled = st.flares <= 0 || inv.flares >= inv.maxHeld; });
         box.querySelectorAll('[data-flares="store"]').forEach((b) => { b.disabled = inv.flares <= 0 || st.flares >= st.maxFlares; });
-        $('eqCarry').textContent = inv.carrying
-            ? 'Vous portez un plot : G pour le poser au sol, ou « Ranger le plot ».'
-            : 'Plot posé : le reprendre avec l\'œil (« Ramasser le plot »). Un plot pris et pas remis n\'est plus dans le coffre.';
+        $('eqCarry').textContent = carrying
+            ? `Vous portez ${carrying > 1 ? `${carrying} plots` : 'un plot'} : G pour en poser un au sol, ou les ranger ici.`
+            : 'Plots posés : les reprendre avec le target (« Ramasser le plot » ou « Ramasser les plots autour »). Un plot pris et pas remis n\'est plus dans le coffre.';
     }
 
     function message(text, error) {
@@ -99,7 +109,7 @@
         $('eqSub').textContent = `${data.where === 'trunk' ? 'Coffre' : 'Portières avant'}${data.plate ? ` · ${data.plate}` : ''}`;
         $('eqFoot').textContent = `Se ferme à plus de ${data.closeDistance || 4} m du véhicule · Échap pour fermer`;
         state = { slots: Array.isArray(data.slots) ? data.slots : [], rack: data.rack || {}, held: false, freemode: data.freemode !== false,
-            stock: data.stock || false, inv: state.inv };
+            stock: data.stock || false, inv: state.inv, coneQty: 1 };
         renderAssets(Array.isArray(data.assets) ? data.assets : []);
         renderRack();
         renderStock();
@@ -117,7 +127,9 @@
         const retrieve = e.target.closest('[data-retrieve]');
         if (retrieve) return post('retrieve', { slot: retrieve.dataset.retrieve });
         if (e.target.closest('#eqStore')) return post('store');
-        if (e.target.closest('#eqConeTake')) return post('coneTake');
+        const qty = e.target.closest('[data-qty]');
+        if (qty) { state.coneQty = (state.coneQty || 1) + Number(qty.dataset.qty); renderStock(); return null; }
+        if (e.target.closest('#eqConeTake')) return post('coneTake', { count: state.coneQty || 1 });
         if (e.target.closest('#eqConeStore')) return post('coneStore');
         const flares = e.target.closest('[data-flares]');
         if (flares) return post('flares', { mode: flares.dataset.flares, all: !!flares.dataset.all });

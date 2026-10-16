@@ -68,10 +68,14 @@ InteractConfig = {
     --   Votre script peut aussi marquer lui-même ses objets : exports.rp_interact:registerProp(entity)
     --   (client) ou TriggerServerEvent('rp_interact:server:registerProp', netId).
     -- Objets d'AUTRES scripts reconnus à l'œil par leur état (Entity(objet).state[clé]) : nom affiché sous l'œil et
-    -- une action qui prévient le SERVEUR de ce script (événement réseau, avec le n° réseau de l'objet).
+    -- une action qui prévient le SERVEUR de ce script (événement réseau, avec le n° réseau de l'objet) ;
+    -- plusieurs actions : Options = { { Label, Icon, Event }, ... }.
     ExternalObjects = {
         rpFlare = { Name = 'Fusée de détresse', Label = 'Retirer la fusée', Icon = 'trash', Event = 'rp_flares:remove', Distance = 2.5 },
-        rpCone = { Name = 'Plot de circulation', Label = 'Ramasser le plot', Icon = 'hand', Event = 'rp_equipment:cone:pickup', Distance = 2.5 },
+        rpCone = { Name = 'Plot de circulation', Distance = 2.5, Options = {
+            { Label = 'Ramasser le plot', Icon = 'hand', Event = 'rp_equipment:cone:pickup' },
+            { Label = 'Ramasser les plots autour', Icon = 'hand', Event = 'rp_equipment:cone:pickupAll' },
+        } },
     },
 
     Props = {

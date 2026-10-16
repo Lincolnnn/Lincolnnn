@@ -8,9 +8,9 @@ CamShakeConfig = {
     Command = 'tremblement',
 
     -- À PIED : tremblement continu, de plus en plus fort (amplitude), réglé en douceur
-    Walk   = { shake = 'HAND_SHAKE', amp = 0.6 },
-    Run    = { shake = 'HAND_SHAKE', amp = 1.4 },
-    Sprint = { shake = 'HAND_SHAKE', amp = 2.4 },
+    Walk   = { shake = 'ROAD_VIBRATION_SHAKE', amp = 1.0 },
+    Run    = { shake = 'ROAD_VIBRATION_SHAKE', amp = 1.6 },
+    Sprint = { shake = 'ROAD_VIBRATION_SHAKE', amp = 2.4 },
     AimFactor = 0.3,      -- en visant avec une arme : amplitude x 0.3 (0 = aucun tremblement en visant)
     Smoothing = 0.35,     -- part du chemin faite à chaque vérification (100 ms) vers l'amplitude voulue
 

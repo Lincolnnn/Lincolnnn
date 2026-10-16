@@ -232,7 +232,8 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     **Supprimer le props**, à 3 m (`Props` dans `config.lua` : distance, accès `everyone` / `police` / `owner`).
   - **Objets d'autres scripts** reconnus par leur état (`ExternalObjects` dans `config.lua`) : par défaut la **fusée
     de détresse** posée avec `rp_flares` (« Fusée de détresse » sous l'œil) : **Retirer la fusée** (à 2,5 m), et le
-    **plot de circulation** posé avec `rp_equipment` : **Ramasser le plot** (policiers en service).
+    **plot de circulation** posé avec `rp_equipment` : **Ramasser le plot** ou **Ramasser les plots autour** (tous
+    ceux posés près de lui, d'un coup ; policiers en service). Un objet peut avoir plusieurs actions (`Options`).
     Reconnaissance automatique (OneSync) : à chaque objet créé par un script, le serveur demande à son créateur quel
     script l'a fait apparaître ; si c'est `props`, l'objet est marqué pour tout le monde. Votre script de props peut
     aussi marquer ses objets (`exports.rp_interact:registerProp(entity)`) ou être reconnu par un état / un export

@@ -442,9 +442,13 @@ local function objectOptions(ctx)
     -- Objet d'un autre script (fusée de détresse posée…) : son action, prévenue au serveur de ce script
     local external = externalObject(ctx.entity)
     if external then
-        if within(ctx, external.Distance or 2.5) and external.Event then
-            out[#out + 1] = { id = 'ext:' .. external.Event, label = external.Label or 'Retirer', icon = external.Icon or 'hand',
-                run = function(c) TriggerServerEvent(external.Event, ObjToNet(c.entity)) end }
+        if within(ctx, external.Distance or 2.5) then
+            for _, action in ipairs(external.Options or { external }) do
+                if action.Event then
+                    out[#out + 1] = { id = 'ext:' .. action.Event, label = action.Label or 'Retirer', icon = action.Icon or 'hand',
+                        run = function(c) TriggerServerEvent(action.Event, ObjToNet(c.entity)) end }
+                end
+            end
         end
         return out
     end

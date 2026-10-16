@@ -95,16 +95,25 @@ plaque). C'est le **même coffre pour tous** les policiers.
 
 **Plots de circulation** (cône orange à bandes blanches, `prop_roadcone02a`)
 - **6 plots d'origine** dans chaque coffre (`Stock.Cones.Default`), **10 au maximum** (`Stock.Cones.Max`).
-- **« Prendre un plot »** : le policier le **porte dans les mains** (un seul à la fois). Plot en main : pas d'arme, pas
-  de coup, pas de visée, pas de montée en véhicule ; une aide en haut à gauche rappelle les touches.
-- **G** (modifiable : *Raccourcis clavier > FiveM > « Plot de circulation : poser au sol »*) : il le **pose debout au
-  sol**, devant lui, dans son axe. Le plot est créé **par le serveur** : visible par tous, figé, il reste même si le
-  policier se déconnecte. Mort avec un plot en main : il tombe à ses pieds.
-- **Reprendre** : avec l'**œil** de `rp_interact` (**Alt**), « Plot de circulation » : **Ramasser le plot** (policiers
-  en service, à 2,5 m) : il le porte de nouveau.
-- **« Ranger le plot »** : dans le coffre de **n'importe quel** véhicule de police (s'il n'est pas plein : 10 max).
-- **Un plot pris et pas remis n'est plus dans le coffre** : le coffre garde son compte (5 si on en a laissé un au sol).
-- Un plot porté au moment d'une déconnexion est perdu ; les plots au sol sont retirés si `rp_equipment` redémarre.
+- **Prendre** : le policier **choisit le nombre** avec **− / +** (de 1 à ce que le coffre contient et ce qu'il peut
+  encore porter, `Stock.Cones.MaxCarry` = 10), puis **« Prendre N plots »**. Il les **porte en pile dans les mains**.
+  Plots en main : pas d'arme, pas de coup, pas de visée, pas de montée en véhicule.
+- **Aide en haut à gauche** tant qu'il porte des plots : **« G Poser un plot (N en main) »**, **« Utiliser le target pour
+  reprendre les plots posés »**, et le rangement au coffre. Après avoir posé le **dernier** plot, le rappel « Utiliser le
+  target pour reprendre les plots posés » reste affiché quelques secondes.
+- **G** (modifiable : *Raccourcis clavier > FiveM > « Plot de circulation : poser au sol »*) : **un** plot posé **debout
+  au sol**, devant lui ; on rappuie pour le suivant. Les plots sont créés **par le serveur** : visibles par tous, figés,
+  ils restent même si le policier se déconnecte. Mort avec des plots en main : ils tombent autour de ses pieds.
+- **Reprendre avec le target** (`rp_interact`, **Alt**), « Plot de circulation » (policiers en service, à 2,5 m) :
+  - **« Ramasser le plot »** : celui visé ;
+  - **« Ramasser les plots autour »** : celui visé **et tous ceux posés autour** (`Stock.Cones.PickupRadius`, 8 m),
+    **d'un coup** (« 3 plots ramassés (5 en main) »).
+  Ils s'ajoutent à ceux déjà portés (jusqu'à `MaxCarry`).
+- **Ranger** : le bouton range **tout d'un coup** : **« Ranger les N plots »** s'il en porte plusieurs, **« Ranger le
+  plot »** s'il n'en a qu'un. Dans le coffre de **n'importe quel** véhicule de police ; si le coffre ne peut pas tout
+  prendre (10 max), il range ce qui rentre et garde le reste en main.
+- **Un plot pris et pas remis n'est plus dans le coffre** : le coffre garde son compte.
+- Des plots portés au moment d'une déconnexion sont perdus ; les plots au sol sont retirés si `rp_equipment` redémarre.
 
 **Fusées de détresse** (`WEAPON_FLARE`, posées au sol avec `rp_flares`)
 - Rangeables **comme les armes longues** : **« Ranger 1 »** / **« Tout ranger »** (celles que le policier a sur lui) et
@@ -123,7 +132,7 @@ plaque). C'est le **même coffre pour tous** les policiers.
 | `OpenTrunk` | ouvrir le coffre pendant le menu |
 | `Types`, `InteractVehicles`, `ServiceTypes` | types de véhicules (catégories de rp_interact, modèles, classes) |
 | `EquipmentFile`, `Eup` | fichier de l'équipement EUP (`equipment.json`), numéros comptés à partir de 1 |
-| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 6 d'origine, 10 max, modèle, distance de pose, port : os, décalage, animation), fusées (`Flares` : 20 max), touche de pose (`PlaceKey`, G) |
+| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 6 d'origine, 10 max, `MaxCarry` portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), touche de pose (`PlaceKey`, G) |
 | `LongGuns` | râtelier : endroit (`Where`), types concernés, emplacements et groupes d'armes, munitions données (`GiveAmmo`), fichier de sauvegarde, accessoires et noms en plus |
 
 ## Performance
@@ -131,5 +140,6 @@ plaque). C'est le **même coffre pour tous** les policiers.
 - Hors service ou en véhicule : rien.
 - À pied et en service : une recherche toutes les 500 ms (~0.01 ms) ; à chaque image seulement près d'une portière
   avant / du coffre (proposition) ou menu ouvert.
-- Plot porté : une boucle à chaque image **seulement tant qu'il est dans les mains** (aide, touches bloquées).
+- Plots portés : une boucle à chaque image **seulement tant qu'ils sont dans les mains** (aide, touches bloquées) ;
+  rappel du target quelques secondes après le dernier plot posé.
 - Serveur : aucune boucle.

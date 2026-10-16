@@ -256,11 +256,16 @@ local Handlers = {}
 -- =========================================================================
 -- COFFRE : INVENTAIRE (plots de circulation, fusées de détresse), par plaque (Stock.SaveFile)
 --   Un plot pris et jamais remis n'y est plus ; un plot ramassé peut être rangé dans n'importe quel coffre (max).
+--   Un policier porte plusieurs plots (Cones.MaxCarry) : il en prend le nombre voulu, en ramasse plusieurs, range tout.
 -- =========================================================================
 local S = Config.Stock or {}
 local Stock = {}       -- [plaque] = { cones, flares }
-local carrying = {}    -- [joueur] = true : porte un plot (pris dans un coffre ou ramassé au sol)
+local carrying = {}    -- [joueur] = nombre de plots portés (pris dans un coffre ou ramassés au sol)
 local placedCones = {} -- [objet] = true
+local MAX_CARRY = math.max(1, math.floor(tonumber(S.Cones and S.Cones.MaxCarry) or 10))
+
+local function carried(src) return carrying[src] or 0 end
+local function setCarried(src, n) carrying[src] = n > 0 and n or nil end
 
 local function loadStock()
     local raw = S.SaveFile and LoadResourceFile(GetCurrentResourceName(), S.SaveFile)
@@ -307,36 +312,40 @@ function Handlers.open(src, data)
     return {
         ok = true, type = ctx.kind, plate = ctx.plate, assets = Assets[ctx.kind] or {},
         rack = rackAllowed(ctx) and ctx.plate and rackSummary(ctx.plate) or false,
-        stock = stockAllowed(ctx) and stockView(ctx.plate) or false, carrying = carrying[src] == true,
+        stock = stockAllowed(ctx) and stockView(ctx.plate) or false, carrying = carried(src), maxCarry = MAX_CARRY,
     }
 end
 
---- Prendre un plot dans le coffre (le joueur le porte)
+--- Prendre `count` plots dans le coffre (le joueur les porte, en plus de ceux qu'il a déjà, MaxCarry au plus)
 function Handlers.coneTake(src, data)
     local ctx, err = context(src, data)
     if not ctx then return { ok = false, error = err } end
     if not stockAllowed(ctx) then return { ok = false, error = 'Pas de coffre ici.' } end
-    if carrying[src] then return { ok = false, error = 'Vous portez déjà un plot.' } end
+    local room = MAX_CARRY - carried(src)
+    if room <= 0 then return { ok = false, error = ('Vous portez déjà %d plots (maximum).'):format(MAX_CARRY) } end
     local st = stockOf(ctx.plate)
     if st.cones <= 0 then return { ok = false, error = 'Plus de plot dans ce coffre.' } end
-    st.cones = st.cones - 1
-    carrying[src] = true
+    local count = math.min(math.max(1, math.floor(tonumber(data.count) or 1)), room, st.cones)
+    st.cones = st.cones - count
+    setCarried(src, carried(src) + count)
     stockChanged(ctx.plate)
-    return { ok = true, stock = stockView(ctx.plate) }
+    return { ok = true, count = count, carrying = carried(src), stock = stockView(ctx.plate) }
 end
 
---- Ranger le plot porté dans le coffre (n'importe quel coffre, dans la limite)
+--- Ranger d'un coup tous les plots portés dans le coffre (n'importe quel coffre, dans la limite : le reste reste porté)
 function Handlers.coneStore(src, data)
     local ctx, err = context(src, data)
     if not ctx then return { ok = false, error = err } end
     if not stockAllowed(ctx) then return { ok = false, error = 'Pas de coffre ici.' } end
-    if not carrying[src] then return { ok = false, error = 'Vous ne portez pas de plot.' } end
+    if carried(src) <= 0 then return { ok = false, error = 'Vous ne portez pas de plot.' } end
     local st = stockOf(ctx.plate)
-    if st.cones >= (S.Cones.Max or 10) then return { ok = false, error = ('Coffre plein : %d plots au maximum.'):format(S.Cones.Max or 10) } end
-    st.cones = st.cones + 1
-    carrying[src] = nil
+    local max = S.Cones.Max or 10
+    local count = math.min(carried(src), max - st.cones)
+    if count <= 0 then return { ok = false, error = ('Coffre plein : %d plots au maximum.'):format(max) } end
+    st.cones = st.cones + count
+    setCarried(src, carried(src) - count)
     stockChanged(ctx.plate)
-    return { ok = true, stock = stockView(ctx.plate) }
+    return { ok = true, count = count, carrying = carried(src), stock = stockView(ctx.plate) }
 end
 
 --- Fusées : prendre `count` du coffre / ranger `count` (celles que le joueur a sur lui)
@@ -360,41 +369,93 @@ function Handlers.flares(src, data)
     return { ok = true, mode = data.mode == 'take' and 'take' or 'store', count = count, stock = stockView(ctx.plate) }
 end
 
--- Plot porté posé au sol : créé ici (visible par tous, reste en place), marqué "rpCone" (repris avec l'œil)
-RegisterNetEvent('rp_equipment:cone:place', function(data)
-    local src = source
-    if not carrying[src] or type(data) ~= 'table' then return end
-    local x, y, z, heading = tonumber(data.x), tonumber(data.y), tonumber(data.z), tonumber(data.heading) or 0.0
-    local ped = GetPlayerPed(src)
-    if not x or not y or not z or not ped or ped == 0 or #(GetEntityCoords(ped) - vector3(x, y, z)) > 3.0 then return end
+--- Plot posé au sol : créé ici (visible par tous, reste en place), marqué "rpCone" (repris avec l'œil)
+local function createCone(src, x, y, z, heading)
     local object = CreateObjectNoOffset(GetHashKey(S.Cones.Model or 'prop_roadcone02a'), x, y, z, true, true, false)
     local timeout = GetGameTimer() + 2000
     while not DoesEntityExist(object) and GetGameTimer() < timeout do Wait(0) end
-    if not DoesEntityExist(object) then return end
+    if not DoesEntityExist(object) then return false end
     SetEntityHeading(object, heading)
     FreezeEntityPosition(object, true)
     Entity(object).state:set('rpCone', { by = src }, true)
     placedCones[object] = true
-    carrying[src] = nil
-    TriggerClientEvent('rp_equipment:cone:placed', src)
+    return true
+end
+
+-- Plots portés posés : { spots = { { x, y, z, heading }, ... } } (G : un plot ; mort : tous, à ses pieds)
+RegisterNetEvent('rp_equipment:cone:place', function(data)
+    local src = source
+    if carried(src) <= 0 or type(data) ~= 'table' or type(data.spots) ~= 'table' then return end
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return end
+    local here = GetEntityCoords(ped)
+    local placed = 0
+    for i = 1, math.min(#data.spots, carried(src)) do
+        local spot = data.spots[i]
+        local x, y, z = tonumber(type(spot) == 'table' and spot.x), tonumber(type(spot) == 'table' and spot.y), tonumber(type(spot) == 'table' and spot.z)
+        if x and y and z and #(here - vector3(x, y, z)) <= 3.0 and createCone(src, x, y, z, tonumber(spot.heading) or 0.0) then
+            placed = placed + 1
+        end
+    end
+    setCarried(src, carried(src) - placed)
+    TriggerClientEvent('rp_equipment:cone:placed', src, carried(src), placed)
 end)
 
--- Plot au sol ramassé avec l'œil (rp_interact) : un policier en service à côté, qui ne porte pas déjà un plot
-RegisterNetEvent('rp_equipment:cone:pickup', function(netId)
-    local src = source
-    local object = NetworkGetEntityFromNetworkId(tonumber(netId) or -1)
-    if not object or object == 0 or not DoesEntityExist(object) or type(Entity(object).state.rpCone) ~= 'table' then return end
-    local ped = GetPlayerPed(src)
-    if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(object)) > 4.0 then return end
-    if not policeUnit(src) then
-        return TriggerClientEvent('rp_equipment:notify', src, 'Réservé aux policiers en service (unité du MDC).')
-    end
-    if carrying[src] then return TriggerClientEvent('rp_equipment:notify', src, 'Vous portez déjà un plot.') end
+--- Plot au sol retiré et porté par ce joueur
+local function takeFromGround(src, object)
     placedCones[object] = nil
     Entity(object).state:set('rpCone', nil, true)
     DeleteEntity(object)
-    carrying[src] = true
-    TriggerClientEvent('rp_equipment:cone:carry', src)
+    setCarried(src, carried(src) + 1)
+end
+
+--- Vérifications communes du ramassage avec l'œil : le plot visé, à côté d'un policier en service qui a de la place
+local function pickupTarget(src, netId)
+    local object = NetworkGetEntityFromNetworkId(tonumber(netId) or -1)
+    if not object or object == 0 or not DoesEntityExist(object) or type(Entity(object).state.rpCone) ~= 'table' then return nil end
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(object)) > 4.0 then return nil end
+    if not policeUnit(src) then
+        TriggerClientEvent('rp_equipment:notify', src, 'Réservé aux policiers en service (unité du MDC).')
+        return nil
+    end
+    if carried(src) >= MAX_CARRY then
+        TriggerClientEvent('rp_equipment:notify', src, ('Vous portez déjà %d plots (maximum).'):format(MAX_CARRY))
+        return nil
+    end
+    return object
+end
+
+-- Plot au sol ramassé avec l'œil (rp_interact) : porté avec les autres
+RegisterNetEvent('rp_equipment:cone:pickup', function(netId)
+    local src = source
+    local object = pickupTarget(src, netId)
+    if not object then return end
+    takeFromGround(src, object)
+    TriggerClientEvent('rp_equipment:cone:carry', src, carried(src), 1)
+end)
+
+-- Œil : « Ramasser les plots autour » : le plot visé et ceux posés autour de lui (Cones.PickupRadius), d'un coup
+RegisterNetEvent('rp_equipment:cone:pickupAll', function(netId)
+    local src = source
+    local object = pickupTarget(src, netId)
+    if not object then return end
+    local center = GetEntityCoords(object)
+    local list = { { object = object, dist = 0.0 } }
+    for other in pairs(placedCones) do
+        if other ~= object and DoesEntityExist(other) and type(Entity(other).state.rpCone) == 'table' then
+            local dist = #(GetEntityCoords(other) - center)
+            if dist <= (S.Cones.PickupRadius or 8.0) then list[#list + 1] = { object = other, dist = dist } end
+        end
+    end
+    table.sort(list, function(a, b) return a.dist < b.dist end)
+    local taken = 0
+    for _, item in ipairs(list) do
+        if carried(src) >= MAX_CARRY then break end
+        takeFromGround(src, item.object)
+        taken = taken + 1
+    end
+    TriggerClientEvent('rp_equipment:cone:carry', src, carried(src), taken)
 end)
 
 -- Plot porté perdu (mort : posé à ses pieds par le client ; déconnexion : perdu)

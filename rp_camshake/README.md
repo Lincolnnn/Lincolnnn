@@ -33,7 +33,7 @@ selon ce que fait le personnage.
 
 | Clé | Rôle |
 |---|---|
-| `Walk`, `Run`, `Sprint` | secousse du jeu et amplitude pour chaque allure |
+| `Walk`, `Run`, `Sprint` | secousse du jeu et amplitude pour chaque allure (par défaut `ROAD_VIBRATION_SHAKE` : 1.0 / 1.6 / 2.4) |
 | `AimFactor`, `Smoothing` | réduction en visant ; douceur des changements d'amplitude |
 | `Impacts` | secousse, amplitude, durée et force de chaque choc (accidents léger / moyen / gros, chute, à terre, percuté, coup) |
 | `Crash` | seuils d'accident en véhicule (perte de vitesse, dégâts) |

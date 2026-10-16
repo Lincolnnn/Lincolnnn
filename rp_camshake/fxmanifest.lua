@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_camshake'
 author 'Lincolnnn'
 description 'Tremblement de caméra réaliste (marche, course, sprint, chocs) - standalone'
-version '1.0.0'
+version '1.1.0'
 
 client_scripts {
     'config.lua',

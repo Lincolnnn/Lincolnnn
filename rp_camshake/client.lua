@@ -1,7 +1,7 @@
 --[[
     RP CamShake - Client
     --------------------
-    À PIED : tremblement continu de la caméra (HAND_SHAKE) qui grandit avec l'allure : marche < course < sprint,
+    À PIED : tremblement continu de la caméra (ROAD_VIBRATION_SHAKE, config.lua) qui grandit avec l'allure : marche < course < sprint,
       réduit en visant ; amplitude ajustée en douceur, arrêté à l'arrêt.
     EN VÉHICULE : aucun tremblement, sauf accident (même petit) : secousse selon la violence du choc.
     CHOCS À PIED : chute (réception après une chute), personnage à terre (ragdoll), percuté par un véhicule,

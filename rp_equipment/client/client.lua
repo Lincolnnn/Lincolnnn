@@ -485,8 +485,9 @@ local CONE = GetHashKey(SC.Model or 'prop_roadcone02a')
 local UNARMED = GetHashKey('WEAPON_UNARMED')
 local MAX_FLARES_HELD = 25 -- fusées qu'un joueur peut avoir sur lui (jeu)
 local PICK_ANIM = { 'pickup_object', 'pickup_low' }
-local carried = nil       -- plot porté : { prop }
+local carried = nil       -- plots portés : { count, props = { objet, ... } } (pile de plots dans les mains)
 local placingCone = false
+local MAX_CARRY = math.max(1, math.floor(tonumber(SC.MaxCarry) or 10))
 local lastInventory = nil
 
 local function flaresHeld(ped)
@@ -496,10 +497,11 @@ end
 sendInventory = function(force)
     if not open then return end
     local ped = PlayerPedId()
-    local key = ('%s:%d'):format(carried and 1 or 0, flaresHeld(ped))
+    local cones = carried and carried.count or 0
+    local key = ('%d:%d'):format(cones, flaresHeld(ped))
     if key == lastInventory and not force then return end
     lastInventory = key
-    SendNUIMessage({ action = 'inventory', data = { carrying = carried ~= nil, flares = flaresHeld(ped), maxHeld = MAX_FLARES_HELD } })
+    SendNUIMessage({ action = 'inventory', data = { carrying = cones, maxCarry = MAX_CARRY, flares = flaresHeld(ped), maxHeld = MAX_FLARES_HELD } })
 end
 
 local function loadAnim(dict)
@@ -520,13 +522,37 @@ local function playCarry(ped)
     TaskPlayAnim(ped, anim[1], anim[2], 8.0, -8.0, -1, 49, 0.0, false, false, false)
 end
 
+--- Aide en haut à gauche pendant `ms` (après avoir posé le dernier plot : comment les reprendre)
+local hintUntil = 0
+local function showHint(text, ms)
+    local running = GetGameTimer() < hintUntil
+    hintUntil = GetGameTimer() + ms
+    if running then return end
+    CreateThread(function()
+        while GetGameTimer() < hintUntil and not carried do
+            if not open and not IsPauseMenuActive() then
+                BeginTextCommandDisplayHelp('STRING')
+                AddTextComponentSubstringPlayerName(text)
+                EndTextCommandDisplayHelp(0, false, false, -1)
+            end
+            Wait(0)
+        end
+        hintUntil = 0
+    end)
+end
+local TARGET_HINT = 'Utiliser le target pour reprendre les plots posés (un seul, ou tous ceux autour)'
+
+local function deleteProp(prop)
+    if DoesEntityExist(prop) then
+        DetachEntity(prop, true, true)
+        DeleteEntity(prop)
+    end
+end
+
 local function stopCarry()
     if not carried then return end
     local ped = PlayerPedId()
-    if DoesEntityExist(carried.prop) then
-        DetachEntity(carried.prop, true, true)
-        DeleteEntity(carried.prop)
-    end
+    for _, prop in ipairs(carried.props) do deleteProp(prop) end
     local anim = SC.Carry and SC.Carry.Anim
     if anim then StopAnimTask(ped, anim[1], anim[2], 1.0) end
     carried = nil
@@ -534,37 +560,74 @@ local function stopCarry()
     if sendInventory then sendInventory() end
 end
 
---- Plot porté posé au sol, debout, devant le joueur (créé par le serveur, visible par tous)
-local function placeCone(atFeet)
-    if not carried or placingCone then return end
-    local ped = PlayerPedId()
-    if not atFeet and (IsPauseMenuActive() or IsPedInAnyVehicle(ped, true)) then return end
-    placingCone = true
-    SetTimeout(2000, function() placingCone = false end)
-    local spot = GetOffsetFromEntityInWorldCoords(ped, 0.0, atFeet and 0.3 or (SC.PlaceDistance or 0.8), 0.0)
+--- Pile de plots dans les mains : autant d'objets que de plots portés (Carry.MaxProps au plus), empilés
+local function updateProps(ped)
+    local c = SC.Carry or {}
+    local want = math.min(carried.count, c.MaxProps or 5)
+    while #carried.props > want do deleteProp(table.remove(carried.props)) end
+    if #carried.props >= want then return end
+    RequestModel(CONE)
+    local timeout = GetGameTimer() + 2000
+    while not HasModelLoaded(CONE) and GetGameTimer() < timeout do Wait(10) end
+    local o = c.Offset or { 0.0, -0.05, -0.15, 0.0, 0.0, 0.0 }
+    local pos = GetEntityCoords(ped)
+    while carried and #carried.props < want do
+        local i = #carried.props
+        local prop = CreateObject(CONE, pos.x, pos.y, pos.z + 0.5, true, true, false)
+        AttachEntityToEntity(prop, ped, GetPedBoneIndex(ped, c.Bone or 28422), o[1], o[2], o[3] + i * (c.StackStep or 0.07),
+            o[4], o[5], o[6], true, true, false, true, 1, true)
+        carried.props[#carried.props + 1] = prop
+    end
+    SetModelAsNoLongerNeeded(CONE)
+end
+
+--- Endroit au sol, devant le joueur (`forward` m, `side` m à droite), plot debout
+local function groundSpot(ped, side, forward)
+    local spot = GetOffsetFromEntityInWorldCoords(ped, side, forward, 0.0)
     local found, ground = GetGroundZFor_3dCoord(spot.x, spot.y, spot.z + 1.0, false)
     if not found then ground = GetEntityCoords(ped).z - 0.98 end
     local min = GetModelDimensions(CONE)
-    TriggerServerEvent('rp_equipment:cone:place', { x = spot.x, y = spot.y, z = ground - min.z, heading = GetEntityHeading(ped) })
+    return { x = spot.x, y = spot.y, z = ground - min.z, heading = GetEntityHeading(ped) }
+end
+
+--- Un plot porté posé au sol, debout, devant le joueur (créé par le serveur, visible par tous) ;
+--- mort (`dropAll`) : tous les plots portés tombent autour de ses pieds
+local function placeCone(dropAll)
+    if not carried or placingCone then return end
+    local ped = PlayerPedId()
+    if not dropAll and (IsPauseMenuActive() or IsPedInAnyVehicle(ped, true)) then return end
+    placingCone = true
+    SetTimeout(2000, function() placingCone = false end)
+    local spots = {}
+    if dropAll then
+        for i = 1, carried.count do
+            local angle = (i - 1) / carried.count * 2.0 * math.pi
+            spots[i] = groundSpot(ped, math.sin(angle) * 0.6, 0.2 + math.cos(angle) * 0.6)
+        end
+    else
+        spots[1] = groundSpot(ped, 0.0, SC.PlaceDistance or 0.8)
+    end
+    TriggerServerEvent('rp_equipment:cone:place', { spots = spots })
 end
 
 local function carryLoop()
     CreateThread(function()
         local key = ('~INPUT_%X~'):format((GetHashKey('rp_cone_place') | 0x80000000) & 0xFFFFFFFF)
-        local text = ('%s Poser le plot~n~Coffre d\'un véhicule de police : le ranger'):format(key)
         while carried do
             local ped = PlayerPedId()
             if IsEntityDead(ped) then
-                placeCone(true) -- mort : le plot tombe à ses pieds
+                placeCone(true) -- mort : les plots tombent à ses pieds
             else
-                -- Plot dans les mains : ni monter dans un véhicule, ni frapper, ni viser, ni sortir une arme
+                -- Plots dans les mains : ni monter dans un véhicule, ni frapper, ni viser, ni sortir une arme
                 for _, c in ipairs({ 23, 24, 25, 37, 140, 141, 142, 257 }) do DisableControlAction(0, c, true) end
                 if GetSelectedPedWeapon(ped) ~= UNARMED then SetCurrentPedWeapon(ped, UNARMED, true) end
                 local anim = SC.Carry and SC.Carry.Anim
                 if anim and not IsEntityPlayingAnim(ped, anim[1], anim[2], 3) and not IsPedRagdoll(ped) then playCarry(ped) end
                 if not open and not IsPauseMenuActive() then
+                    local n = carried.count
                     BeginTextCommandDisplayHelp('STRING')
-                    AddTextComponentSubstringPlayerName(text)
+                    AddTextComponentSubstringPlayerName(('%s Poser un plot (%d en main)~n~Utiliser le target pour reprendre les plots posés~n~Coffre d\'un véhicule de police : %s'):format(
+                        key, n, n > 1 and 'les ranger' or 'le ranger'))
                     EndTextCommandDisplayHelp(0, false, false, -1)
                 end
             end
@@ -573,41 +636,43 @@ local function carryLoop()
     end)
 end
 
-local function startCarry()
-    if carried then return end
+--- Nombre de plots portés (donné par le serveur) : pile mise à jour, port commencé ou arrêté
+local function setCarried(count)
+    count = math.floor(tonumber(count) or 0)
+    if count <= 0 then return stopCarry() end
     local ped = PlayerPedId()
-    RequestModel(CONE)
-    local timeout = GetGameTimer() + 2000
-    while not HasModelLoaded(CONE) and GetGameTimer() < timeout do Wait(10) end
-    SetCurrentPedWeapon(ped, UNARMED, true)
-    local pos = GetEntityCoords(ped)
-    local prop = CreateObject(CONE, pos.x, pos.y, pos.z + 0.5, true, true, false)
-    SetModelAsNoLongerNeeded(CONE)
-    local c = SC.Carry or {}
-    local o = c.Offset or { 0.0, -0.05, -0.15, 0.0, 0.0, 0.0 }
-    AttachEntityToEntity(prop, ped, GetPedBoneIndex(ped, c.Bone or 28422), o[1], o[2], o[3], o[4], o[5], o[6], true, true, false, true, 1, true)
-    carried = { prop = prop }
-    LocalPlayer.state:set('rpCarryingCone', true, false) -- (local) la touche G d'autres scripts ne réagit pas
-    playCarry(ped)
-    carryLoop()
+    if not carried then
+        carried = { count = count, props = {} }
+        SetCurrentPedWeapon(ped, UNARMED, true)
+        LocalPlayer.state:set('rpCarryingCone', true, false) -- (local) la touche G d'autres scripts ne réagit pas
+        updateProps(ped)
+        playCarry(ped)
+        carryLoop()
+    else
+        carried.count = count
+        updateProps(ped)
+    end
     if sendInventory then sendInventory() end
 end
 
 RegisterCommand('rp_cone_place', function() placeCone(false) end, false)
 RegisterKeyMapping('rp_cone_place', 'Plot de circulation : poser au sol (plot porté)', 'keyboard', S.PlaceKey or 'G')
 
--- Le serveur a posé le plot : plus dans les mains
-RegisterNetEvent('rp_equipment:cone:placed', function()
+-- Le serveur a posé le(s) plot(s) : reste `left` dans les mains
+RegisterNetEvent('rp_equipment:cone:placed', function(left)
     placingCone = false
-    stopCarry()
     playPickup()
+    setCarried(left)
+    if not carried then showHint(TARGET_HINT, 8000) end -- dernier plot posé : comment les reprendre
 end)
 
--- Plot ramassé avec l'œil (rp_interact) : porté
-RegisterNetEvent('rp_equipment:cone:carry', function()
+-- Plot(s) ramassé(s) avec l'œil (rp_interact) : `total` portés, dont `taken` à l'instant
+RegisterNetEvent('rp_equipment:cone:carry', function(total, taken)
     playPickup()
     Wait(500)
-    startCarry()
+    setCarried(total)
+    taken = tonumber(taken) or 1
+    if taken > 1 then notify(('%d plots ramassés (%d en main).'):format(taken, carried and carried.count or 0)) end
 end)
 
 RegisterNetEvent('rp_equipment:notify', notify)
@@ -624,21 +689,32 @@ local function stockResult(res, text)
     return true
 end
 
-RegisterNUICallback('coneTake', function(_, cb)
+local function plural(n, word) return ('%d %s%s'):format(n, word, n > 1 and 's' or '') end
+
+-- Prendre { count } plots (choisi dans le menu)
+RegisterNUICallback('coneTake', function(data, cb)
     cb({ ok = true })
     if not open then return end
-    if carried then return SendNUIMessage({ action = 'message', data = { text = 'Vous portez déjà un plot.', error = true } }) end
-    request('coneTake', context(), function(res)
-        if stockResult(res, 'Plot pris : G pour le poser au sol.') then startCarry() end
+    local payload = context()
+    payload.count = type(data) == 'table' and tonumber(data.count) or 1
+    request('coneTake', payload, function(res)
+        if not stockResult(res) then return end
+        setCarried(res.carrying)
+        SendNUIMessage({ action = 'message', data = { text = ('%s pris : G pour en poser un au sol.'):format(plural(res.count, 'plot')) } })
     end)
 end)
 
+-- Ranger : tous les plots portés d'un coup (ce que le coffre peut prendre)
 RegisterNUICallback('coneStore', function(_, cb)
     cb({ ok = true })
     if not open then return end
     if not carried then return SendNUIMessage({ action = 'message', data = { text = 'Vous ne portez pas de plot.', error = true } }) end
     request('coneStore', context(), function(res)
-        if stockResult(res, 'Plot rangé dans le coffre.') then stopCarry() end
+        if not stockResult(res) then return end
+        setCarried(res.carrying)
+        local text = ('%s rangé%s dans le coffre.'):format(plural(res.count, 'plot'), res.count > 1 and 's' or '')
+        if (res.carrying or 0) > 0 then text = text .. (' Coffre plein : %d encore en main.'):format(res.carrying) end
+        SendNUIMessage({ action = 'message', data = { text = text } })
     end)
 end)
 
@@ -730,5 +806,5 @@ end)
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= RESOURCE then return end
     if open then closeMenu() end
-    if carried and DoesEntityExist(carried.prop) then DeleteEntity(carried.prop) end
+    if carried then for _, prop in ipairs(carried.props) do if DoesEntityExist(prop) then DeleteEntity(prop) end end end
 end)
