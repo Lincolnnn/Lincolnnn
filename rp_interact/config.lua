@@ -71,6 +71,7 @@ InteractConfig = {
     -- une action qui prévient le SERVEUR de ce script (événement réseau, avec le n° réseau de l'objet).
     ExternalObjects = {
         rpFlare = { Name = 'Fusée de détresse', Label = 'Retirer la fusée', Icon = 'trash', Event = 'rp_flares:remove', Distance = 2.5 },
+        rpCone = { Name = 'Plot de circulation', Label = 'Ramasser le plot', Icon = 'hand', Event = 'rp_equipment:cone:pickup', Distance = 2.5 },
     },
 
     Props = {

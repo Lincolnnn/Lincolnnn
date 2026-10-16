@@ -86,3 +86,18 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .14); border-radius: 8px; }
+
+/* Coffre : plots de circulation, fusées */
+.eq-stock { display: flex; flex-direction: column; gap: 8px; }
+.eq-stock-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+    background: rgba(255, 255, 255, .03); border: 1px solid var(--line); border-radius: 8px;
+}
+.eq-stock-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.eq-stock-name { font-weight: 700; }
+.eq-stock-count, .eq-stock-held { font-size: 11.5px; color: var(--muted); }
+.eq-stock-bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.eq-stock-bar span { display: block; height: 100%; background: linear-gradient(90deg, #ff7a1a, #ffd27a); transition: width .2s; }
+.eq-stock-actions { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+.eq-stock-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.eq-stock-actions .eq-btn { padding: 6px 9px; font-size: 12px; white-space: nowrap; }

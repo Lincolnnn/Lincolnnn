@@ -429,7 +429,8 @@ local function stationLoop()
                         if not full then
                             lines[#lines + 1] = holdingCan and '~INPUT_DETONATE~ Remplir le jerrican' or '~INPUT_DETONATE~ Prendre un jerrican'
                             -- G (sauf fusée de détresse en main : G la pose, rp_flares)
-                            if IsControlJustPressed(0, 47) and GetSelectedPedWeapon(ped) ~= FLARE then
+                            if IsControlJustPressed(0, 47) and GetSelectedPedWeapon(ped) ~= FLARE
+                                and not LocalPlayer.state.rpCarryingCone then -- (G pose aussi un plot porté : rp_equipment)
                                 playAnim(ped, FILL_CAN_ANIM, 49, Config.JerrycanFillTime or 3000)
                                 fillingCan = now + (Config.JerrycanFillTime or 3000)
                             end

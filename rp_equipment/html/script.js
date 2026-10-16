@@ -3,7 +3,7 @@
     const $ = (id) => document.getElementById(id);
     const box = $('equip');
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_equipment';
-    let state = { slots: [], rack: {}, held: false };
+    let state = { slots: [], rack: {}, held: false, stock: false, inv: { carrying: false, flares: 0, maxHeld: 25 } };
     let messageTimer = null;
 
     function post(name, data) {
@@ -64,6 +64,25 @@
             : free ? `En main : ${held.label}` : `En main : ${held.label} (emplacement déjà occupé)`;
     }
 
+    // Coffre : plots (portés / rangés) et fusées (sur soi / dans le coffre)
+    function renderStock() {
+        const st = state.stock;
+        const inv = state.inv;
+        $('eqStockSection').classList.toggle('hidden', !st);
+        if (!st) return;
+        $('eqCones').textContent = `${st.cones} / ${st.maxCones} dans le coffre`;
+        $('eqConesBar').style.width = `${st.maxCones ? Math.round(st.cones / st.maxCones * 100) : 0}%`;
+        $('eqConeTake').disabled = inv.carrying || st.cones <= 0;
+        $('eqConeStore').disabled = !inv.carrying || st.cones >= st.maxCones;
+        $('eqFlares').textContent = `${st.flares} / ${st.maxFlares} dans le coffre`;
+        $('eqFlaresHeld').textContent = `Sur vous : ${inv.flares}`;
+        box.querySelectorAll('[data-flares="take"]').forEach((b) => { b.disabled = st.flares <= 0 || inv.flares >= inv.maxHeld; });
+        box.querySelectorAll('[data-flares="store"]').forEach((b) => { b.disabled = inv.flares <= 0 || st.flares >= st.maxFlares; });
+        $('eqCarry').textContent = inv.carrying
+            ? 'Vous portez un plot : G pour le poser au sol, ou « Ranger le plot ».'
+            : 'Plot posé : le reprendre avec l\'œil (« Ramasser le plot »). Un plot pris et pas remis n\'est plus dans le coffre.';
+    }
+
     function message(text, error) {
         const el = $('eqMessage');
         el.textContent = text || '';
@@ -79,9 +98,11 @@
         $('eqTag').title = t.label || '';
         $('eqSub').textContent = `${data.where === 'trunk' ? 'Coffre' : 'Portières avant'}${data.plate ? ` · ${data.plate}` : ''}`;
         $('eqFoot').textContent = `Se ferme à plus de ${data.closeDistance || 4} m du véhicule · Échap pour fermer`;
-        state = { slots: Array.isArray(data.slots) ? data.slots : [], rack: data.rack || {}, held: false, freemode: data.freemode !== false };
+        state = { slots: Array.isArray(data.slots) ? data.slots : [], rack: data.rack || {}, held: false, freemode: data.freemode !== false,
+            stock: data.stock || false, inv: state.inv };
         renderAssets(Array.isArray(data.assets) ? data.assets : []);
         renderRack();
+        renderStock();
         message('');
         box.classList.remove('hidden');
     }
@@ -96,6 +117,10 @@
         const retrieve = e.target.closest('[data-retrieve]');
         if (retrieve) return post('retrieve', { slot: retrieve.dataset.retrieve });
         if (e.target.closest('#eqStore')) return post('store');
+        if (e.target.closest('#eqConeTake')) return post('coneTake');
+        if (e.target.closest('#eqConeStore')) return post('coneStore');
+        const flares = e.target.closest('[data-flares]');
+        if (flares) return post('flares', { mode: flares.dataset.flares, all: !!flares.dataset.all });
         if (e.target.closest('#eqClose')) return post('close');
         return null;
     });
@@ -113,5 +138,7 @@
         else if (msg.action === 'assets') renderAssets(Array.isArray(data) ? data : []);
         else if (msg.action === 'held') { state.held = data || false; renderRack(); }
         else if (msg.action === 'message') message(data && data.text, data && data.error);
+        else if (msg.action === 'stock') { state.stock = data || false; renderStock(); }
+        else if (msg.action === 'inventory') { state.inv = Object.assign(state.inv, data || {}); renderStock(); }
     });
 })();

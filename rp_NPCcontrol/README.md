@@ -47,6 +47,10 @@ Renforcé :
     `DrivingStyle`), encore dès qu'ils se remettent à fuir ;
   - les **piétons** à moins de `CalmRange` m (40) qui fuient ou **veulent se battre** avec un joueur (le conducteur
     qu'on vient de sortir de sa voiture, celui qu'on a klaxonné…) se **calment** et reprennent leur promenade.
+  - le **PNJ mis en joue** (celui que le joueur vise) est traité **en premier**, à chaque passage : le script en
+    demande le contrôle s'il ne l'a pas, le recalme et, s'il fuit, le remet sur sa route ou sa promenade.
+- **Ni plongeon ni recroquevillement** : les PNJ ne se jettent plus au sol et ne se cachent plus derrière un abri
+  quand on les vise.
 
 ### Densité des PNJ (`Density`)
 

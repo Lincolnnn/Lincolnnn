@@ -8,6 +8,8 @@
         retirer de sa tenue ; en les retirant, ce qu'il portait avant revient.
       - Armes longues : "Ranger l'arme longue" range l'arme TENUE EN MAIN dans son emplacement (fusil à pompe /
         fusil d'assaut) avec ses accessoires et teintes ; "Sortir" la rend à l'identique.
+      - Coffre (inventaire, par plaque) : plots de circulation (pris : PORTÉS dans les mains, G les pose au sol, l'œil
+        les ramasse, "Ranger le plot" les remet dans un coffre) et fusées de détresse (prendre / ranger).
     Performance : à pied et en service, une recherche toutes les 500 ms (~0.01 ms) ; à chaque image
     seulement près d'une portière avant / du coffre (proposition) ou menu ouvert ; rien en véhicule.
 ]]
@@ -333,6 +335,7 @@ local function closeMenu()
 end
 
 local DISABLED = { 1, 2, 24, 25, 37, 44, 45, 140, 141, 142, 143, 199, 200, 257, 263, 264, 322, 12, 13, 14, 15, 16, 17, 106 }
+local sendInventory -- (plus bas : coffre) plot porté, fusées sur soi, envoyés au menu quand ils changent
 
 local function menuLoop()
     CreateThread(function()
@@ -350,6 +353,7 @@ local function menuLoop()
                     closeMenu()
                 else
                     sendHeld()
+                    if sendInventory then sendInventory() end
                 end
             end
             Wait(0)
@@ -378,10 +382,12 @@ local function openMenu(access)
             assets = (function() setAssets(res.assets) return assetsView() end)(),
             freemode = gender(PlayerPedId()) ~= nil,
             slots = res.rack and slotsView() or {}, rack = res.rack or {},
+            stock = res.stock or false,
             closeDistance = Config.CloseDistance or 4.0,
         } })
         lastHeld = nil
         sendHeld()
+        if sendInventory then sendInventory(true) end
         menuLoop()
     end)
 end
@@ -469,6 +475,208 @@ RegisterNUICallback('close', function(_, cb)
 end)
 
 -- =========================================================================
+-- COFFRE COMME UN INVENTAIRE : plots de circulation (portés, posés, ramassés) et fusées de détresse
+-- Performance : boucle à chaque image seulement pendant qu'un plot est porté (aide, touches) ; aucune sinon.
+-- =========================================================================
+local S = Config.Stock or {}
+local SC = S.Cones or {}
+local FLARE = GetHashKey(S.Flares and S.Flares.Weapon or 'WEAPON_FLARE')
+local CONE = GetHashKey(SC.Model or 'prop_roadcone02a')
+local UNARMED = GetHashKey('WEAPON_UNARMED')
+local MAX_FLARES_HELD = 25 -- fusées qu'un joueur peut avoir sur lui (jeu)
+local PICK_ANIM = { 'pickup_object', 'pickup_low' }
+local carried = nil       -- plot porté : { prop }
+local placingCone = false
+local lastInventory = nil
+
+local function flaresHeld(ped)
+    return HasPedGotWeapon(ped, FLARE, false) and GetAmmoInPedWeapon(ped, FLARE) or 0
+end
+
+sendInventory = function(force)
+    if not open then return end
+    local ped = PlayerPedId()
+    local key = ('%s:%d'):format(carried and 1 or 0, flaresHeld(ped))
+    if key == lastInventory and not force then return end
+    lastInventory = key
+    SendNUIMessage({ action = 'inventory', data = { carrying = carried ~= nil, flares = flaresHeld(ped), maxHeld = MAX_FLARES_HELD } })
+end
+
+local function loadAnim(dict)
+    RequestAnimDict(dict)
+    local timeout = GetGameTimer() + 1000
+    while not HasAnimDictLoaded(dict) and GetGameTimer() < timeout do Wait(10) end
+end
+
+local function playPickup()
+    loadAnim(PICK_ANIM[1])
+    TaskPlayAnim(PlayerPedId(), PICK_ANIM[1], PICK_ANIM[2], 8.0, -8.0, 900, 0, 0.0, false, false, false)
+end
+
+local function playCarry(ped)
+    local anim = SC.Carry and SC.Carry.Anim
+    if not anim then return end
+    loadAnim(anim[1])
+    TaskPlayAnim(ped, anim[1], anim[2], 8.0, -8.0, -1, 49, 0.0, false, false, false)
+end
+
+local function stopCarry()
+    if not carried then return end
+    local ped = PlayerPedId()
+    if DoesEntityExist(carried.prop) then
+        DetachEntity(carried.prop, true, true)
+        DeleteEntity(carried.prop)
+    end
+    local anim = SC.Carry and SC.Carry.Anim
+    if anim then StopAnimTask(ped, anim[1], anim[2], 1.0) end
+    carried = nil
+    LocalPlayer.state:set('rpCarryingCone', false, false)
+    if sendInventory then sendInventory() end
+end
+
+--- Plot porté posé au sol, debout, devant le joueur (créé par le serveur, visible par tous)
+local function placeCone(atFeet)
+    if not carried or placingCone then return end
+    local ped = PlayerPedId()
+    if not atFeet and (IsPauseMenuActive() or IsPedInAnyVehicle(ped, true)) then return end
+    placingCone = true
+    SetTimeout(2000, function() placingCone = false end)
+    local spot = GetOffsetFromEntityInWorldCoords(ped, 0.0, atFeet and 0.3 or (SC.PlaceDistance or 0.8), 0.0)
+    local found, ground = GetGroundZFor_3dCoord(spot.x, spot.y, spot.z + 1.0, false)
+    if not found then ground = GetEntityCoords(ped).z - 0.98 end
+    local min = GetModelDimensions(CONE)
+    TriggerServerEvent('rp_equipment:cone:place', { x = spot.x, y = spot.y, z = ground - min.z, heading = GetEntityHeading(ped) })
+end
+
+local function carryLoop()
+    CreateThread(function()
+        local key = ('~INPUT_%X~'):format((GetHashKey('rp_cone_place') | 0x80000000) & 0xFFFFFFFF)
+        local text = ('%s Poser le plot~n~Coffre d\'un véhicule de police : le ranger'):format(key)
+        while carried do
+            local ped = PlayerPedId()
+            if IsEntityDead(ped) then
+                placeCone(true) -- mort : le plot tombe à ses pieds
+            else
+                -- Plot dans les mains : ni monter dans un véhicule, ni frapper, ni viser, ni sortir une arme
+                for _, c in ipairs({ 23, 24, 25, 37, 140, 141, 142, 257 }) do DisableControlAction(0, c, true) end
+                if GetSelectedPedWeapon(ped) ~= UNARMED then SetCurrentPedWeapon(ped, UNARMED, true) end
+                local anim = SC.Carry and SC.Carry.Anim
+                if anim and not IsEntityPlayingAnim(ped, anim[1], anim[2], 3) and not IsPedRagdoll(ped) then playCarry(ped) end
+                if not open and not IsPauseMenuActive() then
+                    BeginTextCommandDisplayHelp('STRING')
+                    AddTextComponentSubstringPlayerName(text)
+                    EndTextCommandDisplayHelp(0, false, false, -1)
+                end
+            end
+            Wait(0)
+        end
+    end)
+end
+
+local function startCarry()
+    if carried then return end
+    local ped = PlayerPedId()
+    RequestModel(CONE)
+    local timeout = GetGameTimer() + 2000
+    while not HasModelLoaded(CONE) and GetGameTimer() < timeout do Wait(10) end
+    SetCurrentPedWeapon(ped, UNARMED, true)
+    local pos = GetEntityCoords(ped)
+    local prop = CreateObject(CONE, pos.x, pos.y, pos.z + 0.5, true, true, false)
+    SetModelAsNoLongerNeeded(CONE)
+    local c = SC.Carry or {}
+    local o = c.Offset or { 0.0, -0.05, -0.15, 0.0, 0.0, 0.0 }
+    AttachEntityToEntity(prop, ped, GetPedBoneIndex(ped, c.Bone or 28422), o[1], o[2], o[3], o[4], o[5], o[6], true, true, false, true, 1, true)
+    carried = { prop = prop }
+    LocalPlayer.state:set('rpCarryingCone', true, false) -- (local) la touche G d'autres scripts ne réagit pas
+    playCarry(ped)
+    carryLoop()
+    if sendInventory then sendInventory() end
+end
+
+RegisterCommand('rp_cone_place', function() placeCone(false) end, false)
+RegisterKeyMapping('rp_cone_place', 'Plot de circulation : poser au sol (plot porté)', 'keyboard', S.PlaceKey or 'G')
+
+-- Le serveur a posé le plot : plus dans les mains
+RegisterNetEvent('rp_equipment:cone:placed', function()
+    placingCone = false
+    stopCarry()
+    playPickup()
+end)
+
+-- Plot ramassé avec l'œil (rp_interact) : porté
+RegisterNetEvent('rp_equipment:cone:carry', function()
+    playPickup()
+    Wait(500)
+    startCarry()
+end)
+
+RegisterNetEvent('rp_equipment:notify', notify)
+
+-- Coffre changé (par lui ou un collègue) : menu ouvert sur ce véhicule mis à jour
+RegisterNetEvent('rp_equipment:stock', function(plate, stock)
+    if open and open.plate == plate then SendNUIMessage({ action = 'stock', data = stock }) end
+end)
+
+local function stockResult(res, text)
+    if not res.ok then return SendNUIMessage({ action = 'message', data = { text = res.error, error = true } }) end
+    if res.stock then SendNUIMessage({ action = 'stock', data = res.stock }) end
+    if text then SendNUIMessage({ action = 'message', data = { text = text } }) end
+    return true
+end
+
+RegisterNUICallback('coneTake', function(_, cb)
+    cb({ ok = true })
+    if not open then return end
+    if carried then return SendNUIMessage({ action = 'message', data = { text = 'Vous portez déjà un plot.', error = true } }) end
+    request('coneTake', context(), function(res)
+        if stockResult(res, 'Plot pris : G pour le poser au sol.') then startCarry() end
+    end)
+end)
+
+RegisterNUICallback('coneStore', function(_, cb)
+    cb({ ok = true })
+    if not open then return end
+    if not carried then return SendNUIMessage({ action = 'message', data = { text = 'Vous ne portez pas de plot.', error = true } }) end
+    request('coneStore', context(), function(res)
+        if stockResult(res, 'Plot rangé dans le coffre.') then stopCarry() end
+    end)
+end)
+
+-- Fusées : { mode = 'take' | 'store', all = true | false }
+RegisterNUICallback('flares', function(data, cb)
+    cb({ ok = true })
+    if not open or type(data) ~= 'table' then return end
+    local ped = PlayerPedId()
+    local held = flaresHeld(ped)
+    local mode = data.mode == 'take' and 'take' or 'store'
+    local count
+    if mode == 'take' then
+        count = data.all and (MAX_FLARES_HELD - held) or 1
+        if held >= MAX_FLARES_HELD then
+            return SendNUIMessage({ action = 'message', data = { text = ('Vous avez déjà %d fusées sur vous.'):format(MAX_FLARES_HELD), error = true } })
+        end
+    else
+        count = data.all and held or 1
+        if held <= 0 then return SendNUIMessage({ action = 'message', data = { text = 'Vous n\'avez pas de fusée sur vous.', error = true } }) end
+    end
+    local payload = context()
+    payload.mode, payload.count = mode, count
+    request('flares', payload, function(res)
+        if not stockResult(res) then return end
+        local p = PlayerPedId()
+        local now = flaresHeld(p)
+        if res.mode == 'take' then
+            if HasPedGotWeapon(p, FLARE, false) then AddAmmoToPed(p, FLARE, res.count) else GiveWeaponToPed(p, FLARE, res.count, false, false) end
+            SendNUIMessage({ action = 'message', data = { text = ('%d fusée%s prise%s.'):format(res.count, res.count > 1 and 's' or '', res.count > 1 and 's' or '') } })
+        else
+            if now - res.count <= 0 then RemoveWeaponFromPed(p, FLARE) else SetPedAmmo(p, FLARE, now - res.count) end
+            SendNUIMessage({ action = 'message', data = { text = ('%d fusée%s rangée%s.'):format(res.count, res.count > 1 and 's' or '', res.count > 1 and 's' or '') } })
+        end
+        sendInventory(true)
+    end)
+end)
+
+-- =========================================================================
 -- TOUCHE ET PROPOSITION
 -- =========================================================================
 --- Une action d'essence est proposée sur la même touche (pistolet de pompe / jerrican à la trappe, rp_vehiclecontrol) :
@@ -522,4 +730,5 @@ end)
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= RESOURCE then return end
     if open then closeMenu() end
+    if carried and DoesEntityExist(carried.prop) then DeleteEntity(carried.prop) end
 end)

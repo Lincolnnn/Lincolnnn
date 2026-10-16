@@ -30,6 +30,38 @@
             <div class="eq-hint" id="eqHeld"></div>
         </section>
 
+        <!-- Coffre comme un inventaire : ce qui est pris n'y est plus, ce qui est rangé y revient -->
+        <section class="eq-section hidden" id="eqStockSection">
+            <div class="eq-legend">Coffre</div>
+            <div class="eq-stock">
+                <div class="eq-stock-row">
+                    <div class="eq-stock-info">
+                        <div class="eq-stock-name">Plots de circulation</div>
+                        <div class="eq-stock-count" id="eqCones"></div>
+                        <div class="eq-stock-bar"><span id="eqConesBar"></span></div>
+                    </div>
+                    <div class="eq-stock-actions">
+                        <button class="eq-btn eq-primary" id="eqConeTake">Prendre un plot</button>
+                        <button class="eq-btn" id="eqConeStore">Ranger le plot</button>
+                    </div>
+                </div>
+                <div class="eq-stock-row">
+                    <div class="eq-stock-info">
+                        <div class="eq-stock-name">Fusées de détresse</div>
+                        <div class="eq-stock-count" id="eqFlares"></div>
+                        <div class="eq-stock-held" id="eqFlaresHeld"></div>
+                    </div>
+                    <div class="eq-stock-actions eq-stock-grid">
+                        <button class="eq-btn eq-primary" data-flares="take">Prendre 1</button>
+                        <button class="eq-btn" data-flares="take" data-all="1">Prendre tout</button>
+                        <button class="eq-btn" data-flares="store">Ranger 1</button>
+                        <button class="eq-btn" data-flares="store" data-all="1">Tout ranger</button>
+                    </div>
+                </div>
+            </div>
+            <div class="eq-hint" id="eqCarry"></div>
+        </section>
+
         <div class="eq-message" id="eqMessage"></div>
         <footer class="eq-foot" id="eqFoot"></footer>
     </div>

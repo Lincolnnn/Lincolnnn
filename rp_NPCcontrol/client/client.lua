@@ -113,6 +113,8 @@ local function calm(ped)
     SetPedCombatAttributes(ped, 58, true)      -- ne fuit pas un combat
     SetPedCombatAttributes(ped, 5, false)      -- ne se bat pas (même contre quelqu'un d'armé)
     SetPedCombatAttributes(ped, 46, false)     -- ne cherche jamais le combat (véhicule volé, klaxon, bousculade)
+    SetPedCanEvasiveDive(ped, false)           -- ne plonge pas pour esquiver
+    SetPedCanCowerInCover(ped, false)          -- ne se recroqueville pas
     if Config.NoPerception ~= false then
         -- Ne voit plus les morts / les armes et n'entend plus les tirs / klaxons : rien qui puisse lui faire peur
         SetPedSeeingRange(ped, Config.SeeingRange or 0.0)
@@ -155,10 +157,36 @@ local function calmOnFoot(ped)
     SetPedKeepTask(ped, true)
 end
 
+local WANDER = GetHashKey('SCRIPT_TASK_WANDER_STANDARD')
+local DRIVE_WANDER = GetHashKey('SCRIPT_TASK_VEHICLE_DRIVE_WANDER')
+
+--- PNJ du jeu MIS EN JOUE par le joueur : traité en priorité, toutes les 250 ms tant qu'il est visé. S'il est contrôlé
+--- par un autre joueur, ce client en demande le contrôle (pour pouvoir le calmer lui-même). Il reste calme et
+--- continue sa route (sans être relancé sans cesse : seulement s'il ne marche / ne roule plus normalement).
+local function calmAimed()
+    local found, ped = GetEntityPlayerIsFreeAimingAt(PlayerId())
+    if not found or not ped or ped == 0 or not DoesEntityExist(ped) or GetEntityType(ped) ~= 1 then return end
+    if IsPedAPlayer(ped) or MISSION[GetEntityPopulationType(ped)] or IsPedDeadOrDying(ped, true) then return end
+    if not controlled(ped) then
+        NetworkRequestControlOfEntity(ped)
+        return
+    end
+    calm(ped)
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle ~= 0 then
+        if GetPedInVehicleSeat(vehicle, -1) == ped and GetScriptTaskStatus(ped, DRIVE_WANDER) == 7 then
+            driveCalmly(ped, vehicle)
+        end
+    elseif not IsPedRagdoll(ped) and GetScriptTaskStatus(ped, WANDER) == 7 then
+        calmOnFoot(ped)
+    end
+end
+
 local function calmDrivers()
     local me = PlayerPedId()
     local pos = GetEntityCoords(me)
     local now = GetGameTimer()
+    calmAimed()
     -- À pied : plus de fuite ni de bagarre avec les joueurs
     for _, ped in ipairs(GetGamePool('CPed')) do
         if not IsPedAPlayer(ped) and not IsPedInAnyVehicle(ped, true) and not IsPedDeadOrDying(ped, true)

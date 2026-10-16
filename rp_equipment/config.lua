@@ -69,4 +69,27 @@ EquipConfig = {
         -- Noms affichés (armes du jeu déjà connues ; ajoutez vos armes addon : ['WEAPON_MONFUSIL'] = 'Mon fusil')
         Names = {},
     },
+
+    -- ---------------------------------------------------------------------
+    -- COFFRE COMME UN INVENTAIRE (par plaque, SaveFile : gardé au redémarrage) : ce qui est pris n'y est plus,
+    -- ce qui est rangé y revient.
+    --   - Plots de circulation (bandes blanches) : Default au départ dans chaque coffre, Max au maximum. Pris : le
+    --     policier le PORTE ; touche PlaceKey (G) : posé au sol ; l'œil (rp_interact) : "Ramasser le plot" ; menu du
+    --     coffre : "Ranger le plot" (n'importe quel coffre, dans la limite).
+    --   - Fusées de détresse (WEAPON_FLARE, rp_flares) : rangées / prises comme les armes longues.
+    -- ---------------------------------------------------------------------
+    Stock = {
+        Enabled = true,
+        Where = 'trunk',          -- 'trunk', 'front' ou 'both'
+        SaveFile = 'data/stock.json',
+        Cones = {
+            Default = 6, Max = 10,
+            Model = 'prop_roadcone02a',
+            PlaceDistance = 0.8,  -- m devant le joueur
+            -- Plot porté : os de la main droite, décalage x y z et rotation, animation (porter un carton)
+            Carry = { Bone = 28422, Offset = { 0.0, -0.05, -0.15, 0.0, 0.0, 0.0 }, Anim = { 'anim@heists@box_carry@', 'idle' } },
+        },
+        Flares = { Default = 0, Max = 20, Weapon = 'WEAPON_FLARE' },
+        PlaceKey = 'G',
+    },
 }
