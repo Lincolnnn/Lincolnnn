@@ -30,9 +30,8 @@ serveur à chaque action. `PoliceOnly = false` pour l'ouvrir à tout le monde.
 - **Équipement** : les pièces EUP de la **catégorie du véhicule** (voir ci-dessous), à **mettre** et **retirer** de sa
   tenue. Une pièce portée est cochée (bouton « Retirer »). En la retirant, ce que le policier portait avant revient.
   Seules les pièces de son personnage (homme / femme) sont proposées.
-  **Objets** (bouton « Prendre » / « Ranger ») : par défaut, un **jerrican d'essence** dans **tous les véhicules de
-  police** (APD, GSP, FCSO et véhicules de police sans service) : plein, il remplit **2/5 d'un réservoir** (en main près
-  de la trappe à essence, arrière gauche : **E**, voir `rp_vehiclecontrol`).
+  **Objets** (bouton « Prendre » / « Ranger ») : armes du jeu ajoutées dans `equipment.json` (aucun par défaut ; le
+  **jerrican d'essence** est désormais dans le **coffre**, voir plus bas).
 
 ## Équipement EUP par catégorie : `equipment.json`
 
@@ -57,10 +56,10 @@ qu'elle change** :
 - Numéros `"modèle:texture"` comptés **à partir de 1**, comme le `/eup` (`Eup.OneBased`).
 - `Gender` : `Male` / `Female` (absent : les deux).
 - **Objet** (arme du jeu que le policier prend et range) : `"Weapon"` et `"Ammo"` au lieu des parties, ex.
-  `{ "Name": "Jerrican d'essence (2/5 d'un plein)", "Weapon": "WEAPON_PETROLCAN", "Ammo": 4500 }` (fourni dans chaque
-  catégorie).
-- Catégorie `"Police"` : véhicules de police qui ne sont dans aucune autre catégorie (râtelier + ses objets : le
-  jerrican par défaut).
+  `{ "Name": "Extincteur", "Weapon": "WEAPON_FIREEXTINGUISHER", "Ammo": 2000 }` (aucun par défaut : le jerrican est
+  dans le coffre).
+- Catégorie `"Police"` : véhicules de police qui ne sont dans aucune autre catégorie (râtelier, coffre, et les objets
+  que vous y ajoutez).
 
 Après une modification : tapez `rpequip_reload` dans la console serveur.
 
@@ -99,9 +98,9 @@ plaque). C'est le **même coffre pour tous** les policiers.
 **Plots de circulation** (cône orange à bandes blanches, `prop_roadcone02a`)
 - **7 plots d'origine** dans chaque véhicule de police (`Stock.Cones.Default`), **10 au maximum** (`Stock.Cones.Max`).
 - **`/restock`** (policier en service, assis dans le véhicule de police ou à 6 m de lui) : coffre rempli à **100 %** :
-  **10 / 10 plots** et **20 / 20 fusées**. Les **armes longues** ne sont pas touchées (à ranger soi-même).
+  **10 / 10 plots**, **20 / 20 fusées** et un **jerrican plein**. Les **armes longues** ne sont pas touchées (à ranger soi-même).
 - **Prendre** : le policier **choisit le nombre** avec **− / +** (de 1 à ce que le coffre contient et ce qu'il peut
-  encore porter, `Stock.Cones.MaxCarry` = 10), puis **« Prendre N plots »**. Il les **porte en pile dans les mains**.
+  encore porter : **5 plots au plus** à la fois, `Stock.Cones.MaxCarry`), puis **« Prendre N plots »**. Il les **porte en pile dans les mains**.
   Plots en main : pas d'arme, pas de coup, pas de visée, pas de montée en véhicule.
 - **Aide en haut à gauche** tant qu'il porte des plots : **« "G" pour poser un plot (N en mains), utiliser le target
   pour récupérer les plots posés. »** (la touche réellement choisie par le joueur). Le texte est envoyé au jeu en
@@ -114,7 +113,7 @@ plaque). C'est le **même coffre pour tous** les policiers.
   - **« Ramasser le plot »** : celui visé ;
   - **« Ramasser les plots autour »** : celui visé **et tous ceux posés autour** (`Stock.Cones.PickupRadius`, 8 m),
     **d'un coup** (« 3 plots ramassés (5 en main) »).
-  Ils s'ajoutent à ceux déjà portés (jusqu'à `MaxCarry`).
+  Ils s'ajoutent à ceux déjà portés (**5 au plus** : au-delà, le reste reste au sol).
 - **Ranger** : le bouton range **tout d'un coup** : **« Ranger les N plots »** s'il en porte plusieurs, **« Ranger le
   plot »** s'il n'en a qu'un. Dans le coffre de **n'importe quel** véhicule de police ; si le coffre ne peut pas tout
   prendre (10 max), il range ce qui rentre et garde le reste en main.
@@ -134,6 +133,13 @@ menu** (jamais ceux du décor).
 - Chaque joueur ne dirige que les PNJ que son jeu contrôle (réseau). Aucune boucle sans plot posé ; plot à plus de
   200 m (`Range`) : rien n'est fait.
 
+**Jerrican d'essence** (`WEAPON_PETROLCAN`, `Stock.Jerrycans`)
+- **Un jerrican plein** dans le coffre de **chaque véhicule de police** (1 / 1). **« Prendre »** : il est donné plein
+  (2/5 d'un réservoir avec `rp_vehiclecontrol` : en main près de la trappe, **E « Verser le jerrican »**).
+- **« Ranger »** : remis dans le coffre **avec l'essence qui lui reste** (le menu l'affiche : « 1 / 1 dans le coffre
+  (40 %) »). Un seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi.
+- **`/restock`** remet un jerrican **plein** dans le coffre.
+
 **Fusées de détresse** (`WEAPON_FLARE`, posées au sol avec `rp_flares`)
 - Rangeables **comme les armes longues** : **« Ranger 1 »** / **« Tout ranger »** (celles que le policier a sur lui) et
   **« Prendre 1 »** / **« Prendre tout »**. **20 au maximum** par coffre (`Stock.Flares.Max`), aucune d'origine (les
@@ -152,7 +158,7 @@ menu** (jamais ceux du décor).
 | `Types`, `InteractVehicles`, `ServiceTypes` | types de véhicules (catégories de rp_interact, modèles, classes) |
 | `EquipmentFile`, `Eup` | fichier de l'équipement EUP (`equipment.json`), numéros comptés à partir de 1 |
 | `OpenFrontDoor` | ouvrir la portière avant la plus proche pendant le menu |
-| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |
+| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` = 5 portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), jerrican (`Jerrycans` : 1 plein d'origine, 1 max, `Ammo` = plein), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |
 | `LongGuns` | râtelier : endroit (`Where`), types concernés, emplacements et groupes d'armes, munitions données (`GiveAmmo`), fichier de sauvegarde, accessoires et noms en plus |
 
 ## Performance

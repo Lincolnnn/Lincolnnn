@@ -200,20 +200,39 @@ function VC.launch(ped, opts)
         vx, vy, vz = opts.dir.x * hSpeed, opts.dir.y * hSpeed, hSpeed * lift
     end
 
-    -- Sorti du véhicule tout de suite (sinon le jeu le garde assis / debout), corps inerte autorisé
-    if GetVehiclePedIsIn(ped, false) ~= 0 then ClearPedTasksImmediately(ped) end
+    -- 1. Sorti du siège TOUT DE SUITE (téléporté hors du véhicule) : encore « assis », le personnage serait lancé
+    --    dans la pose assise ; le corps inerte (ragdoll) n'est possible qu'une fois hors du véhicule.
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle ~= 0 then
+        TaskLeaveVehicle(ped, vehicle, 16) -- 16 : sortie instantanée
+        ClearPedTasksImmediately(ped)
+    end
     SetPedCanRagdoll(ped, true)
+    SetPedRagdollOnCollision(ped, true)
     if opts.start then SetEntityCoords(ped, opts.start.x, opts.start.y, opts.start.z, false, false, false, false) end
-    SetPedToRagdoll(ped, 5000, 7000, 0, false, false, false)
+    -- 2. Corps inerte : chute libre (bras et jambes ballants) dans le sens de la projection
+    local h = math.sqrt(vx * vx + vy * vy)
+    local fx, fy = h > 0.01 and vx / h or 0.0, h > 0.01 and vy / h or 1.0
+    local function ragdoll()
+        SetPedToRagdollWithFall(ped, 5000, 7000, 1, fx, fy, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        SetPedToRagdoll(ped, 5000, 7000, 0, false, false, false)
+    end
+    ragdoll()
     SetEntityVelocity(ped, vx, vy, vz)
     if (opts.damage or 0) > 0 then SetEntityHealth(ped, math.max(GetEntityHealth(ped) - opts.damage, 102)) end
     CreateThread(function()
+        -- Image suivante : vraiment hors du siège -> corps inerte redonné, puis l'élan (sinon il vole assis).
+        Wait(0)
+        if DoesEntityExist(ped) and not IsEntityDead(ped) then
+            ragdoll()
+            SetEntityVelocity(ped, vx, vy, vz)
+        end
         -- Premières images : l'impulsion est réappliquée (le ragdoll du jeu peut la perdre en s'activant).
-        -- Pendant tout le vol : ragdoll maintenu (jamais debout en l'air). Aucune vitesse coupée ensuite.
+        -- Pendant tout le vol : ragdoll maintenu (jamais debout ni assis en l'air). Aucune vitesse coupée ensuite.
         local now = GetGameTimer()
         local pushUntil, flyUntil = now + (opts.pushTime or Config.PushTime), now + 4000
         while GetGameTimer() < flyUntil and DoesEntityExist(ped) and not IsEntityDead(ped) do
-            if not IsPedRagdoll(ped) then SetPedToRagdoll(ped, 4000, 6000, 0, false, false, false) end
+            if not IsPedRagdoll(ped) then ragdoll() end
             if GetGameTimer() < pushUntil then
                 SetEntityVelocity(ped, vx, vy, GetEntityVelocity(ped).z)
             elseif not IsPedFalling(ped) and #GetEntityVelocity(ped) < 1.5 then

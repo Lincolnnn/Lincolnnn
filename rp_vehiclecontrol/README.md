@@ -161,8 +161,8 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   - Position du pistolet dans la trappe : `Nozzle.InFlap` / `RotationOrder` ; réglage en jeu, pistolet dans une trappe :
     commande **`vc_nozzle x y z rx ry rz [ordre]`** (valeurs affichées dans la console F8, à recopier dans `config.lua`).
   - Tuyau trop court (7 m, `Nozzle.HoseLength`) ou véhicule qui part avec le pistolet : il retourne à la pompe.
-- **Jerrican** : rempli à la pompe (**G**, 3 s) ou **pris dans l'équipement d'un véhicule de police** (`rp_equipment`,
-  fourni par défaut pour tous les services). Plein, il remplit **2/5 d'un réservoir** (40 %, `JerrycanFuel`) ; en main
+- **Jerrican** : rempli à la pompe (**G**, 3 s) ou **pris dans le coffre d'un véhicule de police** (`rp_equipment` : un
+  jerrican plein d'origine dans chaque véhicule de police, à prendre et ranger). Plein, il remplit **2/5 d'un réservoir** (40 %, `JerrycanFuel`) ; en main
   près de la trappe (arrière gauche) : **E « Verser le jerrican »** (4 % par seconde, **E** pour arrêter).
 - Véhicule jamais vu : créé par un script (**n'importe lequel** : garage, menu de spawn, /car…) = **au hasard entre 35 et
   87 %** du plein (`SpawnedFuel`) ; véhicule de la circulation = 25 à 85 % (`AmbientFuel`).
@@ -228,7 +228,9 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   - **jamais en dessous de 60 MPH** (vitesse juste avant le choc) ;
   - **arrêt brutal** (de 60 MPH ou plus à **20 MPH ou moins**) : **70 %** de chances d'être éjecté ;
   - accident à 60 MPH ou plus **sans** chute aussi brutale : **45 %** de chances.
-  Le joueur est **projeté en ragdoll** (corps inerte, jamais debout en l'air) par le pare-brise, par-dessus le toit,
+  Le joueur est d'abord **sorti du siège** (instantanément), puis **projeté en ragdoll** : corps inerte en chute libre,
+  bras et jambes ballants (jamais assis ni debout en l'air), redonné l'image suivante une fois vraiment hors du
+  véhicule, et maintenu pendant tout le vol. Même chose pour les **motos**. Il part par le pare-brise, par-dessus le toit,
   **dans le sens de la course**. C'est la **vitesse du véhicule** qui donne l'élan : une **impulsion de départ**
   calculée pour une distance **idéale** de **20 m à 60 MPH** à **60 m vers 120 MPH** (jamais plus rapide que le
   véhicule). Ce n'est **pas une limite** : ensuite la physique du jeu décide (il peut rouler un peu plus loin, ou

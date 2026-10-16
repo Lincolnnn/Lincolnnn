@@ -262,7 +262,7 @@ local S = Config.Stock or {}
 local Stock = {}       -- [plaque] = { cones, flares }
 local carrying = {}    -- [joueur] = nombre de plots portés (pris dans un coffre ou ramassés au sol)
 local placedCones = {} -- [objet] = { x, y, z } : plots posés (publiés pour la déviation du trafic PNJ)
-local MAX_CARRY = math.max(1, math.floor(tonumber(S.Cones and S.Cones.MaxCarry) or 10))
+local MAX_CARRY = math.max(1, math.floor(tonumber(S.Cones and S.Cones.MaxCarry) or 5))
 
 local function carried(src) return carrying[src] or 0 end
 local function setCarried(src, n) carrying[src] = n > 0 and n or nil end
@@ -282,18 +282,32 @@ local function saveStock()
 end
 
 --- Contenu du coffre de cette plaque (contenu de départ si le coffre n'a jamais servi)
+local SJ = S.Jerrycans or {}
+local CAN_AMMO = SJ.Ammo or 4500
+
+--- Jerricans d'un coffre neuf (ou après /restock) : pleins
+local function fullCans(n)
+    local list = {}
+    for i = 1, n do list[i] = CAN_AMMO end
+    return list
+end
+
 local function stockOf(plate)
     local st = Stock[plate]
     if not st then
         st = { cones = S.Cones and S.Cones.Default or 0, flares = S.Flares and S.Flares.Default or 0 }
         Stock[plate] = st
     end
+    -- Jerricans : essence restante de chacun ; coffre enregistré avant leur arrivée : le jerrican plein d'origine
+    if type(st.jerrycans) ~= 'table' then st.jerrycans = fullCans(SJ.Default or 1) end
     return st
 end
 
 local function stockView(plate)
     local st = stockOf(plate)
-    return { cones = st.cones, flares = st.flares, maxCones = S.Cones and S.Cones.Max or 0, maxFlares = S.Flares and S.Flares.Max or 0 }
+    local last = st.jerrycans[#st.jerrycans]
+    return { cones = st.cones, flares = st.flares, maxCones = S.Cones and S.Cones.Max or 0, maxFlares = S.Flares and S.Flares.Max or 0,
+        jerrycans = #st.jerrycans, maxJerrycans = SJ.Max or 1, jerrycanFill = last and math.floor(last / CAN_AMMO * 100 + 0.5) or 0 }
 end
 
 local function stockAllowed(ctx)
@@ -324,8 +338,30 @@ function Handlers.restock(src, data)
     local st = stockOf(ctx.plate)
     st.cones = S.Cones and S.Cones.Max or 10
     st.flares = S.Flares and S.Flares.Max or 20
+    st.jerrycans = fullCans(SJ.Max or 1)
     stockChanged(ctx.plate)
     return { ok = true, plate = ctx.plate, stock = stockView(ctx.plate) }
+end
+
+--- Jerrican : { mode = 'take' | 'store', held (le joueur en a déjà un), ammo (essence de celui qu'il range) }
+function Handlers.jerrycan(src, data)
+    local ctx, err = context(src, data)
+    if not ctx then return { ok = false, error = err } end
+    if not stockAllowed(ctx) then return { ok = false, error = 'Pas de coffre ici.' } end
+    local st = stockOf(ctx.plate)
+    if data.mode == 'take' then
+        if data.held then return { ok = false, error = 'Vous avez déjà un jerrican.' } end
+        if #st.jerrycans == 0 then return { ok = false, error = 'Plus de jerrican dans ce coffre.' } end
+        local ammo = table.remove(st.jerrycans)
+        stockChanged(ctx.plate)
+        return { ok = true, mode = 'take', ammo = ammo, stock = stockView(ctx.plate) }
+    end
+    if not data.held then return { ok = false, error = 'Vous n\'avez pas de jerrican.' } end
+    if #st.jerrycans >= (SJ.Max or 1) then return { ok = false, error = 'Il y a déjà un jerrican dans ce coffre.' } end
+    local ammo = math.floor(math.max(0, math.min(tonumber(data.ammo) or 0, CAN_AMMO)))
+    st.jerrycans[#st.jerrycans + 1] = ammo
+    stockChanged(ctx.plate)
+    return { ok = true, mode = 'store', ammo = ammo, stock = stockView(ctx.plate) }
 end
 
 --- Prendre `count` plots dans le coffre (le joueur les porte, en plus de ceux qu'il a déjà, MaxCarry au plus)

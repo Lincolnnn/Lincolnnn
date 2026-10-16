@@ -44,9 +44,9 @@ EquipConfig = {
     -- Office" : la catégorie du véhicule dans rp_interact/data/vehicles.json, champ "Service"). Chaque pièce
     -- s'écrit comme une tenue du /eup ("Name", "Gender", et seulement les parties qu'elle change, ex.
     -- "Armor": "13:1") : le policier la met et la retire de sa tenue depuis le menu.
-    -- OBJETS : une entrée avec "Weapon" (et "Ammo") est un objet que le policier PREND et RANGE, ex. le jerrican
-    -- d'essence (fourni dans toutes les catégories de police : { "Name", "Weapon": "WEAPON_PETROLCAN", "Ammo": 4500 },
-    -- plein = 2/5 d'un réservoir avec rp_vehiclecontrol). Catégorie "Police" : véhicules de police sans service.
+    -- OBJETS : une entrée avec "Weapon" (et "Ammo") est un objet que le policier PREND et RANGE (sans limite). Le
+    -- jerrican d'essence n'est plus ici : il est dans le COFFRE (Stock.Jerrycans, un par véhicule, à prendre et ranger).
+    -- Catégorie "Police" : véhicules de police sans service.
     -- ---------------------------------------------------------------------
     EquipmentFile = 'equipment.json',
     Eup = { OneBased = true },    -- numéros comptés à partir de 1, comme les tenues du /eup (rp_interact)
@@ -86,7 +86,7 @@ EquipConfig = {
         SaveFile = 'data/stock.json',
         Cones = {
             Default = 7, Max = 10,  -- 7 / 10 dans chaque véhicule de police jamais utilisé
-            MaxCarry = 10,        -- plots qu'un policier porte en même temps (il choisit combien il en prend)
+            MaxCarry = 5,         -- plots qu'un policier porte en même temps, 5 au plus (il choisit combien il en prend)
             PickupRadius = 8.0,   -- œil « Ramasser les plots autour » : plots à moins de 8 m du plot visé
             Model = 'prop_roadcone02a',
             PlaceDistance = 0.8,  -- m devant le joueur
@@ -113,6 +113,9 @@ EquipConfig = {
             },
         },
         Flares = { Default = 0, Max = 20, Weapon = 'WEAPON_FLARE' },
+        -- Jerrican d'essence : PLEIN dans le coffre de chaque véhicule de police (Default), à prendre et ranger ; il garde
+        -- l'essence qui lui reste (plein = Ammo = 2/5 d'un réservoir avec rp_vehiclecontrol). /restock le remet plein.
+        Jerrycans = { Default = 1, Max = 1, Weapon = 'WEAPON_PETROLCAN', Ammo = 4500 },
         PlaceKey = 'G',
         RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots et fusées), sauf armes longues
         RestockDistance = 6.0,      -- m : véhicule de police le plus proche (ou celui où l'on est assis)

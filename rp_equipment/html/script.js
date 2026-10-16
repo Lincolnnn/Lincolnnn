@@ -3,7 +3,7 @@
     const $ = (id) => document.getElementById(id);
     const box = $('equip');
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_equipment';
-    let state = { slots: [], rack: {}, held: false, stock: false, inv: { carrying: 0, maxCarry: 10, flares: 0, maxHeld: 25 }, coneQty: 1 };
+    let state = { slots: [], rack: {}, held: false, stock: false, inv: { carrying: 0, maxCarry: 5, flares: 0, maxHeld: 25, jerrycan: false }, coneQty: 1 };
     let messageTimer = null;
 
     function post(name, data) {
@@ -74,7 +74,7 @@
         $('eqConesBar').style.width = `${st.maxCones ? Math.round(st.cones / st.maxCones * 100) : 0}%`;
         // Prendre : le nombre choisi (1 → ce que le coffre a et ce que le policier peut encore porter)
         const carrying = Number(inv.carrying) || 0;
-        const canTake = Math.max(0, Math.min(st.cones, (inv.maxCarry || 10) - carrying));
+        const canTake = Math.max(0, Math.min(st.cones, (inv.maxCarry || 5) - carrying));
         state.coneQty = Math.max(1, Math.min(state.coneQty || 1, canTake || 1));
         $('eqConeQty').textContent = state.coneQty;
         box.querySelector('[data-qty="-1"]').disabled = canTake <= 0 || state.coneQty <= 1;
@@ -84,6 +84,15 @@
         // Ranger : tous les plots portés d'un coup (un seul : « Ranger le plot »)
         $('eqConeStore').disabled = carrying <= 0 || st.cones >= st.maxCones;
         $('eqConeStore').textContent = carrying > 1 ? `Ranger les ${carrying} plots` : 'Ranger le plot';
+        // Jerrican : un par coffre (plein d'origine), rangé avec l'essence qui lui reste
+        const cans = Number(st.jerrycans) || 0;
+        const held = inv.jerrycan !== false && inv.jerrycan != null;
+        $('eqCans').textContent = cans
+            ? `${cans} / ${st.maxJerrycans || 1} dans le coffre${st.jerrycanFill >= 100 ? ' (plein)' : ` (${st.jerrycanFill} %)`}`
+            : `0 / ${st.maxJerrycans || 1} dans le coffre`;
+        $('eqCanHeld').textContent = held ? `Sur vous : 1 (${inv.jerrycan} %)` : 'Sur vous : aucun';
+        $('eqCanTake').disabled = cans <= 0 || held;
+        $('eqCanStore').disabled = !held || cans >= (st.maxJerrycans || 1);
         $('eqFlares').textContent = `${st.flares} / ${st.maxFlares} dans le coffre`;
         $('eqFlaresHeld').textContent = `Sur vous : ${inv.flares}`;
         box.querySelectorAll('[data-flares="take"]').forEach((b) => { b.disabled = st.flares <= 0 || inv.flares >= inv.maxHeld; });
@@ -131,6 +140,8 @@
         if (qty) { state.coneQty = (state.coneQty || 1) + Number(qty.dataset.qty); renderStock(); return null; }
         if (e.target.closest('#eqConeTake')) return post('coneTake', { count: state.coneQty || 1 });
         if (e.target.closest('#eqConeStore')) return post('coneStore');
+        if (e.target.closest('#eqCanTake')) return post('jerrycan', { mode: 'take' });
+        if (e.target.closest('#eqCanStore')) return post('jerrycan', { mode: 'store' });
         const flares = e.target.closest('[data-flares]');
         if (flares) return post('flares', { mode: flares.dataset.flares, all: !!flares.dataset.all });
         if (e.target.closest('#eqClose')) return post('close');

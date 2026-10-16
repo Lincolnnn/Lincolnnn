@@ -68,7 +68,7 @@ VCConfig = {
             'prop_gas_pump_1a', 'prop_gas_pump_1b', 'prop_gas_pump_1c', 'prop_gas_pump_1d',
             'prop_gas_pump_old2', 'prop_gas_pump_old3', 'prop_vintage_pump',
         },
-        -- JERRICAN (WEAPON_PETROLCAN) : rempli à la pompe (touche G, JerrycanFillTime ms) ou pris dans l'équipement d'un
+        -- JERRICAN (WEAPON_PETROLCAN) : rempli à la pompe (touche G, JerrycanFillTime ms) ou pris dans le coffre d'un
         -- véhicule de police (rp_equipment). Plein, il remplit JerrycanFuel % d'un réservoir (2/5), versé à
         -- JerrycanPerSecond % par seconde (en main près de la trappe : E).
         Jerrycan = true,

@@ -511,21 +511,32 @@ local MAX_FLARES_HELD = 25 -- fusées qu'un joueur peut avoir sur lui (jeu)
 local PICK_ANIM = { 'pickup_object', 'pickup_low' }
 local carried = nil       -- plots portés : { count, props = { objet, ... } } (pile de plots dans les mains)
 local placingCone = false
-local MAX_CARRY = math.max(1, math.floor(tonumber(SC.MaxCarry) or 10))
+local MAX_CARRY = math.max(1, math.floor(tonumber(SC.MaxCarry) or 5))
 local lastInventory = nil
 
 local function flaresHeld(ped)
     return HasPedGotWeapon(ped, FLARE, false) and GetAmmoInPedWeapon(ped, FLARE) or 0
 end
 
+local PETROLCAN = GetHashKey(S.Jerrycans and S.Jerrycans.Weapon or 'WEAPON_PETROLCAN')
+local CAN_AMMO = S.Jerrycans and S.Jerrycans.Ammo or 4500
+
+--- Jerrican sur soi : essence restante (en % d'un jerrican plein), false s'il n'en a pas
+local function canHeld(ped)
+    if not HasPedGotWeapon(ped, PETROLCAN, false) then return false end
+    return math.floor(GetAmmoInPedWeapon(ped, PETROLCAN) / CAN_AMMO * 100 + 0.5)
+end
+
 sendInventory = function(force)
     if not open then return end
     local ped = PlayerPedId()
     local cones = carried and carried.count or 0
-    local key = ('%d:%d'):format(cones, flaresHeld(ped))
+    local can = canHeld(ped)
+    local key = ('%d:%d:%s'):format(cones, flaresHeld(ped), tostring(can))
     if key == lastInventory and not force then return end
     lastInventory = key
-    SendNUIMessage({ action = 'inventory', data = { carrying = cones, maxCarry = MAX_CARRY, flares = flaresHeld(ped), maxHeld = MAX_FLARES_HELD } })
+    SendNUIMessage({ action = 'inventory', data = { carrying = cones, maxCarry = MAX_CARRY, flares = flaresHeld(ped),
+        maxHeld = MAX_FLARES_HELD, jerrycan = can } })
 end
 
 local function loadAnim(dict)
@@ -789,6 +800,30 @@ RegisterNUICallback('coneStore', function(_, cb)
         local text = ('%s rangé%s dans le coffre.'):format(plural(res.count, 'plot'), res.count > 1 and 's' or '')
         if (res.carrying or 0) > 0 then text = text .. (' Coffre plein : %d encore en main.'):format(res.carrying) end
         SendNUIMessage({ action = 'message', data = { text = text } })
+    end)
+end)
+
+-- Jerrican : { mode = 'take' | 'store' } ; rangé avec l'essence qui lui reste
+RegisterNUICallback('jerrycan', function(data, cb)
+    cb({ ok = true })
+    if not open or type(data) ~= 'table' then return end
+    local ped = PlayerPedId()
+    local payload = context()
+    payload.mode = data.mode == 'take' and 'take' or 'store'
+    payload.held = HasPedGotWeapon(ped, PETROLCAN, false)
+    payload.ammo = payload.held and GetAmmoInPedWeapon(ped, PETROLCAN) or 0
+    request('jerrycan', payload, function(res)
+        if not stockResult(res) then return end
+        local p = PlayerPedId()
+        if res.mode == 'take' then
+            GiveWeaponToPed(p, PETROLCAN, res.ammo, false, true)
+            SetPedAmmo(p, PETROLCAN, res.ammo)
+            SendNUIMessage({ action = 'message', data = { text = ('Jerrican pris (%d %%).'):format(math.floor(res.ammo / CAN_AMMO * 100 + 0.5)) } })
+        else
+            RemoveWeaponFromPed(p, PETROLCAN)
+            SendNUIMessage({ action = 'message', data = { text = 'Jerrican rangé dans le coffre.' } })
+        end
+        sendInventory(true)
     end)
 end)
 

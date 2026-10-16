@@ -13,7 +13,7 @@
          en main, loin d'une trappe : E le range aussi (vc_nozzle : réglage en jeu de sa position dans la trappe).
       - Tuyau trop court (HoseLength m) ou véhicule qui part avec le pistolet : le pistolet retourne à la pompe.
       - Pistolet en main : impossible de monter dans un véhicule, de frapper ou de viser.
-    JERRICAN (WEAPON_PETROLCAN) : rempli à la pompe (G) ou pris dans l'équipement d'un véhicule de police
+    JERRICAN (WEAPON_PETROLCAN) : rempli à la pompe (G) ou pris dans le coffre d'un véhicule de police
       (rp_equipment). Plein, il remplit JerrycanFuel % d'un réservoir (2/5) ; en main près de la trappe : E "Verser".
     Performance : à pied, recherche d'une pompe toutes les 500 ms (boucle de main.lua) ; boucle à chaque image
     uniquement près d'une pompe, pistolet sorti ou jerrican en main. Tuyaux des autres joueurs : aucun boucle
