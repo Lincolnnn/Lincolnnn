@@ -76,6 +76,7 @@ InteractConfig = {
             { Label = 'Ramasser le plot', Icon = 'hand', Event = 'rp_equipment:cone:pickup' },
             { Label = 'Ramasser les plots autour', Icon = 'hand', Event = 'rp_equipment:cone:pickupAll' },
         } },
+        rpDroppedWeapon = { Name = 'Arme au sol', Label = 'Ramasser l\'arme', Icon = 'hand', Event = 'rp_scene:weapon:pickup', Distance = 2.0 }, -- rp_RoleplayZone
     },
 
     Props = {

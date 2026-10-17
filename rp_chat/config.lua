@@ -82,6 +82,9 @@ ChatConfig = {
                 { "K", "MDC : unités, appels, recherches, BOLO, rapports" }, { "Y / N", "accepter / refuser un appel" },
                 { "F1", "Menu Interaction : civil, police, équipements, voiture" },
                 { "/trafic", "police : fermer une voie / un sens, ralentir, arrêter le trafic" },
+                { "Verr. Maj", "police : œil d'aigle (ce qui est à fouiller, zone proche)" },
+                { "/scene", "civil : zone de recherche, lieu ou objet à fouiller" },
+                { "/lacherarme", "lâcher au sol l'arme en main" },
                 { "Alt", "œil (maintenir) : inspecter, fouiller, portières, s'asseoir…" },
             } },
             { title = "Véhicule", items = {
