@@ -190,8 +190,7 @@ function Handlers.list(src, data)
     return { ok = true, allowed = allowed, reason = reason, admin = isAdmin(src), scenes = menuList(src),
         durations = Config.Durations, defaultDuration = Config.DefaultDuration,
         zone = Config.Zone, perimeter = Config.Perimeter,
-        titleLength = Config.TitleLength, textLength = Config.TextLength,
-        weapons = Config.Weapons and Config.Weapons.Enabled ~= false }
+        titleLength = Config.TitleLength, textLength = Config.TextLength }
 end
 
 --- Champs communs à la création et à la modification : titre, texte, durée
@@ -352,10 +351,19 @@ local function removeWeapon(object)
     end
 end
 
--- Le joueur lâche l'arme qu'il a en main : { weapon, model, ammo, x, y, z, rx, ry, rz }
+--- Lâcher son arme : mode civil (rp_interact) et hors unité du MDC (W.CivilOnly), ou admin
+local function canDrop(src, civil)
+    if W.CivilOnly == false or isAdmin(src) then return true end
+    if policeUnit(src) then return false end
+    return GetResourceState('rp_interact') ~= 'started' or civil == true
+end
+
+-- Le joueur lâche l'arme qu'il a en main : { mode = 'place' | 'throw', weapon, model, ammo, x, y, z, rx, ry, rz,
+-- velocity (jetée) } ; posée : figée au sol ; jetée : créée à sa main, l'élan est donné par son jeu (settled ensuite)
 RegisterNetEvent('rp_scene:weapon:drop', function(data)
     local src = source
-    if W.Enabled == false or type(data) ~= 'table' then return end
+    if W.Enabled == false or type(data) ~= 'table' or not canDrop(src, data.civil) then return end
+    local throw = data.mode == 'throw'
     local weapon = math.floor(num(data.weapon, -2147483648, 4294967295) or 0) & 0xFFFFFFFF
     local model = math.floor(num(data.model, -2147483648, 4294967295) or 0)
     local pos = point(data)
@@ -376,12 +384,23 @@ RegisterNetEvent('rp_scene:weapon:drop', function(data)
     while not DoesEntityExist(object) and GetGameTimer() < timeout do Wait(0) end
     if not DoesEntityExist(object) then return notify(src, 'Impossible de lâcher cette arme ici.') end
     SetEntityRotation(object, num(data.rx, -360, 360) or 0.0, num(data.ry, -360, 360) or 0.0, num(data.rz, -360, 360) or 0.0, 2, true)
-    FreezeEntityPosition(object, true)
-    local w = { id = nextWeapon, weapon = weapon, ammo = math.floor(num(data.ammo, 0, 9999) or 0), owner = src }
+    local w = { id = nextWeapon, weapon = weapon, ammo = math.floor(num(data.ammo, 0, 9999) or 0), owner = src, flying = throw }
     nextWeapon = nextWeapon + 1
     Weapons[object] = w
     Entity(object).state:set('rpDroppedWeapon', { id = w.id, weapon = weapon, at = os.time() }, true)
-    TriggerClientEvent('rp_scene:weapon:dropped', src, weapon) -- retirée de ses mains
+    local velocity
+    if throw then
+        local v = type(data.velocity) == 'table' and data.velocity or {}
+        local max = (W.ThrowSpeed or 7.5) + 1.0
+        velocity = { x = num(v.x, -max, max) or 0.0, y = num(v.y, -max, max) or 0.0, z = num(v.z, -2.0, (W.ThrowUp or 3.0) + 1.0) or 0.0 }
+        -- le joueur qui l'a jetée ne répond pas (déconnecté…) : figée là où elle est au bout de 6 s
+        SetTimeout(6000, function()
+            if Weapons[object] == w and w.flying then w.flying = false; FreezeEntityPosition(object, true) end
+        end)
+    else
+        FreezeEntityPosition(object, true)
+    end
+    TriggerClientEvent('rp_scene:weapon:dropped', src, weapon, NetworkGetNetworkIdFromEntity(object), throw and 'throw' or 'place', velocity)
     if (W.Expire or 0) > 0 then
         SetTimeout(W.Expire * 60000, function()
             if Weapons[object] == w then removeWeapon(object) end
@@ -389,7 +408,26 @@ RegisterNetEvent('rp_scene:weapon:drop', function(data)
     end
 end)
 
--- Ramassée (œil de rp_interact, ou E près de l'arme sans rp_interact) : le premier qui la prend
+-- Arme jetée retombée (jeu du joueur qui l'a jetée) : figée là, à plat sur le sol
+RegisterNetEvent('rp_scene:weapon:settled', function(netId, pos, rot)
+    local src = source
+    local object = NetworkGetEntityFromNetworkId(tonumber(netId) or -1)
+    local w = object and object ~= 0 and Weapons[object]
+    if not w or w.owner ~= src or not w.flying then return end
+    w.flying = false
+    pos = point(pos)
+    local here = pedPos(src)
+    if pos and here and dist(pos, here) <= (W.ThrowSpeed or 7.5) * 2.5 + 3.0 then
+        local c = GetEntityCoords(object)
+        if dist(pos, { x = c.x, y = c.y, z = c.z }) > 0.3 then SetEntityCoords(object, pos.x, pos.y, pos.z, false, false, false, false) end
+        if type(rot) == 'table' then
+            SetEntityRotation(object, num(rot.x, -360, 360) or 0.0, num(rot.y, -360, 360) or 0.0, num(rot.z, -360, 360) or 0.0, 2, true)
+        end
+    end
+    FreezeEntityPosition(object, true)
+end)
+
+-- Ramassée avec l'œil de rp_interact (seule façon de la récupérer) : le premier qui la prend
 RegisterNetEvent('rp_scene:weapon:pickup', function(netId)
     local src = source
     local object = NetworkGetEntityFromNetworkId(tonumber(netId) or -1)

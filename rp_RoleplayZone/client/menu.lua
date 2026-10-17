@@ -3,8 +3,8 @@
     --------------------------------------------------------------------------------------------------
     /scene (civils) : 1. le TYPE (zone de recherche, périmètre à fouiller, objet à fouiller) ; 2. la SÉLECTION autour
     de soi (selector.lua) ; 3. la DESCRIPTION (message de la zone / ce que le policier trouvera), la durée -> Créer.
-    Mes scènes : lieu, temps restant, fouilles ; Repérer (point GPS), Modifier, Supprimer. Bouton « Lâcher mon arme ».
-    /lacherarme : lâcher l'arme qu'on a en main. Aucune boucle : le menu se met à jour quand les scènes changent.
+    Mes scènes : lieu, temps restant, fouilles ; Repérer (point GPS), Modifier, Supprimer.
+    Aucune boucle : le menu se met à jour quand les scènes changent. (Lâcher son arme : weapon.lua.)
 ]]
 
 RZ = RZ or {}
@@ -44,7 +44,7 @@ local function openMenu(draft)
             defaultDuration = res.defaultDuration or Config.DefaultDuration,
             zone = res.zone or Config.Zone, perimeter = res.perimeter or Config.Perimeter,
             titleLength = res.titleLength or Config.TitleLength, textLength = res.textLength or Config.TextLength,
-            weapons = res.weapons ~= false, draft = draft,
+            draft = draft,
         } })
     end)
 end
@@ -60,8 +60,6 @@ if Config.Key and Config.Key ~= '' then
 end
 TriggerEvent('chat:addSuggestion', '/' .. (Config.Command or 'scene'), 'Civil : préparer une zone de recherche, un périmètre ou un objet à fouiller')
 
-RegisterCommand(Config.DropCommand or 'lacherarme', function() RZ.dropWeapon() end, false)
-TriggerEvent('chat:addSuggestion', '/' .. (Config.DropCommand or 'lacherarme'), 'Lâcher au sol l\'arme que vous avez en main')
 
 -- =========================================================================
 -- CALLBACKS NUI
@@ -141,12 +139,6 @@ RegisterNUICallback('locate', function(data, cb)
             return message('Point GPS placé sur la scène.')
         end
     end
-end)
-
-RegisterNUICallback('drop', function(_, cb)
-    cb({ ok = true })
-    closeMenu()
-    RZ.dropWeapon()
 end)
 
 AddEventHandler('onResourceStop', function(resource)

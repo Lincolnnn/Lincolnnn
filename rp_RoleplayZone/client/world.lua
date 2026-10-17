@@ -10,7 +10,6 @@
     - RIEN NE DISPARAÎT (Config.Protect) : autour de chaque scène, objets du décor, PNJ et véhicules stationnés
       marqués comme entités de mission (un « ClearArea » d'un autre script ne les retire plus) ; l'objet à fouiller
       est remis à sa place (copie fixe) s'il disparaît quand même.
-    - ARMES LÂCHÉES : retirées des mains du joueur ; ramassées avec l'œil de rp_interact (ou E sans rp_interact).
 
     Performance : aucune scène -> aucune boucle. Sinon une vérification toutes les 500 ms (distances) ; boucle à chaque
     image seulement à côté d'une fouille (aide « E »), ou pendant une fouille. Protection : toutes les 2 s, seulement
@@ -21,7 +20,6 @@ RZ = RZ or {}
 local Config = SceneConfig
 local SR = Config.Search or {}
 local PR = Config.Protect or {}
-local W = Config.Weapons or {}
 
 local running = false
 local insideZone = nil       -- id de la zone affichée
@@ -376,134 +374,6 @@ CreateThread(function()
     Wait(1000)
     TriggerServerEvent('rp_scene:hello')
     onScenes()
-end)
-
--- =========================================================================
--- ARMES LÂCHÉES
--- =========================================================================
-local BLACKLIST = {}
-for _, name in ipairs(W.Blacklist or {}) do BLACKLIST[GetHashKey(name)] = true end
-local dropping = false
-
-local function loadAnim(dict)
-    RequestAnimDict(dict)
-    local timeout = GetGameTimer() + 1000
-    while not HasAnimDictLoaded(dict) and GetGameTimer() < timeout do Wait(10) end
-end
-
---- Position et rotation pour que l'arme soit couchée sur le sol (son côté le plus fin à la verticale)
-local function lyingPlacement(model, x, y, ground, heading)
-    local min, max = GetModelDimensions(model)
-    local size = max - min
-    local rx, ry = 0.0, 0.0
-    if size.x <= size.y and size.x <= size.z then ry = 90.0 elseif size.y <= size.z then rx = 90.0 end
-    local probe = CreateObjectNoOffset(model, x, y, ground + 1.0, false, false, false)
-    SetEntityVisible(probe, false, false)
-    SetEntityCollision(probe, false, false)
-    FreezeEntityPosition(probe, true)
-    SetEntityRotation(probe, rx, ry, heading, 2, true)
-    local lowest = math.huge
-    for _, cx in ipairs({ min.x, max.x }) do
-        for _, cy in ipairs({ min.y, max.y }) do
-            for _, cz in ipairs({ min.z, max.z }) do
-                local w = GetOffsetFromEntityInWorldCoords(probe, cx, cy, cz)
-                if w.z < lowest then lowest = w.z end
-            end
-        end
-    end
-    local origin = GetEntityCoords(probe)
-    DeleteEntity(probe)
-    return vector3(origin.x, origin.y, origin.z + (ground + 0.01 - lowest)), rx, ry
-end
-
-function RZ.dropWeapon()
-    if W.Enabled == false or dropping then return end
-    local ped = PlayerPedId()
-    if IsPedInAnyVehicle(ped, true) or IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedSwimming(ped) then
-        return RZ.notify('Impossible de lâcher une arme maintenant.')
-    end
-    local weapon = GetSelectedPedWeapon(ped)
-    if not weapon or weapon == 0 or weapon == GetHashKey('WEAPON_UNARMED') or BLACKLIST[weapon] then
-        return RZ.notify('Prenez en main l\'arme à lâcher.')
-    end
-    local model = GetWeapontypeModel(weapon)
-    if not model or model == 0 or not IsModelInCdimage(model) then return RZ.notify('Cette arme ne peut pas être lâchée.') end
-    dropping = true
-    CreateThread(function()
-        RequestModel(model)
-        local timeout = GetGameTimer() + 3000
-        while not HasModelLoaded(model) and GetGameTimer() < timeout do Wait(10) end
-        if not HasModelLoaded(model) then dropping = false return RZ.notify('Modèle de l\'arme introuvable.') end
-        loadAnim('pickup_object')
-        TaskPlayAnim(ped, 'pickup_object', 'putdown_low', 8.0, -8.0, 900, 0, 0.0, false, false, false)
-        Wait(450)
-        local spot = GetOffsetFromEntityInWorldCoords(ped, 0.15, 0.55, 0.0)
-        local found, ground = GetGroundZFor_3dCoord(spot.x, spot.y, spot.z + 1.0, false)
-        if not found then ground = spot.z - 0.98 end
-        local heading = (GetEntityHeading(ped) + 90.0) % 360.0
-        local pos, rx, ry = lyingPlacement(model, spot.x, spot.y, ground, heading)
-        SetModelAsNoLongerNeeded(model)
-        TriggerServerEvent('rp_scene:weapon:drop', {
-            weapon = weapon, model = model, ammo = GetAmmoInPedWeapon(ped, weapon),
-            x = pos.x, y = pos.y, z = pos.z, rx = rx, ry = ry, rz = heading,
-        })
-        Wait(500)
-        dropping = false
-    end)
-end
-
--- Confirmé par le serveur : l'arme quitte les mains du joueur
-RegisterNetEvent('rp_scene:weapon:dropped', function(weapon)
-    local ped = PlayerPedId()
-    RemoveWeaponFromPed(ped, weapon)
-    SetCurrentPedWeapon(ped, GetHashKey('WEAPON_UNARMED'), true)
-    RZ.notify('Arme lâchée au sol.')
-end)
-
--- Ramassée : l'arme et ses munitions
-RegisterNetEvent('rp_scene:weapon:pickedUp', function(weapon, ammo)
-    local ped = PlayerPedId()
-    loadAnim('pickup_object')
-    TaskPlayAnim(ped, 'pickup_object', 'pickup_low', 8.0, -8.0, 900, 0, 0.0, false, false, false)
-    if HasPedGotWeapon(ped, weapon, false) then
-        AddAmmoToPed(ped, weapon, tonumber(ammo) or 0)
-    else
-        GiveWeaponToPed(ped, weapon, tonumber(ammo) or 0, false, false)
-    end
-    RZ.notify('Arme ramassée.')
-end)
-
---- Arme lâchée (objet réseau marqué "rpDroppedWeapon")
-function RZ.isDroppedWeapon(e)
-    return e and e ~= 0 and DoesEntityExist(e) and NetworkGetEntityIsNetworked(e)
-        and type(Entity(e).state.rpDroppedWeapon) == 'table'
-end
-
--- Sans rp_interact (pas d'œil) : E à côté d'une arme lâchée pour la ramasser
-CreateThread(function()
-    if W.Enabled == false then return end
-    while true do
-        local wait = 1000
-        if GetResourceState('rp_interact') ~= 'started' then
-            local ped = PlayerPedId()
-            local c = GetEntityCoords(ped)
-            local best, bestD
-            for _, e in ipairs(GetGamePool('CObject')) do
-                if RZ.isDroppedWeapon(e) then
-                    local d = #(GetEntityCoords(e) - c)
-                    if d <= (W.PickupDistance or 2.0) and (not bestD or d < bestD) then best, bestD = e, d end
-                end
-            end
-            if best and not IsPedInAnyVehicle(ped, false) then
-                wait = 0
-                BeginTextCommandDisplayHelp('STRING')
-                AddTextComponentSubstringPlayerName('~INPUT_CONTEXT~ Ramasser l\'arme')
-                EndTextCommandDisplayHelp(0, false, false, -1)
-                if IsControlJustPressed(0, 38) then TriggerServerEvent('rp_scene:weapon:pickup', ObjToNet(best)) wait = 500 end
-            end
-        end
-        Wait(wait)
-    end
 end)
 
 -- =========================================================================

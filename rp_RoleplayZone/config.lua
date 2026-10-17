@@ -5,7 +5,6 @@ SceneConfig = {
     -- Menu des créations (civils) : commande et touche (aucune par défaut : Échap > Paramètres > Raccourcis clavier > FiveM)
     Command = 'scene',
     Key = '',
-    DropCommand = 'lacherarme',    -- lâcher l'arme qu'on a en main (aussi dans le menu)
 
     -- QUI CRÉE les scènes :
     --   'civil'    : les joueurs en mode civil (rp_interact, Menu F1 > Civil) qui ne sont pas dans une unité du MDC ;
@@ -85,9 +84,19 @@ SceneConfig = {
         RestoreObject = true,      -- objet à fouiller disparu : remis (copie fixe, propre à chaque joueur)
     },
 
-    -- ARMES LÂCHÉES
+    -- ARMES LÂCHÉES (mode civil) : arme sortie -> rappel « [G] Lâcher son arme » pendant 10 s (la touche marche
+    -- tout le temps) ; 1er appui : « Jeter son arme », molette : « Poser son arme au sol » ; 2e appui : l'action.
+    -- L'arme au sol se ramasse uniquement avec l'œil de rp_interact.
     Weapons = {
         Enabled = true,
+        CivilOnly = true,          -- seulement en mode civil (rp_interact) et hors unité du MDC (false : tout le monde)
+        Command = 'lacherarme', Key = 'G', -- touche modifiable par chaque joueur (raccourcis FiveM)
+        ReminderTime = 10000,      -- ms : rappel affiché quand on sort une arme
+        ChoiceTimeout = 10000,     -- ms sans réponse : le choix jeter / poser se ferme
+        ThrowSpeed = 7.5,          -- m/s vers l'avant
+        ThrowUp = 3.0,             -- m/s vers le haut
+        ThrowAnim = { 'anim@heists@narcotics@trash', 'throw_b' }, ThrowAnimTime = 1200,
+        ThrowRelease = 550,        -- ms après le début du geste : l'arme quitte la main
         Expire = 60,               -- minutes avant de disparaître (0 : jamais)
         MaxPerPlayer = 5,
         PickupDistance = 2.0,

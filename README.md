@@ -39,7 +39,7 @@ route (`/trafic`, policiers en service).
 Et **RP RoleplayZone** dans [`rp_RoleplayZone/`](rp_RoleplayZone/README.md) : scènes préparées par les civils
 (`/scene`) : **zone de recherche** (cercle de 15 à 60 m, description affichée aux policiers qui y entrent, son
 d'intrigue, cercle sur la carte), **périmètre à fouiller** et **objet du décor à fouiller** (contenu trouvé à la
-fouille), **arme lâchée** au sol (`/lacherarme`), et l'**œil d'aigle** des policiers (Verr. Maj : onde radar de 15 m,
+fouille), **arme jetée ou posée** au sol par les civils (G, arme en main ; ramassée à l'œil), et l'**œil d'aigle** des policiers (Verr. Maj : onde radar de 15 m,
 contours blancs, zone proche pointée). Rien ne disparaît autour des scènes (protégées des « ClearArea »).
 
 ## Fenêtre

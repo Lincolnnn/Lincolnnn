@@ -37,12 +37,24 @@ Réservé aux joueurs en **mode civil** (`rp_interact`, Menu F1 > Civil) qui ne 
 **Mes scènes** : lieu, rayon, temps restant, nombre de fouilles et dernière unité qui a fouillé ; **Repérer** (point
 GPS), **Modifier** (titre, texte, durée), **Supprimer**. Le civil est prévenu (message privé) quand sa scène est fouillée.
 
-### Lâcher une arme (`/lacherarme`, ou le bouton du menu)
+### Lâcher son arme (mode civil, touche G)
 
-L'arme en main est posée **couchée au sol** devant le joueur (objet visible par tous) et retirée de ses mains. On la
-ramasse avec l'œil de `rp_interact` (Alt : « Arme au sol » → **Ramasser l'arme**, avec ses munitions) ; sans
-`rp_interact` : **E** à côté. Elle disparaît au bout de 60 min (`Weapons.Expire`). Les fusées, le jerrican et
-l'extincteur ne se lâchent pas (`Weapons.Blacklist`).
+Réservé aux joueurs en **mode civil** (hors unité du MDC ; `Weapons.CivilOnly = false` : tout le monde).
+
+1. Le joueur **sort une arme** : pendant **10 s**, un rappel en haut à gauche propose **« G Lâcher son arme »**. La
+   touche reste utilisable **tout le temps** : le rappel n'apparaît qu'au début.
+2. **G** : le texte change et propose la même touche pour **« Jeter son arme »**. La **molette** (haut ou bas)
+   bascule sur **« Poser son arme au sol »** (et inversement). Pendant ce choix, les actions du jeu de base liées à la
+   molette (changer d'arme, roue des armes, zoom de la lunette) sont **bloquées** : aucune double action.
+   Retour arrière annule ; ranger ou changer d'arme annule aussi (et 10 s sans réponse).
+3. **G** à nouveau : l'action choisie.
+   - **Jeter** : geste de lancer, l'arme part de la main vers l'avant (là où regarde la caméra) et retombe au sol
+     avec la physique du jeu, visible par tous ; elle est figée là où elle s'arrête.
+   - **Poser** : l'arme est posée **couchée au sol**, devant le joueur.
+
+L'arme au sol se récupère **uniquement avec l'œil de `rp_interact`** (Alt : « Arme au sol » → **Ramasser l'arme**, avec
+ses munitions). Elle disparaît au bout de 60 min (`Weapons.Expire`). Les fusées, le jerrican et l'extincteur ne se
+lâchent pas (`Weapons.Blacklist`). La touche se change dans Échap > Paramètres > Raccourcis clavier > FiveM.
 
 ## Policiers : l'œil d'aigle (Verr. Maj)
 
@@ -71,7 +83,7 @@ quand même. PNJ sortis de la scène, scène supprimée : tout est rendu au jeu.
 
 | Clé | Rôle |
 |---|---|
-| `Command`, `Key`, `DropCommand` | `/scene` (aucune touche par défaut), `/lacherarme` |
+| `Command`, `Key` | `/scene` (aucune touche par défaut) |
 | `Creators`, `Searchers`, `AdminAce` | qui crée (`'civil'` / `'everyone'`), qui fouille (`'police'` / `'everyone'`), permission admin |
 | `MaxScenes`, `MaxPerPlayer`, `Durations`, `DefaultDuration`, `RemoveOnDisconnect` | limites et durées |
 | `TitleLength`, `TextLength` | longueur du titre (40) et du texte (500) |
@@ -81,14 +93,14 @@ quand même. PNJ sortis de la scène, scène supprimée : tout est rendu au jeu.
 | `Selector` | portée de la visée, épaisseur du cercle blanc |
 | `Eagle` | touche, rayon (15 m), durées (onde, contours, 4 s pour les fouilles), caméra (100 m, zoom), flèche, effets d'écran |
 | `Protect` | protection contre les « ClearArea » : rayon, objets / PNJ / véhicules stationnés, objet remis |
-| `Weapons` | armes lâchées : durée, nombre par joueur, distance de ramassage, armes exclues |
+| `Weapons` | lâcher son arme : mode civil, touche (G), rappel (10 s), choix, force du lancer, geste, durée au sol, nombre par joueur, armes exclues |
 
 Console : **`sceneclear`** supprime toutes les scènes.
 
 ## Liens avec les autres ressources
 
 - **MDC** : policier = joueur dans une unité (`getPlayerUnit`) ; lieux avec les rues d'Atlanta (`GetLocationText`).
-- **rp_interact** : mode civil (état `rpiCivilMode`) ; arme au sol ramassée à l'œil (`ExternalObjects.rpDroppedWeapon`).
+- **rp_interact** : mode civil (état `rpiCivilMode`) ; arme au sol ramassée à l'œil, seule façon de la récupérer (`ExternalObjects.rpDroppedWeapon`).
 - **rp_chat** : messages privés (contenu trouvé, scène fouillée) et `/me` automatique (« fouille les lieux »).
 
 ## Fonctionnement et limites (à vérifier en jeu)
@@ -99,7 +111,9 @@ Console : **`sceneclear`** supprime toutes les scènes.
   direct ; un PNJ / véhicule n'est marqué que par le joueur qui le contrôle (les objets du décor, par chaque joueur).
 - Les effets d'écran (`hud_def_desat_cold`, `FocusIn`, `FocusOut`) et la caméra du mode histoire
   (`SetGameplayCoordHint`) sont réglables (`Eagle`) : à ajuster selon le rendu en jeu.
-- Arme lâchée : posée couchée selon les dimensions de son modèle (côté le plus fin à la verticale).
+- Arme posée : couchée selon les dimensions de son modèle (côté le plus fin à la verticale). Arme jetée : l'élan est
+  donné par le jeu du joueur qui la jette (s'il n'a pas la main sur l'objet, elle est posée devant lui) ; le geste
+  (`anim@heists@narcotics@trash`, `throw_b`) et le moment où l'arme quitte la main (`ThrowRelease`) sont à ajuster.
 - Scènes gardées en mémoire du serveur : elles disparaissent au redémarrage.
 
 ## Performance
@@ -107,5 +121,6 @@ Console : **`sceneclear`** supprime toutes les scènes.
 - Aucune scène : **aucune boucle** (0.00 ms).
 - Scènes : une vérification toutes les 500 ms (distances) ; protection toutes les 2 s, seulement à moins de 150 m.
 - Boucle à chaque image seulement : à côté d'une fouille (aide « E »), pendant une fouille, pendant la sélection,
-  pendant l'œil d'aigle (quelques secondes).
+  pendant l'œil d'aigle (quelques secondes), pendant le rappel / le choix de l'arme.
+- Arme en main vérifiée toutes les 250 ms en mode civil (toutes les 2 s sinon).
 - Menu : aucune boucle Lua. Serveur : aucune boucle (une minuterie par scène / par arme).

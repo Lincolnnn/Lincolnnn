@@ -59,7 +59,6 @@
         const Z = state.zone || {}; const P = state.perimeter || {};
         if (Z.MinRadius) $('rzZoneHint').textContent = `Grand cercle de ${meters(Z.MinRadius)} à ${meters(Z.MaxRadius)} : message affiché aux policiers qui y entrent`;
         if (P.MinRadius) $('rzPerimeterHint').textContent = `Petit lieu (sol, recoin…), de ${meters(P.MinRadius)} à ${meters(P.MaxRadius)} : ce que le policier y trouvera`;
-        $('rzWeaponSection').classList.toggle('hidden', !state.weapons);
         $('rzClearAll').classList.toggle('hidden', !state.admin);
         renderList();
     }
@@ -145,7 +144,7 @@
         if (!state.opened) { state.duration = Number(data.defaultDuration) || 120; state.opened = true; }
         state.zone = data.zone || {}; state.perimeter = data.perimeter || {};
         state.titleLength = Number(data.titleLength) || 40; state.textLength = Number(data.textLength) || 500;
-        state.admin = !!data.admin; state.weapons = data.weapons !== false;
+        state.admin = !!data.admin;
         setScenes(data.scenes);
         renderHome();
         message('');
@@ -195,7 +194,6 @@
         if (e.target.closest('#rzSubmit')) return submit();
         if (e.target.closest('#rzBack')) { show('home'); return null; }
         if (e.target.closest('#rzReselect') && state.draft) return post('pick', { kind: state.draft.kind, radius: state.draft.radius });
-        if (e.target.closest('#rzDrop')) return post('drop');
         if (e.target.closest('#rzClearMine')) return post('clear', { mine: true });
         if (e.target.closest('#rzClearAll')) return post('clear', { mine: false });
         if (e.target.closest('#rzClose')) return post('close');

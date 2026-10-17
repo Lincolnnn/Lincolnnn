@@ -5,7 +5,7 @@
         au milieu de l'écran, entend un court son d'intrigue et voit le cercle sur sa carte, jusqu'à ce qu'il en sorte ;
       - PÉRIMÈTRE À FOUILLER : petit lieu (sol, recoin…), non lié à un objet ;
       - OBJET À FOUILLER : un props du décor ;
-      - ARME LÂCHÉE : un joueur lâche l'arme qu'il a en main (ramassée avec l'œil de rp_interact) ;
+      - ARME LÂCHÉE (mode civil) : jetée ou posée au sol, ramassée uniquement avec l'œil de rp_interact ;
       - ŒIL D'AIGLE (policiers) : onde « radar » de 15 m qui fait ressortir les contours en blanc ; ce qui est à
         fouiller reste en surbrillance (4 s) ; une zone à moins de 100 m est pointée (caméra + flèche).
 ]]
@@ -17,7 +17,7 @@ lua54 'yes'
 name 'rp_RoleplayZone'
 author 'Lincolnnn'
 description 'Zones de recherche, périmètres et objets à fouiller, armes lâchées, œil d\'aigle - standalone, NUI Vanilla JS'
-version '1.0.0'
+version '1.1.0'
 
 ui_page 'html/index.html'
 
@@ -34,7 +34,8 @@ client_scripts {
     'client/world.lua',    -- scènes appliquées : zone (message, son, carte), fouilles, protection, armes lâchées
     'client/selector.lua', -- mode sélection (cercle blanc qui suit le terrain, objet visé en surbrillance)
     'client/eagle.lua',    -- œil d'aigle (onde radar, contours, caméra et flèche vers la zone)
-    'client/menu.lua',     -- menu (NUI), commandes /scene et /lacherarme
+    'client/weapon.lua',   -- mode civil : lâcher son arme (rappel, jeter / poser à la molette)
+    'client/menu.lua',     -- menu (NUI), commande /scene
 }
 
 server_script 'server/server.lua'

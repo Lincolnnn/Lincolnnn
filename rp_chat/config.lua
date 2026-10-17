@@ -84,7 +84,7 @@ ChatConfig = {
                 { "/trafic", "police : fermer une voie / un sens, ralentir, arrêter le trafic" },
                 { "Verr. Maj", "police : œil d'aigle (ce qui est à fouiller, zone proche)" },
                 { "/scene", "civil : zone de recherche, lieu ou objet à fouiller" },
-                { "/lacherarme", "lâcher au sol l'arme en main" },
+                { "G", "civil, arme en main : jeter / poser son arme (molette)" },
                 { "Alt", "œil (maintenir) : inspecter, fouiller, portières, s'asseoir…" },
             } },
             { title = "Véhicule", items = {
