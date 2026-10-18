@@ -37,9 +37,9 @@ fermés, PNJ rabattus sur une voie du même sens ou demi-tour), ralentissement e
 route (`/trafic`, policiers en service).
 
 Et **RP RoleplayZone** dans [`rp_RoleplayZone/`](rp_RoleplayZone/README.md) : scènes préparées par les civils
-(`/scene`) : **zone de recherche** (cercle de 15 à 60 m, description affichée aux policiers qui y entrent, son
-d'intrigue, cercle sur la carte), **périmètre à fouiller** et **objet du décor à fouiller** (contenu trouvé à la
-fouille), **arme jetée ou posée** au sol par les civils (G, arme en main ; ramassée à l'œil), et l'**œil d'aigle** des policiers (Verr. Maj : onde radar de 15 m,
+(`/scene`, vue du jeu ou caméra libre) : **zone de recherche** (cercle de 15 à 60 m, description affichée aux policiers
+qui y entrent, son d'intrigue, cercle sur la carte), **périmètre à fouiller** et **objet ou véhicule à fouiller**
+(fouillés avec l'œil, contenu trouvé à la fouille, description visuelle affichée au-dessus à 10 m), **arme jetée ou posée** au sol par les civils (G, arme en main ; ramassée à l'œil), et l'**œil d'aigle** des policiers (Verr. Maj : onde radar de 15 m,
 contours blancs, zone proche pointée). Rien ne disparaît autour des scènes (protégées des « ClearArea »).
 
 ## Fenêtre

@@ -36,9 +36,11 @@ local busy = false
 local lastWeapon = UNARMED
 local displayRunning = false
 
---- Touche du joueur pour la commande (affichée dans l'aide : ~INPUT_…~ de la commande liée)
-local function keyToken()
-    return ('~INPUT_%X~'):format((GetHashKey(COMMAND) & 0xFFFFFFFF) | 0x80000000)
+--- Touche choisie par le joueur pour la commande (raccourcis FiveM), ex. "G" ; à défaut, celle de la config
+local function keyName()
+    local ok, button = pcall(GetControlInstructionalButton, 0, (GetHashKey(COMMAND) & 0xFFFFFFFF) | 0x80000000, true)
+    if ok and type(button) == 'string' and button:sub(1, 2) == 't_' and #button > 2 then return button:sub(3) end
+    return W.Key or 'G'
 end
 
 local function droppable(weapon)
@@ -151,10 +153,13 @@ end
 -- =========================================================================
 -- AIDE (rappel, puis choix jeter / poser) : boucle seulement quand elle s'affiche
 -- =========================================================================
-local function help(lines)
-    BeginTextCommandDisplayHelp('CELL_EMAIL_BCON')
-    AddTextComponentSubstringPlayerName(table.concat(lines, '~n~'))
-    EndTextCommandDisplayHelp(0, false, false, -1)
+--- Aide dans l'interface (au thème du HUD) : envoyée seulement quand elle change
+local lastHint = nil
+local function hint(data)
+    local key = data and json.encode(data) or ''
+    if key == lastHint then return end
+    lastHint = key
+    SendNUIMessage({ action = 'weaponHint', data = data or { show = false } })
 end
 
 local function anyJustPressed(list)
@@ -183,18 +188,22 @@ local function display()
                 end
                 if anyJustPressed(CANCEL) then choice = nil end
             end
-            if not IsPauseMenuActive() and not busy then
-                if choice then
-                    help({
-                        ('%s %s'):format(keyToken(), choice.option == 'throw' and 'Jeter son arme' or 'Poser son arme au sol'),
-                        ('~INPUT_WEAPON_WHEEL_NEXT~ %s'):format(choice.option == 'throw' and 'Poser au sol' or 'Jeter'),
-                    })
-                elseif now < reminderUntil then
-                    help({ ('%s Lâcher son arme'):format(keyToken()) })
-                end
+            -- G du jeu (grenade, détonateur) : pas de double action
+            DisableControlAction(0, 47, true)
+            DisableControlAction(0, 58, true)
+            if IsPauseMenuActive() or busy then
+                hint(nil)
+            elseif choice then
+                hint({ show = true, key = keyName(), label = choice.option == 'throw' and 'Jeter son arme' or 'Poser son arme au sol',
+                    alt = choice.option == 'throw' and 'Poser au sol' or 'Jeter' })
+            elseif now < reminderUntil then
+                hint({ show = true, key = keyName(), label = 'Lâcher son arme' })
+            else
+                hint(nil)
             end
             Wait(0)
         end
+        hint(nil)
         displayRunning = false
     end)
 end

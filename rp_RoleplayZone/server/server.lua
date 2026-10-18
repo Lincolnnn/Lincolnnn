@@ -114,14 +114,35 @@ local function canSearch(src)
     return policeUnit(src) ~= nil
 end
 
+--- Véhicule à fouiller : entité serveur de son n° réseau (nil s'il n'existe plus)
+local function vehicleOf(s)
+    if not s.netId then return nil end
+    local e = NetworkGetEntityFromNetworkId(s.netId)
+    if e and e ~= 0 and DoesEntityExist(e) then return e end
+    return nil
+end
+
+--- Position actuelle d'une scène (un véhicule a pu bouger)
+local function scenePos(s)
+    local e = vehicleOf(s)
+    if e then
+        local c = GetEntityCoords(e)
+        return { x = c.x, y = c.y, z = c.z }
+    end
+    return s.pos
+end
+
 -- =========================================================================
 -- PUBLICATION
 -- =========================================================================
 --- Ce que tous les joueurs reçoivent : la géométrie, la description des ZONES (affichée en y entrant), jamais le
 --- contenu des périmètres / objets (envoyé à la fouille)
+--- (description visuelle « look » : affichée au-dessus du lieu / de l'objet aux policiers proches qui le voient ;
+--- src : joueur qui l'a créée, pour lui proposer « Modifier » à l'œil ; netId : véhicule à fouiller)
 local function publicView(s)
     return { id = s.id, kind = s.kind, pos = s.pos, radius = s.radius, title = s.title, model = s.model, rot = s.rot,
-        label = s.label, text = s.kind == 'zone' and s.text or nil }
+        label = s.label, text = s.kind == 'zone' and s.text or nil, look = s.look ~= '' and s.look or nil,
+        vehicle = s.vehicle, netId = s.netId, src = s.ownerSrc }
 end
 
 local function publish()
@@ -142,7 +163,8 @@ local function menuList(src)
     for _, s in pairs(Scenes) do
         local mine = s.owner == key
         if mine or admin then
-            list[#list + 1] = { id = s.id, kind = s.kind, pos = s.pos, radius = s.radius, title = s.title, text = s.text,
+            list[#list + 1] = { id = s.id, kind = s.kind, pos = scenePos(s), radius = s.radius, title = s.title, text = s.text,
+                look = s.look, vehicle = s.vehicle,
                 label = s.label, by = s.by, mine = mine, remaining = remaining(s), permanent = (s.expires or 0) <= 0,
                 duration = s.duration, searches = s.searches or 0, lastBy = s.lastBy }
         end
@@ -190,16 +212,21 @@ function Handlers.list(src, data)
     return { ok = true, allowed = allowed, reason = reason, admin = isAdmin(src), scenes = menuList(src),
         durations = Config.Durations, defaultDuration = Config.DefaultDuration,
         zone = Config.Zone, perimeter = Config.Perimeter,
-        titleLength = Config.TitleLength, textLength = Config.TextLength }
+        titleLength = Config.TitleLength, textLength = Config.TextLength, lookLength = Config.LookLength }
 end
 
---- Champs communs à la création et à la modification : titre, texte, durée
-local function readTexts(data)
+--- Champs communs à la création et à la modification : titre, contenu de la fouille (ou message de la zone),
+--- description visuelle (périmètre / objet : au moins l'un des deux)
+local function readTexts(data, kind)
     local title = cleanText(data.title, Config.TitleLength or 40, false)
     local text = cleanText(data.text, Config.TextLength or 500, true)
-    if text == '' then return nil, nil, 'Écrivez une description.' end
-    return title, text
+    local look = kind ~= 'zone' and cleanText(data.look, Config.LookLength or 160, true) or ''
+    if text == '' and (kind == 'zone' or look == '') then
+        return nil, nil, nil, kind == 'zone' and 'Écrivez une description.' or 'Écrivez ce qu\'on trouve en fouillant, ou ce qu\'on voit.'
+    end
+    return title, text, look
 end
+
 
 function Handlers.create(src, data)
     if type(data) ~= 'table' or not KINDS[data.kind] then return { ok = false, error = 'Type de scène inconnu.' } end
@@ -215,13 +242,14 @@ function Handlers.create(src, data)
     local pos, here = point(data.pos), pedPos(src)
     if not pos or not here then return { ok = false, error = 'Emplacement invalide.' } end
     local S = Config.Selector or {}
-    local reach = (data.kind == 'zone' and (S.Range or 60.0) or (S.ObjectRange or 30.0)) + 25.0
+    -- portée de la visée, plus la caméra libre qui peut s'éloigner du personnage
+    local reach = (data.kind == 'zone' and (S.Range or 60.0) or (S.ObjectRange or 30.0)) + (S.FreecamRange or 60.0) + 25.0
     if dist(pos, here) > reach then return { ok = false, error = 'Trop loin de vous : rapprochez-vous de l\'endroit.' } end
-    local title, text, err = readTexts(data)
+    local title, text, look, err = readTexts(data, data.kind)
     if err then return { ok = false, error = err } end
 
-    local s = { kind = data.kind, pos = pos, title = title, text = text, owner = key, ownerSrc = src, by = rpName(src),
-        label = cleanText(data.label, 80, false), searches = 0 }
+    local s = { kind = data.kind, pos = pos, title = title, text = text, look = look, owner = key, ownerSrc = src,
+        by = rpName(src), label = cleanText(data.label, 80, false), searches = 0 }
     if data.kind == 'zone' then
         local Z = Config.Zone
         s.radius = num(data.radius, Z.MinRadius, Z.MaxRadius) or Z.DefaultRadius
@@ -232,6 +260,13 @@ function Handlers.create(src, data)
         local model = math.floor(num(data.model, -2147483648, 4294967295) or 0)
         if model == 0 then return { ok = false, error = 'Objet invalide.' } end
         s.model = model
+        if data.vehicle then
+            -- véhicule à fouiller : suivi par son n° réseau (il peut bouger)
+            s.vehicle, s.netId = true, math.floor(tonumber(data.netId) or -1)
+            local e = vehicleOf(s)
+            if not e or GetEntityType(e) ~= 2 then return { ok = false, error = 'Véhicule introuvable.' } end
+            s.pos = scenePos(s)
+        end
         local r = type(data.rot) == 'table' and data.rot or {}
         s.rot = { x = num(r.x, -360, 360) or 0.0, y = num(r.y, -360, 360) or 0.0, z = num(r.z, -360, 360) or 0.0 }
         s.radius = num(data.radius, 0.3, 6.0) or 1.0 -- taille de l'objet (cercle sous l'objet, œil d'aigle)
@@ -261,9 +296,9 @@ end
 function Handlers.update(src, data)
     local s, err = ownedScene(src, data)
     if not s then return { ok = false, error = err } end
-    local title, text, terr = readTexts(data)
+    local title, text, look, terr = readTexts(data, s.kind)
     if terr then return { ok = false, error = terr } end
-    s.title, s.text = title, text
+    s.title, s.text, s.look = title, text, look
     if data.duration ~= nil then
         s.duration = allowedDuration(data.duration)
         s.expires = s.duration > 0 and (os.time() + s.duration * 60) or 0
@@ -300,14 +335,16 @@ function Handlers.search(src, data)
     local here = pedPos(src)
     local reach = (s.kind == 'perimeter' and (s.radius + (Config.Search.Distance or 1.2))
         or ((Config.Object and Config.Object.Distance or 1.8) + s.radius)) + 2.5
-    if not here or dist(here, s.pos) > reach then return { ok = false, error = 'Trop loin pour fouiller.' } end
+    if s.vehicle and not vehicleOf(s) then return { ok = false, error = 'Le véhicule n\'est plus là.' } end
+    if not here or dist(here, scenePos(s)) > reach then return { ok = false, error = 'Trop loin pour fouiller.' } end
     s.searches = (s.searches or 0) + 1
     local unit = policeUnit(src)
     s.lastBy = unit and tostring(unit.name or unit.id or rpName(src)) or rpName(src)
     if Config.Search.AutoMe then
         local chat = GlobalState.rpChatResource or 'rp_chat'
         if GetResourceState(chat) == 'started' then
-            pcall(function() exports[chat]:sendMe(src, s.kind == 'object' and 'fouille l\'objet' or 'fouille les lieux') end)
+            pcall(function() exports[chat]:sendMe(src, s.vehicle and 'fouille le véhicule'
+                or (s.kind == 'object' and 'fouille l\'objet' or 'fouille les lieux')) end)
         end
     end
     if Config.Search.NotifyCreator and s.ownerSrc and s.ownerSrc ~= src and GetPlayerName(s.ownerSrc)
@@ -315,7 +352,8 @@ function Handlers.search(src, data)
         notify(s.ownerSrc, ('Votre %s%s vient d\'être fouillé par %s.'):format(KIND_LABEL[s.kind],
             s.title ~= '' and (' « ' .. s.title .. ' »') or '', s.lastBy))
     end
-    return { ok = true, kind = s.kind, title = s.title, text = s.text, label = s.label }
+    return { ok = true, kind = s.kind, vehicle = s.vehicle, title = s.title,
+        text = s.text ~= '' and s.text or 'Rien de particulier.', label = s.label }
 end
 
 RegisterNetEvent('rp_scene:request', function(id, action, data)
@@ -440,7 +478,15 @@ RegisterNetEvent('rp_scene:weapon:pickup', function(netId)
     TriggerClientEvent('rp_scene:weapon:pickedUp', src, w.weapon, w.ammo)
 end)
 
-AddEventHandler('entityRemoved', function(entity) Weapons[entity] = nil end)
+AddEventHandler('entityRemoved', function(entity)
+    Weapons[entity] = nil
+    -- véhicule à fouiller supprimé : sa scène disparaît avec lui
+    local ok, netId = pcall(NetworkGetNetworkIdFromEntity, entity)
+    if not ok or not netId then return end
+    for id, s in pairs(Scenes) do
+        if s.vehicle and s.netId == netId then removeScene(id) end
+    end
+end)
 
 -- =========================================================================
 -- JOUEURS ET RESSOURCE

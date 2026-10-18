@@ -4,15 +4,18 @@
     - ZONE DE RECHERCHE (policiers) : en entrant, la description du civil s'affiche en haut au milieu de l'écran et y
       reste jusqu'à la sortie (ou la suppression de la zone) ; un court son d'intrigue à l'entrée, un son proche qui
       « lève » l'intrigue à la sortie ; le cercle de la zone apparaît sur la carte seulement pendant qu'on est dedans.
-    - PÉRIMÈTRE / OBJET À FOUILLER (policiers) : sur place, « E Fouiller… » -> barre de chargement (X annule) -> le
-      contenu écrit par le civil (fiche à l'écran + copie privée dans le chat). Non signalés avant d'y être :
-      l'œil d'aigle aide à les trouver.
+    - PÉRIMÈTRE / OBJET / VÉHICULE À FOUILLER (policiers) : avec l'œil de rp_interact (Alt), « Fouiller… » -> barre
+      de chargement (objet / véhicule 8 s ; périmètre 6 à 30 s selon sa taille ; X annule) -> le contenu écrit par le
+      civil (fiche à l'écran + copie privée dans le chat) ; l'animation continue jusqu'à X. Au civil qui l'a créée :
+      « Modifier la description ». Sans rp_interact : « E Fouiller » sur place.
+    - DESCRIPTION VISUELLE : affichée au-dessus du lieu / de l'objet aux policiers à moins de 10 m qui le voient
+      (rien entre leur caméra et lui : derrière un mur, elle n'apparaît pas).
     - RIEN NE DISPARAÎT (Config.Protect) : autour de chaque scène, objets du décor, PNJ et véhicules stationnés
       marqués comme entités de mission (un « ClearArea » d'un autre script ne les retire plus) ; l'objet à fouiller
       est remis à sa place (copie fixe) s'il disparaît quand même.
 
     Performance : aucune scène -> aucune boucle. Sinon une vérification toutes les 500 ms (distances) ; boucle à chaque
-    image seulement à côté d'une fouille (aide « E »), ou pendant une fouille. Protection : toutes les 2 s, seulement
+    image seulement pendant une fouille, ou à moins de 10 m d'une description visuelle (vue vérifiée toutes les 250 ms). Protection : toutes les 2 s, seulement
     à moins de Protect.Range m d'une scène.
 ]]
 
@@ -43,9 +46,29 @@ end
 
 function RZ.sceneById(id) return byId[id] end
 
---- Objet d'une scène « objet » : l'objet du décor à sa place, ou sa copie remise ; nil s'il n'est pas chargé
+--- Position actuelle d'une scène (un véhicule à fouiller a pu bouger)
+function RZ.scenePos(s)
+    if s.vehicle then
+        local e = RZ.sceneEntity(s)
+        if e then
+            local c = GetEntityCoords(e)
+            return { x = c.x, y = c.y, z = c.z }
+        end
+    end
+    return s.pos
+end
+
+--- Objet d'une scène « objet » : le véhicule à fouiller, l'objet du décor à sa place, ou sa copie remise ; nil s'il
+--- n'est pas chargé
 function RZ.sceneEntity(s)
     if s.kind ~= 'object' or not s.model then return nil end
+    if s.vehicle then
+        if s.netId and NetworkDoesNetworkIdExist(s.netId) then
+            local v = NetToVeh(s.netId)
+            if v and v ~= 0 and DoesEntityExist(v) then return v end
+        end
+        return nil
+    end
     local copy = restored[s.id]
     if copy and DoesEntityExist(copy) then return copy end
     local found = GetClosestObjectOfType(s.pos.x, s.pos.y, s.pos.z, 0.8, s.model, false, false, false)
@@ -109,7 +132,7 @@ local function updateZone(p)
 end
 
 -- =========================================================================
--- FOUILLES
+-- FOUILLES (avec l'œil de rp_interact : exports targetOptions / targetSelect plus bas)
 -- =========================================================================
 --- Distance à laquelle on peut fouiller une scène
 local function reachOf(s)
@@ -117,36 +140,69 @@ local function reachOf(s)
     return (Config.Object and Config.Object.Distance or 1.8) + (s.radius or 1.0) * 0.5
 end
 
+--- Durée de la fouille : objet / véhicule 8 s ; périmètre de 6 s (le plus petit) à 30 s (le plus grand)
+function RZ.searchTime(s)
+    if s.kind ~= 'perimeter' then return SR.ObjectTime or 8000 end
+    local P = Config.Perimeter
+    local t = (s.radius - P.MinRadius) / math.max(0.01, P.MaxRadius - P.MinRadius)
+    t = math.max(0.0, math.min(1.0, t))
+    local min, max = SR.PerimeterMinTime or 6000, SR.PerimeterMaxTime or 30000
+    return math.floor(min + (max - min) * t + 0.5)
+end
+
+local function kindLabel(s)
+    if s.vehicle then return 'Fouille du véhicule' end
+    return s.kind == 'object' and 'Fouille de l\'objet' or 'Fouille des lieux'
+end
+
 local function showResult(res)
     SendNUIMessage({ action = 'result', data = {
-        kind = res.kind, title = res.title or '', text = res.text or '', label = res.label or '',
+        kind = res.kind, vehicle = res.vehicle, title = res.title or '', text = res.text or '', label = res.label or '',
         duration = SR.ResultDuration or 25000,
     } })
     local chat = GlobalState.rpChatResource or 'rp_chat'
     if GetResourceState(chat) == 'started' then
         pcall(function()
-            exports[chat]:addPrivate({ title = res.kind == 'object' and 'Fouille de l\'objet' or 'Fouille des lieux',
-                subject = (res.title ~= '' and res.title) or res.label or '', text = res.text })
+            exports[chat]:addPrivate({ title = kindLabel(res), subject = (res.title ~= '' and res.title) or res.label or '',
+                text = res.text })
         end)
     end
 end
 
 local PROGRESS_BLOCKED = { 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 44, 140, 141, 142, 143, 257, 263, 264 }
 
-local function search(s)
-    if searching then return end
+--- Fouille terminée : l'animation continue jusqu'à X (ou jusqu'à ce que le personnage la quitte)
+local function holdUntilStop(ped)
+    CreateThread(function()
+        local stopKey = SR.StopKey or 73
+        local started = GetGameTimer()
+        while true do
+            if not IsPauseMenuActive() then
+                BeginTextCommandDisplayHelp('STRING')
+                AddTextComponentSubstringPlayerName('~INPUT_VEH_DUCK~ Arrêter l\'animation')
+                EndTextCommandDisplayHelp(0, false, false, -1)
+            end
+            if IsControlJustPressed(0, stopKey) or IsDisabledControlJustPressed(0, stopKey) then break end
+            if IsEntityDead(ped) or (GetGameTimer() - started > 1500 and not IsPedUsingAnyScenario(ped)) then return end
+            Wait(0)
+        end
+        ClearPedTasks(ped)
+    end)
+end
+
+function RZ.search(s)
+    if searching or not RZ.isSearcher() then return end
     searching = true
     local ped = PlayerPedId()
-    local label = s.kind == 'object' and 'Fouille de l\'objet' or 'Fouille des lieux'
-    local time = SR.Time or 6000
-    SendNUIMessage({ action = 'progress', data = { show = true, label = label, duration = time } })
+    local time = RZ.searchTime(s)
+    SendNUIMessage({ action = 'progress', data = { show = true, label = kindLabel(s), duration = time } })
     if s.kind == 'object' then
         local e = RZ.sceneEntity(s)
         local target = e and GetEntityCoords(e) or vector3(s.pos.x, s.pos.y, s.pos.z)
         TaskTurnPedToFaceCoord(ped, target.x, target.y, target.z, 600)
         Wait(600)
     end
-    local scenario = s.kind == 'object' and SR.ObjectScenario or SR.PerimeterScenario
+    local scenario = s.vehicle and SR.VehicleScenario or (s.kind == 'object' and SR.ObjectScenario or SR.PerimeterScenario)
     if scenario and scenario ~= '' then TaskStartScenarioInPlace(ped, scenario, 0, true) end
     CreateThread(function()
         local endsAt = GetGameTimer() + time
@@ -159,10 +215,13 @@ local function search(s)
             if GetGameTimer() >= endsAt then break end
         end
         SendNUIMessage({ action = 'progress', data = { show = false } })
-        ClearPedTasks(ped)
         searching = false
-        if reason == 'cancel' then return RZ.notify('Fouille annulée.') end
-        if reason then return end
+        if reason then
+            ClearPedTasks(ped)
+            if reason == 'cancel' then RZ.notify('Fouille annulée.') end
+            return
+        end
+        holdUntilStop(ped) -- l'animation continue : X pour l'arrêter
         RZ.request('search', { id = s.id }, function(res)
             if not res.ok then return RZ.notify(res.error or 'Fouille impossible.') end
             showResult(res)
@@ -170,7 +229,7 @@ local function search(s)
     end)
 end
 
---- Aide « E Fouiller… » à chaque image tant qu'une fouille est à portée
+-- Sans rp_interact (pas d'œil) : « E Fouiller » sur place (Search.PromptWithoutTarget)
 local promptRunning = false
 local function promptLoop()
     if promptRunning then return end
@@ -180,10 +239,10 @@ local function promptLoop()
             local s = nearSearch.scene
             if not searching and not IsPauseMenuActive() and not RZ.selecting() then
                 BeginTextCommandDisplayHelp('STRING')
-                AddTextComponentSubstringPlayerName(s.kind == 'object' and '~INPUT_CONTEXT~ Fouiller l\'objet'
-                    or '~INPUT_CONTEXT~ Fouiller les lieux')
+                AddTextComponentSubstringPlayerName('~INPUT_CONTEXT~ ' .. (s.vehicle and 'Fouiller le véhicule'
+                    or (s.kind == 'object' and 'Fouiller l\'objet' or 'Fouiller les lieux')))
                 EndTextCommandDisplayHelp(0, false, false, -1)
-                if IsControlJustPressed(0, SR.Key or 38) then search(s) end
+                if IsControlJustPressed(0, SR.Key or 38) then RZ.search(s) end
             end
             Wait(0)
         end
@@ -193,11 +252,13 @@ end
 
 local function updateNearSearch(p, ped)
     nearSearch = nil
+    if SR.PromptWithoutTarget == false or GetResourceState('rp_interact') == 'started' then return end
     if not RZ.isSearcher() or IsPedInAnyVehicle(ped, false) or IsEntityDead(ped) then return end
     local best, bestD
     for _, s in pairs(byId) do
         if s.kind ~= 'zone' then
-            local d = #(vector3(p.x, p.y, p.z) - vector3(s.pos.x, s.pos.y, s.pos.z))
+            local c = RZ.scenePos(s)
+            local d = #(vector3(p.x, p.y, p.z) - vector3(c.x, c.y, c.z))
             if d <= reachOf(s) and (not bestD or d < bestD) then best, bestD = s, d end
         end
     end
@@ -205,6 +266,173 @@ local function updateNearSearch(p, ped)
         nearSearch = { scene = best }
         promptLoop()
     end
+end
+
+-- =========================================================================
+-- ŒIL DE rp_interact (TargetProviders) : « Fouiller les lieux / l'objet / le véhicule » ; au civil qui a créé la
+-- scène : « Modifier la description »
+-- =========================================================================
+local function myServerId() return GetPlayerServerId(PlayerId()) end
+
+--- Scène visée : l'objet / le véhicule visé, ou le point du sol / du mur dans un périmètre
+local function aimedScene(info)
+    local hit = info.hit
+    for _, s in pairs(byId) do
+        if s.kind == 'object' then
+            local e = info.entity ~= 0 and RZ.sceneEntity(s) or nil
+            if e and e == info.entity then return s end
+        elseif s.kind == 'perimeter' then
+            if RZ.dist2D(s.pos, hit) <= s.radius and math.abs(hit.z - s.pos.z) <= 2.5 then return s end
+        end
+    end
+    return nil
+end
+
+exports('targetOptions', function(info)
+    if type(info) ~= 'table' or type(info.hit) ~= 'table' then return nil end
+    local s = aimedScene(info)
+    if not s then return nil end
+    local options = {}
+    local me = GetEntityCoords(PlayerPedId())
+    local c = RZ.scenePos(s)
+    local d = #(me - vector3(c.x, c.y, c.z))
+    if RZ.isSearcher() and not searching and d <= reachOf(s) + 0.5 then
+        options[#options + 1] = { id = 'search:' .. s.id, icon = 'search', police = true,
+            label = s.vehicle and 'Fouiller le véhicule' or (s.kind == 'object' and 'Fouiller l\'objet' or 'Fouiller les lieux') }
+    end
+    if s.src and s.src == myServerId() and d <= 10.0 then
+        options[#options + 1] = { id = 'edit:' .. s.id, icon = 'note', label = 'Modifier la description' }
+    end
+    if #options == 0 then return nil end
+    return { label = s.vehicle and 'Véhicule à fouiller' or (s.kind == 'object' and 'Objet à fouiller' or 'Lieu à fouiller'),
+        options = options }
+end)
+
+exports('targetSelect', function(id, info)
+    local action, sid = tostring(id):match('^(%a+):(%d+)$')
+    local s = byId[tonumber(sid)]
+    if not s then return RZ.notify('Il n\'y a plus rien ici.') end
+    if action == 'search' then
+        local c = RZ.scenePos(s)
+        if #(GetEntityCoords(PlayerPedId()) - vector3(c.x, c.y, c.z)) > reachOf(s) + 1.0 then
+            return RZ.notify('Rapprochez-vous pour fouiller.')
+        end
+        CreateThread(function() RZ.search(s) end)
+    elseif action == 'edit' and RZ.openEdit then
+        RZ.openEdit(s.id)
+    end
+end)
+
+-- =========================================================================
+-- DESCRIPTION VISUELLE : au-dessus du lieu / de l'objet, pour les policiers à moins de 10 m qui le voient
+-- =========================================================================
+local LK = Config.Look or {}
+local looks = {}          -- [id] = { s, visible, anchor } : descriptions proches
+local lookRunning = false
+
+--- Point au-dessus duquel la description s'affiche
+local function lookAnchor(s)
+    if s.kind == 'object' then
+        local e = RZ.sceneEntity(s)
+        if e then
+            local _, max = GetModelDimensions(GetEntityModel(e))
+            local c = GetEntityCoords(e)
+            return vector3(c.x, c.y, c.z + math.max(0.3, max.z) + 0.35), e
+        end
+    end
+    local c = RZ.scenePos(s)
+    return vector3(c.x, c.y, c.z + 0.9), nil
+end
+
+--- Visible : rien entre la caméra et le point (un mur, un véhicule…), l'objet lui-même mis à part
+local function inSight(anchor, entity)
+    local cam = GetFinalRenderedCamCoord()
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(cam.x, cam.y, cam.z, anchor.x, anchor.y, anchor.z,
+        1 + 2 + 16, PlayerPedId(), 7)
+    local _, hit, coords, _, hitEntity = GetShapeTestResult(ray)
+    if hit ~= 1 and hit ~= true then return true end
+    if entity and hitEntity == entity then return true end
+    return #(coords - anchor) <= 0.6
+end
+
+--- Texte coupé en lignes de ~38 caractères
+local function wrap(text, width)
+    local lines = {}
+    for paragraph in (text .. '\n'):gmatch('(.-)\n') do
+        local line = ''
+        for word in paragraph:gmatch('%S+') do
+            if #line + #word + 1 > width and line ~= '' then lines[#lines + 1] = line; line = word
+            else line = line == '' and word or (line .. ' ' .. word) end
+        end
+        if line ~= '' then lines[#lines + 1] = line end
+    end
+    return lines
+end
+
+local function drawLook(anchor, lines, distance)
+    local scale = (LK.Scale or 0.34) * math.max(0.75, math.min(1.15, 6.0 / math.max(distance, 1.0)))
+    local color = LK.Color or { 245, 238, 215 }
+    local lineH = 0.028 * scale / 0.34
+    local longest = 0
+    for _, l in ipairs(lines) do if #l > longest then longest = #l end end
+    SetDrawOrigin(anchor.x, anchor.y, anchor.z, 0)
+    local height = #lines * lineH + 0.012
+    DrawRect(0.0, (#lines - 1) * lineH / 2 + lineH * 0.45, longest * 0.0052 * scale / 0.34 + 0.016, height, 0, 0, 0, 140)
+    for i, l in ipairs(lines) do
+        SetTextFont(4)
+        SetTextScale(0.0, scale)
+        SetTextColour(color[1], color[2], color[3], 235)
+        SetTextCentre(true)
+        SetTextOutline()
+        BeginTextCommandDisplayText('STRING')
+        AddTextComponentSubstringPlayerName(l)
+        EndTextCommandDisplayText(0.0, (i - 1) * lineH)
+    end
+    ClearDrawOrigin()
+end
+
+local function lookLoop()
+    if lookRunning then return end
+    lookRunning = true
+    CreateThread(function()
+        local nextCheck = 0
+        while next(looks) do
+            local now = GetGameTimer()
+            local me = GetEntityCoords(PlayerPedId())
+            if now >= nextCheck then
+                nextCheck = now + (LK.CheckInterval or 250)
+                for _, l in pairs(looks) do
+                    l.anchor, l.entity = lookAnchor(l.s)
+                    l.visible = #(me - l.anchor) <= (LK.Distance or 10.0) + 0.5 and inSight(l.anchor, l.entity)
+                end
+            end
+            if not IsPauseMenuActive() then
+                for _, l in pairs(looks) do
+                    if l.visible then drawLook(l.anchor, l.lines, #(me - l.anchor)) end
+                end
+            end
+            Wait(0)
+        end
+        lookRunning = false
+    end)
+end
+
+--- Descriptions visuelles proches (toutes les 500 ms, depuis la boucle principale)
+local function updateLooks(p)
+    local wanted = {}
+    if RZ.isSearcher() then
+        for _, s in pairs(byId) do
+            if s.look and s.look ~= '' and s.kind ~= 'zone' then
+                local c = RZ.scenePos(s)
+                if RZ.dist2D(c, p) <= (LK.Distance or 10.0) + 2.0 and math.abs(c.z - p.z) <= 8.0 then wanted[s.id] = s end
+            end
+        end
+    end
+    for id in pairs(looks) do if not wanted[id] then looks[id] = nil end end
+    for id, s in pairs(wanted) do
+        if not looks[id] or looks[id].s ~= s then looks[id] = { s = s, lines = wrap(s.look, 38), visible = false } end
+    end
+    if next(looks) then lookLoop() end
 end
 
 -- =========================================================================
@@ -219,7 +447,7 @@ local function covered(e)
     if not DoesEntityExist(e) then return false end
     local c = GetEntityCoords(e)
     for _, s in pairs(byId) do
-        if RZ.dist2D(s.pos, c) <= protectRadius(s) then return true end
+        if RZ.dist2D(RZ.scenePos(s), c) <= protectRadius(s) then return true end
     end
     return false
 end
@@ -237,11 +465,12 @@ end
 
 local function protectScene(s, pools)
     local r = protectRadius(s)
+    local center = RZ.scenePos(s)
     local budget = PR.MaxPerScene or 250
     local function within(e)
         local c = GetEntityCoords(e)
-        local dx, dy = c.x - s.pos.x, c.y - s.pos.y
-        return dx * dx + dy * dy <= r * r and math.abs(c.z - s.pos.z) <= r + 15.0
+        local dx, dy = c.x - center.x, c.y - center.y
+        return dx * dx + dy * dy <= r * r and math.abs(c.z - center.z) <= r + 15.0
     end
     if PR.Objects ~= false then
         for _, e in ipairs(pools.objects) do
@@ -265,7 +494,7 @@ end
 
 --- Objet à fouiller : toujours là (sinon une copie fixe à sa place, propre à ce joueur)
 local function checkObject(s, p)
-    if not PR.RestoreObject or s.kind ~= 'object' or not s.model then return end
+    if not PR.RestoreObject or s.kind ~= 'object' or not s.model or s.vehicle then return end
     if RZ.dist2D(s.pos, p) > 70.0 then return end
     local copy = restored[s.id]
     local found = GetClosestObjectOfType(s.pos.x, s.pos.y, s.pos.z, 0.8, s.model, false, false, false)
@@ -297,7 +526,7 @@ local function protectAll(p)
     if PR.Enabled == false then return end
     local near = {}
     for _, s in pairs(byId) do
-        if RZ.dist2D(s.pos, p) <= (PR.Range or 150.0) + protectRadius(s) then near[#near + 1] = s end
+        if RZ.dist2D(RZ.scenePos(s), p) <= (PR.Range or 150.0) + protectRadius(s) then near[#near + 1] = s end
     end
     if #near == 0 then return end
     local pools = { objects = GetGamePool('CObject'), peds = GetGamePool('CPed'), vehicles = GetGamePool('CVehicle') }
@@ -338,6 +567,7 @@ local function loop()
             local p = { x = c.x, y = c.y, z = c.z }
             updateZone(p)
             updateNearSearch(p, ped)
+            updateLooks(p)
             local now = GetGameTimer()
             if now - lastProtect >= 2000 then
                 lastProtect = now

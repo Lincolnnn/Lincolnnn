@@ -79,6 +79,15 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 }
 .rz-input:focus { border-color: rgba(var(--accent-rgb), .7); box-shadow: 0 0 0 2px rgba(var(--accent-rgb), .15); }
 .rz-textarea { min-height: 120px; resize: vertical; line-height: 1.45; }
+.rz-textarea.rz-short { min-height: 58px; }
+.rz-camera { margin-top: 10px; }
+.rz-seg { display: flex; padding: 2px; gap: 2px; border: 1px solid var(--line); border-radius: 8px; background: rgba(0, 0, 0, .2); }
+.rz-seg-btn {
+    height: 26px; padding: 0 11px; cursor: pointer; border: 0; border-radius: 6px; background: transparent;
+    color: var(--muted); font: 600 12px var(--font);
+}
+.rz-seg-btn:hover { color: var(--text); }
+.rz-seg-btn.active { color: #eaf2ff; background: rgba(var(--accent-rgb), .22); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .6); }
 .rz-counter { align-self: flex-end; font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rz-summary {
     display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px;
@@ -200,3 +209,22 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .result-title { margin-top: 3px; font-size: 14px; font-weight: bold; color: #fff; }
 .result-title:empty { display: none; }
 .result-text { margin-top: 5px; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+
+/* ===================== LÂCHER SON ARME (rappel / choix) ===================== */
+.whint {
+    position: fixed; top: 2.2vh; left: 1.2vw; z-index: 44; pointer-events: none;
+    display: flex; flex-direction: column; gap: 6px; padding: 9px 12px;
+    background: rgba(0, 0, 0, .62); border: 1.5px solid #7a7a7a; border-radius: 8px;
+    color: #e6e6e6; font-size: 13.5px; text-shadow: 0 1px 1px rgba(0, 0, 0, .8);
+    animation: whint-in .18s ease-out;
+}
+@keyframes whint-in { from { opacity: 0; transform: translateX(-8px); } }
+.whint-row { display: flex; align-items: center; gap: 9px; font-weight: 600; }
+.whint-alt { font-weight: 500; color: #bdbdbd; font-size: 12.5px; }
+.whint kbd {
+    display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px;
+    color: #111; background: #e9e9e9; border-radius: 4px; font: 700 12.5px var(--font); text-shadow: none;
+    box-shadow: 0 2px 0 #9a9a9a;
+}
+.whint .whint-wheel { min-width: 22px; padding: 0 4px; background: #cfcfcf; }
+.whint-wheel svg { width: 12px; height: 17px; fill: none; stroke: #111; stroke-width: 1.8; stroke-linecap: round; }

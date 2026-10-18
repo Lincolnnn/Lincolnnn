@@ -5,7 +5,9 @@
       - ZONE DE RECHERCHE / PÉRIMÈTRE À FOUILLER : un CERCLE BLANC lumineux qui épouse le terrain (sols, trottoirs,
         murs, toits, objets), comme l'indicateur de lancer de grenade de PUBG, suit le point visé ; molette : rayon
         (zone 15 à 60 m, périmètre 0,5 à 5 m) ;
-      - OBJET À FOUILLER : l'objet du décor visé ressort en CONTOUR BLANC, avec un cercle blanc à son pied.
+      - OBJET À FOUILLER : l'objet du décor ou le VÉHICULE visé ressort en CONTOUR BLANC, avec un cercle blanc à son pied.
+    Vue du jeu (autour du personnage) ou CAMÉRA LIBRE (choisie dans le menu ; V change de vue pendant la sélection) :
+    on se balade dans les environs sans déplacer le personnage.
     E valide (puis la description, dans le menu) ; Retour arrière, clic droit ou Échap annulent (Échap n'ouvre pas le
     menu pause). Les scènes déjà posées autour sont dessinées en plus pâle pour se repérer.
     Boucle à chaque image SEULEMENT pendant la sélection ; le cercle n'est recalculé que si le point visé bouge.
@@ -74,16 +76,81 @@ local function setOutline(e)
     end
 end
 
+--- Objet du décor ou véhicule visé
 local function objectAt(entity)
-    if not entity or entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 3 then return nil end
-    if RZ.isDroppedWeapon(entity) then return nil end
+    if not entity or entity == 0 or not DoesEntityExist(entity) then return nil end
+    local t = GetEntityType(entity)
+    if t ~= 3 and t ~= 2 then return nil end
+    if t == 3 and RZ.isDroppedWeapon(entity) then return nil end
     return entity
+end
+
+-- =========================================================================
+-- CAMÉRA LIBRE : on se balade dans les environs sans déplacer le personnage (V : vue du jeu <-> caméra libre)
+-- Souris : regarder ; Z/Q/S/D (W/A/S/D) : avancer / côtés ; Espace / Ctrl : monter / descendre ; Maj : plus vite.
+-- Elle reste à moins de FreecamRange m du personnage.
+-- =========================================================================
+local FREE_BLOCKED = { 1, 2, 21, 22, 30, 31, 32, 33, 34, 35, 36, 44, 0, 26, 79 }
+local free = nil -- { cam, pos, rot }
+
+local function startFreecam()
+    if free then return end
+    local pos, rot = GetGameplayCamCoord(), GetGameplayCamRot(2)
+    local cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    SetCamCoord(cam, pos.x, pos.y, pos.z)
+    SetCamRot(cam, rot.x, rot.y, rot.z, 2)
+    SetCamFov(cam, GetGameplayCamFov())
+    RenderScriptCams(true, true, 350, true, true)
+    free = { cam = cam, pos = pos, rot = vector3(rot.x, 0.0, rot.z) }
+end
+
+local function stopFreecam()
+    if not free then return end
+    RenderScriptCams(false, true, 350, true, true)
+    DestroyCam(free.cam, false)
+    ClearFocus()
+    free = nil
+end
+
+local function updateFreecam(dt)
+    for _, c in ipairs(FREE_BLOCKED) do DisableControlAction(0, c, true) end
+    local lookX, lookY = GetDisabledControlNormal(0, 1), GetDisabledControlNormal(0, 2)
+    local rx = math.max(-85.0, math.min(85.0, free.rot.x - lookY * 8.0))
+    local rz = (free.rot.z - lookX * 8.0) % 360.0
+    free.rot = vector3(rx, 0.0, rz)
+    local forward = RZ.rotDirection(free.rot)
+    local right = vector3(math.cos(math.rad(rz)), math.sin(math.rad(rz)), 0.0)
+    local move = vector3(0.0, 0.0, 0.0)
+    if IsDisabledControlPressed(0, 32) then move = move + forward end
+    if IsDisabledControlPressed(0, 33) then move = move - forward end
+    if IsDisabledControlPressed(0, 35) then move = move + right end
+    if IsDisabledControlPressed(0, 34) then move = move - right end
+    if IsDisabledControlPressed(0, 22) then move = move + vector3(0.0, 0.0, 1.0) end
+    if IsDisabledControlPressed(0, 36) then move = move - vector3(0.0, 0.0, 1.0) end
+    local speed = (S.FreecamSpeed or 6.0) * (IsDisabledControlPressed(0, 21) and 3.0 or 1.0)
+    local pos = free.pos + move * (speed * dt)
+    -- reste à moins de FreecamRange m du personnage
+    local me = GetEntityCoords(PlayerPedId())
+    local offset = pos - me
+    local maxRange = S.FreecamRange or 60.0
+    if #offset > maxRange then pos = me + offset * (maxRange / #offset) end
+    free.pos = pos
+    SetCamCoord(free.cam, pos.x, pos.y, pos.z)
+    SetCamRot(free.cam, rx, 0.0, rz, 2)
+    SetFocusPosAndVel(pos.x, pos.y, pos.z, 0.0, 0.0, 0.0)
+end
+
+--- Ce que vise la caméra active (caméra libre ou vue du jeu)
+local function aimNow(range, flags)
+    if free then return RZ.aim(range, flags, free.pos, RZ.rotDirection(free.rot)) end
+    return RZ.aim(range, flags)
 end
 
 -- =========================================================================
 -- SÉLECTION
 -- =========================================================================
 local function stop(message)
+    stopFreecam()
     setOutline(nil)
     selecting = nil
     others = {}
@@ -94,10 +161,14 @@ local function helpLines()
     local k = selecting.kind
     local lines = { ('~INPUT_CONTEXT~ Choisir : %s'):format(KIND_LABEL[k]:lower()) }
     if k == 'object' then
-        lines[1] = selecting.target and '~INPUT_CONTEXT~ Choisir cet objet' or 'Visez un objet du décor'
+        local isVehicle = selecting.target and GetEntityType(selecting.target) == 2
+        lines[1] = selecting.target and (isVehicle and '~INPUT_CONTEXT~ Choisir ce véhicule' or '~INPUT_CONTEXT~ Choisir cet objet')
+            or 'Visez un objet du décor ou un véhicule'
     else
         lines[#lines + 1] = ('~INPUT_WEAPON_WHEEL_NEXT~ Rayon : %s'):format(fmt(selecting.radius))
     end
+    lines[#lines + 1] = free and '~INPUT_NEXT_CAMERA~ Vue du personnage (caméra libre : ZQSD, Espace / Ctrl, Maj)'
+        or '~INPUT_NEXT_CAMERA~ Caméra libre'
     lines[#lines + 1] = '~INPUT_FRONTEND_CANCEL~ Annuler'
     return lines
 end
@@ -112,10 +183,19 @@ function RZ.startSelector(kind, opts, onDone)
         radius = math.max(limits.MinRadius, math.min(limits.MaxRadius, tonumber(opts.radius) or limits.DefaultRadius)),
         ring = {}, objectRing = {},
     }
+    if opts.camera == 'free' then startFreecam() end
     CreateThread(function()
+        local lastFrame = GetGameTimer()
         while selecting do
             for _, c in ipairs(DISABLED) do DisableControlAction(0, c, true) end
+            DisableControlAction(0, S.ToggleKey or 0, true)
             local now = GetGameTimer()
+            local dt = math.min(0.1, (now - lastFrame) / 1000.0)
+            lastFrame = now
+            if IsDisabledControlJustPressed(0, S.ToggleKey or 0) then
+                if free then stopFreecam() else startFreecam() end
+            end
+            if free then updateFreecam(dt) end
             local pulse = 190 + math.floor(45 * math.sin(now / 180))
             local ped = PlayerPedId()
             local me = GetEntityCoords(ped)
@@ -123,7 +203,7 @@ function RZ.startSelector(kind, opts, onDone)
 
             local point, center, entity
             if selecting.kind == 'object' then
-                point, entity = RZ.aim(S.ObjectRange or 30.0, 1 + 16)
+                point, entity = aimNow(S.ObjectRange or 30.0, 1 + 2 + 16)
                 entity = objectAt(entity)
                 selecting.target = entity
                 setOutline(entity)
@@ -138,7 +218,7 @@ function RZ.startSelector(kind, opts, onDone)
                     RZ.drawCenter(point, { 200, 200, 200 }, 120, 0.25)
                 end
             else
-                point = RZ.aim(S.Range or 60.0, 1 + 16)
+                point = aimNow(S.Range or 60.0, 1 + 16)
                 if point then
                     center = { x = point.x, y = point.y, z = point.z }
                     local band = selecting.kind == 'zone' and (S.Band or 0.18) * 1.6 or (S.Band or 0.18) * 0.7
@@ -157,15 +237,26 @@ function RZ.startSelector(kind, opts, onDone)
                     local c, rot = GetEntityCoords(entity), GetEntityRotation(entity, 2)
                     local choice = { kind = 'object', pos = RZ.vec(c), model = GetEntityModel(entity),
                         rot = RZ.vec(rot), radius = RZ.modelRadius(GetEntityModel(entity)), label = RZ.locationText(c) }
-                    stop()
-                    onDone(choice)
+                    if GetEntityType(entity) == 2 then
+                        -- véhicule : suivi par son n° réseau (il peut bouger)
+                        if not NetworkGetEntityIsNetworked(entity) then
+                            RZ.notify('Ce véhicule n\'est pas synchronisé : choisissez-en un autre.')
+                            choice = nil
+                        else
+                            choice.vehicle, choice.netId = true, VehToNet(entity)
+                        end
+                    end
+                    if choice then
+                        stop()
+                        onDone(choice)
+                    end
                 elseif selecting.kind ~= 'object' and center then
                     local choice = { kind = selecting.kind, pos = RZ.vec(center), radius = selecting.radius,
                         label = RZ.locationText(center) }
                     stop()
                     onDone(choice)
                 else
-                    RZ.notify(selecting.kind == 'object' and 'Visez un objet du décor.' or 'Visez le sol.')
+                    RZ.notify(selecting.kind == 'object' and 'Visez un objet du décor ou un véhicule.' or 'Visez le sol.')
                 end
             else
                 for _, c in ipairs(PAUSE) do
@@ -183,5 +274,8 @@ function RZ.startSelector(kind, opts, onDone)
 end
 
 AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() then setOutline(nil) end
+    if resource == GetCurrentResourceName() then
+        setOutline(nil)
+        stopFreecam()
+    end
 end)

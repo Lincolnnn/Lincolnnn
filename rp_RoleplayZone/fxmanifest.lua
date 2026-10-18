@@ -17,7 +17,7 @@ lua54 'yes'
 name 'rp_RoleplayZone'
 author 'Lincolnnn'
 description 'Zones de recherche, périmètres et objets à fouiller, armes lâchées, œil d\'aigle - standalone, NUI Vanilla JS'
-version '1.1.0'
+version '1.2.0'
 
 ui_page 'html/index.html'
 

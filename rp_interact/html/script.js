@@ -145,15 +145,16 @@
     // MENU D'INTERACTIONS
     // =====================================================================
     const menu = { open: false, view: 'home', data: {} };
+    let spawnCategory = null; // Voiture > Spawn : catégorie principale ouverte
     const MENU_TITLES = {
         home: 'Menu Interaction', civil: 'Civil', police: 'Police', equipment: 'Équipements', 'equipment-custom': 'Customiser équipement',
         'equipment-saved': 'Équipements modifiés',
-        car: 'Voiture', spawn: 'Spawn', 'spawn-police': 'Véhicules de police', 'spawn-other': 'Autres véhicules', radio: 'Radio',
+        car: 'Voiture', spawn: 'Spawn', 'spawn-list': 'Véhicules', radio: 'Radio',
     };
     // Page précédente (bouton retour / Échap)
-    const MENU_PARENT = { civil: 'home', police: 'home', equipment: 'home', 'equipment-custom': 'equipment', 'equipment-saved': 'equipment', car: 'home', spawn: 'car', radio: 'car', 'spawn-police': 'spawn', 'spawn-other': 'spawn' };
+    const MENU_PARENT = { civil: 'home', police: 'home', equipment: 'home', 'equipment-custom': 'equipment', 'equipment-saved': 'equipment', car: 'home', spawn: 'car', radio: 'car', 'spawn-list': 'spawn' };
     // Catégories réservées (config.lua : Permissions) : page -> catégorie
-    const SECTION_OF = { equipment: 'equipment', 'equipment-custom': 'equipment', 'equipment-saved': 'equipment', car: 'car', spawn: 'car', 'spawn-police': 'car', 'spawn-other': 'car', radio: 'car' };
+    const SECTION_OF = { equipment: 'equipment', 'equipment-custom': 'equipment', 'equipment-saved': 'equipment', car: 'car', spawn: 'car', 'spawn-list': 'car', radio: 'car' };
     const isLocked = (view) => !!(SECTION_OF[view] && menu.data.locked && menu.data.locked[SECTION_OF[view]]);
     const LOCKED_TEXT = 'Accès réservé : vous n\'avez pas la permission.';
 
@@ -208,7 +209,7 @@
             if (menu.view.startsWith('spawn')) loadVehicles();
             if (menu.view === 'radio') loadRadio();
         }
-        $('#menuTitle').textContent = MENU_TITLES[menu.view];
+        $('#menuTitle').textContent = menu.view === 'spawn-list' && spawnCategory ? spawnCategory : MENU_TITLES[menu.view];
         $$('.menu-case[data-section]').forEach((c) => {
             const locked = isLocked(c.dataset.section);
             const hint = c.querySelector('small');
@@ -536,7 +537,21 @@
     $('#customSave').addEventListener('click', () => customAction('save'));
     $('#customDelete').addEventListener('click', () => customAction('delete'));
 
-    // ---- Voiture > Spawn (data/vehicles.json) ----
+    // ---- Voiture > Spawn (data/vehicle.json) : catégorie principale ("Principale") > sous-catégorie ----
+    const DEPT_OF = { 'atlanta police department': 'apd', 'georgia state patrol': 'gsp', 'fayette county sheriff office': 'fcso' };
+    const ICON_POLICE = '<svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    const ICON_CAR = '<svg viewBox="0 0 24 24"><path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    /** Groupes dans l'ordre du fichier : [{ name, items }] */
+    function groupBy(list, key) {
+        const out = [];
+        list.forEach((v) => {
+            const name = v[key] || '';
+            let g = out.find((x) => x.name === name);
+            if (!g) { g = { name, items: [] }; out.push(g); }
+            g.items.push(v);
+        });
+        return out;
+    }
     async function loadVehicles() {
         const res = await post('vehicleList');
         if (!res || !res.ok) return;
@@ -545,23 +560,38 @@
         $('#spawnWarpInto').checked = opts.warpInto !== false;
         const all = toArray(res.vehicles);
         const locked = res.policeOnly && !res.police;
-        const item = (v) => `<button type="button" class="menu-item vehicle-item" data-code="${esc(v.code)}" ${v.service !== 'other' && locked ? 'disabled' : ''}>
+        const categories = groupBy(all, 'category');
+        $('#spawnCategories').innerHTML = categories.length ? categories.map((c) => {
+            const subs = groupBy(c.items, 'sub').filter((g) => g.name);
+            const police = c.name.toLowerCase() === 'police';
+            return `<button type="button" class="menu-case spawn-category" data-category="${esc(c.name)}">
+                <span class="case-icon">${police ? ICON_POLICE : ICON_CAR}</span>
+                <span class="case-text"><b>${esc(c.name)}</b><small>${c.items.length} véhicule${c.items.length > 1 ? 's' : ''}${subs.length ? ` · ${subs.map((g) => esc(g.name)).join(', ')}` : ''}${police && locked ? ' — réservé à la police' : ''}</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>`;
+        }).join('') : '<div class="menu-empty">Aucun véhicule (data/vehicle.json).</div>';
+        if (menu.view !== 'spawn-list') return;
+        const current = categories.find((c) => c.name === spawnCategory);
+        const police = !!(current && current.name.toLowerCase() === 'police');
+        const item = (v) => `<button type="button" class="menu-item vehicle-item" data-id="${Number(v.id)}" ${v.police && locked ? 'disabled' : ''}>
             ${esc(v.label)}<small>${esc(v.code)}</small></button>`;
-        const fill = (sel, list, empty) => { $(sel).innerHTML = list.length ? list.map(item).join('') : `<div class="menu-empty">${esc(empty)}</div>`; };
-        const apd = all.filter((v) => v.service === 'apd');
-        const gsp = all.filter((v) => v.service === 'gsp');
-        const fcso = all.filter((v) => v.service === 'fcso');
-        const other = all.filter((v) => v.service === 'other');
-        fill('#spawnApd', apd, 'Aucun véhicule APD (data/vehicles.json).');
-        fill('#spawnGsp', gsp, 'Aucun véhicule GSP (data/vehicles.json).');
-        fill('#spawnFcso', fcso, 'Aucun véhicule FCSO (data/vehicles.json).');
-        fill('#spawnOther', other, 'Aucun véhicule (data/vehicles.json).');
-        $('#spawnPoliceHint').textContent = `${apd.length} APD, ${gsp.length} GSP, ${fcso.length} FCSO${locked ? ' — réservé à la police' : ''}`;
-        $('#spawnOtherHint').textContent = `${other.length} véhicule(s)`;
+        $('#spawnGroups').innerHTML = current ? groupBy(current.items, 'sub').map((g) => {
+            const dept = DEPT_OF[g.name.toLowerCase()];
+            const head = g.name ? `<div class="menu-section">${dept ? `<span class="dept-chip dept-${dept}">${dept.toUpperCase()}</span>` : ''}${esc(g.name)}</div>` : '';
+            return `${head}<div class="menu-list">${g.items.map(item).join('')}</div>`;
+        }).join('') : '<div class="menu-empty">Aucun véhicule dans cette catégorie.</div>';
         const notice = $('#spawnPoliceNotice');
-        notice.classList.toggle('hidden', !locked);
+        notice.classList.toggle('hidden', !(police && locked));
         notice.textContent = 'Réservé à la police : rejoignez une unité dans le MDC.';
     }
+    document.addEventListener('click', (e) => {
+        const cat = e.target.closest('.spawn-category');
+        if (!cat) return;
+        spawnCategory = cat.dataset.category;
+        menu.view = 'spawn-list';
+        menu.lastView = null; // recharge la liste de cette catégorie
+        renderMenu();
+    });
 
     const saveSpawnOptions = () => post('spawnOptions', { deleteOld: $('#spawnDeleteOld').checked, warpInto: $('#spawnWarpInto').checked });
     $('#spawnDeleteOld').addEventListener('change', saveSpawnOptions);
@@ -569,7 +599,7 @@
     document.addEventListener('click', (e) => {
         const btn = e.target.closest('.vehicle-item');
         if (!btn || btn.disabled) return;
-        post('spawnVehicle', { code: btn.dataset.code });
+        post('spawnVehicle', { id: Number(btn.dataset.id) });
         post('closeMenu');
     });
 

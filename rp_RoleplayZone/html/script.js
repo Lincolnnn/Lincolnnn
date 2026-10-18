@@ -3,21 +3,30 @@
     const $ = (id) => document.getElementById(id);
     const box = $('rz');
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_RoleplayZone';
-    const KIND = { zone: 'Zone de recherche', perimeter: 'Périmètre à fouiller', object: 'Objet à fouiller' };
+    const KIND = { zone: 'Zone de recherche', perimeter: 'Périmètre à fouiller', object: 'Objet à fouiller', vehicle: 'Véhicule à fouiller' };
+    const kindOf = (x) => (x && x.vehicle ? 'vehicle' : x && x.kind);
     const TEXT_LABEL = {
         zone: 'Message affiché aux policiers dans la zone',
-        perimeter: 'Ce que le policier trouvera en fouillant',
-        object: 'Ce que le policier trouvera en fouillant l\'objet',
+        perimeter: 'Ce que le policier trouvera en fouillant (œil)',
+        object: 'Ce que le policier trouvera en fouillant l\'objet (œil)',
+        vehicle: 'Ce que le policier trouvera en fouillant le véhicule (œil)',
+    };
+    const LOOK_PLACEHOLDER = {
+        perimeter: 'ex. Des cartons détrempés empilés contre le mur, une tache sombre au sol.',
+        object: 'ex. Le couvercle de la poubelle est entrouvert, un tissu noir dépasse.',
+        vehicle: 'ex. Vitre arrière brisée, de la boue sur les bas de caisse.',
     };
     const PLACEHOLDER = {
         zone: 'ex. Des traces de pneus partent vers la ruelle. Une odeur d\'essence flotte dans l\'air…',
         perimeter: 'ex. Sous les cartons : un sachet de poudre blanche et une douille de 9 mm.',
         object: 'ex. Dans la poubelle : un sweat noir taché de sang, roulé en boule.',
+        vehicle: 'ex. Sous le siège passager : un couteau et une liasse de billets.',
     };
 
     let state = {
         scenes: [], admin: false, durations: [30, 60, 120, 240, 0], duration: 120,
-        zone: {}, perimeter: {}, titleLength: 40, textLength: 500, view: 'home', draft: null, editId: null,
+        zone: {}, perimeter: {}, titleLength: 40, textLength: 500, lookLength: 160, view: 'home', draft: null, editId: null,
+        camera: 'game',
     };
     let messageTimer = null;
     let tick = null;
@@ -69,13 +78,13 @@
         $('rzCount').textContent = list.length ? `(${list.length})` : '';
         $('rzSub').textContent = `${mine} scène${mine > 1 ? 's' : ''} préparée${mine > 1 ? 's' : ''}${state.admin ? ' · administration' : ''}`;
         $('rzList').innerHTML = list.length ? list.map((s) => {
-            const radius = s.kind === 'object' ? 'objet du décor' : `rayon ${meters(s.radius)}`;
+            const radius = s.vehicle ? 'véhicule' : (s.kind === 'object' ? 'objet du décor' : `rayon ${meters(s.radius)}`);
             const searches = s.kind === 'zone' ? '' : ` · ${s.searches ? `fouillé ${s.searches} fois${s.lastBy ? ` (${esc(s.lastBy)})` : ''}` : 'pas encore fouillé'}`;
             return `
             <div class="rz-item ${esc(s.kind)}">
                 <div class="rz-item-info">
-                    <div class="rz-item-title"><span class="rz-badge">${KIND[s.kind] || ''}</span>${esc(s.title || s.label || `Scène n°${s.id}`)}</div>
-                    <div class="rz-item-text">${esc(s.text)}</div>
+                    <div class="rz-item-title"><span class="rz-badge">${KIND[kindOf(s)] || ''}</span>${esc(s.title || s.label || `Scène n°${s.id}`)}</div>
+                    <div class="rz-item-text">${esc(s.text || s.look || '')}</div>
                     <div class="rz-item-meta">${esc(s.label || '')} · ${radius} · <span data-left="${s.id}">${timeLeft(s)}</span>${searches}${s.mine ? '' : ` · <span class="rz-other">${esc(s.by || '?')}</span>`}</div>
                 </div>
                 <div class="rz-item-actions">
@@ -101,26 +110,36 @@
     }
 
     function updateCounter() {
-        const n = $('rzText').value.length;
-        $('rzCounter').textContent = `${n} / ${state.textLength}`;
+        $('rzCounter').textContent = `${$('rzText').value.length} / ${state.textLength}`;
+        $('rzLookCounter').textContent = `${$('rzLook').value.length} / ${state.lookLength}`;
+    }
+
+    function renderCamera() {
+        box.querySelectorAll('[data-camera]').forEach((b) => b.classList.toggle('active', b.dataset.camera === state.camera));
     }
 
     /** Étape 3 : décrire une sélection (draft) ou modifier une scène (scene) */
     function openDescribe(draft, scene) {
         const kind = scene ? scene.kind : draft.kind;
+        const shown = kindOf(scene || draft);
         state.draft = scene ? null : draft;
         state.editId = scene ? scene.id : null;
         const where = scene ? scene.label : draft.label;
         const radius = scene ? scene.radius : draft.radius;
         $('rzDescTitle').textContent = scene ? 'Modifier la scène' : 'Description';
         $('rzSummary').className = `rz-summary ${kind}`;
-        $('rzSummary').innerHTML = `<div><b>${KIND[kind]}</b><small>${esc(where || 'Lieu inconnu')} · ${kind === 'object' ? 'objet du décor' : `rayon ${meters(Number(radius) || 0)}`}</small></div>`;
-        $('rzTextLabel').textContent = TEXT_LABEL[kind];
+        const what = shown === 'vehicle' ? 'véhicule' : (kind === 'object' ? 'objet du décor' : `rayon ${meters(Number(radius) || 0)}`);
+        $('rzSummary').innerHTML = `<div><b>${KIND[shown]}</b><small>${esc(where || 'Lieu inconnu')} · ${what}</small></div>`;
+        $('rzTextLabel').textContent = TEXT_LABEL[shown];
         $('rzTitle').maxLength = state.titleLength;
         $('rzText').maxLength = state.textLength;
-        $('rzText').placeholder = PLACEHOLDER[kind];
+        $('rzText').placeholder = PLACEHOLDER[shown];
+        $('rzLook').maxLength = state.lookLength;
+        $('rzLook').placeholder = LOOK_PLACEHOLDER[shown] || '';
+        $('rzLookField').classList.toggle('hidden', kind === 'zone');
         $('rzTitle').value = scene ? (scene.title || '') : '';
         $('rzText').value = scene ? (scene.text || '') : '';
+        $('rzLook').value = scene ? (scene.look || '') : '';
         if (scene) state.duration = scene.permanent ? 0 : (Number(scene.duration) || state.duration);
         $('rzReselect').classList.toggle('hidden', !!scene);
         $('rzSubmit').textContent = scene ? 'Enregistrer' : 'Créer';
@@ -144,11 +163,17 @@
         if (!state.opened) { state.duration = Number(data.defaultDuration) || 120; state.opened = true; }
         state.zone = data.zone || {}; state.perimeter = data.perimeter || {};
         state.titleLength = Number(data.titleLength) || 40; state.textLength = Number(data.textLength) || 500;
+        state.lookLength = Number(data.lookLength) || 160;
         state.admin = !!data.admin;
+        if (data.camera) state.camera = data.camera;
         setScenes(data.scenes);
         renderHome();
+        renderCamera();
         message('');
-        if (data.draft) openDescribe(data.draft); else show('home');
+        const edit = data.editId ? state.scenes.find((x) => x.id === Number(data.editId)) : null;
+        if (data.draft) openDescribe(data.draft);
+        else if (edit) openDescribe(null, edit);
+        else show('home');
         box.classList.remove('hidden');
         clearInterval(tick);
         tick = setInterval(() => {
@@ -167,9 +192,12 @@
     function submit() {
         const title = $('rzTitle').value.trim();
         const text = $('rzText').value.trim();
-        if (!text) { message('Écrivez une description.', true); $('rzText').focus(); return; }
-        if (state.editId) post('update', { id: state.editId, title, text, duration: state.duration });
-        else if (state.draft) post('create', { draft: state.draft, title, text, duration: state.duration });
+        const isZone = (state.draft && state.draft.kind === 'zone')
+            || (state.editId && (state.scenes.find((x) => x.id === state.editId) || {}).kind === 'zone');
+        const look = isZone ? '' : $('rzLook').value.trim();
+        if (!text && !look) { message(isZone ? 'Écrivez une description.' : 'Écrivez ce qu\'on trouve en fouillant, ou ce qu\'on voit.', true); $('rzText').focus(); return; }
+        if (state.editId) post('update', { id: state.editId, title, text, look, duration: state.duration });
+        else if (state.draft) post('create', { draft: state.draft, title, text, look, duration: state.duration });
     }
 
     box.addEventListener('click', (e) => {
@@ -179,6 +207,8 @@
             const limits = k === 'zone' ? state.zone : state.perimeter;
             return post('pick', { kind: k, radius: limits && limits.DefaultRadius });
         }
+        const cam = e.target.closest('[data-camera]');
+        if (cam) { state.camera = cam.dataset.camera; renderCamera(); return post('camera', { mode: state.camera }); }
         const d = e.target.closest('[data-duration]');
         if (d) { state.duration = Number(d.dataset.duration); return renderDurations(); }
         const rm = e.target.closest('[data-remove]');
@@ -201,6 +231,7 @@
     });
 
     $('rzText').addEventListener('input', updateCounter);
+    $('rzLook').addEventListener('input', updateCounter);
 
     document.addEventListener('keydown', (e) => {
         if (box.classList.contains('hidden')) return;
@@ -264,7 +295,7 @@
         const card = document.createElement('div');
         card.className = 'result';
         card.innerHTML = `
-            <div class="result-head"><span>${data.kind === 'object' ? 'Fouille de l\'objet' : 'Fouille des lieux'}</span><span>${esc(data.label || '')}</span></div>
+            <div class="result-head"><span>${data.vehicle ? 'Fouille du véhicule' : (data.kind === 'object' ? 'Fouille de l\'objet' : 'Fouille des lieux')}</span><span>${esc(data.label || '')}</span></div>
             <div class="result-title">${esc(data.title || '')}</div>
             <div class="result-text">${esc(data.text || '')}</div>`;
         list.prepend(card);
@@ -379,6 +410,19 @@
     }
 
     // =====================================================================
+    // LÂCHER SON ARME : rappel « [G] Lâcher son arme », puis « [G] Jeter / Poser » (molette)
+    // =====================================================================
+    function setWeaponHint(data) {
+        const el = $('weaponHint');
+        if (!data.show) { el.classList.add('hidden'); return; }
+        $('whKey').textContent = data.key || 'G';
+        $('whLabel').textContent = data.label || '';
+        $('whAltRow').classList.toggle('hidden', !data.alt);
+        $('whAlt').textContent = data.alt || '';
+        el.classList.remove('hidden');
+    }
+
+    // =====================================================================
     // MESSAGES DU CLIENT
     // =====================================================================
     window.addEventListener('message', (event) => {
@@ -395,6 +439,7 @@
         case 'progress': setProgress(data); break;
         case 'result': addResult(data); break;
         case 'sound': play(data); break;
+        case 'weaponHint': setWeaponHint(data); break;
         default: break;
         }
     });

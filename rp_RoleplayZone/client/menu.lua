@@ -30,8 +30,12 @@ local function sendList()
     end)
 end
 
---- Ouvre le menu ; draft : une sélection à décrire (étape 3), sinon l'accueil
-local function openMenu(draft)
+--- Vue de la sélection : 'game' (vue du jeu) ou 'free' (caméra libre), gardée chez le joueur
+local cameraMode = GetResourceKvpString('rp_scene_camera')
+if cameraMode ~= 'game' and cameraMode ~= 'free' then cameraMode = (Config.Selector and Config.Selector.Camera) or 'game' end
+
+--- Ouvre le menu ; draft : une sélection à décrire (étape 3) ; editId : une scène à modifier ; sinon l'accueil
+local function openMenu(draft, editId)
     if open or RZ.selecting() then return end
     RZ.request('list', { civil = RZ.civilMode() }, function(res)
         if not res.ok then return RZ.notify(res.error or 'Menu indisponible.') end
@@ -44,9 +48,15 @@ local function openMenu(draft)
             defaultDuration = res.defaultDuration or Config.DefaultDuration,
             zone = res.zone or Config.Zone, perimeter = res.perimeter or Config.Perimeter,
             titleLength = res.titleLength or Config.TitleLength, textLength = res.textLength or Config.TextLength,
-            draft = draft,
+            lookLength = res.lookLength or Config.LookLength, camera = cameraMode, draft = draft, editId = editId,
         } })
     end)
+end
+
+--- « Modifier la description » (œil de rp_interact, sur sa propre scène)
+function RZ.openEdit(id)
+    if open then closeMenu(true) end
+    openMenu(nil, id)
 end
 
 -- Scènes changées (par lui ou un autre) : liste du menu ouvert mise à jour
@@ -73,12 +83,21 @@ RegisterNUICallback('close', function(_, cb)
     closeMenu()
 end)
 
+-- Vue de la sélection choisie dans le menu
+RegisterNUICallback('camera', function(data, cb)
+    cb({ ok = true })
+    if type(data) == 'table' and (data.mode == 'game' or data.mode == 'free') then
+        cameraMode = data.mode
+        SetResourceKvp('rp_scene_camera', cameraMode)
+    end
+end)
+
 -- Étape 2 : sélection dans le monde { kind, radius }
 RegisterNUICallback('pick', function(data, cb)
     cb({ ok = true })
     if type(data) ~= 'table' or (data.kind ~= 'zone' and data.kind ~= 'perimeter' and data.kind ~= 'object') then return end
     closeMenu(true)
-    RZ.startSelector(data.kind, { radius = data.radius }, function(choice)
+    RZ.startSelector(data.kind, { radius = data.radius, camera = cameraMode }, function(choice)
         openMenu(choice)
     end)
 end)
@@ -89,7 +108,8 @@ RegisterNUICallback('create', function(data, cb)
     if type(data) ~= 'table' or type(data.draft) ~= 'table' then return end
     local d = data.draft
     RZ.request('create', { kind = d.kind, pos = d.pos, radius = d.radius, model = d.model, rot = d.rot, label = d.label,
-        title = data.title, text = data.text, duration = data.duration, civil = RZ.civilMode() }, function(res)
+        vehicle = d.vehicle, netId = d.netId, title = data.title, text = data.text, look = data.look,
+        duration = data.duration, civil = RZ.civilMode() }, function(res)
         if not res.ok then return message(res.error or 'Création impossible.', true) end
         SendNUIMessage({ action = 'created', data = { scenes = res.scenes or {} } })
         message('Scène créée : elle attend les policiers.')
@@ -99,7 +119,7 @@ end)
 RegisterNUICallback('update', function(data, cb)
     cb({ ok = true })
     if type(data) ~= 'table' then return end
-    RZ.request('update', { id = data.id, title = data.title, text = data.text, duration = data.duration }, function(res)
+    RZ.request('update', { id = data.id, title = data.title, text = data.text, look = data.look, duration = data.duration }, function(res)
         if not res.ok then return message(res.error or 'Modification impossible.', true) end
         SendNUIMessage({ action = 'created', data = { scenes = res.scenes or {} } })
         message('Scène modifiée.')

@@ -66,13 +66,22 @@ Case **Équipements** : **Tenues** → bouton **Accéder aux tenues** (ferme ce 
 Case **Voiture** :
 - **Spawn** : en haut, deux options gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
   fait apparaître, s'il n'y a pas d'autre joueur dedans) et **Apparaître dans le véhicule** (sinon devant vous). Puis
-  **Police** (trois listes : **Atlanta Police Department**, **Georgia State Patrol** et **Fayette County Sheriff
-  Office**, réservées aux policiers en service,
-  `SpawnPoliceOnly`) et **Autres**. Seuls les véhicules de **`data/vehicles.json`** sont proposés, un objet par
-  véhicule : `{ "Code": "apdfordexplorer2016", "Service": "Atlanta Police Department", "Name": "Atlanta Police Dept /
-  FPIU 2016", "Livery": 1, "Extras": [1, 3] }` (`Service` : `Atlanta Police Department`, `Georgia State Patrol`,
-  `Fayette County Sheriff Office`, sinon liste **Autres** ; `Livery` : `null` pour ne rien changer). La **livery** et
-  les **extras** indiqués sont appliqués à l'apparition (extras listés activés, les autres désactivés).
+  une case par **catégorie principale** (`Principale` : Police, Civil…), puis les véhicules **groupés par
+  sous-catégorie** (`subCategory`, avec la pastille APD / GSP / FCSO pour ces services). Seuls les véhicules de
+  **`data/vehicle.json`** sont proposés :
+  ```json
+  { "vehicles": [
+      { "spawnName": "apdcharger", "Principale": "Police", "subCategory": "Atlanta Police Department",
+        "menuName": "Dodge Charger 2020", "extras": { "1": true } },
+      { "spawnName": "apdcharger2", "Principale": "Police", "subCategory": "NC State Highway Patrol",
+        "menuName": "Charger 20 #1", "extras": {} }
+  ] }
+  ```
+  `menuName` : nom affiché ; `extras` : `true` activé / `false` désactivé (s'il y en a, ceux qui ne sont pas listés
+  sont désactivés ; `{}` : extras d'origine) ; `livery` facultatif. Le même `spawnName` peut être listé plusieurs fois
+  (extras différents). Catégorie **Police** : réservée aux policiers en service (`SpawnPoliceOnly`). Attention au JSON :
+  pas de virgule après le dernier élément, guillemets fermés. L'ancien `data/vehicles.json` n'est lu qu'en l'absence de
+  `vehicle.json`.
   `rpi_vehicles` (console) relit les fichiers JSON. Le véhicule apparaît moteur coupé, plein fait (Vehicle Control).
 - **Radio** : collez un **lien** (vidéo / musique YouTube, ou lien direct vers un fichier audio, un podcast, une radio
   en ligne) puis **▶** (lancer) : le son est joué **dans le véhicule**, tel quel (lecteur YouTube, ou lecteur audio pour un
@@ -234,7 +243,13 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     de détresse** posée avec `rp_flares` (« Fusée de détresse » sous l'œil) : **Retirer la fusée** (à 2,5 m), et le
     **plot de circulation** posé avec `rp_equipment` : **Ramasser le plot** ou **Ramasser les plots autour** (tous
     ceux posés près de lui, d'un coup ; policiers en service), et l'**arme lâchée** avec `rp_RoleplayZone`
-    (« Arme au sol ») : **Ramasser l'arme** (à 2 m, avec ses munitions). Un objet peut avoir plusieurs actions (`Options`).
+    (« Arme au sol ») : **Ramasser l'arme** (à 2 m, avec ses munitions, tout le monde). Un objet peut avoir plusieurs
+    actions (`Options`). Ces objets sont aussi trouvés quand le rayon touche le **sol juste à côté** (`ExternalSnap`,
+    0,7 m) : une arme couchée est très fine à viser.
+  - **Options d'autres scripts** (`TargetProviders`, par défaut `rp_RoleplayZone`) : ajoutées à l'œil, y compris sur un
+    **point du sol ou d'un mur** (aucune entité : « Lieu ») ; ex. **Fouiller les lieux / l'objet / le véhicule** et
+    **Modifier la description** des scènes de `rp_RoleplayZone`. Le script fournit les exports client
+    `targetOptions(info)` -> `{ label, options = { { id, label, icon } } }` et `targetSelect(id, info)`.
     Reconnaissance automatique (OneSync) : à chaque objet créé par un script, le serveur demande à son créateur quel
     script l'a fait apparaître ; si c'est `props`, l'objet est marqué pour tout le monde. Votre script de props peut
     aussi marquer ses objets (`exports.rp_interact:registerProp(entity)`) ou être reconnu par un état / un export
@@ -264,9 +279,10 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
   viser ni monter seul dans un véhicule (les menottes du jeu sont levées le temps d'être placé / sorti par un
   policier). **Retirer les menottes** : 3 s.
 - **Prendre par le bras** (individu le plus proche, 2 m) : le policier fait **`/e tenirlebras`**, l'individu est placé à
-  sa droite, un peu devant (`DragOffset`). Il n'est **pas accroché** au policier : il suit sa position et **tourne sur
-  son propre axe** pour s'orienter comme lui (`DragTurnSpeed`), sans pivoter avec le tronc du policier ; ses
-  collisions restent supprimées. Il **marche quand le policier marche**. **Lâcher le bras** (œil, menu) ou touche
+  sa droite, un peu devant (`DragOffset`). Il est **accroché** à la racine du policier (accroche synchronisée par le
+  jeu : il suit sans à-coups chez tout le monde, sans pivoter avec le tronc du policier), sans collisions. Menotté, il
+  **garde l'animation des menottes** (haut du corps) et **marche menotté** quand le policier avance (`DragWalkAnim`,
+  `mp_arresting` / `walk`, sinon `anim@move_m@prisoner_cuffed`). **Lâcher le bras** (œil, menu) ou touche
   **X** (`DragReleaseKey`, modifiable : Raccourcis clavier > FiveM > « Police : lâcher le bras »).
 - **Faire s'asseoir l'individu** (2 m, à pied, **menotté uniquement**, pas tenu par le bras) : il fait l'emote
   **`/e menotté2`** (RPEMOTES) et **reste assis** (déplacements bloqués). Si l'emote s'arrête, c'est **la même**
@@ -346,7 +362,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 ## Données
 
 `data/profiles.json` et `data/custom_equipment.json` (équipements modifiés, nommés et enregistrés par les joueurs,
-rempli par le serveur ; l'ancien format de la v2.8, un par service, est converti tout seul), voir `data/LISEZMOI.txt`. **À remplir vous-même**, en **JSON** : `data/vehicles.json`
+rempli par le serveur ; l'ancien format de la v2.8, un par service, est converti tout seul), voir `data/LISEZMOI.txt`. **À remplir vous-même**, en **JSON** : `data/vehicle.json`
 (véhicules du menu Voiture > Spawn), `data/loadouts.json` (autres lots d'armes du menu Équipements) et
 `data/outfits.json` (tenues du menu `/eup`) ; `rpi_vehicles` (console) les relit, ainsi que
 **`equipment_services.json`** (à la racine de la ressource, fourni avec trois exemples GSP / APD / FCSO).
@@ -405,7 +421,7 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
   joueurs visés toutes les 150 ms. Hors service : aucune boucle.
 - Barre de chargement : boucle uniquement pendant la fouille / le menottage.
 - Menotté : boucle pendant qu'on est menotté (contrôles bloqués, emote vérifiée chaque seconde) ; tenu par le bras :
-  suivi à chaque image (position fluide) UNIQUEMENT tant qu'on est tenu ; PNJ menottés : 1 s tant qu'il y en a.
+  accroche et marche vérifiées toutes les 100 ms UNIQUEMENT tant qu'on est tenu ; PNJ menottés : 1 s tant qu'il y en a.
 - Lâcher le bras avec X : raccourci FiveM (aucune boucle).
 - Tips d'arrestation : les touches fixes X et Échap sont lues uniquement pendant que les tips sont affichés.
 - L'œil d'un joueur autorisé à supprimer vise jusqu'à 60 m (50 m + caméra) au lieu de 25 m : même coût (un rayon).

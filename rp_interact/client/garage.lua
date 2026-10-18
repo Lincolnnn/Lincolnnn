@@ -1,8 +1,8 @@
 --[[
     RP Interact - Menu "Voiture > Spawn" et "Équipements" (client)
     ---------------------------------------------------------------
-    SPAWN : véhicules de data/vehicles.json uniquement (liste envoyée par le serveur), classés Police
-      (Atlanta Police Department / Georgia State Patrol) et Autres. Deux options en haut, gardées chez
+    SPAWN : véhicules de data/vehicle.json uniquement (liste envoyée par le serveur), classés par catégorie
+      principale ("Principale" : Police, Civil…) puis par sous-catégorie ("subCategory"). Deux options en haut, gardées chez
       le joueur : "Supprimer l'ancien véhicule" (le dernier qu'il a fait apparaître, s'il n'y a pas
       d'autre joueur dedans) et "Apparaître dans le véhicule". Livery et extras de la liste appliqués.
       Le véhicule est créé par ce script : Vehicle Control le considère comme neuf (plein, moteur coupé).
@@ -90,10 +90,9 @@ local function applyVehicleLook(vehicle, entry)
         end
     end
     if type(entry.extras) == 'table' then
-        local wanted = {}
-        for _, id in ipairs(entry.extras) do wanted[id] = true end
+        -- extras listés : true activé, false désactivé ; non listés : désactivés
         for id = 0, 20 do
-            if DoesExtraExist(vehicle, id) then SetVehicleExtra(vehicle, id, not wanted[id]) end -- true = désactivé
+            if DoesExtraExist(vehicle, id) then SetVehicleExtra(vehicle, id, entry.extras[id] ~= true) end -- true = désactivé
         end
     end
 end
@@ -136,8 +135,8 @@ end
 
 RegisterNUICallback('spawnVehicle', function(data, cb)
     cb({ ok = true })
-    local code = type(data) == 'table' and data.code or nil
-    RPI.request('spawnVehicle', { code = code }, function(res)
+    local id = type(data) == 'table' and tonumber(data.id) or nil
+    RPI.request('spawnVehicle', { id = id }, function(res)
         if not res or not res.ok then return RPI.notify(res and res.error or 'Action impossible.', 'error') end
         CreateThread(function() spawn(res.vehicle) end)
     end)

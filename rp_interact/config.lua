@@ -24,7 +24,7 @@ InteractConfig = {
         Sections = { equipment = true, car = true }, -- Équipements, Voiture (spawn, radio)
     },
 
-    -- MENU > VOITURE (véhicules de data/vehicles.json) et ÉQUIPEMENTS (armes de data/loadouts.json)
+    -- MENU > VOITURE (véhicules de data/vehicle.json) et ÉQUIPEMENTS (armes de data/loadouts.json)
     SpawnPoliceOnly = true,         -- véhicules de police (APD / GSP / FCSO) réservés aux policiers en service
     EquipmentPoliceOnly = true,     -- armes réservées aux policiers en service
     MaxCustomEquipment = 10,        -- "Équipements modifiés" (nommés, enregistrés) par joueur
@@ -70,6 +70,9 @@ InteractConfig = {
     -- Objets d'AUTRES scripts reconnus à l'œil par leur état (Entity(objet).state[clé]) : nom affiché sous l'œil et
     -- une action qui prévient le SERVEUR de ce script (événement réseau, avec le n° réseau de l'objet) ;
     -- plusieurs actions : Options = { { Label, Icon, Event }, ... }.
+    ExternalSnap = 0.7,             -- m : objet ci-dessous trouvé même si le rayon touche le sol à côté (arme couchée)
+    -- Scripts qui ajoutent leurs options à l'œil (exports targetOptions / targetSelect), même sur le sol ou un mur
+    TargetProviders = { 'rp_RoleplayZone' },
     ExternalObjects = {
         rpFlare = { Name = 'Fusée de détresse', Label = 'Retirer la fusée', Icon = 'trash', Event = 'rp_flares:remove', Distance = 2.5 },
         rpCone = { Name = 'Plot de circulation', Distance = 2.5, Options = {
@@ -119,10 +122,11 @@ InteractConfig = {
     -- Position (m) et orientation (°) des menottes sur l'os du poignet gauche (60309), réglées pour
     -- l'animation "mains dans le dos" du jeu (CuffAnim).
     CuffPropPlacement = { bone = 60309, x = -0.055, y = 0.06, z = 0.04, rx = 265.0, ry = 155.0, rz = 80.0 },
-    -- Individu tenu par le bras : position par rapport au policier (à droite, un peu devant). Il n'est
-    -- pas accroché : il suit cette position et tourne sur lui-même (pas avec le tronc du policier),
-    -- sans collisions. DragTurnSpeed : vitesse (°/s) à laquelle il s'oriente comme le policier.
+    -- Individu tenu par le bras : accroché au policier (à la racine, pas au tronc : il ne pivote pas avec
+    -- lui), à cette position (à droite, un peu devant), sans collisions ; menotté, il garde l'animation des
+    -- menottes et marche avec DragWalkAnim quand le policier avance. (DragTurnSpeed n'est plus utilisé.)
     DragOffset = { x = 0.45, y = 0.3, z = 0.0 },
+    DragWalkAnim = { dict = 'mp_arresting', clip = 'walk' }, -- marche menottée (jambes) quand le policier avance
     DragTurnSpeed = 240.0,
     DragReleaseKey = 'X',           -- policier : lâcher le bras (modifiable dans les raccourcis FiveM)
     PlaceVehicleDistance = 6.0,     -- m : véhicule où placer l'individu tenu par le bras

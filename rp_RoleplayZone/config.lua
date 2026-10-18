@@ -25,20 +25,27 @@ SceneConfig = {
     RemoveOnDisconnect = false,    -- true : les scènes d'un joueur sont supprimées à sa déconnexion
 
     TitleLength = 40,              -- titre (facultatif)
-    TextLength = 500,              -- description / contenu trouvé
+    TextLength = 500,              -- description de la zone / contenu trouvé à la fouille
+    LookLength = 160,              -- description visuelle (périmètre / objet)
 
     -- Les trois types (rayons en mètres)
     Zone = { MinRadius = 15.0, MaxRadius = 60.0, DefaultRadius = 25.0, Step = 2.5 },
     Perimeter = { MinRadius = 0.5, MaxRadius = 5.0, DefaultRadius = 1.5, Step = 0.25 },
-    Object = { Distance = 1.8 },   -- m autour de l'objet pour le fouiller
+    Object = { Distance = 1.8 },   -- m autour de l'objet / du véhicule pour le fouiller
 
-    -- Fouille (périmètre / objet) : barre de chargement, X pour annuler
+    -- Fouille (périmètre / objet / véhicule) avec l'œil de rp_interact (Alt) : barre de chargement (X annule), puis
+    -- l'animation continue jusqu'à X. Sans rp_interact : « E Fouiller » sur place (PromptWithoutTarget).
     Search = {
-        Time = 6000,               -- ms
-        Key = 38,                  -- E
+        ObjectTime = 8000,         -- ms : objet ou véhicule
+        PerimeterMinTime = 6000,   -- ms : le plus petit périmètre (Perimeter.MinRadius)…
+        PerimeterMaxTime = 30000,  -- …jusqu'au plus grand (Perimeter.MaxRadius), proportionnellement au rayon
+        StopKey = 73,              -- X : arrêter l'animation une fois la fouille terminée
+        PromptWithoutTarget = true,
+        Key = 38,                  -- E (seulement sans rp_interact)
         Distance = 1.2,            -- m en plus du rayon du périmètre
         PerimeterScenario = 'CODE_HUMAN_MEDIC_KNEEL',
         ObjectScenario = 'PROP_HUMAN_BUM_BIN',
+        VehicleScenario = 'PROP_HUMAN_PARKING_METER',
         ResultDuration = 25000,    -- ms : fiche du contenu trouvé à l'écran
         AutoMe = true,             -- /me automatique (rp_chat) : « fouille les lieux »
         NotifyCreator = true,      -- le civil est prévenu quand sa scène est fouillée
@@ -48,8 +55,19 @@ SceneConfig = {
     ZoneBlip = { Color = 0, Alpha = 90 }, -- 0 : blanc
     Sounds = { Volume = 0.45 },    -- 0 à 1 : sons d'entrée / sortie de zone et de l'œil d'aigle (générés par l'interface)
 
-    -- Mode sélection (création) : portée de la visée, épaisseur du cercle blanc
-    Selector = { Range = 60.0, ObjectRange = 30.0, Band = 0.18 },
+    -- DESCRIPTION VISUELLE (périmètre / objet) : affichée au-dessus aux policiers à moins de Distance m qui la voient
+    -- (rien entre leur caméra et le lieu / l'objet : derrière un mur, elle n'apparaît pas)
+    Look = { Distance = 10.0, CheckInterval = 250, Scale = 0.34, Color = { 245, 238, 215 } },
+
+    -- Mode sélection (création) : portée de la visée, épaisseur du cercle blanc ; caméra : 'game' (vue du jeu,
+    -- autour du personnage) ou 'free' (caméra libre : on se balade sans déplacer le personnage) ; V change de vue
+    Selector = {
+        Range = 60.0, ObjectRange = 30.0, Band = 0.18,
+        Camera = 'game',
+        FreecamRange = 60.0,       -- m : la caméra libre reste à moins de 60 m du personnage
+        FreecamSpeed = 6.0,        -- m/s (Maj : x3) ; ZQSD / WASD : se déplacer, Espace / Ctrl : monter / descendre
+        ToggleKey = 0,             -- V (INPUT_NEXT_CAMERA) : vue du jeu <-> caméra libre
+    },
 
     -- ŒIL D'AIGLE
     Eagle = {
@@ -59,7 +77,9 @@ SceneConfig = {
         Radius = 15.0,             -- m : portée de l'onde radar
         WaveTime = 1400,           -- ms pour que l'onde aille du joueur à 15 m
         Highlight = 1200,          -- ms : contours blancs d'un objet / véhicule touché par l'onde
-        SearchHighlight = 4000,    -- ms : ce qui est à fouiller (4 s au maximum)
+        SearchHighlight = 4000,    -- ms : ce qui est à fouiller reste en surbrillance plus longtemps…
+        SearchColor = { 255, 236, 150 }, -- …et clignote entre le blanc et ce jaune pâle
+        Blink = 140,               -- ms : clignotement de l'onde et de ce qui est à fouiller
         MaxEntities = 160,         -- objets / véhicules mis en contour au plus
         Vehicles = true,           -- contours des véhicules aussi
         HintRange = 100.0,         -- m : zone de recherche pointée (caméra + flèche) à moins de 100 m de son bord

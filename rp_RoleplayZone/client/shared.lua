@@ -81,10 +81,18 @@ function RZ.camDirection()
     return vector3(-math.sin(z) * cosX, math.cos(z) * cosX, math.sin(x))
 end
 
---- Ce que vise la caméra jusqu'à range m : point, entité (flags : 1 monde, 16 objets, 2 véhicules…)
-function RZ.aim(range, flags)
-    local cam = GetGameplayCamCoord()
-    local to = cam + RZ.camDirection() * range
+--- Direction d'une rotation de caméra (degrés)
+function RZ.rotDirection(rot)
+    local z, x = math.rad(rot.z), math.rad(rot.x)
+    local cosX = math.abs(math.cos(x))
+    return vector3(-math.sin(z) * cosX, math.cos(z) * cosX, math.sin(x))
+end
+
+--- Ce que vise la caméra jusqu'à range m : point, entité (flags : 1 monde, 16 objets, 2 véhicules…) ;
+--- origin / dir : une autre caméra (caméra libre de la sélection)
+function RZ.aim(range, flags, origin, dir)
+    local cam = origin or GetGameplayCamCoord()
+    local to = cam + (dir or RZ.camDirection()) * range
     local ray = StartExpensiveSynchronousShapeTestLosProbe(cam.x, cam.y, cam.z, to.x, to.y, to.z, flags or -1, PlayerPedId(), 7)
     local _, hit, coords, _, entity = GetShapeTestResult(ray)
     if hit ~= 1 and hit ~= true then return nil end
@@ -214,4 +222,22 @@ function RZ.vec(p) return { x = p.x + 0.0, y = p.y + 0.0, z = p.z + 0.0 } end
 function RZ.scenes()
     local list = GlobalState.rpScenes
     return type(list) == 'table' and list or {}
+end
+
+--- Boîte filaire autour d'une entité (ses dimensions), couleur { r, g, b }
+local EDGES = { { 1, 2 }, { 2, 4 }, { 4, 3 }, { 3, 1 }, { 5, 6 }, { 6, 8 }, { 8, 7 }, { 7, 5 }, { 1, 5 }, { 2, 6 }, { 3, 7 }, { 4, 8 } }
+function RZ.drawBox(entity, color, alpha)
+    local min, max = GetModelDimensions(GetEntityModel(entity))
+    local corners = {}
+    for _, z in ipairs({ min.z, max.z }) do
+        for _, y in ipairs({ min.y, max.y }) do
+            for _, x in ipairs({ min.x, max.x }) do
+                corners[#corners + 1] = GetOffsetFromEntityInWorldCoords(entity, x, y, z)
+            end
+        end
+    end
+    for _, e in ipairs(EDGES) do
+        local a, b = corners[e[1]], corners[e[2]]
+        DrawLine(a.x, a.y, a.z, b.x, b.y, b.z, color[1], color[2], color[3], alpha or 230)
+    end
 end

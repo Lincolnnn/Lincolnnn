@@ -135,71 +135,79 @@ function Police.closestVehicle(range)
 end
 
 -- =========================================================================
--- INDIVIDU TENU PAR LE BRAS : position et marche (policier pour un PNJ, civil pour lui-même)
--- Il n'est PAS accroché au policier (accroché, il pivotait avec le tronc du policier) : à chaque
--- image il est replacé à DragOffset du policier (à sa droite, un peu devant) et tourne sur lui-même
--- vers l'orientation du policier (DragTurnSpeed). Collisions supprimées et position figée (pas de
--- chute) tant qu'il est tenu. Boucle à chaque image UNIQUEMENT pendant qu'il est tenu.
+-- INDIVIDU TENU PAR LE BRAS : accroché au policier (policier pour un PNJ, civil pour lui-même)
+-- Il est ACCROCHÉ (AttachEntityToEntity) à la racine du policier, à DragOffset (à sa droite, un peu
+-- devant) : l'accroche est synchronisée par le jeu, il suit sans à-coups chez tout le monde (plus de
+-- position figée et replacée à chaque image, qui saccadait). Accroché à la racine (pas au bassin) : il ne
+-- pivote pas avec le tronc du policier. Menotté : l'animation des menottes (haut du corps, CuffAnim) reste
+-- jouée ; quand le policier marche, une marche menottée (DragWalkAnim) anime les jambes.
+-- Boucle (toutes les 100 ms) UNIQUEMENT pendant qu'il est tenu.
 -- =========================================================================
 local dragWalking = false -- civil local tenu par le bras en train de marcher (pas de relance des menottes)
+local DRAG_WALK = Config.DragWalkAnim or { dict = 'mp_arresting', clip = 'walk' }
+local DRAG_WALK_FALLBACK = { dict = 'anim@move_m@prisoner_cuffed', clip = 'walk' }
 
---- Tenu : figé et sans collisions ; lâché : retour à la normale
+--- Lâché : décroché, collisions et position rendues (aussi pour un ancien état figé)
 local function holdPed(ped, held)
-    if not DoesEntityExist(ped) then return end
+    if not DoesEntityExist(ped) or held then return end
     if IsEntityAttached(ped) then DetachEntity(ped, true, false) end
-    FreezeEntityPosition(ped, held)
-    SetEntityCollision(ped, not held, not held)
+    FreezeEntityPosition(ped, false)
+    SetEntityCollision(ped, true, true)
 end
 
---- Rotation de `current` vers `target` (degrés), limitée à `maxStep`
-local function turnTowards(current, target, maxStep)
-    local diff = (target - current + 540.0) % 360.0 - 180.0
-    if diff > maxStep then diff = maxStep elseif diff < -maxStep then diff = -maxStep end
-    return (current + diff) % 360.0
+--- Marche menottée (jambes) : l'animation configurée, sinon celle de secours ; à appeler dans un thread
+local function playDragWalk(ped)
+    for _, a in ipairs({ DRAG_WALK, DRAG_WALK_FALLBACK }) do
+        if DoesAnimDictExist(a.dict) and RPI.loadAnim(a.dict) then
+            TaskPlayAnim(ped, a.dict, a.clip, 4.0, -4.0, -1, 1, 0.0, false, false, false)
+            Wait(150)
+            if IsEntityPlayingAnim(ped, a.dict, a.clip, 3) then return a end
+        end
+    end
+    return nil
 end
 
---- `ped` suit le policier et marche quand il marche
-local function followLoop(ped, getPolicePed, isActive, onEnd, isSelf)
+--- `ped` est accroché au policier et marche (menotté) quand il marche
+local function followLoop(ped, getPolicePed, isActive, onEnd, isSelf, isCuffedFn)
     CreateThread(function()
         local o = Config.DragOffset
-        local walking, nextWalkCheck = false, 0
-        local heading = GetEntityHeading(ped)
-        holdPed(ped, true)
+        local walking, walkAnim, attachedTo = false, nil, nil
+        local cuffAnim = Config.CuffAnim
         while isActive() do
-            Wait(0)
             local policePed = getPolicePed()
             if not policePed or policePed == 0 or not DoesEntityExist(ped) or IsEntityDead(policePed)
-                or IsPedInAnyVehicle(policePed, false) then
+                or IsPedInAnyVehicle(policePed, false) or IsPedInAnyVehicle(ped, false) then
                 break
             end
-            if not isSelf and not NetworkHasControlOfEntity(ped) then NetworkRequestControlOfEntity(ped) end
-            local dt = GetFrameTime()
-            local target = GetOffsetFromEntityInWorldCoords(policePed, o.x, o.y, o.z)
-            local pos = GetEntityCoords(ped)
-            if #(target - pos) > 3.0 then
-                pos = target -- trop loin (téléportation, gros décalage réseau) : replacé directement
+            if not isSelf and not NetworkHasControlOfEntity(ped) then
+                NetworkRequestControlOfEntity(ped)
             else
-                pos = pos + (target - pos) * math.min(1.0, dt * 15.0) -- suivi fluide
-            end
-            heading = turnTowards(heading, GetEntityHeading(policePed), Config.DragTurnSpeed * dt)
-            SetEntityCoordsNoOffset(ped, pos.x, pos.y, pos.z, false, false, false)
-            SetEntityHeading(ped, heading)
-
-            local now = GetGameTimer()
-            if now >= nextWalkCheck then
-                nextWalkCheck = now + 100
+                if attachedTo ~= policePed or not IsEntityAttachedToEntity(ped, policePed) then
+                    if IsEntityAttached(ped) then DetachEntity(ped, false, false) end
+                    FreezeEntityPosition(ped, false)
+                    AttachEntityToEntity(ped, policePed, 0, o.x, o.y, o.z, 0.0, 0.0, 0.0,
+                        false, false, false, false, 2, true)
+                    attachedTo = policePed
+                end
+                local cuffedNow = not isCuffedFn or isCuffedFn()
+                -- menottes (haut du corps) toujours jouées pendant qu'il est tenu
+                if cuffedNow and not IsEntityPlayingAnim(ped, cuffAnim.dict, cuffAnim.clip, 3) then
+                    RPI.playAnimNow(ped, cuffAnim.dict, cuffAnim.clip, -1, cuffAnim.flag or 49)
+                end
                 local moving = GetEntitySpeed(policePed) > 0.6
                 if moving and not walking then
-                    RPI.playAnimNow(ped, WALK[1], WALK[2], -1, 1)
                     walking = true
+                    walkAnim = playDragWalk(ped)
                 elseif not moving and walking then
-                    StopAnimTask(ped, WALK[1], WALK[2], 1.0)
                     walking = false
+                    if walkAnim then StopAnimTask(ped, walkAnim.dict, walkAnim.clip, 2.0) end
+                    walkAnim = nil
                 end
                 if isSelf then dragWalking = walking end
             end
+            Wait(100)
         end
-        if walking and DoesEntityExist(ped) then StopAnimTask(ped, WALK[1], WALK[2], 1.0) end
+        if walkAnim and DoesEntityExist(ped) then StopAnimTask(ped, walkAnim.dict, walkAnim.clip, 2.0) end
         if isSelf then dragWalking = false end
         holdPed(ped, false)
         if onEnd then onEnd() end
@@ -349,7 +357,7 @@ local function startNpcDrag(ped)
         end
         followLoop(ped, PlayerPedId, function() return dragging ~= nil and dragging.ped == ped end, function()
             if dragging and dragging.ped == ped then dragging = nil end
-        end)
+        end, false, function() return npcCuffed[ped] ~= nil end)
     end)
 end
 
@@ -635,7 +643,7 @@ RegisterNetEvent('rp_interact:client:drag', function(policeSrc)
         return p ~= -1 and GetPlayerPed(p) or 0
     end, function() return draggedBy == policeSrc end, function()
         if draggedBy == policeSrc then draggedBy = nil end
-    end, true)
+    end, true, function() return cuffed end)
 end)
 
 -- Placé à l'arrière par un policier (qui a ouvert la portière) : il y monte lui-même

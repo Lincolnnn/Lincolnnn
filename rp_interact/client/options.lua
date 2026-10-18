@@ -432,6 +432,8 @@ local function externalObject(entity)
     return nil
 end
 
+RPI.externalObject = externalObject
+
 local function objectOptions(ctx)
     local out = {}
     -- Objet d'un autre script (fusée de détresse posée…) : son action, prévenue au serveur de ce script
@@ -477,11 +479,13 @@ function RPI.getOptions(ctx)
     if ctx.type == 'ped' then return personOptions(ctx) end
     if ctx.type == 'vehicle' then return vehicleOptions(ctx) end
     if ctx.type == 'object' then return objectOptions(ctx) end
-    return {}
+    return {} -- 'world' (sol, mur…) : seulement les options des autres scripts (TargetProviders)
 end
 
 --- Nom affiché sous l'œil
 function RPI.targetLabel(ctx)
+    if ctx.providerLabel and (ctx.type == 'world' or ctx.providerOnly) then return ctx.providerLabel end
+    if ctx.type == 'world' then return 'Lieu' end
     if ctx.type == 'ped' then return 'Individu' end -- jamais d'identité, de profil ni de mention PNJ
     if ctx.type == 'vehicle' then return RPI.vehicleLabel(ctx.entity) end -- modèle, sans la plaque
     if SEATS[ctx.model] then return 'Siège' end

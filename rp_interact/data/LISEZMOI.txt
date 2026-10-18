@@ -2,8 +2,13 @@ Dossier de données de RP Interact.
 
   profiles.json -> profils civils créés dans la "Fiche civile" (menu d'interactions > Civil),
                    rempli automatiquement par le serveur
-  vehicles.json -> VÉHICULES du menu d'interactions (F1 > Voiture > Spawn) : à remplir vous-même,
-                   un objet par véhicule { "Code", "Service", "Name", "Livery", "Extras" }
+  vehicle.json  -> VÉHICULES du menu d'interactions (F1 > Voiture > Spawn) : à remplir vous-même,
+                   { "vehicles": [ { "spawnName", "Principale", "subCategory", "menuName", "extras", "livery" } ] }
+                   Principale = catégorie du menu (Police, Civil…), subCategory = groupe dans la catégorie,
+                   menuName = nom affiché, extras = { "1": true, "2": false } (activé / désactivé ; s'il y en
+                   a, les extras non listés sont désactivés ; {} = extras d'origine), livery facultatif.
+                   Le même spawnName peut être listé plusieurs fois (extras différents). Catégorie "Police" :
+                   réservée aux policiers en service. (Ancien vehicles.json lu seulement sans vehicle.json.)
   loadouts.json -> AUTRES ARMES du menu d'interactions (F1 > Équipements, facultatif) : à remplir vous-même,
                    un objet par lot { "Name", "Replace", "Weapons": [ { "Weapon", "Ammo", "Components" } ] }
                    (les boutons "Équipement GSP / APD / FCSO" sont dans ../equipment_services.json, voir README.md)

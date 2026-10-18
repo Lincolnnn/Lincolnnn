@@ -3,11 +3,11 @@
     ---------------------------------------------------
     Une touche (Verr. Maj par défaut, modifiable dans les raccourcis FiveM) :
       - un court son et un effet d'écran (teinte froide, comme les visions du mode histoire) ;
-      - une ONDE « RADAR » part du joueur et s'éloigne jusqu'à 15 m : un cercle blanc lumineux qui épouse le terrain
-        (sols, murs, toits) ; chaque objet du décor et chaque véhicule qu'elle atteint ressort en CONTOUR BLANC un
-        court instant ;
-      - ce qui est À FOUILLER dans ces 15 m (objet à fouiller, périmètre à fouiller, arme lâchée) reste en
-        surbrillance plus longtemps (4 s au maximum) : contour de l'objet, cercle lumineux du périmètre ;
+      - une ONDE « RADAR » part du joueur et s'éloigne jusqu'à 15 m en CLIGNOTANT : un cercle blanc lumineux qui épouse
+        le terrain (sols, murs, toits) ; chaque objet du décor et chaque véhicule qu'elle atteint ressort en CONTOUR
+        BLANC un court instant ;
+      - ce qui est À FOUILLER dans ces 15 m (objet / véhicule / périmètre à fouiller, arme au sol) reste en
+        surbrillance plus longtemps (4 s) et CLIGNOTE entre le blanc et un jaune pâle ;
       - hors d'une zone de recherche : la zone la plus proche à moins de 100 m de son bord est POINTÉE : la caméra se
         tourne et zoome vers elle (comme le mode histoire) et une FLÈCHE directionnelle s'affiche à l'écran ;
         dans une zone : la flèche pointe la fouille la plus proche au-delà de 15 m (Eagle.InZoneArrow).
@@ -72,7 +72,8 @@ local function gather(p, R)
     -- à fouiller : objets des scènes, armes lâchées
     for _, s in ipairs(RZ.scenes()) do
         if s.kind ~= 'zone' then
-            local d = #(me - vector3(s.pos.x, s.pos.y, s.pos.z))
+            local sp = RZ.scenePos(s)
+            local d = #(me - vector3(sp.x, sp.y, sp.z))
             if d <= R + (s.radius or 0) then
                 if s.kind == 'object' then
                     local e = RZ.sceneEntity(s)
@@ -132,7 +133,9 @@ local function eagleEye()
 
     local R = E.Radius or 15.0
     local waveTime = E.WaveTime or 1400
-    local highlight, searchHighlight = E.Highlight or 1200, math.min(E.SearchHighlight or 4000, 4000)
+    local highlight, searchHighlight = E.Highlight or 1200, E.SearchHighlight or 4000
+    local blink = E.Blink or 140
+    local yellow = E.SearchColor or { 255, 236, 150 }
     local ped = PlayerPedId()
     local c = GetEntityCoords(ped)
     local origin = { x = c.x, y = c.y, z = c.z - 0.95 }
@@ -152,6 +155,7 @@ local function eagleEye()
     CreateThread(function()
         local start = GetGameTimer()
         local lit = {}      -- [entité] = fin de la surbrillance
+        local special = {}  -- [entité] = true : à fouiller (clignote blanc / jaune pâle)
         local ringsLit = {} -- [id de scène] = { untilT, pts }
         local total = math.max(waveTime + searchHighlight, target and (E.ArrowTime or 4500) or 0, waveTime + highlight)
         local fxStopped = false
@@ -166,7 +170,9 @@ local function eagleEye()
             if progress < 1.0 then
                 local here = GetEntityCoords(ped)
                 local center = { x = origin.x, y = origin.y, z = here.z - 0.95 }
-                local alpha = math.floor(230 * (1.0 - progress * 0.75))
+                -- l'onde clignote au fur et à mesure qu'elle s'agrandit
+                local on = math.floor(t / blink) % 2 == 0
+                local alpha = math.floor(230 * (1.0 - progress * 0.6) * (on and 1.0 or 0.3))
                 if waveR > 0.4 then
                     RZ.drawRing(RZ.ringPoints(center, waveR, RZ.ringCount(waveR, 64), { up = 3.0, down = 6.0 }), 0.22, { 255, 255, 255 }, alpha)
                 end
@@ -188,19 +194,39 @@ local function eagleEye()
             for _, item in ipairs(specials) do
                 if not item.done and item.d <= waveR then
                     item.done = true
-                    if item.e and DoesEntityExist(item.e) then lit[item.e] = now + searchHighlight end
+                    if item.e and DoesEntityExist(item.e) then
+                        lit[item.e] = now + searchHighlight
+                        special[item.e] = true
+                    end
                     if item.scene then
                         local s = item.scene
                         local r = s.kind == 'perimeter' and s.radius or (s.radius or 1.0)
-                        ringsLit[s.id] = { untilT = now + searchHighlight, pts = RZ.ringPoints(s.pos, r, RZ.ringCount(r, 48)),
-                            pos = s.pos, kind = s.kind }
+                        local sp = RZ.scenePos(s)
+                        ringsLit[s.id] = { untilT = now + searchHighlight, pts = RZ.ringPoints(sp, r, RZ.ringCount(r, 48)),
+                            pos = sp, kind = s.kind }
                     end
                 end
             end
+            -- clignotement : phase blanche / phase jaune pâle. La couleur des contours est la même pour tout l'écran :
+            -- tant que des contours ordinaires (blancs) sont affichés, la phase jaune d'un objet à fouiller est
+            -- dessinée par une boîte jaune ; ensuite, c'est son contour qui passe au jaune.
+            local yellowPhase = math.floor(now / blink) % 2 == 1
+            local generic = false
             for e, untilT in pairs(lit) do
                 if now > untilT or not DoesEntityExist(e) then
                     if DoesEntityExist(e) then SetEntityDrawOutline(e, false) end
-                    lit[e] = nil
+                    lit[e], special[e] = nil, nil
+                elseif not special[e] then
+                    generic = true
+                end
+            end
+            local outlineYellow = yellowPhase and not generic
+            if outlineYellow then SetEntityDrawOutlineColor(yellow[1], yellow[2], yellow[3], 255)
+            else SetEntityDrawOutlineColor(255, 255, 255, 255) end
+            for e in pairs(lit) do
+                if special[e] and yellowPhase and generic then
+                    SetEntityDrawOutline(e, false)
+                    RZ.drawBox(e, yellow, 235)
                 else
                     SetEntityDrawOutline(e, true)
                 end
@@ -211,8 +237,8 @@ local function eagleEye()
                     ringsLit[id] = nil
                 else
                     local fade = math.min(1.0, left / 600.0)
-                    local pulse = 0.75 + 0.25 * math.sin(now / 110)
-                    RZ.drawRing(ring.pts, ring.kind == 'perimeter' and 0.16 or 0.1, { 255, 255, 255 }, math.floor(235 * fade * pulse))
+                    RZ.drawRing(ring.pts, ring.kind == 'perimeter' and 0.16 or 0.1, yellowPhase and yellow or { 255, 255, 255 },
+                        math.floor(235 * fade))
                     if ring.kind == 'perimeter' then
                         DrawLightWithRange(ring.pos.x, ring.pos.y, ring.pos.z + 0.6, 255, 255, 255, 3.5, 2.5 * fade)
                     end
@@ -238,6 +264,7 @@ local function eagleEye()
             Wait(0)
         end
         for e in pairs(lit) do if DoesEntityExist(e) then SetEntityDrawOutline(e, false) end end
+        SetEntityDrawOutlineColor(255, 255, 255, 255)
         if not fxStopped then stopScreenFx() end
         SendNUIMessage({ action = 'arrow', data = { show = false } })
         active = false

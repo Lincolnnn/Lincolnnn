@@ -2,8 +2,8 @@
     RP Interact - Voiture (spawn, radio) et Équipements (serveur)
     -------------------------------------------------------------
     - Fichiers JSON du dossier data/ (remplis à la main, relus avec la commande console "rpi_vehicles") :
-      vehicles.json (véhicules du menu Voiture > Spawn), loadouts.json (armes du menu Équipements),
-      outfits.json (tenues du menu /eup). Seuls les véhicules de vehicles.json peuvent être demandés ;
+      vehicle.json (véhicules du menu Voiture > Spawn), loadouts.json (armes du menu Équipements),
+      outfits.json (tenues du menu /eup). Seuls les véhicules de vehicle.json peuvent être demandés ;
       véhicules de police réservés aux policiers en service si SpawnPoliceOnly.
     - Radio : état du véhicule "rpiRadio" = { url, start (heure UTC de lancement, s), volume (0-100),
       queue (file "Écouter ensuite", 5 liens max), history (5 morceaux précédents), seq (n° du morceau),
@@ -56,43 +56,64 @@ local function readJsonList(path)
 end
 
 -- =========================================================================
--- VÉHICULES (data/vehicles.json)
---   [ { "Code": "police3", "Service": "Atlanta Police Department", "Name": "…", "Livery": 0, "Extras": [1, 2] } ]
+-- VÉHICULES (data/vehicle.json ; à défaut, l'ancien data/vehicles.json)
+--   { "vehicles": [ { "spawnName": "apdcharger", "Principale": "Police",
+--       "subCategory": "Atlanta Police Department", "menuName": "Dodge Charger 2020",
+--       "extras": { "1": true }, "livery": 0 } ] }
+--   Principale : catégorie du menu (ex. Police, Civil) ; subCategory : groupe dans cette catégorie ;
+--   extras : n° d'extra -> true (activé) / false (désactivé) ; s'il y en a, ceux qui ne sont pas listés sont
+--   désactivés ; {} : extras d'origine du véhicule. Un même spawnName peut apparaître plusieurs fois (extras
+--   différents). Ancien format accepté : [ { "Code", "Service", "Name", "Livery", "Extras": [1, 2] } ].
+--   Catégorie "Police" : réservée aux policiers en service si SpawnPoliceOnly.
 -- =========================================================================
-local Vehicles, byCode = {}, {}
+local Vehicles, byId = {}, {}
 
-local function loadVehicles()
-    Vehicles, byCode = {}, {}
-    local list = readJsonList('data/vehicles.json')
-    if not list then return end
-    for i, v in ipairs(list) do
-        local code, label = trim(field(v, 'Code')), trim(field(v, 'Name'))
-        if code == '' or label == '' then
-            print(('^3[RP Interact] vehicles.json : véhicule n°%d ignoré (Code ou Name manquant).^0'):format(i))
-        else
-            local extras
-            local rawExtras = field(v, 'Extras')
-            if type(rawExtras) == 'table' and #rawExtras > 0 then
-                extras = {}
-                for _, n in ipairs(rawExtras) do if tonumber(n) then extras[#extras + 1] = math.floor(tonumber(n)) end end
-            end
-            local entry = {
-                code = code:lower(), label = label:sub(1, 80),
-                service = SERVICES[trim(field(v, 'Service')):lower()] or 'other',
-                livery = tonumber(field(v, 'Livery')), extras = extras,
-            }
-            local existing = byCode[entry.code]
-            if existing then
-                -- Même code deux fois : le dernier l'emporte (à la même place dans la liste)
-                existing.label, existing.service = entry.label, entry.service
-                existing.livery, existing.extras = entry.livery, entry.extras
-            else
-                Vehicles[#Vehicles + 1] = entry
-                byCode[entry.code] = entry
-            end
+--- Extras : { "1": true, "2": false } ou [1, 2] (ancien format) -> { on = { [n] = true|false }, strict = bool }
+local function readExtras(raw)
+    if type(raw) ~= 'table' then return nil end
+    local extras, count = {}, 0
+    if #raw > 0 then
+        for _, n in ipairs(raw) do
+            if tonumber(n) then extras[math.floor(tonumber(n))] = true; count = count + 1 end
+        end
+    else
+        for k, v in pairs(raw) do
+            local n = tonumber(k)
+            if n and n >= 0 and n <= 20 then extras[math.floor(n)] = v == true or v == 1 or v == 'true'; count = count + 1 end
         end
     end
-    print(('^5[RP Interact]^0 %d véhicule(s) lu(s) dans data/vehicles.json'):format(#Vehicles))
+    if count == 0 then return nil end
+    return extras
+end
+
+local function loadVehicles()
+    Vehicles, byId = {}, {}
+    local file = LoadResourceFile(GetCurrentResourceName(), 'data/vehicle.json') and 'data/vehicle.json' or 'data/vehicles.json'
+    local data = readJsonList(file)
+    if not data then return end
+    local list = type(field(data, 'vehicles')) == 'table' and field(data, 'vehicles') or data
+    for i, v in ipairs(list) do
+        local code = trim(field(v, 'spawnName') or field(v, 'Code'))
+        local label = trim(field(v, 'menuName') or field(v, 'Name'))
+        if code == '' or label == '' then
+            print(('^3[RP Interact] vehicle.json : véhicule n°%d ignoré (spawnName ou menuName manquant).^0'):format(i))
+        else
+            local sub = trim(field(v, 'subCategory') or field(v, 'Service'))
+            local category = trim(field(v, 'Principale'))
+            if category == '' then category = SERVICES[sub:lower()] and 'Police' or 'Autres' end -- ancien format
+            local entry = {
+                id = #Vehicles + 1, code = code:lower(), label = label:sub(1, 80),
+                category = category:sub(1, 40), sub = sub:sub(1, 60),
+                service = SERVICES[sub:lower()] or (category:lower() == 'police' and 'police' or 'other'),
+                police = category:lower() == 'police',
+                livery = tonumber(field(v, 'livery') or field(v, 'Livery')),
+                extras = readExtras(field(v, 'extras') or field(v, 'Extras')),
+            }
+            Vehicles[#Vehicles + 1] = entry
+            byId[entry.id] = entry
+        end
+    end
+    print(('^5[RP Interact]^0 %d véhicule(s) lu(s) dans %s'):format(#Vehicles, file))
 end
 
 -- =========================================================================
@@ -271,9 +292,12 @@ end)
 
 S.on('spawnVehicle', function(src, p)
     if not allowed(src, 'car') then return DENIED end
-    local entry = byCode[type(p.code) == 'string' and p.code:lower() or '']
+    local entry = byId[math.floor(tonumber(p.id) or -1)]
+    if not entry and type(p.code) == 'string' then -- ancien appel : par spawn code
+        for _, v in ipairs(Vehicles) do if v.code == p.code:lower() then entry = v break end end
+    end
     if not entry then return { ok = false, error = 'Véhicule inconnu.' } end
-    if entry.service ~= 'other' and Config.SpawnPoliceOnly ~= false and not isPolice(src) then
+    if entry.police and Config.SpawnPoliceOnly ~= false and not isPolice(src) then
         return { ok = false, error = 'Véhicule de police : rejoignez une unité dans le MDC.' }
     end
     return { ok = true, vehicle = entry }

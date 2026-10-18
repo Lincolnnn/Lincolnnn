@@ -123,30 +123,12 @@
                 <span class="toggle-box"></span>
                 <span class="toggle-text"><b>Apparaître dans le véhicule</b><small>Sinon, il apparaît devant vous</small></span>
             </label>
-            <button type="button" class="menu-case" data-go="spawn-police">
-                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
-                <span class="case-text"><b>Police</b><small id="spawnPoliceHint">APD, GSP, FCSO</small></span>
-                <span class="case-arrow">&#8250;</span>
-            </button>
-            <button type="button" class="menu-case" data-go="spawn-other">
-                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
-                <span class="case-text"><b>Autres</b><small id="spawnOtherHint">Véhicules civils</small></span>
-                <span class="case-arrow">&#8250;</span>
-            </button>
+            <div id="spawnCategories"></div>
         </div>
 
-        <div class="menu-view hidden" data-view="spawn-police">
+        <div class="menu-view hidden" data-view="spawn-list">
             <div class="menu-active none hidden" id="spawnPoliceNotice"></div>
-            <div class="menu-section"><span class="dept-chip dept-apd">APD</span>Atlanta Police Department</div>
-            <div class="menu-list" id="spawnApd"></div>
-            <div class="menu-section"><span class="dept-chip dept-gsp">GSP</span>Georgia State Patrol</div>
-            <div class="menu-list" id="spawnGsp"></div>
-            <div class="menu-section"><span class="dept-chip dept-fcso">FCSO</span>Fayette County Sheriff Office</div>
-            <div class="menu-list" id="spawnFcso"></div>
-        </div>
-
-        <div class="menu-view hidden" data-view="spawn-other">
-            <div class="menu-list" id="spawnOther"></div>
+            <div id="spawnGroups"></div>
         </div>
 
         <!-- ================= RADIO DU VÉHICULE ================= -->

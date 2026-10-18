@@ -7,6 +7,11 @@
 
     Fonctionne partout : tous les joueurs, les PNJ, soi-même (test, vue à la 3e personne,
     voir AllowSelfTarget), tous les véhicules (enregistrés ou non) et les objets configurés.
+    Objets d'autres scripts (ExternalObjects : arme au sol, fusée…) : trouvés aussi quand le rayon touche le sol
+    juste à côté (ExternalSnap), les petits objets couchés étant difficiles à viser.
+    Autres scripts (TargetProviders, ex. rp_RoleplayZone) : leurs options s'ajoutent, y compris sur un point du
+    sol ou d'un mur (aucune entité) : exports[script]:targetOptions(info) -> { label, options = { { id, label,
+    icon } } } ; option choisie : exports[script]:targetSelect(id, info).
 
     Performance : la boucle (Wait(0), nécessaire pour bloquer le tir pendant la visée) ne tourne
     que pendant que la touche est maintenue / la liste d'options ouverte, puis s'arrête.
@@ -50,10 +55,25 @@ end
 
 local TYPES = { [1] = 'ped', [2] = 'vehicle', [3] = 'object' }
 
+--- Objet d'un autre script (ExternalObjects) à moins de ExternalSnap m du point visé (arme couchée au sol…)
+local function nearbyExternal(coords)
+    local snap = Config.ExternalSnap or 0.7
+    local best, bestD
+    for _, obj in ipairs(GetGamePool('CObject')) do
+        local d = #(GetEntityCoords(obj) - coords)
+        if d <= snap and (not bestD or d < bestD) and RPI.externalObject(obj) then best, bestD = obj, d end
+    end
+    return best
+end
+
 local function buildContext(coords, entity, canDelete)
-    if not entity or entity == 0 or not DoesEntityExist(entity) then return nil end
+    if not entity or entity == 0 or not DoesEntityExist(entity) or not TYPES[GetEntityType(entity)] then
+        -- sol, mur… : un « lieu » (options des autres scripts seulement)
+        local distance = #(GetEntityCoords(PlayerPedId()) - coords)
+        if distance > Config.ObserveDistance then return nil end
+        return { entity = 0, type = 'world', hit = coords, distance = distance, police = RPI.isPolice() }
+    end
     local kind = TYPES[GetEntityType(entity)]
-    if not kind then return nil end
 
     local ped = PlayerPedId()
     local isSelf = entity == ped
@@ -85,15 +105,45 @@ local function sendEye(data)
     SendNUIMessage({ action = 'eye', data = data })
 end
 
+--- Options des autres scripts (Config.TargetProviders) pour ce qui est visé
+local function providerOptions(ctx, options)
+    local info = { entity = ctx.entity, netId = ctx.netId, type = ctx.type, model = ctx.model,
+        hit = { x = ctx.hit.x, y = ctx.hit.y, z = ctx.hit.z }, distance = ctx.distance, police = ctx.police }
+    local base = #options
+    for _, resource in ipairs(Config.TargetProviders or {}) do
+        if GetResourceState(resource) == 'started' then
+            local ok, res = pcall(function() return exports[resource]:targetOptions(info) end)
+            if ok and type(res) == 'table' and type(res.options) == 'table' then
+                for _, o in ipairs(res.options) do
+                    local id = o.id
+                    options[#options + 1] = { id = ('%s:%s'):format(resource, tostring(id)), label = o.label or '?',
+                        icon = o.icon or 'search', police = o.police,
+                        run = function() exports[resource]:targetSelect(id, info) end }
+                end
+                if #res.options > 0 and res.label then ctx.providerLabel = res.label end
+            end
+        end
+    end
+    ctx.providerOnly = base == 0 and #options > 0
+    return options
+end
+
 local function update()
     local canDelete = RPI.Police.canDelete()
     local coords, entity = aim(canDelete and math.max(RAY_LENGTH, DELETE_RAY_LENGTH) or RAY_LENGTH)
+    -- petit objet d'un autre script couché à côté du point visé (arme au sol…) : c'est lui qui est visé
+    if coords and (not entity or entity == 0 or GetEntityType(entity) == 3 or GetEntityType(entity) == 0)
+        and not (entity and entity ~= 0 and RPI.externalObject(entity)) then
+        local near = nearbyExternal(coords)
+        if near then entity, coords = near, GetEntityCoords(near) end
+    end
     local ctx = coords and buildContext(coords, entity, canDelete) or nil
     local options = ctx and RPI.getOptions(ctx) or {}
+    if ctx then options = providerOptions(ctx, options) end
     if #options == 0 then ctx = nil end
 
     -- Envoi au NUI seulement quand la cible ou ses options changent
-    local key = ctx and table.concat({ ctx.entity, #options, options[1] and options[1].id or '', options[#options].label }, '|') or ''
+    local key = ctx and table.concat({ ctx.entity, #options, options[1] and options[1].id or '', options[#options].id, options[#options].label }, '|') or ''
     if current and current.key == key then
         current.ctx = ctx -- point visé à jour (portière la plus proche…)
         current.options = options
@@ -169,7 +219,7 @@ RegisterNUICallback('eyeSelect', function(data, cb)
     local ctx = current and current.ctx
     stop()
     if not option or option.disabled or not ctx then return end
-    if not ctx.isSelf and not DoesEntityExist(ctx.entity) then
+    if not ctx.isSelf and ctx.type ~= 'world' and not DoesEntityExist(ctx.entity) then
         RPI.notify('La cible n\'est plus là.', 'error')
         return
     end

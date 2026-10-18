@@ -34,10 +34,17 @@
                     </button>
                     <button class="rz-kind" data-kind="object">
                         <span class="rz-ico ico-object"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg></span>
-                        <span class="rz-kind-text"><b>Objet à fouiller</b><small>Un props du décor : ce que le policier y trouvera</small></span>
+                        <span class="rz-kind-text"><b>Objet ou véhicule à fouiller</b><small>Un props du décor ou un véhicule : ce que le policier y trouvera</small></span>
                     </button>
                 </div>
-                <div class="rz-hint"><span class="rz-step">2</span> Visez autour de vous : un <b>cercle blanc</b> suit le terrain (molette : rayon), <b>E</b> pour choisir. <span class="rz-step">3</span> La description.</div>
+                <div class="rz-field rz-camera">
+                    <span class="rz-label">Vue pour choisir</span>
+                    <div class="rz-seg" id="rzCamera">
+                        <button class="rz-seg-btn" data-camera="game" title="La vue du jeu, autour de votre personnage">Personnage</button>
+                        <button class="rz-seg-btn" data-camera="free" title="Se balader dans les environs sans déplacer votre personnage">Caméra libre</button>
+                    </div>
+                </div>
+                <div class="rz-hint"><span class="rz-step">2</span> Visez autour de vous : un <b>cercle blanc</b> suit le terrain (molette : rayon), <b>E</b> pour choisir, <b>V</b> change de vue. <span class="rz-step">3</span> La description.</div>
             </section>
 
             <section class="rz-section">
@@ -63,6 +70,11 @@
                     <span class="rz-label" id="rzTextLabel">Description</span>
                     <textarea id="rzText" class="rz-input rz-textarea" maxlength="500"></textarea>
                     <span class="rz-counter" id="rzCounter"></span>
+                </label>
+                <label class="rz-field-col" id="rzLookField">
+                    <span class="rz-label">Description visuelle <small>(affichée au-dessus aux policiers à moins de 10 m qui le voient)</small></span>
+                    <textarea id="rzLook" class="rz-input rz-textarea rz-short" maxlength="160"></textarea>
+                    <span class="rz-counter" id="rzLookCounter"></span>
                 </label>
                 <div class="rz-field">
                     <span class="rz-label">Durée</span>
@@ -92,6 +104,13 @@
         <div class="arrow-ring"><div class="arrow-rot" id="arrowRot"><svg viewBox="0 0 40 40"><path d="M20 3l9 14h-6v8h-6v-8h-6z"/></svg></div></div>
         <div class="arrow-label" id="arrowLabel"></div>
         <div class="arrow-dist" id="arrowDist"></div>
+    </div>
+
+    <!-- LÂCHER SON ARME (mode civil) : rappel / choix jeter - poser -->
+    <div id="weaponHint" class="whint hidden">
+        <div class="whint-row"><kbd id="whKey">G</kbd><span id="whLabel"></span></div>
+        <div class="whint-row whint-alt hidden" id="whAltRow"><kbd class="whint-wheel" title="Molette">
+            <svg viewBox="0 0 16 22"><rect x="1.5" y="1.5" width="13" height="19" rx="6.5"/><path d="M8 5v5"/></svg></kbd><span id="whAlt"></span></div>
     </div>
 
     <!-- FOUILLE : barre de chargement et contenu trouvé -->
