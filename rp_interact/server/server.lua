@@ -814,6 +814,15 @@ local function playerInVehicle(entity)
     return false
 end
 
+--- Secteur d'une scène de roleplay (rp_RoleplayZone : zone / lieu / objet + 70 m) : suppression refusée
+local function inSceneArea(coords)
+    local res = Config.SceneResource or 'rp_RoleplayZone'
+    if not coords or GetResourceState(res) ~= 'started' then return false end
+    local ok, protected = pcall(function() return exports[res]:isProtectedArea({ x = coords.x, y = coords.y, z = coords.z }) end)
+    return ok and protected == true
+end
+local SCENE_REFUSED = { ok = false, error = 'Scène de roleplay à proximité : rien ne peut être supprimé ici.' }
+
 on('deleteEntity', function(src, p)
     if not canDelete(src) then return { ok = false, error = 'Vous ne pouvez pas supprimer d\'éléments.' } end
     if not ONESYNC then return { ok = false, fallback = true } end -- sans OneSync : suppression par le client
@@ -828,6 +837,7 @@ on('deleteEntity', function(src, p)
     elseif kind ~= 3 then
         return { ok = false, error = 'Élément introuvable.' }
     end
+    if kind ~= 1 and inSceneArea(coordsOfEntity(entity)) then return SCENE_REFUSED end
     DeleteEntity(entity)
     return { ok = true }
 end)
@@ -894,6 +904,7 @@ on('propAction', function(src, p)
     if not canUseProp(src, entity) then return { ok = false, error = 'Vous ne pouvez pas modifier ce props.' } end
     local netId = tonumber(p.netId)
     if p.action == 'delete' then
+        if inSceneArea(coordsOfEntity(entity)) then return SCENE_REFUSED end
         if Props.DeletedEvent and Props.DeletedEvent ~= '' then TriggerEvent(Props.DeletedEvent, netId, src) end
         DeleteEntity(entity)
         return { ok = true }

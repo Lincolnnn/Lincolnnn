@@ -194,6 +194,14 @@ VC.on('tick', function(_, vehicle, dt)
     updateState(vehicle, engine)
 end)
 
+--- Balle dans le moteur (client/gunshots.lua) : dégâts appliqués tels quels (pas réduits comme ceux du jeu)
+function VC.bulletEngine(vehicle, amount)
+    local engine = hurtEngine(vehicle, GetVehicleEngineHealth(vehicle), amount)
+    if last.vehicle == vehicle then last.engine = engine end
+    if VC.vehicle == vehicle and VC.seat == -1 then updateState(vehicle, engine) end
+    return engine
+end
+
 -- Choc fort et violent (mur, voiture, lampadaire…) : dégâts supplémentaires selon la perte de vitesse ; accident
 -- important : warnings automatiques
 VC.on('impact', function(vehicle, _, drop, _, hit)

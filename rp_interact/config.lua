@@ -73,6 +73,9 @@ InteractConfig = {
     ExternalSnap = 0.7,             -- m : objet ci-dessous trouvé même si le rayon touche le sol à côté (arme couchée)
     -- Scripts qui ajoutent leurs options à l'œil (exports targetOptions / targetSelect), même sur le sol ou un mur
     TargetProviders = { 'rp_RoleplayZone' },
+    -- Scènes de roleplay : dans leur secteur (zone / lieu / objet + 70 m), « Supprimer » (props, véhicules, objets)
+    -- n'est ni proposé ni accepté
+    SceneResource = 'rp_RoleplayZone',
     ExternalObjects = {
         rpFlare = { Name = 'Fusée de détresse', Label = 'Retirer la fusée', Icon = 'trash', Event = 'rp_flares:remove', Distance = 2.5 },
         rpCone = { Name = 'Plot de circulation', Distance = 2.5, Options = {

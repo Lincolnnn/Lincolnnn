@@ -43,12 +43,18 @@ Réservé aux joueurs en **mode civil** (`rp_interact`, Menu F1 > Civil) qui ne 
    moins), durée (30 min, 1 h, 2 h, 4 h ou illimitée) → **Créer**. « Replacer » refait la sélection.
 
 **Mes scènes** : lieu, rayon, temps restant, nombre de fouilles et dernière unité qui a fouillé ; **Repérer** (point
-GPS), **Modifier** (titre, textes, durée), **Supprimer**. Avec l'**œil** sur son propre périmètre / objet : **Modifier
-la description** (ouvre directement la scène). Le civil est prévenu (message privé) quand sa scène est fouillée.
+GPS), **Modifier** (titre, textes, durée), **Supprimer**. Avec l'**œil**, **en mode civil** (hors unité du MDC) et
+dans le **secteur** de sa scène (la zone ou le lieu / l'objet + **70 m** autour, `Protect.AreaMargin`) : **Modifier la
+description** sur son propre périmètre / objet, **Modifier la zone de recherche** en visant le sol de sa zone ou de ses
+alentours (ouvre directement la scène). Le civil est prévenu (message privé) quand sa scène est fouillée.
 
 ### Lâcher son arme (mode civil, touche G)
 
 Réservé aux joueurs en **mode civil** (hors unité du MDC ; `Weapons.CivilOnly = false` : tout le monde).
+
+L'arme **quitte les mains tout de suite** (au moment du geste), avec ses munitions ; si le serveur refuse (trop
+d'armes au sol, endroit impossible…), elle est **rendue**. Un autre script qui rendrait l'arme entre-temps est
+contré (elle est retirée encore une fois à la confirmation).
 
 1. Le joueur **sort une arme** : pendant **10 s**, un rappel en haut à gauche (au thème du HUD, avec la vraie touche
    du joueur) propose **« G Lâcher son arme »**. La touche reste utilisable **tout le temps** : le rappel n'apparaît
@@ -77,9 +83,11 @@ FiveM, ou utiliser `/oeildaigle`). Une utilisation toutes les 6 s.
   lumineux qui épouse le terrain. Chaque **objet** et chaque **véhicule** qu'elle atteint ressort en **contour blanc**
   un court instant.
 - Ce qui est **à fouiller** dans ces 15 m (objet / véhicule à fouiller, arme au sol : contour ; périmètre : cercle
-  lumineux et une lueur) reste en surbrillance **plus longtemps (4 s)** et **clignote entre le blanc et un jaune pâle**
-  (`Eagle.SearchColor`). La couleur des contours du jeu est la même pour tout l'écran : tant que des contours blancs
-  ordinaires sont encore affichés, la phase jaune d'un objet est dessinée par une **boîte jaune** autour de lui.
+  lumineux et une lueur) reste en surbrillance **plus longtemps (5,2 s)** et **bat comme un cœur** : la couleur passe
+  **progressivement** du blanc au jaune pâle (`Eagle.SearchColor`) et revient, deux pulsations douces puis un repos
+  (`Eagle.Heartbeat`, 1,3 s) ; rien n'apparaît ni ne disparaît d'un coup (le contour s'éteint doucement à la fin).
+  La couleur des contours du jeu est la même pour tout l'écran : tant que des contours blancs ordinaires sont encore
+  affichés, le jaune monte dans une **boîte** autour de l'objet ; ensuite, c'est son contour qui prend la couleur.
 - **Hors d'une zone de recherche** : la zone la plus proche (à moins de **100 m** de son bord) est **pointée** : la
   caméra se tourne et zoome vers elle (comme le mode histoire) et une **flèche directionnelle** s'affiche au milieu
   de l'écran avec la distance.
@@ -91,6 +99,9 @@ Tant qu'une scène existe, autour d'elle (zone : tout son cercle ; périmètre /
 les **PNJ** et les **véhicules stationnés** sont marqués comme **entités de mission** : un « ClearArea » lancé par un
 autre script ne les retire plus. L'**objet à fouiller** est en plus **remis à sa place** (copie fixe) s'il disparaît
 quand même. PNJ sortis de la scène, scène supprimée : tout est rendu au jeu.
+Dans le **secteur** d'une scène (zone / lieu / objet + **70 m**), l'œil de `rp_interact` ne propose plus
+**« Supprimer »** (véhicules, objets) ni **« Supprimer le props »**, et son serveur les refuse (export
+`isProtectedArea(coords)`, client et serveur).
 
 ## Configuration (`config.lua`)
 
@@ -105,8 +116,8 @@ quand même. PNJ sortis de la scène, scène supprimée : tout est rendu au jeu.
 | `Look`, `LookLength` | description visuelle : distance (10 m), vérification de la vue, taille, couleur, longueur |
 | `ZoneBlip`, `Sounds` | couleur / transparence du cercle sur la carte, volume des sons |
 | `Selector` | portée de la visée, épaisseur du cercle blanc, vue par défaut (`Camera`), caméra libre (portée, vitesse), touche V |
-| `Eagle` | touche, rayon (15 m), durées (onde, contours, 4 s pour les fouilles), jaune pâle et clignotement, caméra (100 m, zoom), flèche, effets d'écran |
-| `Protect` | protection contre les « ClearArea » : rayon, objets / PNJ / véhicules stationnés, objet remis |
+| `Eagle` | touche, rayon (15 m), durées (onde, contours, 5,2 s pour les fouilles), jaune pâle et battement (`Heartbeat`), caméra (100 m, zoom), flèche, effets d'écran |
+| `Protect` | protection contre les « ClearArea » : rayon, objets / PNJ / véhicules stationnés, objet remis ; secteur (`AreaMargin`, 70 m) |
 | `Weapons` | lâcher son arme : mode civil, touche (G), rappel (10 s), choix, force du lancer, geste, durée au sol, nombre par joueur, armes exclues |
 
 Console : **`sceneclear`** supprime toutes les scènes.

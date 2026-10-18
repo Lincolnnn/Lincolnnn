@@ -204,8 +204,21 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   `Repair.Restricted = true` la réserve à la permission ACE `command.repair`.
 - Ce script ne fait jamais prendre feu un véhicule (il ne descend pas le moteur sous 10).
 
+### Tirs sur un véhicule (`Gunshots`)
+
+Une balle **bien placée** abîme vraiment le véhicule :
+- dans le **moteur** (à moins de 0,85 m de l'os `engine` du véhicule ; sans cet os : le tiers avant, le capot) :
+  santé du moteur - **dégâts de l'arme x 2,2** (pistolet ~55, fusil ~70, sniper ~220 par balle), sans la réduction
+  appliquée aux dégâts du jeu : quelques balles bien placées le rendent très abîmé (il cale, fume), puis détruit ;
+- dans le **réservoir** (os `petroltank…`) : réservoir percé, **l'essence fuit** (jamais d'explosion causée par ce script).
+Ailleurs (portières, vitres, pneus) : le jeu, comme avant. C'est le **tireur** qui voit où sa balle a touché : il
+l'envoie au serveur (20 balles / s au plus, à moins de 300 m), qui la transmet au joueur qui **contrôle le véhicule**
+(lui seul peut changer sa santé). Aucune boucle : événement de dégâts du jeu.
+
 ## Ceinture de sécurité
 
+- En s'attachant, le personnage fait le **geste du changement de station de radio** (`veh@std@ds@base` /
+  `change_station`, côté passager `veh@std@ps@base`, haut du corps ; `Seatbelt.BuckleAnim`).
 - Vrai son à l'attache et au retrait. **Attachée, impossible de descendre** (touche F bloquée) : il faut d'abord la
   détacher.
 - **Carillon de ceinture**, par véhicule, moteur allumé, **dès que le véhicule roule à plus de 1 MPH** (`AlarmSpeed`) :

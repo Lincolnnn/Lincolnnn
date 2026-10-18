@@ -356,6 +356,19 @@ function Handlers.search(src, data)
         text = s.text ~= '' and s.text or 'Rien de particulier.', label = s.label }
 end
 
+--- Point dans le secteur d'une scène (zone / lieu / objet + Protect.AreaMargin m) : rp_interact y refuse « Supprimer »
+local function isProtectedArea(p)
+    if type(p) ~= 'table' and type(p) ~= 'vector3' then return false end
+    local margin = (Config.Protect and Config.Protect.AreaMargin) or 70.0
+    for _, s in pairs(Scenes) do
+        local c = scenePos(s)
+        local dx, dy = c.x - p.x, c.y - p.y
+        if math.sqrt(dx * dx + dy * dy) <= (s.radius or 0) + margin then return true end
+    end
+    return false
+end
+exports('isProtectedArea', isProtectedArea)
+
 RegisterNetEvent('rp_scene:request', function(id, action, data)
     local src = source
     local handler = Handlers[action]
@@ -374,6 +387,7 @@ local W = Config.Weapons or {}
 local BLACKLIST = {}
 for _, name in ipairs(W.Blacklist or {}) do BLACKLIST[GetHashKey(name) & 0xFFFFFFFF] = true end
 local lastDrop = {}
+local UNARMED = GetHashKey('WEAPON_UNARMED') & 0xFFFFFFFF
 
 local function weaponCount(src)
     local n = 0
@@ -400,27 +414,31 @@ end
 -- velocity (jetée) } ; posée : figée au sol ; jetée : créée à sa main, l'élan est donné par son jeu (settled ensuite)
 RegisterNetEvent('rp_scene:weapon:drop', function(data)
     local src = source
-    if W.Enabled == false or type(data) ~= 'table' or not canDrop(src, data.civil) then return end
+    -- l'arme a déjà quitté les mains du joueur : tout refus la lui rend (rp_scene:weapon:refused)
+    local function refuse(message) TriggerClientEvent('rp_scene:weapon:refused', src, message) end
+    if W.Enabled == false or type(data) ~= 'table' then return refuse() end
+    if not canDrop(src, data.civil) then return refuse('Lâcher son arme : réservé au mode civil.') end
     local throw = data.mode == 'throw'
     local weapon = math.floor(num(data.weapon, -2147483648, 4294967295) or 0) & 0xFFFFFFFF
     local model = math.floor(num(data.model, -2147483648, 4294967295) or 0)
     local pos = point(data)
-    if weapon == 0 or model == 0 or not pos or BLACKLIST[weapon] then return end
+    if weapon == 0 or model == 0 or not pos or BLACKLIST[weapon] then return refuse() end
     local here = pedPos(src)
-    if not here or dist(here, pos) > 3.0 then return end
+    if not here or dist(here, pos) > 3.0 then return refuse() end
     local now = GetGameTimer()
-    if lastDrop[src] and now - lastDrop[src] < 1500 then return end
+    if lastDrop[src] and now - lastDrop[src] < 1500 then return refuse() end
     lastDrop[src] = now
     local ped = GetPlayerPed(src)
+    -- l'arme en main (copie du serveur), ou déjà les mains vides (elle vient de les quitter) : sinon refusé
     local current = GetSelectedPedWeapon(ped)
-    if current and current ~= 0 and (current & 0xFFFFFFFF) ~= weapon then return end -- plus l'arme en main
+    if current and current ~= 0 and (current & 0xFFFFFFFF) ~= weapon and (current & 0xFFFFFFFF) ~= UNARMED then return refuse() end
     if (W.MaxPerPlayer or 0) > 0 and weaponCount(src) >= W.MaxPerPlayer then
-        return notify(src, ('%d armes lâchées au maximum en même temps.'):format(W.MaxPerPlayer))
+        return refuse(('%d armes lâchées au maximum en même temps.'):format(W.MaxPerPlayer))
     end
     local object = CreateObjectNoOffset(model, pos.x, pos.y, pos.z, true, true, false)
     local timeout = GetGameTimer() + 2000
     while not DoesEntityExist(object) and GetGameTimer() < timeout do Wait(0) end
-    if not DoesEntityExist(object) then return notify(src, 'Impossible de lâcher cette arme ici.') end
+    if not DoesEntityExist(object) then return refuse('Impossible de lâcher cette arme ici.') end
     SetEntityRotation(object, num(data.rx, -360, 360) or 0.0, num(data.ry, -360, 360) or 0.0, num(data.rz, -360, 360) or 0.0, 2, true)
     local w = { id = nextWeapon, weapon = weapon, ammo = math.floor(num(data.ammo, 0, 9999) or 0), owner = src, flying = throw }
     nextWeapon = nextWeapon + 1

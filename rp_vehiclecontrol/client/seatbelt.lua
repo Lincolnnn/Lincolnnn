@@ -77,10 +77,28 @@ function VC.isBuckled() return belt end
 --- Carillon de ceinture du joueur en cours (détaché, moteur allumé, véhicule parti) ?
 function VC.beltAlarm() return alarm end
 
+--- Geste en s'attachant : le même que pour changer de station de radio (haut du corps seulement)
+local function beltGesture(ped, vehicle)
+    local A = VCConfig.Seatbelt.BuckleAnim
+    if not A or A.Enabled == false then return end
+    local anim = GetPedInVehicleSeat(vehicle, -1) == ped and A.Driver or A.Passenger
+    if not anim then return end
+    CreateThread(function()
+        RequestAnimDict(anim[1])
+        local timeout = GetGameTimer() + 1000
+        while not HasAnimDictLoaded(anim[1]) and GetGameTimer() < timeout do Wait(10) end
+        if not HasAnimDictLoaded(anim[1]) then return end
+        TaskPlayAnim(ped, anim[1], anim[2], 4.0, -4.0, A.Duration or 1300, A.Flag or 48, 0.0, false, false, false)
+        RemoveAnimDict(anim[1])
+    end)
+end
+
 RegisterCommand('vc_seatbelt', function()
-    local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+    local ped = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(ped, false)
     if vehicle == 0 or not hasBelt(vehicle) or IsPauseMenuActive() then return end
     setBelt(not belt)
+    if belt then beltGesture(ped, vehicle) end
 end, false)
 RegisterKeyMapping('vc_seatbelt', 'Véhicule : attacher / détacher la ceinture', 'keyboard', VCConfig.Keys.seatbelt)
 

@@ -7,7 +7,8 @@
         le terrain (sols, murs, toits) ; chaque objet du décor et chaque véhicule qu'elle atteint ressort en CONTOUR
         BLANC un court instant ;
       - ce qui est À FOUILLER dans ces 15 m (objet / véhicule / périmètre à fouiller, arme au sol) reste en
-        surbrillance plus longtemps (4 s) et CLIGNOTE entre le blanc et un jaune pâle ;
+        surbrillance plus longtemps et BAT comme un cœur : la couleur passe progressivement du blanc au jaune pâle
+        et revient (deux pulsations douces, puis repos), sans apparaître / disparaître d'un coup ;
       - hors d'une zone de recherche : la zone la plus proche à moins de 100 m de son bord est POINTÉE : la caméra se
         tourne et zoome vers elle (comme le mode histoire) et une FLÈCHE directionnelle s'affiche à l'écran ;
         dans une zone : la flèche pointe la fouille la plus proche au-delà de 15 m (Eagle.InZoneArrow).
@@ -22,6 +23,21 @@ local active = false
 local lastUse = -1e9
 
 local function ease(t) return 1 - (1 - t) * (1 - t) end
+
+--- Battement de cœur (0 -> 1 -> 0) : deux pulsations douces (« boum… boum »), puis repos ; ms depuis le début
+local function heartbeat(ms, period)
+    local p = (ms % period) / period
+    local function bump(center, width)
+        local x = (p - center) / width
+        return math.exp(-x * x)
+    end
+    return math.min(1.0, math.max(bump(0.17, 0.11), 0.8 * bump(0.43, 0.12)))
+end
+
+--- Couleur entre le blanc et `c` (part v de c)
+local function blend(c, v)
+    return { math.floor(255 + (c[1] - 255) * v + 0.5), math.floor(255 + (c[2] - 255) * v + 0.5), math.floor(255 + (c[3] - 255) * v + 0.5) }
+end
 
 local function bearing(from, to)
     return math.deg(math.atan(-(to.x - from.x), to.y - from.y))
@@ -136,6 +152,7 @@ local function eagleEye()
     local highlight, searchHighlight = E.Highlight or 1200, E.SearchHighlight or 4000
     local blink = E.Blink or 140
     local yellow = E.SearchColor or { 255, 236, 150 }
+    local heartPeriod = E.Heartbeat or 1300
     local ped = PlayerPedId()
     local c = GetEntityCoords(ped)
     local origin = { x = c.x, y = c.y, z = c.z - 0.95 }
@@ -155,7 +172,8 @@ local function eagleEye()
     CreateThread(function()
         local start = GetGameTimer()
         local lit = {}      -- [entité] = fin de la surbrillance
-        local special = {}  -- [entité] = true : à fouiller (clignote blanc / jaune pâle)
+        local special = {}  -- [entité] = début de son battement : à fouiller (blanc <-> jaune pâle)
+        local shown, shownAt = 0.0, nil -- couleur des contours (0 blanc -> 1 jaune pâle), suivie en douceur
         local ringsLit = {} -- [id de scène] = { untilT, pts }
         local total = math.max(waveTime + searchHighlight, target and (E.ArrowTime or 4500) or 0, waveTime + highlight)
         local fxStopped = false
@@ -190,45 +208,53 @@ local function eagleEye()
                     if DoesEntityExist(item.e) then lit[item.e] = now + highlight end
                 end
             end
-            -- ce qui est à fouiller : plus longtemps (4 s au maximum)
+            -- ce qui est à fouiller : plus longtemps (SearchHighlight), en battant comme un cœur
             for _, item in ipairs(specials) do
                 if not item.done and item.d <= waveR then
                     item.done = true
                     if item.e and DoesEntityExist(item.e) then
                         lit[item.e] = now + searchHighlight
-                        special[item.e] = true
+                        special[item.e] = now -- début de son battement
                     end
                     if item.scene then
                         local s = item.scene
                         local r = s.kind == 'perimeter' and s.radius or (s.radius or 1.0)
                         local sp = RZ.scenePos(s)
                         ringsLit[s.id] = { untilT = now + searchHighlight, pts = RZ.ringPoints(sp, r, RZ.ringCount(r, 48)),
-                            pos = sp, kind = s.kind }
+                            pos = sp, kind = s.kind, from = now }
                     end
                 end
             end
-            -- clignotement : phase blanche / phase jaune pâle. La couleur des contours est la même pour tout l'écran :
-            -- tant que des contours ordinaires (blancs) sont affichés, la phase jaune d'un objet à fouiller est
-            -- dessinée par une boîte jaune ; ensuite, c'est son contour qui passe au jaune.
-            local yellowPhase = math.floor(now / blink) % 2 == 1
-            local generic = false
+            -- BATTEMENT DE CŒUR : ce qui est à fouiller passe progressivement du blanc au jaune pâle et revient (deux
+            -- pulsations douces, puis repos), sans apparaître / disparaître d'un coup. La couleur des contours du jeu est
+            -- la même pour tout l'écran : tant que des contours ordinaires (blancs) sont affichés, le jaune d'un objet
+            -- à fouiller monte dans une boîte autour de lui ; ensuite, c'est son contour qui prend la couleur.
+            local generic, beat, remaining = false, 0.0, math.huge
             for e, untilT in pairs(lit) do
                 if now > untilT or not DoesEntityExist(e) then
                     if DoesEntityExist(e) then SetEntityDrawOutline(e, false) end
                     lit[e], special[e] = nil, nil
                 elseif not special[e] then
                     generic = true
+                else
+                    beat = math.max(beat, heartbeat(now - special[e], heartPeriod))
+                    remaining = math.min(remaining, untilT - now)
                 end
             end
-            local outlineYellow = yellowPhase and not generic
-            if outlineYellow then SetEntityDrawOutlineColor(yellow[1], yellow[2], yellow[3], 255)
-            else SetEntityDrawOutlineColor(255, 255, 255, 255) end
+            -- s'éteint doucement à la fin (pas de disparition d'un coup) ; la couleur suit le battement en douceur
+            -- (aussi quand les contours blancs ordinaires s'éteignent : pas de saut de couleur)
+            local alpha = generic and 255 or math.floor(255 * math.min(1.0, remaining / 600.0))
+            local beatTarget = generic and 0.0 or beat
+            local dtMs = math.max(0, now - (shownAt or now))
+            shownAt = now
+            shown = shown + (beatTarget - shown) * (1.0 - math.exp(-dtMs / 45.0))
+            local c = blend(yellow, shown)
+            SetEntityDrawOutlineColor(c[1], c[2], c[3], alpha)
             for e in pairs(lit) do
-                if special[e] and yellowPhase and generic then
-                    SetEntityDrawOutline(e, false)
-                    RZ.drawBox(e, yellow, 235)
-                else
-                    SetEntityDrawOutline(e, true)
+                SetEntityDrawOutline(e, true)
+                if special[e] and generic then
+                    local v = heartbeat(now - special[e], heartPeriod)
+                    if v > 0.03 then RZ.drawBox(e, blend(yellow, v), math.floor(60 + 180 * v)) end
                 end
             end
             for id, ring in pairs(ringsLit) do
@@ -237,10 +263,11 @@ local function eagleEye()
                     ringsLit[id] = nil
                 else
                     local fade = math.min(1.0, left / 600.0)
-                    RZ.drawRing(ring.pts, ring.kind == 'perimeter' and 0.16 or 0.1, yellowPhase and yellow or { 255, 255, 255 },
-                        math.floor(235 * fade))
+                    local v = heartbeat(now - ring.from, heartPeriod)
+                    local c = blend(yellow, v)
+                    RZ.drawRing(ring.pts, ring.kind == 'perimeter' and 0.16 or 0.1, c, math.floor((200 + 35 * v) * fade))
                     if ring.kind == 'perimeter' then
-                        DrawLightWithRange(ring.pos.x, ring.pos.y, ring.pos.z + 0.6, 255, 255, 255, 3.5, 2.5 * fade)
+                        DrawLightWithRange(ring.pos.x, ring.pos.y, ring.pos.z + 0.6, c[1], c[2], c[3], 3.5, (2.0 + 1.5 * v) * fade)
                     end
                 end
             end

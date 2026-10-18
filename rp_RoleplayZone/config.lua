@@ -77,9 +77,10 @@ SceneConfig = {
         Radius = 15.0,             -- m : portée de l'onde radar
         WaveTime = 1400,           -- ms pour que l'onde aille du joueur à 15 m
         Highlight = 1200,          -- ms : contours blancs d'un objet / véhicule touché par l'onde
-        SearchHighlight = 4000,    -- ms : ce qui est à fouiller reste en surbrillance plus longtemps…
-        SearchColor = { 255, 236, 150 }, -- …et clignote entre le blanc et ce jaune pâle
-        Blink = 140,               -- ms : clignotement de l'onde et de ce qui est à fouiller
+        SearchHighlight = 5200,    -- ms : ce qui est à fouiller reste en surbrillance plus longtemps (4 battements)…
+        SearchColor = { 255, 236, 150 }, -- …et bat comme un cœur : du blanc vers ce jaune pâle, progressivement
+        Heartbeat = 1300,          -- ms : un battement (deux pulsations douces puis repos)
+        Blink = 140,               -- ms : clignotement de l'onde radar
         MaxEntities = 160,         -- objets / véhicules mis en contour au plus
         Vehicles = true,           -- contours des véhicules aussi
         HintRange = 100.0,         -- m : zone de recherche pointée (caméra + flèche) à moins de 100 m de son bord
@@ -102,6 +103,10 @@ SceneConfig = {
         Objects = true, Peds = true, ParkedVehicles = true,
         MaxPerScene = 250,
         RestoreObject = true,      -- objet à fouiller disparu : remis (copie fixe, propre à chaque joueur)
+        -- SECTEUR d'une scène : la zone (ou le lieu / l'objet) + AreaMargin m autour. Dans ce secteur : « Supprimer »
+        -- (props, véhicules, objets) n'est plus proposé à l'œil de rp_interact (et refusé par son serveur) ;
+        -- « Modifier la description » n'y est proposé qu'au civil qui a créé la scène.
+        AreaMargin = 70.0,
     },
 
     -- ARMES LÂCHÉES (mode civil) : arme sortie -> rappel « [G] Lâcher son arme » pendant 10 s (la touche marche

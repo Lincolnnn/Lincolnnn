@@ -160,9 +160,31 @@ RegisterNetEvent('rp_vehiclecontrol:doors', function(netId, actions)
     if owner and owner > 0 then TriggerClientEvent('rp_vehiclecontrol:applyDoors', owner, netId, valid) end
 end)
 
+-- Balle bien placée (moteur / réservoir), vue par le tireur : transmise au joueur qui contrôle le véhicule
+local G = Config.Gunshots or {}
+local shots = {} -- [src] = { second, count }
+RegisterNetEvent('rp_vehiclecontrol:bulletHit', function(netId, part, amount)
+    local src = source
+    if G.Enabled == false or (part ~= 'engine' and part ~= 'tank') then return end
+    local vehicle = vehicleFromNet(netId)
+    amount = tonumber(amount)
+    if not vehicle or not amount or amount ~= amount or amount <= 0 then return end
+    amount = math.min(amount, 600.0)
+    local now = os.time()
+    local s = shots[src]
+    if not s or s.second ~= now then s = { second = now, count = 0 }; shots[src] = s end
+    s.count = s.count + 1
+    if s.count > (G.MaxPerSecond or 20) then return end
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) > (G.MaxDistance or 300.0) then return end
+    local owner = NetworkGetEntityOwner(vehicle)
+    if owner and owner > 0 then TriggerClientEvent('rp_vehiclecontrol:bulletHit', owner, netId, part, amount) end
+end)
+
 AddEventHandler('entityRemoved', function(entity) lastDriver[entity] = nil end)
 
 AddEventHandler('playerDropped', function()
+    shots[source] = nil
     local src = source
     refuelClock[src] = nil
     -- Pistolet de pompe encore sorti : retiré

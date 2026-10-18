@@ -98,6 +98,23 @@ VCConfig = {
     --   - FORT : mur, bâtiment, rocher (décor fixe), voiture, camion, lampadaire, poteau, feu tricolore,
     --     bouche d'incendie… : dégâts du jeu + dégâts selon la violence du choc.
     -- ---------------------------------------------------------------------
+    -- ---------------------------------------------------------------------
+    -- TIRS SUR UN VÉHICULE : une balle bien placée abîme vraiment le véhicule (le tireur envoie le point d'impact,
+    -- le joueur qui contrôle le véhicule applique les dégâts). Pneus, vitres, carrosserie : le jeu.
+    -- ---------------------------------------------------------------------
+    Gunshots = {
+        Enabled = true,
+        EngineBones = { 'engine' }, EngineRadius = 0.85, -- m autour de l'os du moteur
+        FrontFallback = 0.33,     -- sans os "engine" : le tiers avant du véhicule
+        EngineFactor = 2.2,       -- dégâts moteur = dégâts de l'arme x 2.2 (pistolet ~55, fusil ~70, sniper ~220)
+        TankBones = { 'petroltank', 'petroltank_l', 'petroltank_r' }, TankRadius = 0.6,
+        TankFactor = 3.0,         -- dégâts du réservoir (fuite d'essence sous Fuel.LeakBelow)
+        TankFloor = 50.0,         -- le réservoir ne descend pas plus bas (pas d'explosion causée par ce script)
+        DefaultWeaponDamage = 30.0,
+        MaxDistance = 300.0,      -- m : tireur trop loin du véhicule -> ignoré (serveur)
+        MaxPerSecond = 20,        -- balles prises en compte par tireur et par seconde (serveur)
+    },
+
     Damage = {
         -- Dégâts du moteur reçus du jeu, multipliés (1.0 = jeu de base ; moins = plus solide).
         -- Véhicules ~8 % plus résistants qu'avant (0.25 / 0.9 / 0.8 / 0.15 / 2.5).
@@ -201,6 +218,9 @@ VCConfig = {
     -- ---------------------------------------------------------------------
     Seatbelt = {
         BeltSoundVolume = 1.0,    -- volume des sons d'attache / de retrait (x réglage du joueur)
+        -- Geste en s'attachant : celui du changement de station de radio (haut du corps, flag 48)
+        BuckleAnim = { Enabled = true, Driver = { 'veh@std@ds@base', 'change_station' },
+            Passenger = { 'veh@std@ps@base', 'change_station' }, Duration = 1300, Flag = 48 },
         -- Carillon de ceinture, par véhicule roulant, en boucle : UN occupant détaché -> html/sounds/belt_chime.ogg ;
         -- PLUSIEURS détachés en même temps -> fast_belt_chime.ogg (belt_chime coupé net, et inversement)
         ChimeVolume = 1.0,        -- volume des carillons de ceinture (x réglage du joueur)

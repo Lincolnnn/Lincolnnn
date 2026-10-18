@@ -288,24 +288,60 @@ local function aimedScene(info)
     return nil
 end
 
+local AREA = (Config.Protect and Config.Protect.AreaMargin) or 70.0
+
+--- Secteur d'une scène : la zone (ou le lieu / l'objet) et ses alentours (AreaMargin m, 70 par défaut)
+local function inArea(s, p)
+    local c = RZ.scenePos(s)
+    return RZ.dist2D(c, p) <= (s.radius or 0) + AREA
+end
+
+--- Un point dans le secteur d'une scène (rp_interact : pas de « Supprimer » à l'œil dans ces secteurs)
+function RZ.isProtectedArea(p)
+    if type(p) ~= 'table' and type(p) ~= 'vector3' then return false end
+    for _, s in pairs(byId) do
+        if inArea(s, p) then return true end
+    end
+    return false
+end
+exports('isProtectedArea', function(p) return RZ.isProtectedArea(p) end)
+
+--- « Modifier la description » : le civil (mode civil, hors unité du MDC) qui a créé la scène, dans son secteur
+local function canEdit(s, me)
+    return s.src ~= nil and s.src == myServerId() and RZ.civilMode() and not RZ.isPolice() and inArea(s, me)
+end
+
+local function labelOf(s)
+    if s.kind == 'zone' then return 'Zone de recherche' end
+    return s.vehicle and 'Véhicule à fouiller' or (s.kind == 'object' and 'Objet à fouiller' or 'Lieu à fouiller')
+end
+
 exports('targetOptions', function(info)
     if type(info) ~= 'table' or type(info.hit) ~= 'table' then return nil end
+    local meV = GetEntityCoords(PlayerPedId())
+    local me = { x = meV.x, y = meV.y, z = meV.z }
     local s = aimedScene(info)
-    if not s then return nil end
+    if not s then
+        -- sa propre zone de recherche (on vise le sol dans la zone ou à ses alentours) : la modifier
+        for _, z in pairs(byId) do
+            if z.kind == 'zone' and canEdit(z, me) and inArea(z, info.hit) then
+                return { label = labelOf(z), options = { { id = 'edit:' .. z.id, icon = 'note', label = 'Modifier la zone de recherche' } } }
+            end
+        end
+        return nil
+    end
     local options = {}
-    local me = GetEntityCoords(PlayerPedId())
     local c = RZ.scenePos(s)
-    local d = #(me - vector3(c.x, c.y, c.z))
+    local d = #(meV - vector3(c.x, c.y, c.z))
     if RZ.isSearcher() and not searching and d <= reachOf(s) + 0.5 then
         options[#options + 1] = { id = 'search:' .. s.id, icon = 'search', police = true,
             label = s.vehicle and 'Fouiller le véhicule' or (s.kind == 'object' and 'Fouiller l\'objet' or 'Fouiller les lieux') }
     end
-    if s.src and s.src == myServerId() and d <= 10.0 then
+    if canEdit(s, me) then
         options[#options + 1] = { id = 'edit:' .. s.id, icon = 'note', label = 'Modifier la description' }
     end
     if #options == 0 then return nil end
-    return { label = s.vehicle and 'Véhicule à fouiller' or (s.kind == 'object' and 'Objet à fouiller' or 'Lieu à fouiller'),
-        options = options }
+    return { label = labelOf(s), options = options }
 end)
 
 exports('targetSelect', function(id, info)

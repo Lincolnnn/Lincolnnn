@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '2.17.0'
+version '2.17.1'
 
 ui_page 'html/index.html'
 

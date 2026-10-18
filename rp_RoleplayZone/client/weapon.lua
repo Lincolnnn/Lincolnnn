@@ -97,6 +97,19 @@ end
 -- =========================================================================
 -- ACTIONS
 -- =========================================================================
+--- L'arme quitte les mains TOUT DE SUITE, avec le hash lu ici (jamais celui renvoyé par le serveur) ; rendue si le
+--- serveur refuse (rp_scene:weapon:refused)
+local pending = nil -- { weapon, ammo } : arme lâchée, en attente de la réponse du serveur
+local function releaseWeapon(ped, weapon)
+    local ammo = GetAmmoInPedWeapon(ped, weapon)
+    pending = { weapon = weapon, ammo = ammo, at = GetGameTimer() }
+    SetCurrentPedWeapon(ped, UNARMED, true)
+    SetPedAmmo(ped, weapon, 0)
+    RemoveWeaponFromPed(ped, weapon)
+    lastWeapon = UNARMED
+    return ammo
+end
+
 local function place(ped, weapon, model)
     loadAnim('pickup_object')
     TaskPlayAnim(ped, 'pickup_object', 'putdown_low', 8.0, -8.0, 900, 0, 0.0, false, false, false)
@@ -106,8 +119,9 @@ local function place(ped, weapon, model)
     if not found then ground = spot.z - 0.98 end
     local heading = (GetEntityHeading(ped) + 90.0) % 360.0
     local pos, rx, ry = lyingPlacement(model, spot.x, spot.y, ground, heading)
+    local ammo = releaseWeapon(ped, weapon)
     TriggerServerEvent('rp_scene:weapon:drop', {
-        mode = 'place', weapon = weapon, model = model, ammo = GetAmmoInPedWeapon(ped, weapon), civil = RZ.civilMode(),
+        mode = 'place', weapon = weapon, model = model, ammo = ammo, civil = RZ.civilMode(),
         x = pos.x, y = pos.y, z = pos.z, rx = rx, ry = ry, rz = heading,
     })
 end
@@ -128,8 +142,9 @@ local function throw(ped, weapon, model)
     local speed = W.ThrowSpeed or 7.5
     local velocity = { x = dir.x / flat * speed, y = dir.y / flat * speed, z = W.ThrowUp or 3.0 }
     local start = { x = hand.x + dir.x / flat * 0.35, y = hand.y + dir.y / flat * 0.35, z = hand.z + 0.1 }
+    local ammo = releaseWeapon(ped, weapon)
     TriggerServerEvent('rp_scene:weapon:drop', {
-        mode = 'throw', weapon = weapon, model = model, ammo = GetAmmoInPedWeapon(ped, weapon), civil = RZ.civilMode(),
+        mode = 'throw', weapon = weapon, model = model, ammo = ammo, civil = RZ.civilMode(),
         x = start.x, y = start.y, z = start.z, rx = 0.0, ry = 0.0, rz = GetEntityHeading(ped), velocity = velocity,
     })
 end
@@ -288,13 +303,29 @@ local function launch(netId, velocity)
     end)
 end
 
--- Confirmé par le serveur : l'arme quitte les mains du joueur (jetée : l'élan est donné à l'objet)
-RegisterNetEvent('rp_scene:weapon:dropped', function(weapon, netId, mode, velocity)
+-- Confirmé par le serveur : l'arme est au sol (jetée : l'élan est donné à l'objet). Elle a déjà quitté les mains ;
+-- par sécurité, retirée encore (hash local) si un autre script l'avait rendue entre-temps.
+RegisterNetEvent('rp_scene:weapon:dropped', function(_, netId, mode, velocity)
     local ped = PlayerPedId()
-    RemoveWeaponFromPed(ped, weapon)
-    SetCurrentPedWeapon(ped, UNARMED, true)
+    if pending and HasPedGotWeapon(ped, pending.weapon, false) then
+        SetPedAmmo(ped, pending.weapon, 0)
+        RemoveWeaponFromPed(ped, pending.weapon)
+        SetCurrentPedWeapon(ped, UNARMED, true)
+    end
+    pending = nil
     lastWeapon = UNARMED
     if mode == 'throw' and netId and type(velocity) == 'table' then launch(netId, velocity) end
+end)
+
+-- Refusé par le serveur (trop d'armes au sol, endroit impossible…) : l'arme est rendue avec ses munitions
+RegisterNetEvent('rp_scene:weapon:refused', function(message)
+    local p = pending
+    pending = nil
+    if p then
+        local ped = PlayerPedId()
+        if not HasPedGotWeapon(ped, p.weapon, false) then GiveWeaponToPed(ped, p.weapon, p.ammo or 0, false, true) end
+    end
+    if message then RZ.notify(message) end
 end)
 
 -- Ramassée (œil de rp_interact) : l'arme et ses munitions

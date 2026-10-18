@@ -200,9 +200,19 @@ local function occupantOptions(ctx, out)
     end
 end
 
---- Supprimer un PNJ, un véhicule sans joueur ou un objet (même créé par un joueur), jusqu'à 50 m
+--- Secteur d'une scène de roleplay (rp_RoleplayZone : zone / lieu / objet + 70 m) : rien n'y est supprimé à l'œil
+function RPI.inSceneArea(coords)
+    local res = Config.SceneResource or 'rp_RoleplayZone'
+    if not coords or GetResourceState(res) ~= 'started' then return false end
+    local ok, protected = pcall(function() return exports[res]:isProtectedArea({ x = coords.x, y = coords.y, z = coords.z }) end)
+    return ok and protected == true
+end
+
+--- Supprimer un PNJ, un véhicule sans joueur ou un objet (même créé par un joueur), jusqu'à 50 m ; jamais dans le
+--- secteur d'une scène de roleplay
 local function deleteOption(ctx, out)
-    if within(ctx, Config.DeleteDistance) and RPI.Police.canDelete() and RPI.Police.deletable(ctx) then
+    if within(ctx, Config.DeleteDistance) and RPI.Police.canDelete() and RPI.Police.deletable(ctx)
+        and not RPI.inSceneArea(ctx.hit) then
         out[#out + 1] = { id = 'env:delete', label = 'Supprimer', icon = 'trash',
             run = function(c) RPI.Police.delete(c) end }
     end

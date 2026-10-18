@@ -250,6 +250,8 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     **point du sol ou d'un mur** (aucune entité : « Lieu ») ; ex. **Fouiller les lieux / l'objet / le véhicule** et
     **Modifier la description** des scènes de `rp_RoleplayZone`. Le script fournit les exports client
     `targetOptions(info)` -> `{ label, options = { { id, label, icon } } }` et `targetSelect(id, info)`.
+  - **Secteur d'une scène de roleplay** (`SceneResource`, `rp_RoleplayZone` : zone / lieu / objet + 70 m) : **ni
+    « Supprimer » ni « Supprimer le props »** à l'œil, et le serveur refuse la suppression (rien ne doit disparaître).
     Reconnaissance automatique (OneSync) : à chaque objet créé par un script, le serveur demande à son créateur quel
     script l'a fait apparaître ; si c'est `props`, l'objet est marqué pour tout le monde. Votre script de props peut
     aussi marquer ses objets (`exports.rp_interact:registerProp(entity)`) ou être reconnu par un état / un export
