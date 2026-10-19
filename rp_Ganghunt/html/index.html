@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RP Ganghunt</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- MENU (/ganghunt) -->
+    <div id="gh" class="gh hidden">
+        <div class="gh-head">
+            <div class="gh-title">
+                <span class="gh-tag">GANGHUNT</span>
+                <div>
+                    <div class="gh-name">Chasse aux gangs</div>
+                    <div class="gh-sub" id="ghSub">Des vagues d'ennemis vous traquent</div>
+                </div>
+            </div>
+            <button class="gh-close" id="ghClose" title="Fermer (Échap)">✕</button>
+        </div>
+
+        <div class="gh-active hidden" id="ghActive">
+            <span class="gh-dot"></span>
+            <div class="gh-active-text"><b>Chasse en cours</b><small id="ghActiveText"></small></div>
+            <button class="gh-btn gh-danger" id="ghStop">Arrêter</button>
+        </div>
+
+        <div class="gh-cols">
+        <div class="gh-col">
+        <div class="gh-section">
+            <div class="gh-legend"><span class="gh-step">1</span>Ennemis</div>
+            <div class="gh-seg gh-cats" id="ghCats"></div>
+            <div class="gh-factions" id="ghFactions"></div>
+        </div>
+
+        <div class="gh-section">
+            <div class="gh-legend"><span class="gh-step">2</span>Vagues</div>
+            <div class="gh-field">
+                <div class="gh-stepper">
+                    <button class="gh-btn gh-icon" id="ghWavesMinus">−</button>
+                    <span class="gh-count" id="ghWaves">1</span>
+                    <button class="gh-btn gh-icon" id="ghWavesPlus">+</button>
+                </div>
+                <span class="gh-label" id="ghWavesText"></span>
+            </div>
+        </div>
+
+        <div class="gh-section">
+            <div class="gh-legend"><span class="gh-step">3</span>Renforts</div>
+            <label class="gh-check">
+                <input type="checkbox" id="ghVehicles">
+                <span class="gh-box"></span>
+                <span class="gh-check-text"><b>Véhicules</b><small id="ghVehiclesText"></small></span>
+            </label>
+            <label class="gh-check">
+                <input type="checkbox" id="ghHeli">
+                <span class="gh-box"></span>
+                <span class="gh-check-text"><b>Hélicoptère</b><small id="ghHeliText"></small></span>
+            </label>
+        </div>
+        </div>
+
+        <div class="gh-col">
+        <div class="gh-section gh-grow">
+            <div class="gh-legend"><span class="gh-step">4</span>Armes</div>
+            <div class="gh-field gh-first">
+                <span class="gh-label">Répartition</span>
+                <div class="gh-seg">
+                    <button class="gh-seg-btn" data-mode="choose">Choisies</button>
+                    <button class="gh-seg-btn" data-mode="random">Aléatoire</button>
+                </div>
+            </div>
+            <div id="ghChoose">
+                <div class="gh-add">
+                    <select class="gh-input" id="ghWeaponSelect"></select>
+                    <button class="gh-btn" id="ghWeaponAdd">Ajouter</button>
+                </div>
+                <div class="gh-weapons" id="ghWeapons"></div>
+                <div class="gh-total-row">
+                    <span class="gh-total" id="ghTotal"></span>
+                    <button class="gh-btn gh-small" id="ghSpread">Répartir également</button>
+                </div>
+            </div>
+            <div class="gh-hint" id="ghWeaponHint"></div>
+        </div>
+        <div class="gh-message" id="ghMessage"></div>
+        <div class="gh-actions">
+            <button class="gh-btn gh-primary" id="ghStart">Lancer la chasse</button>
+        </div>
+        </div>
+        </div>
+        <div class="gh-foot"><b>/ganghunt stop</b> arrête la chasse · elle s'arrête aussi si vous mourez</div>
+    </div>
+
+    <!-- HUD pendant une chasse -->
+    <div id="ghHud" class="hud hidden">
+        <div class="hud-head"><span class="hud-dot"></span>GANGHUNT<span class="hud-faction" id="hudFaction"></span></div>
+        <div class="hud-wave" id="hudWave"></div>
+        <div class="hud-alive" id="hudAlive"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

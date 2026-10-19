@@ -10,6 +10,8 @@
       policiers PNJ, renforts, poursuites, tirs) ; pompiers / ambulanciers restent supprimés, les autres PNJ calmes.
     - « Everyone ignore player » : les PNJ ignorent les joueurs, n'ont plus peur, ne réagissent plus aux fusillades,
       aux explosions ni aux morts, et ne se battent pas (véhicule volé, klaxon, bousculade).
+    - rp_Ganghunt (événement local rp_npccontrol:ganghunt) : pendant une chasse, « ignore player » coupé pour ce
+      joueur (ses ennemis, créés par script, ne sont jamais touchés par le reste de ce fichier).
     - Densité du trafic, des véhicules garés et des piétons (0.0 à 3.0), réglée par le serveur (GlobalState.npcDensity).
     Performance :
       - boucle d'1 s (PNJ du jeu à proximité : réglages "pas de peur", retrait des services d'urgence) : ~0.01 ms ;
@@ -34,6 +36,9 @@ local POLICE_SERVICES = { [1] = true, [2] = true, [4] = true, [6] = true, [7] = 
 
 --- Chasse à l'homme active (la police du jeu redevient normale)
 local function manhunt() return GlobalState.npcManhunt == true end
+
+--- rp_Ganghunt : ce joueur est traqué (ses ennemis doivent le voir : « everyone ignore player » coupé pour lui)
+local ganghunt = false
 
 --- Modèle d'urgence supprimé en ce moment (en chasse à l'homme : seulement pompiers / ambulanciers)
 local function blockedModel(hash, list)
@@ -97,7 +102,8 @@ local function applyRules()
         end
     end
     if Config.EveryoneIgnorePlayer then
-        SetEveryoneIgnorePlayer(player, not hunt) -- chasse à l'homme : la police doit le voir (civils calmés à part)
+        -- chasse à l'homme : la police doit le voir (civils calmés à part) ; rp_Ganghunt : ses ennemis aussi
+        SetEveryoneIgnorePlayer(player, not hunt and not ganghunt)
         SetPlayerCanBeHassledByGangs(player, false)
         SetIgnoreLowPriorityShockingEvents(player, true)
         -- Groupes de PNJ (civils, vigiles, gangs…) : respect envers les joueurs, jamais hostiles
@@ -334,6 +340,12 @@ end)
 
 -- Personnage (ré)apparu (spawnmanager) : réglages du joueur redonnés tout de suite
 AddEventHandler('playerSpawned', applyRules)
+
+-- rp_Ganghunt (événement local) : chasse lancée / terminée par ce joueur -> réglages redonnés tout de suite
+AddEventHandler('rp_npccontrol:ganghunt', function(active)
+    ganghunt = active == true
+    applyRules()
+end)
 
 -- Chasse à l'homme activée / coupée (npcmanhunt) : réglages redonnés tout de suite ; coupée : étoiles effacées, les
 -- policiers du jeu sont retirés au passage suivant

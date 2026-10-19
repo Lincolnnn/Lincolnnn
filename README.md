@@ -42,6 +42,10 @@ qui y entrent, son d'intrigue, cercle sur la carte), **périmètre à fouiller**
 (fouillés avec l'œil, contenu trouvé à la fouille, description visuelle affichée au-dessus à 10 m), **arme jetée ou posée** au sol par les civils (G, arme en main ; ramassée à l'œil), et l'**œil d'aigle** des policiers (Verr. Maj : onde radar de 15 m,
 contours blancs, zone proche pointée). Rien ne disparaît autour des scènes (protégées des « ClearArea »).
 
+Et **RP Ganghunt** dans [`rp_Ganghunt/`](rp_Ganghunt/README.md) : `/ganghunt`, n'importe quel joueur fait venir des
+**vagues de 10 ennemis** qui le traquent partout (gangs, organisations ou forces de l'ordre), armes réparties en
+pourcentages ou aléatoires, véhicules et hélicoptère de la faction. Volontairement absent du MDC et du `/tuto`.
+
 ## Fenêtre
 
 - Déplacement : glisser la barre de titre.
