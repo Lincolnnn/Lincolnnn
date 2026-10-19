@@ -48,6 +48,13 @@ la police du jeu (gangs, organisations ou forces de l'ordre) : armes réparties 
 spéciales comprises), convoi de véhicules et hélicoptère de la faction, silencieux, grenades, musique de poursuite du
 jeu, HUD en haut de l'écran. Volontairement absent du MDC et du `/tuto`.
 
+Et **RP DLS** dans [`rp_dls/`](rp_dls/README.md) : adaptation FiveM de **DLS** (*Dynamic Lighting System*, GTA V
+solo). Les véhicules DLS retrouvent **tous leurs stages** (stage 1, 2, 3, custom, **Cruise / Steady Burn**,
+**Traffic Advisor**, Wail Setup), **synchronisés entre les joueurs**, à partir des **fichiers XML de DLS tels
+quels** : le stage du carcols reste affiché par le jeu, les autres sont dessinés par le script (halos et éclairage
+de chaque gyrophare, selon les séquences du XML). Sirènes (4 tons, deuxième sirène, manuelle, air horn, scan) et
+panneau de commande (`/dls`).
+
 ## Fenêtre
 
 - Déplacement : glisser la barre de titre.

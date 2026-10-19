@@ -1,0 +1,142 @@
+/* RP DLS : panneau de commande des gyrophares (verre sombre, contour lumineux fin) */
+:root {
+    --bg: rgba(14, 17, 23, .86);
+    --line: rgba(255, 255, 255, .09);
+    --text: #e9edf3;
+    --muted: #8a94a6;
+    --btn: rgba(255, 255, 255, .05);
+    --btn-hover: rgba(255, 255, 255, .1);
+    --red: #ff3b3b;
+    --blue: #2f7dff;
+    --amber: #ffb020;
+    --green: #39d98a;
+    --white: #f4f7ff;
+}
+
+html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; color: var(--text); user-select: none; }
+
+.panel {
+    position: fixed; right: 24px; bottom: 24px;
+    width: 318px; box-sizing: border-box;
+    padding: 0 12px 10px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .05);
+    backdrop-filter: blur(6px);
+    opacity: 0; transform: translateY(8px) scale(.98);
+    transition: opacity .18s, transform .18s;
+    pointer-events: none;
+    transform-origin: bottom right;
+}
+.panel.show { opacity: 1; transform: none; }
+.panel.focus { pointer-events: auto; border-color: rgba(120, 170, 255, .35); }
+.panel.locked .row { opacity: .45; }
+
+/* ---- En-tête : barre de gyrophares animée selon le stage ---- */
+.panel-head {
+    position: relative;
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 0 8px;
+}
+.panel.focus .panel-head { cursor: move; }
+.lightbar {
+    position: absolute; left: -12px; right: -12px; top: 0; height: 4px;
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px;
+    border-radius: 12px 12px 0 0; overflow: hidden;
+}
+.lightbar span { background: rgba(255, 255, 255, .06); }
+.lightbar span:nth-child(-n+3) { --c: var(--red); }
+.lightbar span:nth-child(n+4) { --c: var(--blue); }
+.lightbar.on span { animation: flash var(--speed, .8s) steps(1) infinite; }
+.lightbar.on span:nth-child(n+4) { animation-delay: calc(var(--speed, .8s) / -2); }
+.lightbar.steady span { background: var(--c); animation: none; opacity: .75; }
+.lightbar.native span { animation-name: flash-double; }
+@keyframes flash { 0% { background: var(--c); box-shadow: 0 0 10px var(--c); } 50% { background: rgba(255, 255, 255, .06); box-shadow: none; } }
+@keyframes flash-double {
+    0%, 20% { background: var(--c); box-shadow: 0 0 10px var(--c); }
+    10%, 30%, 100% { background: rgba(255, 255, 255, .06); box-shadow: none; }
+}
+
+.title { flex: 1; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.brand { font-weight: 800; letter-spacing: .12em; font-size: 13px; color: var(--white); }
+.vehicle { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.icon {
+    display: none; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0;
+    background: transparent; border: 1px solid transparent; border-radius: 6px;
+    color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.icon svg { width: 14px; height: 14px; fill: currentColor; }
+.panel.focus .icon, .icon.lock.active { display: inline-flex; }
+.icon:hover { background: var(--btn-hover); color: var(--text); }
+.icon.lock.active { color: var(--amber); border-color: rgba(255, 176, 32, .4); }
+
+/* ---- Rangées ---- */
+.row { padding: 8px 0 2px; border-top: 1px solid var(--line); transition: opacity .2s; }
+.row.hidden { display: none; }
+h3 {
+    margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); display: flex; justify-content: space-between;
+}
+.hint { letter-spacing: .04em; text-transform: none; font-weight: 600; color: var(--muted); }
+.buttons { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; align-items: center; }
+
+.btn {
+    position: relative;
+    min-width: 40px; height: 30px; padding: 0 10px; box-sizing: border-box;
+    background: var(--btn);
+    border: 1px solid var(--line); border-radius: 7px;
+    color: var(--text); font: 700 12px/1 'Segoe UI', Tahoma, Arial, sans-serif; letter-spacing: .05em;
+    cursor: pointer; transition: background .12s, border-color .12s, box-shadow .12s, color .12s;
+}
+.btn.small { height: 26px; min-width: 0; font-size: 11px; padding: 0 9px; }
+.btn:hover { background: var(--btn-hover); }
+.btn:disabled { opacity: .3; cursor: default; }
+.btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
+.btn .key {
+    position: absolute; right: 3px; top: 2px;
+    font-size: 8px; font-weight: 600; color: var(--muted); letter-spacing: 0;
+}
+
+/* Allumé : rouge / bleu pour les stages, ambre pour le TA, blanc pour les feux fixes, vert pour la sirène */
+.btn.on { color: #fff; border-color: transparent; }
+.btn.stage.on {
+    background: linear-gradient(90deg, rgba(255, 59, 59, .85), rgba(47, 125, 255, .85));
+    box-shadow: 0 0 12px rgba(255, 59, 59, .35), 0 0 12px rgba(47, 125, 255, .35);
+}
+.btn.stage.off.on { background: rgba(255, 255, 255, .16); box-shadow: none; }
+.btn.stage .native {
+    position: absolute; left: 4px; top: 3px; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green); opacity: .8;
+}
+.btn.ta.on { background: rgba(255, 176, 32, .85); box-shadow: 0 0 12px rgba(255, 176, 32, .4); color: #1b1300; }
+.btn#steady.on, .btn#int.on { background: rgba(244, 247, 255, .85); color: #10131a; box-shadow: 0 0 10px rgba(244, 247, 255, .35); }
+.btn.warn.on { background: #000; border-color: rgba(255, 255, 255, .5); }
+.btn.tone.on, #aux.on, #scan.on { background: rgba(57, 217, 138, .85); color: #04170d; box-shadow: 0 0 12px rgba(57, 217, 138, .35); }
+
+.led {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--muted);
+    margin-left: 4px;
+}
+.led::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(255, 255, 255, .15);
+    transition: background .1s, box-shadow .1s;
+}
+.led.on { color: var(--text); }
+.led.on::before { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+/* ---- Traffic Advisor : barre de segments animée (chenillard) ---- */
+.ta-bar {
+    display: grid; gap: 3px; height: 8px; margin-bottom: 7px;
+    grid-template-columns: repeat(var(--n, 6), 1fr);
+}
+.ta-bar span { border-radius: 2px; background: rgba(255, 255, 255, .07); }
+.ta-bar span.lit { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+.foot { font-size: 10px; color: var(--muted); padding-top: 4px; min-height: 0; }
+.foot:empty { display: none; }

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>RP DLS</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="panel" class="panel" aria-hidden="true">
+        <div class="panel-head" id="head">
+            <div class="lightbar" id="lightbar" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="title">
+                <span class="brand">DLS</span>
+                <span class="vehicle" id="vehicle"></span>
+            </div>
+            <button class="icon lock" id="lock" data-action="lock" title="Verrouiller les touches">
+                <svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h6V7a3 3 0 0 0-6 0v3z"/></svg>
+            </button>
+            <button class="icon close" id="close" title="Fermer (Échap)">×</button>
+        </div>
+
+        <section class="row" id="row-stages">
+            <h3>Gyrophares</h3>
+            <div class="buttons" id="stages"></div>
+            <div class="buttons">
+                <button class="btn small" data-action="steadyBurn" id="steady">CRUISE</button>
+                <button class="btn small" data-action="interiorLight" id="int">INT</button>
+                <button class="btn small warn" data-action="blackout" id="bo">BLACKOUT</button>
+            </div>
+        </section>
+
+        <section class="row" id="row-ta">
+            <h3>Traffic Advisor <span class="hint" id="ta-pattern"></span></h3>
+            <div class="ta-bar" id="ta-bar" aria-hidden="true"></div>
+            <div class="buttons">
+                <button class="btn ta" data-action="taDirection" data-arg="1" title="Gauche">
+                    <svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6M20 6l-6 6 6 6"/></svg>
+                </button>
+                <button class="btn ta" data-action="taDirection" data-arg="2" title="Diverge">
+                    <svg viewBox="0 0 24 24"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg>
+                </button>
+                <button class="btn ta" data-action="taDirection" data-arg="3" title="Droite">
+                    <svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6M4 6l6 6-6 6"/></svg>
+                </button>
+                <button class="btn ta" data-action="taDirection" data-arg="4" title="Warn">
+                    <svg viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4M12 17v.5"/></svg>
+                </button>
+                <button class="btn small" data-action="taPattern" id="ta-next" title="Motif suivant">MOTIF</button>
+            </div>
+        </section>
+
+        <section class="row" id="row-siren">
+            <h3>Sirène</h3>
+            <div class="buttons" id="tones"></div>
+            <div class="buttons">
+                <button class="btn small" data-action="aux" id="aux">AUX</button>
+                <button class="btn small" data-action="scan" id="scan">SCAN</button>
+                <span class="led" id="horn">HORN</span>
+                <span class="led" id="man">MANUEL</span>
+            </div>
+        </section>
+
+        <div class="foot" id="foot"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
