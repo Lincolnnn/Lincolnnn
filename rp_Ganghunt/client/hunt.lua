@@ -87,6 +87,9 @@ local function musicStart(s)
     CreateThread(function()
         while session == s do
             HideHudComponentThisFrame(1) -- étoiles : l'état est affiché par le HUD de la chasse
+            -- repéré : signalé à CHAQUE image (sinon le jeu, ne voyant aucun policier, bascule sans cesse entre
+            -- « vu » et « recherche » : minimap qui clignote rouge / bleu par à-coups, musique hachée)
+            if s.alert == 'engaged' and GetPlayerWantedLevel(player) > 0 then ReportPoliceSpottedPlayer(player) end
             Wait(0)
         end
     end)
@@ -96,7 +99,6 @@ local function musicTick(s)
     local player = PlayerId()
     if s.alert == 'engaged' then
         wantedOn(s)
-        ReportPoliceSpottedPlayer(player) -- musique de poursuite (sinon le jeu passe en recherche tout seul)
     elseif s.alert == 'calm' and GetPlayerWantedLevel(player) > 0 then
         ClearPlayerWantedLevel(player)
         SetPlayerWantedLevelNow(player, false)
@@ -131,10 +133,18 @@ end
 
 --- Chaque seconde : le jeu (ou un autre script, ex. rp_NPCcontrol) ne doit pas faire ignorer le joueur, sinon les
 --- ennemis cessent de tirer (« police ignore player » vaut aussi pour les ennemis policiers / SWAT / militaires)
-local function keepTargetable()
+local function keepTargetable(s)
     local player = PlayerId()
     SetEveryoneIgnorePlayer(player, false)
     SetPoliceIgnorePlayer(player, false)
+    -- sans la musique : jamais d'indice de recherche (ennemis policiers tués, etc.) -> pas de minimap rouge / bleu
+    if not s.music then
+        if GetMaxWantedLevel() ~= 0 then SetMaxWantedLevel(0) end
+        if GetPlayerWantedLevel(player) > 0 then
+            ClearPlayerWantedLevel(player)
+            SetPlayerWantedLevelNow(player, false)
+        end
+    end
 end
 
 -- =========================================================================
@@ -183,6 +193,7 @@ function GH.stop(message)
     end
     GH.clearSearchBlip(s)
     if s.music then musicStop() end
+    SetMaxWantedLevel(5) -- valeur du jeu (rp_NPCcontrol redonne aussitôt la sienne)
     LocalPlayer.state:set('rpGanghunt', false, false)
     TriggerServerEvent('rp_ganghunt:clear')
     TriggerEvent('rp_npccontrol:ganghunt', false) -- rp_NPCcontrol : ses réglages redonnés
@@ -224,7 +235,7 @@ local function loop(s)
                     end)
                 end
             end
-            keepTargetable()
+            keepTargetable(s)
             if s.music then musicTick(s) end
             hud(s, alive)
             Wait(Config.ManagerInterval or 1000)
@@ -273,7 +284,7 @@ function GH.start(opts)
     -- rp_NPCcontrol : ne plus faire ignorer ce joueur (état gardé même si rp_NPCcontrol redémarre) + tout de suite
     LocalPlayer.state:set('rpGanghunt', true, false)
     TriggerEvent('rp_npccontrol:ganghunt', true)
-    keepTargetable()
+    keepTargetable(s)
     if s.music then musicStart(s) end
     CreateThread(function()
         spawnWave(s)

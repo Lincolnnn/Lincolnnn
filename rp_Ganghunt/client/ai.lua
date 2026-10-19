@@ -8,8 +8,10 @@
       - ils l'ENTENDENT tirer (moins avec un silencieux) et savent d'où vient une balle qui en touche un.
     NEUTRES (option) : ils restent autour du joueur sans l'attaquer, jusqu'à ce qu'il les attaque (balle, coup, tir
     près d'eux, véhicule touché) : alors tous sont hostiles (« REPÉRÉ »), jusqu'à ce que tous soient éliminés.
-    RADIO : un seul ennemi qui le voit suffit, toute la faction sait où il est (« REPÉRÉ ») :
-      - à pied : combat offensif, ils avancent, chargent et finissent au corps à corps ;
+    RADIO : un seul ennemi qui le voit suffit (ou qui le combat / lui tire dessus de lui-même), toute la faction sait
+    où il est (« REPÉRÉ ») :
+      - à pied : ceux qui sont loin (ConvergeDistance) le rejoignent en courant ; près : combat offensif, ils
+        avancent, chargent et finissent au corps à corps ;
       - véhicules : foncent vers lui, s'arrêtent à DismountDistance m et tout le monde descend ; s'il est en véhicule,
         poursuite (les passagers tirent) ; à pied trop loin, ils reprennent un véhicule ;
       - hélicoptère : le suit, ses tireurs tirent ; grenades de temps en temps (option).
@@ -29,6 +31,7 @@ local TASK = {
     heliMission = GetHashKey('SCRIPT_TASK_HELI_MISSION'),
     drive = GetHashKey('SCRIPT_TASK_VEHICLE_DRIVE_TO_COORD_LONGRANGE'),
     nav = GetHashKey('SCRIPT_TASK_FOLLOW_NAV_MESH_TO_COORD'),
+    goTo = GetHashKey('SCRIPT_TASK_GO_TO_ENTITY'),
 }
 local Passive = Config.Passive or {}
 local function running(ped, task) return GetScriptTaskStatus(ped, TASK[task]) ~= 7 end
@@ -302,6 +305,18 @@ function GH.think(now)
             local range = IsPedCurrentWeaponSilenced(me) and (Search.SilencedHearing or 20.0) or (Search.Hearing or 120.0)
             if list[1].dist <= range then seen = true end
         end
+        if not seen and not engagedNow then
+            -- pendant la recherche, un ennemi qui le repère de lui-même (le jeu le fait entrer en combat, ou il tire
+            -- sur lui) prévient tous les autres
+            for _, h in ipairs(list) do
+                if IsPedShooting(h.ped) or IsPedInCombat(h.ped, me) then
+                    if h.dist <= (Search.EngagedSight or 150.0) and HasEntityClearLosToEntity(h.ped, me, 17) then
+                        seen = true
+                        break
+                    end
+                end
+            end
+        end
         if not seen then
             -- lignes de vue : les 4 plus proches à chaque fois, puis 6 autres à tour de rôle
             local ctx = { stealth = GetPedStealthMovement(me), night = isNight(), inVehicle = meInVehicle }
@@ -443,6 +458,12 @@ function GH.think(now)
                     -- tout près : corps à corps
                     TaskPutPedDirectlyIntoMelee(ped, me, 0.0, -1.0, 0.0, 0)
                     h.meleeAt, h.mode = now, 'combat'
+                elseif d > (Config.ConvergeDistance or 60.0) then
+                    -- radio : ils savent où il est, ceux qui sont loin le rejoignent en courant
+                    if h.mode ~= 'converge' or not running(ped, 'goTo') then
+                        TaskGoToEntity(ped, me, -1, (Config.ConvergeDistance or 60.0) * 0.6, 3.0, 1073741824, 0)
+                        h.mode = 'converge'
+                    end
                 elseif h.mode ~= 'combat' or (not IsPedInCombat(ped, me) and not running(ped, 'combat')) then
                     combat(h, me)
                 end

@@ -99,11 +99,14 @@ gilet pare-balles des forces).
 - **Ils ne s'entretuent pas** : tous dans le même groupe (`RP_GANGHUNT`), compagnons entre eux, tir ami coupé.
 - **Animosité au maximum** : jamais de fuite ni de reddition, combat « suicidaire » au plus près, ils chargent,
   contournent, avancent quand ils ne peuvent pas tirer, et **finissent au corps à corps** à moins de 2,6 m.
-- **Apparition** : tous dans un rayon de **70 m** autour de vous, de préférence **hors de votre vue**, toujours au
-  niveau de la rue : **jamais dans l'eau, sur un toit ou dans un intérieur**. À pied : par groupes de 3.
+- **Apparition** : tous dans un rayon de **70 m** autour de vous, de préférence **hors de votre vue**, **jamais dans
+  l'eau, sur un toit ou dans un intérieur**. À pied : **n'importe où** (trottoirs, parcs, ruelles, terrains), par
+  groupes de 3, au niveau du sol ; véhicules : sur la route.
 - **Ils ne s'arrêtent jamais de tirer** : munitions illimitées, et pendant toute la chasse le joueur n'est jamais
   « ignoré » (le jeu ou rp_NPCcontrol pouvaient le faire ignorer, surtout des policiers / SWAT / militaires).
-- **Repéré** : il suffit qu'**un** ennemi vous voie pour que **toute la faction** sache où vous êtes (radio). En plein
+- **Repéré** : il suffit qu'**un** ennemi vous voie (ou vous tire dessus / vous combatte de lui-même) pour que
+  **toute la faction** sache où vous êtes (radio) : ceux qui sont à plus de 80 m vous **rejoignent en courant**,
+  les véhicules foncent sur vous, l'hélicoptère vous suit. En plein
   combat, un ennemi qui vous a en ligne de vue vous garde jusqu'à 150 m, dans toutes les directions. Pour vous
   **retrouver**, il doit vous avoir **devant lui**, à portée (75 m ; moins la nuit ou si vous êtes accroupi / furtif,
   plus si vous êtes en véhicule ; 150 m depuis l'hélicoptère) et sans obstacle ; à 5 m il vous trouve de toute façon.
@@ -121,7 +124,10 @@ gilet pare-balles des forces).
   gang ou une organisation, 4 pour les forces, +1 avec l'hélicoptère) : musique de poursuite du jeu ; quand ils le
   cherchent, les étoiles clignotent (musique de recherche) et ne sont pas remises si le jeu les retire (la musique se
   calme, elle repart s'il est revu) ; neutres : aucune. Étoiles cachées, police du jeu non envoyée (sans
-  rp_NPCcontrol, un policier du jeu déjà présent à côté peut intervenir), tout est effacé à la fin.
+  rp_NPCcontrol, un policier du jeu déjà présent à côté peut intervenir), tout est effacé à la fin. Repéré, la
+  minimap clignote rouge / bleu comme avec la police (signalé à chaque image : plus d'allumé / éteint par à-coups).
+- **Sans la musique** : **aucun** indice de recherche pendant la chasse (même en tuant des ennemis policiers) : pas
+  d'étoiles, pas de minimap rouge / bleu.
 - Points rouges sur la carte (`Blips`). Les corps disparaissent au bout de 20 s.
 
 ## Configuration (`config.lua`)
@@ -133,7 +139,8 @@ gilet pare-balles des forces).
 | `WaveTimer`, `MaxAlive` | mode « après un délai » : délai par défaut / min / max / pas, ennemis vivants au plus |
 | `Passive` | option « Neutres » : distance d'un tir qui les provoque, flânerie, approche |
 | `MaxWeapons`, `DefaultSidearm` | armes choisies au plus, arme de poing donnée avec une arme longue / spéciale |
-| `SpawnDistance`, `ConvoySpacing`, `HeliHeight`, `StreetLevel` | apparition (rayon 40-70 m), convoi, hélicoptère, niveau de la rue |
+| `SpawnDistance`, `ConvoySpacing`, `HeliHeight`, `StreetLevel` | apparition (rayon 40-70 m), convoi, hélicoptère, écart de hauteur au sol accepté |
+| `ConvergeDistance` | repéré : au-delà, les ennemis à pied le rejoignent en courant |
 | `Accuracy`, `Health`, `Armour`, `Blips`, `Melee` | précision, vie, armure, points sur la carte, corps à corps |
 | `FarDistance`, `VehicleChaseDistance`, `DismountDistance` | quand reprendre un véhicule, quand descendre |
 | `DriveSpeed`, `SearchDriveSpeed`, `DrivingStyle` | conduite vers le joueur / pendant la recherche |

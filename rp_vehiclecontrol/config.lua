@@ -115,6 +115,19 @@ VCConfig = {
         MaxPerSecond = 20,        -- balles prises en compte par tireur et par seconde (serveur)
     },
 
+    -- DÉGÂTS VISUELS : le véhicule perd des morceaux selon ses accidents (choc fort seulement, perte de vitesse
+    -- brutale en MPH) et le côté touché. Chances : 0.0 jamais, 1.0 toujours.
+    Bodywork = {
+        Enabled = true,
+        Light = 18.0,   -- vitres du côté touché
+        Heavy = 30.0,   -- pare-choc (avant / arrière), capot (avant) ou coffre (arrière), portières (côté)
+        Severe = 45.0,  -- pare-brise (avant), une roue du côté touché, parfois deux
+        Chances = { Window = 0.45, Bumper = 0.6, HoodTrunk = 0.4, Door = 0.5, Windscreen = 0.35, Wheel = 0.6, SecondWheel = 0.35 },
+        BumperForce = 900.0, -- déformation appliquée pour arracher un pare-choc
+        -- pas de dégâts visuels : motos, vélos, bateaux, hélicoptères, avions, trains
+        SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
+    },
+
     Damage = {
         -- Dégâts du moteur reçus du jeu, multipliés (1.0 = jeu de base ; moins = plus solide).
         -- Véhicules ~8 % plus résistants qu'avant (0.25 / 0.9 / 0.8 / 0.15 / 2.5).

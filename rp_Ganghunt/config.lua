@@ -36,6 +36,7 @@ GanghuntConfig = {
     FarDistance = 160.0,
     VehicleChaseDistance = 70.0,
     DismountDistance = 35.0,
+    ConvergeDistance = 80.0,       -- repéré : à pied plus loin que ça, ils le rejoignent en courant (puis combattent)
     DriveSpeed = 35.0,             -- m/s (vers le joueur) ; recherche : SearchDriveSpeed
     SearchDriveSpeed = 14.0,
     DrivingStyle = 1074528293,     -- conduite « pressée » (feux grillés, dépassements)

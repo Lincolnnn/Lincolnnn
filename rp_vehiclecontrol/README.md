@@ -204,6 +204,21 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   `Repair.Restricted = true` la réserve à la permission ACE `command.repair`.
 - Ce script ne fait jamais prendre feu un véhicule (il ne descend pas le moteur sous 10).
 
+### Dégâts visuels : le véhicule perd des morceaux (`Bodywork`)
+
+À chaque choc **fort** (mur, voiture, poteau… pas un piéton ni un plot), selon la **perte de vitesse brutale** et le
+**côté touché** (avant, arrière, gauche, droite) :
+
+| Perte de vitesse | Ce qui peut tomber |
+|---|---|
+| 18 MPH et plus | **vitres** du côté touché qui éclatent |
+| 30 MPH et plus | **pare-choc** avant / arrière arraché, **capot** (avant) ou **coffre** (arrière) qui tombe, **portières** du côté touché |
+| 45 MPH et plus | **pare-brise** éjecté (avant), une **roue** du côté touché arrachée, parfois **deux** |
+
+Chaque morceau a sa chance (`Chances`) et ne tombe qu'une fois ; tout revient à la réparation. Rien sur les motos,
+vélos, bateaux, hélicoptères, avions et trains. Calculé par le conducteur (propriétaire du véhicule) : les morceaux
+tombés se voient chez tous les joueurs.
+
 ### Tirs sur un véhicule (`Gunshots`)
 
 Une balle **bien placée** abîme vraiment le véhicule :
@@ -305,6 +320,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, plein à la pompe (vitesse : 1 min max, distances, trappe arrière gauche `Flap`, pistolet et tuyau `Nozzle`), pompes, jerrican (2/5 d'un plein, vitesse, remplissage), stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, warnings automatiques d'accident important (`AccidentHazards`), paliers (abîmé ; 1 très abîmé : puissance, vitesse maxi, calages, warnings automatiques ; 2 détruit), fumée (`Smoke`), classes de véhicules légères, listes d'objets légers / forts |
+| `Bodywork` | dégâts visuels : seuils (18 / 30 / 45 MPH), chances par morceau, force pour arracher un pare-choc, classes sans dégâts visuels |
 | `KeepDoorOpenOnExit` | portière ouverte gardée ouverte en descendant |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle jusqu'à l'arrêt complet, l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), aucune chute ajoutée pour les petits incidents (comportement du jeu), seuils, dégâts |

@@ -1,8 +1,9 @@
 --[[
     RP Ganghunt - client : apparition des ennemis
     ---------------------------------------------
-    - Positions : dans un rayon de SpawnDistance (40-70 m) autour du joueur, de préférence hors de sa vue ; toujours au
-      niveau de la rue la plus proche (jamais sur un toit, un pont au-dessus de lui, dans l'eau ou dans un intérieur).
+    - Positions : dans un rayon de SpawnDistance (40-70 m) autour du joueur, de préférence hors de sa vue. À pied :
+      n'importe où (trottoirs, parcs, ruelles, terrains), au niveau du sol (jamais sur un toit, dans l'eau ou dans un
+      intérieur) ; véhicules : sur la route.
     - À pied : par petits groupes de 3. Véhicules : en CONVOI depuis un même point de route, à la file.
       Hélicoptère : au-dessus du point du convoi (ou seul, autour du joueur), un pilote et deux tireurs.
     - Chaque ennemi : arme de poing seule, ou arme longue / spéciale + pistolet de combat ; silencieux et grenades si
@@ -249,18 +250,20 @@ function GH.footSpot(center)
     local SD = Config.SpawnDistance or { 40.0, 70.0 }
     center = center or GetEntityCoords(me())
     local fallback = nil
-    for _ = 1, 12 do
+    for _ = 1, 14 do
+        -- n'importe où dans le rayon (trottoirs, parcs, ruelles, terrains…), pas seulement sur les routes
         local point = around(center, SD[1], SD[2])
-        local street = GH.roadNear(point)
-        if street and #(street - center) <= SD[2] + 15.0 then
-            -- 8 : pas dans l'eau ; 4 : pas dans un intérieur
-            local ok, safe = GetSafeCoordForPed(point.x, point.y, street.z + 1.0, true, 12)
-            local spot = ok and safe or street
-            if #(spot - center) > SD[2] + 15.0 then spot = street end
-            if GH.validSpot(spot, street) then
-                if hidden(spot) then return spot end
-                fallback = fallback or spot
-            end
+        local ok, spot = GetSafeCoordForPed(point.x, point.y, center.z + 1.0, true, 12) -- 4 : pas d'intérieur, 8 : pas d'eau
+        if not ok then
+            local found, z = GetGroundZFor_3dCoord(point.x, point.y, center.z + 3.0, false)
+            spot = found and vector3(point.x, point.y, z) or nil
+        end
+        -- niveau de référence : la route si elle est proche (le joueur peut être en hauteur), sinon le joueur
+        local street = GH.roadNear(spot or point)
+        local ref = (street and spot and #(street - spot) < 35.0) and street or center
+        if spot and #(spot - center) <= SD[2] + 15.0 and #(spot - center) >= SD[1] * 0.6 and GH.validSpot(spot, ref) then
+            if hidden(spot) then return spot end
+            fallback = fallback or spot
         end
     end
     return fallback or GH.roadNear(around(center, SD[1], SD[2])) or around(center, SD[1], SD[2])
