@@ -8,7 +8,9 @@
     Vague éliminée : la suivante quelques secondes plus tard ; dernière vague éliminée : chasse réussie ; joueur mort
     ou /ganghunt stop : chasse terminée, tous les ennemis et leurs véhicules retirés.
     HUD en haut au milieu : état (REPÉRÉ / ILS VOUS CHERCHENT), barre de la vague, barre de la chasse.
-    Musique (option) : la musique de recherche de la police du jeu (indice de recherche caché, police du jeu ignorée).
+    Musique (option) : la musique de poursuite / recherche de la police du jeu (indice de recherche caché).
+    Vagues : à la fin de la précédente (7 s après) ou après un délai choisi (même si la précédente n'est pas éliminée).
+    Le joueur ne doit jamais être « ignoré » pendant une chasse (sinon ils cessent de tirer) : redonné chaque seconde.
     Performance : aucune chasse -> aucune boucle. Pendant une chasse : une vérification par seconde (+ une boucle par
     image seulement avec la musique, pour cacher les étoiles).
 ]]
@@ -53,25 +55,35 @@ local function hud(s, alive)
         waveTotal = s.spawning and s.waveSize or math.max(s.waveSpawned, s.waveKilled), waveKilled = s.waveKilled,
         huntTotal = s.waves * s.waveSize - s.short, huntKilled = s.killed, state = state,
         lost = state == 'search' and math.floor((now - (s.lastSeen or now)) / 1000) or nil,
-        next = s.waiting and math.max(0, math.ceil(((s.nextWaveAt or now) - now) / 1000)) or nil,
+        next = (s.waiting or (s.waveMode == 'timer' and s.wave < s.waves))
+            and math.max(0, math.ceil(((s.nextWaveAt or now) - now) / 1000)) or nil,
     } })
 end
 
 -- =========================================================================
--- MUSIQUE : indice de recherche « fantôme » (musique du jeu, étoiles cachées, police du jeu qui l'ignore)
+-- MUSIQUE : indice de recherche « fantôme » (musique de poursuite du jeu, étoiles cachées)
+-- Repéré : étoiles pleines, poursuite signalée chaque seconde (musique de poursuite) ; recherche : étoiles qui
+-- clignotent (musique de recherche) ; neutres : aucun indice. Pas d'indice remis sans arrêt : la musique ne
+-- redémarre que quand il est de nouveau repéré.
 -- =========================================================================
+local function wantedOn(s)
+    local player = PlayerId()
+    if GetMaxWantedLevel() < s.stars then SetMaxWantedLevel(5) end
+    if GetPlayerWantedLevel(player) < s.stars then
+        SetPlayerWantedLevel(player, s.stars, false)
+        SetPlayerWantedLevelNow(player, false)
+    end
+end
+
 local function musicStart(s)
     local M = Config.Music or {}
     local player = PlayerId()
     s.stars = math.min(5, (s.category == 'forces' and (M.ForcesStars or 4) or (M.Stars or 3)) + (s.withHeli and 1 or 0))
     SetAudioFlag('WantedMusicDisabled', false)
+    SetAudioFlag('WantedMusicOnMission', true)
     SetAudioFlag('PoliceScannerDisabled', true)
-    SetPoliceIgnorePlayer(player, true)
     SetDispatchCopsForPlayer(player, false)
     SetPoliceRadarBlips(false)
-    SetMaxWantedLevel(5)
-    SetPlayerWantedLevel(player, s.stars, false)
-    SetPlayerWantedLevelNow(player, false)
     CreateThread(function()
         while session == s do
             HideHudComponentThisFrame(1) -- étoiles : l'état est affiché par le HUD de la chasse
@@ -82,28 +94,47 @@ end
 
 local function musicTick(s)
     local player = PlayerId()
-    if GetPlayerWantedLevel(player) < s.stars then
-        SetMaxWantedLevel(5)
-        SetPlayerWantedLevel(player, s.stars, false)
+    if s.alert == 'engaged' then
+        wantedOn(s)
+        ReportPoliceSpottedPlayer(player) -- musique de poursuite (sinon le jeu passe en recherche tout seul)
+    elseif s.alert == 'calm' and GetPlayerWantedLevel(player) > 0 then
+        ClearPlayerWantedLevel(player)
         SetPlayerWantedLevelNow(player, false)
     end
-    if s.alert == 'engaged' then ReportPoliceSpottedPlayer(player) end -- musique de poursuite
 end
 
 local function musicStop()
     local player = PlayerId()
     ClearPlayerWantedLevel(player)
     SetPlayerWantedLevelNow(player, false)
-    SetPoliceIgnorePlayer(player, false)
     SetDispatchCopsForPlayer(player, true)
     SetPoliceRadarBlips(true)
+    SetAudioFlag('WantedMusicOnMission', false)
     SetAudioFlag('PoliceScannerDisabled', false)
 end
 
---- Changement repéré / recherche : la musique suit (poursuite / étoiles qui clignotent)
+--- Changement d'état : la musique suit (poursuite / recherche / rien)
 function GH.onAlert(state)
-    if not session or not session.music then return end
-    if state == 'search' then ForceStartHiddenEvasion(PlayerId()) else ReportPoliceSpottedPlayer(PlayerId()) end
+    local s = session
+    if not s or not s.music then return end
+    local player = PlayerId()
+    if state == 'engaged' then
+        wantedOn(s)
+        ReportPoliceSpottedPlayer(player)
+    elseif state == 'search' then
+        if GetPlayerWantedLevel(player) > 0 then ForceStartHiddenEvasion(player) end
+    else
+        ClearPlayerWantedLevel(player)
+        SetPlayerWantedLevelNow(player, false)
+    end
+end
+
+--- Chaque seconde : le jeu (ou un autre script, ex. rp_NPCcontrol) ne doit pas faire ignorer le joueur, sinon les
+--- ennemis cessent de tirer (« police ignore player » vaut aussi pour les ennemis policiers / SWAT / militaires)
+local function keepTargetable()
+    local player = PlayerId()
+    SetEveryoneIgnorePlayer(player, false)
+    SetPoliceIgnorePlayer(player, false)
 end
 
 -- =========================================================================
@@ -130,7 +161,10 @@ local function spawnWave(s)
     if remaining > 0 then GH.footGroups(remaining) end
     if session ~= s then return end
     s.spawning = false
-    notify(('Vague %d / %d : %d %s arrivent.'):format(s.wave, s.waves, s.waveSpawned, s.faction.label))
+    s.short = s.short + math.max(0, s.waveSize - s.waveSpawned) -- ennemis qui n'ont pas pu apparaître
+    if s.waveMode == 'timer' then s.nextWaveAt = GetGameTimer() + s.waveTimer * 1000 end
+    local tail = s.passive and not s.provoked and ' Ils n\'attaqueront que si vous les attaquez.' or ''
+    notify(('Vague %d / %d : %d %s arrivent.%s'):format(s.wave, s.waves, s.waveSpawned, s.faction.label, tail))
     hud(s)
 end
 
@@ -149,6 +183,7 @@ function GH.stop(message)
     end
     GH.clearSearchBlip(s)
     if s.music then musicStop() end
+    LocalPlayer.state:set('rpGanghunt', false, false)
     TriggerServerEvent('rp_ganghunt:clear')
     TriggerEvent('rp_npccontrol:ganghunt', false) -- rp_NPCcontrol : ses réglages redonnés
     hud(nil)
@@ -166,20 +201,30 @@ local function loop(s)
             local alive = GH.think(now)
             if session ~= s then break end
             s.alive = alive
-            if alive == 0 and not s.spawning and not s.waiting then
-                s.short = s.short + math.max(0, s.waveSize - s.waveSpawned) -- ennemis qui n'ont pas pu apparaître
-                if s.wave >= s.waves then
+            if not s.spawning then
+                if alive == 0 then GH.allDown(s) end -- (option « Neutres » : la suite arrive neutre)
+                if alive == 0 and s.wave >= s.waves then
                     hud(s, 0)
                     GH.stop(('Chasse réussie : %d vague%s éliminée%s !'):format(s.waves, s.waves > 1 and 's' or '', s.waves > 1 and 's' or ''))
                     break
                 end
-                s.waiting = true
-                s.nextWaveAt = now + (Config.NextWaveDelay or 7000)
-                notify(('Vague %d éliminée. La suivante arrive…'):format(s.wave))
-                SetTimeout(Config.NextWaveDelay or 7000, function()
-                    if session == s then CreateThread(function() spawnWave(s) end) end
-                end)
+                if s.waveMode == 'timer' then
+                    -- après un délai : la vague suivante arrive à l'heure, éliminée ou non (place pour MaxAlive)
+                    s.waiting = alive == 0
+                    if now >= (s.nextWaveAt or 0) and alive + s.waveSize <= (Config.MaxAlive or 60) then
+                        s.spawning = true
+                        CreateThread(function() spawnWave(s) end)
+                    end
+                elseif alive == 0 and not s.waiting then
+                    s.waiting = true
+                    s.nextWaveAt = now + (Config.NextWaveDelay or 7000)
+                    notify(('Vague %d éliminée. La suivante arrive…'):format(s.wave))
+                    SetTimeout(Config.NextWaveDelay or 7000, function()
+                        if session == s then CreateThread(function() spawnWave(s) end) end
+                    end)
+                end
             end
+            keepTargetable()
             if s.music then musicTick(s) end
             hud(s, alive)
             Wait(Config.ManagerInterval or 1000)
@@ -198,7 +243,7 @@ end
 local GRENADE_POOL = { gang = 'Gang', org = 'Org', forces = 'Forces' }
 
 --- Lance une chasse : opts = { faction, waves, waveSize, weapons = { { name, pct } } | nil (aléatoire), vehicles,
---- heli, silencer, grenades, music }
+--- heli, silencer, grenades, music, passive, waveMode = 'clear' | 'timer', waveTimer (s) }
 function GH.start(opts)
     if session then return false, 'Une chasse est déjà en cours (/ganghunt stop pour l\'arrêter).' end
     local faction = Config.Factions[opts.faction]
@@ -211,17 +256,24 @@ function GH.start(opts)
         local pct = tonumber(w.pct) or 0
         if GH.WEAPON_INFO[w.name] and pct > 0 then weapons[#weapons + 1] = { name = w.name, pct = pct } end
     end
+    local WT = Config.WaveTimer or {}
+    local timer = math.max(WT.Min or 15, math.min(WT.Max or 600, math.floor(tonumber(opts.waveTimer) or WT.Default or 60)))
     local category = categoryOf(opts.faction)
     local s = { faction = faction, key = opts.faction, category = GRENADE_POOL[category] and category or 'gang',
         waves = waves, waveSize = waveSize, wave = 0, weapons = weapons,
         withVehicles = opts.vehicles == true, withHeli = opts.heli == true,
         silencer = opts.silencer == true, grenades = opts.grenades == true, music = opts.music == true,
+        passive = opts.passive == true, waveMode = opts.waveMode == 'timer' and 'timer' or 'clear', waveTimer = timer,
         hunters = {}, entities = {}, vehicles = {}, helis = {}, killed = 0, waveKilled = 0, waveSpawned = 0, short = 0,
-        alert = 'engaged' }
+        alert = opts.passive == true and 'calm' or 'engaged' }
     -- grenades de la faction : sa liste, sinon celle de sa catégorie
     s.faction = setmetatable({ grenades = faction.grenades or (Config.Grenades or {})[GRENADE_POOL[s.category]] }, { __index = faction })
     session = s
-    TriggerEvent('rp_npccontrol:ganghunt', true) -- rp_NPCcontrol : les PNJ n'ignorent plus ce joueur
+    GH.setHostile(not s.passive)
+    -- rp_NPCcontrol : ne plus faire ignorer ce joueur (état gardé même si rp_NPCcontrol redémarre) + tout de suite
+    LocalPlayer.state:set('rpGanghunt', true, false)
+    TriggerEvent('rp_npccontrol:ganghunt', true)
+    keepTargetable()
     if s.music then musicStart(s) end
     CreateThread(function()
         spawnWave(s)

@@ -55,6 +55,21 @@
                 </div>
             </div>
             <div class="gh-hint" id="ghWavesText"></div>
+            <div class="gh-field gh-next">
+                <span class="gh-label">Vague suivante</span>
+                <div class="gh-seg">
+                    <button class="gh-seg-btn" data-wavemode="clear">À la fin de la précédente</button>
+                    <button class="gh-seg-btn" data-wavemode="timer">Après un délai</button>
+                </div>
+            </div>
+            <div class="gh-field gh-timer" id="ghTimerRow">
+                <span class="gh-label">Délai entre deux vagues</span>
+                <div class="gh-stepper">
+                    <button class="gh-btn gh-icon" id="ghTimerMinus">−</button>
+                    <span class="gh-count gh-count-wide" id="ghTimer">1 min</span>
+                    <button class="gh-btn gh-icon" id="ghTimerPlus">+</button>
+                </div>
+            </div>
         </div>
 
         <div class="gh-section">
@@ -99,6 +114,11 @@
         <div class="gh-section">
             <div class="gh-legend"><span class="gh-step">5</span>Intensité</div>
             <div class="gh-options">
+                <label class="gh-check">
+                    <input type="checkbox" id="ghPassive">
+                    <span class="gh-box"></span>
+                    <span class="gh-check-text"><b>Neutres</b><small>Ils ne vous attaquent que si vous les attaquez.</small></span>
+                </label>
                 <label class="gh-check">
                     <input type="checkbox" id="ghSilencer">
                     <span class="gh-box"></span>

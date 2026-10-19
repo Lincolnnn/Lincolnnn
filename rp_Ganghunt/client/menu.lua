@@ -2,7 +2,7 @@
     RP Ganghunt - client : menu (NUI), commande
     -------------------------------------------
     /ganghunt : menu (faction, vagues et ennemis par vague, armes et pourcentages ou aléatoire, véhicules,
-    hélicoptère, silencieux, grenades, musique) ;
+    hélicoptère, silencieux, grenades, musique, neutres, arrivée des vagues) ;
     /ganghunt stop : arrête la chasse en cours. (Volontairement absent du MDC et du /tuto.)
     Aucune boucle : le menu ne tourne que pendant qu'il est ouvert (NUI), Échap le ferme sans ouvrir la carte.
 ]]
@@ -62,6 +62,7 @@ local function buildMenuData()
     end
     menuData = { categories = categories, weapons = weapons, maxWaves = Config.MaxWaves or 10,
         waveSize = Config.WaveSize or 10, maxWaveSize = Config.MaxWaveSize or 30, maxWeapons = Config.MaxWeapons or 10,
+        waveTimer = Config.WaveTimer or { Default = 60, Min = 15, Max = 600, Step = 15 },
         sidearm = Config.DefaultSidearm or 'WEAPON_COMBATPISTOL' }
     return menuData
 end
@@ -117,7 +118,8 @@ RegisterNUICallback('start', function(data, cb)
     end
     local ok, err = GH.start({ faction = data.faction, waves = data.waves, waveSize = data.waveSize, weapons = weapons,
         vehicles = data.vehicles == true, heli = data.heli == true, silencer = data.silencer == true,
-        grenades = data.grenades == true, music = data.music == true })
+        grenades = data.grenades == true, music = data.music == true, passive = data.passive == true,
+        waveMode = data.waveMode, waveTimer = data.waveTimer })
     cb({ ok = ok, error = err })
     if ok then closeMenu() end
 end)

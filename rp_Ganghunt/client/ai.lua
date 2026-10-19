@@ -1,9 +1,13 @@
 --[[
     RP Ganghunt - client : comportement des ennemis (comme la police du jeu)
     ------------------------------------------------------------------------
-    PERCEPTION (une fois par seconde ; 8 lignes de vue au plus, tous les ennemis testés en quelques secondes) : un ennemi VOIT le joueur s'il est à portée de vue (moins la nuit ou si le
-    joueur est furtif ; bien plus depuis l'hélicoptère), dans son champ de vision (ou tout près) et sans obstacle.
-    Il l'ENTEND tirer (moins avec un silencieux) et sait d'où vient une balle qui le touche.
+    PERCEPTION (une fois par seconde ; 10 lignes de vue au plus, tous les ennemis testés en quelques secondes) :
+      - pendant le combat, un ennemi qui a le joueur en ligne de vue jusqu'à EngagedSight m (150) le garde ;
+      - pour le RETROUVER, il faut l'avoir devant soi, à portée de vue (75 m ; moins la nuit ou si le joueur est
+        furtif, plus s'il est en véhicule, 150 m depuis l'hélicoptère) et sans obstacle ; tout près, il est trouvé ;
+      - ils l'ENTENDENT tirer (moins avec un silencieux) et savent d'où vient une balle qui en touche un.
+    NEUTRES (option) : ils restent autour du joueur sans l'attaquer, jusqu'à ce qu'il les attaque (balle, coup, tir
+    près d'eux, véhicule touché) : alors tous sont hostiles (« REPÉRÉ »), jusqu'à ce que tous soient éliminés.
     RADIO : un seul ennemi qui le voit suffit, toute la faction sait où il est (« REPÉRÉ ») :
       - à pied : combat offensif, ils avancent, chargent et finissent au corps à corps ;
       - véhicules : foncent vers lui, s'arrêtent à DismountDistance m et tout le monde descend ; s'il est en véhicule,
@@ -26,6 +30,7 @@ local TASK = {
     drive = GetHashKey('SCRIPT_TASK_VEHICLE_DRIVE_TO_COORD_LONGRANGE'),
     nav = GetHashKey('SCRIPT_TASK_FOLLOW_NAV_MESH_TO_COORD'),
 }
+local Passive = Config.Passive or {}
 local function running(ped, task) return GetScriptTaskStatus(ped, TASK[task]) ~= 7 end
 
 local function S() return GH.session() end
@@ -56,12 +61,38 @@ local function resetTasks(s)
     for _, h in pairs(s.hunters) do h.mode = nil end
 end
 
-local function engage(s, now)
+--- Vue du jeu : longue pendant le combat (ils gardent leur cible et tirent), courte pendant la recherche
+local function setPerception(s, engaged)
+    local range = engaged and (Search.EngagedSight or 150.0) or (Search.Sight or 75.0)
+    for ped, h in pairs(s.hunters) do
+        if not h.dead and DoesEntityExist(ped) then SetPedSeeingRange(ped, range) end
+    end
+end
+
+local function engage(s, now, silent)
     s.alert = 'engaged'
     GH.clearSearchBlip(s)
     resetTasks(s)
-    sound('Spotted')
+    setPerception(s, true)
+    if not silent then sound('Spotted') end
     if GH.onAlert then GH.onAlert('engaged') end
+end
+
+--- Neutres (option) : ils ne l'attaquent pas
+function GH.calm(s)
+    s.alert = 'calm'
+    GH.setHostile(false)
+    GH.clearSearchBlip(s)
+    resetTasks(s)
+    if GH.onAlert then GH.onAlert('calm') end
+end
+
+--- Le joueur les attaque : tous hostiles, ils savent où il est
+local function provoke(s, now, myPos)
+    s.provoked = true
+    GH.setHostile(true)
+    s.lkp, s.lastSeen = myPos, now
+    engage(s, now)
 end
 
 local function startSearch(s, now)
@@ -72,6 +103,7 @@ local function startSearch(s, now)
     s.nextTip = now + (Search.TipInterval or 20000)
     searchBlip(s)
     resetTasks(s)
+    setPerception(s, false)
     sound('Lost')
     if GH.onAlert then GH.onAlert('search') end
 end
@@ -114,21 +146,24 @@ local function playerFired(s, me)
     return fired
 end
 
-local function sees(h, me, myPos, d, ctx)
+--- engaged : ils le combattent (ils le suivent des yeux loin, dans toutes les directions) ; sinon : ils le cherchent
+local function sees(h, me, d, ctx, engaged)
     local inAir = h.role == 'pilot' or h.role == 'gunner'
-    local range = inAir and (Search.HeliSight or 150.0) or (Search.Sight or 75.0)
-    if not inAir then
+    local range
+    if inAir then
+        range = Search.HeliSight or 150.0
+    elseif engaged then
+        range = Search.EngagedSight or 150.0
+    else
+        range = Search.Sight or 75.0
         if ctx.stealth then range = range * (Search.StealthFactor or 0.6) end
         if ctx.night then range = range * (Search.NightFactor or 0.7) end
+        if ctx.inVehicle then range = range * (Search.VehicleFactor or 1.5) end
     end
     if d > range then return false end
-    if not inAir and d > (Search.CloseRange or 12.0) then
-        local p = GetEntityCoords(h.ped)
-        local fwd = GetEntityForwardVector(h.ped)
-        local dx, dy = (myPos.x - p.x) / d, (myPos.y - p.y) / d
-        if fwd.x * dx + fwd.y * dy < (Search.FieldOfView or 0.25) then return false end
-    end
-    return HasEntityClearLosToEntity(h.ped, me, 17)
+    if d <= (Search.Bump or 5.0) then return true end
+    if engaged or inAir or d <= (Search.CloseRange or 12.0) then return HasEntityClearLosToEntity(h.ped, me, 17) end
+    return HasEntityClearLosToEntityInFront(h.ped, me) -- il doit l'avoir devant lui
 end
 
 -- =========================================================================
@@ -218,6 +253,7 @@ function GH.think(now)
         elseif IsPedDeadOrDying(ped, true) then
             h.dead = now
             GH.countKill(s, h)
+            if GetPedSourceOfDeath(ped) == me then hit = true end
             local blip = GetBlipFromEntity(ped)
             if blip and blip ~= 0 then RemoveBlip(blip) end
         else
@@ -239,43 +275,63 @@ function GH.think(now)
             list[#list + 1] = h
         end
     end
-    if alive == 0 then return 0 end
-    table.sort(list, function(a, b) return a.dist < b.dist end)
-
-    -- 2. perception : vu (au plus 6 lignes de vue testées), entendu, touché
-    local seen = hit
-    if playerFired(s, me) then
-        local range = IsPedCurrentWeaponSilenced(me) and (Search.SilencedHearing or 20.0) or (Search.Hearing or 120.0)
-        if list[1].dist <= range then seen = true end
-    end
-    if not seen then
-        -- lignes de vue : les 3 plus proches à chaque fois, puis 5 autres à tour de rôle (tous testés en quelques s)
-        local ctx = { stealth = GetPedStealthMovement(me), night = isNight() }
-        local cands = {}
-        for _, h in ipairs(list) do
-            if h.dist <= (Search.HeliSight or 150.0) then cands[#cands + 1] = h end
-        end
-        for i = 1, math.min(3, #cands) do
-            if sees(cands[i], me, myPos, cands[i].dist, ctx) then seen = true break end
-        end
-        local rest = #cands - 3
-        if not seen and rest > 0 then
-            local cursor = s.losCursor or 0
-            for k = 1, math.min(5, rest) do
-                local h = cands[3 + ((cursor + k - 1) % rest) + 1]
-                if sees(h, me, myPos, h.dist, ctx) then seen = true break end
+    if s.alert == 'calm' then
+        -- neutres : leurs véhicules touchés par le joueur comptent comme une attaque
+        for v in pairs(s.vehicles) do
+            if DoesEntityExist(v) and HasEntityBeenDamagedByEntity(v, me, true) then
+                hit = true
+                ClearEntityLastDamageEntity(v)
             end
-            s.losCursor = cursor + 5
         end
     end
-    if seen then
-        s.lkp, s.lastSeen = myPos, now
-        if s.alert ~= 'engaged' then engage(s, now) end
-    elseif s.alert == 'engaged' and now - (s.lastSeen or now) > (Search.LoseTime or 6000) then
-        startSearch(s, now)
+    if alive == 0 then
+        if hit and s.alert == 'calm' then provoke(s, now, myPos) end
+        return 0
     end
-    if s.alert == 'search' then updateSearch(s, now, myPos, dt) end
+    table.sort(list, function(a, b) return a.dist < b.dist end)
+    local fired = playerFired(s, me)
+
+    if s.alert == 'calm' then
+        -- 2a. neutres : seulement s'il les attaque (touché, tué, ou tir tout près de l'un d'eux)
+        if hit or (fired and list[1].dist <= (Passive.ProvokeRange or 25.0)) then provoke(s, now, myPos) end
+    else
+        -- 2b. perception : touché, entendu, vu
+        local engagedNow = s.alert == 'engaged'
+        local seen = hit
+        if fired then
+            local range = IsPedCurrentWeaponSilenced(me) and (Search.SilencedHearing or 20.0) or (Search.Hearing or 120.0)
+            if list[1].dist <= range then seen = true end
+        end
+        if not seen then
+            -- lignes de vue : les 4 plus proches à chaque fois, puis 6 autres à tour de rôle
+            local ctx = { stealth = GetPedStealthMovement(me), night = isNight(), inVehicle = meInVehicle }
+            local cands = {}
+            for _, h in ipairs(list) do
+                if h.dist <= math.max(Search.HeliSight or 150.0, Search.EngagedSight or 150.0) then cands[#cands + 1] = h end
+            end
+            for i = 1, math.min(4, #cands) do
+                if sees(cands[i], me, cands[i].dist, ctx, engagedNow) then seen = true break end
+            end
+            local rest = #cands - 4
+            if not seen and rest > 0 then
+                local cursor = s.losCursor or 0
+                for k = 1, math.min(6, rest) do
+                    local h = cands[4 + ((cursor + k - 1) % rest) + 1]
+                    if sees(h, me, h.dist, ctx, engagedNow) then seen = true break end
+                end
+                s.losCursor = cursor + 6
+            end
+        end
+        if seen then
+            s.lkp, s.lastSeen = myPos, now
+            if not engagedNow then engage(s, now) end
+        elseif engagedNow and now - (s.lastSeen or now) > (Search.LoseTime or 8000) then
+            startSearch(s, now)
+        end
+        if s.alert == 'search' then updateSearch(s, now, myPos, dt) end
+    end
     local engaged = s.alert == 'engaged'
+    local calm = s.alert == 'calm'
 
     -- 3. chacun selon son rôle
     local far = {}
@@ -306,12 +362,19 @@ function GH.think(now)
                     TaskHeliChase(ped, me, 0.0, 0.0, 35.0)
                     h.mode = 'heli'
                 end
+            elseif calm then
+                -- neutres : il tourne au-dessus du secteur
+                if h.mode ~= 'heliCalm' or not running(ped, 'heliMission') or now - (h.taskAt or 0) > 15000 then
+                    local p = GH.around(myPos, 40.0, 70.0)
+                    TaskHeliMission(ped, veh, 0, 0, p.x, p.y, p.z + 50.0, 4, 15.0, 20.0, -1.0, 70, 40, -1.0, 0)
+                    h.mode, h.taskAt = 'heliCalm', now
+                end
             elseif h.mode ~= 'heliSearch' or not running(ped, 'heliMission') or now - (h.taskAt or 0) > 12000 then
                 local p = searchPoint(s, false)
                 TaskHeliMission(ped, veh, 0, 0, p.x, p.y, p.z + 40.0, 4, 20.0, 15.0, -1.0, 60, 30, -1.0, 0)
                 h.mode, h.taskAt = 'heliSearch', now
             end
-            SetVehicleSearchlight(veh, not engaged or isNight(), true)
+            SetVehicleSearchlight(veh, s.alert == 'search' or isNight(), true)
         elseif h.role == 'gunner' then
             if engaged then
                 if h.mode ~= 'combat' or not running(ped, 'combat') then combat(h, me) end
@@ -322,6 +385,13 @@ function GH.think(now)
         elseif h.role == 'driver' then
             if not IsVehicleDriveable(veh, false) then
                 dismountCrew(s, veh, now, engaged)
+            elseif calm then
+                -- neutres : ils viennent près de lui, se garent et descendent (sans l'attaquer)
+                if d <= (Passive.ApproachDistance or 40.0) then
+                    dismountCrew(s, veh, now, false)
+                elseif h.mode ~= 'approach' or not running(ped, 'drive') or #(h.target - myPos) > 25.0 then
+                    driveTo(h, veh, myPos, Config.SearchDriveSpeed or 14.0, 20.0, 'approach')
+                end
             elseif engaged and meInVehicle then
                 if h.mode ~= 'chase' or not running(ped, 'chase') then chase(h, veh, me) end
             elseif engaged then
@@ -347,7 +417,24 @@ function GH.think(now)
         else -- à pied
             -- pas de nouveau véhicule juste après en être descendu (5 s) ou en avoir repris un (15 s)
             local recent = (h.remountAt and now - h.remountAt < 15000) or (h.dismountAt and now - h.dismountAt < 5000)
-            if engaged then
+            if calm then
+                -- neutres : ils restent autour de lui (s'approchent s'il s'éloigne, flânent sinon)
+                if d > (Config.FarDistance or 160.0) and not recent then
+                    far[#far + 1] = h
+                elseif d > (Passive.FollowDistance or 90.0) then
+                    if h.mode ~= 'approach' or not running(ped, 'nav') or #(h.target - myPos) > 15.0 then
+                        local p = GH.around(myPos, 15.0, 25.0)
+                        ClearPedTasks(ped)
+                        TaskFollowNavMeshToCoord(ped, p.x, p.y, p.z, 1.0, -1, 3.0, false, 0)
+                        h.mode, h.target = 'approach', myPos
+                    end
+                elseif h.mode ~= 'calm' then
+                    local p = GetEntityCoords(ped)
+                    ClearPedTasks(ped)
+                    TaskWanderInArea(ped, p.x, p.y, p.z, Passive.WanderRadius or 15.0, 2.0, 4.0)
+                    h.mode = 'calm'
+                end
+            elseif engaged then
                 local tooFar = d > (Config.FarDistance or 160.0) or (meInVehicle and d > (Config.VehicleChaseDistance or 70.0))
                 if tooFar and not recent then
                     far[#far + 1] = h
@@ -408,13 +495,21 @@ function GH.think(now)
     return alive
 end
 
---- Nouvelle vague : la faction sait où il est (elle vient pour lui)
+--- Nouvelle vague : neutre (option « Neutres », tant qu'il ne les attaque pas) ; sinon la faction sait où il est
 function GH.alertNewWave(s, now)
-    s.lkp, s.lastSeen = GetEntityCoords(PlayerPedId()), now
-    if s.alert ~= 'engaged' then
-        s.alert = 'engaged'
-        GH.clearSearchBlip(s)
-        if GH.onAlert then GH.onAlert('engaged') end
-    end
     s.nextGrenade = nextGrenade(now)
+    if s.passive and not s.provoked then
+        if s.alert ~= 'calm' then GH.calm(s) end
+        return
+    end
+    s.lkp, s.lastSeen = GetEntityCoords(PlayerPedId()), now
+    if s.alert ~= 'engaged' then engage(s, now, true) end
+end
+
+--- Tous les ennemis présents éliminés (option « Neutres ») : la vague suivante arrivera neutre
+function GH.allDown(s)
+    if s.passive and s.provoked then
+        s.provoked = false
+        GH.calm(s)
+    end
 end

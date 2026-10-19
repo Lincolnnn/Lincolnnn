@@ -50,10 +50,11 @@ Les PNJ **ne réagissent plus aux joueurs** (ni agressions, ni insultes, ni fuit
 explosions**, et **n'ont plus peur** : piétons, passagers **et conducteurs**. Réglé sur chaque PNJ du jeu par le client
 qui le contrôle (les PNJ créés par un script ne sont pas touchés).
 
-**rp_Ganghunt** : pendant une chasse (`/ganghunt`), « ignore player » est coupé **pour le joueur traqué seulement**
-(sinon ses ennemis ne le verraient pas) et son indice de recherche n'est plus effacé (option « Musique » de la chasse :
-étoiles cachées, la police du jeu l'ignore toujours) ; tout revient dès la fin de la chasse. Les PNJ du jeu restent
-calmés.
+**rp_Ganghunt** : pendant une chasse (`/ganghunt`), pour le **joueur traqué seulement** : « everyone ignore player »
+**et** « police ignore player » sont coupés (sinon ses ennemis, policiers / SWAT / militaires compris, cessent de
+tirer au bout de quelques secondes), et son indice de recherche n'est plus effacé (option « Musique » : étoiles
+cachées). L'état est gardé même si cette ressource redémarre pendant la chasse. Ses ennemis ne sont jamais calmés.
+Tout revient dès la fin de la chasse ; les PNJ du jeu restent calmés.
 
 Renforcé :
 - **Perception coupée** (`NoPerception`, `SeeingRange`, `HearingRange`) : les PNJ du jeu ne **voient** plus les morts

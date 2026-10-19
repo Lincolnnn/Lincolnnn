@@ -42,9 +42,16 @@ function GH.group()
     local _, hash = AddRelationshipGroup(GROUP_NAME)
     group = hash
     SetRelationshipBetweenGroups(0, group, group)          -- entre eux : compagnons
-    SetRelationshipBetweenGroups(5, group, PLAYER_GROUP)   -- les joueurs : ennemis
-    SetRelationshipBetweenGroups(5, PLAYER_GROUP, group)
+    GH.setHostile(true)
     return group
+end
+
+--- Hostiles aux joueurs (5 : haine) ou neutres (1 : respect, option « Neutres » tant qu'on ne les attaque pas)
+function GH.setHostile(hostile)
+    local g = GH.group()
+    local relation = hostile and 5 or 1
+    SetRelationshipBetweenGroups(relation, g, PLAYER_GROUP)
+    SetRelationshipBetweenGroups(relation, PLAYER_GROUP, g)
 end
 
 -- =========================================================================
@@ -84,14 +91,17 @@ local function arm(ped, h)
     local weapon = GH.pickWeapon()
     local info = WEAPON_INFO[weapon]
     local main = GetHashKey(weapon)
+    -- munitions illimitées : ils ne s'arrêtent jamais de tirer
     if info and info.handgun then
-        GiveWeaponToPed(ped, main, 500, false, true)           -- arme de poing seule
+        GiveWeaponToPed(ped, main, 9999, false, true)          -- arme de poing seule
     else
         local side = GetHashKey(Config.DefaultSidearm or 'WEAPON_COMBATPISTOL')
-        GiveWeaponToPed(ped, side, 250, false, false)
+        GiveWeaponToPed(ped, side, 9999, false, false)
+        SetPedInfiniteAmmo(ped, true, side)
         if s.silencer then suppress(ped, side) end
-        GiveWeaponToPed(ped, main, info and info.special and 60 or 999, false, true) -- arme longue / spéciale en main
+        GiveWeaponToPed(ped, main, 9999, false, true)          -- arme longue / spéciale en main
     end
+    SetPedInfiniteAmmo(ped, true, main)
     if s.silencer then suppress(ped, main) end
     h.weapon = main
     -- Grenades : une partie des ennemis en a quelques-unes (lancées par ai.lua)
@@ -151,7 +161,10 @@ local function setupHunter(ped, h)
     SetPedFleeAttributes(ped, 0, false)
     for _, attribute in ipairs(AGGRESSIVE) do SetPedCombatAttributes(ped, attribute, true) end
     SetPedCombatAttributes(ped, 17, false)  -- jamais « toujours fuir »
-    SetPedSeeingRange(ped, Search.Sight or 75.0)
+    -- vue du jeu : longue quand ils combattent (sinon ils perdent leur cible et cessent de tirer), courte pendant
+    -- la recherche (ai.lua) ; la détection « repéré / recherche » est faite par ai.lua
+    local engaged = s.alert ~= 'search'
+    SetPedSeeingRange(ped, engaged and (Search.EngagedSight or 150.0) or (Search.Sight or 75.0))
     SetPedHearingRange(ped, Search.Hearing or 120.0)
     SetPedAlertness(ped, 3)
     SetPedConfigFlag(ped, 281, true)        -- pas de blessures qui le font fuir / se rendre
@@ -189,7 +202,7 @@ function GH.newHunter(x, y, z, heading)
     local ped = CreatePed(4, hash, x, y, z, heading or 0.0, true, true)
     SetModelAsNoLongerNeeded(hash)
     if not ped or ped == 0 then return nil end
-    local h = { ped = ped, role = 'foot', wave = s.wave }
+    local h = { ped = ped, role = 'foot', wave = s.wave, home = vector3(x, y, z) }
     setupHunter(ped, h)
     GH.track(ped)
     s.hunters[ped] = h

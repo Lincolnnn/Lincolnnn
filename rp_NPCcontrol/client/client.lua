@@ -10,9 +10,9 @@
       policiers PNJ, renforts, poursuites, tirs) ; pompiers / ambulanciers restent supprimés, les autres PNJ calmes.
     - « Everyone ignore player » : les PNJ ignorent les joueurs, n'ont plus peur, ne réagissent plus aux fusillades,
       aux explosions ni aux morts, et ne se battent pas (véhicule volé, klaxon, bousculade).
-    - rp_Ganghunt (événement local rp_npccontrol:ganghunt) : pendant une chasse, « ignore player » coupé pour ce
-      joueur (ses ennemis, créés par script, ne sont jamais touchés par le reste de ce fichier) et son indice de
-      recherche n'est plus effacé (musique de poursuite de la chasse ; la police du jeu l'ignore toujours).
+    - rp_Ganghunt (événement local rp_npccontrol:ganghunt + état du joueur rpGanghunt) : pendant une chasse,
+      « everyone ignore player » ET « police ignore player » coupés pour ce joueur (sinon ses ennemis cessent de
+      tirer), son indice de recherche n'est plus effacé (musique) ; ses ennemis ne sont jamais calmés.
     - Densité du trafic, des véhicules garés et des piétons (0.0 à 3.0), réglée par le serveur (GlobalState.npcDensity).
     Performance :
       - boucle d'1 s (PNJ du jeu à proximité : réglages "pas de peur", retrait des services d'urgence) : ~0.01 ms ;
@@ -38,8 +38,13 @@ local POLICE_SERVICES = { [1] = true, [2] = true, [4] = true, [6] = true, [7] = 
 --- Chasse à l'homme active (la police du jeu redevient normale)
 local function manhunt() return GlobalState.npcManhunt == true end
 
---- rp_Ganghunt : ce joueur est traqué (ses ennemis doivent le voir : « everyone ignore player » coupé pour lui)
-local ganghunt = false
+--- rp_Ganghunt : ce joueur est traqué (ses ennemis doivent le voir et lui tirer dessus). Événement local + état du
+--- joueur (gardé si cette ressource redémarre pendant une chasse).
+local ganghuntEvent = false
+local function ganghuntOn() return ganghuntEvent or LocalPlayer.state.rpGanghunt == true end
+local HUNT_GROUP = GetHashKey('RP_GANGHUNT')
+--- Ennemis de rp_Ganghunt : jamais calmés (en plus d'être des PNJ de script)
+local function isHunter(ped) return GetPedRelationshipGroupHash(ped) == HUNT_GROUP end
 
 --- Modèle d'urgence supprimé en ce moment (en chasse à l'homme : seulement pompiers / ambulanciers)
 local function blockedModel(hash, list)
@@ -70,6 +75,7 @@ end
 local function applyRules()
     local player = PlayerId()
     local hunt = manhunt()
+    local ganghunt = ganghuntOn()
     if Config.DisableEmergencyServices then
         for service = 1, 15 do
             -- plus de renforts (police, pompiers, ambulances…) ; chasse à l'homme : ceux de la police reviennent
@@ -94,10 +100,11 @@ local function applyRules()
         SetWantedLevelMultiplier(1.0)
         SetPoliceIgnorePlayer(player, false)
     elseif ganghunt then
-        -- rp_Ganghunt : il gère lui-même un indice de recherche (musique de poursuite) ; la police du jeu l'ignore
+        -- rp_Ganghunt : il gère lui-même un indice de recherche (musique de poursuite). « Police ignore player » doit
+        -- rester COUPÉ : il vaut aussi pour ses ennemis policiers / SWAT / militaires, qui cesseraient de tirer.
         SetMaxWantedLevel(5)
         SetWantedLevelMultiplier(0.0)
-        SetPoliceIgnorePlayer(player, true)
+        SetPoliceIgnorePlayer(player, false)
     elseif Config.DisableWantedLevel then
         SetMaxWantedLevel(0)
         SetWantedLevelMultiplier(0.0)
@@ -208,7 +215,7 @@ local DRIVE_WANDER = GetHashKey('SCRIPT_TASK_VEHICLE_DRIVE_WANDER')
 local function calmAimed()
     local found, ped = GetEntityPlayerIsFreeAimingAt(PlayerId())
     if not found or not ped or ped == 0 or not DoesEntityExist(ped) or GetEntityType(ped) ~= 1 then return end
-    if IsPedAPlayer(ped) or MISSION[GetEntityPopulationType(ped)] or IsPedDeadOrDying(ped, true) or huntingCop(ped) then return end
+    if IsPedAPlayer(ped) or MISSION[GetEntityPopulationType(ped)] or isHunter(ped) or IsPedDeadOrDying(ped, true) or huntingCop(ped) then return end
     if not controlled(ped) then
         NetworkRequestControlOfEntity(ped)
         return
@@ -232,7 +239,7 @@ local function calmDrivers()
     -- À pied : plus de fuite ni de bagarre avec les joueurs
     for _, ped in ipairs(GetGamePool('CPed')) do
         if not IsPedAPlayer(ped) and not IsPedInAnyVehicle(ped, true) and not IsPedDeadOrDying(ped, true)
-            and not IsPedRagdoll(ped) and not IsPedBeingJacked(ped) and not MISSION[GetEntityPopulationType(ped)]
+            and not IsPedRagdoll(ped) and not IsPedBeingJacked(ped) and not MISSION[GetEntityPopulationType(ped)] and not isHunter(ped)
             and controlled(ped) and #(GetEntityCoords(ped) - pos) < (Config.CalmRange or 40.0)
             and not huntingCop(ped) and (IsPedFleeing(ped) or fightingPlayer(ped)) then
             local last = calmedDrivers[ped]
@@ -244,7 +251,7 @@ local function calmDrivers()
     end
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
         local ped = GetPedInVehicleSeat(vehicle, -1)
-        if ped ~= 0 and not IsPedAPlayer(ped) and not MISSION[GetEntityPopulationType(ped)] and controlled(ped)
+        if ped ~= 0 and not IsPedAPlayer(ped) and not MISSION[GetEntityPopulationType(ped)] and not isHunter(ped) and controlled(ped)
             and #(GetEntityCoords(vehicle) - pos) < (Config.DriverRange or 80.0)
             and not huntingCop(ped) and not (manhunt() and emergencyVehicle[GetEntityModel(vehicle)]) then
             local last = calmedDrivers[ped]
@@ -296,7 +303,7 @@ local function scan()
     tick = tick + 1
     local seen = {}
     for _, ped in ipairs(GetGamePool('CPed')) do
-        if not IsPedAPlayer(ped) and not MISSION[GetEntityPopulationType(ped)] then
+        if not IsPedAPlayer(ped) and not MISSION[GetEntityPopulationType(ped)] and not isHunter(ped) then
             if Config.DisableEmergencyServices and blockedModel(GetEntityModel(ped), emergencyPed) then
                 local vehicle = GetVehiclePedIsIn(ped, false)
                 if vehicle == 0 or not hasPlayerInside(vehicle) then remove(ped, false) end
@@ -349,7 +356,7 @@ AddEventHandler('playerSpawned', applyRules)
 
 -- rp_Ganghunt (événement local) : chasse lancée / terminée par ce joueur -> réglages redonnés tout de suite
 AddEventHandler('rp_npccontrol:ganghunt', function(active)
-    ganghunt = active == true
+    ganghuntEvent = active == true
     applyRules()
 end)
 

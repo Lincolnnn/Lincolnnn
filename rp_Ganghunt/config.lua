@@ -7,7 +7,11 @@ GanghuntConfig = {
     MaxWaves = 10,                 -- vagues au plus
     MaxWaveSize = 30,              -- ennemis par vague au plus (choisi dans le menu)
     WaveSize = 10,                 -- ennemis par vague proposés par défaut
-    NextWaveDelay = 7000,          -- ms entre la fin d'une vague et la suivante
+    NextWaveDelay = 7000,          -- ms entre la fin d'une vague et la suivante (mode « à la fin de la précédente »)
+    -- Mode « après un délai » (choisi dans le menu) : la vague suivante arrive N s après l'arrivée de la précédente,
+    -- même si elle n'est pas éliminée (MaxAlive ennemis vivants au plus : sinon elle attend un peu de place)
+    WaveTimer = { Default = 60, Min = 15, Max = 600, Step = 15 },
+    MaxAlive = 60,
     MaxWeapons = 10,               -- armes choisies au plus
     DefaultSidearm = 'WEAPON_COMBATPISTOL', -- arme de poing donnée en plus d'une arme longue / spéciale
 
@@ -42,11 +46,13 @@ GanghuntConfig = {
     -- ne le voit depuis LoseTime ms : ils le cherchent dans une zone autour de sa dernière position connue, qui
     -- s'agrandit ; un ennemi qui le revoit (ou l'entend tirer, ou est touché par lui) : tous reviennent sur lui.
     Search = {
-        LoseTime = 6000,           -- ms sans le voir avant de le perdre
-        Sight = 75.0,              -- m de vue (à pied / en voiture), dans leur champ de vision
+        LoseTime = 8000,           -- ms sans que personne ne le voie avant de le perdre
+        Sight = 75.0,              -- m de vue pour le RETROUVER (à pied / en voiture), devant eux
+        EngagedSight = 150.0,      -- m : quand ils le combattent, ils le suivent des yeux bien plus loin
+        VehicleFactor = 1.5,       -- joueur en véhicule : plus visible (plus gros, plus bruyant)
+        Bump = 5.0,                -- m : à côté de lui, ils le trouvent même sans le voir
         HeliSight = 150.0,         -- m de vue depuis l'hélicoptère (projecteur la nuit)
         CloseRange = 12.0,         -- m : vu même de dos (il l'entend)
-        FieldOfView = 0.25,        -- cosinus du demi-angle de vue (0.25 = environ 150° au total)
         StealthFactor = 0.6,       -- joueur accroupi / furtif : vue réduite
         NightFactor = 0.7,         -- la nuit (21 h - 6 h) : vue réduite (sauf hélicoptère)
         Hearing = 120.0,           -- m : un tir du joueur est entendu
@@ -56,6 +62,12 @@ GanghuntConfig = {
         TipShift = 0.3,            -- part du chemin vers le joueur à chaque fois
         Blip = true,               -- zone de recherche sur la carte
     },
+
+    -- NEUTRES (option du menu) : ils n'attaquent pas tant que le joueur ne les attaque pas (en touchant l'un d'eux
+    -- ou leurs véhicules, ou en tirant à moins de ProvokeRange m de l'un d'eux). Ensuite : hostiles jusqu'à ce que
+    -- tous les ennemis présents soient éliminés ; une vague qui arrive après redevient neutre. Neutres, ils flânent
+    -- où ils sont ; s'il s'éloigne à plus de FollowDistance m, ils se rapprochent (en véhicule : ApproachDistance m).
+    Passive = { ProvokeRange = 25.0, WanderRadius = 15.0, ApproachDistance = 40.0, FollowDistance = 90.0 },
 
     -- GRENADES (option du menu) : un ennemi à pied, à portée, lance de temps en temps une grenade de sa faction
     Grenades = {

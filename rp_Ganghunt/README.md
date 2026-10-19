@@ -9,7 +9,7 @@ Volontairement **absent du MDC et du `/tuto`** : seule la commande l'ouvre.
 
 1. Copier le dossier `rp_Ganghunt` dans `resources/`.
 2. `ensure rp_Ganghunt` dans `server.cfg`.
-3. Avec **rp_NPCcontrol** (« everyone ignore player ») : version **1.6.0** ou plus, sinon les ennemis ne voient pas
+3. Avec **rp_NPCcontrol** (« everyone ignore player ») : version **1.7.0** ou plus, sinon les ennemis ne voient pas
    le joueur (et la musique serait coupée). Pendant une chasse, « ignore player » est coupé pour le joueur traqué
    seulement, et son indice de recherche (musique) n'est plus effacé.
 
@@ -32,7 +32,10 @@ Dans le menu :
    | **Organisation** | Chinois (Triades), Arméniens, Coréens (Kkangpae), Mexicains (cartel Madrazo), Salvadoriens (Marabunta Grande), Merryweather |
    | **Forces** | Police (LSPD), Armée, Sheriff (BCSO), NOOSE (SWAT) |
 
-2. **Vagues** : de **1 à 10 vagues**, de **1 à 30 ennemis par vague**. La suivante arrive 7 s après la fin de la précédente.
+2. **Vagues** : de **1 à 10 vagues**, de **1 à 30 ennemis par vague**. **Vague suivante** :
+   - **à la fin de la précédente** : 7 s après que tous les ennemis sont éliminés ;
+   - **après un délai** choisi (15 s à 10 min, par pas de 15 s) : elle arrive à l'heure, même si la précédente n'est
+     pas éliminée (60 ennemis vivants au plus : sinon elle attend qu'il y ait de la place, `MaxAlive`).
 3. **Renforts** :
    - **Véhicules** de la faction : ils arrivent **en convoi**, tous depuis le même point, à la file (4 par véhicule
      au plus) ; arrivés à 35 m de vous, **tout le monde descend** ;
@@ -47,6 +50,11 @@ Dans le menu :
    - **Arme de poing** : chaque ennemi en a une. Si l'arme tirée au sort est une arme de poing, il n'a **que** celle-là ;
      sinon (arme longue ou spéciale), il a **aussi un pistolet de combat** (`DefaultSidearm`).
 5. **Intensité** :
+   - **Neutres** : ils ne vous attaquent **que si vous les attaquez** (une balle ou un coup sur l'un d'eux, l'un d'eux
+     tué, un tir à moins de 25 m de l'un d'eux, ou leur véhicule touché). Avant : ils flânent près de vous (s'approchent
+     si vous vous éloignez à plus de 90 m ; les véhicules viennent se garer à 40 m et tout le monde descend,
+     l'hélicoptère tourne au-dessus). Une fois attaqués, tous sont hostiles jusqu'à ce que tous soient éliminés ; la
+     vague suivante arrive de nouveau neutre ;
    - **Silencieux** sur toutes les armes qui l'acceptent (vérifié par le jeu) : on les entend moins ;
    - **Grenades** : une partie des ennemis en a quelques-unes et en lance une de temps en temps (au hasard, toutes
      les 7 à 15 s, d'un ennemi à pied entre 8 et 40 m qui vous voit). Gangs : cocktails Molotov, grenades, bombes
@@ -55,7 +63,8 @@ Dans le menu :
 
 **HUD en haut au milieu** pendant la chasse :
 - l'état, comme la police du jeu : **REPÉRÉ** (gyrophares rouge / bleu), **ILS VOUS CHERCHENT** (gris, avec le temps
-  passé hors de leur vue) ou **VAGUE SUIVANTE** (compte à rebours) ;
+  passé hors de leur vue), **NEUTRES** (vert, option) ou **VAGUE SUIVANTE** (compte à rebours ; avec « après un
+  délai », le compte à rebours est aussi affiché pendant le combat) ;
 - la faction et la vague ;
 - une **barre de la vague** (ennemis éliminés sur ceux de la vague) et une **barre de la chasse** (éliminés sur le
   total) ; les ennemis restants.
@@ -92,11 +101,14 @@ gilet pare-balles des forces).
   contournent, avancent quand ils ne peuvent pas tirer, et **finissent au corps à corps** à moins de 2,6 m.
 - **Apparition** : tous dans un rayon de **70 m** autour de vous, de préférence **hors de votre vue**, toujours au
   niveau de la rue : **jamais dans l'eau, sur un toit ou dans un intérieur**. À pied : par groupes de 3.
-- **Repéré** : il suffit qu'**un** ennemi vous voie pour que **toute la faction** sache où vous êtes (radio). Un ennemi
-  vous voit s'il est à portée (75 m ; moins la nuit ou si vous êtes accroupi / furtif ; 150 m depuis l'hélicoptère),
-  dans son champ de vision (ou tout près : il vous entend) et sans obstacle. Il vous **entend tirer** (120 m ; 20 m
-  avec un silencieux) et sait d'où vient une balle qui le touche.
-- **Recherche** : si **personne** ne vous voit pendant 6 s, ils vous perdent. Une **zone de recherche** (cercle rouge
+- **Ils ne s'arrêtent jamais de tirer** : munitions illimitées, et pendant toute la chasse le joueur n'est jamais
+  « ignoré » (le jeu ou rp_NPCcontrol pouvaient le faire ignorer, surtout des policiers / SWAT / militaires).
+- **Repéré** : il suffit qu'**un** ennemi vous voie pour que **toute la faction** sache où vous êtes (radio). En plein
+  combat, un ennemi qui vous a en ligne de vue vous garde jusqu'à 150 m, dans toutes les directions. Pour vous
+  **retrouver**, il doit vous avoir **devant lui**, à portée (75 m ; moins la nuit ou si vous êtes accroupi / furtif,
+  plus si vous êtes en véhicule ; 150 m depuis l'hélicoptère) et sans obstacle ; à 5 m il vous trouve de toute façon.
+  Il vous **entend tirer** (120 m ; 20 m avec un silencieux) et sait d'où vient une balle qui le touche.
+- **Recherche** : si **personne** ne vous voit pendant 8 s, ils vous perdent. Une **zone de recherche** (cercle rouge
   sur la carte) apparaît autour de votre dernière position connue et s'agrandit (35 à 140 m) : à pied ils la
   fouillent, les véhicules la sillonnent, l'hélicoptère la survole au projecteur. Sans vous retrouver, la zone se
   rapproche de vous toutes les 20 s (renseignements). Revu, entendu ou touché : tous reviennent sur vous.
@@ -105,10 +117,11 @@ gilet pare-balles des forces).
   sous vos yeux ils courent y monter) ; près de vous à pied, ils descendent et combattent.
 - Ils restent sous le contrôle du joueur qui a lancé la chasse (ils ne passent pas à un autre joueur). Ils sont
   hostiles aux joueurs : un joueur qui se trouve à côté peut être pris pour cible lui aussi.
-- **Musique** (option) : un indice de recherche « fantôme » est donné au joueur (3 étoiles pour un gang ou une
-  organisation, 4 pour les forces, +1 avec l'hélicoptère) : la musique de poursuite du jeu joue quand il est repéré,
-  celle de recherche quand ils le cherchent. Les étoiles sont cachées, la police du jeu l'ignore, et tout est effacé
-  à la fin.
+- **Musique** (option) : un indice de recherche « fantôme » est donné au joueur quand il est repéré (3 étoiles pour un
+  gang ou une organisation, 4 pour les forces, +1 avec l'hélicoptère) : musique de poursuite du jeu ; quand ils le
+  cherchent, les étoiles clignotent (musique de recherche) et ne sont pas remises si le jeu les retire (la musique se
+  calme, elle repart s'il est revu) ; neutres : aucune. Étoiles cachées, police du jeu non envoyée (sans
+  rp_NPCcontrol, un policier du jeu déjà présent à côté peut intervenir), tout est effacé à la fin.
 - Points rouges sur la carte (`Blips`). Les corps disparaissent au bout de 20 s.
 
 ## Configuration (`config.lua`)
@@ -116,7 +129,9 @@ gilet pare-balles des forces).
 | Réglage | Rôle |
 |---|---|
 | `Command` | nom de la commande (`ganghunt`) |
-| `MaxWaves`, `MaxWaveSize`, `WaveSize`, `NextWaveDelay` | vagues au plus, ennemis par vague au plus / par défaut, délai entre deux vagues |
+| `MaxWaves`, `MaxWaveSize`, `WaveSize`, `NextWaveDelay` | vagues au plus, ennemis par vague au plus / par défaut, délai après une vague éliminée |
+| `WaveTimer`, `MaxAlive` | mode « après un délai » : délai par défaut / min / max / pas, ennemis vivants au plus |
+| `Passive` | option « Neutres » : distance d'un tir qui les provoque, flânerie, approche |
 | `MaxWeapons`, `DefaultSidearm` | armes choisies au plus, arme de poing donnée avec une arme longue / spéciale |
 | `SpawnDistance`, `ConvoySpacing`, `HeliHeight`, `StreetLevel` | apparition (rayon 40-70 m), convoi, hélicoptère, niveau de la rue |
 | `Accuracy`, `Health`, `Armour`, `Blips`, `Melee` | précision, vie, armure, points sur la carte, corps à corps |
