@@ -43,8 +43,10 @@ qui y entrent, son d'intrigue, cercle sur la carte), **périmètre à fouiller**
 contours blancs, zone proche pointée). Rien ne disparaît autour des scènes (protégées des « ClearArea »).
 
 Et **RP Ganghunt** dans [`rp_Ganghunt/`](rp_Ganghunt/README.md) : `/ganghunt`, n'importe quel joueur fait venir des
-**vagues de 10 ennemis** qui le traquent partout (gangs, organisations ou forces de l'ordre), armes réparties en
-pourcentages ou aléatoires, véhicules et hélicoptère de la faction. Volontairement absent du MDC et du `/tuto`.
+**vagues d'ennemis** (1 à 10 vagues de 1 à 30) qui le traquent et le **cherchent** quand ils le perdent de vue, comme
+la police du jeu (gangs, organisations ou forces de l'ordre) : armes réparties en pourcentages ou aléatoires (armes
+spéciales comprises), convoi de véhicules et hélicoptère de la faction, silencieux, grenades, musique de poursuite du
+jeu, HUD en haut de l'écran. Volontairement absent du MDC et du `/tuto`.
 
 ## Fenêtre
 

@@ -9,8 +9,9 @@ Volontairement **absent du MDC et du `/tuto`** : seule la commande l'ouvre.
 
 1. Copier le dossier `rp_Ganghunt` dans `resources/`.
 2. `ensure rp_Ganghunt` dans `server.cfg`.
-3. Avec **rp_NPCcontrol** (« everyone ignore player ») : version **1.5.0** ou plus, sinon les ennemis ne voient pas
-   le joueur. Pendant une chasse, « ignore player » est coupé pour le joueur traqué seulement.
+3. Avec **rp_NPCcontrol** (« everyone ignore player ») : version **1.6.0** ou plus, sinon les ennemis ne voient pas
+   le joueur (et la musique serait coupée). Pendant une chasse, « ignore player » est coupé pour le joueur traqué
+   seulement, et son indice de recherche (musique) n'est plus effacé.
 
 ## Utilisation
 
@@ -31,19 +32,33 @@ Dans le menu :
    | **Organisation** | Chinois (Triades), Arméniens, Coréens (Kkangpae), Mexicains (cartel Madrazo), Salvadoriens (Marabunta Grande), Merryweather |
    | **Forces** | Police (LSPD), Armée, Sheriff (BCSO), NOOSE (SWAT) |
 
-2. **Vagues** : de 1 à 10 ; **une vague = 10 ennemis**. La suivante arrive 7 s après la fin de la précédente.
-3. **Armes** :
+2. **Vagues** : de **1 à 10 vagues**, de **1 à 30 ennemis par vague**. La suivante arrive 7 s après la fin de la précédente.
+3. **Renforts** :
+   - **Véhicules** de la faction : ils arrivent **en convoi**, tous depuis le même point, à la file (4 par véhicule
+     au plus) ; arrivés à 35 m de vous, **tout le monde descend** ;
+   - **Hélicoptère** de la faction : un pilote et deux tireurs, au-dessus du point du convoi. Il reste en l'air : il
+     vous suit, ses tireurs tirent, et il survole la zone de recherche (projecteur).
+4. **Armes** :
    - **Aléatoire** : chaque ennemi reçoit une arme au hasard parmi celles de sa faction ;
    - **Choisies** : jusqu'à **10 armes**, chacune avec son **pourcentage d'usage** (curseur ou saisie), le total doit
-     faire **100 %** (ex. fusil à pompe 30 %, carabine 40 %, SMG 30 %). « Répartir également » partage 100 % entre
-     toutes. Une arme ajoutée prend ce qui reste.
+     faire **100 %**. « Répartir également » partage 100 % entre toutes. Une arme ajoutée prend ce qui reste.
+   - **Armes spéciales** : lance-grenades (et compact), RPG, lance-missiles à tête chercheuse, minigun, railgun,
+     lance-feux d'artifice.
    - **Arme de poing** : chaque ennemi en a une. Si l'arme tirée au sort est une arme de poing, il n'a **que** celle-là ;
-     si c'est une arme longue, il a **aussi un pistolet de combat** (`DefaultSidearm`).
-4. **Renforts** :
-   - **Véhicules** de la faction (4 ennemis par véhicule au plus) ;
-   - **Hélicoptère** de la faction : un pilote et deux tireurs dans chaque vague.
+     sinon (arme longue ou spéciale), il a **aussi un pistolet de combat** (`DefaultSidearm`).
+5. **Intensité** :
+   - **Silencieux** sur toutes les armes qui l'acceptent (vérifié par le jeu) : on les entend moins ;
+   - **Grenades** : une partie des ennemis en a quelques-unes et en lance une de temps en temps (au hasard, toutes
+     les 7 à 15 s, d'un ennemi à pied entre 8 et 40 m qui vous voit). Gangs : cocktails Molotov, grenades, bombes
+     artisanales ; Organisations : grenades, Molotov, fumigènes ; Forces : gaz lacrymogène, fumigènes, grenades ;
+   - **Musique** : la musique de poursuite / recherche de la police du jeu.
 
-Un petit cadre en haut à droite indique la faction, la vague et les ennemis restants.
+**HUD en haut au milieu** pendant la chasse :
+- l'état, comme la police du jeu : **REPÉRÉ** (gyrophares rouge / bleu), **ILS VOUS CHERCHENT** (gris, avec le temps
+  passé hors de leur vue) ou **VAGUE SUIVANTE** (compte à rebours) ;
+- la faction et la vague ;
+- une **barre de la vague** (ennemis éliminés sur ceux de la vague) et une **barre de la chasse** (éliminés sur le
+  total) ; les ennemis restants.
 
 La chasse se termine quand toutes les vagues sont éliminées (« chasse réussie »), si le joueur **meurt**, avec
 `/ganghunt stop`, ou s'il se déconnecte (le serveur retire alors tout ce qui reste).
@@ -70,19 +85,30 @@ La chasse se termine quand toutes les vagues sont éliminées (« chasse réussi
 Tout est modifiable dans `config.lua` (`Factions` : modèles de PNJ, véhicules, hélicoptère, armes « aléatoire »,
 gilet pare-balles des forces).
 
-## Comportement des ennemis
+## Comportement des ennemis (comme la police du jeu)
 
 - **Ils ne s'entretuent pas** : tous dans le même groupe (`RP_GANGHUNT`), compagnons entre eux, tir ami coupé.
-- **Aucun périmètre** : vue et ouïe à 1,5 km, jamais de fuite ni de reddition, combat offensif. Toutes les secondes,
-  chacun est relancé sur le joueur s'il l'a perdu.
-- **Ils le traquent** : un ennemi à pied trop loin (160 m, ou 70 m si le joueur est en véhicule) reçoit un véhicule de
-  sa faction (jusqu'à 4 par véhicule) et le poursuit ; les véhicules le poursuivent à pleine vitesse, les passagers
-  tirent ; près du joueur à pied (30 m), ou véhicule hors d'usage, ils descendent et combattent ; l'hélicoptère le
-  suit et ses tireurs tirent.
-- Apparition **hors de vue**, à 90-150 m (sur la route la plus proche pour les véhicules), hélicoptère à 260 m.
-- Ils restent sous le contrôle du joueur qui a lancé la chasse (ils ne passent pas à un autre joueur), donc leur ordre
-  « traquer » n'est jamais perdu. Ils sont hostiles aux joueurs : un joueur qui se trouve à côté peut être pris pour
-  cible lui aussi.
+- **Animosité au maximum** : jamais de fuite ni de reddition, combat « suicidaire » au plus près, ils chargent,
+  contournent, avancent quand ils ne peuvent pas tirer, et **finissent au corps à corps** à moins de 2,6 m.
+- **Apparition** : tous dans un rayon de **70 m** autour de vous, de préférence **hors de votre vue**, toujours au
+  niveau de la rue : **jamais dans l'eau, sur un toit ou dans un intérieur**. À pied : par groupes de 3.
+- **Repéré** : il suffit qu'**un** ennemi vous voie pour que **toute la faction** sache où vous êtes (radio). Un ennemi
+  vous voit s'il est à portée (75 m ; moins la nuit ou si vous êtes accroupi / furtif ; 150 m depuis l'hélicoptère),
+  dans son champ de vision (ou tout près : il vous entend) et sans obstacle. Il vous **entend tirer** (120 m ; 20 m
+  avec un silencieux) et sait d'où vient une balle qui le touche.
+- **Recherche** : si **personne** ne vous voit pendant 6 s, ils vous perdent. Une **zone de recherche** (cercle rouge
+  sur la carte) apparaît autour de votre dernière position connue et s'agrandit (35 à 140 m) : à pied ils la
+  fouillent, les véhicules la sillonnent, l'hélicoptère la survole au projecteur. Sans vous retrouver, la zone se
+  rapproche de vous toutes les 20 s (renseignements). Revu, entendu ou touché : tous reviennent sur vous.
+- **Ils vous traquent** : en véhicule, ils vous poursuivent (les passagers tirent) ; à pied trop loin (160 m, ou 70 m
+  si vous êtes en véhicule), ils **reprennent un véhicule** (le leur s'il est à côté, sinon un nouveau de la faction ;
+  sous vos yeux ils courent y monter) ; près de vous à pied, ils descendent et combattent.
+- Ils restent sous le contrôle du joueur qui a lancé la chasse (ils ne passent pas à un autre joueur). Ils sont
+  hostiles aux joueurs : un joueur qui se trouve à côté peut être pris pour cible lui aussi.
+- **Musique** (option) : un indice de recherche « fantôme » est donné au joueur (3 étoiles pour un gang ou une
+  organisation, 4 pour les forces, +1 avec l'hélicoptère) : la musique de poursuite du jeu joue quand il est repéré,
+  celle de recherche quand ils le cherchent. Les étoiles sont cachées, la police du jeu l'ignore, et tout est effacé
+  à la fin.
 - Points rouges sur la carte (`Blips`). Les corps disparaissent au bout de 20 s.
 
 ## Configuration (`config.lua`)
@@ -90,17 +116,21 @@ gilet pare-balles des forces).
 | Réglage | Rôle |
 |---|---|
 | `Command` | nom de la commande (`ganghunt`) |
-| `MaxWaves`, `WaveSize`, `NextWaveDelay` | vagues au plus, ennemis par vague, délai entre deux vagues |
-| `MaxWeapons`, `DefaultSidearm` | armes choisies au plus, arme de poing donnée avec une arme longue |
-| `SpawnDistance`, `HeliDistance`, `HeliHeight` | apparition |
-| `Accuracy`, `Health`, `Armour`, `Blips` | précision, vie, armure, points sur la carte |
-| `FarDistance`, `VehicleChaseDistance`, `DismountDistance` | traque : quand reprendre un véhicule, quand descendre |
-| `ManagerInterval`, `BodyCleanup` | vérification des ennemis, retrait des corps |
-| `Weapons` | armes proposées dans le menu (`handgun = true` : arme de poing) |
-| `Categories`, `Factions` | catégories et factions du menu |
+| `MaxWaves`, `MaxWaveSize`, `WaveSize`, `NextWaveDelay` | vagues au plus, ennemis par vague au plus / par défaut, délai entre deux vagues |
+| `MaxWeapons`, `DefaultSidearm` | armes choisies au plus, arme de poing donnée avec une arme longue / spéciale |
+| `SpawnDistance`, `ConvoySpacing`, `HeliHeight`, `StreetLevel` | apparition (rayon 40-70 m), convoi, hélicoptère, niveau de la rue |
+| `Accuracy`, `Health`, `Armour`, `Blips`, `Melee` | précision, vie, armure, points sur la carte, corps à corps |
+| `FarDistance`, `VehicleChaseDistance`, `DismountDistance` | quand reprendre un véhicule, quand descendre |
+| `DriveSpeed`, `SearchDriveSpeed`, `DrivingStyle` | conduite vers le joueur / pendant la recherche |
+| `Search` | vue, champ de vision, nuit, furtivité, ouïe, zone de recherche, renseignements |
+| `Grenades` | fréquence, portée, part des ennemis qui en ont, grenades par catégorie |
+| `Suppressors`, `Music`, `Sounds` | silencieux essayés, étoiles de la musique, sons repéré / perdu |
+| `Weapons` | armes du menu (`handgun` : arme de poing ; `special` : arme spéciale) |
+| `Categories`, `Factions` | catégories et factions du menu (`grenades` possible par faction) |
 
 ## Performance
 
 - Aucune chasse : **aucune boucle** (0.00 ms).
-- Pendant une chasse : une vérification par seconde des ennemis de la chasse.
+- Pendant une chasse : une vérification par seconde des ennemis de la chasse (8 lignes de vue au plus par seconde).
+  Avec la musique seulement : une petite boucle par image (étoiles cachées).
 - Menu : rien ne tourne côté Lua pendant qu'il est ouvert.

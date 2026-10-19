@@ -11,7 +11,8 @@
     - « Everyone ignore player » : les PNJ ignorent les joueurs, n'ont plus peur, ne réagissent plus aux fusillades,
       aux explosions ni aux morts, et ne se battent pas (véhicule volé, klaxon, bousculade).
     - rp_Ganghunt (événement local rp_npccontrol:ganghunt) : pendant une chasse, « ignore player » coupé pour ce
-      joueur (ses ennemis, créés par script, ne sont jamais touchés par le reste de ce fichier).
+      joueur (ses ennemis, créés par script, ne sont jamais touchés par le reste de ce fichier) et son indice de
+      recherche n'est plus effacé (musique de poursuite de la chasse ; la police du jeu l'ignore toujours).
     - Densité du trafic, des véhicules garés et des piétons (0.0 à 3.0), réglée par le serveur (GlobalState.npcDensity).
     Performance :
       - boucle d'1 s (PNJ du jeu à proximité : réglages "pas de peur", retrait des services d'urgence) : ~0.01 ms ;
@@ -92,6 +93,11 @@ local function applyRules()
         SetMaxWantedLevel(5)
         SetWantedLevelMultiplier(1.0)
         SetPoliceIgnorePlayer(player, false)
+    elseif ganghunt then
+        -- rp_Ganghunt : il gère lui-même un indice de recherche (musique de poursuite) ; la police du jeu l'ignore
+        SetMaxWantedLevel(5)
+        SetWantedLevelMultiplier(0.0)
+        SetPoliceIgnorePlayer(player, true)
     elseif Config.DisableWantedLevel then
         SetMaxWantedLevel(0)
         SetWantedLevelMultiplier(0.0)

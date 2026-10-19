@@ -36,14 +36,25 @@
 
         <div class="gh-section">
             <div class="gh-legend"><span class="gh-step">2</span>Vagues</div>
-            <div class="gh-field">
-                <div class="gh-stepper">
-                    <button class="gh-btn gh-icon" id="ghWavesMinus">−</button>
-                    <span class="gh-count" id="ghWaves">1</span>
-                    <button class="gh-btn gh-icon" id="ghWavesPlus">+</button>
+            <div class="gh-steppers">
+                <div class="gh-stepper-box">
+                    <span class="gh-label">Vagues</span>
+                    <div class="gh-stepper">
+                        <button class="gh-btn gh-icon" id="ghWavesMinus">−</button>
+                        <span class="gh-count" id="ghWaves">1</span>
+                        <button class="gh-btn gh-icon" id="ghWavesPlus">+</button>
+                    </div>
                 </div>
-                <span class="gh-label" id="ghWavesText"></span>
+                <div class="gh-stepper-box">
+                    <span class="gh-label">Ennemis par vague</span>
+                    <div class="gh-stepper">
+                        <button class="gh-btn gh-icon" id="ghSizeMinus">−</button>
+                        <span class="gh-count" id="ghSize">10</span>
+                        <button class="gh-btn gh-icon" id="ghSizePlus">+</button>
+                    </div>
+                </div>
             </div>
+            <div class="gh-hint" id="ghWavesText"></div>
         </div>
 
         <div class="gh-section">
@@ -84,6 +95,27 @@
             </div>
             <div class="gh-hint" id="ghWeaponHint"></div>
         </div>
+
+        <div class="gh-section">
+            <div class="gh-legend"><span class="gh-step">5</span>Intensité</div>
+            <div class="gh-options">
+                <label class="gh-check">
+                    <input type="checkbox" id="ghSilencer">
+                    <span class="gh-box"></span>
+                    <span class="gh-check-text"><b>Silencieux</b><small>Sur toutes les armes qui l'acceptent : on les entend moins.</small></span>
+                </label>
+                <label class="gh-check">
+                    <input type="checkbox" id="ghGrenades">
+                    <span class="gh-box"></span>
+                    <span class="gh-check-text"><b>Grenades</b><small id="ghGrenadesText">Lancées au hasard par une partie des ennemis.</small></span>
+                </label>
+                <label class="gh-check">
+                    <input type="checkbox" id="ghMusic">
+                    <span class="gh-box"></span>
+                    <span class="gh-check-text"><b>Musique</b><small>La musique de recherche de la police du jeu.</small></span>
+                </label>
+            </div>
+        </div>
         <div class="gh-message" id="ghMessage"></div>
         <div class="gh-actions">
             <button class="gh-btn gh-primary" id="ghStart">Lancer la chasse</button>
@@ -93,11 +125,26 @@
         <div class="gh-foot"><b>/ganghunt stop</b> arrête la chasse · elle s'arrête aussi si vous mourez</div>
     </div>
 
-    <!-- HUD pendant une chasse -->
+    <!-- HUD pendant une chasse (en haut au milieu) -->
     <div id="ghHud" class="hud hidden">
-        <div class="hud-head"><span class="hud-dot"></span>GANGHUNT<span class="hud-faction" id="hudFaction"></span></div>
-        <div class="hud-wave" id="hudWave"></div>
-        <div class="hud-alive" id="hudAlive"></div>
+        <div class="hud-top">
+            <div class="hud-state" id="hudState">
+                <span class="hud-lights"><i></i><i></i></span>
+                <span class="hud-state-text" id="hudStateText"></span>
+            </div>
+            <div class="hud-title"><span id="hudFaction"></span><span class="hud-wave" id="hudWave"></span></div>
+        </div>
+        <div class="hud-bar-row">
+            <span class="hud-bar-label">Vague</span>
+            <div class="hud-bar"><div class="hud-fill wave" id="hudWaveBar"></div></div>
+            <span class="hud-bar-count" id="hudWaveCount"></span>
+        </div>
+        <div class="hud-bar-row">
+            <span class="hud-bar-label">Chasse</span>
+            <div class="hud-bar"><div class="hud-fill hunt" id="hudHuntBar"></div></div>
+            <span class="hud-bar-count" id="hudHuntCount"></span>
+        </div>
+        <div class="hud-sub" id="hudSub"></div>
     </div>
 
     <script src="script.js"></script>

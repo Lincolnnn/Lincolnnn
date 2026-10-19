@@ -1,7 +1,8 @@
 --[[
     RP Ganghunt - client : menu (NUI), commande
     -------------------------------------------
-    /ganghunt : menu (faction, nombre de vagues, armes et pourcentages ou aléatoire, véhicules, hélicoptère) ;
+    /ganghunt : menu (faction, vagues et ennemis par vague, armes et pourcentages ou aléatoire, véhicules,
+    hélicoptère, silencieux, grenades, musique) ;
     /ganghunt stop : arrête la chasse en cours. (Volontairement absent du MDC et du /tuto.)
     Aucune boucle : le menu ne tourne que pendant qu'il est ouvert (NUI), Échap le ferme sans ouvrir la carte.
 ]]
@@ -56,9 +57,11 @@ local function buildMenuData()
         categories[#categories + 1] = { key = category.key, label = category.label, factions = factions }
     end
     local weapons = {}
-    for _, w in ipairs(Config.Weapons) do weapons[#weapons + 1] = { name = w.name, label = w.label, handgun = w.handgun == true } end
+    for _, w in ipairs(Config.Weapons) do
+        weapons[#weapons + 1] = { name = w.name, label = w.label, handgun = w.handgun == true, special = w.special == true }
+    end
     menuData = { categories = categories, weapons = weapons, maxWaves = Config.MaxWaves or 10,
-        waveSize = Config.WaveSize or 10, maxWeapons = Config.MaxWeapons or 10,
+        waveSize = Config.WaveSize or 10, maxWaveSize = Config.MaxWaveSize or 30, maxWeapons = Config.MaxWeapons or 10,
         sidearm = Config.DefaultSidearm or 'WEAPON_COMBATPISTOL' }
     return menuData
 end
@@ -112,8 +115,9 @@ RegisterNUICallback('start', function(data, cb)
         end
         if total ~= 100 then return cb({ ok = false, error = ('Les pourcentages font %d %% (il faut 100 %%).'):format(total) }) end
     end
-    local ok, err = GH.start({ faction = data.faction, waves = data.waves, weapons = weapons,
-        vehicles = data.vehicles == true, heli = data.heli == true })
+    local ok, err = GH.start({ faction = data.faction, waves = data.waves, waveSize = data.waveSize, weapons = weapons,
+        vehicles = data.vehicles == true, heli = data.heli == true, silencer = data.silencer == true,
+        grenades = data.grenades == true, music = data.music == true })
     cb({ ok = ok, error = err })
     if ok then closeMenu() end
 end)

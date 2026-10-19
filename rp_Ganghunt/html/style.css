@@ -46,7 +46,7 @@ body.menu-open .hud { display: none; }
     display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px;
     background: rgba(229, 72, 77, .08); border: 1px solid rgba(229, 72, 77, .35);
 }
-.gh-dot, .hud-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--hunt); box-shadow: 0 0 8px var(--hunt); animation: gh-pulse 1.4s ease-in-out infinite; }
+.gh-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--hunt); box-shadow: 0 0 8px var(--hunt); animation: gh-pulse 1.4s ease-in-out infinite; }
 @keyframes gh-pulse { 50% { opacity: .3; } }
 .gh-active-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .gh-active-text small { font-size: 11.5px; color: var(--muted); }
@@ -82,6 +82,9 @@ body.menu-open .hud { display: none; }
 .gh-first { margin-bottom: 10px; }
 .gh-label { font-size: 12px; color: var(--muted); }
 .gh-stepper { display: flex; align-items: center; gap: 8px; }
+.gh-steppers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gh-stepper-box { display: flex; flex-direction: column; gap: 6px; }
+.gh-options .gh-check { padding: 5px 2px; }
 .gh-count { min-width: 28px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .gh-btn {
@@ -106,7 +109,7 @@ body.menu-open .hud { display: none; }
 select.gh-input option, select.gh-input optgroup { background: #1a1a1a; color: var(--text); }
 .gh-add { display: flex; gap: 6px; }
 
-.gh-weapons { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; max-height: 330px; overflow-y: auto; }
+.gh-weapons { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; max-height: 236px; overflow-y: auto; }
 .gh-weapon {
     display: grid; grid-template-columns: minmax(0, 1fr) 96px 60px 24px; align-items: center; gap: 8px;
     padding: 5px 6px 5px 10px; border-radius: 8px; background: rgba(255, 255, 255, .03); border: 1px solid var(--line);
@@ -154,17 +157,43 @@ select.gh-input option, select.gh-input optgroup { background: #1a1a1a; color: v
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .14); border-radius: 8px; }
 
-/* ===================== HUD (en haut à droite) ===================== */
+/* ===================== HUD (en haut au milieu) ===================== */
 .hud {
-    position: fixed; top: 2.4vh; right: 1.4vw; z-index: 40; min-width: 210px; padding: 9px 13px 10px;
+    position: fixed; top: 1.6vh; left: 50%; transform: translateX(-50%); z-index: 40;
+    width: 440px; padding: 9px 14px 10px;
     background: rgba(0, 0, 0, .62); border: 1.5px solid #7a7a7a; border-radius: 8px;
     color: #e6e6e6; text-shadow: 0 1px 1px rgba(0, 0, 0, .8); pointer-events: none;
-    box-shadow: inset 3px 0 0 var(--hunt); animation: hud-in .3s ease-out;
+    animation: hud-in .35s ease-out;
 }
-@keyframes hud-in { from { opacity: 0; transform: translateX(10px); } }
-.hud-head { display: flex; align-items: center; gap: 7px; font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; color: #ff8d90; }
-.hud-faction { font-weight: 600; letter-spacing: .3px; color: var(--hud-muted); }
-.hud-faction:not(:empty)::before { content: "·"; margin-right: 7px; }
-.hud-wave { margin-top: 4px; font-size: 15px; font-weight: 700; color: #fff; }
-.hud-alive { margin-top: 2px; font-size: 12.5px; color: #dcdcdc; font-variant-numeric: tabular-nums; }
-.hud-alive.waiting { color: #e8c27a; }
+@keyframes hud-in { from { opacity: 0; transform: translate(-50%, -10px); } }
+.hud-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hud-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 12px; font-weight: 600; color: var(--hud-muted); white-space: nowrap; }
+.hud-title #hudFaction { overflow: hidden; text-overflow: ellipsis; }
+.hud-wave { font-size: 13.5px; font-weight: 700; color: #fff; }
+
+/* État : REPÉRÉ (gyrophares rouge / bleu) · ILS VOUS CHERCHENT (gris qui pulse) · vague suivante (ambre) */
+.hud-state { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: 1.3px; white-space: nowrap; }
+.hud-lights { display: flex; gap: 3px; }
+.hud-lights i { width: 9px; height: 9px; border-radius: 50%; background: #555; }
+.hud.engaged .hud-state-text { color: #fff; }
+.hud.engaged .hud-lights i:first-child { animation: light-red .5s steps(1) infinite; }
+.hud.engaged .hud-lights i:last-child { animation: light-blue .5s steps(1) infinite; }
+@keyframes light-red { 0% { background: #ff2b38; box-shadow: 0 0 10px #ff2b38; } 50% { background: #3a1214; box-shadow: none; } }
+@keyframes light-blue { 0% { background: #12203a; box-shadow: none; } 50% { background: #2f7bff; box-shadow: 0 0 10px #2f7bff; } }
+.hud.engaged { border-color: #9a5a5e; }
+.hud.search .hud-state-text { color: #cfcfcf; }
+.hud.search .hud-lights i { background: #9a9a9a; animation: light-search 1.6s ease-in-out infinite; }
+.hud.search .hud-lights i:last-child { animation-delay: .8s; }
+@keyframes light-search { 50% { opacity: .2; } }
+.hud.waiting .hud-state-text { color: #e8c27a; }
+.hud.waiting .hud-lights i { background: #e8c27a; box-shadow: 0 0 6px #e8c27a; }
+
+.hud-bar-row { display: grid; grid-template-columns: 52px 1fr 62px; align-items: center; gap: 9px; margin-top: 7px; }
+.hud-bar-label { font-size: 10.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--hud-muted); }
+.hud-bar { height: 7px; background: rgba(255, 255, 255, .1); border-radius: 4px; overflow: hidden; }
+.hud-fill { width: 0; height: 100%; border-radius: 4px; transition: width .45s ease-out; }
+.hud-fill.wave { background: #ff5a63; box-shadow: 0 0 6px rgba(255, 90, 99, .6); }
+.hud-fill.hunt { background: #9fd0ff; box-shadow: 0 0 6px rgba(159, 208, 255, .6); }
+.hud-bar-count { font-size: 11.5px; text-align: right; color: #dcdcdc; font-variant-numeric: tabular-nums; }
+.hud-sub { margin-top: 6px; font-size: 12px; text-align: center; color: #dcdcdc; font-variant-numeric: tabular-nums; }
+.hud.search .hud-sub { color: #cfcfcf; }

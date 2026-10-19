@@ -4,31 +4,84 @@
 ]]
 GanghuntConfig = {
     Command = 'ganghunt',          -- /ganghunt : menu ; /ganghunt stop : arrêter la chasse en cours
-    MaxWaves = 10,
-    WaveSize = 10,                 -- ennemis par vague
+    MaxWaves = 10,                 -- vagues au plus
+    MaxWaveSize = 30,              -- ennemis par vague au plus (choisi dans le menu)
+    WaveSize = 10,                 -- ennemis par vague proposés par défaut
     NextWaveDelay = 7000,          -- ms entre la fin d'une vague et la suivante
     MaxWeapons = 10,               -- armes choisies au plus
-    DefaultSidearm = 'WEAPON_COMBATPISTOL', -- arme de poing donnée en plus d'une arme longue
+    DefaultSidearm = 'WEAPON_COMBATPISTOL', -- arme de poing donnée en plus d'une arme longue / spéciale
 
-    -- Apparition : hors de vue, autour du joueur
-    SpawnDistance = { 90.0, 150.0 }, -- m (à pied et en véhicule, sur la route la plus proche)
-    HeliDistance = 260.0, HeliHeight = 70.0,
+    -- APPARITION : tous dans un rayon de SpawnDistance m autour du joueur, de préférence hors de sa vue, jamais dans
+    -- l'eau, sur un toit ou dans un intérieur (au niveau de la rue la plus proche). Véhicules / hélicoptère : en
+    -- CONVOI, tous depuis le même point de route ; arrivés à DismountDistance m du joueur, ils descendent (sauf
+    -- l'hélicoptère, qui reste en l'air avec ses tireurs).
+    SpawnDistance = { 40.0, 70.0 },
+    ConvoySpacing = 8.0,           -- m entre deux véhicules du convoi
+    HeliHeight = 45.0,             -- m au-dessus du sol à l'apparition
+    StreetLevel = 4.0,             -- m d'écart au plus avec la route la plus proche (sinon : toit, pont… refusé)
 
-    -- Combat
-    Accuracy = 35,                 -- précision (0-100)
+    -- Combat : animosité au maximum (jamais de fuite, avancent sur le joueur, chargent, corps à corps tout près)
+    Accuracy = 40,                 -- précision (0-100)
     Health = 200, Armour = 0,      -- vie des ennemis (200 = normal) ; armure (Forces : voir Factions[].armour)
     Blips = true,                  -- ennemis sur la carte (petits points rouges)
+    Melee = { Distance = 2.6, Cooldown = 4000 }, -- à moins de 2,6 m du joueur à pied : corps à corps
 
-    -- TRAQUE : pas de périmètre. Un ennemi à pied trop loin du joueur (FarDistance m, ou joueur en véhicule à plus de
-    -- VehicleChaseDistance m) reçoit un véhicule de sa faction (jusqu'à 4 par véhicule) et le poursuit ; un véhicule
-    -- poursuit à pleine vitesse, ses passagers tirent ; près du joueur à pied, ils descendent et combattent.
+    -- DÉPLACEMENTS : un ennemi à pied loin de son objectif (FarDistance m, ou joueur en véhicule à plus de
+    -- VehicleChaseDistance m) reprend un véhicule de sa faction (le sien s'il est proche) ; un véhicule poursuit le
+    -- joueur en véhicule, ou fonce vers lui s'il est à pied, et ses occupants descendent à DismountDistance m.
     FarDistance = 160.0,
     VehicleChaseDistance = 70.0,
-    DismountDistance = 30.0,
+    DismountDistance = 35.0,
+    DriveSpeed = 35.0,             -- m/s (vers le joueur) ; recherche : SearchDriveSpeed
+    SearchDriveSpeed = 14.0,
+    DrivingStyle = 1074528293,     -- conduite « pressée » (feux grillés, dépassements)
     ManagerInterval = 1000,        -- ms entre deux vérifications des ennemis
     BodyCleanup = 20000,           -- ms avant que les corps soient rendus au jeu (disparaissent)
 
-    -- Armes proposées dans le menu (groupe : arme de poing -> pas d'arme de poing en plus)
+    -- RECHERCHE (comme la police du jeu) : tant qu'un ennemi voit le joueur, tous savent où il est (radio). Personne
+    -- ne le voit depuis LoseTime ms : ils le cherchent dans une zone autour de sa dernière position connue, qui
+    -- s'agrandit ; un ennemi qui le revoit (ou l'entend tirer, ou est touché par lui) : tous reviennent sur lui.
+    Search = {
+        LoseTime = 6000,           -- ms sans le voir avant de le perdre
+        Sight = 75.0,              -- m de vue (à pied / en voiture), dans leur champ de vision
+        HeliSight = 150.0,         -- m de vue depuis l'hélicoptère (projecteur la nuit)
+        CloseRange = 12.0,         -- m : vu même de dos (il l'entend)
+        FieldOfView = 0.25,        -- cosinus du demi-angle de vue (0.25 = environ 150° au total)
+        StealthFactor = 0.6,       -- joueur accroupi / furtif : vue réduite
+        NightFactor = 0.7,         -- la nuit (21 h - 6 h) : vue réduite (sauf hélicoptère)
+        Hearing = 120.0,           -- m : un tir du joueur est entendu
+        SilencedHearing = 20.0,    -- m : tir avec silencieux
+        StartRadius = 35.0, MaxRadius = 140.0, Growth = 2.0, -- zone de recherche (m, m, m par seconde)
+        TipInterval = 20000,       -- ms : sans le retrouver, la zone se rapproche du joueur (« renseignements »)
+        TipShift = 0.3,            -- part du chemin vers le joueur à chaque fois
+        Blip = true,               -- zone de recherche sur la carte
+    },
+
+    -- GRENADES (option du menu) : un ennemi à pied, à portée, lance de temps en temps une grenade de sa faction
+    Grenades = {
+        Interval = { 7000, 15000 }, -- ms entre deux lancers (au hasard)
+        Range = { 8.0, 40.0 },      -- m du joueur
+        Spread = 3.0,               -- m d'imprécision
+        Chance = 0.5,               -- part des ennemis qui en ont
+        Gang = { 'WEAPON_MOLOTOV', 'WEAPON_GRENADE', 'WEAPON_PIPEBOMB' },
+        Org = { 'WEAPON_GRENADE', 'WEAPON_MOLOTOV', 'WEAPON_SMOKEGRENADE' },
+        Forces = { 'WEAPON_BZGAS', 'WEAPON_SMOKEGRENADE', 'WEAPON_GRENADE' },
+    },
+
+    -- SILENCIEUX (option du menu) : le premier de ces accessoires que l'arme accepte (vérifié par le jeu)
+    Suppressors = { 'COMPONENT_AT_PI_SUPP', 'COMPONENT_AT_PI_SUPP_02', 'COMPONENT_AT_AR_SUPP',
+        'COMPONENT_AT_AR_SUPP_02', 'COMPONENT_AT_SR_SUPP' },
+
+    -- MUSIQUE (option du menu) : la musique de recherche de la police du jeu (indice de recherche « fantôme » :
+    -- étoiles cachées, la police du jeu l'ignore). Étoiles : Gang / Organisation 3, Forces 4, +1 avec l'hélicoptère.
+    Music = { Stars = 3, ForcesStars = 4 },
+
+    Sounds = {
+        Spotted = { 'CHECKPOINT_MISSED', 'HUD_MINI_GAME_SOUNDSET' }, -- repéré
+        Lost = { 'CHECKPOINT_NORMAL', 'HUD_MINI_GAME_SOUNDSET' },    -- ils vous ont perdu
+    },
+
+    -- Armes proposées dans le menu (handgun : arme de poing seule ; special : arme spéciale + arme de poing)
     Weapons = {
         { name = 'WEAPON_PISTOL', label = 'Pistolet', handgun = true },
         { name = 'WEAPON_COMBATPISTOL', label = 'Pistolet de combat', handgun = true },
@@ -57,6 +110,14 @@ GanghuntConfig = {
         { name = 'WEAPON_COMBATMG', label = 'Mitrailleuse de combat' },
         { name = 'WEAPON_MARKSMANRIFLE', label = 'Fusil de précision (marksman)' },
         { name = 'WEAPON_SNIPERRIFLE', label = 'Fusil de sniper' },
+        { name = 'WEAPON_HEAVYSNIPER', label = 'Fusil de sniper lourd' },
+        { name = 'WEAPON_GRENADELAUNCHER', label = 'Lance-grenades', special = true },
+        { name = 'WEAPON_COMPACTLAUNCHER', label = 'Lance-grenades compact', special = true },
+        { name = 'WEAPON_RPG', label = 'Lance-roquettes (RPG)', special = true },
+        { name = 'WEAPON_HOMINGLAUNCHER', label = 'Lance-missiles à tête chercheuse', special = true },
+        { name = 'WEAPON_MINIGUN', label = 'Minigun', special = true },
+        { name = 'WEAPON_RAILGUN', label = 'Railgun', special = true },
+        { name = 'WEAPON_FIREWORK', label = 'Lance-feux d\'artifice', special = true },
     },
 
     -- FACTIONS : modèles (choisis au hasard), véhicules (4 places au plus utilisées), hélicoptère, armes « aléatoire »

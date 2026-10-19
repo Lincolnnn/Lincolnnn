@@ -5,8 +5,11 @@
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_Ganghunt';
     const STORE = 'rp_ganghunt_last';
 
-    let config = { categories: [], weapons: [], maxWaves: 10, waveSize: 10, maxWeapons: 10, sidearm: 'WEAPON_COMBATPISTOL' };
-    let state = { category: null, faction: null, waves: 1, mode: 'random', weapons: [], vehicles: false, heli: false };
+    let config = { categories: [], weapons: [], maxWaves: 10, waveSize: 10, maxWaveSize: 30, maxWeapons: 10, sidearm: 'WEAPON_COMBATPISTOL' };
+    let state = {
+        category: null, faction: null, waves: 1, size: 10, mode: 'random', weapons: [], vehicles: false, heli: false,
+        silencer: false, grenades: false, music: false,
+    };
     let messageTimer = null;
     let busy = false;
 
@@ -66,8 +69,11 @@
         $('ghWaves').textContent = state.waves;
         $('ghWavesMinus').disabled = state.waves <= 1;
         $('ghWavesPlus').disabled = state.waves >= config.maxWaves;
-        const n = state.waves * config.waveSize;
-        $('ghWavesText').textContent = `${n} ennemis (${config.waveSize} par vague)`;
+        $('ghSize').textContent = state.size;
+        $('ghSizeMinus').disabled = state.size <= 1;
+        $('ghSizePlus').disabled = state.size >= config.maxWaveSize;
+        const n = state.waves * state.size;
+        $('ghWavesText').innerHTML = `<b>${n}</b> ennemi${n > 1 ? 's' : ''} en tout, apparus à 70 m au plus autour de vous.`;
     }
 
     function renderWeapons() {
@@ -78,7 +84,7 @@
         const sidearmLabel = sidearm ? sidearm.label.toLowerCase() : 'pistolet de combat';
         $('ghWeaponHint').innerHTML = random
             ? `Chaque ennemi reçoit une arme au hasard parmi celles de sa faction, et un <b>${esc(sidearmLabel)}</b> en plus d'une arme longue.`
-            : `Arme de poing : l'ennemi n'a <b>qu'elle</b>. Arme longue : il a aussi un <b>${esc(sidearmLabel)}</b>. `
+            : `Arme de poing : l'ennemi n'a <b>qu'elle</b>. Arme longue ou spéciale (lance-grenades, RPG…) : il a aussi un <b>${esc(sidearmLabel)}</b>. `
               + `Jusqu'à ${config.maxWeapons} armes, réparties sur <b>100 %</b>.`;
         if (random) return;
 
@@ -86,9 +92,11 @@
         const option = (w) => `<option value="${esc(w.name)}">${esc(w.label)}</option>`;
         const free = config.weapons.filter((w) => !used.has(w.name));
         const hand = free.filter((w) => w.handgun);
-        const long = free.filter((w) => !w.handgun);
+        const long = free.filter((w) => !w.handgun && !w.special);
+        const special = free.filter((w) => w.special);
         $('ghWeaponSelect').innerHTML = (hand.length ? `<optgroup label="Armes de poing (seules)">${hand.map(option).join('')}</optgroup>` : '')
-            + (long.length ? `<optgroup label="Armes longues (+ ${esc(sidearmLabel)})">${long.map(option).join('')}</optgroup>` : '');
+            + (long.length ? `<optgroup label="Armes longues (+ ${esc(sidearmLabel)})">${long.map(option).join('')}</optgroup>` : '')
+            + (special.length ? `<optgroup label="Armes spéciales (+ ${esc(sidearmLabel)})">${special.map(option).join('')}</optgroup>` : '');
         const full = state.weapons.length >= config.maxWeapons || free.length === 0;
         $('ghWeaponSelect').disabled = full;
         $('ghWeaponAdd').disabled = full;
@@ -119,10 +127,13 @@
         const f = factionOf(state.faction);
         $('ghVehicles').checked = state.vehicles;
         $('ghHeli').checked = state.heli;
+        $('ghSilencer').checked = state.silencer;
+        $('ghGrenades').checked = state.grenades;
+        $('ghMusic').checked = state.music;
         $('ghVehiclesText').textContent = f
-            ? `Jusqu'à 4 par véhicule : ${toArray(f.vehicles).map((v) => v.label || v).join(', ')}. Ceux à pied en reprennent un s'ils vous perdent.`
+            ? `En convoi, jusqu'à 4 par véhicule : ${toArray(f.vehicles).map((v) => v.label || v).join(', ')}. Ils descendent près de vous.`
             : '';
-        $('ghHeliText').textContent = f && f.heli ? `${f.heliLabel || f.heli} : un pilote et deux tireurs dans chaque vague.` : '';
+        $('ghHeliText').textContent = f && f.heli ? `${f.heliLabel || f.heli} : un pilote et deux tireurs, il vous suit et fouille la zone.` : '';
     }
 
     function render() {
@@ -173,9 +184,9 @@
         }
         busy = true;
         post('start', {
-            faction: state.faction, waves: state.waves, random: state.mode === 'random',
+            faction: state.faction, waves: state.waves, waveSize: state.size, random: state.mode === 'random',
             weapons: state.mode === 'random' ? [] : state.weapons.map((w) => ({ name: w.name, pct: w.pct })),
-            vehicles: state.vehicles, heli: state.heli,
+            vehicles: state.vehicles, heli: state.heli, silencer: state.silencer, grenades: state.grenades, music: state.music,
         }).then((res) => {
             busy = false;
             if (res && res.ok === false) message(res.error || 'Impossible de lancer la chasse.', true);
@@ -201,6 +212,8 @@
     });
     $('ghWavesMinus').addEventListener('click', () => { state.waves = Math.max(1, state.waves - 1); renderWaves(); save(); });
     $('ghWavesPlus').addEventListener('click', () => { state.waves = Math.min(config.maxWaves, state.waves + 1); renderWaves(); save(); });
+    $('ghSizeMinus').addEventListener('click', () => { state.size = Math.max(1, state.size - 1); renderWaves(); save(); });
+    $('ghSizePlus').addEventListener('click', () => { state.size = Math.min(config.maxWaveSize, state.size + 1); renderWaves(); save(); });
     document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
         state.mode = b.dataset.mode;
         renderWeapons();
@@ -232,6 +245,10 @@
     $('ghSpread').addEventListener('click', () => { spread(); renderWeapons(); save(); });
     $('ghVehicles').addEventListener('change', (e) => { state.vehicles = e.target.checked; save(); });
     $('ghHeli').addEventListener('change', (e) => { state.heli = e.target.checked; save(); });
+    ['silencer', 'grenades', 'music'].forEach((key) => {
+        const id = `gh${key[0].toUpperCase()}${key.slice(1)}`;
+        $(id).addEventListener('change', (e) => { state[key] = e.target.checked; save(); });
+    });
     $('ghStart').addEventListener('click', start);
     $('ghStop').addEventListener('click', () => post('stop'));
     $('ghClose').addEventListener('click', () => post('close'));
@@ -248,7 +265,7 @@
         const c = data.config || {};
         config = {
             categories: toArray(c.categories).map((cat) => ({ ...cat, factions: toArray(cat.factions) })),
-            weapons: toArray(c.weapons), maxWaves: c.maxWaves || 10, waveSize: c.waveSize || 10,
+            weapons: toArray(c.weapons), maxWaves: c.maxWaves || 10, waveSize: c.waveSize || 10, maxWaveSize: c.maxWaveSize || 30,
             maxWeapons: c.maxWeapons || 10, sidearm: c.sidearm || 'WEAPON_COMBATPISTOL',
         };
         restore();
@@ -258,6 +275,7 @@
         const cat = categoryOf(state.faction);
         state.category = cat ? cat.key : (config.categories[0] && config.categories[0].key);
         state.waves = Math.max(1, Math.min(config.maxWaves, Number(state.waves) || 1));
+        state.size = Math.max(1, Math.min(config.maxWaveSize, Number(state.size) || config.waveSize));
         if (state.mode !== 'choose') state.mode = 'random';
         message('');
         render();
@@ -266,15 +284,27 @@
         document.body.classList.add('menu-open');
     }
 
+    const STATE_TEXT = { engaged: 'REPÉRÉ', search: 'ILS VOUS CHERCHENT', waiting: 'VAGUE SUIVANTE' };
+    function bar(fill, count, done, total) {
+        const t = Math.max(1, total || 0);
+        $(fill).style.width = `${Math.min(100, Math.round((done || 0) * 100 / t))}%`;
+        $(count).textContent = `${done || 0} / ${total || 0}`;
+    }
     function hud(data) {
         const el = $('ghHud');
         if (!data || !data.show) return el.classList.add('hidden');
+        const st = STATE_TEXT[data.state] ? data.state : 'engaged';
+        el.classList.remove('engaged', 'search', 'waiting');
+        el.classList.add(st);
+        $('hudStateText').textContent = STATE_TEXT[st];
         $('hudFaction').textContent = data.faction || '';
         $('hudWave').textContent = `Vague ${Math.max(1, data.wave || 1)} / ${data.waves || 1}`;
-        const alive = $('hudAlive');
-        alive.classList.toggle('waiting', data.waiting === true);
-        alive.textContent = data.waiting ? 'Vague suivante dans quelques secondes…'
-            : `${data.alive || 0} ennemi${data.alive > 1 ? 's' : ''} restant${data.alive > 1 ? 's' : ''}`;
+        bar('hudWaveBar', 'hudWaveCount', data.waveKilled, data.waveTotal);
+        bar('hudHuntBar', 'hudHuntCount', data.huntKilled, data.huntTotal);
+        const alive = data.alive || 0;
+        const left = `${alive} ennemi${alive > 1 ? 's' : ''} restant${alive > 1 ? 's' : ''}`;
+        $('hudSub').textContent = st === 'waiting' ? `Vague suivante dans ${data.next || 0} s`
+            : st === 'search' ? `Hors de vue depuis ${data.lost || 0} s · ${left}` : left;
         el.classList.remove('hidden');
     }
 

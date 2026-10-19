@@ -51,7 +51,9 @@ explosions**, et **n'ont plus peur** : piétons, passagers **et conducteurs**. R
 qui le contrôle (les PNJ créés par un script ne sont pas touchés).
 
 **rp_Ganghunt** : pendant une chasse (`/ganghunt`), « ignore player » est coupé **pour le joueur traqué seulement**
-(sinon ses ennemis ne le verraient pas) ; il revient dès la fin de la chasse. Les PNJ du jeu restent calmés.
+(sinon ses ennemis ne le verraient pas) et son indice de recherche n'est plus effacé (option « Musique » de la chasse :
+étoiles cachées, la police du jeu l'ignore toujours) ; tout revient dès la fin de la chasse. Les PNJ du jeu restent
+calmés.
 
 Renforcé :
 - **Perception coupée** (`NoPerception`, `SeeingRange`, `HearingRange`) : les PNJ du jeu ne **voient** plus les morts
