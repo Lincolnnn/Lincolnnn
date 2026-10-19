@@ -12,7 +12,7 @@
       aux explosions ni aux morts, et ne se battent pas (véhicule volé, klaxon, bousculade).
     - rp_Ganghunt (événement local rp_npccontrol:ganghunt + état du joueur rpGanghunt) : pendant une chasse,
       « everyone ignore player » ET « police ignore player » coupés pour ce joueur (sinon ses ennemis cessent de
-      tirer), son indice de recherche est laissé à rp_Ganghunt (aucun, ou celui de la musique) ; ses ennemis ne sont
+      tirer), son indice de recherche est laissé à rp_Ganghunt (il n'en donne aucun) ; ses ennemis ne sont
       jamais calmés.
     - Densité du trafic, des véhicules garés et des piétons (0.0 à 3.0), réglée par le serveur (GlobalState.npcDensity).
     Performance :
@@ -101,7 +101,7 @@ local function applyRules()
         SetWantedLevelMultiplier(1.0)
         SetPoliceIgnorePlayer(player, false)
     elseif ganghunt then
-        -- rp_Ganghunt gère lui-même l'indice de recherche (aucun, ou celui de la musique) : rien n'y est touché ici.
+        -- rp_Ganghunt gère lui-même l'indice de recherche (il n'en donne aucun) : rien n'y est touché ici.
         -- « Police ignore player » doit rester COUPÉ : il vaut aussi pour ses ennemis policiers / SWAT / militaires.
         SetWantedLevelMultiplier(0.0)
         SetPoliceIgnorePlayer(player, false)

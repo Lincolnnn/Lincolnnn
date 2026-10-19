@@ -10,8 +10,7 @@ Volontairement **absent du MDC et du `/tuto`** : seule la commande l'ouvre.
 1. Copier le dossier `rp_Ganghunt` dans `resources/`.
 2. `ensure rp_Ganghunt` dans `server.cfg`.
 3. Avec **rp_NPCcontrol** (« everyone ignore player ») : version **1.7.0** ou plus, sinon les ennemis ne voient pas
-   le joueur (et la musique serait coupée). Pendant une chasse, « ignore player » est coupé pour le joueur traqué
-   seulement, et son indice de recherche (musique) n'est plus effacé.
+   le joueur. Pendant une chasse, « ignore player » est coupé pour le joueur traqué seulement.
 
 ## Utilisation
 
@@ -59,7 +58,8 @@ Dans le menu :
    - **Grenades** : une partie des ennemis en a quelques-unes et en lance une de temps en temps (au hasard, toutes
      les 7 à 15 s, d'un ennemi à pied entre 8 et 40 m qui vous voit). Gangs : cocktails Molotov, grenades, bombes
      artisanales ; Organisations : grenades, Molotov, fumigènes ; Forces : gaz lacrymogène, fumigènes, grenades ;
-   - **Musique** : la musique de poursuite / recherche de la police du jeu.
+   - **Musique** : les partitions d'action du jeu (celles des missions), qui suivent la chasse : tension au début,
+     action quand vous êtes repéré, recherche quand ils vous cherchent, fin (réussite / échec).
 
 **HUD en haut au milieu** pendant la chasse :
 - l'état, comme la police du jeu : **REPÉRÉ** (gyrophares rouge / bleu), **ILS VOUS CHERCHENT** (gris, avec le temps
@@ -105,8 +105,10 @@ gilet pare-balles des forces).
 - **Ils ne s'arrêtent jamais de tirer** : munitions illimitées, et pendant toute la chasse le joueur n'est jamais
   « ignoré » (le jeu ou rp_NPCcontrol pouvaient le faire ignorer, surtout des policiers / SWAT / militaires).
 - **Repéré** : il suffit qu'**un** ennemi vous voie (ou vous tire dessus / vous combatte de lui-même) pour que
-  **toute la faction** sache où vous êtes (radio) : ceux qui sont à plus de 80 m vous **rejoignent en courant**,
-  les véhicules foncent sur vous, l'hélicoptère vous suit. En plein
+  **toute la faction** sache où vous êtes (radio) et que **tous convergent vers vous**, comme la police du jeu : à
+  plus de 60 m ils foncent en courant ; plus près, ils combattent en avançant (zone de combat centrée sur vous,
+  déplacée dès que vous bougez, sans s'arrêter à couvert) ; les véhicules foncent sur vous, l'hélicoptère vous suit.
+  En plein
   combat, un ennemi qui vous a en ligne de vue vous garde jusqu'à 150 m, dans toutes les directions. Pour vous
   **retrouver**, il doit vous avoir **devant lui**, à portée (75 m ; moins la nuit ou si vous êtes accroupi / furtif,
   plus si vous êtes en véhicule ; 150 m depuis l'hélicoptère) et sans obstacle ; à 5 m il vous trouve de toute façon.
@@ -120,14 +122,13 @@ gilet pare-balles des forces).
   sous vos yeux ils courent y monter) ; près de vous à pied, ils descendent et combattent.
 - Ils restent sous le contrôle du joueur qui a lancé la chasse (ils ne passent pas à un autre joueur). Ils sont
   hostiles aux joueurs : un joueur qui se trouve à côté peut être pris pour cible lui aussi.
-- **Musique** (option) : un indice de recherche « fantôme » est donné au joueur quand il est repéré (3 étoiles pour un
-  gang ou une organisation, 4 pour les forces, +1 avec l'hélicoptère) : musique de poursuite du jeu ; quand ils le
-  cherchent, les étoiles clignotent (musique de recherche) et ne sont pas remises si le jeu les retire (la musique se
-  calme, elle repart s'il est revu) ; neutres : aucune. Étoiles cachées, police du jeu non envoyée (sans
-  rp_NPCcontrol, un policier du jeu déjà présent à côté peut intervenir), tout est effacé à la fin. Repéré, la
-  minimap clignote rouge / bleu comme avec la police (signalé à chaque image : plus d'allumé / éteint par à-coups).
-- **Sans la musique** : **aucun** indice de recherche pendant la chasse (même en tuant des ennemis policiers) : pas
-  d'étoiles, pas de minimap rouge / bleu.
+- **Musique** (option) : **événements musicaux du jeu** (les partitions des missions, noms tirés des fichiers du jeu),
+  déclenchés seulement quand l'état change : début de la chasse, **REPÉRÉ** (action), **ILS VOUS CHERCHENT**
+  (recherche), moitié des ennemis éliminés, réussite / mort / arrêt, puis toute partition coupée. Plusieurs familles
+  sont essayées dans l'ordre (`Music.Families` : poursuite policière des motards, attaque de gang, descente de
+  police) : la première acceptée par le jeu est gardée ; si aucune ne l'est, le joueur est prévenu.
+- **Aucun indice de recherche** pendant la chasse (même en tuant des ennemis policiers) : pas d'étoiles, pas de
+  minimap rouge / bleu.
 - Points rouges sur la carte (`Blips`). Les corps disparaissent au bout de 20 s.
 
 ## Configuration (`config.lua`)
@@ -140,13 +141,13 @@ gilet pare-balles des forces).
 | `Passive` | option « Neutres » : distance d'un tir qui les provoque, flânerie, approche |
 | `MaxWeapons`, `DefaultSidearm` | armes choisies au plus, arme de poing donnée avec une arme longue / spéciale |
 | `SpawnDistance`, `ConvoySpacing`, `HeliHeight`, `StreetLevel` | apparition (rayon 40-70 m), convoi, hélicoptère, écart de hauteur au sol accepté |
-| `ConvergeDistance` | repéré : au-delà, les ennemis à pied le rejoignent en courant |
+| `ConvergeDistance`, `ConvergeRadius` | repéré : au-delà, les ennemis à pied foncent vers lui en courant ; en deçà, ils combattent en avançant jusqu'à ce rayon autour de lui |
 | `Accuracy`, `Health`, `Armour`, `Blips`, `Melee` | précision, vie, armure, points sur la carte, corps à corps |
 | `FarDistance`, `VehicleChaseDistance`, `DismountDistance` | quand reprendre un véhicule, quand descendre |
 | `DriveSpeed`, `SearchDriveSpeed`, `DrivingStyle` | conduite vers le joueur / pendant la recherche |
 | `Search` | vue, champ de vision, nuit, furtivité, ouïe, zone de recherche, renseignements |
 | `Grenades` | fréquence, portée, part des ennemis qui en ont, grenades par catégorie |
-| `Suppressors`, `Music`, `Sounds` | silencieux essayés, étoiles de la musique, sons repéré / perdu |
+| `Suppressors`, `Music`, `Sounds` | silencieux essayés, familles d'événements musicaux, sons repéré / perdu |
 | `Weapons` | armes du menu (`handgun` : arme de poing ; `special` : arme spéciale) |
 | `Categories`, `Factions` | catégories et factions du menu (`grenades` possible par faction) |
 
@@ -154,5 +155,4 @@ gilet pare-balles des forces).
 
 - Aucune chasse : **aucune boucle** (0.00 ms).
 - Pendant une chasse : une vérification par seconde des ennemis de la chasse (8 lignes de vue au plus par seconde).
-  Avec la musique seulement : une petite boucle par image (étoiles cachées).
 - Menu : rien ne tourne côté Lua pendant qu'il est ouvert.

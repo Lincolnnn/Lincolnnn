@@ -36,7 +36,8 @@ GanghuntConfig = {
     FarDistance = 160.0,
     VehicleChaseDistance = 70.0,
     DismountDistance = 35.0,
-    ConvergeDistance = 80.0,       -- repéré : à pied plus loin que ça, ils le rejoignent en courant (puis combattent)
+    ConvergeDistance = 60.0,       -- repéré : à pied plus loin que ça, ils foncent vers lui en courant
+    ConvergeRadius = 12.0,         -- repéré : plus près, ils combattent en avançant jusqu'à ce rayon autour de lui
     DriveSpeed = 35.0,             -- m/s (vers le joueur) ; recherche : SearchDriveSpeed
     SearchDriveSpeed = 14.0,
     DrivingStyle = 1074528293,     -- conduite « pressée » (feux grillés, dépassements)
@@ -85,9 +86,30 @@ GanghuntConfig = {
     Suppressors = { 'COMPONENT_AT_PI_SUPP', 'COMPONENT_AT_PI_SUPP_02', 'COMPONENT_AT_AR_SUPP',
         'COMPONENT_AT_AR_SUPP_02', 'COMPONENT_AT_SR_SUPP' },
 
-    -- MUSIQUE (option du menu) : la musique de recherche de la police du jeu (indice de recherche « fantôme » :
-    -- étoiles cachées, la police du jeu l'ignore). Étoiles : Gang / Organisation 3, Forces 4, +1 avec l'hélicoptère.
-    Music = { Stars = 3, ForcesStars = 4 },
+    -- MUSIQUE (option du menu) : partitions d'action du jeu (événements musicaux des missions). Chaque famille :
+    -- start (début de la chasse), calm (neutres), engaged (REPÉRÉ), search (ILS VOUS CHERCHENT), half (moitié des
+    -- ennemis éliminés), complete (réussite), fail (mort), stop (arrêt). La première famille que le jeu accepte est
+    -- gardée (noms tirés des fichiers du jeu). StopAll : coupe toute partition StopDelay ms après la fin.
+    Music = {
+        Families = {
+            { -- poursuite policière (mission motard « sauver un contact de la police »)
+                start = 'BKR_RESCUE_CONTACT_POLICE_START', calm = 'BKR_RESCUE_CONTACT_POLICE_START',
+                engaged = 'BKR_RESCUE_CONTACT_POLICE_ESCAPE', search = 'BKR_RESCUE_CONTACT_POLICE_SEARCH',
+                complete = 'BKR_RESCUE_CONTACT_POLICE_STOP', fail = 'BKR_RESCUE_CONTACT_POLICE_FAIL',
+                stop = 'BKR_RESCUE_CONTACT_POLICE_STOP',
+            },
+            { -- attaque de gang (mode en ligne)
+                start = 'GA_KILL_START', calm = 'GA_KILL_START', engaged = 'GA_KILL_ALERTED', half = 'GA_KILL_HALF',
+                complete = 'GA_KILL_COMPLETE', stop = 'GA_STOP',
+            },
+            { -- descente de police (motards)
+                start = 'BIKER_DEFEND_POLICE_RAID_START', engaged = 'BIKER_DEFEND_POLICE_RAID_FIGHT',
+                stop = 'BIKER_MP_MUSIC_STOP',
+            },
+        },
+        StopAll = 'GTA_ONLINE_STOP_SCORE',
+        StopDelay = 4000,
+    },
 
     Sounds = {
         Spotted = { 'CHECKPOINT_MISSED', 'HUD_MINI_GAME_SOUNDSET' }, -- repéré

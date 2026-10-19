@@ -131,7 +131,6 @@ end
 
 --- Réglages « traqueur » : animosité maximale, jamais de fuite ; vue / ouïe réalistes (la recherche en dépend)
 local AGGRESSIVE = {
-    0,  -- se met à couvert (brièvement : il avance quand même)
     1, 2, 3, -- véhicules : s'en sert, tire depuis, en descend
     5,  -- se bat toujours
     13, -- agressif
@@ -162,6 +161,7 @@ local function setupHunter(ped, h)
     SetPedFleeAttributes(ped, 0, false)
     for _, attribute in ipairs(AGGRESSIVE) do SetPedCombatAttributes(ped, attribute, true) end
     SetPedCombatAttributes(ped, 17, false)  -- jamais « toujours fuir »
+    SetPedCombatAttributes(ped, 0, false)   -- pas d'arrêt à couvert : ils foncent sur lui
     -- vue du jeu : longue quand ils combattent (sinon ils perdent leur cible et cessent de tirer), courte pendant
     -- la recherche (ai.lua) ; la détection « repéré / recherche » est faite par ai.lua
     local engaged = s.alert ~= 'search'
@@ -430,6 +430,7 @@ function GH.remount(crew)
         local seat = i - 2
         if seat > maxSeat then break end
         if DoesEntityExist(h.ped) then
+            if h.area then RemovePedDefensiveArea(h.ped, false) h.area = nil end
             h.remountAt = now
             h.veh, h.seat = veh, seat
             h.role = seat == -1 and 'driver' or 'passenger'

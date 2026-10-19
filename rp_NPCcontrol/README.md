@@ -52,8 +52,7 @@ qui le contrôle (les PNJ créés par un script ne sont pas touchés).
 
 **rp_Ganghunt** : pendant une chasse (`/ganghunt`), pour le **joueur traqué seulement** : « everyone ignore player »
 **et** « police ignore player » sont coupés (sinon ses ennemis, policiers / SWAT / militaires compris, cessent de
-tirer au bout de quelques secondes), et son indice de recherche est laissé à rp_Ganghunt (aucun sans l'option
-« Musique », étoiles cachées avec). L'état est gardé même si cette ressource redémarre pendant la chasse. Ses ennemis ne sont jamais calmés.
+tirer au bout de quelques secondes), et son indice de recherche est laissé à rp_Ganghunt (qui n'en donne aucun). L'état est gardé même si cette ressource redémarre pendant la chasse. Ses ennemis ne sont jamais calmés.
 Tout revient dès la fin de la chasse ; les PNJ du jeu restent calmés.
 
 Renforcé :

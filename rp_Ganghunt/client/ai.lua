@@ -10,8 +10,9 @@
     près d'eux, véhicule touché) : alors tous sont hostiles (« REPÉRÉ »), jusqu'à ce que tous soient éliminés.
     RADIO : un seul ennemi qui le voit suffit (ou qui le combat / lui tire dessus de lui-même), toute la faction sait
     où il est (« REPÉRÉ ») :
-      - à pied : ceux qui sont loin (ConvergeDistance) le rejoignent en courant ; près : combat offensif, ils
-        avancent, chargent et finissent au corps à corps ;
+      - à pied : TOUS convergent vers sa position : ceux qui sont loin (ConvergeDistance) foncent en courant, les
+        autres combattent en avançant (zone de combat centrée sur lui, déplacée quand il bouge, sans s'arrêter à
+        couvert), chargent et finissent au corps à corps ;
       - véhicules : foncent vers lui, s'arrêtent à DismountDistance m et tout le monde descend ; s'il est en véhicule,
         poursuite (les passagers tirent) ; à pied trop loin, ils reprennent un véhicule ;
       - hélicoptère : le suit, ses tireurs tirent ; grenades de temps en temps (option).
@@ -445,6 +446,7 @@ function GH.think(now)
                     end
                 elseif h.mode ~= 'calm' then
                     local p = GetEntityCoords(ped)
+                    if h.area then RemovePedDefensiveArea(ped, false) h.area = nil end
                     ClearPedTasks(ped)
                     TaskWanderInArea(ped, p.x, p.y, p.z, Passive.WanderRadius or 15.0, 2.0, 4.0)
                     h.mode = 'calm'
@@ -459,13 +461,21 @@ function GH.think(now)
                     TaskPutPedDirectlyIntoMelee(ped, me, 0.0, -1.0, 0.0, 0)
                     h.meleeAt, h.mode = now, 'combat'
                 elseif d > (Config.ConvergeDistance or 60.0) then
-                    -- radio : ils savent où il est, ceux qui sont loin le rejoignent en courant
+                    -- radio : ils savent où il est, ceux qui sont loin foncent vers lui en courant
                     if h.mode ~= 'converge' or not running(ped, 'goTo') then
-                        TaskGoToEntity(ped, me, -1, (Config.ConvergeDistance or 60.0) * 0.6, 3.0, 1073741824, 0)
+                        TaskGoToEntity(ped, me, -1, (Config.ConvergeDistance or 60.0) * 0.5, 3.0, 1073741824, 0)
                         h.mode = 'converge'
                     end
-                elseif h.mode ~= 'combat' or (not IsPedInCombat(ped, me) and not running(ped, 'combat')) then
-                    combat(h, me)
+                else
+                    -- combat en avançant sur lui : zone de combat centrée sur SA position (comme la police du jeu),
+                    -- déplacée dès qu'il bouge : ils convergent au lieu d'attendre qu'il vienne
+                    if not h.area or #(h.area - myPos) > 4.0 then
+                        SetPedSphereDefensiveArea(ped, myPos.x, myPos.y, myPos.z, Config.ConvergeRadius or 12.0, false, false)
+                        h.area = myPos
+                    end
+                    if h.mode ~= 'combat' or (not IsPedInCombat(ped, me) and not running(ped, 'combat')) then
+                        combat(h, me)
+                    end
                 end
             else
                 local fromZone = #(GetEntityCoords(ped) - s.searchCenter)
@@ -473,6 +483,7 @@ function GH.think(now)
                     far[#far + 1] = h
                 elseif h.mode ~= 'search' or not running(ped, 'nav') or #(GetEntityCoords(ped) - h.target) < 4.0 then
                     local p = searchPoint(s, false)
+                    if h.area then RemovePedDefensiveArea(ped, false) h.area = nil end
                     ClearPedTasks(ped)
                     TaskFollowNavMeshToCoord(ped, p.x, p.y, p.z, 2.0, -1, 1.0, false, 0)
                     h.mode, h.target = 'search', p
