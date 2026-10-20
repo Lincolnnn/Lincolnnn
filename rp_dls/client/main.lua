@@ -118,8 +118,14 @@ AddStateBagChangeHandler('dls', nil, function(bagName, _, value)
     end)
 end)
 
--- Le serveur a refusé un changement (pas conducteur…) : l'état du serveur fait foi tout de suite
-RegisterNetEvent('rp_dls:refused', function(netId)
+-- Le serveur a refusé un changement (pas conducteur, modèle inconnu…) : l'état du serveur fait foi tout de suite,
+-- et la raison s'affiche dans la console F8 (une fois par raison)
+local refusals = {}
+RegisterNetEvent('rp_dls:refused', function(netId, reason)
+    if reason and not refusals[reason] then
+        refusals[reason] = true
+        print(('^3[rp_dls] Changement refusé par le serveur : %s^0'):format(reason))
+    end
     local vehicle = NetToVeh(netId)
     if vehicle and vehicle ~= 0 then
         pending[vehicle] = nil

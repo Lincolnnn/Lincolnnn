@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_dls'
 author 'Lincolnnn'
 description 'DLS pour FiveM : stages de gyrophares des véhicules DLS, Traffic Advisor, sirènes - synchronisé, standalone'
-version '2.1.1'
+version '2.1.2'
 
 ui_page 'html/index.html' -- panneau de commande (stages, TA, sirène)
 

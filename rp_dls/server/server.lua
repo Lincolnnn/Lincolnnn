@@ -20,7 +20,9 @@ local rate = {}       -- [src] = { second, count }
 -- copier un fichier suffit). La liste est envoyée aux clients (GlobalState.rpDlsFiles), qui lisent les mêmes.
 -- =========================================================================
 local function listDir(path, wantDirs)
-    local windows = package.config:sub(1, 1) == '\\'
+    -- (FiveM retire `package` et parfois io.popen : système deviné d'après le chemin, lecture sans erreur)
+    if type(io) ~= 'table' or type(io.popen) ~= 'function' then return nil end
+    local windows = path:match('^%a:') ~= nil or path:find('\\', 1, true) ~= nil
     local cmd
     if windows then
         cmd = ('dir /b %s "%s" 2>nul'):format(wantDirs and '/ad' or '/a-d', (path:gsub('/', '\\')))
@@ -87,8 +89,8 @@ local function discover()
 
     local xml = listDir(root, false)
     if not xml then
-        print('^3[rp_dls] Ce serveur ne permet pas de lister le dossier dls/ : les fichiers .xml doivent être '
-            .. 'ajoutés à Vehicles dans config.lua (nom du fichier, sans .xml).^0')
+        print('[rp_dls] Recherche automatique des .xml indisponible sur ce serveur : les fichiers listés dans '
+            .. 'Vehicles (config.lua) sont lus.')
         return files
     end
     table.sort(xml)
@@ -135,8 +137,14 @@ end
 local function load()
     print(('[rp_dls] Ressource lue dans : %s'):format(GetResourcePath(GetCurrentResourceName())))
     print(('[rp_dls] config.lua : Vehicles = %s ; Packs = %s'):format(describe(DLSConfig.Vehicles), describe(DLSConfig.Packs)))
-    local files = discover()
-    DLS.load(files)
+    -- Recherche des fichiers protégée : en cas d'erreur, ceux de config.lua sont lus quand même
+    local ok, files = pcall(discover)
+    if not ok or type(files) ~= 'table' then
+        print(('^3[rp_dls] Recherche des fichiers impossible (%s) : fichiers de config.lua seulement.^0'):format(tostring(files)))
+        files = DLS.configFiles()
+    end
+    local loaded, err = pcall(DLS.load, files)
+    if not loaded then print(('^1[rp_dls] ERREUR en lisant les fichiers DLS : %s^0'):format(tostring(err))) end
     -- Gyrophares des packs lus ici, envoyés tels quels aux joueurs (avant la liste, qui déclenche leur lecture)
     GlobalState.rpDlsPacks = { carcols = DLS.carcols, sirenIds = DLS.sirenIds }
     GlobalState.rpDlsFiles = files
@@ -194,23 +202,25 @@ end
 local function clean(model, st)
     if type(st) ~= 'table' then return nil end
     local s, ta, tap, tone = int(st.s, 0, 5), int(st.ta or 0, 0, 4), int(st.tap or 0, 0, 64), int(st.tone or 0, 0, 5)
-    if not s or not DLS.hasStage(model, s) then return nil end
-    if not ta or (ta ~= 0 and not model.ta) then return nil end
-    if not tap or tap > DLS.taPatternCount(model) then return nil end
-    if not tone or (tone ~= 0 and not model.tones[tone]) then return nil end
+    if not s or not DLS.hasStage(model, s) then return nil, ('stage %s absent de ce véhicule'):format(tostring(st.s)) end
+    if not ta or (ta ~= 0 and not model.ta) then return nil, 'pas de Traffic Advisor sur ce véhicule' end
+    if not tap or tap > DLS.taPatternCount(model) then return nil, 'motif de Traffic Advisor inconnu' end
+    if not tone or (tone ~= 0 and not model.tones[tone]) then return nil, ('ton %s absent de ce véhicule'):format(tostring(st.tone)) end
     for _, key in ipairs({ 'sb', 'int', 'bo', 'aux', 'horn' }) do
-        if st[key] ~= nil and type(st[key]) ~= 'boolean' then return nil end
+        if st[key] ~= nil and type(st[key]) ~= 'boolean' then return nil, 'valeur invalide : ' .. key end
     end
-    if st.sb and not model.steady then return nil end
-    if ta ~= 0 and model.v2 and not model.ta.modes[ta] then return nil end
+    if st.sb and not model.steady then return nil, 'pas de Steady Burn sur ce véhicule' end
+    if ta ~= 0 and model.v2 and not model.ta.modes[ta] then return nil, 'direction de Traffic Advisor absente' end
     -- Cruise, takedown, alley : modes du fichier en DLS v2 ; sinon takedown / alley dessinés par le script
     local cr, td, al = int(st.cr or 0, 0, 9), int(st.td or 0, 0, 9), int(st.al or 0, 0, 3)
-    if not cr or not td or not al then return nil end
+    if not cr or not td or not al then return nil, 'valeur invalide : cruise / takedown / alley' end
     if model.v2 then
-        if cr > model.cruise or td > model.takedown then return nil end
-        if (al & 1 ~= 0 and not model.alley.left) or (al & 2 ~= 0 and not model.alley.right) then return nil end
+        if cr > model.cruise or td > model.takedown then return nil, 'cruise / takedown absent de ce véhicule' end
+        if (al & 1 ~= 0 and not model.alley.left) or (al & 2 ~= 0 and not model.alley.right) then
+            return nil, 'alley absent de ce véhicule'
+        end
     elseif cr ~= 0 or td > 1 then
-        return nil
+        return nil, 'cruise / takedown absent de ce véhicule'
     end
     return {
         s = s, ta = ta, tap = tap, sb = st.sb == true, int = st.int == true, bo = st.bo == true,
@@ -233,13 +243,17 @@ RegisterNetEvent('rp_dls:set', function(netId, st)
     if driver then
         lastDriver[vehicle] = { src = src, time = GetGameTimer() }
     elseif not justLeft(src, vehicle) then
-        TriggerClientEvent('rp_dls:refused', src, netId)
+        TriggerClientEvent('rp_dls:refused', src, netId, 'vous ne conduisez pas ce véhicule')
         return
     end
-    local model = DLS.models[GetEntityModel(vehicle)] or DLS.generic
-    local value = clean(model, st)
+    local model = DLS.models[GetEntityModel(vehicle)]
+    local value, reason = clean(model or DLS.generic, st)
     if not value then
-        TriggerClientEvent('rp_dls:refused', src, netId)
+        if not model then
+            reason = ('modèle inconnu du serveur (%s) : ses fichiers DLS n\'ont pas été lus, voir la console du serveur')
+                :format(tostring(GetEntityModel(vehicle)))
+        end
+        TriggerClientEvent('rp_dls:refused', src, netId, reason)
         return
     end
     Entity(vehicle).state:set('dls', value, true)
