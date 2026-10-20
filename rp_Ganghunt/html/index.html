@@ -132,8 +132,14 @@
                 <label class="gh-check">
                     <input type="checkbox" id="ghMusic">
                     <span class="gh-box"></span>
-                    <span class="gh-check-text"><b>Musique</b><small>Les musiques d'action du jeu : poursuite, recherche.</small></span>
+                    <span class="gh-check-text"><b>Musique</b><small>Musiques de la traque, en fondu au début et à la fin.</small></span>
                 </label>
+                <div class="gh-volume" id="ghVolumeRow">
+                    <button class="gh-btn gh-icon gh-listen" id="ghListen" title="Écouter">▶</button>
+                    <span class="gh-label">Volume</span>
+                    <input class="gh-range" type="range" min="0" max="100" step="1" id="ghVolume">
+                    <span class="gh-volume-text" id="ghVolumeText">50 %</span>
+                </div>
             </div>
         </div>
         <div class="gh-message" id="ghMessage"></div>
@@ -167,6 +173,7 @@
         <div class="hud-sub" id="hudSub"></div>
     </div>
 
+    <script src="music.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

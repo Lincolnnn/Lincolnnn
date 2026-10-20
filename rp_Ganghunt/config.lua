@@ -86,29 +86,15 @@ GanghuntConfig = {
     Suppressors = { 'COMPONENT_AT_PI_SUPP', 'COMPONENT_AT_PI_SUPP_02', 'COMPONENT_AT_AR_SUPP',
         'COMPONENT_AT_AR_SUPP_02', 'COMPONENT_AT_SR_SUPP' },
 
-    -- MUSIQUE (option du menu) : partitions d'action du jeu (événements musicaux des missions). Chaque famille :
-    -- start (début de la chasse), calm (neutres), engaged (REPÉRÉ), search (ILS VOUS CHERCHENT), half (moitié des
-    -- ennemis éliminés), complete (réussite), fail (mort), stop (arrêt). La première famille que le jeu accepte est
-    -- gardée (noms tirés des fichiers du jeu). StopAll : coupe toute partition StopDelay ms après la fin.
+    -- MUSIQUE (option du menu) : fichiers MP3 à placer dans html/music/, joués à la suite et en boucle pendant toute
+    -- la traque (fondu enchaîné de Crossfade ms entre deux morceaux) ; fondu d'entrée (FadeIn ms) au lancement, fondu
+    -- de sortie (FadeOut ms) à la fin de la traque entière. Volume : réglé par chaque joueur dans le menu (Volume :
+    -- valeur de départ, en %). Shuffle : ordre au hasard.
     Music = {
-        Families = {
-            { -- poursuite policière (mission motard « sauver un contact de la police »)
-                start = 'BKR_RESCUE_CONTACT_POLICE_START', calm = 'BKR_RESCUE_CONTACT_POLICE_START',
-                engaged = 'BKR_RESCUE_CONTACT_POLICE_ESCAPE', search = 'BKR_RESCUE_CONTACT_POLICE_SEARCH',
-                complete = 'BKR_RESCUE_CONTACT_POLICE_STOP', fail = 'BKR_RESCUE_CONTACT_POLICE_FAIL',
-                stop = 'BKR_RESCUE_CONTACT_POLICE_STOP',
-            },
-            { -- attaque de gang (mode en ligne)
-                start = 'GA_KILL_START', calm = 'GA_KILL_START', engaged = 'GA_KILL_ALERTED', half = 'GA_KILL_HALF',
-                complete = 'GA_KILL_COMPLETE', stop = 'GA_STOP',
-            },
-            { -- descente de police (motards)
-                start = 'BIKER_DEFEND_POLICE_RAID_START', engaged = 'BIKER_DEFEND_POLICE_RAID_FIGHT',
-                stop = 'BIKER_MP_MUSIC_STOP',
-            },
-        },
-        StopAll = 'GTA_ONLINE_STOP_SCORE',
-        StopDelay = 4000,
+        Tracks = { 'gtav_wantedlevel1.mp3', 'gtav_wantedlevel2.mp3', 'gtav_wantedlevel3.mp3' },
+        Shuffle = false,
+        FadeIn = 4000, FadeOut = 5000, Crossfade = 3000,
+        Volume = 50,
     },
 
     Sounds = {

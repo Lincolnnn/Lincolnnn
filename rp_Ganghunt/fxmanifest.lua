@@ -15,14 +15,16 @@ lua54 'yes'
 name 'rp_Ganghunt'
 author 'Lincolnnn'
 description 'Ganghunt : vagues d\'ennemis (gangs, organisations, forces) qui traquent le joueur - standalone, NUI Vanilla JS'
-version '1.4.0'
+version '1.5.0'
 
 ui_page 'html/index.html'
 
 files {
     'html/index.html',
     'html/style.css',
+    'html/music.js',
     'html/script.js',
+    'html/music/*.mp3', -- musiques de la traque (config Music.Tracks)
 }
 
 shared_script 'config.lua'

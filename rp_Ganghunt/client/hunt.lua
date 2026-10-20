@@ -8,7 +8,7 @@
     Vague éliminée : la suivante quelques secondes plus tard ; dernière vague éliminée : chasse réussie ; joueur mort
     ou /ganghunt stop : chasse terminée, tous les ennemis et leurs véhicules retirés.
     HUD en haut au milieu : état (REPÉRÉ / ILS VOUS CHERCHENT), barre de la vague, barre de la chasse.
-    Musique (option) : les partitions d'action du jeu (événements musicaux), qui suivent repéré / recherche.
+    Musique (option) : fichiers MP3 (html/music/), fondu d'entrée au lancement, fondu de sortie à la fin de la traque.
     Vagues : à la fin de la précédente (7 s après) ou après un délai choisi (même si la précédente n'est pas éliminée).
     Le joueur ne doit jamais être « ignoré » pendant une chasse (sinon ils cessent de tirer) : redonné chaque seconde.
     Performance : aucune chasse -> aucune boucle. Pendant une chasse : une vérification par seconde.
@@ -60,64 +60,25 @@ local function hud(s, alive)
 end
 
 -- =========================================================================
--- MUSIQUE : les partitions d'action du jeu (événements musicaux, comme dans les missions), qui suivent l'état :
--- début (tension), REPÉRÉ (action / poursuite), RECHERCHE (recherche), fin (réussite / échec / arrêt).
--- Plusieurs « familles » d'événements (config Music.Families) : la première que le jeu accepte est gardée. Un
--- événement n'est déclenché qu'au changement d'état (jamais en boucle) ; aucun indice de recherche, aucune étoile.
+-- MUSIQUE (option) : les fichiers MP3 de html/music/ (Config.Music.Tracks), joués par le NUI à la suite et en boucle
+-- (fondu enchaîné entre deux morceaux) : fondu d'entrée au lancement de la traque, fondu de sortie à la fin de la
+-- traque entière (réussite, mort, /ganghunt stop), jamais entre deux vagues. Volume réglé par le joueur dans le menu.
 -- =========================================================================
-local function musicEvent(name)
-    if not name or name == '' then return false end
-    PrepareMusicEvent(name)
-    return TriggerMusicEvent(name) == true
-end
-
-local function musicCue(s, key)
-    local family = s.musicFamily
-    if not family then return end
-    local name = family[key]
-    if not name or s.musicLast == name then return end
-    if musicEvent(name) then s.musicLast = name end
-end
-
-local function musicStart(s)
+local function musicStart()
     local M = Config.Music or {}
-    SetAudioFlag('LoadMPData', true) -- partitions du mode en ligne
-    for _, family in ipairs(M.Families or {}) do
-        if musicEvent(family.start) then
-            s.musicFamily, s.musicLast = family, family.start
-            break
-        end
-    end
-    if not s.musicFamily then
-        GH.notify('Musique indisponible : le jeu n\'a accepté aucun des événements musicaux (config Music.Families).')
-        return
-    end
-    musicCue(s, s.alert == 'calm' and 'calm' or s.alert)
+    SendNUIMessage({ action = 'music', data = { play = true, tracks = M.Tracks or {}, shuffle = M.Shuffle == true,
+        fadeIn = M.FadeIn or 4000, crossfade = M.Crossfade or 3000 } })
 end
 
---- Fin de la chasse : réussite, échec (mort) ou arrêt ; puis toute partition coupée
-local function musicStop(s, ending)
-    local family = s.musicFamily
-    if family then musicEvent(family[ending] or family.stop) end
-    local stopAll = (Config.Music or {}).StopAll or 'GTA_ONLINE_STOP_SCORE'
-    SetTimeout((Config.Music or {}).StopDelay or 4000, function()
-        if not (session and session.music) then musicEvent(stopAll) end
-    end)
+local function musicStop()
+    SendNUIMessage({ action = 'music', data = { stop = true, fadeOut = (Config.Music or {}).FadeOut or 5000 } })
 end
 
---- Changement d'état : la musique suit (repéré / recherche / neutres)
-function GH.onAlert(state)
-    local s = session
-    if not s or not s.music then return end
-    musicCue(s, state)
-end
-
---- Moitié des ennemis de la chasse éliminés : montée de la musique (si la famille en a une)
-local function musicProgress(s)
-    if s.musicHalf or s.killed * 2 < s.waves * s.waveSize - s.short then return end
-    s.musicHalf = true
-    musicCue(s, 'half')
-end
+-- Aucun fichier de musique lisible (absent de html/music/ ou format refusé)
+RegisterNUICallback('musicError', function(data, cb)
+    cb({ ok = true })
+    GH.notify(('Musique : aucun fichier lisible dans html/music/ (%s).'):format(table.concat((Config.Music or {}).Tracks or {}, ', ')))
+end)
 
 --- Chaque seconde : le jeu (ou un autre script, ex. rp_NPCcontrol) ne doit pas faire ignorer le joueur, sinon les
 --- ennemis cessent de tirer (« police ignore player » vaut aussi pour les ennemis policiers / SWAT / militaires)
@@ -178,7 +139,7 @@ function GH.stop(message)
         end
     end
     GH.clearSearchBlip(s)
-    if s.music then musicStop(s, s.ending or 'stop') end
+    if s.music then musicStop() end
     SetMaxWantedLevel(5) -- valeur du jeu (rp_NPCcontrol redonne aussitôt la sienne)
     LocalPlayer.state:set('rpGanghunt', false, false)
     TriggerServerEvent('rp_ganghunt:clear')
@@ -199,7 +160,6 @@ local function loop(s)
             local alive = GH.think(now)
             if session ~= s then break end
             s.alive = alive
-            if s.music then musicProgress(s) end
             if not s.spawning then
                 if alive == 0 then GH.allDown(s) end -- (option « Neutres » : la suite arrive neutre)
                 if alive == 0 and s.wave >= s.waves then
@@ -273,7 +233,7 @@ function GH.start(opts)
     LocalPlayer.state:set('rpGanghunt', true, false)
     TriggerEvent('rp_npccontrol:ganghunt', true)
     keepTargetable(s)
-    if s.music then musicStart(s) end
+    if s.music then musicStart() end
     CreateThread(function()
         spawnWave(s)
         if session == s then loop(s) end

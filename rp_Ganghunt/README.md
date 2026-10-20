@@ -7,7 +7,7 @@ Volontairement **absent du MDC et du `/tuto`** : seule la commande l'ouvre.
 
 ## Installation
 
-1. Copier le dossier `rp_Ganghunt` dans `resources/`.
+1. Copier le dossier `rp_Ganghunt` dans `resources/` (avec vos musiques MP3 dans `html/music/`, voir plus bas).
 2. `ensure rp_Ganghunt` dans `server.cfg`.
 3. Avec **rp_NPCcontrol** (« everyone ignore player ») : version **1.7.0** ou plus, sinon les ennemis ne voient pas
    le joueur. Pendant une chasse, « ignore player » est coupé pour le joueur traqué seulement.
@@ -58,8 +58,10 @@ Dans le menu :
    - **Grenades** : une partie des ennemis en a quelques-unes et en lance une de temps en temps (au hasard, toutes
      les 7 à 15 s, d'un ennemi à pied entre 8 et 40 m qui vous voit). Gangs : cocktails Molotov, grenades, bombes
      artisanales ; Organisations : grenades, Molotov, fumigènes ; Forces : gaz lacrymogène, fumigènes, grenades ;
-   - **Musique** : les partitions d'action du jeu (celles des missions), qui suivent la chasse : tension au début,
-     action quand vous êtes repéré, recherche quand ils vous cherchent, fin (réussite / échec).
+   - **Musique** : vos fichiers MP3 (dossier `html/music/`), joués à la suite et en boucle pendant toute la traque,
+     avec un **fondu d'entrée** au lancement et un **fondu de sortie** quand la traque est terminée (pas entre deux
+     vagues). Case cochée : réglage du **volume** (appliqué tout de suite, même pendant la traque, gardé d'une fois à
+     l'autre) et bouton ▶ pour écouter le premier morceau.
 
 **HUD en haut au milieu** pendant la chasse :
 - l'état, comme la police du jeu : **REPÉRÉ** (gyrophares rouge / bleu), **ILS VOUS CHERCHENT** (gris, avec le temps
@@ -122,11 +124,10 @@ gilet pare-balles des forces).
   sous vos yeux ils courent y monter) ; près de vous à pied, ils descendent et combattent.
 - Ils restent sous le contrôle du joueur qui a lancé la chasse (ils ne passent pas à un autre joueur). Ils sont
   hostiles aux joueurs : un joueur qui se trouve à côté peut être pris pour cible lui aussi.
-- **Musique** (option) : **événements musicaux du jeu** (les partitions des missions, noms tirés des fichiers du jeu),
-  déclenchés seulement quand l'état change : début de la chasse, **REPÉRÉ** (action), **ILS VOUS CHERCHENT**
-  (recherche), moitié des ennemis éliminés, réussite / mort / arrêt, puis toute partition coupée. Plusieurs familles
-  sont essayées dans l'ordre (`Music.Families` : poursuite policière des motards, attaque de gang, descente de
-  police) : la première acceptée par le jeu est gardée ; si aucune ne l'est, le joueur est prévenu.
+- **Musique** (option) : `gtav_wantedlevel1.mp3`, `gtav_wantedlevel2.mp3`, `gtav_wantedlevel3.mp3` (dans
+  `html/music/`, liste `Music.Tracks`), joués dans l'ordre (ou au hasard : `Shuffle`) et en boucle, fondu enchaîné
+  de 3 s entre deux morceaux, fondu d'entrée de 4 s au lancement, fondu de sortie de 5 s à la fin de la traque
+  (réussite, mort ou `/ganghunt stop`). Un fichier absent est sauté ; si aucun n'est lisible, le joueur est prévenu.
 - **Aucun indice de recherche** pendant la chasse (même en tuant des ennemis policiers) : pas d'étoiles, pas de
   minimap rouge / bleu.
 - Points rouges sur la carte (`Blips`). Les corps disparaissent au bout de 20 s.
@@ -147,7 +148,7 @@ gilet pare-balles des forces).
 | `DriveSpeed`, `SearchDriveSpeed`, `DrivingStyle` | conduite vers le joueur / pendant la recherche |
 | `Search` | vue, champ de vision, nuit, furtivité, ouïe, zone de recherche, renseignements |
 | `Grenades` | fréquence, portée, part des ennemis qui en ont, grenades par catégorie |
-| `Suppressors`, `Music`, `Sounds` | silencieux essayés, familles d'événements musicaux, sons repéré / perdu |
+| `Suppressors`, `Music`, `Sounds` | silencieux essayés, musique (fichiers, ordre, fondus, volume de départ), sons repéré / perdu |
 | `Weapons` | armes du menu (`handgun` : arme de poing ; `special` : arme spéciale) |
 | `Categories`, `Factions` | catégories et factions du menu (`grenades` possible par faction) |
 

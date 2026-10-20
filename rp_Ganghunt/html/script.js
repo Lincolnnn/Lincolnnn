@@ -7,13 +7,16 @@
 
     let config = {
         categories: [], weapons: [], maxWaves: 10, waveSize: 10, maxWaveSize: 30, maxWeapons: 10, sidearm: 'WEAPON_COMBATPISTOL',
-        waveTimer: { Default: 60, Min: 15, Max: 600, Step: 15 },
+        waveTimer: { Default: 60, Min: 15, Max: 600, Step: 15 }, musicVolume: 50, musicTracks: [],
     };
     const seconds = (n) => (n >= 60 ? `${Math.floor(n / 60)} min${n % 60 ? ` ${n % 60} s` : ''}` : `${n} s`);
     let state = {
         category: null, faction: null, waves: 1, size: 10, mode: 'random', weapons: [], vehicles: false, heli: false,
-        silencer: false, grenades: false, music: false, passive: false, waveMode: 'clear', waveTimer: 60,
+        silencer: false, grenades: false, music: false, passive: false, waveMode: 'clear', waveTimer: 60, volume: null,
     };
+    const Music = window.GHMusic;
+    Music.onError = () => { post('musicError'); renderListen(); };
+    const PREVIEW_FADE = 800;
     let messageTimer = null;
     let busy = false;
 
@@ -140,11 +143,28 @@
         $('ghSilencer').checked = state.silencer;
         $('ghGrenades').checked = state.grenades;
         $('ghMusic').checked = state.music;
+        renderVolume();
         $('ghPassive').checked = state.passive;
         $('ghVehiclesText').textContent = f
             ? `En convoi, jusqu'à 4 par véhicule : ${toArray(f.vehicles).map((v) => v.label || v).join(', ')}. Ils descendent près de vous.`
             : '';
         $('ghHeliText').textContent = f && f.heli ? `${f.heliLabel || f.heli} : un pilote et deux tireurs, il vous suit et fouille la zone.` : '';
+    }
+
+    function renderListen() {
+        const btn = $('ghListen');
+        const hunt = Music.mode() === 'hunt';
+        btn.classList.toggle('playing', Music.mode() === 'preview');
+        btn.textContent = Music.mode() === 'preview' ? '■' : '▶';
+        btn.disabled = hunt || config.musicTracks.length === 0;
+        btn.title = hunt ? 'La musique de la traque joue' : 'Écouter';
+    }
+
+    function renderVolume() {
+        $('ghVolumeRow').classList.toggle('hidden', !state.music);
+        $('ghVolume').value = state.volume;
+        $('ghVolumeText').textContent = `${state.volume} %`;
+        renderListen();
     }
 
     function render() {
@@ -274,6 +294,22 @@
         const id = `gh${key[0].toUpperCase()}${key.slice(1)}`;
         $(id).addEventListener('change', (e) => { state[key] = e.target.checked; save(); });
     });
+    // Musique : volume (appliqué tout de suite, même pendant la traque) et écoute d'essai depuis le menu
+    $('ghVolume').addEventListener('input', (e) => {
+        state.volume = Number(e.target.value);
+        $('ghVolumeText').textContent = `${state.volume} %`;
+        Music.setVolume(state.volume / 100);
+        save();
+    });
+    $('ghListen').addEventListener('click', () => {
+        if (Music.mode() === 'preview') Music.stop(PREVIEW_FADE);
+        else if (!Music.playing()) Music.play({ tracks: config.musicTracks.slice(0, 1), fadeIn: PREVIEW_FADE }, 'preview');
+        renderListen();
+    });
+    $('ghMusic').addEventListener('change', () => {
+        renderVolume();
+        if (!state.music && Music.mode() === 'preview') Music.stop(PREVIEW_FADE);
+    });
     $('ghStart').addEventListener('click', start);
     $('ghStop').addEventListener('click', () => post('stop'));
     $('ghClose').addEventListener('click', () => post('close'));
@@ -293,6 +329,7 @@
             weapons: toArray(c.weapons), maxWaves: c.maxWaves || 10, waveSize: c.waveSize || 10, maxWaveSize: c.maxWaveSize || 30,
             waveTimer: Object.assign({ Default: 60, Min: 15, Max: 600, Step: 15 }, c.waveTimer || {}),
             maxWeapons: c.maxWeapons || 10, sidearm: c.sidearm || 'WEAPON_COMBATPISTOL',
+            musicVolume: c.musicVolume != null ? c.musicVolume : 50, musicTracks: toArray(c.musicTracks),
         };
         restore();
         // choix gardés mais plus valables (config changée) : corrigés
@@ -305,6 +342,9 @@
         if (state.waveMode !== 'timer') state.waveMode = 'clear';
         state.waveTimer = Math.max(config.waveTimer.Min, Math.min(config.waveTimer.Max, Number(state.waveTimer) || config.waveTimer.Default));
         if (state.mode !== 'choose') state.mode = 'random';
+        if (state.volume == null) state.volume = config.musicVolume;
+        state.volume = Math.max(0, Math.min(100, Number(state.volume) || 0));
+        Music.setVolume(state.volume / 100);
         message('');
         render();
         renderActive(data.active === true, data.current);
@@ -338,12 +378,22 @@
         el.classList.remove('hidden');
     }
 
+    // Volume gardé chez le joueur, appliqué dès le chargement (avant même l'ouverture du menu)
+    restore();
+    if (state.volume != null) Music.setVolume(Math.max(0, Math.min(100, Number(state.volume) || 0)) / 100);
+
     window.addEventListener('message', (e) => {
         const msg = e.data || {};
         if (msg.action === 'open') open(msg.data || {});
         else if (msg.action === 'close') {
             box.classList.add('hidden');
             document.body.classList.remove('menu-open');
+            if (Music.mode() === 'preview') Music.stop(PREVIEW_FADE);
+        } else if (msg.action === 'music') {
+            const m = msg.data || {};
+            if (m.play) Music.play({ tracks: toArray(m.tracks), shuffle: m.shuffle, fadeIn: m.fadeIn, crossfade: m.crossfade }, 'hunt');
+            else if (m.stop && Music.mode() !== 'preview') Music.stop(m.fadeOut);
+            renderListen();
         }
         else if (msg.action === 'hud') hud(msg.data);
     });

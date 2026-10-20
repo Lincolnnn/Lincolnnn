@@ -63,6 +63,7 @@ local function buildMenuData()
     menuData = { categories = categories, weapons = weapons, maxWaves = Config.MaxWaves or 10,
         waveSize = Config.WaveSize or 10, maxWaveSize = Config.MaxWaveSize or 30, maxWeapons = Config.MaxWeapons or 10,
         waveTimer = Config.WaveTimer or { Default = 60, Min = 15, Max = 600, Step = 15 },
+        musicVolume = (Config.Music or {}).Volume or 50, musicTracks = (Config.Music or {}).Tracks or {},
         sidearm = Config.DefaultSidearm or 'WEAPON_COMBATPISTOL' }
     return menuData
 end
