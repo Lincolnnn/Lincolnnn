@@ -63,9 +63,19 @@ local function clean(model, st)
         if st[key] ~= nil and type(st[key]) ~= 'boolean' then return nil end
     end
     if st.sb and not model.steady then return nil end
+    if ta ~= 0 and model.v2 and not model.ta.modes[ta] then return nil end
+    -- Cruise, takedown, alley : modes du fichier en DLS v2 ; sinon takedown / alley dessinés par le script
+    local cr, td, al = int(st.cr or 0, 0, 9), int(st.td or 0, 0, 9), int(st.al or 0, 0, 3)
+    if not cr or not td or not al then return nil end
+    if model.v2 then
+        if cr > model.cruise or td > model.takedown then return nil end
+        if (al & 1 ~= 0 and not model.alley.left) or (al & 2 ~= 0 and not model.alley.right) then return nil end
+    elseif cr ~= 0 or td > 1 then
+        return nil
+    end
     return {
         s = s, ta = ta, tap = tap, sb = st.sb == true, int = st.int == true, bo = st.bo == true,
-        tone = tone, aux = st.aux == true, horn = st.horn == true,
+        tone = tone, aux = st.aux == true, horn = st.horn == true, cr = cr, td = td, al = al,
     }
 end
 

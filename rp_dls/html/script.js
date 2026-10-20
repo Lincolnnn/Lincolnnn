@@ -102,8 +102,20 @@
             b.classList.toggle('on', n === s.s);
             b.disabled = !lightsOn;
         });
-        $('steady').classList.toggle('on', !!s.sb);
+        // Cruise : DLS v2 -> n° du mode (CRUISE 1, CRUISE 2…), DLS v1 -> Steady Burn
+        const cruiseOn = d.v2 ? s.cr > 0 : !!s.sb;
+        $('steady').classList.toggle('on', cruiseOn);
         $('steady').disabled = !d.steady;
+        $('steady').textContent = d.v2 && d.cruise > 1 && s.cr > 0 ? `CRUISE ${s.cr}` : 'CRUISE';
+        // Scène : takedown (n° du mode s'il y en a plusieurs), alley gauche / droite, stationnement
+        $('td').classList.toggle('on', s.td > 0);
+        $('td').disabled = !d.takedown;
+        $('td').textContent = d.takedown > 1 && s.td > 0 ? `TAKEDOWN ${s.td}` : 'TAKEDOWN';
+        $('al-left').classList.toggle('on', (s.al & 1) !== 0);
+        $('al-left').disabled = !(d.alley && d.alley.left);
+        $('al-right').classList.toggle('on', (s.al & 2) !== 0);
+        $('al-right').disabled = !(d.alley && d.alley.right);
+        $('park').classList.toggle('on', !!d.park);
         $('int').classList.toggle('on', !!s.int);
         $('bo').classList.toggle('on', !!s.bo);
 
@@ -143,6 +155,7 @@
         let foot = '';
         if (d.locked) foot = 'Touches DLS verrouillées.';
         else if (s.bo) foot = 'Blackout : tous les feux sont éteints.';
+        if (d.v2 && d.modes && d.modes.length) foot = (foot ? `${foot} ` : '') + `Modes : ${d.modes.join(', ')}.`;
         if (d.focus) foot = (foot ? `${foot} ` : '') + 'Glisser le titre pour déplacer · Échap pour fermer.';
         $('foot').textContent = foot;
     }

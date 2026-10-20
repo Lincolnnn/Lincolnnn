@@ -1,8 +1,9 @@
 # RP DLS (`rp_dls`)
 
-Adaptation **FiveM** de **DLS** (*Dynamic Lighting System*, GTA V solo) : les véhicules DLS retrouvent **tous leurs
-stages** (stage 1, 2, 3, custom 1 et 2, **Steady Burn / Cruise**, **Traffic Advisor**, Wail Setup…),
-**synchronisés entre tous les joueurs**, avec les **mêmes fichiers de véhicules XML que DLS**, sans les modifier.
+Adaptation **FiveM** de **DLS** (*Dynamic Lighting System*, GTA V solo), **DLS v1 et DLS v2** : les véhicules DLS
+retrouvent **tous leurs modes** (stages, **Cruise**, **Traffic Advisor**, **Takedown**, **Alley lights**, **Park**,
+Phaser, Horn, clignotants…), **synchronisés entre tous les joueurs**, avec les **mêmes fichiers de véhicules XML que
+DLS**, sans les modifier.
 Sirènes (4 tons, deuxième sirène, manuelle, air horn sur le klaxon, scan) et panneau de commande NUI.
 **100 % standalone** (sans ESX / QBCore / vRP).
 
@@ -45,6 +46,43 @@ Vehicles = {
 `dls/police.xml` est un exemple complet et commenté (stages 1 et 2 dessinés, stage 3 d'origine, Steady Burn,
 Traffic Advisor à 3 segments, stage gardé en descendant).
 
+### Véhicules DLS v2 (`<Model vehicles="…">`)
+
+Un fichier DLS v2 sert à **plusieurs modèles** (liste dans `<Model vehicles="…">`) et ses modes modifient les
+gyrophares du **carcols du véhicule** : `rp_dls` a donc aussi besoin du `carcols.meta` et du `carvariations.meta`
+du pack.
+
+1. Copiez les fichiers DLS v2 tels quels dans `rp_dls/dls/` (ex. `dls/nlspdumk.xml`).
+2. Copiez le `carcols.meta` et le `carvariations.meta` de la ressource du véhicule dans
+   `rp_dls/dls/packs/<nom du pack>/` (ex. `dls/packs/nlspd/carcols.meta`).
+3. Dans `config.lua`, mettez le **nom des fichiers** DLS v2 (pas les modèles : ils sont lus dans le fichier) et le
+   pack :
+
+```lua
+Vehicles = { 'nlspdumk', 'nlspdscouts', 'nlspdmpower' },
+Packs = { 'nlspd' },
+```
+
+Au démarrage, la console serveur liste chaque modèle trouvé (stages, TA, cruise, takedown, alley, nombre de modes,
+réglage du carcols) et signale ce qui manque (fichier absent, modèle absent du carvariations…).
+
+Repris de DLS v2 :
+- **Modes** : chaque mode actif part des gyrophares du carcols (`apply_default_siren_settings`) ou de gyrophares
+  éteints, puis applique ses `<Sequences>` et `<SirenSettings>` (`sequencerBpm`, `intensity`, `syncToBpm`,
+  `multiples`, `delta`, `color`), dans l'ordre du fichier (le dernier l'emporte).
+- **Groupes de commandes** : `Stages` (touche du jeu, J, pavé 1 à 3), `TA` (L : directions d'après le nom des modes),
+  `Cruise` ([ : modes à la suite puis éteint), `Takedown` (pavé 9), `Left Alley` / `Right Alley` (pavé 6, panneau).
+- **Déclencheurs** (`<Triggers>` / `<Requirements>`, `<All>` / `<Any>`, `delay_time`, `stay_on_time`) :
+  `AudioMode` (sirène), `LightMode` (autre mode), `Speed`, `Time` (heure du jeu), `Weather`, `Doors`,
+  `LightEmissive` (clignotants, feux stop), `Braking`, `Driver`, `VehicleOwner`. Les modes Park, Park night, Phaser,
+  Horn, alley à l'ouverture des portières la nuit, clignotants, Door Kill, Braking… s'allument donc tout seuls.
+- **Sons** : groupe `Siren` (un ton par entrée, plusieurs sirènes à la fois : ex. Siren2 + Siren1d), groupe `Horn`
+  (air horn maintenu sur E, qui coupe la sirène s'il est exclusif), `soundset` / `soundbank` des packs de sons.
+- **Gyrophares d'origine** gardés par le jeu tant que les modes actifs ne font qu'**ajouter** des gyrophares éteints
+  dans le carcols (ex. stage 3 + clignotant sur un gyrophare orange) : rendu du jeu et PNJ qui se rangent ; sinon
+  tout est dessiné à partir du carcols.
+- Takedown et alley (`intensity` forte) : **vrais projecteurs** dans la direction de l'ampoule (`delta` du carcols).
+
 ## Allumer / éteindre les gyrophares : touche du jeu de base
 
 Les gyrophares s'allument et s'éteignent **uniquement avec la touche du jeu de base** (la même pour les deux) :
@@ -65,7 +103,7 @@ d'un véhicule DLS ou d'urgence seulement.
 | **Pavé 1 / 2 / 3** | Stage 1 / 2 / 3 direct, gyrophares allumés |
 | **L** | Traffic Advisor : gauche → diverge → droite → warn → éteint |
 | **Pavé 4** | Traffic Advisor : motif suivant |
-| **[** | Steady Burn / Cruise (feux fixes) |
+| **[** | Cruise / Steady Burn (feux fixes ; DLS v2 : Cruise 1 → Cruise 2 → éteint) |
 | **]** | Plafonnier |
 | **Pavé 0** | Blackout : tous les feux éteints, phares compris (seule cette touche répond ensuite) |
 | **R** | Sirène marche / arrêt (gyrophares allumés) |
@@ -75,6 +113,8 @@ d'un véhicule DLS ou d'urgence seulement.
 | **E** (klaxon) | Air horn (sirène coupée : air horn seul ; `AirHornInterruptsSiren` : remplace la sirène) |
 | **Pavé 7** | Scan : tons changés au hasard toutes les 2 à 8 s |
 | **Pavé 8** | Verrouiller / déverrouiller toutes les touches DLS |
+| **Pavé 9** | Takedown : projecteurs avant (DLS v2 : modes du groupe Takedown à la suite, puis éteint) |
+| **Pavé 6** | Alley : projecteur gauche → droite → les deux → éteint |
 | **Pavé 5** | Afficher / masquer le panneau |
 | **/dls** | Panneau cliquable à la souris (boutons, glisser le titre pour le déplacer, double-clic : position par défaut, Échap pour fermer) |
 
@@ -84,8 +124,9 @@ En conduisant un véhicule DLS, le klaxon du jeu, la caméra cinéma (R), la sé
 ## Panneau
 
 Petit panneau sombre en bas à droite (position gardée) : gyrophares allumés / éteints avec la touche du jeu à
-utiliser, stages disponibles du véhicule (point vert : gyrophares d'origine), Cruise, plafonnier, blackout, Traffic Advisor (direction, motif, chenillard animé), tons, deuxième
-sirène, scan, voyants HORN et MANUEL, verrou. Les touches réellement attribuées par le joueur sont affichées sur les
+utiliser, stages disponibles du véhicule (point vert : gyrophares d'origine), Cruise, plafonnier, blackout, scène
+(Takedown, Alley gauche / droite, voyant PARK), Traffic Advisor (direction, motif, chenillard animé), tons, deuxième
+sirène, scan, voyants HORN et MANUEL, verrou ; en DLS v2, la liste des modes actifs. Les touches réellement attribuées par le joueur sont affichées sur les
 boutons.
 
 ## Synchronisation
@@ -125,6 +166,12 @@ horn, manuelle et scan pris en charge de la même façon.
 - Traffic Advisor ou Steady Burn sur le stage d'origine : ce stage est alors dessiné à partir du XML (s'il le
   décrit), sinon TA / Steady Burn sont dessinés par-dessus les gyrophares d'origine.
 - Gyrophares tournants (`rotate`) : rotation approchée.
+- DLS v2 : `<Extras>` (extras du véhicule allumés par un mode) pas encore pris en charge ; une condition inconnue
+  est considérée fausse (message dans la console F8). `syncToBpm = false` avec un `speed` : rythme du bpm gardé.
+- Les modes déclenchés (clignotants, park…) ne s'appliquent qu'aux véhicules déjà utilisés par un joueur ; un
+  véhicule de PNJ jamais touché garde ses gyrophares du jeu.
+- DLS v1 : **stationnement** (`Park`) : arrêté 2 s, gyrophares allumés, sans sirène, motif côté gauche / côté droit
+  dessiné à partir du stage (ou du carcols du pack) ; takedown / alley : projecteurs dessinés par le script.
 
 ## Réglages utiles (`config.lua`)
 

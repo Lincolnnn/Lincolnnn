@@ -49,9 +49,9 @@ spéciales comprises), convoi de véhicules et hélicoptère de la faction, sile
 jeu, HUD en haut de l'écran. Volontairement absent du MDC et du `/tuto`.
 
 Et **RP DLS** dans [`rp_dls/`](rp_dls/README.md) : adaptation FiveM de **DLS** (*Dynamic Lighting System*, GTA V
-solo). Les véhicules DLS retrouvent **tous leurs stages** (stage 1, 2, 3, custom, **Cruise / Steady Burn**,
-**Traffic Advisor**, Wail Setup), **synchronisés entre les joueurs**, à partir des **fichiers XML de DLS tels
-quels** : le stage du carcols reste affiché par le jeu, les autres sont dessinés par le script (halos et éclairage
+solo, **v1 et v2**). Les véhicules DLS retrouvent **tous leurs modes** (stages, **Cruise**, **Traffic Advisor**,
+**Takedown**, **Alley lights**, **Park**, Phaser, clignotants…), **synchronisés entre les joueurs**, à partir des
+**fichiers XML de DLS tels quels** (et du carcols du pack pour DLS v2) : le stage du carcols reste affiché par le jeu, les autres sont dessinés par le script (halos et éclairage
 de chaque gyrophare, selon les séquences du XML). Sirènes (4 tons, deuxième sirène, manuelle, air horn, scan) et
 panneau de commande (`/dls`).
 

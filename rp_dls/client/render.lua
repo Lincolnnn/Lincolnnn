@@ -29,37 +29,68 @@ end)
 -- PLAN : ampoules à dessiner pour un modèle et un état (gardé en cache)
 -- =========================================================================
 local plans = {}
+local bonesOf -- (plus bas)
 
 local function referenceSetting(model, s)
     return model.stages[s] or model.stages[3] or model.stages[1] or model.stages[2] or model.stages[4] or model.stages[5]
+        or model.base
 end
 
-local function bulb(src, setting, seq, mult, forced)
+--- Ampoule à dessiner : gyrophare `src` du XML / carcols, au rythme de `setting`, séquence `seq`.
+--- `o` : réglages d'un mode DLS v2 (intensity, color, delta…). Direction de l'ampoule : flashiness.delta
+--- (rotation.start pour un gyrophare tournant), 0 = vers l'avant, pi/2 = vers la gauche.
+local function bulb(src, setting, seq, mult, forced, o)
+    o = o or {}
     local rotate = src.rotate and not forced
+    local color = o.color or src.color
+    local intensity = o.intensity or src.intensity
     return {
-        r = src.color[1], g = src.color[2], b = src.color[3],
-        seq = seq, mult = mult,
-        beat = 60000.0 / math.max(1.0, setting.bpm * (setting.time > 0 and setting.time or 1.0)),
+        r = color[1], g = color[2], b = color[3],
+        seq = seq, mult = math.max(1, math.floor(mult or 1)),
+        beat = 60000.0 / math.max(1.0, setting.bpm * ((setting.time or 1.0) > 0 and setting.time or 1.0)),
         range = setting.falloff * R.LightRange,
-        intensity = src.intensity * R.LightIntensity,
+        intensity = intensity * R.LightIntensity,
         light = src.light,
         size = src.corona.size, glow = math.max(0.4, math.min(1.0, src.corona.intensity / 40.0)),
-        face = src.rotation.start, rotate = rotate,
+        face = rotate and src.rotation.start or (o.delta or src.flashiness.delta), rotate = rotate,
         spin = rotate and (src.rotation.speed * (src.rotation.dir and 1 or -1)) or 0.0,
+        -- Feu de travail (takedown, alley… intensité forte) : projecteur dans la direction de l'ampoule
+        work = intensity >= (R.WorkLightIntensity or 5),
     }
 end
+DLSC.bulb = bulb
+
+local PARK_LEFT, PARK_RIGHT = DLS.sequence('11100000111000001110000011100000'), DLS.sequence('00001110000011100000111000001110')
 
 --- { native = gyrophares d'origine allumés, lights = { [n° d'ampoule] = ampoule } ou nil }
-function DLSC.plan(model, state)
+--- `park` (DLS v1) : véhicule arrêté, sans sirène : motif de stationnement (côté gauche / côté droit)
+function DLSC.plan(model, state, vehicle, park)
     if not state then return { native = false } end
     local s = state.bo and 0 or state.s
     local ta = (not state.bo and model.ta and state.ta) or 0
     local sb = (not state.bo and model.steady and state.sb) or false
-    local key = ('%s|%d|%d|%d|%s'):format(model.name, s, ta, state.tap or 0, tostring(sb))
+    local parkSrc = park and s > 0 and vehicle and (model.stages[s] or model.base) or nil
+    local key = ('%s|%d|%d|%d|%s|%s'):format(model.name, s, ta, state.tap or 0, tostring(sb), tostring(parkSrc ~= nil))
     if plans[key] then return plans[key] end
 
     local plan = { native = false }
     local base
+    if parkSrc then
+        local list = bonesOf(vehicle)
+        local Park = Config.Park or {}
+        local setting = { bpm = Park.Bpm or 300, time = 1.0, falloff = parkSrc.falloff }
+        local lights = {}
+        for i, L in pairs(parkSrc.lights) do
+            local detail = L.rotate and L.rotation or L.flashiness
+            local off = list[i]
+            if detail.seq ~= 0 and off then
+                lights[i] = bulb(L, setting, off.x < 0 and PARK_LEFT or PARK_RIGHT, 1, true)
+            end
+        end
+        plan.park = true
+        plan.lights = lights
+        s = 0 -- (le motif de stationnement remplace le stage ; TA / Steady Burn s'ajoutent par-dessus)
+    end
     if s > 0 then
         -- Stage d'origine : laissé au jeu, sauf si TA / Steady Burn doivent modifier des ampoules et que le XML
         -- décrit ce stage (sinon TA / Steady Burn sont dessinés par-dessus les gyrophares d'origine)
@@ -70,14 +101,14 @@ function DLSC.plan(model, state)
         end
     end
 
-    local lights = {}
+    local lights = plan.lights or {}
     if base then
         for i, L in pairs(base.lights) do
             local detail = L.rotate and L.rotation or L.flashiness
             lights[i] = bulb(L, base, detail.seq, detail.mult, false)
         end
     end
-    local ref = base or referenceSetting(model, s)
+    local ref = base or parkSrc or referenceSetting(model, s)
     if ref and ta > 0 then
         local pattern = DLS.taPattern(model, state.tap ~= 0 and state.tap or nil)
         if pattern then
@@ -106,12 +137,12 @@ end
 -- =========================================================================
 local bones = {} -- [véhicule] = { model, list = { [n] = vector3 local } }
 
-local function bonesOf(vehicle)
+function bonesOf(vehicle)
     local model = GetEntityModel(vehicle)
     local entry = bones[vehicle]
     if entry and entry.model == model then return entry.list end
     local list = {}
-    for n = 1, 20 do
+    for n = 1, DLS.MAX_SIRENS do
         local index = GetEntityBoneIndexByName(vehicle, 'siren' .. n)
         if index ~= -1 then
             local world = GetWorldPositionOfEntityBone(vehicle, index)
@@ -186,13 +217,13 @@ local function drawVehicle(vehicle, plan, t, cam, budget, aspect, firstPersonOwn
             local toCam = cam - world
             local dist = #toCam
 
-            if corona and dist < R.Distance then
+            if corona and L.size > 0 and dist < R.Distance then
                 local onScreen, sx, sy = GetScreenCoordFromWorldCoord(world.x, world.y, world.z)
                 if onScreen then
                     local alpha = R.CoronaAlpha * L.glow
                     if R.FacingFade and dist > 0.01 then
                         local facing = (dir.x * toCam.x + dir.y * toCam.y + dir.z * toCam.z) / dist
-                        alpha = alpha * clamp((facing + 0.35) / 0.65, 0.0, 1.0)
+                        alpha = alpha * clamp((facing + 0.5) / 0.8, 0.12, 1.0)
                     end
                     if alpha > 4 then
                         local h = clamp(R.CoronaSize * L.size * 10.0 / math.max(dist, 0.5), R.CoronaMin, R.CoronaMax)
@@ -206,18 +237,87 @@ local function drawVehicle(vehicle, plan, t, cam, budget, aspect, firstPersonOwn
 
             if L.light and budget.left > 0 and dist < R.LightDistance then
                 budget.left = budget.left - 1
-                local at = world + dir * R.LightPush
-                DrawLightWithRange(at.x, at.y, at.z, L.r, L.g, L.b, L.range, L.intensity)
+                if L.work then
+                    -- Takedown / alley : projecteur vers l'avant / le côté, un peu vers le sol
+                    local S = R.Work or {}
+                    DrawSpotLight(world.x, world.y, world.z, dir.x, dir.y, (S.Tilt or -0.12), L.r, L.g, L.b,
+                        S.Distance or 45.0, (S.Brightness or 2.0) * L.intensity / R.LightIntensity, S.Hardness or 2.0,
+                        S.Radius or 25.0, S.Falloff or 40.0)
+                else
+                    local at = world + dir * R.LightPush
+                    DrawLightWithRange(at.x, at.y, at.z, L.r, L.g, L.b, L.range, L.intensity)
+                end
             end
         end
     end
 end
 
+-- Takedown / alley des véhicules sans DLS v2 (DLS v1, véhicules d'urgence) : projecteurs blancs depuis le haut
+-- du véhicule (gyrophares les plus hauts, sinon le toit), vers l'avant et vers les côtés
+local tops = {} -- [véhicule] = { model, x, y, z } : point de départ des projecteurs (repère du véhicule)
+
+local function topOf(vehicle)
+    local model = GetEntityModel(vehicle)
+    local t = tops[vehicle]
+    if t and t.model == model then return t end
+    local maxZ, list = nil, bonesOf(vehicle)
+    for _, off in pairs(list) do
+        if not maxZ or off.z > maxZ then maxZ = off.z end
+    end
+    t = { model = model }
+    if maxZ then
+        local sx, sy, n = 0.0, 0.0, 0
+        for _, off in pairs(list) do
+            if off.z >= maxZ - 0.15 then sx, sy, n = sx + off.x, sy + off.y, n + 1 end
+        end
+        t.x, t.y, t.z = sx / n, sy / n, maxZ
+    else
+        local _, max = GetModelDimensions(model)
+        t.x, t.y, t.z = 0.0, max.y * 0.2, max.z
+    end
+    tops[vehicle] = t
+    return t
+end
+
+local function drawScene(vehicle, state, cam, budget, aspect)
+    local S = Config.Scene or {}
+    local right, forward, up, pos = GetEntityMatrix(vehicle)
+    local top = topOf(vehicle)
+    local function spot(lx, ly, dx, dy)
+        if budget.left <= 0 then return end
+        budget.left = budget.left - 1
+        local at = pos + right * (top.x + lx) + forward * (top.y + ly) + up * (top.z + 0.05)
+        local dir = right * dx + forward * dy
+        DrawSpotLight(at.x, at.y, at.z, dir.x, dir.y, S.Tilt or -0.12, 255, 255, 245, S.Distance or 45.0,
+            S.Brightness or 14.0, S.Hardness or 2.0, S.Radius or 25.0, S.Falloff or 40.0)
+        local onScreen, sx, sy = GetScreenCoordFromWorldCoord(at.x, at.y, at.z)
+        local toCam = cam - at
+        local dist = #toCam
+        if onScreen and not hidden[vehicle] and dist < R.Distance then
+            local facing = (dir.x * toCam.x + dir.y * toCam.y) / math.max(dist, 0.01)
+            local alpha = math.floor(R.CoronaAlpha * clamp((facing + 0.2) / 0.6, 0.0, 1.0))
+            if alpha > 4 then
+                local h = clamp(R.CoronaSize * 1.4 * 10.0 / math.max(dist, 0.5), R.CoronaMin, R.CoronaMax)
+                DrawSprite(TXD, GLOW, sx, sy, h / aspect, h, 0.0, 255, 255, 245, alpha)
+            end
+        end
+    end
+    if (state.td or 0) > 0 then
+        spot(-0.35, 0.1, 0.0, 1.0)
+        spot(0.35, 0.1, 0.0, 1.0)
+    end
+    local al = state.al or 0
+    if al & 1 ~= 0 then spot(-0.45, 0.0, -1.0, 0.08) end
+    if al & 2 ~= 0 then spot(0.45, 0.0, 1.0, 0.08) end
+end
+
+function DLSC.forgetTop(vehicle) tops[vehicle] = nil end
+
 CreateThread(function()
     while true do
         local any = false
         for _, entry in pairs(DLSC.active) do
-            if entry.plan.lights then any = true break end
+            if entry.plan.lights or entry.scene then any = true break end
         end
         if not any then
             Wait(250)
@@ -230,8 +330,11 @@ CreateThread(function()
             local own = GetVehiclePedIsIn(PlayerPedId(), false)
             local firstPerson = R.HideOwnFirstPerson and GetFollowVehicleCamViewMode() == 4
             for vehicle, entry in pairs(DLSC.active) do
-                if entry.plan.lights and DoesEntityExist(vehicle) then
-                    drawVehicle(vehicle, entry.plan, t, cam, budget, aspect, firstPerson and vehicle == own)
+                if DoesEntityExist(vehicle) then
+                    if entry.plan.lights then
+                        drawVehicle(vehicle, entry.plan, t, cam, budget, aspect, firstPerson and vehicle == own)
+                    end
+                    if entry.scene then drawScene(vehicle, entry.state, cam, budget, aspect) end
                 end
             end
             Wait(0)

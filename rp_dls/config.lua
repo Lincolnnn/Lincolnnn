@@ -3,14 +3,21 @@
 ]]
 DLSConfig = {
     -- =====================================================================
-    -- VÉHICULES DLS : un fichier dls/<modèle>.xml chacun (fichiers de DLS solo, tels quels).
-    -- Forme longue : { model = 'police3', file = 'police' } (plusieurs modèles sur un même fichier),
-    -- native = { 3 } : stages affichés par les gyrophares d'origine du véhicule (son carcols), voir README.
+    -- VÉHICULES DLS : fichiers de DLS solo copiés tels quels dans dls/ (sans .xml ici). Les deux formats :
+    --   DLS v1 : un fichier par modèle, nommé comme le modèle ('police' = dls/police.xml) ;
+    --            forme longue { model = 'police2', file = 'police' } : un autre modèle sur le même fichier,
+    --            native = { 3 } : stages affichés par les gyrophares d'origine du véhicule (son carcols) ;
+    --   DLS v2 : <Model vehicles="modèle1,modèle2"> : on met juste le NOM DU FICHIER, ses modèles sont lus
+    --            dedans ('nlspdumk' = dls/nlspdumk.xml, pour nlspdbufsxs, nlspdbufsxu…). Il faut aussi son
+    --            pack dans Packs (gyrophares du carcols, sur lesquels travaillent les modes DLS v2).
     -- =====================================================================
     Vehicles = {
         'police',
         { model = 'police2', file = 'police' },
     },
+    -- Packs de véhicules : dossier dls/packs/<nom>/ contenant le carcols.meta et le carvariations.meta du pack
+    -- (copiés tels quels depuis la ressource du véhicule). Indispensable pour les fichiers DLS v2.
+    Packs = {},
     -- Groupes de motifs du Traffic Advisor : dls/trafficadvisory/<nom>.xml (balise <TAgroup> des véhicules)
     TrafficAdvisoryGroups = { 'default' },
 
@@ -61,8 +68,16 @@ DLSConfig = {
         scan = 'NUMPAD7',         -- scan : tons changés au hasard toutes les 2 à 8 s
         lock = 'NUMPAD8',         -- verrouiller toutes les touches DLS
         panel = 'NUMPAD5',        -- afficher / masquer le panneau
+        takedown = 'NUMPAD9',     -- takedown : projecteurs avant (DLS v2 : modes du groupe « Takedown » à la suite)
+        alley = 'NUMPAD6',        -- alley : projecteur gauche -> droite -> les deux -> éteint
     },
     Command = 'dls',              -- /dls : panneau cliquable à la souris (déplacer, cliquer les boutons)
+
+    -- Stationnement (DLS v1) : véhicule arrêté depuis Delay ms, gyrophares allumés, sans sirène -> motif de
+    -- stationnement (côté gauche / côté droit en alternance, au rythme Bpm). En DLS v2 : modes « Park » du fichier.
+    Park = { Enabled = true, Delay = 2000, Speed = 0.1, Bpm = 300 },
+    -- Takedown / alley des véhicules sans DLS v2 : projecteurs blancs dessinés par le script
+    Scene = { Distance = 45.0, Brightness = 14.0, Hardness = 2.0, Radius = 25.0, Falloff = 40.0, Tilt = -0.12 },
 
     -- =====================================================================
     -- RENDU des stages dessinés (lumières du XML)
@@ -82,6 +97,9 @@ DLSConfig = {
         FacingFade = true,        -- halo atténué quand l'ampoule regarde de l'autre côté
         HideOwnFirstPerson = true,-- pas de halos de son propre véhicule en vue intérieure
         Occlusion = true,         -- halos masqués quand le véhicule est caché (mur, bâtiment)
+        -- Gyrophare d'intensité >= WorkLightIntensity (takedown / alley DLS v2 : intensity 10) : projecteur
+        WorkLightIntensity = 5,
+        Work = { Distance = 45.0, Brightness = 2.0, Hardness = 2.0, Radius = 25.0, Falloff = 40.0, Tilt = -0.12 },
     },
 
     -- Diagnostic : setr dls_debug 1 (console F8) affiche les numéros des gyrophares sur le véhicule

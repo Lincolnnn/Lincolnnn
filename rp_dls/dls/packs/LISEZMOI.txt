@@ -1,0 +1,13 @@
+RP DLS - packs de véhicules
+===========================
+
+Un dossier par pack, avec le carcols.meta et le carvariations.meta de la ressource du véhicule (copiés tels quels) :
+
+    dls/packs/nlspd/carcols.meta
+    dls/packs/nlspd/carvariations.meta
+
+puis le nom du dossier dans Packs (config.lua) : Packs = { 'nlspd' }
+
+Indispensable pour les fichiers DLS v2 : leurs modes (stages, park, TA, cruise, takedown, alley...) modifient les
+gyrophares du carcols du véhicule. Le carvariations.meta donne le réglage de gyrophares (sirenSettings) de chaque
+modèle. Utile aussi en DLS v1 (motif de stationnement des véhicules dont le stage n'est que dans le carcols).

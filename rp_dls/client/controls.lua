@@ -133,7 +133,10 @@ function actions.trafficAdvisor()
     if m.ta.divergeOnly then
         state.ta = state.ta == 0 and 2 or 0
     else
-        state.ta = (state.ta + 1) % 5 -- éteint -> gauche -> diverge -> droite -> warn -> éteint
+        -- éteint -> gauche -> diverge -> droite -> warn -> éteint (DLS v2 : directions présentes dans le fichier)
+        repeat
+            state.ta = (state.ta + 1) % 5
+        until state.ta == 0 or not m.ta.v2 or m.ta.modes[state.ta]
     end
     DLSC.beep()
     DLSC.set(v, state)
@@ -162,11 +165,56 @@ function actions.taPattern()
     DLSC.set(v, state)
 end
 
+--- Cruise : DLS v2 -> modes du groupe « Cruise » l'un après l'autre puis éteint ; DLS v1 -> Steady Burn
 function actions.steadyBurn()
     local v, m = context()
-    if not v or not m.steady then return end
+    if not v then return end
+    if m.v2 then
+        if m.cruise == 0 then return end
+        DLSC.beep()
+        DLSC.update(v, { cr = (DLSC.copy(v).cr + 1) % (m.cruise + 1) })
+        return
+    end
+    if not m.steady then return end
     DLSC.beep()
     DLSC.update(v, { sb = not DLSC.copy(v).sb })
+end
+
+--- Takedown (projecteurs vers l'avant) : DLS v2 -> modes du groupe « Takedown » puis éteint ; sinon allumé /
+--- éteint (projecteurs dessinés par le script)
+function actions.takedown()
+    local v, m = context()
+    if not v then return end
+    local count = m.v2 and m.takedown or 1
+    if count == 0 then return end
+    DLSC.beep()
+    DLSC.update(v, { td = (DLSC.copy(v).td + 1) % (count + 1) })
+end
+
+local function alleyAllowed(m, bit)
+    if not m.v2 then return true end
+    return (bit == 1 and m.alley.left) or (bit == 2 and m.alley.right)
+end
+
+--- Alley (projecteurs sur le côté) : gauche (1) ou droite (2), allumé / éteint
+function actions.alleySide(bit)
+    bit = toint(bit)
+    local v, m = context()
+    if not v or (bit ~= 1 and bit ~= 2) or not alleyAllowed(m, bit) then return end
+    DLSC.beep()
+    DLSC.update(v, { al = DLSC.copy(v).al ~ bit })
+end
+
+--- Alley au clavier : gauche -> droite -> les deux -> éteint (côtés présents seulement)
+function actions.alley()
+    local v, m = context()
+    if not v then return end
+    local al = DLSC.copy(v).al
+    repeat
+        al = (al + 1) % 4
+    until al == 0 or ((al & 1 == 0 or alleyAllowed(m, 1)) and (al & 2 == 0 or alleyAllowed(m, 2)))
+    DLSC.beep()
+    DLSC.update(v, { al = al })
 end
 
 function actions.interiorLight()
@@ -186,6 +234,7 @@ function actions.blackout()
     else
         -- Comme DLS : gyrophares, sirène, TA, Steady Burn et plafonnier coupés
         state.bo, state.s, state.ta, state.sb, state.int, state.tone, state.aux, state.horn = true, 0, 0, false, false, 0, false, false
+        state.cr, state.td, state.al = 0, 0, 0
         DLSC.scan = false
     end
     DLSC.set(v, state)
@@ -282,6 +331,8 @@ bind('dls_tone4', 'ton 4', Keys.tone4, 'tone', 4)
 bind('dls_aux', 'deuxième sirène', Keys.aux, 'aux')
 bind('dls_scan', 'scan des tons', Keys.scan, 'scan')
 bind('dls_lock', 'verrouiller les touches', Keys.lock, 'lock')
+bind('dls_takedown', 'takedown (projecteurs avant)', Keys.takedown, 'takedown')
+bind('dls_alley', 'alley (projecteurs gauche / droite / les deux)', Keys.alley, 'alley')
 
 -- Sirène manuelle : maintenue (+ appui, - relâchement)
 RegisterCommand('+dls_manual', function() manDown = true end, false)

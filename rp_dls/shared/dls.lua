@@ -21,6 +21,10 @@ DLS.taGroups = {}    -- [nom du groupe] = { patterns = { { name, three = { left 
 local X = DLSXml
 local Config = DLSConfig
 
+DLS.MAX_SIRENS = 32 -- gyrophares par véhicule (os siren1 à siren32 ; 20 dans les anciennes versions du jeu)
+DLS.carcols = {}     -- [id de sirenSettings] = gyrophares lus dans dls/packs/*/carcols.meta
+DLS.sirenIds = {}    -- [modèle en minuscules] = id de sirenSettings (dls/packs/*/carvariations.meta)
+
 DLS.STAGE_NAMES = { [1] = 'stage1', [2] = 'stage2', [3] = 'stage3', [4] = 'custom1', [5] = 'custom2' }
 local STAGE_TAGS = { 'Stage1', 'Stage2', 'Stage3', 'CustomStage1', 'CustomStage2' }
 local STAGE_ENABLED = { 'Stage1Enabled', 'Stage2Enabled', 'Stage3Enabled', 'CustomStage1Enabled', 'CustomStage2Enabled' }
@@ -97,7 +101,7 @@ local function readSetting(node)
         lights = {},
     }
     for i, item in ipairs(X.children(X.child(node, 'sirens'), 'Item')) do
-        if i > 20 then break end
+        if i > DLS.MAX_SIRENS then break end
         local corona = X.child(item, 'corona')
         setting.lights[i] = {
             rotation = readDetail(X.child(item, 'rotation')),
@@ -118,6 +122,7 @@ local function readSetting(node)
     end
     return setting
 end
+DLS.readSetting = readSetting
 
 -- ---- Un groupe de Traffic Advisor (dls/trafficadvisory/<nom>.xml, format TAgroup de DLS) ----
 local function readTaGroup(root)
@@ -239,45 +244,97 @@ function DLS.load()
         end
     end
 
+    -- Packs de véhicules : gyrophares (carcols.meta) et réglage de chaque modèle (carvariations.meta)
+    for _, pack in ipairs(Config.Packs or {}) do
+        local root, err = DLSXml.parse(LoadResourceFile(resource, ('dls/packs/%s/carcols.meta'):format(pack)))
+        local found = 0
+        if root then
+            for _, item in ipairs(X.children(X.child(X.child(root, 'CVehicleModelInfoVarGlobal'), 'Sirens'), 'Item')) do
+                local id = tonumber(X.value(item, 'id'))
+                if id then
+                    DLS.carcols[id] = readSetting(item)
+                    found = found + 1
+                end
+            end
+        else
+            print(('^3[rp_dls] dls/packs/%s/carcols.meta illisible (%s) : %s^0'):format(pack, side, err or 'fichier absent'))
+        end
+        local vroot, verr = DLSXml.parse(LoadResourceFile(resource, ('dls/packs/%s/carvariations.meta'):format(pack)))
+        if vroot then
+            for _, item in ipairs(X.children(X.child(X.child(vroot, 'CVehicleModelInfoVariation'), 'variationData'), 'Item')) do
+                local name, id = X.value(item, 'modelName'), tonumber(X.value(item, 'sirenSettings'))
+                if name and id and id ~= 0 then DLS.sirenIds[name:lower()] = id end
+            end
+        else
+            print(('^3[rp_dls] dls/packs/%s/carvariations.meta illisible (%s) : %s^0'):format(pack, side, verr or 'fichier absent'))
+        end
+        if side == 'serveur' then print(('[rp_dls] pack %s : %d réglage(s) de gyrophares.'):format(pack, found)) end
+    end
+
     local count = 0
+    local function register(modelName, model, file)
+        DLS.models[GetHashKey(modelName)] = model
+        count = count + 1
+        if side ~= 'serveur' then return end
+        if model.v2 then
+            local id = DLS.sirenIds[modelName:lower()]
+            print(('[rp_dls] %s (dls/%s.xml, DLS v2) : %d stage(s), TA %s, cruise %d, takedown %d, alley %s, %d mode(s)%s'):format(
+                modelName, file, #model.available, model.ta and 'oui' or 'non', model.cruise, model.takedown,
+                (model.alley.left or model.alley.right) and 'oui' or 'non', #model.modes,
+                model.base and (', carcols ' .. id) or ''))
+            if not model.base then
+                print(('^3[rp_dls] %s : gyrophares du carcols introuvables (pack absent de Packs, ou modèle absent de '
+                    .. 'son carvariations.meta) : seuls les stages d\'origine fonctionneront.^0'):format(modelName))
+            end
+            return
+        end
+        local drawn = 0
+        for n = 1, 5 do
+            if model.stages[n] then drawn = drawn + 1 end
+        end
+        print(('[rp_dls] %s (dls/%s.xml) : stages %s, Traffic Advisor %s, Steady Burn %s'):format(
+            modelName, file, #model.available > 0 and table.concat(model.available, ', ') or 'aucun',
+            model.ta and model.ta.type or 'non', model.steady and 'oui' or 'non'))
+        if drawn == 0 and not model.ta and not model.steady then
+            print(('^3[rp_dls] dls/%s.xml : aucun stage <Sirens>, ni Traffic Advisor, ni Steady Burn reconnu : '
+                .. 'seul le stage d\'origine (carcols) fonctionnera.^0'):format(file))
+        end
+    end
+
     for _, entry in ipairs(Config.Vehicles or {}) do
         local modelName = type(entry) == 'table' and entry.model or entry
         local file = type(entry) == 'table' and entry.file or modelName
         local text = LoadResourceFile(resource, ('dls/%s.xml'):format(file))
         local root, err = DLSXml.parse(text)
-        local model
-        if root then model, err = readModel(root, modelName) end
-        if model then
-            if type(entry) == 'table' and entry.native then
-                for _, n in ipairs(entry.native) do model.native[n] = true end
-                model.available, model.has = {}, {}
-                for n = 1, 5 do
-                    if model.stages[n] or model.native[n] then
-                        model.available[#model.available + 1] = n
-                        model.has[n] = true
-                    end
-                end
+        if root and DLS2.is(root) then
+            -- DLS v2 : le fichier donne lui-même ses véhicules (<Model vehicles="…">)
+            local shared, vehicles = DLS2.read(root, file)
+            if type(entry) == 'table' and entry.model then vehicles = { entry.model } end
+            if #vehicles == 0 then
+                print(('^3[rp_dls] dls/%s.xml (DLS v2) : aucun véhicule dans <Model vehicles="…">.^0'):format(file))
             end
-            DLS.models[GetHashKey(modelName)] = model
-            count = count + 1
-            if side == 'serveur' then
-                -- Ce qui a été trouvé dans le fichier (console serveur) : un fichier lu mais sans aucun stage
-                -- décrit ni Traffic Advisor est d'un autre format que celui de DLS (ex. DLS v2)
-                local drawn = {}
-                for n = 1, 5 do
-                    if model.stages[n] then drawn[#drawn + 1] = DLS.STAGE_NAMES[n] end
-                end
-                print(('[rp_dls] %s (dls/%s.xml) : stages %s, Traffic Advisor %s, Steady Burn %s'):format(
-                    modelName, file, #model.available > 0 and table.concat(model.available, ', ') or 'aucun',
-                    model.ta and model.ta.type or 'non', model.steady and 'oui' or 'non'))
-                if #drawn == 0 and not model.ta and not model.steady then
-                    print(('^3[rp_dls] dls/%s.xml : aucun stage <Sirens>, ni Traffic Advisor, ni Steady Burn reconnu. '
-                        .. 'Format différent de celui de DLS v1 (fichier DLS v2 ?) : seul le stage d\'origine (carcols) '
-                        .. 'fonctionnera.^0'):format(file))
-                end
+            for _, name in ipairs(vehicles) do
+                register(name, DLS2.forVehicle(shared, name, DLS.carcols[DLS.sirenIds[name:lower()] or -1]), file)
             end
         else
-            print(('^3[rp_dls] dls/%s.xml illisible (%s) : %s^0'):format(file, side, err or 'fichier absent'))
+            local model
+            if root then model, err = readModel(root, modelName) end
+            if model then
+                if type(entry) == 'table' and entry.native then
+                    for _, n in ipairs(entry.native) do model.native[n] = true end
+                    model.available, model.has = {}, {}
+                    for n = 1, 5 do
+                        if model.stages[n] or model.native[n] then
+                            model.available[#model.available + 1] = n
+                            model.has[n] = true
+                        end
+                    end
+                end
+                model.base = DLS.carcols[DLS.sirenIds[modelName:lower()] or -1]
+                register(modelName, model, file)
+            else
+                print(('^3[rp_dls] dls/%s.xml illisible (%s) : %s^0'):format(file, side, err or 'fichier absent'))
+            end
         end
     end
     if side == 'serveur' then print(('[rp_dls] %d véhicule(s) DLS chargé(s).'):format(count)) end
@@ -293,7 +350,7 @@ DLS.generic.tones[5] = Config.DefaultHorn
 
 --- Groupe de TA du modèle, motif n° index (ou par défaut)
 function DLS.taPattern(model, index)
-    if not model.ta then return nil end
+    if not model.ta or model.ta.v2 then return nil end
     local group = DLS.taGroups[model.ta.group] or DLS.taGroups.default
     if not group or #group.patterns == 0 then return nil end
     index = index or group.byName[model.ta.pattern] or 1
@@ -303,7 +360,7 @@ end
 
 --- Nombre de motifs de TA du modèle
 function DLS.taPatternCount(model)
-    if not model or not model.ta then return 0 end
+    if not model or not model.ta or model.ta.v2 then return 0 end
     local group = DLS.taGroups[model.ta.group] or DLS.taGroups.default
     return group and #group.patterns or 0
 end

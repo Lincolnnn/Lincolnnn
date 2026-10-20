@@ -7,6 +7,7 @@
       sb   Steady Burn / Cruise          int  plafonnier        bo  blackout (tous feux éteints)
       tone sirène : 0 coupée, 1, 2, 3 (Warning), 4 (Warning 2), 5 (air horn à la place de la sirène)
       aux  deuxième sirène (ton 1)       horn air horn par-dessus la sirène
+      cr   cruise (DLS v2 : n° du mode)  td   takedown (n° du mode)  al  alley : 1 gauche, 2 droite, 3 les deux
     Chaque client applique cet état aux véhicules proches (gyrophares, sons) : tout le monde voit et entend la
     même chose. Le conducteur voit ses changements tout de suite (valeur en attente jusqu'à la réponse du serveur).
 ]]
@@ -14,8 +15,8 @@
 DLSC = {}
 local Config = DLSConfig
 
-DLSC.EMPTY = { s = 0, ta = 0, tap = 0, sb = false, int = false, bo = false, tone = 0, aux = false, horn = false }
-local KEYS = { 's', 'ta', 'tap', 'sb', 'int', 'bo', 'tone', 'aux', 'horn' }
+DLSC.EMPTY = { s = 0, ta = 0, tap = 0, sb = false, int = false, bo = false, tone = 0, aux = false, horn = false, cr = 0, td = 0, al = 0 }
+local KEYS = { 's', 'ta', 'tap', 'sb', 'int', 'bo', 'tone', 'aux', 'horn', 'cr', 'td', 'al' }
 
 local PENDING_MS = 1500
 local pending = {}     -- [véhicule] = { value, before, untilTime }

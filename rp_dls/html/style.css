@@ -113,6 +113,7 @@ h3 {
     background: var(--green); opacity: .8;
 }
 .btn.ta.on { background: rgba(255, 176, 32, .85); box-shadow: 0 0 12px rgba(255, 176, 32, .4); color: #1b1300; }
+.btn#td.on, .btn#al-left.on, .btn#al-right.on { background: rgba(244, 247, 255, .9); color: #10131a; box-shadow: 0 0 12px rgba(244, 247, 255, .45); }
 .btn#steady.on, .btn#int.on { background: rgba(244, 247, 255, .85); color: #10131a; box-shadow: 0 0 10px rgba(244, 247, 255, .35); }
 .btn.warn.on { background: #000; border-color: rgba(255, 255, 255, .5); }
 .btn.tone.on, #aux.on, #scan.on { background: rgba(57, 217, 138, .85); color: #04170d; box-shadow: 0 0 12px rgba(57, 217, 138, .35); }

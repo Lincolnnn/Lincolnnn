@@ -38,6 +38,14 @@ local function boundKeys()
     return keys
 end
 
+-- Un mode « Park » (stationnement) est-il actif ? (DLS v2)
+local function parkMode(modes)
+    for _, name in ipairs(modes or {}) do
+        if name:lower():find('park') then return true end
+    end
+    return false
+end
+
 local function setFocus(on)
     focus = on
     SetNuiFocus(on, on)
@@ -52,6 +60,7 @@ local function push()
         return
     end
     local state = DLSC.copy(vehicle)
+    local active = DLSC.active[vehicle]
     local stages = {}
     for _, n in ipairs(model.available) do
         stages[#stages + 1] = { n = n, label = STAGE_LABELS[n], native = model.native[n] == true }
@@ -77,7 +86,13 @@ local function push()
         stages = stages,
         tones = tones,
         ta = ta,
-        steady = model.steady ~= nil,
+        steady = model.steady ~= nil or (model.v2 and model.cruise > 0),
+        cruise = model.v2 and model.cruise or 0,
+        takedown = model.v2 and model.takedown or 1,
+        alley = model.v2 and model.alley or { left = true, right = true },
+        v2 = model.v2 == true,
+        modes = active and active.plan.modes or nil,
+        park = active ~= nil and (active.plan.park == true or parkMode(active.plan.modes)),
         state = state,
         locked = DLSC.locked,
         scan = DLSC.scan,
@@ -126,7 +141,9 @@ CreateThread(function()
     while true do
         local vehicle = DLSC.driving()
         local _, manual = DLSC.inputs()
-        local mark = ('%d|%s|%s|%s'):format(vehicle, tostring(DLSC.scan), tostring(DLSC.locked), tostring(manual))
+        local active = vehicle ~= 0 and DLSC.active[vehicle]
+        local modes = active and (table.concat(active.plan.modes or {}, ',') .. tostring(active.plan.park)) or ''
+        local mark = ('%d|%s|%s|%s|%s'):format(vehicle, tostring(DLSC.scan), tostring(DLSC.locked), tostring(manual), modes)
         if mark ~= last then
             last = mark
             push()
