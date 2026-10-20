@@ -242,8 +242,9 @@ function DLS.configFiles()
     return files
 end
 
---- Charge les groupes de Traffic Advisor, les packs et les véhicules (`files` : liste trouvée par le serveur)
-function DLS.load(files)
+--- Charge les groupes de Traffic Advisor, les packs et les véhicules (`files` : liste trouvée par le serveur ;
+--- `packData` : gyrophares des packs déjà lus par le serveur { carcols, sirenIds }, sans relire leurs fichiers)
+function DLS.load(files, packData)
     files = files or DLS.configFiles()
     local resource = GetCurrentResourceName()
     local side = IsDuplicityVersion() and 'serveur' or 'client'
@@ -263,7 +264,12 @@ function DLS.load(files)
 
     -- Packs de véhicules : gyrophares (carcols.meta) et réglage de chaque modèle (carvariations.meta), reconnus
     -- d'après leur contenu (le nom des fichiers .meta n'a pas d'importance)
-    for _, pack in ipairs(files.packs) do
+    if packData and type(packData.carcols) == 'table' then
+        -- Côté joueur : gyrophares envoyés par le serveur (les .meta n'ont pas besoin d'être téléchargés)
+        for id, setting in pairs(packData.carcols) do DLS.carcols[tonumber(id) or id] = setting end
+        for name, id in pairs(packData.sirenIds or {}) do DLS.sirenIds[name] = id end
+    end
+    for _, pack in ipairs(packData and {} or files.packs) do
         local found, models = 0, 0
         for _, file in ipairs(pack.files) do
             -- fichier de rp_dls ("dls/packs/…") ou d'une autre ressource ({ resource, path } : data_file du pack)

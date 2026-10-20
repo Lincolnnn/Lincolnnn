@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_dls'
 author 'Lincolnnn'
 description 'DLS pour FiveM : stages de gyrophares des véhicules DLS, Traffic Advisor, sirènes - synchronisé, standalone'
-version '2.1.0'
+version '2.1.1'
 
 ui_page 'html/index.html' -- panneau de commande (stages, TA, sirène)
 
@@ -23,8 +23,7 @@ files {
     'img/glow.png',                -- halo des gyrophares dessinés
     'dls/*.xml',                   -- fichiers de véhicules DLS (nom du fichier = nom du modèle)
     'dls/trafficadvisory/*.xml',   -- groupes de motifs du Traffic Advisor
-    'dls/packs/*/*.meta',          -- packs de véhicules : carcols.meta et carvariations.meta
-    'dls/packs/*.meta',
+    'dls/packs/**/*.meta',         -- packs de véhicules : carcols.meta et carvariations.meta (sous-dossiers compris)
 }
 
 shared_scripts {

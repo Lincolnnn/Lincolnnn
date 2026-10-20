@@ -153,10 +153,10 @@ end
 CreateThread(function()
     local deadline = GetGameTimer() + 15000
     while not GlobalState.rpDlsFiles and GetGameTimer() < deadline do Wait(100) end
-    DLS.load(GlobalState.rpDlsFiles)
+    DLS.load(GlobalState.rpDlsFiles, GlobalState.rpDlsPacks)
 end)
 
 -- Liste changée (ressource de véhicules démarrée après rp_dls) : tout est relu
 AddStateBagChangeHandler('rpDlsFiles', 'global', function(_, _, value)
-    if type(value) == 'table' then SetTimeout(0, function() DLS.load(value) end) end
+    if type(value) == 'table' then SetTimeout(0, function() DLS.load(value, GlobalState.rpDlsPacks) end) end
 end)

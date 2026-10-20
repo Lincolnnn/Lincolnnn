@@ -136,8 +136,10 @@ local function load()
     print(('[rp_dls] Ressource lue dans : %s'):format(GetResourcePath(GetCurrentResourceName())))
     print(('[rp_dls] config.lua : Vehicles = %s ; Packs = %s'):format(describe(DLSConfig.Vehicles), describe(DLSConfig.Packs)))
     local files = discover()
-    GlobalState.rpDlsFiles = files
     DLS.load(files)
+    -- Gyrophares des packs lus ici, envoyés tels quels aux joueurs (avant la liste, qui déclenche leur lecture)
+    GlobalState.rpDlsPacks = { carcols = DLS.carcols, sirenIds = DLS.sirenIds }
+    GlobalState.rpDlsFiles = files
 end
 
 CreateThread(load)
