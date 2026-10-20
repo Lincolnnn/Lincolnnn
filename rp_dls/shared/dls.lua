@@ -260,6 +260,22 @@ function DLS.load()
             end
             DLS.models[GetHashKey(modelName)] = model
             count = count + 1
+            if side == 'serveur' then
+                -- Ce qui a été trouvé dans le fichier (console serveur) : un fichier lu mais sans aucun stage
+                -- décrit ni Traffic Advisor est d'un autre format que celui de DLS (ex. DLS v2)
+                local drawn = {}
+                for n = 1, 5 do
+                    if model.stages[n] then drawn[#drawn + 1] = DLS.STAGE_NAMES[n] end
+                end
+                print(('[rp_dls] %s (dls/%s.xml) : stages %s, Traffic Advisor %s, Steady Burn %s'):format(
+                    modelName, file, #model.available > 0 and table.concat(model.available, ', ') or 'aucun',
+                    model.ta and model.ta.type or 'non', model.steady and 'oui' or 'non'))
+                if #drawn == 0 and not model.ta and not model.steady then
+                    print(('^3[rp_dls] dls/%s.xml : aucun stage <Sirens>, ni Traffic Advisor, ni Steady Burn reconnu. '
+                        .. 'Format différent de celui de DLS v1 (fichier DLS v2 ?) : seul le stage d\'origine (carcols) '
+                        .. 'fonctionnera.^0'):format(file))
+                end
+            end
         else
             print(('^3[rp_dls] dls/%s.xml illisible (%s) : %s^0'):format(file, side, err or 'fichier absent'))
         end
