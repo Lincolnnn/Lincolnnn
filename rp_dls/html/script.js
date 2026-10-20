@@ -47,7 +47,6 @@
         if (key === lastStageKey) return;
         lastStageKey = key;
         stagesBox.innerHTML = '';
-        stagesBox.appendChild(button('stage off', 'OFF', 'stage', 0));
         d.stages.forEach((s) => {
             let dot = null;
             if (s.native) {
@@ -93,9 +92,15 @@
         buildStages(d);
         buildTones(d);
 
+        // Allumage / extinction : touche du jeu de base seulement ; les stages se choisissent gyrophares allumés
+        const lightsOn = s.s > 0 && !s.bo;
+        const lightsKey = d.keys.lights || 'touche du jeu';
+        $('lights-hint').textContent = lightsOn ? `allumés · ${lightsKey} : éteindre` : `éteints · ${lightsKey} : allumer`;
+        $('lights-hint').classList.toggle('on', lightsOn);
         stagesBox.querySelectorAll('.btn.stage').forEach((b) => {
             const n = Number(b.dataset.arg);
             b.classList.toggle('on', n === s.s);
+            b.disabled = !lightsOn;
         });
         $('steady').classList.toggle('on', !!s.sb);
         $('steady').disabled = !d.steady;

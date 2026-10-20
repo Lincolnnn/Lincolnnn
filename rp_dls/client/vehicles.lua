@@ -59,8 +59,13 @@ local function apply(vehicle, entry, state)
 
     SetVehicleHasMutedSirens(vehicle, true)
 
+    -- Gyrophares d'origine : changés seulement s'ils ne sont pas déjà comme il faut (les rallumer alors qu'ils
+    -- tournent relance leur séquence au début : ils restent figés), et seulement par le client qui commande le
+    -- véhicule ; les autres joueurs reçoivent l'état de la sirène du jeu lui-même
     local plan = DLSC.plan(model, state)
-    if IsVehicleSirenOn(vehicle) ~= plan.native then SetVehicleSiren(vehicle, plan.native) end
+    if DLSC.owns(vehicle) and DLSC.bool(IsVehicleSirenOn(vehicle)) ~= plan.native then
+        SetVehicleSiren(vehicle, plan.native)
+    end
     DLSC.active[vehicle] = { model = model, state = state, plan = plan }
 
     -- Sons : tons (5 = air horn à la place de la sirène), deuxième sirène, air horn par-dessus
@@ -112,7 +117,8 @@ CreateThread(function()
         local range = Config.Render.Distance
         local seen = {}
         for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-            if #(GetEntityCoords(vehicle) - me) <= range then
+            -- (véhicule commandé par ce client : suivi même loin, ses gyrophares d'origine dépendent de lui)
+            if #(GetEntityCoords(vehicle) - me) <= range or DLSC.owns(vehicle) then
                 local model = DLSC.modelOf(vehicle)
                 if model then
                     seen[vehicle] = true

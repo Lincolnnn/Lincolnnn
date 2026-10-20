@@ -82,6 +82,7 @@ h3 {
     color: var(--muted); display: flex; justify-content: space-between;
 }
 .hint { letter-spacing: .04em; text-transform: none; font-weight: 600; color: var(--muted); }
+.hint.on { color: var(--text); }
 .buttons { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; align-items: center; }
 
 .btn {
@@ -107,7 +108,6 @@ h3 {
     background: linear-gradient(90deg, rgba(255, 59, 59, .85), rgba(47, 125, 255, .85));
     box-shadow: 0 0 12px rgba(255, 59, 59, .35), 0 0 12px rgba(47, 125, 255, .35);
 }
-.btn.stage.off.on { background: rgba(255, 255, 255, .16); box-shadow: none; }
 .btn.stage .native {
     position: absolute; left: 4px; top: 3px; width: 5px; height: 5px; border-radius: 50%;
     background: var(--green); opacity: .8;

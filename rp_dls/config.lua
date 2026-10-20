@@ -30,12 +30,23 @@ DLSConfig = {
     DisableRadio = true,
 
     -- =====================================================================
+    -- ALLUMER / ÉTEINDRE LES GYROPHARES : uniquement la touche du JEU DE BASE (même touche pour les deux).
+    -- C'est un contrôle de GTA, réglé dans les paramètres du jeu (pas dans les raccourcis FiveM) :
+    -- 85 = gyrophares / roue des radios : Q sur un clavier QWERTY, A sur un clavier AZERTY, croix gauche à la
+    -- manette. Les touches DLS ci-dessous changent seulement le stage quand les gyrophares sont allumés.
+    -- =====================================================================
+    LightsControl = 85,
+    -- Stage allumé par cette touche : 'last' (dernier stage utilisé sur ce véhicule, sinon le premier du XML)
+    -- ou un numéro (1, 2, 3, 4 = custom 1, 5 = custom 2)
+    LightsOnStage = 'last',
+
+    -- =====================================================================
     -- TOUCHES par défaut : chaque joueur les change dans Échap > Paramètres > Raccourcis clavier > FiveM
     -- (« DLS : … »). Celles de DLS solo, sauf K (MDC), G (ceinture) et T (chat) déjà prises sur ce serveur.
     -- =====================================================================
     Keys = {
-        stageNext = 'J',          -- stage suivant (éteint -> 1 -> 2 -> 3 -> … -> éteint)
-        stage1 = 'NUMPAD1',       -- stage 1 direct (même touche : éteindre)
+        stageNext = 'J',          -- stage suivant (1 -> 2 -> 3 -> … -> 1), gyrophares allumés
+        stage1 = 'NUMPAD1',       -- stage 1 direct, gyrophares allumés
         stage2 = 'NUMPAD2',
         stage3 = 'NUMPAD3',
         trafficAdvisor = 'L',     -- Traffic Advisor : gauche -> diverge -> droite -> warn -> éteint

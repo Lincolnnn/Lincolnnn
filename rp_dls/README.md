@@ -45,15 +45,24 @@ Vehicles = {
 `dls/police.xml` est un exemple complet et commenté (stages 1 et 2 dessinés, stage 3 d'origine, Steady Burn,
 Traffic Advisor à 3 segments, stage gardé en descendant).
 
-## Touches (par défaut, modifiables : Échap > Paramètres > Raccourcis clavier > FiveM > « DLS : … »)
+## Allumer / éteindre les gyrophares : touche du jeu de base
+
+Les gyrophares s'allument et s'éteignent **uniquement avec la touche du jeu de base** (la même pour les deux) :
+**A** sur un clavier AZERTY (Q en QWERTY), croix gauche à la manette. C'est un contrôle de GTA (`LightsControl =
+85`), réglé dans les paramètres du jeu, **pas** dans les raccourcis FiveM. L'allumage reprend le **dernier stage
+utilisé** sur ce véhicule (sinon le premier du XML, voir `LightsOnStage`). Gyrophares éteints, les touches de stage
+DLS ne font rien.
+
+## Touches DLS (par défaut, modifiables : Échap > Paramètres > Raccourcis clavier > FiveM > « DLS : … »)
 
 Celles de DLS solo, sauf **K** (MDC), **G** (ceinture) et **T** (chat), déjà prises sur ce serveur. Conducteur
 d'un véhicule DLS ou d'urgence seulement.
 
 | Touche | Action |
 |---|---|
-| **J** | Stage suivant (éteint → 1 → 2 → 3 → custom… → éteint) |
-| **Pavé 1 / 2 / 3** | Stage 1 / 2 / 3 direct (même touche : éteindre) |
+| **A** (jeu de base) | Allumer / éteindre les gyrophares |
+| **J** | Stage suivant (1 → 2 → 3 → custom… → 1), gyrophares allumés |
+| **Pavé 1 / 2 / 3** | Stage 1 / 2 / 3 direct, gyrophares allumés |
 | **L** | Traffic Advisor : gauche → diverge → droite → warn → éteint |
 | **Pavé 4** | Traffic Advisor : motif suivant |
 | **[** | Steady Burn / Cruise (feux fixes) |
@@ -70,12 +79,12 @@ d'un véhicule DLS ou d'urgence seulement.
 | **/dls** | Panneau cliquable à la souris (boutons, glisser le titre pour le déplacer, double-clic : position par défaut, Échap pour fermer) |
 
 En conduisant un véhicule DLS, le klaxon du jeu, la caméra cinéma (R), la sélection d'arme sur 1 à 6 et la radio
-(`DisableRadio`) sont bloqués, comme dans DLS. Les clignotants restent ceux de `rp_vehiclecontrol`.
+(`DisableRadio`, et la roue des radios qui partage la touche des gyrophares) sont bloqués, comme dans DLS. Les clignotants restent ceux de `rp_vehiclecontrol`.
 
 ## Panneau
 
-Petit panneau sombre en bas à droite (position gardée) : stages disponibles du véhicule (point vert : gyrophares
-d'origine), Cruise, plafonnier, blackout, Traffic Advisor (direction, motif, chenillard animé), tons, deuxième
+Petit panneau sombre en bas à droite (position gardée) : gyrophares allumés / éteints avec la touche du jeu à
+utiliser, stages disponibles du véhicule (point vert : gyrophares d'origine), Cruise, plafonnier, blackout, Traffic Advisor (direction, motif, chenillard animé), tons, deuxième
 sirène, scan, voyants HORN et MANUEL, verrou. Les touches réellement attribuées par le joueur sont affichées sur les
 boutons.
 

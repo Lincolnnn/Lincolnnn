@@ -22,6 +22,7 @@ local hornDown, manDown = false, false
 local lastMan = false           -- dernier état de la touche manuelle pris en compte
 local wailing, beforeWail = false, 0
 local leftStages = {}           -- [netId] = stage d'avant le stage de descente (PresetSirenOnLeaveVehicle)
+local lastStages = {}           -- [véhicule] = dernier stage allumé (rallumé par la touche du jeu)
 local scanNext = 0
 
 --- Nombre entier (touche, ou bouton du panneau : nombre venu du JSON), sinon nil
@@ -32,7 +33,7 @@ end
 
 --- Véhicule conduit et son modèle, si le joueur peut commander
 local function context()
-    if vehicle == 0 or not model or IsPauseMenuActive() then return nil end
+    if vehicle == 0 or not model or DLSC.bool(IsPauseMenuActive()) then return nil end
     return vehicle, model
 end
 
@@ -78,6 +79,7 @@ local function setStage(s)
     local v, m = context()
     if not v then return end
     DLSC.beep()
+    if s ~= 0 then lastStages[v] = s end
     DLSC.set(v, withStage(m, DLSC.copy(v), s))
     wailing = false
 end
@@ -87,19 +89,41 @@ end
 -- =========================================================================
 local actions = {}
 
+--- Gyrophares allumés / éteints : SEULEMENT par la touche du jeu de base (LightsControl), même touche pour
+--- les deux. Allumage sur le dernier stage utilisé sur ce véhicule (ou LightsOnStage), sinon le premier.
+function actions.lights()
+    local v, m = context()
+    if not v or #m.available == 0 then return end
+    local s = DLSC.copy(v).s
+    if s ~= 0 then
+        lastStages[v] = s
+        setStage(0)
+        return
+    end
+    local wanted = Config.LightsOnStage
+    if wanted == 'last' or wanted == nil then wanted = lastStages[v] end
+    wanted = tonumber(wanted)
+    setStage(wanted and DLS.hasStage(m, wanted) and wanted ~= 0 and wanted or m.available[1])
+end
+
+--- Stage suivant, gyrophares allumés seulement (sans passer par « éteint » : c'est la touche du jeu)
 function actions.stageNext()
     local _, m = context()
     if not m then return end
-    local state = DLSC.copy(vehicle)
-    local i = indexOf(m.available, state.s)
-    setStage((i and m.available[i + 1]) or (not i and m.available[1]) or 0)
+    local s = DLSC.copy(vehicle).s
+    if s == 0 then return end
+    local i = indexOf(m.available, s)
+    setStage((i and m.available[i + 1]) or m.available[1])
 end
 
+--- Stage précis, gyrophares allumés seulement
 function actions.stage(n)
     n = toint(n)
     local _, m = context()
-    if not m or not n or not DLS.hasStage(m, n) then return end
-    setStage(DLSC.copy(vehicle).s == n and 0 or n)
+    if not m or not n or n == 0 or not DLS.hasStage(m, n) then return end
+    local s = DLSC.copy(vehicle).s
+    if s == 0 or s == n then return end
+    setStage(n)
 end
 
 function actions.trafficAdvisor()
@@ -324,8 +348,8 @@ local function onEnter(v, m)
     if Config.DisableRadio then SetVehicleRadioEnabled(v, false) end
     -- Gyrophares d'origine déjà allumés (véhicule pris à un PNJ, sorti d'un garage…) : repris comme stage 3,
     -- sirène comprise si elle sonnait (comme DLS). Un peu après : le temps que le serveur voie le conducteur.
-    if not DLSC.get(v) and IsVehicleSirenOn(v) then
-        local audio = IsVehicleSirenAudioOn(v)
+    if not DLSC.get(v) and DLSC.bool(IsVehicleSirenOn(v)) then
+        local audio = DLSC.bool(IsVehicleSirenAudioOn(v))
         SetTimeout(500, function()
             if vehicle ~= v or DLSC.get(v) then return end
             local stage = DLS.hasStage(m, 3) and 3 or m.available[#m.available] or 0
@@ -379,9 +403,11 @@ local function onLeave(v, m)
 end
 
 -- Contrôles du jeu bloqués tant qu'on conduit un véhicule DLS : klaxon (repris en air horn), sirène / caméra
--- cinéma (R), sélection d'arme sur 1 à 6, radio
+-- cinéma (R), sélection d'arme sur 1 à 6, radio. La touche des gyrophares du jeu (LightsControl) est bloquée
+-- aussi : c'est le script qui allume / éteint, le jeu ne doit pas basculer sa sirène de son côté.
 local BLOCKED = { 86, 80, 157, 158, 160, 164, 165, 159 }
-local RADIO = { 81, 82, 85 }
+local RADIO = { 81, 82 }
+local LIGHTS = Config.LightsControl or 85
 
 CreateThread(function()
     local wasIn = 0
@@ -403,7 +429,11 @@ CreateThread(function()
             if Config.DisableRadio then
                 for _, control in ipairs(RADIO) do DisableControlAction(0, control, true) end
             end
-            local horn = IsDisabledControlPressed(0, 86) and not IsPauseMenuActive()
+            DisableControlAction(0, LIGHTS, true)
+            if IsDisabledControlJustPressed(0, LIGHTS) and not DLSC.bool(IsPauseMenuActive()) then
+                DLSC.action('lights')
+            end
+            local horn = DLSC.bool(IsDisabledControlPressed(0, 86)) and not DLSC.bool(IsPauseMenuActive())
             if horn ~= hornDown or manDown ~= lastMan then
                 hornDown, lastMan = horn, manDown
                 manualAndHorn(vehicle, model)

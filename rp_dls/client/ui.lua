@@ -32,6 +32,9 @@ local function boundKeys()
             keys[name] = label:sub(3):gsub('^NUMPAD', 'N')
         end
     end
+    -- Touche du jeu de base des gyrophares (contrôle de GTA, pas un raccourci FiveM)
+    local label = GetControlInstructionalButton(0, Config.LightsControl or 85, true)
+    if type(label) == 'string' and label:sub(1, 2) == 't_' then keys.lights = label:sub(3) end
     return keys
 end
 

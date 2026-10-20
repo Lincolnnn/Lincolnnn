@@ -126,6 +126,17 @@ RegisterNetEvent('rp_dls:refused', function(netId)
     end
 end)
 
+--- Résultat d'une native « vrai / faux » : selon la version, le jeu renvoie true / false ou 1 / 0 (un 1 comparé
+--- à true est toujours différent : toujours passer par ici avant de comparer)
+function DLSC.bool(value)
+    return value == true or value == 1
+end
+
+--- Ce client commande-t-il le véhicule (propriétaire réseau, ou véhicule local) ?
+function DLSC.owns(vehicle)
+    return not NetworkGetEntityIsNetworked(vehicle) or NetworkGetEntityOwner(vehicle) == PlayerId()
+end
+
 --- Le joueur conduit-il ce véhicule ?
 function DLSC.isDriver(vehicle)
     local ped = PlayerPedId()
