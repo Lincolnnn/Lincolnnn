@@ -229,10 +229,27 @@ function DLS.hasStage(model, n)
     return n == 0 or (model and model.has[n]) == true
 end
 
---- Charge les groupes de Traffic Advisor et les véhicules de la configuration
-function DLS.load()
+--- Fichiers à lire d'après la configuration seule (sans recherche dans les dossiers) :
+--- { vehicles = { entrées de Vehicles }, packs = { { name, files = { chemins des .meta } } } }
+function DLS.configFiles()
+    local files = { vehicles = {}, packs = {} }
+    for _, entry in ipairs(Config.Vehicles or {}) do files.vehicles[#files.vehicles + 1] = entry end
+    for _, pack in ipairs(Config.Packs or {}) do
+        files.packs[#files.packs + 1] = {
+            name = pack, files = { ('dls/packs/%s/carcols.meta'):format(pack), ('dls/packs/%s/carvariations.meta'):format(pack) },
+        }
+    end
+    return files
+end
+
+--- Charge les groupes de Traffic Advisor, les packs et les véhicules (`files` : liste trouvée par le serveur)
+function DLS.load(files)
+    files = files or DLS.configFiles()
     local resource = GetCurrentResourceName()
     local side = IsDuplicityVersion() and 'serveur' or 'client'
+    -- Rechargement (nouvelle ressource de véhicules démarrée) : tout est relu
+    DLS.models, DLS.taGroups, DLS.carcols, DLS.sirenIds = {}, {}, {}, {}
+    DLS.version = (DLS.version or 0) + 1
 
     for _, name in ipairs(Config.TrafficAdvisoryGroups or { 'default' }) do
         local text = LoadResourceFile(resource, ('dls/trafficadvisory/%s.xml'):format(name))
@@ -244,31 +261,37 @@ function DLS.load()
         end
     end
 
-    -- Packs de véhicules : gyrophares (carcols.meta) et réglage de chaque modèle (carvariations.meta)
-    for _, pack in ipairs(Config.Packs or {}) do
-        local root, err = DLSXml.parse(LoadResourceFile(resource, ('dls/packs/%s/carcols.meta'):format(pack)))
-        local found = 0
-        if root then
-            for _, item in ipairs(X.children(X.child(X.child(root, 'CVehicleModelInfoVarGlobal'), 'Sirens'), 'Item')) do
-                local id = tonumber(X.value(item, 'id'))
-                if id then
-                    DLS.carcols[id] = readSetting(item)
-                    found = found + 1
+    -- Packs de véhicules : gyrophares (carcols.meta) et réglage de chaque modèle (carvariations.meta), reconnus
+    -- d'après leur contenu (le nom des fichiers .meta n'a pas d'importance)
+    for _, pack in ipairs(files.packs) do
+        local found, models = 0, 0
+        for _, file in ipairs(pack.files) do
+            -- fichier de rp_dls ("dls/packs/…") ou d'une autre ressource ({ resource, path } : data_file du pack)
+            local res, path = type(file) == 'table' and file.resource or resource, type(file) == 'table' and file.path or file
+            local root, err = DLSXml.parse(LoadResourceFile(res, path))
+            if not root then
+                print(('^3[rp_dls] %s/%s illisible (%s) : %s^0'):format(res, path, side, err or 'fichier absent'))
+            else
+                for _, item in ipairs(X.children(X.child(X.child(root, 'CVehicleModelInfoVarGlobal'), 'Sirens'), 'Item')) do
+                    local id = tonumber(X.value(item, 'id'))
+                    if id then
+                        DLS.carcols[id] = readSetting(item)
+                        found = found + 1
+                    end
+                end
+                for _, item in ipairs(X.children(X.child(X.child(root, 'CVehicleModelInfoVariation'), 'variationData'), 'Item')) do
+                    local name, id = X.value(item, 'modelName'), tonumber(X.value(item, 'sirenSettings'))
+                    if name and id and id ~= 0 then
+                        DLS.sirenIds[name:lower()] = id
+                        models = models + 1
+                    end
                 end
             end
-        else
-            print(('^3[rp_dls] dls/packs/%s/carcols.meta illisible (%s) : %s^0'):format(pack, side, err or 'fichier absent'))
         end
-        local vroot, verr = DLSXml.parse(LoadResourceFile(resource, ('dls/packs/%s/carvariations.meta'):format(pack)))
-        if vroot then
-            for _, item in ipairs(X.children(X.child(X.child(vroot, 'CVehicleModelInfoVariation'), 'variationData'), 'Item')) do
-                local name, id = X.value(item, 'modelName'), tonumber(X.value(item, 'sirenSettings'))
-                if name and id and id ~= 0 then DLS.sirenIds[name:lower()] = id end
-            end
-        else
-            print(('^3[rp_dls] dls/packs/%s/carvariations.meta illisible (%s) : %s^0'):format(pack, side, verr or 'fichier absent'))
+        if side == 'serveur' then
+            print(('[rp_dls] pack %s : %d réglage(s) de gyrophares (carcols), %d modèle(s) (carvariations).'):format(
+                pack.name, found, models))
         end
-        if side == 'serveur' then print(('[rp_dls] pack %s : %d réglage(s) de gyrophares.'):format(pack, found)) end
     end
 
     local count = 0
@@ -301,7 +324,7 @@ function DLS.load()
         end
     end
 
-    for _, entry in ipairs(Config.Vehicles or {}) do
+    for _, entry in ipairs(files.vehicles) do
         local modelName = type(entry) == 'table' and entry.model or entry
         local file = type(entry) == 'table' and entry.file or modelName
         local text = LoadResourceFile(resource, ('dls/%s.xml'):format(file))

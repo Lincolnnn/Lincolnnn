@@ -149,6 +149,14 @@ function DLSC.beep(name)
     PlaySoundFrontend(-1, name or 'NAV_UP_DOWN', 'HUD_FRONTEND_DEFAULT_SOUNDSET', true)
 end
 
+-- Fichiers trouvés par le serveur (dls/*.xml, dls/packs/) : les mêmes que lui ; sans réponse, config.lua seule
 CreateThread(function()
-    DLS.load()
+    local deadline = GetGameTimer() + 15000
+    while not GlobalState.rpDlsFiles and GetGameTimer() < deadline do Wait(100) end
+    DLS.load(GlobalState.rpDlsFiles)
+end)
+
+-- Liste changée (ressource de véhicules démarrée après rp_dls) : tout est relu
+AddStateBagChangeHandler('rpDlsFiles', 'global', function(_, _, value)
+    if type(value) == 'table' then SetTimeout(0, function() DLS.load(value) end) end
 end)

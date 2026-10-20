@@ -49,22 +49,25 @@ Traffic Advisor à 3 segments, stage gardé en descendant).
 ### Véhicules DLS v2 (`<Model vehicles="…">`)
 
 Un fichier DLS v2 sert à **plusieurs modèles** (liste dans `<Model vehicles="…">`) et ses modes modifient les
-gyrophares du **carcols du véhicule** : `rp_dls` a donc aussi besoin du `carcols.meta` et du `carvariations.meta`
-du pack.
+gyrophares du **carcols du véhicule**.
 
 1. Copiez les fichiers DLS v2 tels quels dans `rp_dls/dls/` (ex. `dls/nlspdumk.xml`).
-2. Copiez le `carcols.meta` et le `carvariations.meta` de la ressource du véhicule dans
-   `rp_dls/dls/packs/<nom du pack>/` (ex. `dls/packs/nlspd/carcols.meta`).
-3. Dans `config.lua`, mettez le **nom des fichiers** DLS v2 (pas les modèles : ils sont lus dans le fichier) et le
-   pack :
+2. C'est tout : au démarrage, le serveur **trouve tout seul** les `.xml` de `dls/`, et lit le `carcols.meta` et le
+   `carvariations.meta` **directement dans la ressource du véhicule** (ses lignes `data_file 'CARCOLS_FILE'` et
+   `data_file 'VEHICLE_VARIATION_FILE'`), sans copie. Une ressource de véhicules démarrée après `rp_dls` est relue.
+
+Si le serveur ne permet pas de lister les dossiers, la console le dit : mettez alors le **nom des fichiers**
+(pas les modèles : ils sont lus dans le fichier) dans `config.lua` :
 
 ```lua
 Vehicles = { 'nlspdumk', 'nlspdscouts', 'nlspdmpower' },
-Packs = { 'nlspd' },
 ```
 
-Au démarrage, la console serveur liste chaque modèle trouvé (stages, TA, cruise, takedown, alley, nombre de modes,
-réglage du carcols) et signale ce qui manque (fichier absent, modèle absent du carvariations…).
+Si la ressource du véhicule ne déclare pas ses `.meta` en `data_file` (ou ne les met pas dans `files`), copiez-les
+dans `rp_dls/dls/packs/<nom>/` et ajoutez `Packs = { '<nom>' }`.
+
+Au démarrage, la console serveur liste chaque pack (`pack nlspd : 3 réglage(s) de gyrophares…`) et chaque modèle
+trouvé (stages, TA, cruise, takedown, alley, nombre de modes, réglage du carcols), et signale ce qui manque.
 
 Repris de DLS v2 :
 - **Modes** : chaque mode actif part des gyrophares du carcols (`apply_default_siren_settings`) ou de gyrophares

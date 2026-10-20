@@ -70,7 +70,7 @@ function DLSC.plan(model, state, vehicle, park)
     local ta = (not state.bo and model.ta and state.ta) or 0
     local sb = (not state.bo and model.steady and state.sb) or false
     local parkSrc = park and s > 0 and vehicle and (model.stages[s] or model.base) or nil
-    local key = ('%s|%d|%d|%d|%s|%s'):format(model.name, s, ta, state.tap or 0, tostring(sb), tostring(parkSrc ~= nil))
+    local key = ('%s|%d|%d|%d|%d|%s|%s'):format(model.name, DLS.version or 0, s, ta, state.tap or 0, tostring(sb), tostring(parkSrc ~= nil))
     if plans[key] then return plans[key] end
 
     local plan = { native = false }

@@ -15,8 +15,145 @@ local LEFT_RANGE = 20.0
 local lastDriver = {} -- [véhicule] = { src, time } : dernier conducteur (descente du véhicule)
 local rate = {}       -- [src] = { second, count }
 
-CreateThread(function()
-    DLS.load()
+-- =========================================================================
+-- FICHIERS : ceux de la configuration + tous les .xml de dls/ et tous les packs de dls/packs/ (trouvés seuls :
+-- copier un fichier suffit). La liste est envoyée aux clients (GlobalState.rpDlsFiles), qui lisent les mêmes.
+-- =========================================================================
+local function listDir(path, wantDirs)
+    local windows = package.config:sub(1, 1) == '\\'
+    local cmd
+    if windows then
+        cmd = ('dir /b %s "%s" 2>nul'):format(wantDirs and '/ad' or '/a-d', (path:gsub('/', '\\')))
+    else
+        cmd = ('ls -1p "%s" 2>/dev/null'):format(path)
+    end
+    local ok, pipe = pcall(io.popen, cmd)
+    if not ok or not pipe then return nil end
+    local list = {}
+    for line in pipe:lines() do
+        line = line:gsub('[\r\n]', '')
+        if windows then
+            if line ~= '' then list[#list + 1] = line end
+        else
+            local dir = line:sub(-1) == '/'
+            if dir == (wantDirs == true) and line ~= '' then list[#list + 1] = dir and line:sub(1, -2) or line end
+        end
+    end
+    pipe:close()
+    return list
+end
+
+--- Fichier data_file d'une ressource (manifest : data_file 'TYPE' 'chemin') : son chemin
+local function dataFilePath(extra)
+    if not extra then return nil end
+    local ok, decoded = pcall(json.decode, extra)
+    local path = ok and type(decoded) == 'table' and decoded[1] or tostring(extra):match('"([^"]+)"') or extra
+    if type(path) ~= 'string' or path:find('%*') then return nil end -- (chemin avec * : pas lisible directement)
+    return path
+end
+
+--- Gyrophares des ressources de véhicules démarrées : leurs CARCOLS_FILE et VEHICLE_VARIATION_FILE
+--- (aucune copie nécessaire : lus directement dans la ressource du pack)
+local function resourcePacks()
+    local packs = {}
+    local self = GetCurrentResourceName()
+    for i = 0, GetNumResources() - 1 do
+        local res = GetResourceByFindIndex(i)
+        local state = res and GetResourceState(res)
+        if res and res ~= self and (state == 'started' or state == 'starting') then
+            local metas = {}
+            for n = 0, GetNumResourceMetadata(res, 'data_file') - 1 do
+                local kind = GetResourceMetadata(res, 'data_file', n)
+                if kind == 'CARCOLS_FILE' or kind == 'VEHICLE_VARIATION_FILE' then
+                    local path = dataFilePath(GetResourceMetadata(res, 'data_file_extra', n))
+                    if path and path:lower():match('%.meta$') then metas[#metas + 1] = { resource = res, path = path } end
+                end
+            end
+            if #metas > 0 then packs[#packs + 1] = { name = res, files = metas } end
+        end
+    end
+    return packs
+end
+
+local function discover()
+    local files = DLS.configFiles()
+    for _, pack in ipairs(resourcePacks()) do files.packs[#files.packs + 1] = pack end
+    local root = GetResourcePath(GetCurrentResourceName()) .. '/dls'
+    local known, knownPacks = {}, {}
+    for _, entry in ipairs(files.vehicles) do
+        known[(type(entry) == 'table' and (entry.file or entry.model) or entry):lower()] = true
+    end
+    for _, pack in ipairs(files.packs) do knownPacks[pack.name:lower()] = true end
+
+    local xml = listDir(root, false)
+    if not xml then
+        print('^3[rp_dls] Ce serveur ne permet pas de lister le dossier dls/ : les fichiers .xml doivent être '
+            .. 'ajoutés à Vehicles dans config.lua (nom du fichier, sans .xml).^0')
+        return files
+    end
+    table.sort(xml)
+    for _, name in ipairs(xml) do
+        local file = name:match('^(.+)%.[xX][mM][lL]$')
+        if file and not known[file:lower()] then
+            files.vehicles[#files.vehicles + 1] = file
+            known[file:lower()] = true
+        end
+    end
+    -- Packs : un dossier par pack dans dls/packs/ (ses .meta), ou des .meta posés directement dans dls/packs/
+    local packsRoot = root .. '/packs'
+    local loose = {}
+    for _, name in ipairs(listDir(packsRoot, false) or {}) do
+        if name:lower():match('%.meta$') then loose[#loose + 1] = 'dls/packs/' .. name end
+    end
+    if #loose > 0 then files.packs[#files.packs + 1] = { name = 'packs', files = loose } end
+    for _, dir in ipairs(listDir(packsRoot, true) or {}) do
+        if not knownPacks[dir:lower()] then
+            local metas = {}
+            for _, name in ipairs(listDir(packsRoot .. '/' .. dir, false) or {}) do
+                if name:lower():match('%.meta$') then metas[#metas + 1] = ('dls/packs/%s/%s'):format(dir, name) end
+            end
+            if #metas > 0 then
+                files.packs[#files.packs + 1] = { name = dir, files = metas }
+            else
+                print(('^3[rp_dls] dls/packs/%s/ : aucun fichier .meta (carcols.meta, carvariations.meta).^0'):format(dir))
+            end
+        end
+    end
+    return files
+end
+
+--- Ce que lit ce serveur : dossier de la ressource et config.lua (une autre copie de rp_dls dans resources/, ou
+--- une ressource pas redémarrée après avoir modifié config.lua, se voit tout de suite ici)
+local function describe(list)
+    local out = {}
+    for _, entry in ipairs(list or {}) do
+        out[#out + 1] = type(entry) == 'table' and (tostring(entry.model or '?') .. '>' .. tostring(entry.file or '')) or tostring(entry)
+    end
+    return #out > 0 and table.concat(out, ', ') or '(vide)'
+end
+
+local function load()
+    print(('[rp_dls] Ressource lue dans : %s'):format(GetResourcePath(GetCurrentResourceName())))
+    print(('[rp_dls] config.lua : Vehicles = %s ; Packs = %s'):format(describe(DLSConfig.Vehicles), describe(DLSConfig.Packs)))
+    local files = discover()
+    GlobalState.rpDlsFiles = files
+    DLS.load(files)
+end
+
+CreateThread(load)
+
+-- Ressource de véhicules démarrée après rp_dls (ou redémarrée) : ses gyrophares sont relus
+local reloadAt = nil
+AddEventHandler('onResourceStart', function(res)
+    if res == GetCurrentResourceName() or GetNumResourceMetadata(res, 'data_file') == 0 then return end
+    local due = reloadAt == nil
+    reloadAt = GetGameTimer() + 1000
+    if not due then return end
+    CreateThread(function()
+        while GetGameTimer() < reloadAt do Wait(200) end
+        reloadAt = nil
+        load()
+    end)
 end)
 
 local function vehicleFromNet(netId)

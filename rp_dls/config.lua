@@ -3,7 +3,10 @@
 ]]
 DLSConfig = {
     -- =====================================================================
-    -- VÉHICULES DLS : fichiers de DLS solo copiés tels quels dans dls/ (sans .xml ici). Les deux formats :
+    -- VÉHICULES DLS : fichiers de DLS solo copiés tels quels dans dls/. Le serveur trouve TOUT SEUL tous les
+    -- .xml de dls/ (s'il le permet : sinon un message le dit au démarrage et il faut les lister ici, nom du
+    -- fichier sans .xml). Les gyrophares (carcols.meta / carvariations.meta) sont lus TOUT SEULS dans les
+    -- ressources de véhicules démarrées (leurs data_file) : rien à copier. Les deux formats :
     --   DLS v1 : un fichier par modèle, nommé comme le modèle ('police' = dls/police.xml) ;
     --            forme longue { model = 'police2', file = 'police' } : un autre modèle sur le même fichier,
     --            native = { 3 } : stages affichés par les gyrophares d'origine du véhicule (son carcols) ;
@@ -15,8 +18,9 @@ DLSConfig = {
         'police',
         { model = 'police2', file = 'police' },
     },
-    -- Packs de véhicules : dossier dls/packs/<nom>/ contenant le carcols.meta et le carvariations.meta du pack
-    -- (copiés tels quels depuis la ressource du véhicule). Indispensable pour les fichiers DLS v2.
+    -- Packs de véhicules en plus (facultatif) : dossier dls/packs/<nom>/ contenant un carcols.meta et un
+    -- carvariations.meta, si la ressource du véhicule ne les déclare pas en data_file. Les dossiers de dls/packs/
+    -- sont aussi trouvés tout seuls (si le serveur permet de lister les dossiers).
     Packs = {},
     -- Groupes de motifs du Traffic Advisor : dls/trafficadvisory/<nom>.xml (balise <TAgroup> des véhicules)
     TrafficAdvisoryGroups = { 'default' },

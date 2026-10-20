@@ -259,7 +259,7 @@ local plans = {}
 
 --- { native, lights, modes = { noms } } pour ces modes actifs
 function DLSC.v2Plan(model, active)
-    local key = model.name .. '|' .. table.concat(active, ',')
+    local key = model.name .. '|' .. (DLS.version or 0) .. '|' .. table.concat(active, ',')
     if plans[key] then return plans[key] end
     local names = {}
     for _, index in ipairs(active) do names[#names + 1] = model.modes[index].name end

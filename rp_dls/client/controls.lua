@@ -471,6 +471,8 @@ CreateThread(function()
             if wasIn ~= 0 and model then onLeave(wasIn, model) end
             if v ~= 0 then onEnter(v, m) end
             wasIn = v
+        elseif v ~= 0 and m ~= model then
+            model = m -- fichiers DLS relus (ressource de véhicules démarrée) : nouveau modèle
         end
 
         if vehicle == 0 then

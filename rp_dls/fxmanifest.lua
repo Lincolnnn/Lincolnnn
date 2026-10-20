@@ -24,6 +24,7 @@ files {
     'dls/*.xml',                   -- fichiers de véhicules DLS (nom du fichier = nom du modèle)
     'dls/trafficadvisory/*.xml',   -- groupes de motifs du Traffic Advisor
     'dls/packs/*/*.meta',          -- packs de véhicules : carcols.meta et carvariations.meta
+    'dls/packs/*.meta',
 }
 
 shared_scripts {
