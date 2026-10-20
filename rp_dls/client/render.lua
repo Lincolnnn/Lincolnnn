@@ -267,7 +267,7 @@ local function drawVehicle(vehicle, plan, t, cam, budget, aspect, firstPersonOwn
                 DrawLightWithRange(at.x, at.y, at.z, L.r, L.g, L.b, Lens.Range or 0.7, Lens.Intensity or 10.0)
             end
 
-            if corona and not masked[n] and L.size > 0 and dist < R.Distance then
+            if corona and R.Coronas ~= false and not masked[n] and L.size > 0 and dist < R.Distance then
                 local onScreen, sx, sy = GetScreenCoordFromWorldCoord(world.x, world.y, world.z)
                 if onScreen then
                     local alpha = R.CoronaAlpha * L.glow

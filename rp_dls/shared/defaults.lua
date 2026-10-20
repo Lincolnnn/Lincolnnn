@@ -103,12 +103,15 @@ local DEFAULTS = {
         CoronaMin = 0.003,        -- taille à l'écran mini / maxi
         CoronaMax = 0.035,
         CoronaAlpha = 235,
+        -- Halos (points lumineux dessinés à l'écran) : false = aucun halo, seulement le boîtier de la rampe éclairé
+        -- (Lens) et la lumière sur la route / les murs
+        Coronas = false,
         CoronaCore = true,        -- point blanc au centre du halo
         FacingFade = true,        -- halo seulement du côté où l'ampoule éclaire
         HideOwnFirstPerson = true,-- pas de halos de son propre véhicule en vue intérieure
         Occlusion = true,         -- halo masqué quand l'ampoule est cachée (toit, carrosserie, boîtier, mur…)
         -- Boîtier de la rampe éclairé autour de chaque ampoule allumée (comme les gyrophares du jeu)
-        Lens = { Enabled = true, Range = 0.7, Intensity = 10.0, Push = 0.06 },
+        Lens = { Enabled = true, Range = 0.8, Intensity = 14.0, Push = 0.06 },
         MaxLensLights = 64,       -- lumières de boîtier par image au plus (tous véhicules)
         -- Gyrophare d'intensité >= WorkLightIntensity (takedown / alley DLS v2 : intensity 10) : projecteur
         WorkLightIntensity = 5,
