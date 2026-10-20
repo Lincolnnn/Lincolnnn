@@ -302,6 +302,8 @@ function DLS.load(files, packData)
 
     local count = 0
     local function register(modelName, model, file)
+        -- Stages par extras (modèle modifié : ampoules rattachées à des extras), voir ExtraStages
+        model.extraStages = (Config.ExtraStages or {})[modelName:lower()]
         DLS.models[GetHashKey(modelName)] = model
         count = count + 1
         if side ~= 'serveur' then return end
@@ -367,6 +369,17 @@ function DLS.load(files, packData)
         end
     end
     if side == 'serveur' then print(('[rp_dls] %d véhicule(s) DLS chargé(s).'):format(count)) end
+end
+
+--- Gyrophares cachés par les extras éteints à ce stage (ExtraStages) : { [n° de gyrophare] = true }
+function DLS.hiddenSirens(model, stage)
+    local hidden = {}
+    local es = model and model.extraStages
+    if not es then return hidden end
+    for _, id in ipairs((es.off or {})[stage] or {}) do
+        for _, n in ipairs((es.extras or {})[id] or {}) do hidden[n] = true end
+    end
+    return hidden
 end
 
 --- Modèle générique : véhicule d'urgence sans fichier DLS (gyrophares du jeu, sons et klaxon pris en charge)

@@ -83,6 +83,19 @@ local DEFAULTS = {
     },
     Command = 'dls',              -- /dls : panneau cliquable à la souris (déplacer, cliquer les boutons)
 
+    -- =====================================================================
+    -- STAGES PAR EXTRAS : véhicules dont le modèle a été modifié pour rattacher des ampoules à des extras
+    -- (voir README). Chaque stage est alors affiché par les VRAIS gyrophares du jeu ; les extras éteints cachent
+    -- les ampoules qui ne font pas partie du stage. extras = { [n° d'extra] = { gyrophares rattachés } },
+    -- off = { [stage] = { extras éteints } } (stage absent : tous les extras allumés).
+    -- =====================================================================
+    ExtraStages = {
+        nlspdsct20 = {
+            extras = { [1] = { 1, 2, 3, 4, 5, 10, 13, 14, 15, 16, 29, 30 }, [2] = { 11, 12, 21, 22, 31, 32 } },
+            off = { [1] = { 1, 2 }, [2] = { 2 } },
+        },
+    },
+
     -- Stationnement (DLS v1) : véhicule arrêté depuis Delay ms, gyrophares allumés, sans sirène -> motif de
     -- stationnement (côté gauche / côté droit en alternance, au rythme Bpm). En DLS v2 : modes « Park » du fichier.
     Park = { Enabled = true, Delay = 2000, Speed = 0.1, Bpm = 300 },

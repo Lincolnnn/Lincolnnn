@@ -257,16 +257,20 @@ end
 -- =========================================================================
 local plans = {}
 
---- { native, lights, modes = { noms } } pour ces modes actifs
-function DLSC.v2Plan(model, active)
-    local key = model.name .. '|' .. (DLS.version or 0) .. '|' .. table.concat(active, ',')
+--- { native, lights, modes = { noms } } pour ces modes actifs. `stage` : stage choisi (ExtraStages : ce stage
+--- est affiché par les gyrophares du jeu, les extras cachant les ampoules qui n'en font pas partie)
+function DLSC.v2Plan(model, active, stage)
+    local es = model.extraStages
+    local stageMode = es and stage and stage > 0 and model.roles.stages and model.roles.stages.modes[stage] or nil
+    local hidden = stageMode and DLS.hiddenSirens(model, stage) or {}
+    local key = model.name .. '|' .. (DLS.version or 0) .. '|' .. tostring(stageMode and stage) .. '|' .. table.concat(active, ',')
     if plans[key] then return plans[key] end
     local names = {}
     for _, index in ipairs(active) do names[#names + 1] = model.modes[index].name end
 
     local anyDefault = false
     for _, index in ipairs(active) do
-        if model.modes[index].default then anyDefault = true end
+        if model.modes[index].default or index == stageMode then anyDefault = true end
     end
     local base = model.base
     local plan = { native = false, modes = names }
@@ -285,10 +289,17 @@ function DLSC.v2Plan(model, active)
     local final = {}
     for i, L in pairs(base.lights) do
         local detail = L.rotate and L.rotation or L.flashiness
-        final[i] = { orig = detail.seq, seq = anyDefault and detail.seq or 0, mult = detail.mult, src = L }
+        if hidden[i] then
+            final[i] = { orig = 0, seq = 0, mult = detail.mult, src = L } -- (ampoule cachée par son extra)
+        else
+            final[i] = { orig = detail.seq, seq = anyDefault and detail.seq or 0, mult = detail.mult, src = L }
+        end
     end
     for _, index in ipairs(active) do
         local mode = model.modes[index]
+        if index == stageMode then
+            mode = { seqs = {} } -- stage par extras : gyrophares du jeu tels quels
+        end
         if mode.settings then
             if mode.settings.bpm then bpm, bpmChanged = mode.settings.bpm, true end
             for id, o in pairs(mode.settings.sirens) do

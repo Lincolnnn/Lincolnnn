@@ -159,6 +159,26 @@ est laissé au jeu.
 **Véhicules d'urgence sans fichier DLS** (`SirenControlNonDLS`) : gyrophares d'origine (un stage), tons, air
 horn, manuelle et scan pris en charge de la même façon.
 
+## Stages par extras (vraies ampoules sur chaque stage)
+
+Sur FiveM, seules les ampoules du **carcols** brillent vraiment (stage d'origine). Pour avoir de vraies ampoules
+sur **chaque** stage, le modèle du véhicule peut être modifié : les ampoules de chaque stage sont rattachées à des
+**extras**. `rp_dls` allume alors les gyrophares du jeu sur tous les stages et éteint les extras des ampoules qui
+ne font pas partie du stage (`ExtraStages` dans `config.lua`).
+
+`tools/add_extras.py` fait la modification sur l'export XML de CodeWalker (`.yft.xml`), sans toucher aux sommets :
+ajout des os `extra_N`, gyrophares placés sous leur extra (position inchangée), squelette réordonné (parent avant
+enfant), `BoneIDs` / `BoneTransforms` / nombre d'os mis à jour. `tools/verify_vertices.py` vérifie que chaque
+sommet garde le même os.
+
+```
+python3 tools/add_extras.py nlspdsct20.yft.xml sortie/nlspdsct20.yft.xml "1:1,2,3,4,5,10,13,14,15,16,29,30" "2:11,12,21,22,31,32"
+python3 tools/verify_vertices.py nlspdsct20.yft.xml sortie/nlspdsct20.yft.xml
+```
+
+À faire sur le `.yft` **et** le `_hi.yft`, puis CodeWalker : clic droit → Import XML pour regénérer les `.yft`.
+Les ampoules gardent le motif de clignotement du carcols (celui du stage 3).
+
 ## Limites (FiveM)
 
 - Sur un **stage dessiné**, les **PNJ ne se rangent pas** (le jeu ne le fait que gyrophares d'origine allumés) :

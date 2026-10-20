@@ -54,8 +54,29 @@ end
 -- =========================================================================
 -- APPLICATION
 -- =========================================================================
+--- Extras des stages par extras (ExtraStages) : posés par le client qui commande le véhicule (synchronisés par
+--- le jeu) ; gyrophares éteints ou véhicule jamais touché : tous les extras allumés (rampe complète)
+local function applyExtras(vehicle, model, state)
+    local es = model.extraStages
+    if not es or not DLSC.owns(vehicle) then return end
+    local s = state and not state.bo and state.s or 0
+    local off = {}
+    for _, id in ipairs((es.off or {})[s] or {}) do off[id] = true end
+    for id in pairs(es.extras or {}) do
+        if DLSC.bool(DoesExtraExist(vehicle, id)) then
+            local on = not off[id]
+            if DLSC.bool(IsVehicleExtraTurnedOn(vehicle, id)) ~= on then
+                -- (sans ça, changer un extra répare le véhicule)
+                if SetVehicleAutoRepairDisabled then SetVehicleAutoRepairDisabled(vehicle, true) end
+                SetVehicleExtra(vehicle, id, not on)
+            end
+        end
+    end
+end
+
 local function apply(vehicle, entry, state)
     local model = entry.model
+    applyExtras(vehicle, model, state)
     if not state then
         -- Jamais touché par un joueur : laissé au jeu
         stopAll(entry)
@@ -69,7 +90,7 @@ local function apply(vehicle, entry, state)
     if model.v2 then
         -- DLS v2 : modes choisis + modes déclenchés (vitesse, portières, clignotants…) et sons actifs
         local active, audio = DLSC.v2Active(vehicle, model, state)
-        plan = DLSC.v2Plan(model, active)
+        plan = DLSC.v2Plan(model, active, not state.bo and state.s or 0)
         sounds = audio
     else
         plan = DLSC.plan(model, state, vehicle, DLSC.parked(vehicle, model, state))

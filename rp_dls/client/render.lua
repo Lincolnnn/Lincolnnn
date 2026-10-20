@@ -74,6 +74,12 @@ function DLSC.plan(model, state, vehicle, park)
     if plans[key] then return plans[key] end
 
     local plan = { native = false }
+    -- Stages par extras (ExtraStages) : chaque stage = gyrophares du jeu, les extras cachent le reste
+    if model.extraStages and s > 0 and ta == 0 and not sb and not parkSrc then
+        plan.native = true
+        plans[key] = plan
+        return plan
+    end
     local base
     if parkSrc then
         local list = bonesOf(vehicle)
