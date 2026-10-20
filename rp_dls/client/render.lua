@@ -204,7 +204,7 @@ local function clamp(v, a, b) return v < a and a or (v > b and b or v) end
 
 local function drawVehicle(vehicle, plan, t, cam, budget, aspect, firstPersonOwn)
     local list = bonesOf(vehicle)
-    local right, forward, up, pos = GetEntityMatrix(vehicle)
+    local forward, right, up, pos = GetEntityMatrix(vehicle) -- (ordre de la native : avant, droite, haut, position)
     local corona = not firstPersonOwn and not hidden[vehicle]
     for n, L in pairs(plan.lights) do
         local off = list[n]
@@ -281,7 +281,7 @@ end
 
 local function drawScene(vehicle, state, cam, budget, aspect)
     local S = Config.Scene or {}
-    local right, forward, up, pos = GetEntityMatrix(vehicle)
+    local forward, right, up, pos = GetEntityMatrix(vehicle) -- (ordre de la native : avant, droite, haut, position)
     local top = topOf(vehicle)
     local function spot(lx, ly, dx, dy)
         if budget.left <= 0 then return end
