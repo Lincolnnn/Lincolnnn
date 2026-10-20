@@ -166,32 +166,72 @@ local function lit(L, t)
 end
 
 -- =========================================================================
--- VISIBILITÉ : véhicule caché par un mur / un bâtiment (halos masqués), vérifiée 5 fois par seconde
+-- VISIBILITÉ : chaque ampoule cachée (toit, carrosserie, boîtier de la rampe, mur…) n'a pas de halo ; vérifiée
+-- par des tests de ligne de vue caméra -> ampoule, quelques-uns à chaque passage (10 fois par seconde)
 -- =========================================================================
-local hidden = {}  -- [véhicule] = true
-local probes = {}  -- [véhicule] = test de ligne de vue en cours
+local hidden = {}  -- [véhicule] = { [n° d'ampoule] = true }
+local probes = {}  -- tests en cours : { handle, vehicle, n }
+local cursor = {}  -- [véhicule] = dernière ampoule testée (tests à tour de rôle)
+local PROBES_PER_PASS = 24
+
+local function bulbWorld(vehicle, off)
+    return GetOffsetFromEntityInWorldCoords(vehicle, off.x, off.y, off.z)
+end
 
 CreateThread(function()
     while true do
         if R.Occlusion and next(DLSC.active) then
             local cam = GetFinalRenderedCamCoord()
-            for vehicle in pairs(probes) do
-                local status, hit = GetShapeTestResult(probes[vehicle])
-                if status ~= 1 then
-                    hidden[vehicle] = status == 2 and (hit == 1 or hit == true) or nil
-                    probes[vehicle] = nil
+            -- Résultats des tests précédents
+            local pending = {}
+            for _, p in ipairs(probes) do
+                local status, hit = GetShapeTestResult(p.handle)
+                if status == 1 then
+                    pending[#pending + 1] = p
+                elseif DoesEntityExist(p.vehicle) then
+                    hidden[p.vehicle] = hidden[p.vehicle] or {}
+                    hidden[p.vehicle][p.n] = status == 2 and (hit == 1 or hit == true) or nil
                 end
             end
+            probes = pending
+            -- Nouveaux tests, à tour de rôle sur les ampoules de chaque véhicule
+            local budget = PROBES_PER_PASS - #probes
             for vehicle, entry in pairs(DLSC.active) do
-                if entry.plan.lights and not probes[vehicle] and DoesEntityExist(vehicle) then
-                    local top = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, 0.0, 1.0)
-                    -- monde et objets (1 + 16), sans le véhicule lui-même
-                    probes[vehicle] = StartShapeTestLosProbe(cam.x, cam.y, cam.z, top.x, top.y, top.z, 17, vehicle, 7)
+                if budget <= 0 then break end
+                if entry.plan.lights and DoesEntityExist(vehicle) then
+                    local list = bonesOf(vehicle)
+                    local n = cursor[vehicle]
+                    if n ~= nil and entry.plan.lights[n] == nil then n = nil end -- (stage changé depuis)
+                    for _ = 1, DLS.MAX_SIRENS do
+                        if budget <= 0 then break end
+                        n = next(entry.plan.lights, n)
+                        if n == nil then n = next(entry.plan.lights) end
+                        local off = n and list[n]
+                        if off then
+                            local at = bulbWorld(vehicle, off)
+                            local back = cam - at
+                            local len = #back
+                            if len > 0.5 then
+                                -- (arrêt 25 cm avant l'ampoule : son propre verre ne la cache pas)
+                                local stop = at + back * (0.25 / len)
+                                probes[#probes + 1] = {
+                                    handle = StartShapeTestLosProbe(cam.x, cam.y, cam.z, stop.x, stop.y, stop.z, 19, 0, 7),
+                                    vehicle = vehicle, n = n,
+                                }
+                                budget = budget - 1
+                            end
+                        end
+                        if n == cursor[vehicle] then break end
+                    end
+                    cursor[vehicle] = n
                 end
             end
-            Wait(200)
+            for vehicle in pairs(hidden) do
+                if not DLSC.active[vehicle] then hidden[vehicle], cursor[vehicle] = nil, nil end
+            end
+            Wait(100)
         else
-            hidden, probes = {}, {}
+            hidden, probes, cursor = {}, {}, {}
             Wait(500)
         end
     end
@@ -205,7 +245,9 @@ local function clamp(v, a, b) return v < a and a or (v > b and b or v) end
 local function drawVehicle(vehicle, plan, t, cam, budget, aspect, firstPersonOwn)
     local list = bonesOf(vehicle)
     local forward, right, up, pos = GetEntityMatrix(vehicle) -- (ordre de la native : avant, droite, haut, position)
-    local corona = not firstPersonOwn and not hidden[vehicle]
+    local corona = not firstPersonOwn
+    local masked = hidden[vehicle] or {}
+    local Lens = R.Lens or {}
     for n, L in pairs(plan.lights) do
         local off = list[n]
         if off and lit(L, t) then
@@ -217,13 +259,22 @@ local function drawVehicle(vehicle, plan, t, cam, budget, aspect, firstPersonOwn
             local toCam = cam - world
             local dist = #toCam
 
-            if corona and L.size > 0 and dist < R.Distance then
+            -- Le boîtier de la rampe s'éclaire autour de l'ampoule (petite lumière au cœur du verre), comme les
+            -- gyrophares du jeu, même quand le halo n'est pas visible
+            if Lens.Enabled ~= false and budget.lens > 0 and dist < R.LightDistance then
+                budget.lens = budget.lens - 1
+                local at = world + dir * (Lens.Push or 0.06)
+                DrawLightWithRange(at.x, at.y, at.z, L.r, L.g, L.b, Lens.Range or 0.7, Lens.Intensity or 10.0)
+            end
+
+            if corona and not masked[n] and L.size > 0 and dist < R.Distance then
                 local onScreen, sx, sy = GetScreenCoordFromWorldCoord(world.x, world.y, world.z)
                 if onScreen then
                     local alpha = R.CoronaAlpha * L.glow
                     if R.FacingFade and dist > 0.01 then
+                        -- Halo seulement du côté où l'ampoule éclaire (rien de profil ni de dos)
                         local facing = (dir.x * toCam.x + dir.y * toCam.y + dir.z * toCam.z) / dist
-                        alpha = alpha * clamp((facing + 0.5) / 0.8, 0.12, 1.0)
+                        alpha = alpha * clamp(facing / 0.35, 0.0, 1.0)
                     end
                     if alpha > 4 then
                         local h = clamp(R.CoronaSize * L.size * 10.0 / math.max(dist, 0.5), R.CoronaMin, R.CoronaMax)
@@ -326,7 +377,7 @@ CreateThread(function()
             if t == 0 then t = GetGameTimer() end
             local cam = GetFinalRenderedCamCoord()
             local aspect = GetAspectRatio(false)
-            local budget = { left = R.MaxLights }
+            local budget = { left = R.MaxLights, lens = R.MaxLensLights or 64 }
             local own = GetVehiclePedIsIn(PlayerPedId(), false)
             local firstPerson = R.HideOwnFirstPerson and GetFollowVehicleCamViewMode() == 4
             for vehicle, entry in pairs(DLSC.active) do

@@ -99,14 +99,17 @@ local DEFAULTS = {
         LightRange = 1.0,         -- × lightFalloffMax du XML (portée de l'éclairage)
         LightIntensity = 6.0,     -- × intensity du XML
         LightPush = 1.2,          -- m : éclairage décalé devant l'ampoule (n'éblouit pas le toit)
-        CoronaSize = 0.055,       -- taille à l'écran d'un halo (× corona size du XML), à 10 m
-        CoronaMin = 0.006,        -- taille à l'écran mini / maxi
-        CoronaMax = 0.09,
+        CoronaSize = 0.012,       -- taille à l'écran d'un halo (× corona size du XML), à 10 m
+        CoronaMin = 0.003,        -- taille à l'écran mini / maxi
+        CoronaMax = 0.035,
         CoronaAlpha = 235,
         CoronaCore = true,        -- point blanc au centre du halo
-        FacingFade = true,        -- halo atténué quand l'ampoule regarde de l'autre côté
+        FacingFade = true,        -- halo seulement du côté où l'ampoule éclaire
         HideOwnFirstPerson = true,-- pas de halos de son propre véhicule en vue intérieure
-        Occlusion = true,         -- halos masqués quand le véhicule est caché (mur, bâtiment)
+        Occlusion = true,         -- halo masqué quand l'ampoule est cachée (toit, carrosserie, boîtier, mur…)
+        -- Boîtier de la rampe éclairé autour de chaque ampoule allumée (comme les gyrophares du jeu)
+        Lens = { Enabled = true, Range = 0.7, Intensity = 10.0, Push = 0.06 },
+        MaxLensLights = 64,       -- lumières de boîtier par image au plus (tous véhicules)
         -- Gyrophare d'intensité >= WorkLightIntensity (takedown / alley DLS v2 : intensity 10) : projecteur
         WorkLightIntensity = 5,
         Work = { Distance = 45.0, Brightness = 2.0, Hardness = 2.0, Radius = 25.0, Falloff = 40.0, Tilt = -0.12 },
