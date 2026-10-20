@@ -15,13 +15,14 @@ DLSConfig = {
     --            pack dans Packs (gyrophares du carcols, sur lesquels travaillent les modes DLS v2).
     -- =====================================================================
     Vehicles = {
-        'police',
+        'police',                                  -- exemple DLS v1 (dls/police.xml)
         { model = 'police2', file = 'police' },
+        'nlspdumk', 'nlspdscouts', 'nlspdmpower',  -- pack NLSPD (DLS v2) : dls/nlspdumk.xml…
     },
     -- Packs de véhicules en plus (facultatif) : dossier dls/packs/<nom>/ contenant un carcols.meta et un
     -- carvariations.meta, si la ressource du véhicule ne les déclare pas en data_file. Les dossiers de dls/packs/
     -- sont aussi trouvés tout seuls (si le serveur permet de lister les dossiers).
-    Packs = {},
+    Packs = { 'nlspd' },                           -- dls/packs/nlspd/ (carcols.meta, carvariations.meta)
     -- Groupes de motifs du Traffic Advisor : dls/trafficadvisory/<nom>.xml (balise <TAgroup> des véhicules)
     TrafficAdvisoryGroups = { 'default' },
 

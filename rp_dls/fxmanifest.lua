@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_dls'
 author 'Lincolnnn'
 description 'DLS pour FiveM : stages de gyrophares des véhicules DLS, Traffic Advisor, sirènes - synchronisé, standalone'
-version '2.1.2'
+version '2.1.3'
 
 ui_page 'html/index.html' -- panneau de commande (stages, TA, sirène)
 
@@ -28,6 +28,7 @@ files {
 
 shared_scripts {
     'config.lua',
+    'shared/defaults.lua', -- réglages par défaut (ce qui manque dans config.lua, ou tout s'il est illisible)
     'shared/xml.lua',   -- lecteur XML
     'shared/dls.lua',   -- lecture des fichiers DLS (v1), packs (carcols / carvariations)
     'shared/dlsv2.lua', -- lecture des fichiers DLS v2
