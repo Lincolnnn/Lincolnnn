@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    RP PlateColors - couleurs du texte (lettres et chiffres) des plaques d'immatriculation
+    ======================================================================================
+    Format XML (comme un .ymt exporté par CodeWalker / OpenIV) : le jeu lit indifféremment le XML ou le binaire.
+
+    Seule la section <VehiclePlates> est utile ici. Les 6 plaques du jeu de base sont recopiées DANS LE MÊME ORDRE
+    (0 à 5) : textures d'origine du jeu (vehshare), seule la couleur du texte change.
+
+    COULEURS : format 0xAARRGGBB (AA = opacité, FF = opaque ; RR GG BB = rouge, vert, bleu en hexadécimal)
+      0xFF000000 noir        0xFFFFFFFF blanc        0xFFC8102E rouge        0xFF0A2A8C bleu foncé
+      0xFFFFC800 jaune       0xFF007A33 vert         0xFFFF6A00 orange       0xFF6B2FA3 violet
+    Le générateur (outil/generateur.html) fabrique ce fichier avec un sélecteur de couleur.
+
+    <FontColor>               couleur des lettres / chiffres
+    <FontOutlineColor>        couleur du contour (si <IsFontOutlineEnabled value="true" />)
+    <FontOutlineMinMaxDepth>  épaisseur du contour (x = min, y = max, 0.0 à 1.0)
+    <FontExtents>, <MaxLettersOnPlate> : position et nombre de caractères, ne pas modifier.
+
+    Les valeurs <FontColor> ci-dessous servent aussi pour la méthode garantie (README) : recopiez-les dans le
+    carcols.ymt de update.rpf.
+-->
+<CVehicleModelInfoVarGlobal>
+  <VehiclePlates>
+    <Textures>
+      <!-- 0 : blanche, écriture cursive "San Andreas" -->
+      <Item>
+        <TextureSetName>rp_plate01</TextureSetName>
+        <DiffuseMapName>plate01</DiffuseMapName>
+        <NormalMapName>plate01_n</NormalMapName>
+        <FontExtents x="0.043500" y="0.636000" z="0.957500" w="0.787000" />
+        <MaxLettersOnPlate x="8.000000" y="1.000000" />
+        <FontColor value="0xFF000000" />
+        <FontOutlineColor value="0xFFFFFFFF" />
+        <IsFontOutlineEnabled value="false" />
+        <FontOutlineMinMaxDepth x="0.000000" y="0.000000" />
+      </Item>
+      <!-- 1 : fond noir -->
+      <Item>
+        <TextureSetName>rp_plate02</TextureSetName>
+        <DiffuseMapName>plate02</DiffuseMapName>
+        <NormalMapName>plate02_n</NormalMapName>
+        <FontExtents x="0.043500" y="0.636000" z="0.957500" w="0.787000" />
+        <MaxLettersOnPlate x="8.000000" y="1.000000" />
+        <FontColor value="0xFFFFFFFF" />
+        <FontOutlineColor value="0xFF000000" />
+        <IsFontOutlineEnabled value="false" />
+        <FontOutlineMinMaxDepth x="0.000000" y="0.000000" />
+      </Item>
+      <!-- 2 : fond bleu -->
+      <Item>
+        <TextureSetName>rp_plate03</TextureSetName>
+        <DiffuseMapName>plate03</DiffuseMapName>
+        <NormalMapName>plate03_n</NormalMapName>
+        <FontExtents x="0.043500" y="0.636000" z="0.957500" w="0.787000" />
+        <MaxLettersOnPlate x="8.000000" y="1.000000" />
+        <FontColor value="0xFFFFFFFF" />
+        <FontOutlineColor value="0xFF000000" />
+        <IsFontOutlineEnabled value="false" />
+        <FontOutlineMinMaxDepth x="0.000000" y="0.000000" />
+      </Item>
+      <!-- 3 : blanche, sobre (plaque la plus courante) -->
+      <Item>
+        <TextureSetName>rp_plate04</TextureSetName>
+        <DiffuseMapName>plate04</DiffuseMapName>
+        <NormalMapName>plate04_n</NormalMapName>
+        <FontExtents x="0.043500" y="0.636000" z="0.957500" w="0.787000" />
+        <MaxLettersOnPlate x="8.000000" y="1.000000" />
+        <FontColor value="0xFF000000" />
+        <FontOutlineColor value="0xFFFFFFFF" />
+        <IsFontOutlineEnabled value="false" />
+        <FontOutlineMinMaxDepth x="0.000000" y="0.000000" />
+      </Item>
+      <!-- 4 : blanche "Exempt" (véhicules de service) -->
+      <Item>
+        <TextureSetName>rp_plate05</TextureSetName>
+        <DiffuseMapName>plate05</DiffuseMapName>
+        <NormalMapName>plate05_n</NormalMapName>
+        <FontExtents x="0.043500" y="0.636000" z="0.957500" w="0.787000" />
+        <MaxLettersOnPlate x="8.000000" y="1.000000" />
+        <FontColor value="0xFFC8102E" />
+        <FontOutlineColor value="0xFFFFFFFF" />
+        <IsFontOutlineEnabled value="false" />
+        <FontOutlineMinMaxDepth x="0.000000" y="0.000000" />
+      </Item>
+      <!-- 5 : North Yankton -->
+      <Item>
+        <TextureSetName>rp_yankton_plate</TextureSetName>
+        <DiffuseMapName>yankton_plate</DiffuseMapName>
+        <NormalMapName>yankton_plate_n</NormalMapName>
+        <FontExtents x="0.043500" y="0.636000" z="0.957500" w="0.787000" />
+        <MaxLettersOnPlate x="8.000000" y="1.000000" />
+        <FontColor value="0xFF0A2A8C" />
+        <FontOutlineColor value="0xFFFFFFFF" />
+        <IsFontOutlineEnabled value="false" />
+        <FontOutlineMinMaxDepth x="0.000000" y="0.000000" />
+      </Item>
+    </Textures>
+  </VehiclePlates>
+</CVehicleModelInfoVarGlobal>

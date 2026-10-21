@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Générateur carcols plaques</title>
+<style>
+    :root {
+        --bg: #f4f5f7; --panel: #ffffff; --text: #1b1d22; --muted: #646b78; --line: #dfe2e8;
+        --accent: #2f6fde; --code: #f0f2f5;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root { --bg: #111317; --panel: #1a1d23; --text: #e8eaee; --muted: #9aa1ad; --line: #2b2f37;
+                --accent: #5b8ff0; --code: #14161b; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    p.sub { margin: 0 0 20px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+    .card h2 { font-size: 14px; margin: 0 0 10px; display: flex; justify-content: space-between; }
+    .card h2 span { color: var(--muted); font-weight: 400; }
+    .plate {
+        height: 64px; border-radius: 6px; display: grid; place-items: center; margin-bottom: 12px;
+        font: 700 30px/1 "Courier New", monospace; letter-spacing: 3px; border: 2px solid rgba(0,0,0,.25);
+    }
+    .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .row label { flex: 1; color: var(--muted); font-size: 13px; }
+    .row code { font-size: 12px; background: var(--code); padding: 2px 6px; border-radius: 4px; }
+    input[type=color] { width: 40px; height: 28px; border: 1px solid var(--line); border-radius: 4px; padding: 0; background: none; }
+    input[type=range] { width: 110px; }
+    .out { margin-top: 22px; }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    button {
+        font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+        border: 1px solid var(--line); background: var(--panel); color: var(--text);
+    }
+    button.on, button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    pre {
+        background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+        overflow: auto; max-height: 420px; font-size: 12px; margin: 0;
+    }
+    .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+</style>
+</head>
+<body>
+<main>
+    <h1>Couleur du texte des plaques</h1>
+    <p class="sub">Choisissez la couleur des lettres et chiffres de chaque plaque, puis copiez le résultat
+        dans <code>rp_platecolors/data/carcols.ymt</code> ou dans le carcols.ymt de update.rpf (méthode garantie).</p>
+
+    <div class="grid" id="plates"></div>
+
+    <div class="out">
+        <div class="tabs">
+            <button data-mode="file" class="on">Fichier complet (data/carcols.ymt)</button>
+            <button data-mode="lines">Lignes FontColor (update.rpf)</button>
+            <button class="primary" id="copy">Copier</button>
+        </div>
+        <pre id="code"></pre>
+        <p class="hint" id="hint"></p>
+    </div>
+</main>
+
+<script>
+    // Plaques du jeu de base, même ordre que l'index du jeu (0 à 5). bg = aperçu approximatif du fond.
+    const PLATES = [
+        { tex: 'plate01',       name: 'Blanche cursive',  bg: '#f2f2ee', text: '#000000' },
+        { tex: 'plate02',       name: 'Fond noir',        bg: '#151515', text: '#ffffff' },
+        { tex: 'plate03',       name: 'Fond bleu',        bg: '#1d3f8f', text: '#ffffff' },
+        { tex: 'plate04',       name: 'Blanche sobre',    bg: '#f4f4f4', text: '#000000' },
+        { tex: 'plate05',       name: 'Blanche Exempt',   bg: '#efefef', text: '#c8102e' },
+        { tex: 'yankton_plate', name: 'North Yankton',    bg: '#e9e6dc', text: '#0a2a8c' },
+    ];
+    PLATES.forEach(p => Object.assign(p, { outline: false, outlineColor: '#ffffff', depth: 0.3 }));
+
+    let mode = 'file';
+    const $ = sel => document.querySelector(sel);
+
+    // #rrggbb -> 0xFFRRGGBB (format ARGB du jeu)
+    const argb = hex => '0xFF' + hex.slice(1).toUpperCase();
+
+    function render() {
+        $('#plates').innerHTML = PLATES.map((p, i) => `
+            <div class="card">
+                <h2>${p.name} <span>index ${i} · ${p.tex}</span></h2>
+                <div class="plate" style="background:${p.bg}">12ABC345</div>
+                <div class="row"><label>Texte</label><code></code>
+                    <input type="color" data-i="${i}" data-k="text" value="${p.text}"></div>
+                <div class="row"><label><input type="checkbox" data-i="${i}" data-k="outline" ${p.outline ? 'checked' : ''}> Contour</label>
+                    <input type="color" data-i="${i}" data-k="outlineColor" value="${p.outlineColor}"></div>
+                <div class="row"><label>Épaisseur du contour</label>
+                    <input type="range" min="0" max="1" step="0.05" data-i="${i}" data-k="depth" value="${p.depth}"></div>
+            </div>`).join('');
+        PLATES.forEach((_, i) => preview(i));
+        output();
+    }
+
+    // Aperçu d'une carte mis à jour sur place (le sélecteur de couleur reste ouvert)
+    function preview(i) {
+        const p = PLATES[i], card = $('#plates').children[i], plate = card.querySelector('.plate');
+        plate.style.color = p.text;
+        plate.style.webkitTextStroke = p.outline ? `${(p.depth * 3).toFixed(1)}px ${p.outlineColor}` : '0';
+        card.querySelector('code').textContent = argb(p.text);
+    }
+
+    function item(p, i) {
+        const d = p.outline ? p.depth.toFixed(6) : '0.000000';
+        return `      <!-- ${i} : ${p.name} -->
+      <Item>
+        <TextureSetName>rp_${p.tex}</TextureSetName>
+        <DiffuseMapName>${p.tex}</DiffuseMapName>
+        <NormalMapName>${p.tex}_n</NormalMapName>
+        <FontExtents x="0.043500" y="0.636000" z="0.957500" w="0.787000" />
+        <MaxLettersOnPlate x="8.000000" y="1.000000" />
+        <FontColor value="${argb(p.text)}" />
+        <FontOutlineColor value="${argb(p.outlineColor)}" />
+        <IsFontOutlineEnabled value="${p.outline}" />
+        <FontOutlineMinMaxDepth x="0.000000" y="${d}" />
+      </Item>`;
+    }
+
+    function output() {
+        let code, hint;
+        if (mode === 'file') {
+            code = `<?xml version="1.0" encoding="UTF-8"?>
+<CVehicleModelInfoVarGlobal>
+  <VehiclePlates>
+    <Textures>
+${PLATES.map(item).join('\n')}
+    </Textures>
+  </VehiclePlates>
+</CVehicleModelInfoVarGlobal>
+`;
+            hint = 'Remplacez tout le contenu de rp_platecolors/data/carcols.ymt, puis redémarrez la ressource et reconnectez-vous.';
+        } else {
+            code = PLATES.map((p, i) =>
+                `<!-- ${i} : <DiffuseMapName>${p.tex}</DiffuseMapName> -->\n` +
+                `<FontColor value="${argb(p.text)}" />\n` +
+                `<FontOutlineColor value="${argb(p.outlineColor)}" />\n` +
+                `<IsFontOutlineEnabled value="${p.outline}" />`).join('\n\n');
+            hint = 'Dans le carcols.ymt exporté de update.rpf, section <VehiclePlates> : repérez chaque plaque par son '
+                 + '<DiffuseMapName> et remplacez seulement ces lignes. Ne touchez pas au reste.';
+        }
+        $('#code').textContent = code;
+        $('#hint').textContent = hint;
+    }
+
+    $('#plates').addEventListener('input', e => {
+        const { i, k } = e.target.dataset;
+        if (i === undefined) return;
+        const p = PLATES[i];
+        p[k] = e.target.type === 'checkbox' ? e.target.checked
+             : e.target.type === 'range' ? parseFloat(e.target.value) : e.target.value;
+        preview(i);
+        output();
+    });
+
+    document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+        mode = b.dataset.mode;
+        document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b));
+        output();
+    }));
+
+    $('#copy').addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText($('#code').textContent);
+            $('#copy').textContent = 'Copié ✓';
+        } catch {
+            const r = document.createRange(); r.selectNodeContents($('#code'));
+            getSelection().removeAllRanges(); getSelection().addRange(r);
+            $('#copy').textContent = 'Sélectionné : Ctrl+C';
+        }
+        setTimeout(() => $('#copy').textContent = 'Copier', 1500);
+    });
+
+    render();
+</script>
+</body>
+</html>
