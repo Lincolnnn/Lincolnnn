@@ -29,7 +29,7 @@ jeu (ni leurs véhicules), plus d'indice de recherche, PNJ qui ignorent les joue
 de 0.0 à 3.0.
 
 Et **RP PlateColors** dans [`rp_platecolors/`](rp_platecolors/README.md) : couleur du texte des plaques
-d'immatriculation via `carcols.ymt`, avec un générateur de couleurs (page HTML).
+d'immatriculation sans carcols (texte du jeu masqué et redessiné en couleur par type de plaque), éditeur en jeu.
 
 Et **RP Flares** dans [`rp_flares/`](rp_flares/README.md) : fusées de détresse posées au sol (touche G, fusée en main),
 retirées avec l'œil, lumière rouge renforcée la nuit.

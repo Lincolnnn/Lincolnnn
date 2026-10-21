@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Plaques</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="pc" class="pc hidden" role="dialog" aria-label="Réglage des plaques">
+        <header class="pc-head">
+            <div class="pc-title">
+                <span class="pc-tag">PLAQUES</span>
+                <div>
+                    <div class="pc-name" id="pcName"></div>
+                    <div class="pc-sub" id="pcSub"></div>
+                </div>
+            </div>
+            <button class="pc-close" id="pcClose" title="Fermer (Échap)">✕</button>
+        </header>
+
+        <div class="pc-seg pc-tabs" id="pcTabs">
+            <button class="pc-seg-btn active" data-tab="pos">Position</button>
+            <button class="pc-seg-btn" data-tab="colors">Couleurs</button>
+        </div>
+
+        <!-- POSITION : texte placé sur la plaque, pour ce modèle -->
+        <section class="pc-section" data-panel="pos">
+            <div class="pc-field">
+                <div class="pc-seg" id="pcSides">
+                    <button class="pc-seg-btn" data-side="rear">Arrière</button>
+                    <button class="pc-seg-btn" data-side="front">Avant</button>
+                </div>
+                <label class="pc-check"><input type="checkbox" id="pcOn"> Plaque de ce côté</label>
+            </div>
+            <div class="pc-rows" id="pcRows"></div>
+            <div class="pc-actions">
+                <button class="pc-btn" id="pcAuto" title="Revenir à l'estimation automatique (non enregistré)">Estimation auto</button>
+                <button class="pc-btn danger hidden" id="pcReset" title="Supprimer le réglage enregistré pour ce modèle">Supprimer</button>
+                <button class="pc-btn primary" id="pcSave">Enregistrer</button>
+            </div>
+            <div class="pc-hint">
+                <kbd>←</kbd><kbd>→</kbd> gauche / droite · <kbd>↑</kbd><kbd>↓</kbd> hauteur · <kbd>PgUp</kbd><kbd>PgDn</kbd> avant / arrière
+                · <kbd>R</kbd><kbd>F</kbd> inclinaison · <kbd>Q</kbd><kbd>E</kbd> rotation · <kbd>+</kbd><kbd>−</kbd> taille · <kbd>Maj</kbd> ×5
+            </div>
+        </section>
+
+        <!-- COULEURS : comme <FontColor> d'un carcols, par type de plaque -->
+        <section class="pc-section hidden" data-panel="colors">
+            <div class="pc-legend">Couleur du texte par type de plaque</div>
+            <div class="pc-colors" id="pcColors"></div>
+            <div class="pc-actions">
+                <button class="pc-btn" id="pcColorsReset" title="Supprimer les couleurs enregistrées et reprendre celles de config.lua">Rétablir config.lua</button>
+                <button class="pc-btn primary" id="pcColorsSave">Enregistrer les couleurs</button>
+            </div>
+        </section>
+
+        <footer class="pc-foot">
+            <span id="pcMsg" class="pc-msg"></span>
+            <span><kbd>Tab</kbd> regarder autour · <kbd>Échap</kbd> fermer</span>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

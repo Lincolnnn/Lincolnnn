@@ -1,132 +1,142 @@
 # RP PlateColors (FiveM)
 
-Couleur du **texte des plaques d'immatriculation** (lettres et chiffres) via **`carcols.ymt`**, section
-`<VehiclePlates>` → `<FontColor>`. **100% standalone** (sans ESX / QBCore / vRP).
+Couleur du **texte des plaques d'immatriculation** (lettres et chiffres), **sans carcols.ymt**. Même idée qu'un
+`<VehiclePlates>` / `<FontColor>` de carcols : **une couleur de texte (et un contour) par type de plaque**, réglée en
+Lua ou dans un **éditeur en jeu**. **100% standalone** (sans ESX / QBCore / vRP), interface NUI en HTML/CSS/Vanilla JS.
 
 ```
 rp_platecolors/
-├── fxmanifest.lua        data_file 'CARCOLS_FILE' 'data/carcols.ymt'
-├── config.lua
-├── client.lua            détection, application des couleurs, commandes de test
-├── data/carcols.ymt      ← les couleurs se règlent ici (<FontColor>)
-└── outil/generateur.html ← page pour choisir les couleurs et générer le XML (s'ouvre dans un navigateur)
+├── fxmanifest.lua
+├── config.lua            couleurs par type de plaque, tailles, distances, permission
+├── client/plates.lua     police du jeu masquée, texte redessiné en couleur, placement automatique
+├── client/editor.lua     éditeur /plaqueedit
+├── server/server.lua     enregistrement des réglages (data/plates.json), envoi à tous les joueurs
+├── html/                 panneau de l'éditeur (NUI)
+├── assets/               police des plaques (atlas), textures de remplacement
+├── data/plates.json      réglages faits en jeu (positions par modèle, couleurs)
+└── outil/police.py       régénère assets/ (autre police, voir plus bas)
 ```
 
-## ⚠️ À savoir avant tout
+## Pourquoi pas un carcols.ymt ?
 
-La couleur du texte d'une plaque ne vient **pas** d'une texture : elle est écrite dans la section
-`<VehiclePlates>` du **`carcols.ymt` principal du jeu** (`update.rpf/x64/data/carcols.ymt`).
+La couleur du texte est un paramètre du shader des plaques, lu **uniquement** dans le `carcols.ymt` principal du jeu
+(`update.rpf`). Un `carcols` chargé par une ressource est traité comme un pack DLC, et le jeu n'y lit pas les plaques :
+c'est pour ça que la v1 ne changeait rien. Aucune native ne modifie cette couleur.
 
-Un `carcols` chargé par une ressource (`data_file 'CARCOLS_FILE'`) est traité comme un **pack DLC** : le jeu y lit
-les kits de tuning, les gyrophares, les couleurs de vitres… Mais d'après la documentation de GTA V (GTAMods) et les
-retours de la communauté FiveM, **il ne prend pas les plaques d'un pack DLC** (la texture s'affiche, mais la couleur
-du texte reste celle d'origine). FiveM ne propose pas de directive pour remplacer le `carcols.ymt` principal depuis le
-serveur.
+## Comment fait le script
 
-D'où **deux méthodes** :
+1. La **police des plaques du jeu** (`vehshare` → `vehicle_generic_plate_font`, même méthode que les scripts de
+   plaques personnalisées) est remplacée par une **texture vide** : le jeu n'écrit plus de caractères. Le fond de la
+   plaque (texture, reflets, saleté) reste celui du jeu.
+2. Le **texte réel de la plaque** (`GET_VEHICLE_NUMBER_PLATE_TEXT`, donc compatible avec les garages, le MDC, les
+   fausses plaques…) est **redessiné en 3D** sur la plaque (`DRAW_TEXTURED_POLY`), dans les **8 cases** du jeu, avec
+   la couleur de son **type de plaque**. Il suit le véhicule, son inclinaison et la caméra.
+3. Le texte n'est dessiné que pour les plaques **proches** (22 m), **tournées vers la caméra** et **pas cachées** par
+   un mur, un objet ou un autre véhicule. Il est un peu baissé la nuit (le jeu ne l'éclaire pas).
 
-| | Méthode 1 : ressource serveur | Méthode 2 : garantie (update.rpf) |
-|---|---|---|
-| Installation | `ensure rp_platecolors`, rien chez les joueurs | chaque joueur copie un `update.rpf` modifié dans le dossier `mods` de FiveM |
-| Fonctionne | **seulement si le jeu ajoute les plaques** du fichier (testé automatiquement, voir ci-dessous) | **oui**, le jeu lit directement les nouvelles couleurs |
-| Visible par | tous les joueurs | seulement les joueurs qui ont installé le fichier |
-
-La ressource **teste elle-même** la méthode 1 au démarrage et vous dit dans la console (F8) si elle fonctionne.
-Si ce n'est pas le cas, le fichier `data/carcols.ymt` et le générateur servent pour la méthode 2.
-
-## Méthode 1 : ressource serveur
+## Installation
 
 1. Copiez le dossier `rp_platecolors` dans `resources/`.
-2. Dans `server.cfg` : `ensure rp_platecolors`
-3. Réglez les couleurs dans `data/carcols.ymt` (ou générez le fichier avec `outil/generateur.html`).
-4. Redémarrez le serveur (un fichier `CARCOLS_FILE` est lu au chargement : reconnectez-vous après chaque changement).
+2. Dans `server.cfg` :
+   ```
+   ensure rp_platecolors
+   add_ace group.admin rp_platecolors.edit allow
+   ```
+3. Si vous aviez mis la v1 : supprimez l'ancien `data/carcols.ymt` (il ne servait à rien).
+4. Reconnectez-vous : le texte des plaques prend les couleurs de `config.lua`.
 
-### Ce que fait la ressource
+## Position du texte sur la plaque
 
-`data/carcols.ymt` contient une **copie des 6 plaques du jeu** (mêmes textures, même ordre), avec une autre couleur
-de texte. Au démarrage, le script compte les types de plaques connus du jeu
-(`GET_NUMBER_OF_VEHICLE_NUMBER_PLATES`) :
+Le jeu ne donne pas la position des plaques d'un modèle. Le script la trouve de deux façons :
 
-- **le nombre a augmenté de 6** (12 ou 19 selon la build) : les plaques ont été ajoutées. Chaque véhicule qui porte
-  une plaque 0 à 5 reçoit sa **copie colorée** (même fond, nouvelle couleur de texte). Le changement est fait par le
-  propriétaire réseau du véhicule, donc synchronisé pour tout le monde. À l'arrêt de la ressource, les plaques
-  d'origine sont remises.
-- **le nombre n'a pas changé** (6 ou 13) : le jeu n'a rien ajouté. La console F8 l'indique :
-  `[rp_platecolors] 13 types de plaques : le jeu n'a ajouté aucune plaque de carcols.ymt.`
-  → passez à la **méthode 2**.
+- **automatiquement**, la première fois qu'il croise un modèle : os `platelight` (la lumière au-dessus de la plaque
+  arrière), sinon les dimensions du modèle, et un rayon contre la carrosserie pour l'avant. Correct sur beaucoup de
+  véhicules, mais pas exact partout ;
+- **par modèle, dans l'éditeur** : réglé une fois, enregistré dans `data/plates.json` et envoyé à **tous** les
+  joueurs, pour tous les véhicules de ce modèle.
 
-### Commandes de test
+### Éditeur : `/plaqueedit`
 
-| Commande | Effet |
-|---|---|
-| `/plaques` | diagnostic dans la console F8 : nombre de types de plaques, plaques colorées chargées ou non, plaque du véhicule actuel |
-| `/plaque <index>` | met la plaque `<index>` sur votre véhicule (pour voir chaque couleur) |
+Permission : ace `rp_platecolors.edit`. Prend le véhicule où vous êtes assis, sinon le plus proche (8 m).
 
-## Méthode 2 : garantie (update.rpf)
+**Onglet Position** (pour le modèle) : choisissez **Arrière** / **Avant**, cochez ou non *Plaque de ce côté*, puis
+déplacez le texte : un **cadre bleu** montre la plaque, le texte bouge en direct.
 
-Le jeu lit les couleurs directement dans son `carcols.ymt` principal. On modifie seulement les lignes `<FontColor>`.
-
-1. Ouvrez **OpenIV** (mode édition) ou **CodeWalker** (RPF Explorer, mode édition), sur une **copie** de
-   `GTAV/update/update.rpf`.
-2. Allez dans `update.rpf/x64/data/carcols.ymt` et exportez-le en **XML**.
-3. Dans la section `<VehiclePlates>` → `<Textures>`, chaque `<Item>` est une plaque, reconnaissable à son
-   `<DiffuseMapName>` (`plate01`, `plate02`, `plate03`, `plate04`, `plate05`, `yankton_plate`, puis les plaques
-   ajoutées par le jeu). Remplacez **uniquement** `<FontColor>` (et si vous voulez `<FontOutlineColor>`,
-   `<IsFontOutlineEnabled>`). Le générateur, onglet **« Lignes FontColor (update.rpf) »**, donne ces lignes.
-4. Réimportez le XML à la place de `carcols.ymt` et enregistrez l'`update.rpf`.
-5. Chaque joueur copie cet `update.rpf` dans le dossier **`mods`** de FiveM
-   (`%localappdata%\FiveM\FiveM.app\mods\`), puis relance FiveM.
-
-À savoir :
-
-- Seuls les joueurs qui ont le fichier voient les nouvelles couleurs (c'est purement visuel, sans effet sur le jeu).
-- Un serveur en **`sv_pureLevel 1` ou `2`** refuse les fichiers du dossier `mods` : laissez `sv_pureLevel` à 0 (ou absent).
-- Si vous changez de build (`sv_enforceGameBuild`), refaites le fichier à partir du nouvel `update.rpf`.
-- Ne modifiez pas `<FontExtents>` ni `<MaxLettersOnPlate>` (position et nombre de caractères).
-
-## Couleurs
-
-Format **`0xAARRGGBB`** : `AA` = opacité (`FF` = opaque), puis rouge, vert, bleu en hexadécimal.
-
-| Couleur | Valeur | | Couleur | Valeur |
-|---|---|---|---|---|
-| Noir | `0xFF000000` | | Rouge | `0xFFC8102E` |
-| Blanc | `0xFFFFFFFF` | | Vert | `0xFF007A33` |
-| Bleu foncé | `0xFF0A2A8C` | | Orange | `0xFFFF6A00` |
-| Jaune | `0xFFFFC800` | | Violet | `0xFF6B2FA3` |
-
-Couleurs par défaut du fichier fourni :
-
-| Index | Plaque | Texte |
+| Réglage | Boutons | Clavier |
 |---|---|---|
-| 0 | blanche cursive « San Andreas » | noir |
-| 1 | fond noir | blanc |
-| 2 | fond bleu | blanc |
-| 3 | blanche sobre (la plus courante) | noir |
-| 4 | blanche « Exempt » (service) | rouge |
-| 5 | North Yankton | bleu foncé |
+| Gauche / droite | − / + | `←` `→` |
+| Hauteur | − / + | `↑` `↓` |
+| Avant / arrière (enfoncer / sortir) | − / + | `PgUp` `PgDn` |
+| Inclinaison (plaque penchée) | − / + | `R` `F` |
+| Rotation | − / + | `Q` `E` |
+| Taille | − / + | `+` `−` |
 
-### Générateur
+`Maj` = pas ×5. **Tab** libère la souris pour tourner la caméra autour du véhicule (le panneau reste affiché), **Tab**
+à nouveau pour reprendre le panneau. **Enregistrer** applique le réglage pour tout le monde ; **Estimation auto**
+remet l'estimation (sans enregistrer) ; **Supprimer** efface le réglage du modèle.
 
-Ouvrez `outil/generateur.html` dans un navigateur (double-clic, pas besoin du serveur) : sélecteur de couleur par
-plaque, contour optionnel, aperçu, puis **Copier** :
+Astuce : descendez du véhicule et placez-vous derrière (ou devant), puis `/plaqueedit` : le véhicule le plus proche
+est pris.
 
-- **Fichier complet** : à coller à la place de tout le contenu de `data/carcols.ymt` (méthode 1) ;
-- **Lignes FontColor** : à reporter dans le `carcols.ymt` de `update.rpf` (méthode 2).
-
-Le dossier `outil/` n'est pas chargé par FiveM (absent du `fxmanifest.lua`).
+**Onglet Couleurs** : pour chaque type de plaque, couleur du texte, contour (case + couleur). Aperçu en direct sur
+toutes les plaques. Cliquez sur l'aperçu `12AB` d'un type pour le **mettre sur le véhicule** et voir le résultat.
+**Enregistrer les couleurs** les applique pour tout le monde (elles passent avant `config.lua`) ;
+**Rétablir config.lua** efface les couleurs enregistrées.
 
 ## Configuration (`config.lua`)
 
 | Clé | Rôle |
 |---|---|
-| `CustomPlates` | nombre de plaques dans `data/carcols.ymt` (6) |
-| `AutoRemap` | met la copie colorée sur les véhicules quand les plaques sont ajoutées (`false` : rien n'est changé) |
-| `VanillaCounts` | nombre de types de plaques du jeu sans ajout (6 avant la build 3095, 13 ensuite) |
-| `Interval` | ms entre deux passages sur les véhicules proches (1000) |
-| `InfoCommand`, `TestCommand` | noms des commandes `/plaques` et `/plaque` (`false` : aucune) |
+| `Plates` | par type de plaque (index du jeu) : `text = { R, G, B }`, `outline = { R, G, B }` ou `false` (comme `FontColor` / `FontOutlineColor`) |
+| `Default` | couleur d'un type absent de la liste |
+| `Text` | largeur des 8 caractères, hauteur, décalage vertical, distance devant la plaque |
+| `PlateSize` | taille du cadre de l'éditeur |
+| `NightBrightness` | luminosité du texte la nuit (1.0 = pas de changement) |
+| `MaxDistance`, `MaxPlates` | distance et nombre maximum de plaques dessinées |
+| `ScanInterval`, `OcclusionInterval` | fréquence de recherche des véhicules et des tests de visibilité |
+| `Auto` | placement automatique : écart sous `platelight`, hauteur sans `platelight`, retrait |
+| `EditCommand`, `EditAce`, `EditRange` | éditeur : commande, permission, distance du véhicule |
+
+Types de plaques du jeu : 0 blanche cursive, 1 fond noir, 2 fond bleu, 3 blanche sobre (la plus courante),
+4 « Exempt », 5 North Yankton ; à partir de la build 3095 : 6 eCola, 7 Las Venturas, 8 Liberty City, 9 LS Car Meet,
+10 LS Panic, 11 LS Pounders, 12 Sprunk.
+
+## Couleur propre à un véhicule (autres scripts)
+
+Prioritaire sur le type de plaque, synchronisée pour tous (state bag `plateColor`) :
+
+```lua
+-- client (propriétaire du véhicule)
+exports.rp_platecolors:SetVehiclePlateColor(vehicle, { 255, 200, 0 }, { 0, 0, 0 })  -- texte, contour (ou nil)
+exports.rp_platecolors:SetVehiclePlateColor(vehicle, nil)                          -- retour à la couleur du type
+
+-- serveur
+Entity(vehicle).state.plateColor = { text = { 255, 200, 0 }, outline = false }
+```
+
+## Autre police
+
+`assets/plate_font.png` (et son contour) est un atlas de 8 × 5 cases (64 × 96 px) : `0-9`, `A-Z`, `-`, `.`,
+caractères **blancs** sur fond transparent (la couleur est appliquée en jeu). Pour une autre police :
+
+```
+pip install pillow
+python outil/police.py chemin/vers/police.ttf
+```
+
+Police fournie : DejaVu Sans Bold (licence libre Bitstream Vera / DejaVu), compressée en largeur comme une police de
+plaque.
+
+## Limites
+
+- Les plaques **au-delà de 22 m** (`MaxDistance`) n'ont pas de texte : le jeu n'en écrit plus et le script ne les
+  dessine pas (à cette distance, les caractères ne sont de toute façon pas lisibles).
+- Le texte n'est pas éclairé par le jeu (phares, ombres) : `NightBrightness` le baisse la nuit.
+- Sur un modèle mal estimé, le texte peut être décalé tant qu'il n'a pas été réglé dans l'éditeur.
+- Pour revenir au texte du jeu : `stop rp_platecolors` (la police d'origine est remise).
 
 ## Performance
 
-Si les plaques ne sont pas ajoutées, le script s'arrête après le diagnostic (0 boucle). Sinon, un passage par
-seconde sur les véhicules proches, deux natives par véhicule (≈ 0.00 ms dans le resmon).
+Recherche des véhicules toutes les 400 ms, test de visibilité asynchrone toutes les 250 ms. Par image, 4 triangles
+par caractère, seulement pour les plaques proches, tournées vers la caméra et visibles (en pratique quelques
+plaques). Ressource arrêtée ou aucune plaque proche : aucune boucle active (attente de 200 ms).
