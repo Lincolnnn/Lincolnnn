@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>RP Interact</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ================= ŒIL (Eye Target) ================= -->
+    <div class="eye hidden" id="eye">
+        <svg class="eye-icon" viewBox="0 0 64 40" aria-hidden="true">
+            <path d="M2 20 C14 4 50 4 62 20 C50 36 14 36 2 20 Z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>
+            <circle cx="32" cy="20" r="8.5" fill="currentColor"/>
+        </svg>
+        <div class="eye-label hidden" id="eyeLabel"></div>
+        <ul class="eye-options hidden" id="eyeOptions"></ul>
+    </div>
+
+    <!-- ================= MENU INTERACTION ================= -->
+    <div class="panel menu hidden" id="menu">
+        <div class="menu-head">
+            <button type="button" class="menu-back hidden" id="menuBack" title="Retour">&#8249;</button>
+            <span class="menu-title" id="menuTitle">Menu Interaction</span>
+            <button type="button" class="menu-close" id="menuClose" title="Fermer (Échap)">&#10005;</button>
+        </div>
+
+        <div class="menu-view" data-view="home">
+            <div class="menu-part">Usage</div>
+            <button type="button" class="menu-case" data-go="police">
+                <span class="case-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                </span>
+                <span class="case-text"><b>Police</b><small id="menuPoliceHint">Hors service</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+            <button type="button" class="menu-case" data-go="civil">
+                <span class="case-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                </span>
+                <span class="case-text"><b>Civil</b><small id="menuCivilHint">Profils et véhicule</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+            <div class="menu-part menu-part-config">Configuration</div>
+            <button type="button" class="menu-case" data-go="equipment" data-section="equipment">
+                <span class="case-icon">
+                    <svg viewBox="0 0 24 24"><path d="M8 3 4 6l2 4 2-1v12h8V9l2 1 2-4-4-3c-.5 1.7-2 3-4 3S8.5 4.7 8 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                </span>
+                <span class="case-text"><b>Équipements</b><small data-hint="Tenues, armes">Tenues, armes</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+            <button type="button" class="menu-case" data-go="car" data-section="car">
+                <span class="case-icon">
+                    <svg viewBox="0 0 24 24"><path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                </span>
+                <span class="case-text"><b>Voiture</b><small data-hint="Spawn, radio">Spawn, radio</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+        </div>
+
+        <!-- ================= ÉQUIPEMENTS (tenues : data/outfits.json ; armes : equipment_services.json, data/loadouts.json) ================= -->
+        <div class="menu-view hidden" data-view="equipment">
+            <div class="menu-section">Tenues</div>
+            <button type="button" class="menu-btn" id="openEup">Accéder aux tenues</button>
+            <div class="menu-section">Armes</div>
+            <div class="menu-active none hidden" id="equipNotice"></div>
+            <!-- Équipement GSP / APD / FCSO : tout l'équipement de départ du service, toujours la version de base -->
+            <div class="menu-list" id="kitList"></div>
+            <!-- 4e : les équipements modifiés, nommés et enregistrés par le joueur -->
+            <button type="button" class="menu-case saved-case" id="openSaved">
+                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6Z M9 3v5h6V3 M9 14h6M9 17h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+                <span class="case-text"><b>Équipements modifiés</b><small id="savedHint">Aucun</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+            <button type="button" class="menu-btn equip-customize" id="equipCustomize">
+                <span>Customiser équipement</span><small id="equipCustomizeHint"></small>
+            </button>
+            <div class="menu-section hidden" id="loadoutSection">Autres armes</div>
+            <div class="menu-list" id="loadoutList"></div>
+            <button type="button" class="menu-btn menu-btn-soft" id="weaponsRemove">Retirer mes armes</button>
+        </div>
+
+        <!-- Équipements modifiés : enregistrés et nommés par le joueur (lui seul y a accès) -->
+        <div class="menu-view hidden" data-view="equipment-saved">
+            <div class="menu-list" id="savedList"></div>
+        </div>
+
+        <!-- Customiser équipement : propre au joueur, selon le service sélectionné -->
+        <div class="menu-view hidden" data-view="equipment-custom">
+            <div class="menu-active custom-head" id="customHead"></div>
+            <label class="menu-field custom-name-field"><span>Nom de l'équipement</span>
+                <input type="text" id="customName" maxlength="40" autocomplete="off">
+            </label>
+            <div class="custom-list" id="customList"></div>
+            <div class="menu-row">
+                <button type="button" class="menu-btn" id="customApply">Équiper</button>
+                <button type="button" class="menu-btn custom-save" id="customSave">Enregistrer</button>
+            </div>
+            <button type="button" class="menu-btn menu-btn-soft custom-delete hidden" id="customDelete">Supprimer cet équipement modifié</button>
+        </div>
+
+        <!-- ================= VOITURE ================= -->
+        <div class="menu-view hidden" data-view="car">
+            <button type="button" class="menu-case" data-go="spawn">
+                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+                <span class="case-text"><b>Spawn</b><small>Faire apparaître un véhicule</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+            <button type="button" class="menu-case" data-go="radio">
+                <span class="case-icon"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm11-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+                <span class="case-text"><b>Radio</b><small>Musique, vidéo, podcast dans le véhicule</small></span>
+                <span class="case-arrow">&#8250;</span>
+            </button>
+        </div>
+
+        <div class="menu-view hidden" data-view="spawn">
+            <label class="menu-toggle">
+                <input type="checkbox" id="spawnDeleteOld">
+                <span class="toggle-box"></span>
+                <span class="toggle-text"><b>Supprimer l'ancien véhicule</b><small>Le dernier véhicule que vous avez fait apparaître</small></span>
+            </label>
+            <label class="menu-toggle">
+                <input type="checkbox" id="spawnWarpInto">
+                <span class="toggle-box"></span>
+                <span class="toggle-text"><b>Apparaître dans le véhicule</b><small>Sinon, il apparaît devant vous</small></span>
+            </label>
+            <div id="spawnCategories"></div>
+        </div>
+
+        <div class="menu-view hidden" data-view="spawn-list">
+            <div class="menu-active none hidden" id="spawnPoliceNotice"></div>
+            <div id="spawnGroups"></div>
+        </div>
+
+        <!-- ================= RADIO DU VÉHICULE ================= -->
+        <div class="menu-view hidden" data-view="radio">
+            <div class="menu-active" id="radioStatus">Montez dans un véhicule.</div>
+            <div class="menu-profile" id="radioControls">
+                <label class="menu-field">Lien (YouTube, musique, podcast, radio en ligne)
+                    <input type="text" id="radioUrl" maxlength="400" placeholder="https://…">
+                </label>
+                <!-- Lancer le lien / l'ajouter à « Écouter ensuite » -->
+                <div class="menu-row radio-row">
+                    <button type="button" class="menu-btn radio-icon radio-main" id="radioPlay" title="Lancer ce lien maintenant" aria-label="Lancer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5Z" fill="currentColor"/></svg></button>
+                    <button type="button" class="menu-btn radio-icon" id="radioAdd" title="Ajouter à « Écouter ensuite » (5 max)" aria-label="Écouter ensuite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+                </div>
+                <!-- Morceau en cours : début (deux fois : précédent), pause / reprise, suivant, arrêter -->
+                <div class="menu-row radio-row radio-transport">
+                    <button type="button" class="menu-btn menu-btn-soft radio-icon" id="radioRestart" title="Revenir au début du morceau (appuyez deux fois : morceau précédent)" aria-label="Début / précédent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M19 5v14L8.5 12Z" fill="currentColor"/></svg></button>
+                    <button type="button" class="menu-btn menu-btn-soft radio-icon" id="radioPause" title="Pause" aria-label="Pause">
+                        <svg class="ico-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>
+                        <svg class="ico-resume" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5Z" fill="currentColor"/></svg>
+                    </button>
+                    <button type="button" class="menu-btn menu-btn-soft radio-icon" id="radioNext" title="Morceau suivant de la file" aria-label="Suivant"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14L15.5 12Z" fill="currentColor"/><path d="M18 5v14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+                    <button type="button" class="menu-btn menu-btn-soft radio-icon" id="radioStop" title="Arrêter la radio (vide la file)" aria-label="Arrêter"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/></svg></button>
+                </div>
+                <div class="menu-section" id="radioQueueTitle">Écouter ensuite (0 / 5)</div>
+                <div class="radio-queue" id="radioQueue"></div>
+                <label class="menu-field">Volume du véhicule <span class="menu-value" id="radioVolumeValue">60 %</span>
+                    <input type="range" id="radioVolume" min="0" max="100" step="1" value="60">
+                </label>
+            </div>
+            <p class="menu-text" id="radioHint">Tout le monde l'entend au même moment et au même volume : à bord, et dehors selon
+                la distance (plus bas si vitres et portières sont fermées). « + » ajoute le lien à la file « Écouter ensuite »
+                (5 max), lue à la suite. Début du morceau : appuyez deux fois pour revenir au morceau précédent. Réglable seulement depuis les places avant (ou avec l'œil, portière avant ouverte).</p>
+        </div>
+
+        <div class="menu-view hidden" data-view="civil">
+            <div class="menu-active" id="menuActive"></div>
+            <label class="menu-toggle">
+                <input type="checkbox" id="civilMode">
+                <span class="toggle-box"></span>
+                <span class="toggle-text"><b>Mode civil</b><small>Options visuelles propres au rôle de civil (tips d'arrestation)</small></span>
+            </label>
+            <button type="button" class="menu-btn" data-editor="profiles">Créer un profil</button>
+            <button type="button" class="menu-btn" data-editor="vehicle">Créer un véhicule</button>
+            <button type="button" class="menu-btn menu-btn-tips hidden" id="tipsToggle">Tips arrestation</button>
+        </div>
+
+        <div class="menu-view hidden" data-view="police">
+            <div class="menu-active" id="menuPolice"></div>
+            <!-- Toujours affichées ; grisées tant que personne n'est assez proche (2 m) -->
+            <button type="button" class="menu-btn police-action" data-police-action="cuff" disabled>Menotter</button>
+            <button type="button" class="menu-btn police-action" data-police-action="drag" disabled>Prendre par le bras</button>
+            <button type="button" class="menu-btn police-action" data-police-action="place" disabled>Placer l'individu à l'arrière du véhicule</button>
+            <button type="button" class="menu-btn police-action" data-police-action="seat" disabled>Faire s'asseoir l'individu</button>
+            <p class="menu-text" id="menuPoliceText"></p>
+            <!-- Secteur (zone de jeu) et service principal : affichés sur le display MDC -->
+            <div class="menu-profile">
+                <div class="menu-profile-title">Display MDC</div>
+                <label class="menu-field">Secteur
+                    <input type="text" id="policeSector" maxlength="40" placeholder="ex : Downtown, I-75 Nord…">
+                </label>
+                <label class="menu-field">Service principal
+                    <select id="policeService">
+                        <option value="">— Aucun —</option>
+                        <option value="apd">APD</option>
+                        <option value="gsp">GSP</option>
+                        <option value="fcso">FCSO</option>
+                        <option value="apd+gsp">APD &amp; GSP</option>
+                        <option value="apd+fcso">APD &amp; FCSO</option>
+                        <option value="gsp+fcso">GSP &amp; FCSO</option>
+                        <option value="apd+gsp+fcso">APD, GSP &amp; FCSO</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= FICHE CIVILE (style MDC, hors MDC) ================= -->
+    <div class="window hidden" id="editor">
+        <div class="titlebar" id="editorBar">
+            <div class="title"><span class="title-icon">CIVIL</span><span>Fiche civile</span></div>
+            <div class="win-buttons">
+                <button type="button" class="win-btn win-close" id="editorClose" title="Fermer (Échap)">&#10005;</button>
+            </div>
+        </div>
+        <nav class="tabbar">
+            <button type="button" class="tab active" data-tab="profiles">Profils</button>
+            <button type="button" class="tab" data-tab="vehicle">Véhicule</button>
+        </nav>
+        <main class="content">
+            <!-- Profils : liste (permanents, uniquement les siens) + détail / formulaire -->
+            <section class="page" data-page="profiles">
+                <div class="split">
+                    <div class="group">
+                        <span class="legend">Mes profils <span id="profileCount"></span></span>
+                        <div class="toolbar">
+                            <button type="button" class="btn btn-default" id="newProfile">+ Nouveau profil</button>
+                        </div>
+                        <div class="well">
+                            <table class="grid selectable">
+                                <thead><tr><th>Nom du profil</th><th>État</th><th>Modifié</th></tr></thead>
+                                <tbody id="profileBody"></tbody>
+                            </table>
+                            <div class="empty" id="profileEmpty">Aucun profil : créez-en un.</div>
+                        </div>
+                    </div>
+                    <div class="group">
+                        <span class="legend" id="profilePanelTitle">Profil</span>
+                        <div class="well detail" id="profileDetail"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Véhicule : profil temporaire lié au véhicule physique -->
+            <section class="page hidden" data-page="vehicle">
+                <div class="group fill">
+                    <span class="legend" id="vehicleTitle">Véhicule</span>
+                    <div class="well detail" id="vehicleDetail"></div>
+                </div>
+            </section>
+        </main>
+        <div class="statusbar">
+            <span class="sb-cell grow" id="editorStatus"></span>
+        </div>
+    </div>
+
+    <!-- Barre de chargement (fouilles, menottes) : thème du HUD, barre bleue -->
+    <!-- Se débattre (civil tenu par le bras sans menottes) / l'individu se débat (policier) -->
+    <div class="struggle hidden" id="struggle">
+        <div class="struggle-head">
+            <span id="struggleLabel">Se débattre</span>
+            <span class="struggle-key" id="struggleHint"><kbd id="struggleKey">ESPACE</kbd> plusieurs fois</span>
+        </div>
+        <div class="progress-track"><div class="struggle-bar" id="struggleBar"></div></div>
+    </div>
+
+    <div class="progress hidden" id="progress">
+        <div class="progress-head"><span id="progressLabel"></span><span class="progress-time" id="progressTime"></span></div>
+        <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-hint"><kbd>X</kbd> Annuler</div>
+    </div>
+
+    <!-- Tips d'arrestation (mode civil) : en haut au milieu, non interactif -->
+    <div class="tips hidden" id="tips">
+        <div class="tips-title" id="tipsTitle">Tips arrestation</div>
+        <div class="tips-keys" id="tipsKeys"></div>
+        <div class="tips-close">Échap : fermer</div>
+    </div>
+
+    <!-- Menu des tenues /eup : au clavier (flèches, Entrée, Retour arrière), en haut à gauche -->
+    <div class="eup hidden" id="eup" aria-hidden="true">
+        <div class="eup-banner" id="eupBanner"><span class="eup-title">Tenues</span><span class="eup-sub">EUP</span></div>
+        <div class="eup-crumb"><span id="eupCrumb"></span><span class="eup-count" id="eupCount"></span></div>
+        <div class="eup-list" id="eupList"></div>
+        <div class="eup-desc" id="eupDesc"></div>
+        <div class="eup-keys">
+            <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> Choisir</span>
+            <span><kbd>Entrée</kbd> Valider</span>
+            <span><kbd>&#8592;</kbd> Retour</span>
+            <span><kbd>Échap</kbd> Fermer</span>
+        </div>
+    </div>
+
+    <!-- Lecteurs de la radio des véhicules (invisibles) -->
+    <div class="radio-players" id="radioPlayers" aria-hidden="true"></div>
+
+    <!-- Résultats d'inspection (à droite) et notifications (en haut) -->
+    <div class="results" id="results"></div>
+    <div class="toasts" id="toasts"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

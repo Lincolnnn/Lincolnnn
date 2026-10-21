@@ -1,0 +1,38 @@
+Dossier de données de RP Interact.
+
+  profiles.json -> profils civils créés dans la "Fiche civile" (menu d'interactions > Civil),
+                   rempli automatiquement par le serveur
+  vehicle.json  -> VÉHICULES du menu d'interactions (F1 > Voiture > Spawn) : à remplir vous-même,
+                   { "vehicles": [ { "spawnName", "Principale", "subCategory", "menuName", "extras", "livery" } ] }
+                   Principale = catégorie du menu (Police, Civil…), subCategory = groupe dans la catégorie,
+                   menuName = nom affiché, extras = { "1": true, "2": false } (activé / désactivé ; s'il y en
+                   a, les extras non listés sont désactivés ; {} = extras d'origine), livery facultatif.
+                   Le même spawnName peut être listé plusieurs fois (extras différents). Catégorie "Police" :
+                   réservée aux policiers en service. (Ancien vehicles.json lu seulement sans vehicle.json.)
+  loadouts.json -> AUTRES ARMES du menu d'interactions (F1 > Équipements, facultatif) : à remplir vous-même,
+                   un objet par lot { "Name", "Replace", "Weapons": [ { "Weapon", "Ammo", "Components" } ] }
+                   (les boutons "Équipement GSP / APD / FCSO" sont dans ../equipment_services.json, voir README.md)
+  custom_equipment.json -> ÉQUIPEMENTS MODIFIÉS ("Customiser équipement" > nom > "Enregistrer"), rempli
+                   automatiquement par le serveur : une liste nommée par joueur (licence Rockstar), 10 au maximum
+                   (MaxCustomEquipment). Chaque joueur ne retrouve que les siens (et les supprime lui-même dans le
+                   menu). Pour en effacer à la main : retirez l'objet { ... } de la liste (le fichier doit rester un
+                   JSON valide) puis redémarrez la ressource.
+  outfits.json  -> TENUES du menu /eup (ou F1 > Équipements > Accéder aux tenues) : à remplir vous-même,
+                   un objet par tenue au format EUP ("Name", "Gender", "Category2", "Cate", "Hat": "24:1"...)
+                   (voir README.md, partie "Menu des tenues")
+
+Fichiers JSON : une virgule en trop ou un guillemet manquant rend le fichier invalide (la console serveur
+l'indique). Après une modification : tapez  rpi_vehicles  dans la console serveur pour les relire.
+
+Les profils sont PERMANENTS : ils survivent aux déconnexions et aux redémarrages.
+Chaque joueur ne voit que les siens (retrouvés grâce à sa licence Rockstar, champ "owner").
+Le profil "active": true d'un joueur est celui que la police découvre avec l'œil.
+
+Les profils de VÉHICULE ne sont pas enregistrés ici : ils sont liés au véhicule et
+disparaissent avec lui, ou au redémarrage du serveur.
+
+Pour retirer un profil (cadres) : supprimez l'objet { ... } dans profiles.json (le fichier
+doit rester un JSON valide), puis tapez  rpi_reload  dans la console serveur.
+Si le fichier devient illisible, l'enregistrement des profils est bloqué (rien n'est écrasé).
+
+ATTENTION : lors d'une mise à jour du script, ne remplacez pas ce dossier.

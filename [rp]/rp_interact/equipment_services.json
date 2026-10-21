@@ -1,0 +1,84 @@
+[
+    {
+        "Service": "Georgia State Patrol",
+        "Name": "Équipement GSP",
+        "Replace": true,
+        "Weapons": [
+            {
+                "Weapon": "WEAPON_PISTOL50",
+                "Label": "Arme de service (Pistol .50)",
+                "Ammo": 120,
+                "Required": true,
+                "Components": ["COMPONENT_AT_PI_FLSH"],
+                "Options": [
+                    { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "COMPONENT_AT_PI_FLSH" } ] },
+                    { "Label": "Chargeur", "Choices": [ { "Label": "Chargeur grande capacité", "Component": "COMPONENT_PISTOL50_CLIP_02" } ] }
+                ],
+                "Tints": true
+            },
+            { "Weapon": "WEAPON_STUNGUN", "Label": "Taser", "Ammo": 1, "Required": true },
+            { "Weapon": "WEAPON_FLASHLIGHT", "Label": "Lampe torche", "Ammo": 1 },
+            { "Weapon": "WEAPON_NIGHTSTICK", "Label": "Matraque", "Ammo": 1 },
+            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse (10)", "Ammo": 10 },
+            { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": false }
+        ]
+    },
+    {
+        "Service": "Atlanta Police Department",
+        "Name": "Équipement APD",
+        "Replace": true,
+        "Weapons": [
+            {
+                "Weapon": "WEAPON_COMBATPISTOL",
+                "Label": "Arme de service (Combat Pistol)",
+                "Ammo": 120,
+                "Required": true,
+                "Components": ["COMPONENT_AT_PI_FLSH"],
+                "Options": [
+                    { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "COMPONENT_AT_PI_FLSH" } ] },
+                    { "Label": "Chargeur", "Choices": [ { "Label": "Chargeur grande capacité", "Component": "COMPONENT_COMBATPISTOL_CLIP_02" } ] }
+                ],
+                "Tints": true
+            },
+            { "Weapon": "WEAPON_STUNGUN", "Label": "Taser", "Ammo": 1, "Required": true },
+            { "Weapon": "WEAPON_FLASHLIGHT", "Label": "Lampe torche", "Ammo": 1 },
+            { "Weapon": "WEAPON_NIGHTSTICK", "Label": "Matraque", "Ammo": 1 },
+            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse (10)", "Ammo": 10 },
+            { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": false }
+        ]
+    },
+    {
+        "Service": "Fayette County Sheriff Office",
+        "Name": "Équipement FCSO",
+        "Replace": true,
+        "Weapons": [
+            {
+                "Weapon": "WEAPON_HEAVYPISTOL",
+                "Label": "Arme de service (Heavy Pistol)",
+                "Ammo": 120,
+                "Required": true,
+                "Components": ["COMPONENT_AT_PI_FLSH"],
+                "Options": [
+                    { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "COMPONENT_AT_PI_FLSH" } ] },
+                    { "Label": "Chargeur", "Choices": [ { "Label": "Chargeur grande capacité", "Component": "COMPONENT_HEAVYPISTOL_CLIP_02" } ] }
+                ],
+                "Tints": true
+            },
+            { "Weapon": "WEAPON_STUNGUN", "Label": "Taser", "Ammo": 1, "Required": true },
+            { "Weapon": "WEAPON_FLASHLIGHT", "Label": "Lampe torche", "Ammo": 1 },
+            { "Weapon": "WEAPON_NIGHTSTICK", "Label": "Matraque", "Ammo": 1 },
+            {
+                "Weapon": "WEAPON_SNSPISTOL",
+                "Label": "Arme de secours (SNS Pistol)",
+                "Ammo": 36,
+                "Default": false,
+                "Options": [
+                    { "Label": "Chargeur", "Choices": [ { "Label": "Chargeur grande capacité", "Component": "COMPONENT_SNSPISTOL_CLIP_02" } ] }
+                ],
+                "Tints": true
+            },
+            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse (10)", "Ammo": 10 },
+            { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": false }
+        ]
+    }
+]

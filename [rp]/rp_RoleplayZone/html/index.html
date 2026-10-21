@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Scènes de roleplay</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- MENU DES CRÉATIONS (civils) -->
+    <div id="rz" class="rz hidden" role="dialog" aria-label="Scènes de roleplay">
+        <header class="rz-head">
+            <div class="rz-title">
+                <span class="rz-tag">SCÈNE</span>
+                <div>
+                    <div class="rz-name">Scènes de roleplay</div>
+                    <div class="rz-sub" id="rzSub"></div>
+                </div>
+            </div>
+            <button class="rz-close" id="rzClose" title="Fermer (Échap)">✕</button>
+        </header>
+
+        <!-- Accueil : type de scène, armes, mes scènes -->
+        <div id="rzHome">
+            <section class="rz-section">
+                <div class="rz-legend"><span class="rz-step">1</span> Que voulez-vous préparer ?</div>
+                <div class="rz-kinds">
+                    <button class="rz-kind" data-kind="zone">
+                        <span class="rz-ico ico-zone"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="3 2.2"/><circle cx="12" cy="12" r="2.2"/></svg></span>
+                        <span class="rz-kind-text"><b>Zone de recherche</b><small id="rzZoneHint">Grand cercle de 15 à 60 m : message affiché aux policiers qui y entrent</small></span>
+                    </button>
+                    <button class="rz-kind" data-kind="perimeter">
+                        <span class="rz-ico ico-perimeter"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="15" rx="8" ry="3.5"/><path d="M12 4v8M9 9l3 3 3-3"/></svg></span>
+                        <span class="rz-kind-text"><b>Périmètre à fouiller</b><small id="rzPerimeterHint">Petit lieu (sol, recoin…) : ce que le policier y trouvera</small></span>
+                    </button>
+                    <button class="rz-kind" data-kind="object">
+                        <span class="rz-ico ico-object"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg></span>
+                        <span class="rz-kind-text"><b>Objet ou véhicule à fouiller</b><small>Un props du décor ou un véhicule : ce que le policier y trouvera</small></span>
+                    </button>
+                </div>
+                <div class="rz-field rz-camera">
+                    <span class="rz-label">Vue pour choisir</span>
+                    <div class="rz-seg" id="rzCamera">
+                        <button class="rz-seg-btn" data-camera="game" title="La vue du jeu, autour de votre personnage">Personnage</button>
+                        <button class="rz-seg-btn" data-camera="free" title="Se balader dans les environs sans déplacer votre personnage">Caméra libre</button>
+                    </div>
+                </div>
+                <div class="rz-hint"><span class="rz-step">2</span> Visez autour de vous : un <b>cercle blanc</b> suit le terrain (molette : rayon), <b>E</b> pour choisir, <b>V</b> change de vue. <span class="rz-step">3</span> La description.</div>
+            </section>
+
+            <section class="rz-section">
+                <div class="rz-legend">Mes scènes <span id="rzCount"></span></div>
+                <div class="rz-list" id="rzList"></div>
+                <div class="rz-row-actions">
+                    <button class="rz-btn" id="rzClearMine">Supprimer mes scènes</button>
+                    <button class="rz-btn rz-danger hidden" id="rzClearAll">Tout supprimer</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Description -->
+        <div id="rzDescribe" class="hidden">
+            <section class="rz-section">
+                <div class="rz-legend"><span class="rz-step">3</span> <span id="rzDescTitle">Description</span></div>
+                <div class="rz-summary" id="rzSummary"></div>
+                <label class="rz-field-col">
+                    <span class="rz-label">Titre <small>(facultatif)</small></span>
+                    <input id="rzTitle" class="rz-input" type="text" maxlength="40" placeholder="ex. Ruelle derrière le bar">
+                </label>
+                <label class="rz-field-col">
+                    <span class="rz-label" id="rzTextLabel">Description</span>
+                    <textarea id="rzText" class="rz-input rz-textarea" maxlength="500"></textarea>
+                    <span class="rz-counter" id="rzCounter"></span>
+                </label>
+                <label class="rz-field-col" id="rzLookField">
+                    <span class="rz-label">Description visuelle <small>(affichée au-dessus aux policiers à moins de 10 m qui le voient)</small></span>
+                    <textarea id="rzLook" class="rz-input rz-textarea rz-short" maxlength="160"></textarea>
+                    <span class="rz-counter" id="rzLookCounter"></span>
+                </label>
+                <div class="rz-field">
+                    <span class="rz-label">Durée</span>
+                    <div class="rz-chips" id="rzDurations"></div>
+                </div>
+            </section>
+            <div class="rz-row-actions">
+                <button class="rz-btn" id="rzBack">Annuler</button>
+                <button class="rz-btn" id="rzReselect">Replacer</button>
+                <button class="rz-btn rz-primary" id="rzSubmit">Créer</button>
+            </div>
+        </div>
+
+        <div class="rz-message" id="rzMessage"></div>
+        <div class="rz-foot">Commande <b>/scene</b> · Échap pour fermer</div>
+    </div>
+
+    <!-- ZONE DE RECHERCHE : en haut au milieu, tant que le policier est dedans -->
+    <div id="zone" class="zbanner hidden" aria-live="polite">
+        <div class="zone-head"><span class="zone-dot"></span>ZONE DE RECHERCHE<span class="zone-label" id="zoneLabel"></span></div>
+        <div class="zone-title" id="zoneTitle"></div>
+        <div class="zone-text" id="zoneText"></div>
+    </div>
+
+    <!-- ŒIL D'AIGLE : flèche directionnelle -->
+    <div id="arrow" class="arrow hidden">
+        <div class="arrow-ring"><div class="arrow-rot" id="arrowRot"><svg viewBox="0 0 40 40"><path d="M20 3l9 14h-6v8h-6v-8h-6z"/></svg></div></div>
+        <div class="arrow-label" id="arrowLabel"></div>
+        <div class="arrow-dist" id="arrowDist"></div>
+    </div>
+
+    <!-- LÂCHER SON ARME (mode civil) : rappel / choix jeter - poser -->
+    <div id="weaponHint" class="whint hidden">
+        <div class="whint-row"><kbd id="whKey">G</kbd><span id="whLabel"></span></div>
+        <div class="whint-row whint-alt hidden" id="whAltRow"><kbd class="whint-wheel" title="Molette">
+            <svg viewBox="0 0 16 22"><rect x="1.5" y="1.5" width="13" height="19" rx="6.5"/><path d="M8 5v5"/></svg></kbd><span id="whAlt"></span></div>
+    </div>
+
+    <!-- FOUILLE : barre de chargement et contenu trouvé -->
+    <div class="progress hidden" id="progress">
+        <div class="progress-head"><span id="progressLabel"></span><span class="progress-time" id="progressTime"></span></div>
+        <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-hint"><kbd>X</kbd> Annuler</div>
+    </div>
+    <div class="results" id="results"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

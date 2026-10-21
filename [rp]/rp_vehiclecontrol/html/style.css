@@ -1,0 +1,22 @@
+/* Vehicle Control : petit message "pousser le véhicule" (fond noir légèrement transparent) */
+html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+
+.push-box {
+    position: fixed; left: 50%; bottom: 13vh;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px 8px 9px;
+    background: rgba(0, 0, 0, .8);
+    border-radius: 7px;
+    color: #f2f2f2; font-size: 14px; white-space: nowrap;
+    opacity: 0; transform: translate(-50%, 8px);
+    transition: opacity .2s, transform .2s;
+    pointer-events: none;
+}
+.push-box.show { opacity: 1; transform: translate(-50%, 0); }
+.push-key {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box;
+    border: 1.5px solid #d6d6d6; border-bottom-width: 3px; border-radius: 5px;
+    font-weight: bold; font-size: 13px; color: #fff;
+}

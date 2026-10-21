@@ -1,3 +1,7 @@
 data/*.json
 rp_interact/data/*.json
 rp_equipment/data/*.json
+# nouvelle organisation : dossier [rp] (crochets échappés : sinon git y voit une classe de caractères)
+\[rp\]/rp_mdc/data/*.json
+\[rp\]/rp_interact/data/*.json
+\[rp\]/rp_equipment/data/*.json

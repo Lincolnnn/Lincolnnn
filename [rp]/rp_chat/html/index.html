@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>RP Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Chat écrit : messages + ligne de saisie (visible uniquement quand le chat est ouvert) -->
+    <div class="chat hidden" id="chat">
+        <div class="messages" id="messages"></div>
+        <div class="browse-hint hidden" id="browseHint">▼ Messages plus récents en bas</div>
+        <div class="input-row">
+            <input id="input" type="text" maxlength="300" autocomplete="off" spellcheck="false" placeholder="/me, /info, /qst, /rep, /dv, /eup, /tuto — /nomrp pour votre nom RP">
+        </div>
+        <ul class="suggest hidden" id="suggest"></ul>
+    </div>
+    <!-- /tuto : affiche en haut de l'écran, au milieu, sans souris ni clavier (/tuto à nouveau pour la retirer) -->
+    <div class="tuto hidden" id="tuto" aria-hidden="true"></div>
+    <script src="script.js"></script>
+</body>
+</html>

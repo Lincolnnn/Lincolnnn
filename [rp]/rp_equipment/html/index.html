@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Équipement</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="equip" class="equip hidden" role="dialog" aria-label="Équipement du véhicule">
+        <header class="eq-head">
+            <div class="eq-title">
+                <span class="eq-tag" id="eqTag">APD</span>
+                <div>
+                    <div class="eq-name">Équipement</div>
+                    <div class="eq-sub" id="eqSub">Coffre</div>
+                </div>
+            </div>
+            <button class="eq-close" id="eqClose" title="Fermer (Échap)">✕</button>
+        </header>
+
+        <section class="eq-section">
+            <div class="eq-legend">Équipement</div>
+            <div class="eq-items" id="eqItems"></div>
+        </section>
+
+        <section class="eq-section" id="eqRackSection">
+            <div class="eq-legend">Armes longues</div>
+            <div class="eq-slots" id="eqSlots"></div>
+            <button class="eq-btn eq-primary eq-store" id="eqStore">Ranger l'arme longue</button>
+            <div class="eq-hint" id="eqHeld"></div>
+        </section>
+
+        <!-- Coffre comme un inventaire : ce qui est pris n'y est plus, ce qui est rangé y revient -->
+        <section class="eq-section hidden" id="eqStockSection">
+            <div class="eq-legend">Coffre</div>
+            <div class="eq-stock">
+                <div class="eq-stock-row">
+                    <div class="eq-stock-info">
+                        <div class="eq-stock-name">Plots de circulation</div>
+                        <div class="eq-stock-count" id="eqCones"></div>
+                        <div class="eq-stock-bar"><span id="eqConesBar"></span></div>
+                    </div>
+                    <div class="eq-stock-actions">
+                        <div class="eq-qty" title="Nombre de plots à prendre">
+                            <button class="eq-qty-btn" data-qty="-1" aria-label="Un de moins">−</button>
+                            <span class="eq-qty-value" id="eqConeQty">1</span>
+                            <button class="eq-qty-btn" data-qty="1" aria-label="Un de plus">+</button>
+                        </div>
+                        <button class="eq-btn eq-primary" id="eqConeTake">Prendre 1 plot</button>
+                        <button class="eq-btn" id="eqConeStore">Ranger le plot</button>
+                    </div>
+                </div>
+                <div class="eq-stock-row">
+                    <div class="eq-stock-info">
+                        <div class="eq-stock-name">Jerrican d'essence</div>
+                        <div class="eq-stock-count" id="eqCans"></div>
+                        <div class="eq-stock-held" id="eqCanHeld"></div>
+                    </div>
+                    <div class="eq-stock-actions">
+                        <button class="eq-btn eq-primary" id="eqCanTake">Prendre</button>
+                        <button class="eq-btn" id="eqCanStore">Ranger</button>
+                    </div>
+                </div>
+                <div class="eq-stock-row">
+                    <div class="eq-stock-info">
+                        <div class="eq-stock-name">Fusées de détresse</div>
+                        <div class="eq-stock-count" id="eqFlares"></div>
+                        <div class="eq-stock-held" id="eqFlaresHeld"></div>
+                    </div>
+                    <div class="eq-stock-actions eq-stock-grid">
+                        <button class="eq-btn eq-primary" data-flares="take">Prendre 1</button>
+                        <button class="eq-btn" data-flares="take" data-all="1">Prendre tout</button>
+                        <button class="eq-btn" data-flares="store">Ranger 1</button>
+                        <button class="eq-btn" data-flares="store" data-all="1">Tout ranger</button>
+                    </div>
+                </div>
+            </div>
+            <div class="eq-hint" id="eqCarry"></div>
+        </section>
+
+        <div class="eq-message" id="eqMessage"></div>
+        <footer class="eq-foot" id="eqFoot"></footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

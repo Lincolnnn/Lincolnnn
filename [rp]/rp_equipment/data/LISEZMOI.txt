@@ -1,0 +1,9 @@
+Dossier de données de RP Equipment.
+
+  racks.json -> armes longues rangées dans les véhicules, par plaque, rempli automatiquement par le serveur
+                (modèle, accessoires, teintes, munitions, qui l'a rangée). Gardé au redémarrage du serveur.
+
+Pour vider le râtelier d'un véhicule : supprimez sa plaque dans racks.json (le fichier doit rester un JSON
+valide) pendant que le serveur est arrêté.
+
+ATTENTION : lors d'une mise à jour du script, ne remplacez pas ce dossier.
