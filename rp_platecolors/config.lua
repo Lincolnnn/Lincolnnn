@@ -9,12 +9,12 @@ PlateConfig = {
     -- Couleur du texte par type de plaque (index du jeu, GET_VEHICLE_NUMBER_PLATE_TEXT_INDEX).
     -- text = { R, G, B } (0-255) ; outline = { R, G, B } pour un contour, ou false.
     Plates = {
-        [0]  = { label = 'Blanche cursive (San Andreas)', text = { 0, 0, 0 },       outline = false },
-        [1]  = { label = 'Fond noir',                     text = { 255, 255, 255 }, outline = false },
-        [2]  = { label = 'Fond bleu',                     text = { 255, 255, 255 }, outline = false },
-        [3]  = { label = 'Blanche sobre',                 text = { 0, 0, 0 },       outline = false },
-        [4]  = { label = 'Blanche « Exempt »',            text = { 200, 16, 46 },   outline = false },
-        [5]  = { label = 'North Yankton',                 text = { 10, 42, 140 },   outline = false },
+        [0]  = { label = 'Blanche cursive (plate01)',     text = { 10, 42, 140 },   outline = false }, -- bleu foncé
+        [1]  = { label = 'Fond noir (plate02)',           text = { 255, 255, 255 }, outline = false }, -- blanc
+        [2]  = { label = 'Fond bleu (plate03)',           text = { 0, 0, 0 },       outline = false }, -- noir
+        [3]  = { label = 'Blanche sobre (plate04)',       text = { 255, 255, 255 }, outline = false }, -- blanc
+        [4]  = { label = 'Blanche « Exempt » (plate05)',  text = { 10, 42, 140 },   outline = false }, -- bleu foncé
+        [5]  = { label = 'North Yankton (yankton_plate)', text = { 10, 42, 140 },   outline = false }, -- bleu foncé
         -- Plaques ajoutées par la build 3095 (sur une build plus ancienne, elles n'existent pas)
         [6]  = { label = 'eCola',                         text = { 255, 255, 255 }, outline = false },
         [7]  = { label = 'Las Venturas',                  text = { 0, 0, 0 },       outline = false },
