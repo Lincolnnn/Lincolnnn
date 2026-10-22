@@ -281,12 +281,14 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
   viser ni monter seul dans un véhicule (les menottes du jeu sont levées le temps d'être placé / sorti par un
   policier). **Retirer les menottes** : 3 s.
 - **Prendre par le bras** (individu le plus proche, 2 m) : le policier fait **`/e tenirlebras`**, l'individu est
-  **contraint de le suivre** à sa droite, un peu devant (`DragOffset`), **sans être accroché** : il garde **son propre
-  axe** (il ne pivote plus avec le corps du policier), marche, trottine ou court selon l'allure du policier, et
-  revient aussitôt à sa place s'il s'en éloigne de plus de 3 m (`DragFollow.Snap`). Il ne peut ni courir seul, ni
-  sauter, ni frapper, ni viser. **Menotté** : mains dans le dos (animation des menottes, haut du corps). **Pas
-  menotté** : ni menottes, ni emote. **Lâcher le bras** (œil, menu) ou touche **X** (`DragReleaseKey`, modifiable :
-  Raccourcis clavier > FiveM > « Police : lâcher le bras »).
+  **tenu de force** à sa droite, un peu devant (`DragOffset`, même place qu'avant) : il est **accroché au centre du
+  policier**, pas à un os, donc il **garde son propre axe** : il reste droit et ne bascule plus dans le policier
+  quand celui-ci se penche. Il suit ses déplacements : **marcher, trottiner** (le policier qui le tient **ne peut pas
+  sprinter**, ni sauter), aller **à gauche, à droite** ou reculer ; ses jambes jouent l'animation qui correspond à
+  son déplacement réel (`DragMove`, `DragMoves`). Il ne peut ni bouger seul, ni sauter, ni frapper, ni viser.
+  **Menotté** : mains dans le dos (marche menottée du jeu vers l'avant). **Pas menotté** : ni menottes, ni emote.
+  Policier au sol : l'individu est décroché le temps qu'il se relève, puis raccroché. **Lâcher le bras** (œil,
+  menu) ou touche **X** (`DragReleaseKey`, modifiable : Raccourcis clavier > FiveM > « Police : lâcher le bras »).
 - **Se débattre** (tenu par le bras **sans être menotté**) : une jauge apparaît, **ESPACE** à répétition (`Struggle.Key`)
   la remplit, elle redescend toute seule. Chaque appui **fait trembler l'écran** du civil **et** celui du policier.
   Jauge pleine : il **se dégage** (le policier le lâche ; impossible de le reprendre pendant 5 s). Si **un autre
@@ -346,7 +348,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
 | `CuffPropPlacement` | position / orientation des menottes |
-| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragFollow`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position de l'individu tenu et distance avant de le ramener, touche pour lâcher le bras, distance du véhicule |
+| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragMove`, `DragMoves`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position de l'individu tenu, allures et animations de ses jambes, touche pour lâcher le bras, distance du véhicule |
 | `Struggle` | se débattre (tenu sans menottes) : activé, touche (ESPACE), gain par appui / baisse par seconde de la jauge, rayon des autres policiers (2 m), chance de perdre s'ils étaient déjà là (85 %), délai avant de pouvoir le reprendre (5 s), tremblement des écrans |
 | `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) : `'everyone'` (défaut) ou `'police'`, + permission ACE |
 | `AdminAce` | permission ACE des commandes d'administration (rechargement des emotes et des véhicules) |

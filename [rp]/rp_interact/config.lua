@@ -125,11 +125,31 @@ InteractConfig = {
     -- Position (m) et orientation (°) des menottes sur l'os du poignet gauche (60309), réglées pour
     -- l'animation "mains dans le dos" du jeu (CuffAnim).
     CuffPropPlacement = { bone = 60309, x = -0.055, y = 0.06, z = 0.04, rx = 265.0, ry = 155.0, rz = 80.0 },
-    -- Individu tenu par le bras : PAS accroché au policier. Il garde son propre axe de rotation mais doit le
-    -- suivre : il marche vers ce point à côté du policier (à droite, un peu devant), à son allure ; plus loin
-    -- que DragFollow.Snap m (il traîne), il y est replacé. Menotté : mains dans le dos ; sinon aucune animation.
+    -- Individu tenu par le bras : tenu DE FORCE, accroché au policier à ce point (à sa droite, un peu devant),
+    -- au CENTRE du policier (pas à un os) : il reste droit et ne bascule plus avec le tronc du policier.
+    -- Menotté : mains dans le dos ; sinon aucune animation imposée.
     DragOffset = { x = 0.45, y = 0.3, z = 0.0 },
-    DragFollow = { Stop = 0.3, Snap = 3.0 },
+    -- Ses jambes suivent SON déplacement réel : arrêté sous Idle m/s, trottine à partir de Trot m/s (le policier
+    -- qui le tient ne peut pas sprinter).
+    DragMove = { Idle = 0.35, Trot = 2.6 },
+    -- Animations des jambes (dictionnaire, clip) : marche / trot, devant, à gauche, à droite, en arrière ; menotté,
+    -- vers l'avant : la marche menottée du jeu (les menottes restent jouées sur le haut du corps). Si la gauche et
+    -- la droite vous semblent inversées en jeu, échangez left / right.
+    DragMoves = {
+        walk = {
+            forward = { 'move_m@generic', 'walk' },
+            left = { 'move_strafe@generic', 'walk_fwd_90_loop' },
+            right = { 'move_strafe@generic', 'walk_bwd_-90_loop' },
+            back = { 'move_strafe@generic', 'walk_bwd_180_loop' },
+        },
+        trot = {
+            forward = { 'move_m@generic', 'run' },
+            left = { 'move_strafe@generic', 'run_fwd_90_loop' },
+            right = { 'move_strafe@generic', 'run_bwd_-90_loop' },
+            back = { 'move_strafe@generic', 'run_bwd_180_loop' },
+        },
+        cuffed = { walk = { 'mp_arresting', 'walk' }, trot = { 'mp_arresting', 'run' } },
+    },
     -- Se débattre (tenu SANS menottes) : touche Key à marteler ; chaque appui +Gain à la jauge (sur 100), qui
     -- redescend de Decay par seconde ; écrans du civil et du policier qui tremblent (Shake). Jauge pleine : un
     -- autre policier était déjà à moins de Radius m -> LoseChance (85 %) de perdre ; un autre policier qui
