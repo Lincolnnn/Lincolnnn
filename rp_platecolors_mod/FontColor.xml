@@ -1,0 +1,23 @@
+<!--
+    Lignes à remplacer dans carcols.ymt (exporté en XML), section <VehiclePlates> -> <Textures>.
+    Chaque <Item> est une plaque, reconnaissable à son <DiffuseMapName>. Ne changez QUE la ligne <FontColor>.
+    Format 0xAARRGGBB (FF = opaque).
+-->
+
+<!-- <DiffuseMapName>plate01</DiffuseMapName>        bleu foncé -->
+<FontColor value="0xFF0A2A8C" />
+
+<!-- <DiffuseMapName>plate02</DiffuseMapName>        blanc -->
+<FontColor value="0xFFFFFFFF" />
+
+<!-- <DiffuseMapName>plate03</DiffuseMapName>        noir -->
+<FontColor value="0xFF000000" />
+
+<!-- <DiffuseMapName>plate04</DiffuseMapName>        blanc -->
+<FontColor value="0xFFFFFFFF" />
+
+<!-- <DiffuseMapName>plate05</DiffuseMapName>        bleu foncé -->
+<FontColor value="0xFF0A2A8C" />
+
+<!-- <DiffuseMapName>yankton_plate</DiffuseMapName>  bleu foncé -->
+<FontColor value="0xFF0A2A8C" />

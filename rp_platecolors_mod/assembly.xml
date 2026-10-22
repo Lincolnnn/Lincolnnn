@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package version="2.2" id="{3E750B24-F6BB-4D9A-AA64-FCC9ECA9B46C}" target="Five">
+    <metadata>
+        <name>Couleurs du texte des plaques</name>
+        <version>
+            <major>1</major>
+            <minor>0</minor>
+            <tag></tag>
+        </version>
+        <author>
+            <displayName>Lincolnnn</displayName>
+        </author>
+        <description><![CDATA[Couleur des lettres et chiffres des plaques d'immatriculation (carcols.ymt, section VehiclePlates / FontColor).]]></description>
+        <licence><![CDATA[Usage privé.]]></licence>
+    </metadata>
+    <content>
+        <archive path="update\update.rpf" createIfNotExist="False" type="RPF7">
+            <add source="carcols.ymt">x64\data\carcols.ymt</add>
+        </archive>
+    </content>
+</package>

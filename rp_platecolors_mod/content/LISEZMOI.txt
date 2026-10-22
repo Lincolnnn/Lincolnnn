@@ -1,0 +1,2 @@
+Placez ici VOTRE carcols.ymt modifié (voir ../README.md), sous le nom exact : carcols.ymt
+Ce fichier LISEZMOI.txt n'a pas besoin d'être mis dans le .rpf.
