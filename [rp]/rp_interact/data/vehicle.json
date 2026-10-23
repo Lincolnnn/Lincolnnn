@@ -1,32 +1,32 @@
 {
     "vehicles": [
         {
-            "spawnName": "apdcharger",
+            "spawnName": "kcsocharger",
             "Principale": "Police",
-            "subCategory": "Atlanta Police Department",
+            "subCategory": "King County Sheriff Office",
             "menuName": "Dodge Charger 2020",
             "extras": {
                 "1": true
             }
         },
         {
-            "spawnName": "apdcharger2",
+            "spawnName": "wspcharger2",
             "Principale": "Police",
-            "subCategory": "NC State Highway Patrol",
+            "subCategory": "Washington State Patrol",
             "menuName": "Charger 20 #1",
             "extras": {}
         },
         {
-            "spawnName": "apdcharger",
+            "spawnName": "kcsocharger",
             "Principale": "Police",
-            "subCategory": "Atlanta Police Department",
+            "subCategory": "King County Sheriff Office",
             "menuName": "Dodge Charger 2020",
             "extras": {}
         },
         {
             "spawnName": "police3",
             "Principale": "Police",
-            "subCategory": "Atlanta Police Department",
+            "subCategory": "King County Sheriff Office",
             "menuName": "Interceptor",
             "livery": 0,
             "extras": {}
@@ -34,14 +34,14 @@
         {
             "spawnName": "police4",
             "Principale": "Police",
-            "subCategory": "Georgia State Patrol",
+            "subCategory": "Washington State Patrol",
             "menuName": "Unmarked",
             "extras": {}
         },
         {
             "spawnName": "sheriff2",
             "Principale": "Police",
-            "subCategory": "Georgia State Patrol",
+            "subCategory": "Washington State Patrol",
             "menuName": "Granger",
             "livery": 0,
             "extras": {

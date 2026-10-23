@@ -1,8 +1,9 @@
 --[[
     RP Interact - Client principal
     ------------------------------
-    - Menu Interaction (touche F1 par défaut) : partie "Usage" (Police, Civil) et partie "Configuration"
-      (Équipements, Voiture ; réservables à certains joueurs : config.lua, Permissions)
+    - Menu Interaction (touche F1 par défaut), au CLAVIER comme le /eup (client/kbmenu.lua) : partie "Usage"
+      (Police, Civil) et partie "Configuration" (Équipements, Voiture ; réservables à certains joueurs : config.lua,
+      Permissions) ; le joueur continue de bouger pendant qu'il est ouvert
       (client/garage.lua : spawn et équipements ; client/radio.lua : radio du véhicule)
     - Fiche civile (interface séparée du MDC, même style) : profils permanents et profil du véhicule ;
       ouverte par Menu Interaction > Civil, ou par la commande /fichecivil (Config.EditorCommand)
@@ -43,19 +44,30 @@ RegisterNetEvent('rp_interact:client:response', function(id, result)
 end)
 
 -- =========================================================================
--- FOCUS NUI : menu, fiche civile et liste d'options de l'œil
+-- FOCUS NUI : fiche civile et liste d'options de l'œil (souris) ; les menus au clavier (Menu Interaction, /eup)
+-- n'ont pas le focus, sauf le temps d'une saisie de texte (clavier sans curseur, client/kbmenu.lua)
 -- =========================================================================
 local ui = { menu = false, editor = false, options = false }
 
-function RPI.setUi(name, open)
-    ui[name] = open and true or false
-    local any = ui.menu or ui.editor or ui.options
-    SetNuiFocus(any, any)
+function RPI.applyFocus()
+    if ui.editor or ui.options then
+        SetNuiFocus(true, true)
+    elseif RPI.kbTyping and RPI.kbTyping() then
+        SetNuiFocus(true, false)
+    else
+        SetNuiFocus(false, false)
+    end
 end
 
+function RPI.setUi(name, open)
+    ui[name] = open and true or false
+    RPI.applyFocus()
+end
+
+--- `name` : cette fenêtre est-elle ouverte ? Sans nom : une fenêtre avec la souris (fiche civile, liste de l'œil)
 function RPI.uiOpen(name)
     if name then return ui[name] end
-    return ui.menu or ui.editor or ui.options
+    return ui.editor or ui.options
 end
 
 function RPI.notify(text, kind)
@@ -325,14 +337,11 @@ end
 -- MENU D'INTERACTIONS
 -- =========================================================================
 -- =========================================================================
--- SECTEUR ET SERVICE PRINCIPAL DU POLICIER (menu > Police, en bas)
--- Gardés chez le joueur (KVP) et publiés dans son état ("policeSector", "policeService") : le MDC les
--- affiche sur son display (zone de jeu et service : APD, GSP, FCSO ou plusieurs).
+-- SECTEUR DU POLICIER (menu > Police > Display MDC)
+-- Gardé chez le joueur (KVP) et publié dans son état ("policeSector") : le MDC l'affiche sur son display
+-- (la police du joueur est celle du MDC qu'il a choisi : WSP ou KCSO).
 -- =========================================================================
-local POLICE_SERVICES = {
-    apd = true, gsp = true, fcso = true, ['apd+gsp'] = true, ['apd+fcso'] = true, ['gsp+fcso'] = true, ['apd+gsp+fcso'] = true,
-}
-local KVP_SECTOR, KVP_SERVICE = 'rpi_police_sector', 'rpi_police_service'
+local KVP_SECTOR = 'rpi_police_sector'
 
 local function cleanSector(text)
     text = type(text) == 'string' and text:gsub('%c', ' '):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '') or ''
@@ -341,23 +350,18 @@ local function cleanSector(text)
 end
 
 local function policeProfile()
-    local service = GetResourceKvpString(KVP_SERVICE) or ''
-    if service == 'both' then service = 'apd+gsp' end -- ancien format
-    return { sector = cleanSector(GetResourceKvpString(KVP_SECTOR)), service = POLICE_SERVICES[service] and service or '' }
+    return { sector = cleanSector(GetResourceKvpString(KVP_SECTOR)) }
 end
 
 local function publishPoliceProfile(profile)
     LocalPlayer.state:set('policeSector', profile.sector, true)
-    LocalPlayer.state:set('policeService', profile.service, true)
 end
 publishPoliceProfile(policeProfile()) -- à la connexion / au redémarrage de la ressource
 
 RegisterNUICallback('setPoliceProfile', function(data, cb)
     data = type(data) == 'table' and data or {}
-    if data.service == 'both' then data.service = 'apd+gsp' end -- ancien format
-    local profile = { sector = cleanSector(data.sector), service = POLICE_SERVICES[data.service] and data.service or '' }
+    local profile = { sector = cleanSector(data.sector) }
     SetResourceKvp(KVP_SECTOR, profile.sector)
-    SetResourceKvp(KVP_SERVICE, profile.service)
     publishPoliceProfile(profile)
     cb({ ok = true, profile = profile })
 end)
@@ -375,13 +379,19 @@ AddEventHandler('mdc:interactMenuLayout', function(layout, preview)
     SendNUIMessage({ action = 'menuLayout', data = { layout = type(layout) == 'table' and layout or false, preview = preview == true } })
 end)
 
+local closeMenu
+
 --- Ouvre le menu (sur la page `view` si elle est donnée, ex. 'radio' depuis l'œil)
 local function openMenu(view)
-    if RPI.uiOpen() or IsPauseMenuActive() then return end
+    if ui.menu and view then -- déjà ouvert (ex. œil > Radio) : le menu va sur cette page
+        return SendNUIMessage({ action = 'menuGo', data = { view = view } })
+    end
+    if ui.menu or RPI.uiOpen() or IsPauseMenuActive() then return end
     if not view and RPI.targetActive and RPI.targetActive() then return end
     RPI.request('getMenuState', {}, function(res)
-        if RPI.uiOpen() then return end
-        RPI.setUi('menu', true)
+        if ui.menu or RPI.uiOpen() then return end
+        ui.menu = true
+        RPI.kbOpen('menu', closeMenu) -- ferme le /eup s'il est ouvert
         SendNUIMessage({ action = 'menu', data = {
             open = true,
             view = view,
@@ -399,10 +409,11 @@ end
 
 RPI.openMenu = openMenu
 
-local function closeMenu()
+closeMenu = function()
     RPI.radioTarget = nil
     if not ui.menu then return end
-    RPI.setUi('menu', false)
+    ui.menu = false
+    RPI.kbClose('menu')
     SendNUIMessage({ action = 'menu', data = { open = false } })
 end
 
@@ -495,5 +506,5 @@ end
 -- SÉCURITÉ : relâche le focus si la ressource est arrêtée
 -- =========================================================================
 AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() and RPI.uiOpen() then SetNuiFocus(false, false) end
+    if resource == GetCurrentResourceName() and (RPI.uiOpen() or RPI.kbTyping()) then SetNuiFocus(false, false) end
 end)

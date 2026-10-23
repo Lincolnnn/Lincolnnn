@@ -3,14 +3,13 @@
     -------------------------------------------
     Ouvert par la commande /eup (chat écrit, même sans nom RP) ou par Menu Interaction > Équipements >
     "Accéder aux tenues". Tenues de data/outfits.json (lues par le serveur), classées :
-      Police > Atlanta Police Department (APD) / Fayette County Sheriff Office (FCSO) /
-               Georgia State Patrol (GSP) (+ autres services du fichier) ; Civil.
+      Washington State Patrol (WSP) / King County Sheriff Office (KCSO) (+ autres polices du fichier) ; Civil.
     Seules les tenues du personnage (homme / femme, personnage multijoueur) sont listées.
-    Menu au CLAVIER, sans la souris (le joueur peut continuer à bouger) :
+    Menu au CLAVIER, sans la souris (le joueur peut continuer à bouger), touches lues par client/kbmenu.lua :
       flèches haut / bas (maintenues : défilement), Entrée ou flèche droite : ouvrir / mettre la tenue,
       Retour arrière ou flèche gauche : revenir, Échap : fermer.
-    L'affichage et la navigation sont dans le NUI (html/script.js) ; ce fichier lit les touches.
-    Performance : boucle à chaque image UNIQUEMENT pendant que le menu est ouvert ; aucune sinon.
+    L'affichage et la navigation sont dans le NUI (html/script.js).
+    Aucune boucle dans ce fichier.
 ]]
 
 local Config = InteractConfig
@@ -19,21 +18,6 @@ local MALE, FEMALE = GetHashKey('mp_m_freemode_01'), GetHashKey('mp_f_freemode_0
 
 local open = false
 local loading = false
-local session = 0 -- n° d'ouverture : une seule boucle même si le menu est refermé puis rouvert dans la même image
-
--- Touches (contrôles du jeu) -> touche envoyée au NUI
-local KEYS = {
-    { controls = { 172 }, key = 'up', repeats = true },           -- flèche haut
-    { controls = { 173 }, key = 'down', repeats = true },         -- flèche bas
-    { controls = { 175 }, key = 'right' },                        -- flèche droite
-    { controls = { 176, 191 }, key = 'select' },                  -- Entrée
-    { controls = { 174 }, key = 'back' },                         -- flèche gauche
-    { controls = { 177, 194 }, key = 'back' },                    -- Retour arrière
-    { controls = { 200, 322 }, key = 'close' },                   -- Échap
-}
--- Désactivées pendant que le menu est ouvert (pause, armes, téléphone, sélection d'arme…)
-local DISABLED = { 24, 25, 37, 44, 140, 141, 142, 257, 263, 172, 173, 174, 175, 176, 177, 191, 194, 199, 200, 322, 14, 15, 16, 17, 27 }
-local REPEAT_DELAY, REPEAT_RATE = 350, 80 -- ms : défilement en maintenant une flèche
 
 local function gender()
     local model = GetEntityModel(PlayerPedId())
@@ -45,41 +29,8 @@ end
 local function close()
     if not open then return end
     open = false
+    RPI.kbClose('eup')
     SendNUIMessage({ action = 'eup', data = { open = false } })
-end
-
-local function keyLoop()
-    session = session + 1
-    local mine = session
-    CreateThread(function()
-        local held, nextRepeat = nil, 0
-        while open and session == mine do
-            for _, control in ipairs(DISABLED) do DisableControlAction(0, control, true) end
-            -- Une autre fenêtre (menu, fiche, œil) a la main : pas de touches pour ce menu
-            if not RPI.uiOpen() and not (RPI.targetActive and RPI.targetActive()) and not IsPauseMenuActive() then
-                local now = GetGameTimer()
-                local pressedAny, sent = false, {}
-                for _, k in ipairs(KEYS) do
-                    for _, control in ipairs(k.controls) do
-                        -- Une touche peut répondre à plusieurs contrôles (Entrée : 176 et 191) : une fois par image
-                        if IsDisabledControlJustPressed(0, control) and not sent[k.key] then
-                            sent[k.key] = true
-                            SendNUIMessage({ action = 'eupKey', data = { key = k.key } })
-                            if k.repeats then held, nextRepeat = k, now + REPEAT_DELAY end
-                        end
-                        if k == held and IsDisabledControlPressed(0, control) then pressedAny = true end
-                    end
-                end
-                if held and not pressedAny then held = nil end
-                if held and now >= nextRepeat then
-                    nextRepeat = now + REPEAT_RATE
-                    SendNUIMessage({ action = 'eupKey', data = { key = held.key } })
-                end
-            end
-            if IsEntityDead(PlayerPedId()) then close() end
-            Wait(0)
-        end
-    end)
 end
 
 function RPI.openEup()
@@ -99,10 +50,10 @@ function RPI.openEup()
             end
         end
         open = true
+        RPI.kbOpen('eup', close) -- ferme le Menu Interaction s'il est ouvert
         SendNUIMessage({ action = 'eup', data = {
             open = true, outfits = list, gender = sex, policeLocked = res.policeLocked == true,
         } })
-        keyLoop()
     end)
 end
 

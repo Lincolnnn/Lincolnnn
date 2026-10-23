@@ -22,59 +22,76 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
 
 ## Menu Interaction (touche F1)
 
-Titre **Menu Interaction**. L'accueil est en deux parties séparées : **Usage** (**Police**, puis **Civil** en dessous)
-et **Configuration** (**Équipements**, **Voiture**). Emplacement et taille du menu : réglés par chaque joueur dans le MDC
-(*Paramètres > HUD & Display > Menu Interaction* : taille, et emplacement avec « Placer les HUD à l'écran ») ; sans le
-MDC, à gauche de l'écran.
+Un **vrai menu de jeu, au clavier** (comme `/eup`, même apparence), **sans souris** : vous continuez de bouger
+pendant qu'il est ouvert. **F1** l'ouvre et le ferme (modifiable : Échap > Paramètres > Raccourcis clavier > FiveM).
+
+| Touche | Action |
+|---|---|
+| **↑ / ↓** (maintenues : défilement) | choisir une ligne |
+| **Entrée** | valider : ouvrir une page, faire l'action, cocher / décocher, écrire dans un champ |
+| **→** | ouvrir une page ; sur une liste de valeurs (‹ valeur ›) : valeur suivante |
+| **←** | valeur précédente sur une liste ; ailleurs : revenir |
+| **Retour arrière** | revenir à la page précédente (sur l'accueil : fermer) |
+| **Échap** | fermer |
+
+En haut, une **bannière** (titre de la page, sous-titre, couleur de la partie ou de votre police : bleu WSP, vert KCSO),
+puis le chemin (ex. *Menu Interaction › Voiture › Radio*) et le numéro de la ligne choisie ; en bas, l'**aide de la
+ligne** et le rappel des touches. Les lignes grisées sont indisponibles (Entrée affiche pourquoi). **Champs de texte**
+(secteur, lien de la radio, nom d'un équipement) : Entrée ouvre la saisie (le clavier passe au menu le temps de
+l'écrire, Ctrl+V pour coller), **Entrée** valide, **Échap** annule.
+
+L'accueil est en deux parties : **Usage** (**Police**, **Civil**) et **Configuration** (**Équipements**, **Voiture**).
+Emplacement et taille du menu : réglés par chaque joueur dans le MDC (*Paramètres > HUD & Display > Menu Interaction* :
+taille, et emplacement avec « Placer les HUD à l'écran ») ; sans le MDC, à gauche de l'écran. Ouvrir `/eup` ferme ce
+menu (un seul menu au clavier à la fois). L'œil (Alt) reste utilisable menu ouvert (les touches du menu attendent).
 
 **Permissions** (`Permissions` dans `config.lua`) — **temporairement désactivées** (`Enabled = false` : tout le
 monde a accès à toutes les catégories ; remettre `true` pour les réactiver) : les catégories listées dans `Sections` (par défaut **Équipements**
 et **Voiture** : spawn, radio) sont réservées aux joueurs dont l'**identifiant Steam hex** est dans `Players`
 (`steam:11000013ca597a9`, `steam:11000011977aecd`, `steam:110000114f6ac4d`). Les autres les voient **grisées**
-(« Accès réservé ») et le serveur refuse leurs demandes. `Sections = {}` : ouvert à tous. Les règles « police en
+(« Réservé ») et le serveur refuse leurs demandes. `Sections = {}` : ouvert à tous. Les règles « police en
 service » (`SpawnPoliceOnly`, `EquipmentPoliceOnly`) s'appliquent en plus.
 
-Case **Police** : tout en bas, **Display MDC** : **Secteur** (zone de jeu, saisi à la main) et **Service principal**
-(menu déroulant : APD, GSP ou APD & GSP), enregistrés aussitôt, gardés chez le joueur et affichés sur le display du
-MDC (« aucun sélectionné » sinon). Au-dessus : si vous êtes en service (dans une unité du MDC), puis les actions **Menotter**,
-**Prendre par le bras**, **Placer l'individu à l'arrière du véhicule** et **Faire s'asseoir l'individu** : toujours affichées, **grisées** tant que
-personne (joueur ou PNJ) n'est assez près (2 m ; véhicule à 6 m pour placer), mises à jour en direct. Elles agissent
-sur l'individu le plus proche.
-Case **Civil** : rappel du **profil actif** en haut, la case **Mode civil**, puis **Créer un profil** et
-**Créer un véhicule** (ouvrent la **fiche civile** et ferment le menu) et, en mode civil, **Tips arrestation**.
-Case **Équipements** : **Tenues** → bouton **Accéder aux tenues** (ferme ce menu et ouvre le menu `/eup`, ci-dessous) ;
+Page **Police** : en service ou non (unité et police du MDC choisi : **Washington State Patrol** ou **King County
+Sheriff Office**), puis les actions **Menotter**, **Prendre par le bras**, **Placer l'individu à l'arrière du
+véhicule** et **Faire s'asseoir l'individu** : toujours affichées, **grisées** tant que personne (joueur ou PNJ) n'est
+assez près (2 m ; véhicule à 6 m pour placer), mises à jour en direct. Elles agissent sur l'individu le plus proche (le
+menu se ferme). En bas, **Display MDC > Secteur** (zone de jeu, saisi à la main), enregistré aussitôt, gardé chez le
+joueur et affiché sur le display du MDC. Il n'y a plus de « service principal » : la police est celle du MDC choisi.
+Page **Civil** : rappel du **profil actif**, la case **Mode civil**, puis **Créer un profil** et **Créer un véhicule**
+(ouvrent la **fiche civile** et ferment le menu) et, en mode civil, **Tips arrestation**.
+Page **Équipements** : **Tenues** → **Accéder aux tenues** (ferme ce menu et ouvre le menu `/eup`, ci-dessous) ;
 **Armes** (réservées aux policiers en service, `EquipmentPoliceOnly`) :
-- **Équipement GSP**, **Équipement APD**, **Équipement FCSO** : donnent **tout l'équipement de départ** du service
+- **Équipement WSP**, **Équipement KCSO** : donnent **tout l'équipement de départ** de la police
   (arme de service, taser, lampe, matraque, **10 fusées de détresse** à poser au sol avec `rp_flares`…), en remplaçant
-  les armes portées : **toujours l'équipement de base**,
-  jamais modifié automatiquement. Chaque service a **son propre équipement** (fichier **`equipment_services.json`**,
-  fourni et modifiable). Le bouton choisi est **sélectionné** (trait bleu) ; au départ, **aucun** : le joueur choisit
-  lui-même son équipement, quel que soit son service (rien n'est imposé).
-- **Équipements modifiés** (4e entrée, sous les trois équipements de base) : page des équipements que le joueur a
-  **personnalisés, nommés et enregistrés** (10 au maximum, `MaxCustomEquipment`), avec la pastille de leur service.
-  Un clic les **équipe** (et les sélectionne) ; **✎** les modifie. Ils sont **gardés pour toujours** (reconnexion,
-  redémarrage du serveur) et **propres au joueur** (sa licence Rockstar) : **lui seul** y a accès.
+  les armes portées : **toujours l'équipement de base**, jamais modifié automatiquement. Chaque police a **son propre
+  équipement** (fichier **`equipment_services.json`**, fourni et modifiable). L'équipement pris est **coché** ; au
+  départ, **aucun** : le joueur choisit lui-même.
+- **Équipements modifiés** : page des équipements que le joueur a **personnalisés, nommés et enregistrés** (10 au
+  maximum, `MaxCustomEquipment`), avec la pastille de leur police. **Entrée** les **équipe** (et les sélectionne) ;
+  **→** les modifie. Ils sont **gardés pour toujours** (reconnexion, redémarrage du serveur) et **propres au joueur**
+  (sa licence Rockstar) : **lui seul** y a accès. Ceux enregistrés avec les anciens services sont repris
+  (GSP → WSP, FCSO → KCSO).
 - **Customiser équipement** : reconnaît l'**équipement sélectionné** (de base ou modifié) et propose **uniquement les
-  modifications de son service** : accessoires de chaque arme (lampe, chargeur grande capacité…), **teinte**, armes
-  **en plus** (ex. arme de secours au FCSO, extincteur, fusées) ou en moins (l'arme de service et le taser sont
-  **obligatoires**). Champ **Nom de l'équipement** (vide : « Équipement GSP modifié »…). Boutons **Équiper** (sans
-  enregistrer) et **Enregistrer** : depuis un équipement de base, il **s'ajoute** aux Équipements modifiés (l'équipement
-  de base ne change pas) ; depuis un équipement modifié, il le **met à jour**. **Supprimer cet équipement modifié**
-  (seulement pour un équipement modifié). Le serveur revérifie chaque choix (seulement ce que le fichier prévoit pour
-  ce service).
+  modifications de sa police** : pour chaque arme, **Prendre cette arme** (l'arme de service et le taser sont
+  **obligatoires**), ses accessoires (case, ou liste ‹ › : lampe, chargeur grande capacité…), sa **teinte** (liste).
+  Champ **Nom** (vide : « Équipement WSP modifié »…). **Équiper** (sans enregistrer) et **Enregistrer** : depuis un
+  équipement de base, il **s'ajoute** aux Équipements modifiés (l'équipement de base ne change pas) ; depuis un
+  équipement modifié, il le **met à jour**. **Supprimer cet équipement modifié** (Entrée deux fois). Le serveur
+  revérifie chaque choix (seulement ce que le fichier prévoit pour cette police).
 - **Autres armes** : lots de **`data/loadouts.json`** (facultatif, affiché s'il en contient) ; **Retirer mes armes**.
-Case **Voiture** :
-- **Spawn** : en haut, deux options gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
+Page **Voiture** :
+- **Spawn** : en haut, deux cases gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
   fait apparaître, s'il n'y a pas d'autre joueur dedans) et **Apparaître dans le véhicule** (sinon devant vous). Puis
-  une case par **catégorie principale** (`Principale` : Police, Civil…), puis les véhicules **groupés par
-  sous-catégorie** (`subCategory`, avec la pastille APD / GSP / FCSO pour ces services). Seuls les véhicules de
+  une page par **catégorie principale** (`Principale` : Police, Civil…), avec les véhicules **groupés par
+  sous-catégorie** (`subCategory`, avec la pastille WSP / KCSO pour ces polices). Seuls les véhicules de
   **`data/vehicle.json`** sont proposés :
   ```json
   { "vehicles": [
-      { "spawnName": "apdcharger", "Principale": "Police", "subCategory": "Atlanta Police Department",
+      { "spawnName": "wspcharger", "Principale": "Police", "subCategory": "Washington State Patrol",
         "menuName": "Dodge Charger 2020", "extras": { "1": true } },
-      { "spawnName": "apdcharger2", "Principale": "Police", "subCategory": "NC State Highway Patrol",
-        "menuName": "Charger 20 #1", "extras": {} }
+      { "spawnName": "police3", "Principale": "Police", "subCategory": "King County Sheriff Office",
+        "menuName": "Interceptor", "extras": {} }
   ] }
   ```
   `menuName` : nom affiché ; `extras` : `true` activé / `false` désactivé (s'il y en a, ceux qui ne sont pas listés
@@ -83,27 +100,23 @@ Case **Voiture** :
   pas de virgule après le dernier élément, guillemets fermés. L'ancien `data/vehicles.json` n'est lu qu'en l'absence de
   `vehicle.json`.
   `rpi_vehicles` (console) relit les fichiers JSON. Le véhicule apparaît moteur coupé, plein fait (Vehicle Control).
-- **Radio** : collez un **lien** (vidéo / musique YouTube, ou lien direct vers un fichier audio, un podcast, une radio
-  en ligne) puis **▶** (lancer) : le son est joué **dans le véhicule**, tel quel (lecteur YouTube, ou lecteur audio pour un
-  lien direct ; aucun effet ajouté). Tout le monde l'entend **au même moment et au même volume de base** (à 89 %,
-  tout le monde l'a à 89 %). À bord : normalement. Dehors, plus bas avec la distance : entendu jusqu'à **15 m** tout
+- **Radio** : **Lien** (Entrée, collez le lien d'une vidéo / musique YouTube, ou un lien direct vers un fichier audio,
+  un podcast, une radio en ligne, Entrée) puis **Lancer ce lien** : le son est joué **dans le véhicule**, tel quel
+  (lecteur YouTube, ou lecteur audio pour un lien direct ; aucun effet ajouté). Tout le monde l'entend **au même moment
+  et au même volume de base**. À bord : normalement. Dehors, plus bas avec la distance : entendu jusqu'à **15 m** tout
   fermé (`RadioRangeClosed`, volume réduit : `RadioInsulation`) et **25 m** avec une portière (coffre, capot) ouverte
   ou une vitre baissée (`RadioRangeOpen`). Seules les vitres que le véhicule possède comptent.
-  **Écouter ensuite** : le bouton **+** à côté de **▶** ajoute le lien à la file (jusqu'à **5** morceaux ; radio
-  éteinte : il est lancé tout de suite). À la fin d'un morceau, le suivant démarre pour tout le monde.
+  **Ajouter à « Écouter ensuite »** : met le lien dans la file (jusqu'à **5** morceaux ; radio éteinte : il est lancé
+  tout de suite). À la fin d'un morceau, le suivant démarre pour tout le monde. Une ligne de la file : Entrée la retire.
   Passé directement dans un **nouveau véhicule** depuis une place avant (Spawn, avec Vehicle Control) : la radio de
   l'ancien véhicule, laissé vide à l'avant, **s'arrête**.
-  Boutons à icônes (infobulle au survol) du morceau en cours, pour tout le monde :
-  **⏮** revient au **début du morceau** ; **appuyé deux fois** (moins de 2,5 s) : **morceau précédent** (5 gardés,
-  le morceau en cours revient en tête de file) · **⏸ / ▶** **pause / reprise** (reprend là où il était, au même
-  moment pour tous) · **⏭** morceau **suivant** · **⏹** **arrêter** (vide la file). La croix d'une ligne de la file la
-  retire.
+  **Morceau en cours**, pour tout le monde : **Pause / Reprendre** (reprend là où il était, au même moment pour tous) ·
+  **Début du morceau** (**deux fois** en moins de 2,5 s : **morceau précédent**, 5 gardés) · **Morceau suivant** ·
+  **Arrêter la radio** (vide la file) · **Volume du véhicule** (← →, par pas de 5 %).
   Réglable seulement par les **places avant**, ou avec l'**œil** en visant l'intérieur avant du véhicule, **portière
-  avant ouverte** (option « Radio du véhicule »).
+  avant ouverte** (option « Radio du véhicule » : le menu s'ouvre, ou va, sur la page Radio).
   **pma-voice** : il ne transporte que la **voix des joueurs** (micro) ; il ne peut pas diffuser une musique depuis un
   lien. La musique est donc jouée par le navigateur du jeu (NUI), avec les mêmes règles de distance.
-
-Échap : retour / fermeture.
 
 **En service** = dans une unité du MDC : dès que vous rejoignez une unité, les fouilles et détails notoires
 apparaissent dans l'œil (notification) ; dès que vous la quittez, ils sont retirés (et refusés par le serveur).
@@ -111,11 +124,12 @@ apparaissent dans l'œil (notification) ; dès que vous la quittez, ils sont ret
 ## Menu des tenues (`/eup`)
 
 S'ouvre avec **`/eup`** dans le chat écrit (même sans nom RP défini avec `/nomrp`), ou par **Menu Interaction >
-Équipements > Accéder aux tenues**. Menu **au clavier uniquement** (pas de souris, vous pouvez continuer à bouger),
-en haut à gauche, dans le style des menus du jeu : **↑ / ↓** (maintenues : défilement), **Entrée** ou **→** pour
-ouvrir / mettre la tenue, **← / Retour arrière** pour revenir, **Échap** pour fermer (`/eup` à nouveau aussi).
-- **Police** : **Atlanta Police Department (APD)**, **Fayette County Sheriff Office (FCSO)**, **Georgia State Patrol
-  (GSP)** (couleur du service sur la bannière), puis les autres services trouvés dans le fichier (ex. `NCSHP`) ;
+Équipements > Accéder aux tenues**. Même menu **au clavier** que le Menu Interaction (pas de souris, vous pouvez
+continuer à bouger), en haut à gauche : **↑ / ↓** (maintenues : défilement), **Entrée** ou **→** pour ouvrir / mettre
+la tenue, **← / Retour arrière** pour revenir, **Échap** pour fermer (`/eup` à nouveau aussi). Bannière sobre, à la
+couleur de la police ouverte (bleu WSP, vert KCSO).
+- **Police** : **Washington State Patrol (WSP)** et **King County Sheriff Office (KCSO)**, puis les autres polices
+  trouvées dans le fichier (ex. `NCSHP`) ;
 - **Civil** : la liste des tenues civiles (ou leurs groupes, si vous en indiquez dans `Category2`).
 Seules les tenues du personnage (**homme / femme**, personnage multijoueur) sont listées ; la tenue mise est cochée.
 Les tenues se configurent **uniquement dans `data/outfits.json`** (relu avec `rpi_vehicles` en console), un objet
@@ -130,8 +144,8 @@ par tenue, au format EUP habituel :
 }
 ```
 
-- `Cate` : `Police` ou `Civil` ; `Category2` : le service (`APD`, `FCSO`, `GSP` ou leur nom complet ; autre valeur =
-  autre service) ; `Gender` : `Male` / `Female` (absent : les deux) ; `Category` n'est pas utilisé.
+- `Cate` : `Police` ou `Civil` ; `Category2` : la police (`WSP`, `KCSO` ou leur nom complet ; autre valeur =
+  autre police, listée à part) ; `Gender` : `Male` / `Female` (absent : les deux) ; `Category` n'est pas utilisé.
 - Chaque pièce : `"modèle:texture"`, **comptés à partir de 1** comme dans les menus EUP habituels (`Eup.OneBased`,
   `false` si vos numéros commencent à 0). Accessoires (`Hat`, `Glasses`, `Ear`, `Watch`, `Bracelet`) à `0:0` :
   retirés. Pièces : `Mask` (1), `UpperSkin` (3, bras), `Pants` (4), `Parachute` (5, sac), `Shoes` (6),
@@ -379,16 +393,16 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 rempli par le serveur ; l'ancien format de la v2.8, un par service, est converti tout seul), voir `data/LISEZMOI.txt`. **À remplir vous-même**, en **JSON** : `data/vehicle.json`
 (véhicules du menu Voiture > Spawn), `data/loadouts.json` (autres lots d'armes du menu Équipements) et
 `data/outfits.json` (tenues du menu `/eup`) ; `rpi_vehicles` (console) les relit, ainsi que
-**`equipment_services.json`** (à la racine de la ressource, fourni avec trois exemples GSP / APD / FCSO).
+**`equipment_services.json`** (à la racine de la ressource, fourni avec deux exemples : WSP et KCSO).
 
-### `equipment_services.json` : équipement de chaque service
+### `equipment_services.json` : équipement de chaque police
 
 Un objet par bouton « Équipement … », dans l'ordre d'affichage :
 
 ```json
 {
-    "Service": "Georgia State Patrol",
-    "Name": "Équipement GSP",
+    "Service": "Washington State Patrol",
+    "Name": "Équipement WSP",
     "Replace": true,
     "Weapons": [
         {
@@ -407,7 +421,7 @@ Un objet par bouton « Équipement … », dans l'ordre d'affichage :
 
 | Champ | Rôle |
 |---|---|
-| `Service` | `Atlanta Police Department`, `Georgia State Patrol` ou `Fayette County Sheriff Office` (pastille APD / GSP / FCSO ; présélection selon le service principal) ; un autre nom est accepté (sans pastille) |
+| `Service` | `Washington State Patrol` ou `King County Sheriff Office` (ou `WSP` / `KCSO` : pastille de la police) ; un autre nom est accepté (sans pastille) |
 | `Name` | texte du bouton |
 | `Replace` | `true` : les armes portées sont retirées avant (défaut) |
 | `Weapon`, `Label`, `Ammo` | arme, nom affiché, munitions |
@@ -425,7 +439,8 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 
 - Aucune boucle quand rien n'est utilisé (0.00 ms dans le resmon). Radio : une vérification toutes les 150 ms
   seulement tant qu'une radio est allumée dans un véhicule à portée réseau.
-- Menu `/eup` : lecture des touches à chaque image **uniquement pendant qu'il est ouvert**.
+- Menu Interaction et menu `/eup` (au clavier) : lecture des touches à chaque image **uniquement pendant qu'un menu
+  est ouvert** ; aucune boucle sinon.
 - Arme à feu : une vérification toutes les 250 ms (arme en main) ; touches bloquées à chaque image **seulement tant
   qu'une arme à feu est en main**, à pied.
 - L'œil tourne uniquement pendant que la touche est maintenue (visée toutes les 50 ms, tir bloqué) et s'arrête ensuite.

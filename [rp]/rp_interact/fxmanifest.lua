@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '2.20.0'
+version '3.0.0'
 
 ui_page 'html/index.html'
 
@@ -28,6 +28,7 @@ shared_scripts {
 
 client_scripts {
     'client/main.lua',     -- NUI, menu d'interactions, fiches civiles, résultats
+    'client/kbmenu.lua',   -- menus au clavier (Menu Interaction, /eup) : touches, saisie de texte
     'client/options.lua',  -- options de l'œil (environnement, véhicules, personnes)
     'client/target.lua',   -- Eye Target (visée, sélection, exécution)
     'client/civil.lua',    -- Mode civil (tips d'arrestation) et détection de la mise en joue (police)

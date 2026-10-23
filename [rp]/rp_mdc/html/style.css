@@ -965,12 +965,22 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .car-notice-text b { font-size: 13px; color: #fff; }
 .car-notice-text small { font-size: 11px; color: rgba(255, 255, 255, .6); }
 
-/* Menu Interaction (rp_interact) : cadre de placement à l'image du menu au clavier (320 px) */
-.hud-menu { width: 320px; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
-.hm-banner { padding: 14px 16px; font: 600 17px var(--font-display); color: #fff; background: linear-gradient(135deg, rgba(var(--accent-rgb), .35), rgba(var(--accent-rgb), .08)); border-bottom: 1px solid rgba(255, 255, 255, .08); }
-.hm-sub { display: flex; justify-content: space-between; padding: 6px 16px; font-size: 11px; font-weight: 600; color: rgba(255, 255, 255, .55); text-transform: uppercase; letter-spacing: .5px; }
-.hm-case { display: flex; justify-content: space-between; padding: 9px 16px; font-size: 13px; color: rgba(255, 255, 255, .85); }
-.hm-case.active { background: rgba(255, 255, 255, .9); color: #111; font-weight: 600; }
+/* Menu Interaction (rp_interact) : cadre de placement à l'image du menu au clavier (400 px) */
+.hud-menu { width: 400px; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.hm-banner {
+    position: relative; display: flex; flex-direction: column; justify-content: center; height: 64px; padding: 0 18px;
+    background: linear-gradient(100deg, rgba(60, 74, 92, .7), rgba(60, 74, 92, .15) 70%, transparent), rgba(24, 24, 24, .9);
+    border-bottom: 1px solid var(--stroke);
+}
+.hm-banner::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; background: #9aa7b8; border-radius: 0 3px 3px 0; }
+.hm-banner b { font: 600 20px/1.15 var(--font-display); color: #fff; }
+.hm-banner small { font-size: 11.5px; color: rgba(255, 255, 255, .7); }
+.hm-sub { display: flex; justify-content: space-between; padding: 6px 14px; font-size: 11px; font-weight: 600; color: var(--muted); background: rgba(0, 0, 0, .18); border-bottom: 1px solid var(--stroke); }
+.hm-list { padding: 4px; }
+.hm-section { padding: 8px 12px 4px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.hm-case { position: relative; display: flex; justify-content: space-between; align-items: center; height: 34px; padding: 0 12px; font-size: 13.5px; color: var(--text-2); border-radius: var(--radius-sm); }
+.hm-case.active { background: var(--card-3); color: #fff; }
+.hm-case.active::before { content: ""; position: absolute; left: 0; top: 9px; width: 3px; height: 16px; background: var(--accent); border-radius: 2px; }
 
 /* Mode placement : HUD déplaçables, MDC masqué */
 body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed rgba(255, 255, 255, .7); outline-offset: 4px; }

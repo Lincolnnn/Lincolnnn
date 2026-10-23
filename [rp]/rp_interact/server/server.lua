@@ -387,6 +387,7 @@ on('getMenuState', function(src)
     local active = activeProfileOf(getIdentifier(src))
     local unit = policeUnit(src)
     return { ok = true, activeName = active and active.name or nil, police = unit and unit.name or nil,
+        agency = unit and unit.agencyShort or nil, agencyLabel = unit and unit.agencyLabel or nil,
         locked = lockedSections(src) }
 end)
 

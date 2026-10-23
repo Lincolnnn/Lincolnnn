@@ -25,7 +25,7 @@ InteractConfig = {
     },
 
     -- MENU > VOITURE (véhicules de data/vehicle.json) et ÉQUIPEMENTS (armes de data/loadouts.json)
-    SpawnPoliceOnly = true,         -- véhicules de police (APD / GSP / FCSO) réservés aux policiers en service
+    SpawnPoliceOnly = true,         -- véhicules de police (WSP / KCSO) réservés aux policiers en service
     EquipmentPoliceOnly = true,     -- armes réservées aux policiers en service
     MaxCustomEquipment = 10,        -- "Équipements modifiés" (nommés, enregistrés) par joueur
 

@@ -11,7 +11,7 @@ Dossier de données de RP Interact.
                    réservée aux policiers en service. (Ancien vehicles.json lu seulement sans vehicle.json.)
   loadouts.json -> AUTRES ARMES du menu d'interactions (F1 > Équipements, facultatif) : à remplir vous-même,
                    un objet par lot { "Name", "Replace", "Weapons": [ { "Weapon", "Ammo", "Components" } ] }
-                   (les boutons "Équipement GSP / APD / FCSO" sont dans ../equipment_services.json, voir README.md)
+                   (les boutons "Équipement WSP / KCSO" sont dans ../equipment_services.json, voir README.md)
   custom_equipment.json -> ÉQUIPEMENTS MODIFIÉS ("Customiser équipement" > nom > "Enregistrer"), rempli
                    automatiquement par le serveur : une liste nommée par joueur (licence Rockstar), 10 au maximum
                    (MaxCustomEquipment). Chaque joueur ne retrouve que les siens (et les supprime lui-même dans le

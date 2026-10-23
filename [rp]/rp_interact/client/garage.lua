@@ -6,8 +6,8 @@
       le joueur : "Supprimer l'ancien véhicule" (le dernier qu'il a fait apparaître, s'il n'y a pas
       d'autre joueur dedans) et "Apparaître dans le véhicule". Livery et extras de la liste appliqués.
       Le véhicule est créé par ce script : Vehicle Control le considère comme neuf (plein, moteur coupé).
-    ÉQUIPEMENTS : boutons "Équipement GSP / APD / FCSO" (equipment_services.json : tout l'équipement de départ
-      du service, toujours la version de base), "Équipements modifiés" (ceux que le joueur a nommés et enregistrés,
+    ÉQUIPEMENTS : "Équipement WSP" / "Équipement KCSO" (equipment_services.json : tout l'équipement de départ
+      de la police, toujours la version de base), "Équipements modifiés" (ceux que le joueur a nommés et enregistrés,
       gardés par le serveur, propres à lui), "Customiser équipement" (accessoires, teintes, armes en plus, selon le
       service choisi), autres lots (data/loadouts.json) ; bouton
       "Accéder aux tenues" (menu /eup, client/eup.lua, tenues de data/outfits.json).
@@ -143,7 +143,7 @@ RegisterNUICallback('spawnVehicle', function(data, cb)
 end)
 
 -- =========================================================================
--- ÉQUIPEMENTS : équipements de service (equipment_services.json : "Équipement GSP / APD / FCSO", personnalisables
+-- ÉQUIPEMENTS : équipements de police (equipment_services.json : "Équipement WSP / KCSO", personnalisables
 -- par chaque joueur), autres lots d'armes (data/loadouts.json) ; les tenues sont dans le menu /eup (client/eup.lua)
 -- =========================================================================
 RegisterNUICallback('equipmentList', function(_, cb)

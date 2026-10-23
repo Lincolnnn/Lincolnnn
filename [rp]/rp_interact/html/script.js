@@ -144,21 +144,273 @@
     }
 
     // =====================================================================
-    // MENU D'INTERACTIONS
+    // MENUS AU CLAVIER (Menu Interaction, /eup) : touches lues par client/kbmenu.lua (le NUI n'a pas le focus)
+    //   ↑ ↓ choisir · Entrée valider · → ouvrir / valeur suivante · ← valeur précédente (sinon retour)
+    //   Retour arrière : revenir · Échap : fermer
+    // Une page = { id, title, banner: { title, sub, color }, items: () => [...], onEnter }
+    // Éléments : menu (ouvre une page), button, check (case), list (valeurs ← →), input (texte), info, section
     // =====================================================================
-    const menu = { open: false, view: 'home', data: {} };
-    let spawnCategory = null; // Voiture > Spawn : catégorie principale ouverte
-    const MENU_TITLES = {
-        home: 'Menu Interaction', civil: 'Civil', police: 'Police', equipment: 'Équipements', 'equipment-custom': 'Customiser équipement',
-        'equipment-saved': 'Équipements modifiés',
-        car: 'Voiture', spawn: 'Spawn', 'spawn-list': 'Véhicules', radio: 'Radio',
+    const KB_VISIBLE = 10;
+    const KB_SELECTABLE = new Set(['menu', 'button', 'check', 'list', 'input']);
+    const KB_ICONS = {
+        menu: '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+        eup: '<svg viewBox="0 0 24 24"><path d="M12 6a2 2 0 1 1 2-2M12 6v2L3 15a1 1 0 0 0 .6 1.8h16.8A1 1 0 0 0 21 15l-9-7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     };
-    // Page précédente (bouton retour / Échap)
-    const MENU_PARENT = { civil: 'home', police: 'home', equipment: 'home', 'equipment-custom': 'equipment', 'equipment-saved': 'equipment', car: 'home', spawn: 'car', radio: 'car', 'spawn-list': 'spawn' };
-    // Catégories réservées (config.lua : Permissions) : page -> catégorie
-    const SECTION_OF = { equipment: 'equipment', 'equipment-custom': 'equipment', 'equipment-saved': 'equipment', car: 'car', spawn: 'car', 'spawn-list': 'car', radio: 'car' };
-    const isLocked = (view) => !!(SECTION_OF[view] && menu.data.locked && menu.data.locked[SECTION_OF[view]]);
+    const kbMenus = {};
+
+    class KbMenu {
+        /** opts = { icon, close(), onPage(page) } */
+        constructor(el, name, opts) {
+            this.el = el;
+            this.name = name;
+            this.opts = opts;
+            this.stack = [];
+            this.open = false;
+            this.editing = null;
+            el.innerHTML = `
+                <div class="kb-banner">
+                    <span class="kb-icon">${opts.icon || ''}</span>
+                    <span class="kb-head"><span class="kb-title"></span><span class="kb-sub"></span></span>
+                </div>
+                <div class="kb-crumb"><span class="kb-path"></span><span class="kb-count"></span></div>
+                <div class="kb-list"></div>
+                <div class="kb-desc"></div>
+                <div class="kb-keys">
+                    <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> Choisir</span>
+                    <span><kbd>Entrée</kbd> Valider</span>
+                    <span><kbd>&#8592;</kbd><kbd>&#8594;</kbd> Régler</span>
+                    <span><kbd>&#9003;</kbd> Retour</span>
+                    <span><kbd>Échap</kbd> Fermer</span>
+                </div>`;
+            // Saisie de texte : Entrée valide, Échap annule (le clavier est rendu au jeu ensuite)
+            el.addEventListener('keydown', (e) => {
+                if (!e.target.classList.contains('kb-input')) return;
+                if (e.key === 'Enter') { e.preventDefault(); this.stopEditing(true); }
+                if (e.key === 'Escape') { e.preventDefault(); this.stopEditing(false); }
+                e.stopPropagation();
+            });
+            el.addEventListener('focusout', (e) => {
+                if (e.target.classList.contains('kb-input') && this.editing) this.stopEditing(true);
+            });
+            kbMenus[name] = this;
+        }
+
+        get page() { return this.stack[this.stack.length - 1]; }
+
+        items() {
+            const p = this.page;
+            if (!p) return [];
+            return toArray(typeof p.items === 'function' ? p.items() : p.items).filter(Boolean);
+        }
+
+        start(pages) {
+            this.stopEditing(false);
+            this.open = true;
+            this.stack = [];
+            toArray(pages).forEach((p, i, all) => this.push(p, i < all.length - 1));
+            this.el.classList.remove('hidden');
+        }
+
+        stop() {
+            this.stopEditing(false);
+            this.open = false;
+            this.stack = [];
+            this.el.classList.add('hidden');
+        }
+
+        /** Ouvre une page ; `quiet` : sans la charger (pages traversées pour arriver à la dernière) */
+        push(page, quiet) {
+            if (!page) return;
+            this.stack.push({ sel: null, top: 0, ...page });
+            if (!quiet) this.enter();
+        }
+
+        pop() {
+            if (this.stack.length <= 1) return false;
+            this.stack.pop();
+            this.enter();
+            return true;
+        }
+
+        enter() {
+            const p = this.page;
+            if (p.onEnter) p.onEnter(p);
+            if (this.opts.onPage) this.opts.onPage(p);
+            this.render();
+        }
+
+        selectable(items) {
+            return items.map((it, i) => (KB_SELECTABLE.has(it.kind) ? i : -1)).filter((i) => i >= 0);
+        }
+
+        /** Sélection valide (la liste peut avoir changé : rechargée, élément retiré) */
+        fixSel(items) {
+            const p = this.page;
+            const ids = this.selectable(items);
+            if (!ids.length) { p.sel = -1; return ids; }
+            if (p.sel == null || p.sel < 0) p.sel = ids[0];
+            if (!ids.includes(p.sel)) p.sel = ids.find((i) => i > p.sel) ?? ids[ids.length - 1];
+            return ids;
+        }
+
+        render(force) {
+            if (!this.open || !this.page || (this.editing && !force)) return;
+            const p = this.page;
+            const items = this.items();
+            const ids = this.fixSel(items);
+            const banner = (typeof p.banner === 'function' ? p.banner() : p.banner) || {};
+            this.el.style.setProperty('--kb-color', banner.color || '#3c4a5c');
+            $('.kb-title', this.el).textContent = banner.title || p.title || '';
+            $('.kb-sub', this.el).textContent = banner.sub || '';
+            $('.kb-path', this.el).textContent = this.stack.map((x) => x.title).join(' › ');
+            $('.kb-count', this.el).textContent = ids.length ? `${ids.indexOf(p.sel) + 1}/${ids.length}` : '';
+            if (p.sel >= 0) {
+                if (p.sel < p.top) p.top = p.sel;
+                if (p.sel >= p.top + KB_VISIBLE) p.top = p.sel - KB_VISIBLE + 1;
+                // Titre de section juste au-dessus de la sélection : gardé visible en remontant
+                if (p.top === p.sel && p.sel > 0 && items[p.sel - 1].kind === 'section') p.top -= 1;
+            }
+            p.top = Math.max(0, Math.min(p.top, items.length - KB_VISIBLE));
+            $('.kb-list', this.el).innerHTML = items.slice(p.top, p.top + KB_VISIBLE)
+                .map((it, i) => this.rowHtml(it, p.top + i === p.sel)).join('')
+                || '<div class="kb-info">Chargement…</div>';
+            this.el.classList.toggle('more-up', p.top > 0);
+            this.el.classList.toggle('more-down', p.top + KB_VISIBLE < items.length);
+            const current = items[p.sel];
+            const desc = (current && current.desc) || p.desc || '';
+            $('.kb-desc', this.el).innerHTML = desc ? esc(desc).replace(/\n/g, '<br>') : '';
+            $('.kb-desc', this.el).classList.toggle('hidden', !desc);
+        }
+
+        rowHtml(it, sel) {
+            if (it.kind === 'section') return `<div class="kb-section">${esc(it.label)}</div>`;
+            if (it.kind === 'info') return `<div class="kb-info${it.tone ? ` tone-${it.tone}` : ''}">${esc(it.label)}</div>`;
+            let right = '';
+            if (it.kind === 'check') {
+                right = `<span class="kb-check${it.checked ? ' on' : ''}" aria-hidden="true"></span>`;
+            } else if (it.kind === 'list') {
+                const option = toArray(it.options)[Number(it.index) || 0];
+                const label = option && typeof option === 'object' ? option.label : option;
+                right = `<span class="kb-choice"><i>&#8249;</i><span>${esc(label ?? '')}</span><i>&#8250;</i></span>`;
+            } else if (it.kind === 'input') {
+                right = this.editing && this.editing.item.key === it.key
+                    ? `<input class="kb-input" type="text" maxlength="${Number(it.max) || 80}" value="${esc(this.editing.value)}" placeholder="${esc(it.placeholder || '')}" spellcheck="false" autocomplete="off">`
+                    : `<span class="kb-value${it.value ? '' : ' is-empty'}">${esc(it.value || it.placeholder || 'Vide')}</span>`;
+            } else if (it.right) {
+                right = `<span class="kb-right">${esc(it.right)}</span>`;
+            }
+            if (it.mark) right += '<span class="kb-mark" aria-hidden="true">&#10003;</span>';
+            if (it.kind === 'menu') right += '<span class="kb-arrow" aria-hidden="true">&#8250;</span>';
+            const cls = ['kb-item', sel && 'sel', it.disabled && 'disabled', it.danger && 'danger', it.kind === 'input' && 'is-input'].filter(Boolean).join(' ');
+            return `<div class="${cls}"${it.color ? ` style="--kb-tag:${esc(it.color)}"` : ''}>
+                ${it.color ? '<span class="kb-tag"></span>' : ''}<span class="kb-label">${esc(it.label)}</span>${right}</div>`;
+        }
+
+        key(key) {
+            if (!this.open || this.editing || !this.page) return;
+            const p = this.page;
+            const items = this.items();
+            const ids = this.fixSel(items);
+            const it = items[p.sel];
+            const move = (d) => {
+                if (!ids.length) return;
+                const pos = ids.indexOf(p.sel);
+                p.sel = ids[(pos + d + ids.length) % ids.length];
+            };
+            switch (key) {
+                case 'up': move(-1); break;
+                case 'down': move(1); break;
+                case 'left':
+                    if (it && it.kind === 'list') { if (!it.disabled) this.cycle(it, -1); break; }
+                    if (!this.pop()) return this.opts.close();
+                    return;
+                case 'right':
+                    if (!it || it.disabled) break;
+                    if (it.kind === 'list') this.cycle(it, 1);
+                    else if (it.kind === 'menu') return this.activate(it);
+                    else if (it.onRight) it.onRight();
+                    break;
+                case 'select': if (it) return this.activate(it); break;
+                case 'back': if (!this.pop()) return this.opts.close(); return;
+                case 'close': return this.opts.close();
+                default: return;
+            }
+            this.render();
+        }
+
+        activate(it) {
+            if (it.disabled) {
+                if (it.why) toast(it.why, 'error');
+                return;
+            }
+            if (it.kind === 'menu') {
+                const page = typeof it.open === 'function' ? it.open() : it.open;
+                if (page) this.push(page);
+                return;
+            }
+            if (it.kind === 'check') { if (it.onChange) it.onChange(!it.checked); }
+            else if (it.kind === 'list') this.cycle(it, 1);
+            else if (it.kind === 'input') return this.startEditing(it);
+            else if (it.action) it.action();
+            this.render();
+        }
+
+        cycle(it, d) {
+            const n = toArray(it.options).length;
+            if (!n) return;
+            const current = Number(it.index) || 0;
+            const next = it.clamp ? Math.min(Math.max(current + d, 0), n - 1) : (current + d + n) % n;
+            if (next !== current && it.onChange) it.onChange(next, toArray(it.options)[next]);
+        }
+
+        // ---- Saisie de texte : le NUI prend le clavier (sans curseur) le temps de la saisie ----
+        async startEditing(it) {
+            this.editing = { item: it, value: it.value || '' };
+            this.render(true);
+            await post('kbTyping', { active: true });
+            const input = $('.kb-input', this.el);
+            if (!input || !this.editing) return;
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
+
+        stopEditing(commit) {
+            const edit = this.editing;
+            if (!edit) return;
+            const input = $('.kb-input', this.el);
+            const value = (input ? input.value : edit.value).trim();
+            this.editing = null;
+            post('kbTyping', { active: false });
+            if (commit && edit.item.onChange) edit.item.onChange(value);
+            this.render();
+        }
+    }
+
+    // =====================================================================
+    // MENU D'INTERACTIONS (touche F1 par défaut)
+    // =====================================================================
+    const menu = { data: {} };
     const LOCKED_TEXT = 'Accès réservé : vous n\'avez pas la permission.';
+    // Couleur de la bannière : une par partie du menu ; WSP / KCSO : couleur de la police (comme le MDC)
+    const AGENCY_COLORS = { wsp: '#2d5f9e', kcso: '#2f6b4f' };
+    const MENU_COLORS = { home: '#3c4a5c', police: '#2d4a6e', civil: '#4a4f58', equipment: '#4a4458', car: '#36544f' };
+    const agencyCode = (text) => {
+        const t = String(text || '').toLowerCase();
+        if (t === 'wsp' || t.startsWith('washington')) return 'wsp';
+        if (t === 'kcso' || t.startsWith('king county')) return 'kcso';
+        return '';
+    };
+    const agencyColor = (text) => AGENCY_COLORS[agencyCode(text)] || '';
+    const isLocked = (section) => !!(menu.data.locked && menu.data.locked[section]);
+    const menuOn = (id) => interact.open && interact.page && interact.page.id === id;
+    const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+
+    const interact = new KbMenu($('#menu'), 'menu', {
+        icon: KB_ICONS.menu,
+        close: () => post('closeMenu'),
+        onPage: (page) => post('menuView', { view: page.id }), // la page Police reçoit l'état des actions en direct
+    });
+    const rerender = () => interact.render();
 
     // Position (fraction de l'écran, coin haut-gauche) et taille choisies dans le MDC ; sinon, par défaut
     let menuLayout = null;
@@ -166,15 +418,13 @@
         const el = $('#menu');
         const l = menuLayout;
         if (!l) {
-            el.style.left = ''; el.style.top = ''; el.style.transform = ''; el.style.maxHeight = '';
+            el.style.left = ''; el.style.top = ''; el.style.transform = '';
             return;
         }
         const scale = Math.min(Math.max(Number(l.scale) || 1, 0.7), 1.5);
-        const top = Math.round(Math.min(Math.max(Number(l.y) || 0, 0), 0.95) * innerHeight);
         el.style.left = `${Math.round(Math.min(Math.max(Number(l.x) || 0, 0), 0.95) * innerWidth)}px`;
-        el.style.top = `${top}px`;
+        el.style.top = `${Math.round(Math.min(Math.max(Number(l.y) || 0, 0), 0.95) * innerHeight)}px`;
         el.style.transform = `scale(${scale})`;
-        el.style.maxHeight = `${Math.max(200, Math.floor((innerHeight - top - 12) / scale))}px`; // reste dans l'écran
     }
     window.addEventListener('resize', applyMenuLayout);
 
@@ -183,162 +433,126 @@
     function setMenuLayout(data) {
         menuLayout = data && data.layout ? data.layout : null;
         applyMenuLayout();
-        if (!data || !data.preview || menu.open) return;
+        if (!data || !data.preview || interact.open) return;
         const el = $('#menu');
-        menu.view = 'home';
-        renderMenu();
+        interact.start([homePage()]);
+        interact.open = false; // aperçu seulement : les touches ne le pilotent pas
         el.classList.add('preview');
-        el.classList.remove('hidden');
         clearTimeout(previewTimer);
         previewTimer = setTimeout(() => {
             el.classList.remove('preview');
-            if (!menu.open) el.classList.add('hidden');
+            if (!interact.open) el.classList.add('hidden');
         }, 2500);
     }
 
-    const goBack = () => {
-        menu.view = MENU_PARENT[menu.view] || 'home';
-        renderMenu();
-    };
-
-    function renderMenu() {
-        const d = menu.data;
-        if (menu.lastView !== menu.view) {
-            menu.lastView = menu.view;
-            post('menuView', { view: menu.view }); // la vue Police reçoit l'état des actions en direct
-            if (menu.view === 'equipment' || menu.view === 'equipment-saved') loadEquipment();
-            if (menu.view === 'equipment-custom') loadCustom();
-            if (menu.view.startsWith('spawn')) loadVehicles();
-            if (menu.view === 'radio') loadRadio();
-        }
-        $('#menuTitle').textContent = menu.view === 'spawn-list' && spawnCategory ? spawnCategory : MENU_TITLES[menu.view];
-        $$('.menu-case[data-section]').forEach((c) => {
-            const locked = isLocked(c.dataset.section);
-            const hint = c.querySelector('small');
-            c.classList.toggle('locked', locked);
-            hint.textContent = locked ? 'Accès réservé' : hint.dataset.hint;
-        });
-        $('#menuBack').classList.toggle('hidden', menu.view === 'home');
-        $$('.menu-view').forEach((v) => v.classList.toggle('hidden', v.dataset.view !== menu.view));
-
-        // Rappel du profil actif (Civil)
-        $('#menuCivilHint').textContent = d.activeName ? `Profil actif : ${d.activeName}` : 'Aucun profil actif';
-        const active = $('#menuActive');
-        active.classList.toggle('none', !d.activeName);
-        active.innerHTML = d.activeName
-            ? `Profil actif : <b>${esc(d.activeName)}</b>`
-            : 'Aucun profil actif : créez-en un (« Créer un profil »).';
-
-        // Police : en service = dans une unité du MDC
-        $('#menuPoliceHint').textContent = d.police ? `En service — ${d.police}` : 'Hors service';
-        const police = $('#menuPolice');
-        police.classList.toggle('on-duty', !!d.police);
-        police.classList.toggle('none', !d.police);
-        police.innerHTML = d.police ? `En service — unité <b>${esc(d.police)}</b>` : '<b>Hors service</b>';
-        $('#menuPoliceText').innerHTML = d.police
-            ? `Maintenez <b>${esc(d.targetKey || 'Alt')}</b> et visez une personne ou un véhicule : inspections, fouilles et détails notoires.`
-            : `Rejoignez une unité dans le MDC pour accéder aux fouilles et aux détails notoires. Avec l'œil
-               (<b>${esc(d.targetKey || 'Alt')}</b>), seules les inspections visuelles et olfactives sont possibles.`;
-    }
-
-    function renderCivilMode() {
-        const d = menu.data;
-        $('#civilMode').checked = !!d.civilMode;
-        $('#tipsToggle').classList.toggle('hidden', !d.civilMode);
-        $('#tipsToggle').classList.toggle('active', !!d.tipsManual);
-        $('#tipsToggle').textContent = d.tipsManual ? 'Masquer les tips arrestation' : 'Tips arrestation';
-    }
-
-    // Case "Mode civil" (gardée chez le joueur)
-    $('#civilMode').addEventListener('change', async (e) => {
-        const res = await post('setCivilMode', { enabled: e.target.checked });
-        menu.data.civilMode = !!(res && res.ok ? res.civilMode : e.target.checked);
-        if (!menu.data.civilMode) menu.data.tipsManual = false;
-        renderCivilMode();
-    });
-
-    // Tips d'arrestation à la demande (le menu se ferme pour que les touches répondent)
-    $('#tipsToggle').addEventListener('click', async () => {
-        const res = await post('toggleTips');
-        if (!res || !res.ok) {
-            toast(res?.error || 'Action impossible.', 'error');
-            return;
-        }
-        menu.data.tipsManual = !!res.visible;
-        renderCivilMode();
-    });
-
-    // ---- Actions de police (vue Police) : toujours affichées, grisées si personne n'est assez proche ----
-    function setMenuActions(a) {
-        const set = (action, state, label) => {
-            const btn = $(`[data-police-action="${action}"]`);
-            btn.disabled = !(state && state.enabled);
-            if (label) btn.textContent = label;
+    // ---- Accueil ----
+    function homePage() {
+        return {
+            id: 'home', title: 'Menu Interaction',
+            banner: () => ({ title: 'Interactions', sub: menu.data.activeName ? `Profil actif : ${menu.data.activeName}` : 'Menu Interaction', color: MENU_COLORS.home }),
+            items: () => {
+                const d = menu.data;
+                const locked = (section) => (isLocked(section) ? { disabled: true, why: LOCKED_TEXT, right: 'Réservé' } : {});
+                return [
+                    { kind: 'section', label: 'Usage' },
+                    { kind: 'menu', label: 'Police', right: d.police ? `${d.agency ? `${d.agency} · ` : ''}${d.police}` : 'Hors service', open: policePage,
+                        color: agencyColor(d.agency) || undefined,
+                        desc: d.police ? 'Menottes, prendre par le bras, placer dans un véhicule ; secteur affiché sur le MDC.'
+                            : 'Hors service : rejoignez une unité dans le MDC (WSP ou KCSO).' },
+                    { kind: 'menu', label: 'Civil', right: d.activeName || 'Aucun profil', open: civilPage,
+                        desc: 'Mode civil, profils, véhicule et tips d\'arrestation.' },
+                    { kind: 'section', label: 'Configuration' },
+                    { kind: 'menu', label: 'Équipements', open: equipmentPage, desc: 'Tenues (/eup) et armes.', ...locked('equipment') },
+                    { kind: 'menu', label: 'Voiture', open: carPage, desc: 'Faire apparaître un véhicule, radio du véhicule.', ...locked('car') },
+                ];
+            },
         };
-        set('cuff', a.cuff, a.cuff && a.cuff.label);
-        set('drag', a.drag, a.drag && a.drag.label);
-        set('place', a.place);
-        set('seat', a.seat, a.seat && a.seat.label);
     }
 
-    $$('[data-police-action]').forEach((btn) => btn.addEventListener('click', () => {
-        if (btn.disabled) return;
-        post('policeAction', { action: btn.dataset.policeAction });
-    }));
-
-    // ---- Secteur / service principal (vue Police, en bas) : enregistrés dès qu'ils changent ----
-    function renderPoliceProfile() {
-        const p = menu.data.policeProfile || {};
-        if (document.activeElement !== $('#policeSector')) $('#policeSector').value = p.sector || '';
-        $('#policeService').value = p.service || '';
+    // ---- Police : actions toujours affichées, grisées si personne n'est assez proche ; secteur (display MDC) ----
+    const actions = {};
+    function setMenuActions(a) {
+        Object.assign(actions, a || {});
+        if (menuOn('police')) rerender();
     }
 
-    let sectorTimer = null;
-    async function savePoliceProfile() {
-        clearTimeout(sectorTimer);
-        const res = await post('setPoliceProfile', { sector: $('#policeSector').value, service: $('#policeService').value });
-        if (res && res.ok) menu.data.policeProfile = res.profile;
+    function policePage() {
+        return {
+            id: 'police', title: 'Police',
+            banner: () => ({ title: 'Police', sub: menu.data.police ? `${menu.data.agencyLabel || 'En service'} — unité ${menu.data.police}` : 'Hors service',
+                color: agencyColor(menu.data.agency) || MENU_COLORS.police }),
+            items: () => {
+                const d = menu.data;
+                const action = (key, fallback, why) => {
+                    const state = actions[key] || {};
+                    return { kind: 'button', label: state.label || fallback, disabled: !state.enabled,
+                        why: d.police ? why : 'Réservé à la police : rejoignez une unité dans le MDC.',
+                        desc: d.police ? (state.enabled ? 'Entrée : faire l\'action (le menu se ferme).' : why) : 'Rejoignez une unité dans le MDC.',
+                        action: () => post('policeAction', { action: key }) };
+                };
+                const targetKey = d.targetKey || 'Alt';
+                return [
+                    { kind: 'info', label: d.police ? `En service — unité ${d.police}` : 'Hors service', tone: d.police ? 'ok' : 'muted' },
+                    action('cuff', 'Menotter', 'Personne à moins de 2 m.'),
+                    action('drag', 'Prendre par le bras', 'Personne à moins de 2 m.'),
+                    action('place', 'Placer l\'individu à l\'arrière du véhicule', 'Tenez un individu par le bras, près d\'un véhicule.'),
+                    action('seat', 'Faire s\'asseoir l\'individu', 'Individu menotté à moins de 2 m (pas tenu par le bras).'),
+                    { kind: 'section', label: 'Display MDC' },
+                    { kind: 'input', key: 'sector', label: 'Secteur', value: (d.policeProfile || {}).sector || '', max: 40,
+                        placeholder: 'ex : Downtown, I-5 Nord…',
+                        desc: 'Entrée : écrire le secteur (zone de jeu), affiché sur le display du MDC. Entrée pour valider, Échap pour annuler.',
+                        onChange: async (value) => {
+                            const res = await post('setPoliceProfile', { sector: value });
+                            if (res && res.ok) menu.data.policeProfile = res.profile;
+                            rerender();
+                        } },
+                    { kind: 'info', label: d.police ? `Œil (${targetKey}) : inspections, fouilles, détails notoires.`
+                        : `Œil (${targetKey}) : inspections visuelles et olfactives seulement.`, tone: 'muted' },
+                ];
+            },
+        };
     }
-    $('#policeSector').addEventListener('input', () => {
-        clearTimeout(sectorTimer);
-        sectorTimer = setTimeout(savePoliceProfile, 400);
-    });
-    $('#policeSector').addEventListener('change', savePoliceProfile);
-    $('#policeService').addEventListener('change', savePoliceProfile);
 
-    function setMenu(data) {
-        menu.open = !!data.open;
-        clearTimeout(previewTimer);
-        $('#menu').classList.remove('preview');
-        $('#menu').classList.toggle('hidden', !menu.open);
-        if (!menu.open) {
-            menu.lastView = null;
-            return;
-        }
-        $$('[data-police-action]').forEach((btn) => { btn.disabled = true; });
-        menu.data = data;
-        menuLayout = data.layout || null;
-        applyMenuLayout();
-        menu.view = MENU_TITLES[data.view] ? data.view : 'home'; // ex. 'radio' depuis l'œil
-        if (isLocked(menu.view)) {
-            toast(LOCKED_TEXT, 'error');
-            menu.view = 'home';
-        }
-        renderMenu();
-        renderCivilMode();
-        renderPoliceProfile();
+    // ---- Civil ----
+    async function openEditorView(view) {
+        const res = await post('openEditor', { view });
+        if (!res || !res.ok) toast(res?.error || 'Ouverture impossible.', 'error');
     }
 
-    // ---- Équipements : équipements de service (Équipement GSP / APD / FCSO), autres lots d'armes ; tenues : menu /eup ----
-    const listButtons = (items, kind, empty) => (items.length ? items.map((x) => `
-        <button type="button" class="menu-item" data-kind="${kind}" data-index="${x.index}">${esc(x.name)}
-            ${x.service ? `<small>${esc(x.service)}</small>` : ''}</button>`).join('') : `<div class="menu-empty">${esc(empty)}</div>`);
+    function civilPage() {
+        return {
+            id: 'civil', title: 'Civil',
+            banner: () => ({ title: 'Civil', sub: menu.data.activeName ? `Profil actif : ${menu.data.activeName}` : 'Aucun profil actif', color: MENU_COLORS.civil }),
+            items: () => {
+                const d = menu.data;
+                return [
+                    { kind: 'info', label: d.activeName ? `Profil actif : ${d.activeName}` : 'Aucun profil actif : créez-en un.', tone: d.activeName ? '' : 'muted' },
+                    { kind: 'check', label: 'Mode civil', checked: !!d.civilMode,
+                        desc: 'Options visuelles propres au rôle de civil (tips d\'arrestation). Gardé d\'une connexion à l\'autre.',
+                        onChange: async (on) => {
+                            const res = await post('setCivilMode', { enabled: on });
+                            d.civilMode = !!(res && res.ok ? res.civilMode : on);
+                            if (!d.civilMode) d.tipsManual = false;
+                            rerender();
+                        } },
+                    { kind: 'button', label: 'Créer un profil', desc: 'Ouvre la fiche civile (profils permanents).', action: () => openEditorView('profiles') },
+                    { kind: 'button', label: 'Créer un véhicule', desc: 'Profil du véhicule dans lequel vous êtes (ou le plus proche).', action: () => openEditorView('vehicle') },
+                    d.civilMode && { kind: 'button', label: d.tipsManual ? 'Masquer les tips arrestation' : 'Tips arrestation', mark: !!d.tipsManual,
+                        desc: 'Touches des emotes de reddition (le menu se ferme pour les utiliser).',
+                        action: async () => {
+                            const res = await post('toggleTips');
+                            if (!res || !res.ok) return toast(res?.error || 'Action impossible.', 'error');
+                            d.tipsManual = !!res.visible;
+                            rerender();
+                        } },
+                ];
+            },
+        };
+    }
 
+    // ---- Équipements : équipements de police (Équipement WSP / KCSO), modifiés, autres lots ; tenues : menu /eup ----
     // Équipement sélectionné : de base ({ key }) ou modifié ({ id }) ; c'est lui que "Customiser équipement" modifie.
-    // Au départ : aucun, le joueur choisit lui-même (quel que soit son service).
-    const equip = { services: [], customs: [], max: 10, selected: null, locked: false, custom: null };
-    const DEPT = { apd: 'APD', gsp: 'GSP', fcso: 'FCSO' };
-    const deptChip = (code) => (DEPT[code] ? `<span class="dept-chip dept-${code}">${DEPT[code]}</span>` : '');
+    const equip = { loaded: false, services: [], customs: [], loadouts: [], max: 10, selected: null, locked: false, custom: null };
     const selectedKit = () => {
         const sel = equip.selected;
         if (!sel) return null;
@@ -348,163 +562,174 @@
         }
         return equip.services.find((x) => x.key === sel.key) || null;
     };
-
-    function renderKits() {
-        const sel = equip.selected || {};
-        $('#kitList').innerHTML = equip.services.length ? equip.services.map((x) => `
-            <button type="button" class="menu-item kit-item${!sel.id && x.key === sel.key ? ' selected' : ''}" data-key="${esc(x.key)}" ${equip.locked ? 'disabled' : ''}>
-                <span class="kit-name">${deptChip(x.code)}${esc(x.name)}</span>
-                <small>Équipement de base</small>
-            </button>`).join('') : '<div class="menu-empty">Aucun équipement de service (equipment_services.json).</div>';
-        const n = equip.customs.length;
-        $('#savedHint').textContent = n ? `${n} enregistré${n > 1 ? 's' : ''}` : 'Aucun : « Customiser », puis « Enregistrer »';
-        $('#openSaved').classList.toggle('locked', equip.locked);
-        $('#savedList').innerHTML = n ? equip.customs.map((x) => `
-            <div class="saved-row${sel.id === x.id ? ' selected' : ''}">
-                <button type="button" class="menu-item kit-item saved-item" data-id="${x.id}" ${equip.locked ? 'disabled' : ''}>
-                    <span class="kit-name">${deptChip(x.code)}${esc(x.name)}</span><small>Modifié depuis : ${esc(x.service)}</small>
-                </button>
-                <button type="button" class="saved-edit" data-edit="${x.id}" title="Modifier" ${equip.locked ? 'disabled' : ''}>✎</button>
-            </div>`).join('')
-            : '<div class="menu-empty">Aucun équipement modifié. Choisissez un équipement de base, « Customiser équipement », donnez-lui un nom puis « Enregistrer ».</div>';
-        const kit = selectedKit();
-        $('#equipCustomize').disabled = equip.locked || !kit;
-        $('#equipCustomizeHint').textContent = kit ? kit.name : 'Choisissez d\'abord un équipement';
-    }
+    const LOCKED_WEAPONS = 'Armes réservées à la police : rejoignez une unité dans le MDC.';
 
     async function loadEquipment() {
         const res = await post('equipmentList');
         if (!res || !res.ok) return;
+        equip.loaded = true;
         equip.locked = !!(res.policeOnly && !res.police);
         equip.services = toArray(res.services);
         equip.customs = toArray(res.customs);
+        equip.loadouts = toArray(res.loadouts);
         equip.max = Number(res.maxCustom) || 10;
         if (!selectedKit()) equip.selected = null; // rien d'imposé : le joueur choisit son équipement
-        const notice = $('#equipNotice');
-        notice.classList.toggle('hidden', !equip.locked);
-        notice.textContent = 'Armes réservées à la police : rejoignez une unité dans le MDC.';
-        renderKits();
-        const loadouts = toArray(res.loadouts);
-        $('#loadoutSection').classList.toggle('hidden', !loadouts.length);
-        $('#loadoutList').innerHTML = loadouts.length ? listButtons(loadouts, 'loadout', '') : '';
-        $$('#loadoutList .menu-item').forEach((b) => { b.disabled = equip.locked; });
+        rerender();
     }
 
-    function openCustomize(selection) {
-        if (selection) equip.selected = selection;
-        if (!selectedKit() || equip.locked) return;
-        menu.view = 'equipment-custom';
-        menu.lastView = null; // rechargée même si elle était déjà ouverte
-        renderMenu();
+    const kitColor = (kit) => agencyColor(kit.code) || agencyColor(kit.service) || undefined;
+
+    function equipmentPage() {
+        return {
+            id: 'equipment', title: 'Équipements',
+            banner: { title: 'Équipements', sub: 'Tenues et armes', color: MENU_COLORS.equipment },
+            onEnter: loadEquipment,
+            items: () => {
+                const lock = equip.locked ? { disabled: true, why: LOCKED_WEAPONS } : {};
+                const sel = equip.selected || {};
+                const kit = selectedKit();
+                const n = equip.customs.length;
+                return [
+                    { kind: 'section', label: 'Tenues' },
+                    { kind: 'button', label: 'Accéder aux tenues', right: '/eup', desc: 'Menu des tenues (WSP, KCSO, Civil).', action: () => post('openEup') },
+                    { kind: 'section', label: 'Armes' },
+                    equip.locked && { kind: 'info', label: LOCKED_WEAPONS, tone: 'warn' },
+                    ...(equip.loaded && !equip.services.length ? [{ kind: 'info', label: 'Aucun équipement de police (equipment_services.json).', tone: 'muted' }] : []),
+                    ...equip.services.map((x) => ({
+                        kind: 'button', label: x.name, right: 'Base', color: kitColor(x), mark: !sel.id && sel.key === x.key, ...lock,
+                        desc: 'Entrée : prendre tout l\'équipement de départ (toujours la version de base). Il devient l\'équipement à customiser.',
+                        action: () => {
+                            equip.selected = { key: x.key };
+                            post('useEquipment', { kind: 'service', key: x.key });
+                        },
+                    })),
+                    { kind: 'menu', label: 'Équipements modifiés', right: n ? `${n}` : 'Aucun', open: savedPage, ...lock,
+                        desc: n ? `${plural(n, 'équipement')} enregistré${n > 1 ? 's' : ''} (${equip.max} max).` : 'Aucun : choisissez un équipement, « Customiser équipement », puis « Enregistrer ».' },
+                    { kind: 'menu', label: 'Customiser équipement', right: kit ? kit.name : '', open: customPage, ...lock,
+                        ...(kit ? {} : { disabled: true, why: 'Choisissez d\'abord un équipement.' }),
+                        desc: kit ? `Armes, accessoires et teintes de « ${kit.name} ».` : 'Choisissez d\'abord un équipement (de base ou modifié).' },
+                    ...(equip.loadouts.length ? [{ kind: 'section', label: 'Autres armes' }] : []),
+                    ...equip.loadouts.map((x) => ({ kind: 'button', label: x.name, ...lock,
+                        action: () => post('useEquipment', { kind: 'loadout', index: Number(x.index) }) })),
+                    { kind: 'button', label: 'Retirer mes armes', danger: true, action: () => post('useEquipment', { kind: 'removeWeapons' }) },
+                ];
+            },
+        };
     }
 
-    document.addEventListener('click', async (e) => {
-        const kit = e.target.closest('#kitList .kit-item');
-        if (kit && !kit.disabled) {
-            equip.selected = { key: kit.dataset.key }; // reconnu par "Customiser équipement"
-            renderKits();
-            post('useEquipment', { kind: 'service', key: kit.dataset.key }); // toujours l'équipement de base
-            return;
-        }
-        const saved = e.target.closest('#savedList .saved-item');
-        if (saved && !saved.disabled) {
-            equip.selected = { id: Number(saved.dataset.id) };
-            renderKits();
-            post('useEquipment', { kind: 'custom', id: Number(saved.dataset.id) });
-            return;
-        }
-        const edit = e.target.closest('#savedList .saved-edit');
-        if (edit && !edit.disabled) {
-            openCustomize({ id: Number(edit.dataset.edit) });
-            return;
-        }
-        const item = e.target.closest('#loadoutList .menu-item');
-        if (!item || item.disabled) return;
-        post('useEquipment', { kind: item.dataset.kind, index: Number(item.dataset.index) });
-    });
-    $('#openEup').addEventListener('click', () => post('openEup'));
-    $('#weaponsRemove').addEventListener('click', () => post('useEquipment', { kind: 'removeWeapons' }));
-    $('#openSaved').addEventListener('click', () => {
-        if (equip.locked) return;
-        menu.view = 'equipment-saved';
-        renderMenu();
-    });
-    $('#equipCustomize').addEventListener('click', () => {
-        if (!$('#equipCustomize').disabled) openCustomize();
-    });
+    function savedPage() {
+        return {
+            id: 'equipment-saved', title: 'Équipements modifiés',
+            banner: { title: 'Équipements modifiés', sub: 'Les vôtres, enregistrés sur le serveur', color: MENU_COLORS.equipment },
+            onEnter: loadEquipment,
+            items: () => {
+                const sel = equip.selected || {};
+                if (!equip.customs.length) return [{ kind: 'info', label: 'Aucun équipement modifié.', tone: 'muted' }];
+                return equip.customs.map((x) => ({
+                    kind: 'button', label: x.name, right: x.service, color: kitColor(x), mark: sel.id === x.id,
+                    desc: 'Entrée : équiper · → : modifier.',
+                    action: () => {
+                        equip.selected = { id: x.id };
+                        post('useEquipment', { kind: 'custom', id: x.id });
+                    },
+                    onRight: () => {
+                        equip.selected = { id: x.id };
+                        interact.push(customPage());
+                    },
+                }));
+            },
+        };
+    }
 
-    // ---- Customiser équipement : armes du service, accessoires, teintes ; nom ; enregistré = équipement modifié ----
+    // ---- Customiser équipement : armes de la police, accessoires, teintes ; nom ; enregistré = équipement modifié ----
     const TINTS = ['Noir (d\'origine)', 'Vert', 'Or', 'Rose', 'Kaki', 'Bleu police', 'Orange', 'Platine'];
-
-    function customHead() {
-        const c = equip.custom;
-        if (!c) return;
-        $('#customHead').innerHTML = `${deptChip(c.code)}<b>${esc(c.id ? c.name : c.service)}</b><br><small>${c.id
-            ? `Équipement modifié (depuis ${esc(c.service)}) : « Enregistrer » met à jour celui-ci.`
-            : `Équipement de base : modifiez-le, nommez-le, puis « Enregistrer » : il s'ajoute aux Équipements modifiés (l'équipement de base ne change pas).`}</small>`;
-        $('#customDelete').classList.toggle('hidden', !c.id);
-    }
-
-    function renderCustom() {
-        const c = equip.custom;
-        customHead();
-        $('#customName').value = c.name || '';
-        $('#customName').placeholder = c.suggested || 'Nom de l\'équipement';
-        $('#customList').innerHTML = toArray(c.weapons).map((w) => {
-            const choice = w.choice || {};
-            const comps = toArray(choice.components);
-            const groups = toArray(w.groups).map((g, gi) => {
-                const choices = toArray(g.choices);
-                if (choices.length === 1) {
-                    const ch = choices[0];
-                    return `<label class="custom-opt"><input type="checkbox" data-group="${gi}" value="${esc(ch.component)}" ${comps.includes(ch.component) ? 'checked' : ''}>
-                        <span class="custom-tick"></span>${esc(ch.label || g.label)}</label>`;
-                }
-                return `<label class="menu-field custom-field"><span>${esc(g.label)}</span><select data-group="${gi}">
-                    <option value="">Aucun</option>${choices.map((ch) => `<option value="${esc(ch.component)}" ${comps.includes(ch.component) ? 'selected' : ''}>${esc(ch.label)}</option>`).join('')}
-                </select></label>`;
-            }).join('');
-            const tint = w.tints ? `<label class="menu-field custom-field"><span>Teinte</span><select class="custom-tint">
-                ${TINTS.map((t, i) => `<option value="${i}" ${Number(choice.tint) === i ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : '';
-            const on = w.required || choice.on;
-            return `<div class="custom-weapon${on ? '' : ' off'}" data-weapon="${esc(w.weapon)}">
-                <label class="custom-name">
-                    <input type="checkbox" class="custom-on" ${on ? 'checked' : ''} ${w.required ? 'disabled' : ''}>
-                    <span class="custom-tick"></span><b>${esc(w.label)}</b>${w.required ? '<small>Obligatoire</small>' : ''}
-                </label>
-                ${groups || tint ? `<div class="custom-opts">${groups}${tint}</div>` : ''}
-            </div>`;
-        }).join('') || '<div class="menu-empty">Rien à personnaliser pour cet équipement.</div>';
-    }
 
     async function loadCustom() {
         const kit = selectedKit();
-        $('#customList').innerHTML = '';
-        $('#customHead').textContent = 'Chargement…';
+        equip.custom = null;
+        rerender();
         if (!kit) return;
         const res = await post('equipmentCustom', kit.custom ? { id: kit.id } : { key: kit.key });
         if (!res || !res.ok) {
-            $('#customHead').textContent = res?.error || 'Action impossible.';
+            toast(res?.error || 'Action impossible.', 'error');
             return;
         }
+        // Choix en cours (modifiés dans le menu, envoyés à "Équiper" / "Enregistrer")
+        res.weapons = toArray(res.weapons).map((w) => {
+            const choice = w.choice || {};
+            return { ...w, groups: toArray(w.groups), on: !!(w.required || choice.on),
+                components: toArray(choice.components), tint: Number(choice.tint) || 0 };
+        });
+        res.draftName = res.name || '';
         equip.custom = res;
-        renderCustom();
+        rerender();
     }
 
-    // Arme cochée / décochée : ses accessoires grisés
-    $('#customList').addEventListener('change', (e) => {
-        if (!e.target.classList.contains('custom-on')) return;
-        e.target.closest('.custom-weapon').classList.toggle('off', !e.target.checked);
-    });
+    function customItems() {
+        const c = equip.custom;
+        if (!c) return [{ kind: 'info', label: 'Chargement…', tone: 'muted' }];
+        const items = [
+            { kind: 'info', label: c.id ? `Modifié depuis ${c.service}` : `Équipement de base : ${c.service}`, tone: 'muted' },
+            { kind: 'input', key: 'name', label: 'Nom', value: c.draftName, placeholder: c.suggested || 'Nom de l\'équipement', max: 40,
+                desc: 'Nom de l\'équipement modifié (Entrée pour écrire).', onChange: (v) => { c.draftName = v; rerender(); } },
+        ];
+        c.weapons.forEach((w) => {
+            items.push({ kind: 'section', label: w.label });
+            items.push({ kind: 'check', label: 'Prendre cette arme', checked: w.on, disabled: !!w.required,
+                right: w.required ? 'Obligatoire' : '', why: 'Arme obligatoire.',
+                onChange: (on) => { w.on = on; } });
+            w.groups.forEach((g) => {
+                const choices = toArray(g.choices);
+                const has = (comp) => w.components.includes(comp);
+                const without = () => { w.components = w.components.filter((x) => !choices.some((ch) => ch.component === x)); };
+                if (choices.length === 1) {
+                    const ch = choices[0];
+                    items.push({ kind: 'check', label: ch.label || g.label, checked: has(ch.component), disabled: !w.on, why: 'Prenez d\'abord l\'arme.',
+                        onChange: (on) => { without(); if (on) w.components.push(ch.component); } });
+                    return;
+                }
+                const options = [{ label: 'Aucun' }, ...choices];
+                const index = Math.max(0, options.findIndex((o) => o.component && has(o.component)));
+                items.push({ kind: 'list', label: g.label, options, index, disabled: !w.on, why: 'Prenez d\'abord l\'arme.',
+                    onChange: (i) => { without(); if (options[i].component) w.components.push(options[i].component); } });
+            });
+            if (w.tints) {
+                items.push({ kind: 'list', label: 'Teinte', options: TINTS, index: w.tint, disabled: !w.on, why: 'Prenez d\'abord l\'arme.',
+                    onChange: (i) => { w.tint = i; } });
+            }
+        });
+        items.push({ kind: 'section', label: 'Enregistrer' });
+        items.push({ kind: 'button', label: 'Équiper', desc: 'Prendre ces armes sans enregistrer.', action: () => customAction('apply') });
+        items.push({ kind: 'button', label: c.id ? 'Enregistrer (mettre à jour)' : 'Enregistrer', desc: c.id
+            ? 'Met à jour cet équipement modifié.'
+            : 'Ajoute un équipement modifié à votre liste (l\'équipement de base ne change pas).', action: () => customAction('save') });
+        if (c.id) {
+            items.push({ kind: 'button', label: c.confirmDelete ? 'Confirmer la suppression' : 'Supprimer cet équipement modifié', danger: true,
+                desc: c.confirmDelete ? 'Entrée à nouveau : supprimer définitivement.' : 'Supprime cet équipement modifié.',
+                action: () => {
+                    if (!c.confirmDelete) { c.confirmDelete = true; return; }
+                    customAction('delete');
+                } });
+        }
+        return items;
+    }
+
+    function customPage() {
+        return {
+            id: 'equipment-custom', title: 'Customiser',
+            banner: () => {
+                const c = equip.custom;
+                return { title: 'Customiser équipement', sub: c ? (c.id ? c.name : c.service) : '', color: (c && kitColor(c)) || MENU_COLORS.equipment };
+            },
+            onEnter: (page) => { if (!page.loaded) { page.loaded = true; loadCustom(); } },
+            items: customItems,
+        };
+    }
 
     function customChoices() {
         const weapons = {};
-        $$('#customList .custom-weapon').forEach((el) => {
-            const components = [];
-            el.querySelectorAll('.custom-opt input:checked').forEach((i) => components.push(i.value));
-            el.querySelectorAll('select[data-group]').forEach((sel) => { if (sel.value) components.push(sel.value); });
-            const tint = el.querySelector('.custom-tint');
-            weapons[el.dataset.weapon] = { on: el.querySelector('.custom-on').checked, components, tint: tint ? Number(tint.value) : 0 };
+        equip.custom.weapons.forEach((w) => {
+            weapons[w.weapon] = { on: w.on, components: w.components.slice(), tint: w.tint };
         });
         return { weapons };
     }
@@ -512,7 +737,7 @@
     async function customAction(action) {
         const c = equip.custom;
         if (!c) return;
-        const payload = { key: c.key, id: c.id || null, action, name: $('#customName').value.trim() };
+        const payload = { key: c.key, id: c.id || null, action, name: c.draftName.trim() };
         if (action !== 'delete') payload.choices = customChoices();
         const res = await post('equipmentCustomSave', payload);
         if (!res || !res.ok) return;
@@ -520,29 +745,33 @@
         if (action === 'delete') {
             equip.custom = null;
             equip.selected = { key: c.key };
-            menu.view = 'equipment-saved';
-            renderMenu();
-            renderKits();
+            interact.pop();
             return;
         }
         if (action === 'save' && res.id) {
             // Enregistré : c'est désormais cet équipement modifié qui est sélectionné (un nouvel enregistrement le met à jour)
             c.id = res.id;
             c.name = res.name || c.name;
-            $('#customName').value = c.name;
+            c.draftName = c.name;
             equip.selected = { id: res.id };
-            customHead();
-            renderKits();
         }
+        rerender();
     }
-    $('#customApply').addEventListener('click', () => customAction('apply'));
-    $('#customSave').addEventListener('click', () => customAction('save'));
-    $('#customDelete').addEventListener('click', () => customAction('delete'));
+
+    // ---- Voiture ----
+    function carPage() {
+        return {
+            id: 'car', title: 'Voiture',
+            banner: { title: 'Voiture', sub: 'Spawn et radio', color: MENU_COLORS.car },
+            items: [
+                { kind: 'menu', label: 'Spawn', open: spawnPage, desc: 'Faire apparaître un véhicule (data/vehicle.json).' },
+                { kind: 'menu', label: 'Radio', open: radioPage, desc: 'Musique, vidéo, podcast dans le véhicule, pour tout le monde.' },
+            ],
+        };
+    }
 
     // ---- Voiture > Spawn (data/vehicle.json) : catégorie principale ("Principale") > sous-catégorie ----
-    const DEPT_OF = { 'atlanta police department': 'apd', 'georgia state patrol': 'gsp', 'fayette county sheriff office': 'fcso' };
-    const ICON_POLICE = '<svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
-    const ICON_CAR = '<svg viewBox="0 0 24 24"><path d="M3 15v-3l2-5h14l2 5v3Z M3 15v3h3v-3 M18 15v3h3v-3 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    const spawn = { loaded: false, vehicles: [], options: {}, locked: false };
     /** Groupes dans l'ordre du fichier : [{ name, items }] */
     function groupBy(list, key) {
         const out = [];
@@ -554,133 +783,193 @@
         });
         return out;
     }
+
     async function loadVehicles() {
         const res = await post('vehicleList');
         if (!res || !res.ok) return;
-        const opts = res.options || {};
-        $('#spawnDeleteOld').checked = opts.deleteOld !== false;
-        $('#spawnWarpInto').checked = opts.warpInto !== false;
-        const all = toArray(res.vehicles);
-        const locked = res.policeOnly && !res.police;
-        const categories = groupBy(all, 'category');
-        $('#spawnCategories').innerHTML = categories.length ? categories.map((c) => {
-            const subs = groupBy(c.items, 'sub').filter((g) => g.name);
-            const police = c.name.toLowerCase() === 'police';
-            return `<button type="button" class="menu-case spawn-category" data-category="${esc(c.name)}">
-                <span class="case-icon">${police ? ICON_POLICE : ICON_CAR}</span>
-                <span class="case-text"><b>${esc(c.name)}</b><small>${c.items.length} véhicule${c.items.length > 1 ? 's' : ''}${subs.length ? ` · ${subs.map((g) => esc(g.name)).join(', ')}` : ''}${police && locked ? ' — réservé à la police' : ''}</small></span>
-                <span class="case-arrow">&#8250;</span>
-            </button>`;
-        }).join('') : '<div class="menu-empty">Aucun véhicule (data/vehicle.json).</div>';
-        if (menu.view !== 'spawn-list') return;
-        const current = categories.find((c) => c.name === spawnCategory);
-        const police = !!(current && current.name.toLowerCase() === 'police');
-        const item = (v) => `<button type="button" class="menu-item vehicle-item" data-id="${Number(v.id)}" ${v.police && locked ? 'disabled' : ''}>
-            ${esc(v.label)}<small>${esc(v.code)}</small></button>`;
-        $('#spawnGroups').innerHTML = current ? groupBy(current.items, 'sub').map((g) => {
-            const dept = DEPT_OF[g.name.toLowerCase()];
-            const head = g.name ? `<div class="menu-section">${dept ? `<span class="dept-chip dept-${dept}">${dept.toUpperCase()}</span>` : ''}${esc(g.name)}</div>` : '';
-            return `${head}<div class="menu-list">${g.items.map(item).join('')}</div>`;
-        }).join('') : '<div class="menu-empty">Aucun véhicule dans cette catégorie.</div>';
-        const notice = $('#spawnPoliceNotice');
-        notice.classList.toggle('hidden', !(police && locked));
-        notice.textContent = 'Réservé à la police : rejoignez une unité dans le MDC.';
+        spawn.loaded = true;
+        spawn.options = res.options || {};
+        spawn.vehicles = toArray(res.vehicles);
+        spawn.locked = !!(res.policeOnly && !res.police);
+        rerender();
     }
-    document.addEventListener('click', (e) => {
-        const cat = e.target.closest('.spawn-category');
-        if (!cat) return;
-        spawnCategory = cat.dataset.category;
-        menu.view = 'spawn-list';
-        menu.lastView = null; // recharge la liste de cette catégorie
-        renderMenu();
-    });
 
-    const saveSpawnOptions = () => post('spawnOptions', { deleteOld: $('#spawnDeleteOld').checked, warpInto: $('#spawnWarpInto').checked });
-    $('#spawnDeleteOld').addEventListener('change', saveSpawnOptions);
-    $('#spawnWarpInto').addEventListener('change', saveSpawnOptions);
-    document.addEventListener('click', (e) => {
-        const btn = e.target.closest('.vehicle-item');
-        if (!btn || btn.disabled) return;
-        post('spawnVehicle', { id: Number(btn.dataset.id) });
-        post('closeMenu');
-    });
+    const saveSpawnOptions = () => post('spawnOptions', { deleteOld: spawn.options.deleteOld !== false, warpInto: spawn.options.warpInto !== false });
+
+    function spawnPage() {
+        return {
+            id: 'spawn', title: 'Spawn',
+            banner: { title: 'Spawn', sub: 'Faire apparaître un véhicule', color: MENU_COLORS.car },
+            onEnter: loadVehicles,
+            items: () => {
+                const o = spawn.options;
+                const categories = groupBy(spawn.vehicles, 'category');
+                return [
+                    { kind: 'check', label: 'Supprimer l\'ancien véhicule', checked: o.deleteOld !== false,
+                        desc: 'Le dernier véhicule que vous avez fait apparaître (s\'il n\'y a pas d\'autre joueur dedans).',
+                        onChange: (on) => { o.deleteOld = on; saveSpawnOptions(); } },
+                    { kind: 'check', label: 'Apparaître dans le véhicule', checked: o.warpInto !== false,
+                        desc: 'Sinon, il apparaît devant vous.', onChange: (on) => { o.warpInto = on; saveSpawnOptions(); } },
+                    { kind: 'section', label: 'Catégories' },
+                    ...(spawn.loaded && !categories.length ? [{ kind: 'info', label: 'Aucun véhicule (data/vehicle.json).', tone: 'muted' }] : []),
+                    ...categories.map((c) => {
+                        const police = c.name.toLowerCase() === 'police';
+                        const subs = groupBy(c.items, 'sub').filter((g) => g.name);
+                        return { kind: 'menu', label: c.name, right: `${c.items.length}`, open: () => spawnListPage(c.name),
+                            desc: `${plural(c.items.length, 'véhicule')}${subs.length ? ` · ${subs.map((g) => g.name).join(', ')}` : ''}${police && spawn.locked ? ' — réservés à la police' : ''}` };
+                    }),
+                ];
+            },
+        };
+    }
+
+    function spawnListPage(category) {
+        return {
+            id: 'spawn-list', title: category,
+            banner: { title: category, sub: 'Véhicules', color: MENU_COLORS.car },
+            items: () => {
+                const current = groupBy(spawn.vehicles, 'category').find((c) => c.name === category);
+                if (!current) return [{ kind: 'info', label: 'Aucun véhicule dans cette catégorie.', tone: 'muted' }];
+                const police = current.name.toLowerCase() === 'police';
+                const out = police && spawn.locked ? [{ kind: 'info', label: 'Réservé à la police : rejoignez une unité dans le MDC.', tone: 'warn' }] : [];
+                groupBy(current.items, 'sub').forEach((g) => {
+                    if (g.name) out.push({ kind: 'section', label: g.name });
+                    g.items.forEach((v) => out.push({
+                        kind: 'button', label: v.label, right: v.code, color: agencyColor(g.name) || undefined,
+                        disabled: !!(v.police && spawn.locked), why: 'Réservé à la police : rejoignez une unité dans le MDC.',
+                        action: () => {
+                            post('spawnVehicle', { id: Number(v.id) });
+                            post('closeMenu');
+                        },
+                    }));
+                });
+                return out;
+            },
+        };
+    }
 
     // ---- Voiture > Radio : réglages du véhicule (le son est joué plus bas) ----
     const RADIO_QUEUE_MAX = 5;
-    function renderRadio(info) {
-        const status = $('#radioStatus');
-        const controls = $('#radioControls');
-        info = info || {};
-        if (!info.available) {
-            status.className = 'menu-active none';
-            status.textContent = info.error || 'Montez dans un véhicule (ou visez l\'intérieur avant avec l\'œil, portière ouverte).';
-            controls.classList.add('disabled');
-            controls.querySelectorAll('input, button').forEach((el) => { el.disabled = true; });
-            $('#radioQueue').innerHTML = '';
-            return;
-        }
-        const radio = info.radio || null;
-        const queue = radio ? toArray(radio.queue) : [];
-        status.className = `menu-active ${radio ? 'on-air' : 'none'}`;
-        status.innerHTML = `${info.vehicle ? `<b>${esc(info.vehicle)}</b> — ` : ''}${radio ? (radio.paused ? 'radio en pause' : 'radio allumée') : 'radio éteinte'}`
-            + (radio ? `<br><small class="radio-now">${esc(radio.url)}</small>` : '')
-            + (info.canControl ? '' : '<br><small>Seules les places avant peuvent la régler.</small>');
-        controls.classList.toggle('disabled', !info.canControl);
-        controls.querySelectorAll('input, button').forEach((el) => { el.disabled = !info.canControl; });
-        ['#radioStop', '#radioNext', '#radioPause', '#radioRestart'].forEach((sel) => { $(sel).disabled = !info.canControl || !radio; });
-        const paused = !!(radio && radio.paused);
-        $('#radioPause').classList.toggle('is-paused', paused);
-        $('#radioPause').title = paused ? 'Reprendre' : 'Pause';
-        $('#radioPause').setAttribute('aria-label', paused ? 'Reprendre' : 'Pause');
-        $('#radioAdd').disabled = !info.canControl || queue.length >= RADIO_QUEUE_MAX;
-        const volume = radio ? radio.volume : Number($('#radioVolume').value);
-        $('#radioVolume').value = volume;
-        $('#radioVolumeValue').textContent = `${volume} %`;
-        // File "Écouter ensuite"
-        $('#radioQueueTitle').textContent = `Écouter ensuite (${queue.length} / ${RADIO_QUEUE_MAX})`;
-        $('#radioQueue').innerHTML = queue.length
-            ? queue.map((url, i) => `
-                <div class="radio-queue-item"><span class="radio-queue-n">${i + 1}</span><span class="radio-queue-url">${esc(url)}</span>
-                    ${info.canControl ? `<button type="button" class="radio-queue-del" data-unqueue="${i + 1}" title="Retirer">&#10005;</button>` : ''}</div>`).join('')
-            : '<div class="menu-empty">Aucun morceau en attente : collez un lien puis « + ».</div>';
-    }
+    const RADIO_VOLUMES = Array.from({ length: 21 }, (_, i) => `${i * 5} %`);
+    const radioUi = { info: null, url: '', volume: 60, volumeTimer: null };
 
     async function loadRadio() {
-        renderRadio(await post('radioInfo'));
+        radioUi.info = await post('radioInfo');
+        const radio = radioUi.info && radioUi.info.radio;
+        if (radio) radioUi.volume = Number(radio.volume) || 0;
+        rerender();
     }
 
     async function radioAction(action, extra = {}) {
         const res = await post('radioAction', { action, ...extra });
-        if (!res || !res.ok) return toast(res?.error || 'Action impossible.', 'error');
-        renderRadio(res);
+        if (!res || !res.ok) {
+            toast(res?.error || 'Action impossible.', 'error');
+            return null;
+        }
+        radioUi.info = res;
+        if (res.radio) radioUi.volume = Number(res.radio.volume) || 0;
+        rerender();
         return res;
     }
-    const radioUrl = () => $('#radioUrl').value.trim();
-    $('#radioPlay').addEventListener('click', () => radioAction('play', { url: radioUrl(), volume: Number($('#radioVolume').value) }));
-    $('#radioAdd').addEventListener('click', async () => {
-        const res = await radioAction('queue', { url: radioUrl(), volume: Number($('#radioVolume').value) });
-        if (res) $('#radioUrl').value = '';
-    });
-    $('#radioNext').addEventListener('click', () => radioAction('next'));
-    $('#radioPause').addEventListener('click', () => radioAction('pause'));
+
     // Début du morceau ; deux appuis rapprochés (moins de 2,5 s) : morceau précédent
     const RADIO_DOUBLE_MS = 2500;
     let radioRestartAt = 0;
-    $('#radioRestart').addEventListener('click', () => {
-        const now = Date.now();
-        const double = now - radioRestartAt < RADIO_DOUBLE_MS;
-        radioRestartAt = double ? 0 : now;
-        radioAction(double ? 'previous' : 'restart');
-    });
-    $('#radioStop').addEventListener('click', () => radioAction('stop'));
-    $('#radioQueue').addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-unqueue]');
-        if (btn) radioAction('unqueue', { index: Number(btn.dataset.unqueue) });
-    });
-    $('#radioVolume').addEventListener('input', () => { $('#radioVolumeValue').textContent = `${$('#radioVolume').value} %`; });
-    $('#radioVolume').addEventListener('change', () => {
-        if (!$('#radioStop').disabled) radioAction('volume', { volume: Number($('#radioVolume').value) });
-    });
+
+    function radioItems() {
+        const info = radioUi.info;
+        if (!info) return [{ kind: 'info', label: 'Chargement…', tone: 'muted' }];
+        if (!info.available) {
+            return [{ kind: 'info', label: info.error || 'Montez dans un véhicule (ou visez l\'intérieur avant avec l\'œil, portière ouverte).', tone: 'muted' }];
+        }
+        const radio = info.radio || null;
+        const queue = radio ? toArray(radio.queue) : [];
+        const can = !!info.canControl;
+        const off = (cond, why) => (cond ? {} : { disabled: true, why });
+        const front = 'Seules les places avant peuvent régler la radio.';
+        const ctl = (extra) => (can ? (extra || {}) : { disabled: true, why: front });
+        const items = [
+            { kind: 'info', label: `${info.vehicle ? `${info.vehicle} — ` : ''}${radio ? (radio.paused ? 'radio en pause' : 'radio allumée') : 'radio éteinte'}`, tone: radio ? 'ok' : 'muted' },
+            radio && { kind: 'info', label: radio.url, tone: 'muted' },
+            !can && { kind: 'info', label: front, tone: 'warn' },
+            { kind: 'input', key: 'url', label: 'Lien', value: radioUi.url, placeholder: 'YouTube, musique, podcast, radio…', max: 400, ...ctl(),
+                desc: 'Entrée : coller / écrire le lien (Ctrl+V), puis Entrée.', onChange: (v) => { radioUi.url = v; rerender(); } },
+            { kind: 'button', label: 'Lancer ce lien', ...ctl(radioUi.url ? {} : { disabled: true, why: 'Écrivez d\'abord un lien.' }),
+                desc: 'Tout le monde l\'entend au même moment : à bord, et dehors selon la distance (plus bas vitres et portières fermées).',
+                action: () => radioAction('play', { url: radioUi.url, volume: radioUi.volume }) },
+            { kind: 'button', label: 'Ajouter à « Écouter ensuite »', right: `${queue.length} / ${RADIO_QUEUE_MAX}`,
+                ...ctl(!radioUi.url ? { disabled: true, why: 'Écrivez d\'abord un lien.' } : (queue.length >= RADIO_QUEUE_MAX ? { disabled: true, why: 'File pleine (5 max).' } : {})),
+                desc: 'Lu à la suite du morceau en cours.',
+                action: async () => { if (await radioAction('queue', { url: radioUi.url, volume: radioUi.volume })) { radioUi.url = ''; rerender(); } } },
+            { kind: 'section', label: 'Morceau en cours' },
+            { kind: 'button', label: radio && radio.paused ? 'Reprendre' : 'Pause', ...ctl(off(radio, 'Radio éteinte.')), action: () => radioAction('pause') },
+            { kind: 'button', label: 'Début du morceau', ...ctl(off(radio, 'Radio éteinte.')),
+                desc: 'Appuyez deux fois : morceau précédent.',
+                action: () => {
+                    const now = Date.now();
+                    const double = now - radioRestartAt < RADIO_DOUBLE_MS;
+                    radioRestartAt = double ? 0 : now;
+                    radioAction(double ? 'previous' : 'restart');
+                } },
+            { kind: 'button', label: 'Morceau suivant', ...ctl(off(radio, 'Radio éteinte.')), action: () => radioAction('next') },
+            { kind: 'button', label: 'Arrêter la radio', danger: true, ...ctl(off(radio, 'Radio éteinte.')), desc: 'Vide aussi la file « Écouter ensuite ».', action: () => radioAction('stop') },
+            { kind: 'list', label: 'Volume du véhicule', options: RADIO_VOLUMES, index: Math.round(radioUi.volume / 5), clamp: true, ...ctl(),
+                desc: '← → : régler (pour tout le monde).',
+                onChange: (i) => {
+                    radioUi.volume = i * 5;
+                    clearTimeout(radioUi.volumeTimer);
+                    if (radio) radioUi.volumeTimer = setTimeout(() => radioAction('volume', { volume: radioUi.volume }), 350);
+                } },
+            { kind: 'section', label: `Écouter ensuite (${queue.length} / ${RADIO_QUEUE_MAX})` },
+        ];
+        if (!queue.length) items.push({ kind: 'info', label: 'Aucun morceau en attente.', tone: 'muted' });
+        queue.forEach((url, i) => items.push({ kind: 'button', label: url, right: `${i + 1}`, ...ctl(),
+            desc: 'Entrée : retirer de la file.', action: () => radioAction('unqueue', { index: i + 1 }) }));
+        return items;
+    }
+
+    function radioPage() {
+        return {
+            id: 'radio', title: 'Radio',
+            banner: () => ({ title: 'Radio', sub: (radioUi.info && radioUi.info.vehicle) || 'Radio du véhicule', color: MENU_COLORS.car }),
+            onEnter: () => { radioUi.info = null; loadRadio(); },
+            items: radioItems,
+        };
+    }
+
+    // Pages ouvertes directement (ex. 'radio' depuis l'œil) : le chemin, pour que Retour arrière remonte
+    const MENU_PATHS = { radio: [carPage, radioPage], spawn: [carPage, spawnPage], police: [policePage], civil: [civilPage], equipment: [equipmentPage] };
+    const SECTION_OF = { radio: 'car', spawn: 'car', equipment: 'equipment' };
+
+    function menuPages(view) {
+        const pages = [homePage()];
+        if (!MENU_PATHS[view]) return pages;
+        if (isLocked(SECTION_OF[view])) {
+            toast(LOCKED_TEXT, 'error');
+            return pages;
+        }
+        return pages.concat(MENU_PATHS[view].map((fn) => fn()));
+    }
+
+    function setMenu(data) {
+        clearTimeout(previewTimer);
+        $('#menu').classList.remove('preview');
+        if (!data.open) {
+            interact.stop();
+            return;
+        }
+        menu.data = data;
+        Object.keys(actions).forEach((k) => delete actions[k]);
+        menuLayout = data.layout || null;
+        applyMenuLayout();
+        interact.start(menuPages(data.view));
+    }
+
+    // Déjà ouvert : l'œil (Radio) l'amène sur une page
+    function menuGo(view) {
+        if (!interact.open || menuOn(view)) return;
+        interact.start(menuPages(view));
+    }
 
     // ---- Lecteurs de la radio des véhicules (client/radio.lua) ----
     // Lecture telle quelle, sans effet : lecteur YouTube (lien YouTube) ou lecteur audio (lien direct).
@@ -798,9 +1087,9 @@
         r.offset = d.offset;
         applyRadio(r);
         if (!created && r.paused !== !!d.paused) setRadioPaused(r, !!d.paused, d.offset);
-        if (!created && menu.open && menu.view === 'radio' && r.pausedShown !== r.paused) loadRadio();
+        if (!created && menuOn('radio') && r.pausedShown !== r.paused) loadRadio();
         r.pausedShown = r.paused;
-        if (created && menu.open && menu.view === 'radio') loadRadio(); // morceau suivant : page Radio à jour
+        if (created && menuOn('radio')) loadRadio(); // morceau suivant : page Radio à jour
     }
 
     // ---- Barre de chargement (fouilles, menottes) ----
@@ -861,22 +1150,6 @@
         $('#tipsKeys').innerHTML = toArray(data.keys).map((k) => `
             <span class="tips-key ${k.stop ? 'stop' : ''}"><kbd>${esc(k.key)}</kbd>${esc(k.label)}</span>`).join('');
     }
-
-    $$('[data-go]').forEach((btn) => btn.addEventListener('click', () => {
-        if (isLocked(btn.dataset.go)) return toast(LOCKED_TEXT, 'error');
-        menu.view = btn.dataset.go;
-        renderMenu();
-    }));
-    $('#menuBack').addEventListener('click', goBack);
-    $('#menuClose').addEventListener('click', () => post('closeMenu'));
-
-    // "Créer un profil" / "Créer un véhicule" : ouvre la fiche (le menu se ferme)
-    $$('[data-editor]').forEach((btn) => btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        const res = await post('openEditor', { view: btn.dataset.editor });
-        btn.disabled = false;
-        if (!res || !res.ok) toast(res?.error || 'Ouverture impossible.', 'error');
-    }));
 
     // =====================================================================
     // FICHE CIVILE
@@ -1320,7 +1593,7 @@
     });
     document.addEventListener('mouseup', () => { drag = null; });
 
-    // Échap : liste de l'œil, puis fiche, puis menu
+    // Échap : liste de l'œil, puis fiche (les menus au clavier reçoivent Échap par client/kbmenu.lua)
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         if (eye.menu) {
@@ -1328,139 +1601,89 @@
             post('eyeCancel');
         } else if (ed.open) {
             post('closeEditor');
-        } else if (menu.open) {
-            if (menu.view !== 'home') {
-                goBack();
-            } else {
-                post('closeMenu');
-            }
         }
     });
 
     // =====================================================================
-    // MENU DES TENUES /eup (au clavier : touches lues par client/eup.lua)
+    // MENU DES TENUES /eup (au clavier, même menu que le Menu Interaction : touches lues par client/kbmenu.lua)
+    // Polices du MDC : Washington State Patrol (WSP), King County Sheriff Office (KCSO), puis les autres
+    // polices trouvées dans data/outfits.json ; Civil.
     // =====================================================================
-    const EUP_SERVICES = [
-        { code: 'APD', name: 'Atlanta Police Department', color: '#12357a' },
-        { code: 'FCSO', name: 'Fayette County Sheriff Office', color: '#1e5631' },
-        { code: 'GSP', name: 'Georgia State Patrol', color: '#ff6a00' },
+    const EUP_POLICES = [
+        { code: 'WSP', name: 'Washington State Patrol', color: AGENCY_COLORS.wsp },
+        { code: 'KCSO', name: 'King County Sheriff Office', color: AGENCY_COLORS.kcso },
     ];
-    const EUP_COLORS = { root: '#23272e', police: '#1b2a44', civil: '#3b3f46', other: '#3a3350' };
-    const EUP_VISIBLE = 10;
-    const eup = { open: false, outfits: [], policeLocked: false, stack: [], worn: null };
+    const EUP_COLORS = { root: '#3c4a5c', civil: '#4a4f58', other: '#4a4458' };
+    const eup = { outfits: [], policeLocked: false, worn: null };
 
-    const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+    const eupMenu = new KbMenu($('#eup'), 'eup', { icon: KB_ICONS.eup, close: () => post('eupClose') });
 
-    function eupOutfitPage(title, list, color, banner) {
+    function eupOutfitPage(title, list, banner) {
         return {
-            title, color, banner,
-            items: list.length ? list.map((o) => ({ kind: 'outfit', label: o.name, index: o.index,
-                desc: 'Entrée : mettre cette tenue.' }))
-                : [{ kind: 'empty', label: 'Aucune tenue', desc: 'Aucune tenue pour ce personnage dans data/outfits.json.' }],
+            id: 'outfits', title, banner,
+            items: () => (list.length ? list.map((o) => ({
+                kind: 'button', label: o.name, mark: o.index === eup.worn, desc: 'Entrée : mettre cette tenue.',
+                action: () => {
+                    eup.worn = o.index;
+                    post('eupWear', { index: o.index });
+                },
+            })) : [{ kind: 'info', label: 'Aucune tenue pour ce personnage (data/outfits.json).', tone: 'muted' }]),
         };
     }
 
-    function eupPolicePage() {
+    function eupPoliceGroups() {
         const police = eup.outfits.filter((o) => o.cate === 'police');
-        const groups = EUP_SERVICES.map((s) => ({ ...s, list: police.filter((o) => o.group === s.code) }));
-        const known = new Set(EUP_SERVICES.map((s) => s.code));
+        const groups = EUP_POLICES.map((s) => ({ ...s, list: police.filter((o) => o.group === s.code) }));
+        const known = new Set(EUP_POLICES.map((s) => s.code));
         [...new Set(police.map((o) => o.group || 'Autres').filter((g) => !known.has(g)))].sort()
             .forEach((g) => groups.push({ code: g, name: g, color: EUP_COLORS.other, list: police.filter((o) => (o.group || 'Autres') === g) }));
-        return {
-            title: 'Police', color: EUP_COLORS.police, banner: { title: 'Police', sub: 'APD · FCSO · GSP' },
-            items: groups.map((g) => ({
-                kind: 'menu', label: g.name, right: g.name !== g.code ? g.code : '', color: g.color,
-                desc: `${plural(g.list.length, 'tenue')}${eup.policeLocked ? ' — réservées aux policiers en service (unité du MDC)' : ''}`,
-                open: () => eupOutfitPage(g.code, g.list, g.color, { title: g.code, sub: g.name !== g.code ? g.name : 'Police' }),
-            })),
-        };
+        return groups.filter((g) => g.list.length || known.has(g.code));
     }
 
     function eupCivilPage() {
         const civil = eup.outfits.filter((o) => o.cate !== 'police');
         const groupOf = (o) => (o.group && o.group.toLowerCase() !== 'civil' ? o.group : '');
         const groups = [...new Set(civil.map(groupOf).filter(Boolean))].sort();
-        const banner = { title: 'Civil', sub: 'Tenues civiles' };
-        if (!groups.length) return eupOutfitPage('Civil', civil, EUP_COLORS.civil, banner);
-        const loose = civil.filter((o) => !groupOf(o));
-        if (loose.length) groups.push('');
+        const banner = { title: 'Civil', sub: plural(civil.length, 'tenue'), color: EUP_COLORS.civil };
+        if (!groups.length) return eupOutfitPage('Civil', civil, banner);
+        if (civil.some((o) => !groupOf(o))) groups.push('');
         return {
-            title: 'Civil', color: EUP_COLORS.civil, banner,
+            id: 'civil', title: 'Civil', banner,
             items: groups.map((g) => {
                 const list = civil.filter((o) => groupOf(o) === g);
-                return { kind: 'menu', label: g || 'Autres', desc: plural(list.length, 'tenue'),
-                    open: () => eupOutfitPage(g || 'Autres', list, EUP_COLORS.civil, banner) };
+                return { kind: 'menu', label: g || 'Autres', right: `${list.length}`,
+                    open: () => eupOutfitPage(g || 'Autres', list, { title: g || 'Autres', sub: 'Civil', color: EUP_COLORS.civil }) };
             }),
         };
     }
 
     function eupRootPage() {
-        const count = (cate) => eup.outfits.filter((o) => (cate === 'police' ? o.cate === 'police' : o.cate !== 'police')).length;
+        const civilCount = eup.outfits.filter((o) => o.cate !== 'police').length;
+        const lockedText = eup.policeLocked ? ' — réservées aux policiers en service (unité du MDC)' : '';
         return {
-            title: 'Tenues', color: EUP_COLORS.root,
+            id: 'root', title: 'Tenues',
+            banner: { title: 'Tenues', sub: 'Choisissez une tenue', color: EUP_COLORS.root },
             items: [
-                { kind: 'menu', label: 'Police', right: eup.policeLocked ? 'En service' : '', open: eupPolicePage,
-                    desc: `APD, FCSO, GSP — ${plural(count('police'), 'tenue')}` },
-                { kind: 'menu', label: 'Civil', open: eupCivilPage, desc: plural(count('civil'), 'tenue') },
+                { kind: 'section', label: 'Police' },
+                ...eupPoliceGroups().map((g) => ({
+                    kind: 'menu', label: g.name, right: g.name !== g.code ? g.code : `${g.list.length}`, color: g.color,
+                    desc: `${plural(g.list.length, 'tenue')}${lockedText}`,
+                    open: () => eupOutfitPage(g.code, g.list, { title: g.name, sub: g.name !== g.code ? `${g.code} · ${plural(g.list.length, 'tenue')}` : 'Police', color: g.color }),
+                })),
+                { kind: 'section', label: 'Civil' },
+                { kind: 'menu', label: 'Civil', right: `${civilCount}`, open: eupCivilPage, desc: plural(civilCount, 'tenue') },
             ],
         };
     }
 
-    function renderEup() {
-        const page = eup.stack[eup.stack.length - 1];
-        if (!page) return;
-        const sel = page.sel || 0;
-        page.top = page.top || 0;
-        if (sel < page.top) page.top = sel;
-        if (sel >= page.top + EUP_VISIBLE) page.top = sel - EUP_VISIBLE + 1;
-        const banner = page.banner || { title: 'Tenues', sub: 'EUP' };
-        $('#eupBanner').style.setProperty('--eup-color', page.color || EUP_COLORS.root);
-        $('#eupBanner .eup-title').textContent = banner.title;
-        $('#eupBanner .eup-sub').textContent = banner.sub;
-        $('#eupCrumb').textContent = eup.stack.map((p) => p.title).join(' › ');
-        $('#eupCount').textContent = `${sel + 1}/${page.items.length}`;
-        $('#eupList').innerHTML = page.items.slice(page.top, page.top + EUP_VISIBLE).map((it, i) => {
-            const n = page.top + i;
-            const worn = it.kind === 'outfit' && it.index === eup.worn;
-            return `<div class="eup-item ${n === sel ? 'sel' : ''} ${it.kind === 'empty' ? 'empty' : ''}"
-                ${it.color ? `style="--eup-tag:${esc(it.color)}"` : ''}>
-                ${it.color ? '<span class="eup-tag"></span>' : ''}
-                <span class="eup-label">${esc(it.label)}</span>
-                ${it.right ? `<span class="eup-right">${esc(it.right)}</span>` : ''}
-                ${worn ? '<span class="eup-worn">&#10003;</span>' : ''}
-                ${it.kind === 'menu' ? '<span class="eup-arrow">&#8250;</span>' : ''}
-            </div>`;
-        }).join('');
-        $('#eupDesc').textContent = (page.items[sel] && page.items[sel].desc) || '';
-    }
-
     function setEup(data) {
-        eup.open = !!data.open;
-        $('#eup').classList.toggle('hidden', !eup.open);
-        if (!eup.open) { eup.stack = []; return; }
+        if (!data.open) {
+            eupMenu.stop();
+            return;
+        }
         eup.outfits = toArray(data.outfits);
         eup.policeLocked = !!data.policeLocked;
-        eup.stack = [{ ...eupRootPage(), sel: 0, top: 0 }];
-        renderEup();
-    }
-
-    function eupKey(key) {
-        if (!eup.open) return;
-        const page = eup.stack[eup.stack.length - 1];
-        const count = page.items.length;
-        const item = page.items[page.sel || 0];
-        if (key === 'up') page.sel = ((page.sel || 0) - 1 + count) % count;
-        else if (key === 'down') page.sel = ((page.sel || 0) + 1) % count;
-        else if (key === 'select' || key === 'right') {
-            if (item && item.kind === 'menu') eup.stack.push({ ...item.open(), sel: 0, top: 0 });
-            else if (item && item.kind === 'outfit' && key === 'select') {
-                eup.worn = item.index;
-                post('eupWear', { index: item.index });
-            }
-        } else if (key === 'back') {
-            if (eup.stack.length > 1) eup.stack.pop(); else return post('eupClose');
-        } else if (key === 'close') return post('eupClose');
-        renderEup();
+        eupMenu.start([eupRootPage()]);
     }
 
     // =====================================================================
@@ -1473,10 +1696,12 @@
             case 'eyeOptions': showEyeOptions(data.data || {}); break;
             case 'result': if (data.data) showResult(data.data); break;
             case 'menu': setMenu(data.data || {}); break;
+            case 'menuGo': menuGo(data.data && data.data.view); break;
             case 'menuLayout': setMenuLayout(data.data || {}); break;
             case 'menuPolice': // entrée / sortie d'une unité du MDC pendant que le menu est ouvert
                 menu.data.police = data.data ? data.data.police : null;
-                if (menu.open) renderMenu();
+                if (!menu.data.police) menu.data.agency = menu.data.agencyLabel = null;
+                interact.render();
                 break;
             case 'tips': setTips(data.data || {}); break;
             case 'menuActions': setMenuActions(data.data || {}); break;
@@ -1487,7 +1712,7 @@
             case 'radio': radioUpdate(data.data); break;
             case 'radioStop': radioStop(data.data && data.data.id); break;
             case 'eup': setEup(data.data || {}); break;
-            case 'eupKey': eupKey(data.data && data.data.key); break;
+            case 'kbKey': if (data.data && kbMenus[data.data.menu]) kbMenus[data.data.menu].key(data.data.key); break;
         }
     });
 })();

@@ -81,7 +81,7 @@ local function startKeyLoop()
     CreateThread(function()
         while tipsVisible() do
             Wait(0)
-            if not RPI.uiOpen() then
+            if not RPI.uiOpen() and not RPI.kbActive() then -- Échap d'un menu au clavier : pour le menu
                 blockPause()
                 if escPressed() then
                     closeTips()

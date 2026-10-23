@@ -18,11 +18,13 @@
 
 local Config = InteractConfig
 local S = RPIServer
+-- Les deux polices du MDC (rp_mdc : Washington State Patrol, King County Sheriff Office), par nom ou par sigle
 local SERVICES = {
-    ['atlanta police department'] = 'apd',
-    ['georgia state patrol'] = 'gsp',
-    ['fayette county sheriff office'] = 'fcso',
+    ['washington state patrol'] = 'wsp', wsp = 'wsp',
+    ['king county sheriff office'] = 'kcso', ["king county sheriff's office"] = 'kcso', kcso = 'kcso',
 }
+-- Anciens services (équipements modifiés déjà enregistrés) : repris par la police la plus proche
+local LEGACY_KEYS = { gsp = 'wsp', fcso = 'kcso', apd = 'wsp' }
 
 -- =========================================================================
 -- FICHIERS JSON (data/*.json) : remplis à la main, relus avec "rpi_vehicles" (console)
@@ -57,8 +59,8 @@ end
 
 -- =========================================================================
 -- VÉHICULES (data/vehicle.json ; à défaut, l'ancien data/vehicles.json)
---   { "vehicles": [ { "spawnName": "apdcharger", "Principale": "Police",
---       "subCategory": "Atlanta Police Department", "menuName": "Dodge Charger 2020",
+--   { "vehicles": [ { "spawnName": "wspcharger", "Principale": "Police",
+--       "subCategory": "Washington State Patrol", "menuName": "Dodge Charger 2020",
 --       "extras": { "1": true }, "livery": 0 } ] }
 --   Principale : catégorie du menu (ex. Police, Civil) ; subCategory : groupe dans cette catégorie ;
 --   extras : n° d'extra -> true (activé) / false (désactivé) ; s'il y en a, ceux qui ne sont pas listés sont
@@ -143,8 +145,8 @@ local function loadLoadouts()
 end
 
 -- =========================================================================
--- ÉQUIPEMENTS PAR SERVICE (equipment_services.json, fourni avec le script) : boutons "Équipement GSP / APD /
--- FCSO" du menu Équipements, et ce que chaque joueur peut personnaliser ("Customiser équipement")
+-- ÉQUIPEMENTS PAR POLICE (equipment_services.json, fourni avec le script) : "Équipement WSP" / "Équipement KCSO"
+-- du menu Équipements, et ce que chaque joueur peut personnaliser ("Customiser équipement")
 --   [ { "Service", "Name", "Replace", "Weapons": [ { "Weapon", "Label", "Ammo", "Required", "Default",
 --       "Components", "Options": [ { "Label", "Choices": [ { "Label", "Component" } ] } ], "Tints" } ] } ]
 -- =========================================================================
@@ -223,9 +225,8 @@ local OUTFIT_PARTS = {
     Decal = { component = 10 }, Top = { component = 11 },
 }
 local POLICE_GROUPS = {
-    apd = 'APD', ['atlanta police department'] = 'APD',
-    fcso = 'FCSO', ['fayette county sheriff office'] = 'FCSO',
-    gsp = 'GSP', ['georgia state patrol'] = 'GSP',
+    wsp = 'WSP', ['washington state patrol'] = 'WSP',
+    kcso = 'KCSO', ['king county sheriff office'] = 'KCSO', ["king county sheriff's office"] = 'KCSO',
 }
 
 local function loadOutfits()
@@ -491,7 +492,7 @@ end)
 -- =========================================================================
 -- ---- Équipements modifiés : propres à chaque joueur (licence Rockstar), PERMANENTS, nommés par lui ----
 --   data/custom_equipment.json : { [licence] = { nextId, list = { { id, name, key (service), weapons, updatedAt } } } }
---   Les boutons "Équipement GSP / APD / FCSO" donnent TOUJOURS l'équipement de base ; les équipements modifiés sont
+--   Les boutons "Équipement WSP / KCSO" donnent TOUJOURS l'équipement de base ; les équipements modifiés sont
 --   dans la page "Équipements modifiés".
 local CUSTOM_FILE = 'data/custom_equipment.json'
 local MAX_CUSTOM = Config.MaxCustomEquipment or 10
@@ -500,10 +501,16 @@ local Custom, customLocked = {}, false
 --- Ancien format (un équipement personnalisé par service, sans nom) : converti en équipements modifiés nommés
 local function migrate(entry)
     if type(entry) ~= 'table' then return nil end
-    if type(entry.list) == 'table' then return entry end
+    if type(entry.list) == 'table' then
+        for _, item in ipairs(entry.list) do
+            if type(item) == 'table' and LEGACY_KEYS[item.key] then item.key = LEGACY_KEYS[item.key] end
+        end
+        return entry
+    end
     local out, nextId = { list = {} }, 1
     for key, saved in pairs(entry) do
         if type(saved) == 'table' and type(saved.weapons) == 'table' then
+            key = LEGACY_KEYS[key] or key
             local service = serviceByKey[key]
             out.list[#out.list + 1] = { id = nextId, key = key, weapons = saved.weapons, updatedAt = saved.updatedAt,
                 name = ('%s (personnalisé)'):format(service and service.name or key:upper()) }
@@ -634,7 +641,7 @@ S.on('equipment', function(src, p)
     local denied = policeOnlyError(src)
     if denied then return denied end
     if p.kind == 'service' then
-        -- Bouton "Équipement GSP / APD / FCSO" : toujours l'équipement de base du service
+        -- Bouton "Équipement WSP / KCSO" : toujours l'équipement de base du service
         local service = serviceByKey[type(p.key) == 'string' and p.key or '']
         if not service then return { ok = false, error = 'Équipement inconnu.' } end
         return { ok = true, loadout = buildLoadout(service, fullChoices(service, nil)) }
