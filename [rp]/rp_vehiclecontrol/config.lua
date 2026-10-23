@@ -140,10 +140,25 @@ VCConfig = {
         Bumper = { Wear = 60.0, Chance = 0.85 },
         HoodTrunk = { Wear = 75.0, Chance = 0.75 },
         Windscreen = { Wear = 90.0, Chance = 0.5 },
-        Door = { Wear = 110.0, Chance = 0.35 },  -- une portière au plus par choc
+        -- Portières : elles ne tombent JAMAIS. Gros choc (Drop MPH) ou côté très usé (Wear) : elles s'ouvrent toutes
+        -- seules, battantes, comme si la sécurité avait sauté. Choc de côté : celles de ce côté (Chance chacune) ;
+        -- choc avant / arrière : n'importe laquelle, plus rarement (FrontRearChance). Max par choc.
+        DoorsOpen = { Drop = 40.0, Wear = 110.0, Chance = 0.5, FrontRearChance = 0.3, Max = 2 },
         Wheel = { Drop = 60.0, Wear = 140.0, Chance = 0.5, Second = 0.25 },
         WornBody = 400.0, WornFactor = 0.75,
         BumperForce = 900.0, -- déformation appliquée pour arracher un pare-choc
+        -- Verre brisé au sol : gros accident (MinDrop MPH), sous chaque vitre qui vient de casser (Outside m à
+        -- l'extérieur) : gerbe d'éclats (Effect), Pieces éclats posés au sol dans un rayon de Spread m (Models, au
+        -- hasard), retirés après Lifetime ms (MaxPieces au plus autour de soi), bruit du verre (Sound) ; vu et
+        -- entendu par les joueurs à moins de Range m.
+        Glass = {
+            Enabled = true, MinDrop = 35.0, Outside = 0.35,
+            Pieces = 6, Spread = 0.6, Lifetime = 300000, MaxPieces = 150, Range = 120.0,
+            Models = { 'ng_proc_brkbottle_02a', 'ng_proc_brkbottle_02b', 'ng_proc_brkbottle_02c', 'ng_proc_brkbottle_02d',
+                'ng_proc_brkbottle_02e', 'ng_proc_brkbottle_02f', 'ng_proc_brkbottle_02g' },
+            Effect = { 'core', 'glass_shards', 1.0 },
+            Sound = { 'Glass_Smash', 'FBI_HEIST_RAID', 25 }, -- nom, groupe, portée (m) ; nil : seulement le bruit du jeu
+        },
         -- pas de dégâts visuels : motos, vélos, bateaux, hélicoptères, avions, trains
         SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
     },

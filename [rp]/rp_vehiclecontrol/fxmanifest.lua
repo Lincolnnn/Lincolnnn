@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_vehiclecontrol'
 author 'Lincolnnn'
 description 'Vehicle Control : essence, dégâts, ceinture, motos (projection), moteur, portières, clignotants et poussée - standalone'
-version '1.31.0'
+version '1.32.0'
 
 ui_page 'html/index.html' -- message "pousser le véhicule" et sons du véhicule (le car HUD est dessiné par le MDC)
 
@@ -33,7 +33,8 @@ client_scripts {
     'client/refuel.lua',    -- plein : pompe avec un vrai pistolet (trappe arrière gauche), jerrican
     'client/damage.lua',    -- dégâts réalistes, véhicule cassé
     'client/gunshots.lua',  -- tirs bien placés : moteur, réservoir
-    'client/bodywork.lua',  -- dégâts visuels : pare-chocs, capot, coffre, portières, vitres, roues qui tombent
+    'client/bodywork.lua',  -- dégâts visuels : pare-chocs, capot, coffre, vitres, roues qui tombent ; portières qui s'ouvrent
+    'client/glass.lua',     -- verre brisé au sol après un gros accident (chez tous les joueurs proches)
     'client/controls.lua',  -- moteur (O), portières (U / I)
     'client/signals.lua',   -- clignotants et warnings (flèches gauche / droite / bas)
     'client/gear.lua',      -- marche avant / marche arrière (flèche haut)

@@ -211,8 +211,7 @@ Les morceaux ne tombent que sur de **vraiment gros accidents**, ou quand **plusi
 (mur, voiture, poteau… pas un piéton ni un plot ; perte de vitesse brutale d'au moins **22 MPH**, `MinDrop`) :
 
 - Chaque choc ajoute de l'**usure** au côté touché (avant, arrière, gauche, droite) selon la perte de vitesse. Un
-  choc sur le côté use aussi un peu l'avant et l'arrière (`SideToBumpers`, 40 %) : les pare-chocs tombent avant les
-  portières. Carrosserie déjà très abîmée (sous 400, `WornBody`) : les seuils baissent de 25 % (`WornFactor`).
+  choc sur le côté use aussi un peu l'avant et l'arrière (`SideToBumpers`, 40 %). Carrosserie déjà très abîmée (sous 400, `WornBody`) : les seuils baissent de 25 % (`WornFactor`).
 - Un morceau ne peut tomber que quand l'usure de son côté atteint son seuil (`Wear`), puis selon sa chance (`Chance`).
   **Ordre de priorité** :
 
@@ -222,12 +221,23 @@ Les morceaux ne tombent que sur de **vraiment gros accidents**, ou quand **plusi
 | **pare-choc** avant / arrière (aussi sur un choc latéral) | 60 | 85 % |
 | **capot** (avant) / **coffre** (arrière) | 75 | 75 % |
 | **pare-brise** (avant) | 90 | 50 % |
-| **portière** du côté touché (choc latéral uniquement, une seule par choc) | 110 | 35 % |
 | **roue** du côté touché (ou un seul choc d'au moins 60 MPH) ; parfois une deuxième (25 %) | 140 | 50 % |
+
+**Portières : elles ne tombent jamais.** Sur un **gros choc** (perte de vitesse d'au moins **40 MPH**,
+`DoorsOpen.Drop`) ou quand le côté est très usé (110), elles **s'ouvrent toutes seules et battent**, comme si la
+sécurité avait sauté : celles du côté touché (50 % chacune), ou, sur un choc avant / arrière, n'importe laquelle
+(30 %) ; deux au plus par choc. On peut les refermer normalement.
+
+**Verre brisé au sol** (gros accident : perte de vitesse d'au moins **35 MPH**, `Glass`) : sous chaque vitre qui vient
+de casser (par le choc ou par ce script), une gerbe d'éclats (effet du jeu `glass_shards`), des **éclats de verre
+posés au sol** (6 par vitre, objets du jeu `ng_proc_brkbottle_02a…g`, sans collision) qui restent **5 minutes**, et
+le **bruit du verre** (`Glass_Smash`, en plus de celui du jeu). Vu et entendu par tous les joueurs à moins de 120 m
+(relayé par le serveur, chacun pose ses propres éclats : rien de synchronisé à gérer). Les vitres déjà cassées avant
+l'accident (balles…) ne laissent pas de nouveau verre.
 
 Chaque morceau ne tombe qu'une fois ; tout revient (usure comprise) à la réparation complète. Rien sur les motos,
 vélos, bateaux, hélicoptères, avions et trains. Calculé par le conducteur (propriétaire du véhicule) : les morceaux
-tombés se voient chez tous les joueurs.
+tombés et les portières ouvertes se voient chez tous les joueurs.
 
 ### Tirs sur un véhicule (`Gunshots`)
 
@@ -345,7 +355,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, plein à la pompe (vitesse : 1 min max, distances, trappe arrière gauche `Flap`, pistolet et tuyau `Nozzle`), pompes, jerrican (2/5 d'un plein, vitesse, remplissage), stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, warnings automatiques d'accident important (`AccidentHazards`), paliers (abîmé ; 1 très abîmé : puissance, vitesse maxi, calages, warnings automatiques ; 2 détruit), fumée (`Smoke`), classes de véhicules légères, listes d'objets légers / forts |
-| `Bodywork` | dégâts visuels : choc minimum (22 MPH), usure et chance de chaque morceau (vitres, pare-chocs, capot / coffre, pare-brise, portières, roues), part des chocs latéraux sur les pare-chocs, carrosserie usée, force pour arracher un pare-choc, classes sans dégâts visuels |
+| `Bodywork` | dégâts visuels : choc minimum (22 MPH), usure et chance de chaque morceau (vitres, pare-chocs, capot / coffre, pare-brise, roues), portières qui s'ouvrent sur un gros choc (`DoorsOpen`), verre brisé au sol (`Glass` : seuil, éclats, durée, effet, bruit, portée), part des chocs latéraux sur les pare-chocs, carrosserie usée, force pour arracher un pare-choc, classes sans dégâts visuels |
 | `Gear` | marche avant / arrière : activée, vitesse considérée comme « arrêté », son du changement, classes sans rapport |
 | `KeepDoorOpenOnExit` | portière ouverte gardée ouverte en descendant |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle jusqu'à l'arrêt complet, l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |

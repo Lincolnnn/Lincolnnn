@@ -314,6 +314,7 @@ local function detectImpact(vehicle)
             crash = nil
         end
     end
+    VC.inCrash = crash ~= nil -- choc en cours (les modules ne relèvent pas l'état du véhicule pendant ce temps)
     history[#history + 1] = { t = now, speed = speed }
     if #history > 60 then table.remove(history, 1) end
     lastVelocity = GetEntityVelocity(vehicle)

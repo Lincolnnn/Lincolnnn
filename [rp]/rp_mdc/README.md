@@ -17,6 +17,7 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
 ├── rp_camshake/         tremblement de caméra
 ├── rp_NPCcontrol/       PNJ, services d'urgence, densité
 ├── rp_flares/           fusées de détresse
+├── rp_doorlock/         portes verrouillées, frapper, enfoncer (police)
 ├── rp_TrafficControl/   gestion du trafic
 ├── rp_RoleplayZone/     scènes de roleplay
 └── rp_Ganghunt/         vagues d'ennemis (/ganghunt)
@@ -34,6 +35,7 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
    ensure rp_camshake
    ensure rp_NPCcontrol
    ensure rp_flares
+   ensure rp_doorlock
    ensure rp_TrafficControl
    ensure rp_RoleplayZone
    ensure rp_Ganghunt
@@ -63,6 +65,10 @@ de 0.0 à 3.0.
 
 Et **RP Flares** dans [`rp_flares/`](../rp_flares/README.md) : fusées de détresse posées au sol (touche G, fusée en main),
 retirées avec l'œil, lumière rouge renforcée la nuit.
+
+Et **RP Doorlock** dans [`rp_doorlock/`](../rp_doorlock/README.md) : avec l'œil, les joueurs **verrouillent /
+déverrouillent** les portes du jeu (porte double en entier, gardé après un redémarrage), **frappent** à une porte, et
+les policiers en service **enfoncent** une porte verrouillée à coups de pied.
 
 Et **RP TrafficControl** dans [`rp_TrafficControl/`](../rp_TrafficControl/README.md) : gestion du trafic **sans supprimer
 de véhicules**, sur un tronçon précis (**une voie**, **un sens** ou **la route entière**) : fermeture (nœuds du jeu

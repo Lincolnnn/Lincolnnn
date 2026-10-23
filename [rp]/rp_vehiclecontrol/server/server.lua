@@ -194,3 +194,26 @@ AddEventHandler('playerDropped', function()
         if prop and prop ~= 0 and DoesEntityExist(prop) then DeleteEntity(prop) end
     end
 end)
+
+-- Verre brisé au sol après un gros accident : signalé par le conducteur, relayé à tous (chacun ne garde que ce qui
+-- est proche de lui). Vérifié : quelques points, près du joueur, pas plus d'une fois par seconde.
+local glassAt = {} -- [src] = dernier envoi (ms)
+RegisterNetEvent('rp_vehiclecontrol:glass', function(points)
+    local src = source
+    local GL = (Config.Bodywork or {}).Glass or {}
+    if GL.Enabled == false or type(points) ~= 'table' or #points == 0 or #points > 8 then return end
+    local now = GetGameTimer()
+    if glassAt[src] and now - glassAt[src] < 1000 then return end
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return end
+    local me = GetEntityCoords(ped)
+    local clean = {}
+    for _, p in ipairs(points) do
+        local x, y, z = tonumber(type(p) == 'table' and p.x), tonumber(type(p) == 'table' and p.y), tonumber(type(p) == 'table' and p.z)
+        if not (x and y and z) or #(me - vector3(x, y, z)) > 15.0 then return end
+        clean[#clean + 1] = { x = x, y = y, z = z }
+    end
+    glassAt[src] = now
+    TriggerClientEvent('rp_vehiclecontrol:glass', -1, clean)
+end)
+AddEventHandler('playerDropped', function() glassAt[source] = nil end)

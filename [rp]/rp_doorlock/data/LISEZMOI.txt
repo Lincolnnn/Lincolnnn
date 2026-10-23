@@ -1,0 +1,2 @@
+Ce dossier reçoit locks.json : les portes verrouillées par les joueurs (créé et mis à jour par le serveur).
+Supprimez-le, serveur arrêté, pour déverrouiller toutes les portes.

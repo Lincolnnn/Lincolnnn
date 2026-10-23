@@ -6,8 +6,12 @@
     arrière, gauche, droite : déduit du changement de vitesse ; un choc de côté abîme aussi un peu les pare-chocs).
     Quand l'usure d'un côté dépasse un seuil, la pièce peut tomber, par ordre de priorité :
       1. pare-choc (avant / arrière), 2. capot (avant) ou coffre (arrière), 3. pare-brise (avant),
-      4. portières (côté, beaucoup plus tard et plus rarement), 5. roues (choc très violent ou usure extrême).
-    Vitres du côté touché : peuvent éclater dès une usure moyenne. Carrosserie déjà très abîmée (WornBody) : seuils
+      4. roues (choc très violent ou usure extrême).
+    Portières : elles ne tombent JAMAIS. Sur un gros choc (DoorsOpen.Drop MPH) ou un côté très usé, elles s'ouvrent
+    toutes seules, battantes, comme si la sécurité avait sauté (celles du côté touché ; sur un choc avant / arrière,
+    plus rarement, n'importe laquelle).
+    Vitres du côté touché : peuvent éclater dès une usure moyenne. Gros accident (Glass.MinDrop MPH) : chaque vitre
+    qui vient de casser laisse du verre brisé au sol, avec le bruit du verre (client/glass.lua, vu par tous). Carrosserie déjà très abîmée (WornBody) : seuils
     plus bas. Chaque morceau ne tombe qu'une fois ; tout revient à la réparation (usure remise à zéro). Pas de dégâts
     visuels sur les motos, vélos, bateaux, hélicoptères, avions, trains (SkipClasses). Le conducteur étant le
     propriétaire du véhicule, les morceaux perdus se voient chez tous les joueurs.
@@ -23,7 +27,11 @@ local WHEELS = { -- os des roues -> numéro de roue du jeu
     { bone = 'wheel_rr', index = 3, front = false, left = false },
 }
 local SIDE_DOORS = { left = { 0, 2 }, right = { 1, 3 } }       -- portières avant / arrière
+local ALL_DOORS = { 0, 1, 2, 3 }
 local SIDE_WINDOWS = { left = { 0, 2 }, right = { 1, 3 }, front = { 0, 1 }, rear = { 2, 3 } }
+-- vitres (n° du jeu) et leur os, pour poser le verre brisé au bon endroit
+local WINDOW_BONES = { [0] = 'window_lf', [1] = 'window_rf', [2] = 'window_lr', [3] = 'window_rr',
+    [4] = 'window_lm', [5] = 'window_rm', [6] = 'windscreen', [7] = 'windscreen_r' }
 
 local function part(key) return Config[key] or {} end
 local function roll(key) return math.random() < (part(key).Chance or 0.5) end
@@ -56,6 +64,23 @@ local function breakBumper(vehicle, front)
         if IsVehicleBumperBrokenOff(vehicle, front) then return true end
     end
     return IsVehicleBumperBrokenOff(vehicle, front)
+end
+
+--- Portière qui s'ouvre toute seule, battante (la sécurité a sauté) : jamais détachée
+local function popDoor(vehicle, door)
+    if not GetIsDoorValid(vehicle, door) or IsVehicleDoorDamaged(vehicle, door) then return false end
+    if GetVehicleDoorAngleRatio(vehicle, door) > 0.1 then return false end -- déjà ouverte
+    SetVehicleDoorOpen(vehicle, door, true, false) -- true : battante (loose), pas d'ouverture instantanée
+    return true
+end
+
+local function shuffled(list)
+    local copy = { table.unpack(list) }
+    for i = #copy, 2, -1 do
+        local j = math.floor(math.random() * i) + 1
+        copy[i], copy[j] = copy[j], copy[i]
+    end
+    return copy
 end
 
 local function dropDoor(vehicle, door)
@@ -132,12 +157,17 @@ function VC.bodywork(vehicle, drop, side)
         PopOutVehicleWindscreen(vehicle)
         lost[#lost + 1] = 'windscreen'
     end
-    -- 4. portières : beaucoup plus tard, une au plus par choc
-    if SIDE_DOORS[side] and worn('Door', w[side]) then
-        for _, door in ipairs(SIDE_DOORS[side]) do
-            if roll('Door') and dropDoor(vehicle, door) then
-                lost[#lost + 1] = 'door' .. door
-                break
+    -- 4. portières : gros choc (ou côté très usé) -> elles s'ouvrent, battantes, sans jamais tomber
+    local D = part('DoorsOpen')
+    local sideHit = SIDE_DOORS[side] ~= nil
+    if drop >= (D.Drop or 40.0) or (sideHit and worn('DoorsOpen', w[side])) then
+        local chance = sideHit and (D.Chance or 0.5) or (D.FrontRearChance or 0.3)
+        local opened = 0
+        for _, door in ipairs(shuffled(SIDE_DOORS[side] or ALL_DOORS)) do
+            if opened >= (D.Max or 2) then break end
+            if math.random() < chance and popDoor(vehicle, door) then
+                opened = opened + 1
+                lost[#lost + 1] = 'door_open' .. door
             end
         end
     end
@@ -150,12 +180,62 @@ function VC.bodywork(vehicle, drop, side)
     return lost
 end
 
+-- =========================================================================
+-- VERRE BRISÉ AU SOL : vitres qui viennent de casser lors d'un GROS accident (le jeu ou ce script)
+-- =========================================================================
+VC.windows = {} -- [véhicule] = { [n° vitre] = intacte } : état relevé juste AVANT le choc (pas pendant)
+local windowBones = {} -- [véhicule] = { [n° vitre] = os } : vitres présentes sur ce modèle
+
+local function windowState(vehicle)
+    local bones = windowBones[vehicle]
+    if not bones then
+        bones = {}
+        for index, bone in pairs(WINDOW_BONES) do
+            local b = GetEntityBoneIndexByName(vehicle, bone)
+            if b ~= -1 then bones[index] = b end
+        end
+        windowBones[vehicle] = bones
+    end
+    local state = {}
+    for index in pairs(bones) do state[index] = IsVehicleWindowIntact(vehicle, index) end
+    return state
+end
+
+--- Points au sol sous les vitres qui viennent de casser (vitre à l'extérieur du véhicule)
+function VC.brokenGlass(vehicle, before)
+    local points = {}
+    local center = GetEntityCoords(vehicle)
+    for index, intact in pairs(before or {}) do
+        if intact and not IsVehicleWindowIntact(vehicle, index) then
+            local p = GetWorldPositionOfEntityBone(vehicle, (windowBones[vehicle] or {})[index]
+                or GetEntityBoneIndexByName(vehicle, WINDOW_BONES[index]))
+            local dx, dy = p.x - center.x, p.y - center.y
+            local len = math.sqrt(dx * dx + dy * dy)
+            local out = (Config.Glass or {}).Outside or 0.35
+            local x, y = p.x, p.y
+            if len > 0.01 then x, y = p.x + dx / len * out, p.y + dy / len * out end
+            local found, ground = GetGroundZFor_3dCoord(x, y, p.z + 0.5, false)
+            points[#points + 1] = { x = x, y = y, z = (found and ground ~= 0.0) and ground or (p.z - 1.0), window = index }
+        end
+    end
+    return points
+end
+
 VC.on('impact', function(vehicle, _, drop, velocity, hit)
     if VC.seat ~= -1 or (hit and hit.severity == 'light') then return end
     if drop < (Config.MinDrop or 22.0) then return end
     local side = VC.impactSide(vehicle, velocity or vector3(0.0, 0.0, 0.0), GetEntityVelocity(vehicle))
+    local before = VC.windows[vehicle]
     VC.bodywork(vehicle, drop, side)
+    local G = Config.Glass or {}
+    if G.Enabled ~= false and drop >= (G.MinDrop or 35.0) and before then
+        local points = VC.brokenGlass(vehicle, before)
+        if #points > 0 then TriggerServerEvent('rp_vehiclecontrol:glass', points) end
+    end
+    VC.windows[vehicle] = windowState(vehicle)
 end)
+
+VC.on('enter', function(_, vehicle) VC.windows[vehicle] = windowState(vehicle) end)
 
 -- Réparé : roues revenues, usure remise à zéro
 VC.on('tick', function(_, vehicle)
@@ -163,8 +243,11 @@ VC.on('tick', function(_, vehicle)
         and GetVehicleEngineHealth(vehicle) >= 999.0 then
         VC.lostWheels[vehicle], VC.wear[vehicle] = nil, nil
     end
+    -- vitres cassées entre deux chocs (balles…) : pas de verre au prochain choc ; jamais relevé pendant un choc
+    if VC.seat == -1 and not VC.inCrash then VC.windows[vehicle] = windowState(vehicle) end
 end)
 
 VC.on('leave', function(vehicle, _, info)
     if info and info.gone then VC.lostWheels[vehicle], VC.wear[vehicle] = nil, nil end
+    VC.windows[vehicle], windowBones[vehicle] = nil, nil
 end)

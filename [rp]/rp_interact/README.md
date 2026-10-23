@@ -246,9 +246,10 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     (« Arme au sol ») : **Ramasser l'arme** (à 2 m, avec ses munitions, tout le monde). Un objet peut avoir plusieurs
     actions (`Options`). Ces objets sont aussi trouvés quand le rayon touche le **sol juste à côté** (`ExternalSnap`,
     0,7 m) : une arme couchée est très fine à viser.
-  - **Options d'autres scripts** (`TargetProviders`, par défaut `rp_RoleplayZone`) : ajoutées à l'œil, y compris sur un
-    **point du sol ou d'un mur** (aucune entité : « Lieu ») ; ex. **Fouiller les lieux / l'objet / le véhicule** et
-    **Modifier la description** des scènes de `rp_RoleplayZone`. Le script fournit les exports client
+  - **Options d'autres scripts** (`TargetProviders`, par défaut `rp_RoleplayZone` et `rp_doorlock`) : ajoutées à l'œil,
+    y compris sur un **point du sol ou d'un mur** (aucune entité : « Lieu ») ; ex. **Fouiller les lieux / l'objet / le
+    véhicule** et **Modifier la description** des scènes de `rp_RoleplayZone`, **Verrouiller / Déverrouiller /
+    Frapper à / Enfoncer la porte** de `rp_doorlock`. Le script fournit les exports client
     `targetOptions(info)` -> `{ label, options = { { id, label, icon } } }` et `targetSelect(id, info)`.
   - **Secteur d'une scène de roleplay** (`SceneResource`, `rp_RoleplayZone` : zone / lieu / objet + 70 m) : **ni
     « Supprimer » ni « Supprimer le props »** à l'œil, et le serveur refuse la suppression (rien ne doit disparaître).
