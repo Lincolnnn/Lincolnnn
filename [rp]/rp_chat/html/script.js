@@ -59,8 +59,10 @@
     function applySettings(s) {
         state.settings = s;
         const root = document.documentElement.style;
-        const shade = Math.round((s.shade / 100) * 120); // 0 = noir … 100 = gris
-        root.setProperty('--chat-bg', `rgba(${shade}, ${shade}, ${shade}, ${s.opacity / 100})`);
+        // 0 = noir … 100 = gris, légèrement teinté de bleu nuit (thème du MDC)
+        const shade = (s.shade / 100) * 120;
+        const tint = (k) => Math.min(255, Math.round(shade * k));
+        root.setProperty('--chat-bg', `rgba(${tint(0.78)}, ${tint(0.93)}, ${tint(1.25)}, ${s.opacity / 100})`);
         root.setProperty('--chat-border', s.border ? `${s.borderWidth}px solid ${s.borderColor}` : 'none');
         root.setProperty('--chat-font', `${s.fontSize}px`);
         root.setProperty('--chat-w', `${s.width}vw`);

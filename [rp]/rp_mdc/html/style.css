@@ -7,23 +7,23 @@
    ========================================================================= */
 :root {
     --glass-a: 1;                              /* opacité de la fenêtre (réglage) */
-    --mica:      32, 32, 32;                   /* fond de la fenêtre */
-    --mica-2:    28, 28, 28;                   /* volet de navigation, barres */
-    --card:      rgba(255, 255, 255, .045);    /* cartes */
-    --card-2:    rgba(255, 255, 255, .07);     /* survol, en-têtes */
-    --card-3:    rgba(255, 255, 255, .1);
-    --input:     rgba(255, 255, 255, .06);
-    --input-hover: rgba(255, 255, 255, .085);
-    --input-focus: rgba(18, 18, 18, .85);
-    --stroke:    rgba(255, 255, 255, .08);
-    --stroke-2:  rgba(255, 255, 255, .13);
-    --text:      #ffffff;
-    --text-2:    rgba(255, 255, 255, .8);
-    --muted:     rgba(255, 255, 255, .55);
-    --faint:     rgba(255, 255, 255, .36);
-    --accent:    #60cdff;                      /* accent Windows 11 (mode sombre) */
-    --accent-rgb: 96, 205, 255;
-    --accent-ink: #00202e;                     /* texte sur l'accent */
+    --mica:      20, 25, 34;                   /* fond de la fenêtre */
+    --mica-2:    16, 21, 29;                   /* volet de navigation, barres */
+    --card:      rgba(140, 170, 220, .06);    /* cartes */
+    --card-2:    rgba(140, 170, 220, .1);     /* survol, en-têtes */
+    --card-3:    rgba(140, 170, 220, .16);
+    --input:     rgba(140, 170, 220, .08);
+    --input-hover: rgba(140, 170, 220, .12);
+    --input-focus: rgba(10, 14, 20, .88);
+    --stroke:    rgba(140, 170, 220, .13);
+    --stroke-2:  rgba(140, 170, 220, .22);
+    --text:      #f2f6fc;
+    --text-2:    rgba(226, 234, 246, .82);
+    --muted:     rgba(200, 214, 234, .58);
+    --faint:     rgba(200, 214, 234, .36);
+    --accent:    #3b8cf6;                      /* accent Windows 11 (mode sombre) */
+    --accent-rgb: 59, 140, 246;
+    --accent-ink: #ffffff;                     /* texte sur l'accent */
     --danger:    #ff99a4;
     --danger-rgb: 196, 43, 28;
     --warn-rgb:  252, 225, 0;
@@ -42,8 +42,8 @@
     --st-default:     150, 150, 150;
 
     /* Polices (pastilles) : une couleur par MDC de police */
-    --agency-wsp:  #2d5f9e;
-    --agency-kcso: #2f6b4f;
+    --agency-wsp:  #2d63b3;
+    --agency-kcso: #2f7a55;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -417,7 +417,7 @@ input:focus, textarea:focus, select:focus {
     border-bottom: 2px solid var(--accent);
     padding-bottom: 3px;
 }
-select option { background: #2b2b2b; color: var(--text); }
+select option { background: #1c2431; color: var(--text); }
 select option:disabled { color: #6a6a6a; }
 input.upper { text-transform: uppercase; }
 input:invalid:not(:placeholder-shown) { color: #ff9a9a; }
@@ -506,7 +506,7 @@ input[type="range"] { accent-color: var(--accent); }
 .grid th {
     position: sticky; top: 0; z-index: 1;
     padding: 8px 12px;
-    background: #2b2b2b;
+    background: #1c2431;
     color: var(--muted); font-weight: 600; font-size: 12px; text-align: left; white-space: nowrap;
     border-bottom: 1px solid var(--stroke);
 }
@@ -648,7 +648,7 @@ input[type="range"] { accent-color: var(--accent); }
     position: sticky; top: 0; z-index: 2;
     display: flex; align-items: center; gap: 8px;
     padding: 8px 12px; font-weight: 600; cursor: pointer; list-style: none; user-select: none;
-    background: #2b2b2b; border-bottom: 1px solid var(--stroke);
+    background: #1c2431; border-bottom: 1px solid var(--stroke);
 }
 .dept-fold > summary::-webkit-details-marker { display: none; }
 .dept-fold > summary::before { content: "\203A"; width: 10px; color: var(--muted); transition: transform .12s; }
@@ -656,7 +656,7 @@ input[type="range"] { accent-color: var(--accent); }
 .dept-fold > summary:hover { background: #323232; }
 .dept-fold.locked > summary { cursor: default; }
 .dept-fold.locked > summary::before { content: ""; width: 0; }
-.dept-fold.locked > summary:hover { background: #2b2b2b; }
+.dept-fold.locked > summary:hover { background: #1c2431; }
 .dept-fold .grid th { top: 37px; }
 .dept-count { margin-left: auto; font-weight: normal; font-size: 12px; color: var(--muted); }
 .dept-checks { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 4px; }
@@ -846,7 +846,7 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
     position: fixed;
     z-index: 30;
     transform-origin: top left;
-    background: rgba(28, 28, 28, .78);
+    background: rgba(16, 21, 29, .8);
     border: 1px solid rgba(255, 255, 255, .1);
     border-radius: var(--radius);
     box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
@@ -947,7 +947,7 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
     position: absolute; left: 0; bottom: 8px;
     display: flex; align-items: center; gap: 12px;
     padding: 8px 14px 8px 8px; white-space: nowrap;
-    background: rgba(28, 28, 28, .82); color: #f2f2f2;
+    background: rgba(16, 21, 29, .85); color: #f2f2f2;
     border: 1px solid rgba(255, 255, 255, .1); border-radius: var(--radius);
     box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
     font: 13px var(--font);
@@ -968,19 +968,19 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 /* Menu Interaction (rp_interact) : cadre de placement à l'image du menu au clavier (400 px) */
 .hud-menu { width: 400px; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 .hm-banner {
-    position: relative; display: flex; flex-direction: column; justify-content: center; height: 64px; padding: 0 18px;
-    background: linear-gradient(100deg, rgba(60, 74, 92, .7), rgba(60, 74, 92, .15) 70%, transparent), rgba(24, 24, 24, .9);
-    border-bottom: 1px solid var(--stroke);
+    position: relative; display: flex; flex-direction: column; justify-content: center; height: 76px; padding: 0 18px;
+    background:
+        radial-gradient(120% 140% at 0% 0%, rgba(255, 255, 255, .16), transparent 55%),
+        linear-gradient(125deg, #3a6ab3 0%, #2f5ea8 45%, #1b3156 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
 }
-.hm-banner::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; background: #9aa7b8; border-radius: 0 3px 3px 0; }
-.hm-banner b { font: 600 20px/1.15 var(--font-display); color: #fff; }
-.hm-banner small { font-size: 11.5px; color: rgba(255, 255, 255, .7); }
+.hm-banner b { font: 700 22px/1.12 var(--font-display); color: #fff; }
+.hm-banner small { font-size: 12px; color: rgba(255, 255, 255, .82); }
 .hm-sub { display: flex; justify-content: space-between; padding: 6px 14px; font-size: 11px; font-weight: 600; color: var(--muted); background: rgba(0, 0, 0, .18); border-bottom: 1px solid var(--stroke); }
 .hm-list { padding: 4px; }
 .hm-section { padding: 8px 12px 4px; font-size: 11px; font-weight: 600; color: var(--muted); }
 .hm-case { position: relative; display: flex; justify-content: space-between; align-items: center; height: 34px; padding: 0 12px; font-size: 13.5px; color: var(--text-2); border-radius: var(--radius-sm); }
-.hm-case.active { background: var(--card-3); color: #fff; }
-.hm-case.active::before { content: ""; position: absolute; left: 0; top: 9px; width: 3px; height: 16px; background: var(--accent); border-radius: 2px; }
+.hm-case.active { background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 78%, #1a2a44)); color: #fff; }
 
 /* Mode placement : HUD déplaçables, MDC masqué */
 body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed rgba(255, 255, 255, .7); outline-offset: 4px; }
@@ -988,7 +988,7 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
     position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
     z-index: 40; display: flex; align-items: center; gap: 14px;
     padding: 8px 10px 8px 16px;
-    background: rgba(32, 32, 32, .95); color: #fff;
+    background: rgba(20, 25, 34, .95); color: #fff;
     border: 1px solid var(--stroke-2); border-radius: var(--radius);
     box-shadow: var(--shadow);
 }
@@ -1020,7 +1020,7 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
     --prio: 150, 150, 150;
     width: 330px;
     padding: 10px 14px 11px;
-    background: rgba(32, 32, 32, .95); color: #f2f2f2;
+    background: rgba(20, 25, 34, .95); color: #f2f2f2;
     border: 1px solid rgba(255, 255, 255, .1); border-left: 4px solid rgb(var(--prio)); border-radius: var(--radius);
     box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
     font: 13px var(--font);

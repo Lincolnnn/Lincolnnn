@@ -23,11 +23,11 @@ EquipConfig = {
     -- range dans une police ("subCategory" : ServiceTypes), sinon si sa classe est dans Classes.
     -- ---------------------------------------------------------------------
     Types = {
-        wsp    = { Label = 'Washington State Patrol',    Short = 'WSP',  Color = '#2d5f9e', Models = {} },
-        kcso   = { Label = 'King County Sheriff Office', Short = 'KCSO', Color = '#2f6b4f', Models = {} },
+        wsp    = { Label = 'Washington State Patrol',    Short = 'WSP',  Color = '#2d63b3', Models = {} },
+        kcso   = { Label = 'King County Sheriff Office', Short = 'KCSO', Color = '#2f7a55', Models = {} },
         -- Véhicules d'urgence (classe 18) qui ne sont dans aucune police : râtelier, et objets de la catégorie
         -- "Police" d'equipment.json
-        police = { Label = 'Véhicule de police',         Short = 'POLICE', Color = '#4a4f58', Models = {}, Classes = { 18 } },
+        police = { Label = 'Véhicule de police',         Short = 'POLICE', Color = '#4d5d80', Models = {}, Classes = { 18 } },
     },
     -- Véhicules de rp_interact : data/vehicle.json ("subCategory") ; à défaut, l'ancien data/vehicles.json ("Service")
     InteractVehicles = { Resource = 'rp_interact', File = 'data/vehicle.json', OldFile = 'data/vehicles.json' },

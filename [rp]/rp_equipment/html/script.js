@@ -114,6 +114,7 @@
         const t = data.type || {};
         $('eqTag').textContent = t.short || '';
         $('eqTag').style.background = t.color || '';
+        box.style.setProperty('--head-color', t.color || '#2d63b3'); // bannière : couleur de la police du véhicule
         $('eqTag').title = t.label || '';
         $('eqSub').textContent = `${data.where === 'trunk' ? 'Coffre' : 'Portières avant'}${data.plate ? ` · ${data.plate}` : ''}`;
         $('eqFoot').textContent = `Se ferme à plus de ${data.closeDistance || 4} m du véhicule · Échap pour fermer`;

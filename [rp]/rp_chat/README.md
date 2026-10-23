@@ -1,7 +1,7 @@
 # RP Chat (FiveM)
 
 Chat écrit rôleplay **100% standalone** (sans ESX / QBCore / vRP) qui **remplace le chat d'origine** de FiveM.
-Interface NUI en HTML/CSS/Vanilla JS, même thème sombre « Windows 11 » que le MDC (fond gris très foncé à 80 %, contour fin, coins arrondis ; réglables par joueur).
+Interface NUI en HTML/CSS/Vanilla JS, même thème sombre « bleu nuit » que le MDC (fond à 80 %, contour fin, coins arrondis ; réglables par joueur).
 Conçu pour fonctionner avec le MDC du même dépôt (`rp_mdc`), mais utilisable seul.
 
 ## Installation

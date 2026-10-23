@@ -365,6 +365,10 @@ local function relay(nuiName, serverName, latent)
     end)
 end
 
+-- MDC utilisé (Générique, WSP, KCSO) : choisi à la première ouverture, changeable dans les Paramètres
+relay('getAgencies',        'getAgencies')
+relay('setAgency',          'setAgency')
+
 -- Unités (le statut de la barre latérale est celui de l'unité du joueur)
 relay('getUnits',           'getUnits')
 relay('createUnit',         'createUnit')

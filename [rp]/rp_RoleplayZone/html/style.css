@@ -1,17 +1,17 @@
 /* RP RoleplayZone : même style que le MDC, rp_TrafficControl et le menu Équipement
    (fond sombre, verre teinté, accent bleu clair) ; HUD au thème du MDC (fond noir transparent, bordure grise fine) */
 :root {
-    --accent: #60cdff;
-    --accent-rgb: 96, 205, 255;
-    --text: #ffffff;
-    --muted: rgba(255, 255, 255, .55);
-    --line: rgba(255, 255, 255, .08);
+    --accent: #3b8cf6;
+    --accent-rgb: 59, 140, 246;
+    --text: #f2f6fc;
+    --muted: rgba(200, 214, 234, .58);
+    --line: rgba(140, 170, 220, .13);
     --danger: #ff99a4;
     --ok: #6ccb5f;
     --zone: #d9a441;
     --perimeter: #6ea8ff;
     --object: #b48cff;
-    --hud-muted: rgba(255, 255, 255, .55);
+    --hud-muted: rgba(200, 214, 234, .58);
     --font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "Inter", system-ui, -apple-system, Roboto, Arial, sans-serif;
 }
 * { box-sizing: border-box; }
@@ -23,7 +23,7 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
     position: absolute; right: 4vw; top: 50%; transform: translateY(-50%);
     width: 420px; max-height: 90vh; overflow-y: auto;
     padding: 14px; display: flex; flex-direction: column; gap: 12px;
-    background: rgba(32, 32, 32, .96); border: 1px solid rgba(255, 255, 255, .13); border-radius: 8px;
+    background: rgba(20, 25, 34, .96); border: 1px solid rgba(140, 170, 220, .22); border-radius: 8px;
     box-shadow: 0 32px 64px rgba(0, 0, 0, .56), 0 2px 21px rgba(0, 0, 0, .55);
     animation: rz-in .14s ease-out;
 }
@@ -77,7 +77,7 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
     background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .08); border-bottom-color: rgba(255, 255, 255, .3); border-radius: 4px; outline: none;
     user-select: text;
 }
-.rz-input:focus { background: rgba(18, 18, 18, .85); border-bottom: 2px solid var(--accent); }
+.rz-input:focus { background: rgba(10, 14, 20, .88); border-bottom: 2px solid var(--accent); }
 .rz-textarea { min-height: 120px; resize: vertical; line-height: 1.45; }
 .rz-textarea.rz-short { min-height: 58px; }
 .rz-camera { margin-top: 10px; }
@@ -125,13 +125,13 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .rz-btn {
     height: 28px; padding: 0 11px; cursor: pointer;
     background: rgba(255, 255, 255, .07); color: var(--text); font: 12px var(--font);
-    border: 1px solid rgba(255, 255, 255, .13); border-bottom-color: rgba(255, 255, 255, .07); border-radius: 4px; transition: background .12s, border-color .12s;
+    border: 1px solid rgba(140, 170, 220, .22); border-bottom-color: rgba(255, 255, 255, .07); border-radius: 4px; transition: background .12s, border-color .12s;
 }
 .rz-btn:hover { background: rgba(255, 255, 255, .12); }
 .rz-btn:disabled { opacity: .4; cursor: default; }
 .rz-small { height: 24px; padding: 0 9px; font-size: 11.5px; }
-.rz-primary { color: #00202e; font-weight: 600; background: var(--accent); border-color: var(--accent); }
-.rz-primary:hover { background: #4cc2f5; }
+.rz-primary { color: #ffffff; font-weight: 600; background: var(--accent); border-color: var(--accent); }
+.rz-primary:hover { background: #5aa0ff; }
 .rz-danger:hover:not(:disabled) { background: #c42b1c; border-color: #c42b1c; color: #fff; }
 .rz-row-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
 #rzDescribe > .rz-row-actions { margin-top: 0; }
@@ -147,7 +147,7 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .zbanner {
     position: fixed; top: 2.6vh; left: 50%; transform: translateX(-50%); z-index: 40;
     max-width: min(560px, 46vw); min-width: 300px; padding: 9px 16px 11px; text-align: center;
-    background: rgba(32, 32, 32, .94); border: 1px solid rgba(255, 255, 255, .13); border-radius: 8px; box-shadow: 0 16px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .4);
+    background: rgba(20, 25, 34, .94); border: 1px solid rgba(140, 170, 220, .22); border-radius: 8px; box-shadow: 0 16px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .4);
     color: #e6e6e6; text-shadow: none; pointer-events: none;
     animation: zone-in .45s ease-out;
 }
@@ -187,7 +187,7 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .progress {
     position: fixed; left: 50%; bottom: 13vh; transform: translateX(-50%); z-index: 50;
     width: 360px; padding: 9px 12px 10px;
-    background: rgba(32, 32, 32, .94); border: 1px solid rgba(255, 255, 255, .13); border-radius: 8px; box-shadow: 0 16px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .4);
+    background: rgba(20, 25, 34, .94); border: 1px solid rgba(140, 170, 220, .22); border-radius: 8px; box-shadow: 0 16px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .4);
     color: #e6e6e6; text-shadow: none; pointer-events: none;
 }
 .progress-head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: bold; color: #fff; }
@@ -195,11 +195,11 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .progress-track { margin-top: 8px; height: 4px; background: rgba(255, 255, 255, .1); border-radius: 2px; overflow: hidden; }
 .progress-bar { width: 0; height: 100%; background: var(--accent); border-radius: 2px; }
 .progress-hint { margin-top: 6px; font-size: 11px; color: #a9a9a9; text-align: right; }
-.progress-hint kbd { display: inline-block; padding: 0 5px; margin-right: 3px; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .13); border-bottom-width: 2px; border-radius: 4px; font: 600 10px var(--font); }
+.progress-hint kbd { display: inline-block; padding: 0 5px; margin-right: 3px; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(140, 170, 220, .22); border-bottom-width: 2px; border-radius: 4px; font: 600 10px var(--font); }
 
 .results { position: fixed; top: 22vh; right: 1.5vw; z-index: 45; display: flex; flex-direction: column; gap: 8px; width: 340px; pointer-events: none; }
 .result {
-    padding: 10px 12px 11px; background: rgba(32, 32, 32, .94); border: 1px solid rgba(255, 255, 255, .13); border-radius: 8px; box-shadow: 0 16px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .4);
+    padding: 10px 12px 11px; background: rgba(20, 25, 34, .94); border: 1px solid rgba(140, 170, 220, .22); border-radius: 8px; box-shadow: 0 16px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .4);
     color: #e6e6e6; text-shadow: none; box-shadow: inset 3px 0 0 var(--accent), 0 16px 32px rgba(0, 0, 0, .45);
     transition: opacity .4s; animation: result-in .25s ease-out;
 }
@@ -214,7 +214,7 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .whint {
     position: fixed; top: 2.2vh; left: 1.2vw; z-index: 44; pointer-events: none;
     display: flex; flex-direction: column; gap: 6px; padding: 9px 12px;
-    background: rgba(32, 32, 32, .94); border: 1px solid rgba(255, 255, 255, .13); border-radius: 8px; box-shadow: 0 16px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .4);
+    background: rgba(20, 25, 34, .94); border: 1px solid rgba(140, 170, 220, .22); border-radius: 8px; box-shadow: 0 16px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .4);
     color: #e6e6e6; font-size: 13.5px; text-shadow: none;
     animation: whint-in .18s ease-out;
 }
@@ -223,8 +223,27 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .whint-alt { font-weight: 500; color: #bdbdbd; font-size: 12.5px; }
 .whint kbd {
     display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px;
-    color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .13); border-bottom-width: 2px;
+    color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(140, 170, 220, .22); border-bottom-width: 2px;
     border-radius: 4px; font: 600 12.5px var(--font); text-shadow: none;
 }
 .whint .whint-wheel { min-width: 22px; padding: 0 4px; }
 .whint-wheel svg { width: 12px; height: 17px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; }
+
+/* ===================== Bannière colorée (même style que le Menu Interaction) ===================== */
+.rz { --head-color: #6a4fa0; padding-top: 0; }
+.rz-head {
+    position: relative; height: 70px; margin: 0 -14px; padding: 0 0 0 16px; overflow: hidden;
+    background:
+        radial-gradient(120% 140% at 0% 0%, rgba(255, 255, 255, .16), transparent 55%),
+        linear-gradient(125deg, color-mix(in srgb, var(--head-color) 100%, #ffffff 8%) 0%, var(--head-color) 45%, color-mix(in srgb, var(--head-color) 55%, #0a0e15) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+}
+.rz-head::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .035) 0 1px, transparent 1px 7px);
+}
+.rz-title, .rz-close { position: relative; z-index: 1; }
+.rz-name { font: 700 18px/1.15 var(--font); color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .25); }
+.rz-sub { color: rgba(255, 255, 255, .82); }
+.rz-tag { color: #fff; background: rgba(255, 255, 255, .18) !important; border: 1px solid rgba(255, 255, 255, .25); box-shadow: none; }
+.rz-close { align-self: stretch; width: 46px; height: auto; border-radius: 0; color: #fff; }

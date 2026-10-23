@@ -259,7 +259,7 @@
             const items = this.items();
             const ids = this.fixSel(items);
             const banner = (typeof p.banner === 'function' ? p.banner() : p.banner) || {};
-            this.el.style.setProperty('--kb-color', banner.color || '#3c4a5c');
+            this.el.style.setProperty('--kb-color', banner.color || MENU_COLORS.home);
             $('.kb-title', this.el).textContent = banner.title || p.title || '';
             $('.kb-sub', this.el).textContent = banner.sub || '';
             $('.kb-path', this.el).textContent = this.stack.map((x) => x.title).join(' › ');
@@ -392,8 +392,8 @@
     const menu = { data: {} };
     const LOCKED_TEXT = 'Accès réservé : vous n\'avez pas la permission.';
     // Couleur de la bannière : une par partie du menu ; WSP / KCSO : couleur de la police (comme le MDC)
-    const AGENCY_COLORS = { wsp: '#2d5f9e', kcso: '#2f6b4f' };
-    const MENU_COLORS = { home: '#3c4a5c', police: '#2d4a6e', civil: '#4a4f58', equipment: '#4a4458', car: '#36544f' };
+    const AGENCY_COLORS = { wsp: '#2d63b3', kcso: '#2f7a55' };
+    const MENU_COLORS = { home: '#2f5ea8', police: '#28509a', civil: '#6a4fa0', equipment: '#a0662a', car: '#23827a' };
     const agencyCode = (text) => {
         const t = String(text || '').toLowerCase();
         if (t === 'wsp' || t.startsWith('washington')) return 'wsp';
@@ -1613,7 +1613,7 @@
         { code: 'WSP', name: 'Washington State Patrol', color: AGENCY_COLORS.wsp },
         { code: 'KCSO', name: 'King County Sheriff Office', color: AGENCY_COLORS.kcso },
     ];
-    const EUP_COLORS = { root: '#3c4a5c', civil: '#4a4f58', other: '#4a4458' };
+    const EUP_COLORS = { root: '#2f5ea8', civil: '#6a4fa0', other: '#4d5d80' };
     const eup = { outfits: [], policeLocked: false, worn: null };
 
     const eupMenu = new KbMenu($('#eup'), 'eup', { icon: KB_ICONS.eup, close: () => post('eupClose') });

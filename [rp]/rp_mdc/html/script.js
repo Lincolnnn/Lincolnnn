@@ -3687,7 +3687,7 @@
 
     // ---- Paramètres > "Chat écrit et commandes" (ressource rp_chat) ----
     // Réglages gardés par le chat (KVP du joueur) : lus et modifiés via le client Lua du MDC.
-    const CHAT_BORDER_COLORS = ['#3a3a3a', '#5a5a5a', '#7a7a7a', '#a0a0a0', '#d0d0d0', '#3a6ea5', '#8a2a2a', '#2f7a43'];
+    const CHAT_BORDER_COLORS = ['#2e3a4d', '#3a3a3a', '#5a5a5a', '#7a7a7a', '#a0a0a0', '#d0d0d0', '#3a6ea5', '#8a2a2a', '#2f7a43'];
     const chatSet = { settings: null, defaults: null, timer: null };
 
     const shadeLabel = (v) => (v <= 10 ? 'Noir' : v <= 35 ? 'Plutôt noir' : v <= 60 ? 'Gris foncé' : v <= 85 ? 'Gris' : 'Gris clair');

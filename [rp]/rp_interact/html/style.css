@@ -6,24 +6,24 @@
    Les couleurs se changent ici, dans les variables.
    ========================================================================= */
 :root {
-    --mica:      32, 32, 32;                   /* fond des fenêtres et cartes ("R, G, B") */
+    --mica:      20, 25, 34;                   /* fond des fenêtres et cartes ("R, G, B") */
     --surface:   rgba(var(--mica), .94);
-    --surface-2: rgba(28, 28, 28, .96);
-    --card:      rgba(255, 255, 255, .045);
-    --card-2:    rgba(255, 255, 255, .07);
-    --card-3:    rgba(255, 255, 255, .1);
-    --input:     rgba(255, 255, 255, .06);
-    --input-hover: rgba(255, 255, 255, .085);
-    --input-focus: rgba(18, 18, 18, .85);
-    --stroke:    rgba(255, 255, 255, .08);
-    --stroke-2:  rgba(255, 255, 255, .13);
-    --text:      #ffffff;
-    --text-2:    rgba(255, 255, 255, .8);
-    --muted:     rgba(255, 255, 255, .55);
-    --faint:     rgba(255, 255, 255, .36);
-    --accent:    #60cdff;                      /* accent Windows 11 (mode sombre) */
-    --accent-rgb: 96, 205, 255;
-    --accent-ink: #00202e;
+    --surface-2: rgba(16, 21, 29, .96);
+    --card:      rgba(140, 170, 220, .06);
+    --card-2:    rgba(140, 170, 220, .1);
+    --card-3:    rgba(140, 170, 220, .16);
+    --input:     rgba(140, 170, 220, .08);
+    --input-hover: rgba(140, 170, 220, .12);
+    --input-focus: rgba(10, 14, 20, .88);
+    --stroke:    rgba(140, 170, 220, .13);
+    --stroke-2:  rgba(140, 170, 220, .22);
+    --text:      #f2f6fc;
+    --text-2:    rgba(226, 234, 246, .82);
+    --muted:     rgba(200, 214, 234, .58);
+    --faint:     rgba(200, 214, 234, .36);
+    --accent:    #3b8cf6;                      /* accent Windows 11 (mode sombre) */
+    --accent-rgb: 59, 140, 246;
+    --accent-ink: #ffffff;
     --ok:        #6ccb5f;
     --warn:      #fce100;
     --danger:    #ff99a4;
@@ -35,8 +35,8 @@
     --font-display: "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", system-ui, Arial, sans-serif;
 
     /* Polices du MDC (pastilles, bannières) */
-    --agency-wsp:  #2d5f9e;
-    --agency-kcso: #2f6b4f;
+    --agency-wsp:  #2d63b3;
+    --agency-kcso: #2f7a55;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -119,29 +119,31 @@ kbd {
 .kbmenu.menu { left: 4vw; top: 20vh; }   /* par défaut ; position / taille réglables dans le MDC */
 .kbmenu.preview { opacity: .92; }
 
-/* Bannière : sobre, teinte de la page (ou de la police) en dégradé discret, trait d'accent à gauche */
+/* Bannière : pleine couleur de la page (ou de la police), dégradé vers le bas à droite, reflet discret */
 .kb-banner {
-    position: relative; display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 16px 0 18px;
+    position: relative; display: flex; align-items: center; gap: 14px; height: 76px; padding: 0 18px;
     background:
-        linear-gradient(100deg, color-mix(in srgb, var(--kb-color) 70%, transparent) 0%, color-mix(in srgb, var(--kb-color) 22%, transparent) 70%, transparent 100%),
-        rgba(24, 24, 24, .9);
-    border-bottom: 1px solid var(--stroke);
+        radial-gradient(120% 140% at 0% 0%, rgba(255, 255, 255, .16), transparent 55%),
+        linear-gradient(125deg, color-mix(in srgb, var(--kb-color) 100%, #ffffff 8%) 0%, var(--kb-color) 45%, color-mix(in srgb, var(--kb-color) 55%, #0a0e15) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
 }
-.kb-banner::before {
-    content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
-    background: color-mix(in srgb, var(--kb-color) 55%, #ffffff); border-radius: 0 3px 3px 0;
+.kb-banner::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .035) 0 1px, transparent 1px 7px);
 }
 .kb-icon {
-    display: flex; align-items: center; justify-content: center; flex: none; width: 34px; height: 34px;
-    color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .12); border-radius: var(--radius);
+    position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px;
+    color: #fff; background: rgba(255, 255, 255, .16); border: 1px solid rgba(255, 255, 255, .22); border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, .2);
 }
-.kb-icon svg { width: 18px; height: 18px; }
-.kb-head { display: flex; flex-direction: column; min-width: 0; }
+.kb-icon svg { width: 20px; height: 20px; }
+.kb-head { position: relative; z-index: 1; display: flex; flex-direction: column; min-width: 0; }
 .kb-title {
-    font: 600 20px/1.15 var(--font-display); letter-spacing: .1px; color: #fff;
+    font: 700 22px/1.12 var(--font-display); letter-spacing: .1px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .25);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.kb-sub { margin-top: 2px; font-size: 11.5px; color: rgba(255, 255, 255, .7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kb-sub { margin-top: 3px; font-size: 12px; color: rgba(255, 255, 255, .82); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .kb-crumb {
     display: flex; justify-content: space-between; gap: 12px; padding: 6px 14px;
@@ -159,23 +161,27 @@ kbd {
     position: relative; display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px;
     font-size: 13.5px; color: var(--text-2); border-radius: var(--radius-sm);
 }
-.kb-item.sel { background: var(--card-3); color: #fff; }
-.kb-item.sel::before {
-    content: ""; position: absolute; left: 0; top: 50%; width: 3px; height: 16px; transform: translateY(-50%);
-    background: var(--accent); border-radius: 2px;
+.kb-item.sel {
+    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 78%, #1a2a44));
+    color: #fff; box-shadow: 0 2px 8px rgba(var(--accent-rgb), .3);
 }
 .kb-item.disabled { color: var(--faint); }
-.kb-item.disabled.sel { color: var(--muted); }
+.kb-item.disabled.sel { background: rgba(140, 170, 220, .14); color: var(--muted); box-shadow: none; }
 .kb-item.danger { color: var(--danger); }
+.kb-item.danger.sel { background: linear-gradient(90deg, #c4314b, #9e2a3f); color: #fff; box-shadow: 0 2px 8px rgba(196, 49, 75, .3); }
 .kb-tag { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--kb-tag); box-shadow: 0 0 0 2px rgba(255, 255, 255, .08); }
 .kb-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .kb-right { flex: none; max-width: 45%; font-size: 12px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.kb-item.sel .kb-right { color: var(--text-2); }
+.kb-item.sel .kb-right, .kb-item.sel .kb-arrow { color: rgba(255, 255, 255, .85); }
+.kb-item.sel .kb-mark { color: #fff; }
+.kb-item.sel .kb-tag { box-shadow: 0 0 0 2px rgba(255, 255, 255, .7); }
 .kb-mark { flex: none; color: var(--ok); font-weight: 700; }
 .kb-arrow { flex: none; font-size: 18px; line-height: 1; color: var(--muted); }
 .kb-section {
-    padding: 10px 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: .2px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px 4px; font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted);
 }
+.kb-section::after { content: ""; flex: 1; height: 1px; background: var(--stroke); }
 .kb-section:first-child { padding-top: 4px; }
 .kb-info {
     padding: 6px 12px; font-size: 12px; color: var(--text-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
@@ -200,7 +206,13 @@ kbd {
 .kb-choice { display: flex; align-items: center; gap: 8px; flex: none; max-width: 55%; font-size: 12.5px; color: var(--text); }
 .kb-choice span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .kb-choice i { font-style: normal; font-size: 15px; color: var(--muted); }
-.kb-item.sel .kb-choice i { color: var(--accent); }
+.kb-item.sel .kb-choice, .kb-item.sel .kb-choice i { color: #fff; }
+.kb-item.sel .kb-check { border-color: rgba(255, 255, 255, .8); }
+.kb-item.sel .kb-check::after { background: #fff; }
+.kb-item.sel .kb-check.on { background: #fff; border-color: #fff; }
+.kb-item.sel .kb-check.on::after { background: var(--accent); }
+.kb-item.sel .kb-value { color: #fff; background: rgba(0, 0, 0, .2); border-color: rgba(255, 255, 255, .25); }
+.kb-item.sel .kb-value.is-empty { color: rgba(255, 255, 255, .7); }
 
 /* Texte (secteur, lien, nom) */
 .kb-value {
@@ -308,7 +320,7 @@ kbd {
 }
 .titlebar {
     display: flex; align-items: center; justify-content: space-between; height: 40px; padding: 0 0 0 14px;
-    background: rgba(28, 28, 28, .7); cursor: move;
+    background: rgba(14, 19, 27, .75); cursor: move;
 }
 .title { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-2); }
 .title-icon {
@@ -364,7 +376,7 @@ kbd {
 .btn:active { background: var(--card); color: var(--text-2); }
 .btn:disabled { color: var(--faint); background: var(--card); cursor: default; }
 .btn-default { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
-.btn-default:hover { background: #4cc2f5; }
+.btn-default:hover { background: #5aa0ff; }
 .btn-danger:hover, .btn-danger.confirm { background: #c42b1c; border-color: #c42b1c; color: #fff; }
 .btn-small { height: 26px; padding: 0 10px; font-size: 12px; }
 
@@ -384,7 +396,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 
 .grid { width: 100%; border-collapse: collapse; font-size: 13px; }
 .grid th {
-    position: sticky; top: 0; padding: 8px 10px; background: rgb(38, 38, 38); color: var(--muted);
+    position: sticky; top: 0; padding: 8px 10px; background: rgb(28, 35, 47); color: var(--muted);
     font-weight: 600; font-size: 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--stroke);
 }
 .grid td { padding: 8px 10px; border-bottom: 1px solid rgba(255, 255, 255, .04); white-space: nowrap; }

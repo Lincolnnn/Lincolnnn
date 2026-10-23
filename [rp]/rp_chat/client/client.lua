@@ -38,17 +38,17 @@ SetTextChatEnabled(false)
 
 -- =========================================================================
 -- RÉGLAGES DU JOUEUR
--- Par défaut : même fond et même contour que le MDC (thème sombre Windows 11 : gris très foncé à 80 %
--- d'opacité, contour fin gris foncé de 1 px).
+-- Par défaut : même fond et même contour que le MDC (thème sombre bleu nuit à 80 % d'opacité, contour fin
+-- de 1 px).
 -- =========================================================================
 local DEFAULTS = {
-    shade = 27,             -- teinte du fond : 0 = noir … 100 = gris (27 : gris très foncé du MDC)
+    shade = 22,             -- teinte du fond : 0 = noir … 100 = gris bleuté (22 : bleu nuit du MDC)
     opacity = 80,           -- opacité du fond (%)
     fontSize = 14,          -- taille du texte (px)
     width = 32,             -- largeur du chat (% de l'écran)
     height = 30,            -- hauteur du chat (% de l'écran)
     border = true,          -- contour affiché
-    borderColor = '#3a3a3a',
+    borderColor = '#2e3a4d',
     borderWidth = 1,        -- épaisseur du contour (px)
     meMode = 'chat',        -- /me : 'chat' (dans le chat, rayon 50 m) ou 'head' (au-dessus des têtes)
     feed = 'fade',          -- nouveaux messages chat fermé : 'fade' (affichés 8 s), 'always', 'never'
