@@ -1,0 +1,7 @@
+# Données enregistrées par les scripts sur le serveur (jamais versionnées)
+rp_mdc/data/*.json
+rp_interact/data/*.json
+rp_equipment/data/*.json
+rp_doorlock/data/*.json
+# Exception : le fichier des véhicules (Voiture > Spawn) est fourni avec rp_interact
+!rp_interact/data/vehicle.json
