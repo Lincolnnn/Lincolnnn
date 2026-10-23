@@ -10,7 +10,7 @@
         -> affiché uniquement quand le joueur fait partie d'une unité
       (+ le car HUD : client/carhud.lua, données de Vehicle Control / rp_vehiclecontrol)
     + les notifications (en haut à droite de l'écran) : nouvel appel, nouvel incident (unités du
-      service de l'appel), proposition "unité la plus proche" (Y / N), changement de statut de l'unité.
+      police de l'appel), proposition "unité la plus proche" (Y / N), changement de statut de l'unité.
 
     Performance :
       - Le PLD utilise UNE boucle lente (Config.Interval ms, 500 par défaut) qui
@@ -49,7 +49,7 @@ local settings = {}       -- réglages complets envoyés par le NUI (voir saveSe
 local hasAccess = false   -- accès au MDC (ACE), donné par le serveur
 local pldReady = false    -- le joueur est en jeu (fin du chargement) : le PLD peut s'afficher
 local synced = false      -- réponse du serveur reçue (accès + unité)
-local unitInfo = nil      -- unité du joueur : { name, tag, color, status, dept, callNumber }
+local unitInfo = nil      -- unité du joueur : { name, tag, color, status, agency, agencyShort, callNumber }
 local loopRunning = false
 
 -- =========================================================================
@@ -249,19 +249,13 @@ end
 
 local startLoop
 
--- Secteur (zone de jeu) et service principal du policier : choisis dans le menu d'interactions
--- (rp_interact, Police, tout en bas), publiés dans l'état du joueur ("policeSector", "policeService")
--- et affichés sur le display MDC.
-local POLICE_SERVICES = {
-    apd = 'APD', gsp = 'GSP', fcso = 'FCSO', ['apd+gsp'] = 'APD & GSP', ['apd+fcso'] = 'APD & FCSO',
-    ['gsp+fcso'] = 'GSP & FCSO', ['apd+gsp+fcso'] = 'APD, GSP & FCSO', both = 'APD & GSP', -- both : ancien format
-}
-
-local function policeProfile(sector, service)
+-- Secteur (zone de jeu) du policier : saisi dans le menu d'interactions (rp_interact, Police), publié dans
+-- l'état du joueur ("policeSector") et affiché sur le display MDC. La police (WSP, KCSO…) est celle du MDC.
+local function policeProfile(sector)
     sector = type(sector) == 'string' and sector:sub(1, 40) or ''
-    return { sector = sector, service = POLICE_SERVICES[service] and service or '' }
+    return { sector = sector }
 end
-local profile = policeProfile(LocalPlayer.state.policeSector, LocalPlayer.state.policeService)
+local profile = policeProfile(LocalPlayer.state.policeSector)
 
 local function refreshHud()
     SendNUIMessage({ action = 'hudState', data = { pld = pldAllowed(), unit = unitInfo, profile = profile } })
@@ -303,14 +297,10 @@ startLoop = function()
     end)
 end
 
--- Changement de secteur / service (appelé AVANT l'enregistrement : la valeur reçue est utilisée)
+-- Changement de secteur (appelé AVANT l'enregistrement : la valeur reçue est utilisée)
 local myBag = ('player:%d'):format(GetPlayerServerId(PlayerId()))
 AddStateBagChangeHandler('policeSector', myBag, function(_, _, value)
-    profile = policeProfile(value, profile.service)
-    refreshHud()
-end)
-AddStateBagChangeHandler('policeService', myBag, function(_, _, value)
-    profile = policeProfile(profile.sector, value)
+    profile = policeProfile(value)
     refreshHud()
 end)
 

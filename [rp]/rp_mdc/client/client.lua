@@ -117,7 +117,6 @@ local function openMDC()
             rpName   = currentRpName(),
             serverId = GetPlayerServerId(PlayerId()), -- non affiché : sert à repérer sa propre ligne
             layout   = windowLayout, -- nil = position par défaut (centrée)
-            civilMode = LocalPlayer.state.rpiCivilMode == true, -- page "Créations" (mode civil, rp_interact)
         }
     })
 
@@ -174,11 +173,6 @@ RegisterKeyMapping(Config.Command, 'Ouvrir le MDC (Police)', 'keyboard', Config.
 RegisterNUICallback('mdcBlur', function(data, cb)
     setBlur(isOpen and type(data) == 'table' and data.enabled == true)
     cb({ ok = true })
-end)
-
--- Mode civil activé / désactivé dans le menu d'interactions : page "Créations" affichée ou non
-AddStateBagChangeHandler('rpiCivilMode', ('player:%d'):format(GetPlayerServerId(PlayerId())), function(_, _, value)
-    SendNUIMessage({ action = 'civilMode', data = { enabled = value == true } })
 end)
 
 AddEventHandler('onResourceStop', function(resource)

@@ -21,11 +21,24 @@
         on_scene: 'Sur place',
         unavailable: 'Indisponible',
     };
-    // Services de police (clés identiques à DEPARTMENTS dans server.lua)
-    const DEPARTMENTS = {
-        apd: { label: 'Atlanta Police Department', short: 'APD' },
-        gsp: { label: 'Georgia State Patrol', short: 'GSP' },
-        fcso: { label: 'Fayette County Sheriff Office', short: 'FCSO' },
+    // MDC (Config.Agencies dans server.lua, envoyés par le serveur) : générique (civils) ou une police.
+    // Le look est le même ; seuls le titre et les pages changent.
+    const PAGES = {
+        generic: ['interventions', 'create', 'reports', 'settings'],
+        police: ['units', 'interventions', 'search', 'reports', 'settings'],
+    };
+    const PAGE_TITLES = {
+        units: ['Unités', 'Unités de votre police : rejoignez-en une pour prendre des appels'],
+        interventions: ['Interventions', 'Appels des civils et incidents déclarés par les unités'],
+        search: ['Recherches', 'Identités et immatriculations'],
+        bolos: ['BOLOs', 'Avis de recherche actifs de votre police'],
+        reports: ['Rapports', 'Communs à tous les MDC'],
+        create: ['Créations', 'Identités, véhicules et appels'],
+        settings: ['Paramètres', 'MDC, HUD, chat écrit'],
+    };
+    const AGENCY_DESC = {
+        generic: 'Rôleplay civil : Interventions (consultation et modification des appels), Créations, Rapports.',
+        police: 'Unités, Interventions, Recherches et BOLOs propres à ce service ; Rapports communs.',
     };
     const KIND_LABELS = { identity: 'Identité', vehicle: 'Véhicule', intervention: 'Intervention' };
     const KIND_SAVED = { identity: 'Identité enregistrée', vehicle: 'Véhicule enregistré', intervention: 'Intervention enregistrée' };
@@ -67,6 +80,8 @@
     const state = {
         open: false,
         page: 'units',
+        agency: null,          // MDC choisi (clé) : demandé à la première ouverture, remis à zéro à chaque connexion
+        agencies: [],          // MDC disponibles (serveur) : { key, label, short, police }
         serverId: null,
         rpName: '',
         editingRpName: false,
@@ -177,7 +192,9 @@
         }
 
         const btn = $('#btnMax');
-        btn.innerHTML = l.maximized ? '&#10697;' : '&#9633;';
+        btn.innerHTML = l.maximized
+            ? '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5h7v7M3.5 5.5h7v7h-7z"/></svg>'
+            : '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3.5h9v9h-9z"/></svg>';
         btn.title = l.maximized ? 'Rétrécir' : 'Agrandir';
     }
 
@@ -271,18 +288,145 @@
 
         renderProfile();
         renderSidebarUnit();
-        applyCivilMode(data.civilMode);
         win.classList.remove('hidden');
         syncBlur();
 
         updateClock();
         state.clockTimer = setInterval(updateClock, 1000);
 
-        refreshUnits(); // statut de l'unité du joueur (barre latérale)
-        refreshBolos(); // BOLOs actifs (barre latérale)
+        // Première ouverture de la session : choix du MDC
+        if (!state.agency) {
+            showChooser();
+            return;
+        }
+        enterMdc(true);
+    }
+
+    // Contenu du MDC choisi : unité, BOLOs, onglet de départ
+    function enterMdc(opening) {
+        if (isPolice()) {
+            refreshUnits(); // statut de l'unité du joueur (volet de gauche)
+            refreshBolos(); // BOLOs actifs (volet de gauche)
+        }
         const startTab = hud.settings.mdc.startTab;
-        if (startTab && startTab !== 'last') showPage(startTab);
-        else loadPage(state.page);
+        if (opening && startTab && startTab !== 'last' && pageAllowed(startTab)) showPage(startTab);
+        else showPage(pageAllowed(state.page) ? state.page : allowedPages()[0]);
+    }
+
+    // =====================================================================
+    // MDC CHOISI (générique ou une police) : à la première ouverture de chaque session
+    // =====================================================================
+    const agencyInfo = (key) => state.agencies.find((a) => a.key === key) || null;
+    const isPolice = () => !!(agencyInfo(state.agency) || {}).police;
+    const policeAgencies = () => state.agencies.filter((a) => a.police);
+    const allowedPages = () => (state.agency ? PAGES[isPolice() ? 'police' : 'generic'] : []);
+    const pageAllowed = (page) => allowedPages().includes(page === 'bolos' ? 'search' : page);
+
+    async function loadAgencies() {
+        if (state.agencies.length) return true;
+        const res = await post('getAgencies');
+        if (!res || !res.ok) return false;
+        state.agencies = toArray(res.agencies);
+        if (res.current && agencyInfo(res.current)) state.agency = res.current; // NUI rechargée, choix déjà fait
+        return true;
+    }
+
+    const shieldIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6 4.6 5.5v5.8c0 4.6 3.1 8.7 7.4 10.1 4.3-1.4 7.4-5.5 7.4-10.1V5.5L12 2.6Z"/></svg>';
+    const civilIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>';
+
+    function agencyCardsHtml(current) {
+        return state.agencies.map((a) => `
+            <button type="button" class="agency-card ${a.key === current ? 'active' : ''}" data-agency="${esc(a.key)}">
+                <span class="agency-card-icon">${a.police ? shieldIcon : civilIcon}</span>
+                <span class="agency-card-text">
+                    <b>${esc(a.key === 'generic' ? 'Mobile Data Computer' : a.label)}</b>
+                    <small>${esc(a.key === 'generic' ? 'Générique' : a.short)}</small>
+                    <span>${esc(AGENCY_DESC[a.police ? 'police' : 'generic'])}</span>
+                </span>
+                ${a.key === current ? '<span class="agency-card-check">Actuel</span>' : ''}
+            </button>`).join('');
+    }
+
+    async function showChooser() {
+        win.classList.add('choosing');
+        $('#agencyChooser').classList.remove('hidden');
+        $('#agencyCards').innerHTML = '<div class="hint-text">Chargement…</div>';
+        if (!(await loadAgencies())) {
+            $('#agencyCards').innerHTML = '<div class="hint-text">MDC indisponible (serveur).</div>';
+            return;
+        }
+        if (state.agency) { // déjà choisi (NUI rechargée)
+            hideChooser();
+            applyAgency();
+            enterMdc(true);
+            return;
+        }
+        $('#agencyCards').innerHTML = agencyCardsHtml(null);
+    }
+
+    function hideChooser() {
+        win.classList.remove('choosing');
+        $('#agencyChooser').classList.add('hidden');
+    }
+
+    async function chooseAgency(key, fromSettings) {
+        const res = await post('setAgency', { agency: key });
+        if (!res || !res.ok) {
+            toast(res?.error || 'Impossible de choisir ce MDC.', 'error');
+            return;
+        }
+        state.agency = key;
+        state.units = [];
+        state.interventions = [];
+        state.callPanel = { mode: 'view', id: null };
+        hideChooser();
+        applyAgency();
+        if (res.left) toast('Vous avez quitté votre unité (autre MDC).', 'info');
+        if (fromSettings) toast(`MDC : ${agencyInfo(key).label}.`, 'success');
+        enterMdc(!fromSettings);
+        if (fromSettings && pageAllowed('settings')) showPage('settings');
+    }
+
+    $('#agencyCards').addEventListener('click', (e) => {
+        const card = e.target.closest('[data-agency]');
+        if (card) chooseAgency(card.dataset.agency, false);
+    });
+
+    // Paramètres > MDC utilisé : un clic choisit, un deuxième clic confirme
+    $('#settingsAgencyCards').addEventListener('click', (e) => {
+        const card = e.target.closest('[data-agency]');
+        if (!card || card.dataset.agency === state.agency) return;
+        if (!card.dataset.confirm) {
+            $$('#settingsAgencyCards [data-confirm]').forEach((c) => { delete c.dataset.confirm; c.classList.remove('confirm'); });
+            card.dataset.confirm = '1';
+            card.classList.add('confirm');
+            const left = isPolice() && myUnit() ? ' (vous quitterez votre unité)' : '';
+            toast(`Cliquez à nouveau pour passer à ce MDC${left}.`, 'info');
+            setTimeout(() => { if (card.isConnected) { delete card.dataset.confirm; card.classList.remove('confirm'); } }, 4000);
+            return;
+        }
+        chooseAgency(card.dataset.agency, true);
+    });
+
+    // Titre, pages, éléments réservés à la police, listes des appels, cases des polices
+    function applyAgency() {
+        const info = agencyInfo(state.agency);
+        const police = isPolice();
+        win.classList.toggle('agency-police', police);
+        win.classList.toggle('agency-generic', !police);
+        const title = $('#agencyTitle');
+        title.textContent = info ? (info.key === 'generic' ? 'Générique' : info.label) : '';
+        title.classList.toggle('hidden', !info);
+        $('#profileAgency').textContent = info ? (police ? info.short : 'Générique') : '';
+        $$('.tab').forEach((t) => t.classList.toggle('hidden', !allowedPages().includes(t.dataset.page)));
+        $$('.police-only').forEach((el) => el.classList.toggle('hidden', !police));
+        $('#unitsTitle').textContent = police ? `Unités ${info.short}` : 'Unités';
+        $('#settingsAgencyCards').innerHTML = agencyCardsHtml(state.agency);
+        $$('[data-agency-checks]').forEach((el) => { el.innerHTML = agencyChecksHtml(null); });
+        $$('[data-setting="mdc.startTab"] option').forEach((o) => { o.disabled = o.value !== 'last' && !allowedPages().includes(o.value); });
+        buildCallFolds();
+        renderUnits();
+        renderInterventionList();
     }
 
     function closeUI(notifyLua = true) {
@@ -319,13 +463,6 @@
     // =====================================================================
     // NAVIGATION
     // =====================================================================
-    // Page "Créations" : uniquement en mode civil (case du menu d'interactions, rp_interact)
-    function applyCivilMode(on) {
-        state.civilMode = on === true;
-        $('.tab[data-page="create"]').classList.toggle('hidden', !state.civilMode);
-        if (!state.civilMode && state.page === 'create') showPage('units');
-    }
-
     // Flou derrière le MDC : le jeu (client/client.lua) et les HUD (PLD, display, car HUD) ;
     // MDC ouvert, hors mode placement des HUD
     let blurred = null;
@@ -338,12 +475,16 @@
     }
 
     function showPage(page) {
-        if (page === 'create' && !state.civilMode) page = 'units';
+        if (!state.agency) return;
+        if (!pageAllowed(page)) page = allowedPages()[0]; // page absente de ce MDC
         state.page = page;
         hideSuggest();
         const tab = page === 'bolos' ? 'search' : page; // la page des BOLOs fait partie des Recherches
         $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.page === tab));
         $$('.page').forEach((p) => p.classList.toggle('active', p.id === `page-${page}`));
+        const [title, sub] = PAGE_TITLES[page] || [page, ''];
+        $('#pageTitle').textContent = title;
+        $('#pageSub').textContent = sub;
         loadPage(page);
     }
 
@@ -368,6 +509,8 @@
         $('#rpForm').classList.toggle('hidden', showName);
         $('#rpNameText').textContent = state.rpName;
         $('#rpNameInput').value = state.rpName;
+        const initials = state.rpName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+        $('#rpAvatar').textContent = initials || '?';
     }
 
     async function saveRpName() {
@@ -398,8 +541,6 @@
     const tagColor = (color) => (TAG_COLORS.includes(color) ? color : 'gray');
     // Tag facultatif : rien n'est affiché si l'unité n'en a pas
     const unitTag = (u) => (u.tag ? `<span class="unit-tag tag-${tagColor(u.color)}">${esc(u.tag)}</span>` : '');
-    // Tag de service de l'unité (APD bleu foncé / GSP orange vif), à part du tag spécial (ex. SUP.)
-    const deptTag = (u) => (DEPARTMENTS[u.dept] ? `<span class="dept-tag dept-${esc(u.dept)}">${DEPARTMENTS[u.dept].short}</span>` : '');
     // Nom de l'unité précédé d'un carré de la couleur de son tag (appels, notes)
     const unitChip = (u) => `<span class="call-unit"><span class="unit-dot tag-${tagColor(u.color)}"></span>${esc(u.name)}</span>`;
 
@@ -410,7 +551,7 @@
     function renderSidebarUnit() {
         const unit = myUnit();
         $('#myUnit').innerHTML = unit
-            ? `<span>${esc(unit.name)}</span>${deptTag(unit)}${unitTag(unit)}`
+            ? `<span>${esc(unit.name)}</span>${unitTag(unit)}`
             : '<span class="muted">Aucune unité — rejoignez-en une dans l\'onglet Unités.</span>';
         $('#statusList').classList.toggle('no-unit', !unit);
         $$('.status-btn').forEach((b) => b.classList.toggle('active', !!unit && b.dataset.status === unit.status));
@@ -471,15 +612,12 @@
 
     $$('.status-btn').forEach((btn) => btn.addEventListener('click', () => changeStatus(btn.dataset.status)));
 
-    // ---- Liste des unités ----
-    // Une liste par service de police (APD / GSP / FCSO)
+    // ---- Liste des unités : celles de la police du MDC (le serveur n'envoie que celles-là) ----
     function renderUnits() {
-        Object.keys(DEPARTMENTS).forEach((dept) => {
-            const units = state.units.filter((u) => u.dept === dept);
-            $(`.units-count[data-dept="${dept}"]`).textContent = `(${units.length})`;
-            $(`.units-empty[data-dept="${dept}"]`).classList.toggle('hidden', units.length > 0);
-            $(`.units-body[data-dept="${dept}"]`).innerHTML = unitRowsHtml(units);
-        });
+        const units = state.units;
+        $('#unitsCount').textContent = `(${units.length})`;
+        $('#unitsEmpty').classList.toggle('hidden', units.length > 0);
+        $('#unitsBody').innerHTML = unitRowsHtml(units);
         renderSidebarUnit();
     }
 
@@ -490,7 +628,7 @@
             const isMine = !!mine && mine.id === u.id;
             return `
             <tr class="${isMine ? 'me' : ''}">
-                <td><span class="unit-name-cell"><b>${esc(u.name)}</b>${deptTag(u)}</span></td>
+                <td><span class="unit-name-cell"><b>${esc(u.name)}</b></span></td>
                 <td>${unitTag(u) || '<span class="muted">Aucun</span>'}</td>
                 <td>${members.length ? members.map((m) => esc(m.name)).join(', ') : '<span class="muted">Aucun membre</span>'}</td>
                 <td><span class="badge"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</span></td>
@@ -510,10 +648,11 @@
         renderUnits();
         checkUnitChange(); // espace partagé d'unité
         if (state.callPanel.mode === 'view') renderInterventionDetail(); // boutons "Rejoindre l'appel"
-        renderInterventionList(); // nouvelle unité / autre service : listes réordonnées
+        renderInterventionList(); // nouvelle unité : boutons des appels à jour
     }
 
     async function refreshUnits() {
+        if (!isPolice()) return setUnits([]);
         const res = await post('getUnits');
         if (res && res.ok) setUnits(res.units);
     }
@@ -536,7 +675,6 @@
     function updateTagPreview() {
         const data = new FormData(unitForm);
         $('#tagOtherField').classList.toggle('hidden', data.get('tagType') !== 'other');
-        $('#deptPreview').innerHTML = deptTag({ dept: data.get('dept') }); // tag de service (APD / GSP)
         const preview = $('#tagPreview');
         preview.textContent = tagValue(data) || 'Aucun tag';
         preview.className = `unit-tag tag-${data.get('color') || 'green'}`;
@@ -552,9 +690,8 @@
         $('#unitFormGroup').classList.add('hidden');
     }
 
-    function openUnitForm(dept) {
+    function openUnitForm() {
         resetUnitForm();
-        unitForm.elements.dept.value = DEPARTMENTS[dept] ? dept : '';
         $('#unitFormGroup').classList.remove('hidden');
         unitForm.elements.name.focus();
     }
@@ -562,7 +699,6 @@
     function startUnitEdit(unit) {
         $('#unitFormGroup').classList.remove('hidden');
         state.unitEdit = unit.id;
-        unitForm.elements.dept.value = DEPARTMENTS[unit.dept] ? unit.dept : '';
         unitForm.elements.name.value = unit.name;
         unitForm.elements.tagType.value = !unit.tag ? '' : (isSupervisorTag(unit.tag) ? 'sup' : 'other');
         unitForm.elements.tag.value = unit.tag && !isSupervisorTag(unit.tag) ? unit.tag : '';
@@ -577,7 +713,7 @@
     unitForm.addEventListener('input', updateTagPreview);
     unitForm.addEventListener('change', updateTagPreview);
     $('#unitCancelEdit').addEventListener('click', resetUnitForm);
-    $$('[data-new-unit]').forEach((btn) => btn.addEventListener('click', () => openUnitForm(btn.dataset.newUnit)));
+    $('#newUnit').addEventListener('click', () => openUnitForm());
 
     unitForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -597,7 +733,7 @@
     const UNIT_ACTIONS = { join: 'joinUnit', leave: 'leaveUnit', delete: 'deleteUnit' };
     const UNIT_DONE = { join: 'Unité rejointe.', leave: 'Vous avez quitté l\'unité.', delete: 'Unité supprimée.' };
 
-    $$('.units-body').forEach((tbody) => tbody.addEventListener('click', async (e) => {
+    $('#unitsBody').addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-unit-action]');
         if (!btn) return;
         const id = Number(btn.dataset.id);
@@ -631,7 +767,7 @@
         toast(UNIT_DONE[action], 'success');
         if (action === 'delete' && state.unitEdit === id) resetUnitForm();
         refreshUnits();
-    }));
+    });
 
     // =====================================================================
     // FICHES (affichage détaillé, commun à Recherches et Registre)
@@ -951,47 +1087,41 @@
     const callFlag = (map, key) => (map[key] ? flag(map[key][0], map[key][1]) : '-');
     const findCall = (id) => state.interventions.find((c) => c.id === id) || null;
 
-    // Services d'un appel (texte "apd", "apd+gsp", "apd+gsp+fcso" ; ancien "both" = APD & GSP), comme
-    // deptSet / normalizeDepts (server.lua). Un seul service : liste de ce service ; plusieurs : liste
-    // des appels communs (visible par les trois services, rejoignable seulement par les services cochés).
-    const DEPT_ORDER = ['apd', 'gsp', 'fcso'];
-    const callDepts = (c) => {
-        const v = c && c.dept;
-        const list = v === 'both' ? ['apd', 'gsp'] : String(v || '').split(/[+,\s]+/);
-        const out = DEPT_ORDER.filter((d) => list.includes(d));
-        return out.length ? out : ['apd'];
+    // Polices d'un appel (texte "wsp", "kcso" ou "wsp+kcso" : appel commun), comme agencySet /
+    // normalizeAgencies (server.lua). Une seule police : liste de cette police ; les deux : appels communs.
+    const callAgencies = (c) => {
+        const list = String((c && c.agency) || '').split(/[+,\s]+/).filter(Boolean);
+        if (!policeAgencies().length) return list; // MDC pas encore ouvert (notification) : tel quel
+        return policeAgencies().map((a) => a.key).filter((k) => list.includes(k));
     };
-    const callServes = (c, dept) => callDepts(c).includes(dept);
-    const callFold = (c) => (callDepts(c).length > 1 ? 'common' : callDepts(c)[0]);
-    const deptsShort = (c) => callDepts(c).map((d) => DEPARTMENTS[d].short).join(' & ');
-    const deptsTags = (c) => callDepts(c).map((d) => `<span class="dept-tag dept-${d}">${DEPARTMENTS[d].short}</span>`).join(' ');
-    const deptsLabel = (c) => callDepts(c).map((d) => DEPARTMENTS[d].label).join(', ');
+    const agencyShort = (k) => (agencyInfo(k) || { short: k.toUpperCase() }).short;
+    const callServes = (c, agency) => callAgencies(c).includes(agency);
+    const callFold = (c) => (callAgencies(c).length > 1 ? 'common' : (callAgencies(c)[0] || 'common'));
+    const agenciesShort = (c) => callAgencies(c).map(agencyShort).join(' & ');
+    const agenciesTags = (c) => callAgencies(c).map((k) => `<span class="dept-tag agency-${esc(k)}">${esc(agencyShort(k))}</span>`).join(' ');
+    const agenciesLabel = (c) => callAgencies(c).map((k) => (agencyInfo(k) || { label: agencyShort(k) }).label).join(', ');
 
-    // Listes des interventions par service. Policier : la liste de SON service est en haut et toujours
-    // ouverte, la liste des appels communs (affichée seulement s'il y en a) vient en deuxième et est
-    // toujours ouverte, les listes des autres services sont fermées par défaut (consultables, sans pouvoir
-    // rejoindre leurs appels). Hors unité : APD, communs, GSP, FCSO, toutes ouvertes.
-    let deptFoldsFor = null;
-    function arrangeDeptFolds(hasCommon) {
-        const unit = myUnit();
-        const own = unit && DEPARTMENTS[unit.dept] ? unit.dept : null;
-        const others = DEPT_ORDER.filter((d) => d !== own);
+    // Listes des appels : police : ses appels, puis les appels communs (affichée seulement s'il y en a), toujours
+    // ouvertes ; MDC générique : une liste par police + les appels communs, ouvrables / refermables.
+    function buildCallFolds() {
         const box = $('#interventionsLists');
-        const fold = (dept) => box.querySelector(`.dept-fold[data-dept="${dept}"]`);
-        (own ? [own, 'common', ...others] : ['apd', 'common', 'gsp', 'fcso']).forEach((dept) => box.appendChild(fold(dept)));
-        fold('common').classList.toggle('hidden', !hasCommon);
-        $$('#interventionsLists .dept-fold').forEach((f) => {
-            const locked = f.dataset.dept === 'common' || f.dataset.dept === own;
-            f.classList.toggle('locked', locked);
-            f.classList.toggle('own', f.dataset.dept === own);
-            if (locked) f.open = true;
-        });
-        // Nouvelle unité / autre service : état par défaut (le choix du joueur est ensuite respecté)
-        if (deptFoldsFor !== (own || 'none')) {
-            deptFoldsFor = own || 'none';
-            if (own) others.forEach((d) => { fold(d).open = false; });
-            else DEPT_ORDER.forEach((d) => { fold(d).open = true; });
-        }
+        const police = isPolice();
+        const keys = police ? [state.agency, 'common'] : [...policeAgencies().map((a) => a.key), 'common'];
+        box.innerHTML = keys.map((k) => {
+            const info = agencyInfo(k);
+            const label = k === 'common'
+                ? `Appels communs (${policeAgencies().map((a) => a.short).join(' & ')})`
+                : info.label;
+            return `
+                <details class="dept-fold ${police ? 'locked' : ''} ${k === state.agency ? 'own' : ''}" data-dept="${esc(k)}" open>
+                    <summary><span class="dept-badge agency-${esc(k)}">${esc(k === 'common' ? 'Communs' : info.short)}</span>${esc(label)} <span class="dept-count" data-dept-count="${esc(k)}"></span></summary>
+                    <table class="grid selectable">
+                        <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
+                        <tbody data-dept-body="${esc(k)}"></tbody>
+                    </table>
+                    <div class="empty" data-dept-empty="${esc(k)}">Aucune intervention.</div>
+                </details>`;
+        }).join('');
     }
 
     // Listes toujours ouvertes : le clic sur leur titre ne les referme pas
@@ -1005,7 +1135,7 @@
         const prio = !c.closed && CALL_PRIORITY[c.priority] ? `prio prio-${c.priority}` : '';
         return `
             <tr data-id="${esc(c.id)}" class="${c.closed ? 'row-closed' : ''} ${prio} ${c.id === selected ? 'selected' : ''}">
-                <td class="cell-ellipsis">${callDepts(c).length > 1 ? `${deptsTags(c)} ` : ''}<b>${esc(c.title)}</b></td>
+                <td class="cell-ellipsis">${callAgencies(c).length > 1 ? `${agenciesTags(c)} ` : ''}<b>${esc(c.title)}</b></td>
                 <td>${c.kind === 'incident' ? '<span class="muted">Incident</span>' : esc(CALL_PRIORITY[c.priority] ? CALL_PRIORITY[c.priority][1] : '-')}</td>
                 <td class="cell-ellipsis">${esc(c.address)}${c.crossStreet ? `<span class="cross-inline"> × ${esc(c.crossStreet)}</span>` : ''}</td>
                 <td>${esc(c.block)}</td>
@@ -1016,9 +1146,10 @@
         const list = state.interventions;
         const selected = state.callPanel.id;
         $('#interventionsCount').textContent = `(${list.length})`;
-        arrangeDeptFolds(list.some((c) => callFold(c) === 'common'));
-        [...DEPT_ORDER, 'common'].forEach((dept) => {
+        $$('#interventionsLists .dept-fold').forEach((fold) => {
+            const dept = fold.dataset.dept;
             const items = list.filter((c) => callFold(c) === dept);
+            fold.classList.toggle('hidden', dept === 'common' && isPolice() && !items.length);
             const open = items.filter((c) => !c.closed).length;
             $(`[data-dept-count="${dept}"]`).textContent = `(${open} en cours / ${items.length})`;
             $(`[data-dept-empty="${dept}"]`).classList.toggle('hidden', items.length > 0);
@@ -1136,17 +1267,18 @@
         ].sort((a, b) => a.at - b.at);
         const onCall = !!unit && units.some((u) => u.id === unit.id);
         const incident = c.kind === 'incident';
-        // Appel d'un seul service : seules ses unités peuvent le rejoindre (consultation pour les autres)
-        const allowed = !unit || onCall || callServes(c, unit.dept);
-        const reservedTo = `à : ${deptsShort(c)}`;
+        const police = isPolice();
+        // Police : appels de sa police (et communs). MDC générique : consultation, sans rejoindre ; les appels
+        // des civils y sont modifiables (pas les incidents de la police)
+        const allowed = police ? callServes(c, state.agency) : !incident;
 
         let actions = '';
         if (!c.closed) {
             actions = `
-                ${unit ? '' : '<div class="hint-box">Seules les unités peuvent rejoindre un appel : rejoignez d\'abord une unité (onglet Unités).</div>'}
-                ${allowed ? '' : `<div class="hint-box">Appel réservé ${reservedTo} : seules leurs unités peuvent le rejoindre (consultation uniquement).</div>`}
+                ${police && !unit ? '<div class="hint-box">Seules les unités peuvent rejoindre un appel : rejoignez d\'abord une unité (onglet Unités).</div>' : ''}
+                ${police ? '' : `<div class="hint-box">MDC générique : consultation uniquement (rejoindre un appel est réservé aux unités de police)${incident ? '' : ' ; les informations de cet appel peuvent être modifiées'}.</div>`}
                 <div class="toolbar call-actions">
-                    ${unit && allowed ? (onCall
+                    ${police && unit && allowed ? (onCall
                         ? '<button type="button" class="btn" data-call-action="leave">Quitter l\'appel</button>'
                         : `<button type="button" class="btn btn-default" data-call-action="join">Rejoindre l'appel (${esc(unit.name)})</button>`) : ''}
                     ${allowed ? '<button type="button" class="btn" data-call-action="edit">Modifier</button>' : ''}
@@ -1161,7 +1293,7 @@
             <dl class="sheet">
                 ${row('N° d\'incident', c.number)}
                 ${row('Catégorie', incident ? 'Incident (déclaré par une unité)' : 'Intervention (appel)')}
-                ${dd(callDepts(c).length > 1 ? 'Services de police (appel commun)' : 'Service de police', `${deptsTags(c)} ${esc(deptsLabel(c))}`)}
+                ${dd(callAgencies(c).length > 1 ? 'Polices (appel commun)' : 'Police', `${agenciesTags(c)} ${esc(agenciesLabel(c))}`)}
                 ${incident ? '' : row('Unités idéales', c.idealUnits ? `${c.idealUnits} (${toArray(c.units).length} sur l'appel)` : '-')}
                 ${dd('Déroulé', callFlag(CALL_STATUS, c.status))}
                 ${row(incident ? 'Type d\'incident' : 'Type d\'intervention', c.title)}
@@ -1193,20 +1325,18 @@
             ${reportStarterHtml()}`;
     }
 
-    // Cases des services de police (un ou plusieurs : appel commun). `fixed` : service toujours coché
-    // (incident : service de l'unité déclarante).
-    function deptChecksHtml(fixed) {
-        return `<span class="dept-checks">${DEPT_ORDER.map((d) => `
-            <label class="check dept-check"><input type="checkbox" name="depts" value="${d}" ${d === fixed ? 'checked disabled' : ''}>
-                <span class="dept-tag dept-${d}">${DEPARTMENTS[d].short}</span> ${DEPARTMENTS[d].label}</label>`).join('')}
-        </span>`;
+    // Cases des polices (une ou les deux : appel commun). `fixed` : police toujours cochée (incident : celle
+    // de l'unité déclarante).
+    function agencyChecksHtml(fixed) {
+        return policeAgencies().map((a) => `
+            <label class="check dept-check"><input type="checkbox" name="agencies" value="${esc(a.key)}" ${a.key === fixed ? 'checked disabled' : ''}>
+                <span class="dept-tag agency-${esc(a.key)}">${esc(a.short)}</span> ${esc(a.label)}</label>`).join('');
     }
 
-    // Nouvel incident : service de l'unité (toujours) ; cocher d'autres services : incident commun
-    function jointFieldHtml(unit) {
-        const own = unit && DEPARTMENTS[unit.dept] ? unit.dept : null;
-        if (!own) return '';
-        return `<div class="lbl span-2">Services de police (cochez-en d'autres pour un incident commun)${deptChecksHtml(own)}</div>`;
+    // Nouvel incident : police du MDC (toujours) ; cocher l'autre police : incident commun
+    function jointFieldHtml() {
+        if (!isPolice()) return '';
+        return `<div class="lbl span-2">Polices (cochez l'autre police pour un incident commun)<span class="dept-checks">${agencyChecksHtml(state.agency)}</span></div>`;
     }
 
     // Formulaire : nouvel incident (call absent) ou modification d'une intervention / d'un incident
@@ -1229,7 +1359,7 @@
                 <div class="form-grid">
                     <label class="lbl span-2">${kind === 'incident' ? 'Type d\'incident' : 'Type d\'intervention'} *<input name="title" type="text" maxlength="60" value="${v('title')}"></label>
                     ${kind === 'incident' ? `<label class="lbl span-2">Nom de l'unité créant l'incident<input type="text" value="${esc(unitName)}" disabled></label>
-                        ${isNew ? jointFieldHtml(unit) : `<div class="lbl span-2">Service<span class="readonly-value">${deptsTags(c)} ${esc(deptsLabel(c))}</span></div>`}` : `
+                        ${isNew ? jointFieldHtml() : `<div class="lbl span-2">Police<span class="readonly-value">${agenciesTags(c)} ${esc(agenciesLabel(c))}</span></div>`}` : `
                         <label class="lbl">Requérant *<input name="caller" type="text" maxlength="60" value="${v('caller')}"></label>
                         <label class="lbl">N° de téléphone du requérant *
                             <span class="inline">
@@ -1475,7 +1605,7 @@
         e.preventDefault();
         const form = e.target;
         const payload = Object.fromEntries(new FormData(form).entries());
-        payload.depts = new FormData(form).getAll('depts'); // services cochés en plus (incident commun)
+        payload.agencies = new FormData(form).getAll('agencies'); // l'autre police cochée (incident commun)
         const submit = form.querySelector('button[type="submit"]');
         submit.disabled = true;
 
@@ -2080,7 +2210,7 @@
     interventionForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const payload = { ...Object.fromEntries(new FormData(interventionForm).entries()), kind: 'intervention' };
-        payload.depts = new FormData(interventionForm).getAll('depts'); // un service, ou plusieurs (appel commun)
+        payload.agencies = new FormData(interventionForm).getAll('agencies'); // une police, ou les deux (appel commun)
         const submit = interventionForm.querySelector('button[type="submit"]');
         submit.disabled = true;
         const res = await post('create', payload);
@@ -2200,9 +2330,8 @@
         const now = new Date();
         if (f.def === 'today') return dateString(now);
         if (f.def === 'now') return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-        if (f.def === 'unitDept') {
-            const unit = myUnit();
-            return unit && DEPARTMENTS[unit.dept] ? DEPARTMENTS[unit.dept].label : '';
+        if (f.def === 'unitAgency' || f.def === 'unitDept') { // police du MDC (ancien nom : unitDept)
+            return isPolice() ? agencyInfo(state.agency).label : '';
         }
         if (f.def != null) return String(f.def);
         if (f.t === 'check') return false;
@@ -3096,7 +3225,7 @@
                 <span class="ct-number">${esc(c.number)}</span>
             </div>
             <div class="ct-title">${esc(c.title)}</div>
-            ${c.dept ? `<div class="ct-row"><span class="hud-label">SERVICE</span>${esc(deptsShort(c))}</div>` : ''}
+            ${c.agency && agenciesShort(c) ? `<div class="ct-row"><span class="hud-label">POLICE</span>${esc(agenciesShort(c))}</div>` : ''}
             ${incident
                 ? `<div class="ct-row"><span class="hud-label">UNITÉ</span>${esc(c.unitName || '-')}</div>`
                 : `<div class="ct-row"><span class="hud-label">PRIORITÉ</span>${prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-'}</div>`}
@@ -3226,7 +3355,7 @@
     // Positions en fraction de l'écran (0 à 1, coin haut-gauche), taille en facteur (0.5 à 2)
     const HUD_DEFAULTS = {
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, zone: true, crossing: true, dir: true, block: true, time: true },
-        unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true, service: true },
+        unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true },
         // Fenêtre : légère transparence (opacity) et flou du jeu et des HUD derrière, désactivables
         mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.93, blur: true },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
@@ -3241,8 +3370,8 @@
     const hud = {
         settings: clone(HUD_DEFAULTS),
         pldAllowed: false,  // PLD autorisé (dès la connexion du joueur, voir client/hud.lua)
-        unit: null,         // unité du joueur : { name, tag, color, status, dept, callNumber, callTitle }
-        profile: { sector: '', service: '' }, // secteur / service principal (menu d'interactions)
+        unit: null,         // unité du joueur : { name, tag, color, status, agency, agencyShort, callNumber, callTitle }
+        profile: { sector: '' }, // secteur (menu d'interactions)
         pld: null,          // { street, crossing, dir, block, time, paused }
         car: null,          // car HUD : { show, mode, engine, speed, rpm, fuel, belt, alarm, broken, paused } (rp_vehiclecontrol)
         placing: false,
@@ -3282,11 +3411,7 @@
 
     // Exemple affiché en mode placement quand il n'y a pas encore de données
     const PLD_SAMPLE = { street: 'Nom de la rue', zone: 'Zone', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
-    const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', dept: 'apd', status: 'available', callNumber: '00-0000' };
-    const PROFILE_SERVICES = {
-        apd: 'APD', gsp: 'GSP', fcso: 'FCSO', 'apd+gsp': 'APD & GSP', 'apd+fcso': 'APD & FCSO',
-        'gsp+fcso': 'GSP & FCSO', 'apd+gsp+fcso': 'APD, GSP & FCSO', both: 'APD & GSP',
-    };
+    const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', agency: 'wsp', agencyShort: 'WSP', status: 'available', callNumber: '00-0000' };
     const CAR_SAMPLE = { inVehicle: true, show: true, mode: 'driver', speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true, gear: 'D' };
 
     function placeHud(el, cfg) {
@@ -3332,10 +3457,9 @@
         unitEl.classList.toggle('hidden', !showUnit);
         if (showUnit) {
             $('#huName').textContent = unit.name;
-            // "[N° d'unité] • [SERVICE]" : tag de service (APD bleu foncé / GSP orange), distinct du tag spécial
-            const dept = $('#huDept');
-            dept.innerHTML = DEPARTMENTS[unit.dept]
-                ? `<span class="hu-sep">•</span><span class="dept-tag dept-${esc(unit.dept)}">${esc(DEPARTMENTS[unit.dept].short)}</span>` : '';
+            // "[N° d'unité] • [POLICE]" : police du MDC (WSP, KCSO), distincte du tag spécial (ex. SUP.)
+            $('#huAgency').innerHTML = unit.agencyShort
+                ? `<span class="hu-sep">•</span><span class="dept-tag agency-${esc(unit.agency)}">${esc(unit.agencyShort)}</span>` : '';
             const tag = $('#huTag');
             tag.textContent = unit.tag || '';
             tag.className = `unit-tag tag-${tagColor(unit.color)}`;
@@ -3348,8 +3472,6 @@
             const profile = hud.profile || {};
             $('#huSector').textContent = profile.sector || 'aucun sélectionné';
             $('#huSector').classList.toggle('hu-none', !profile.sector);
-            $('#huService').textContent = PROFILE_SERVICES[profile.service] || 'aucun sélectionné';
-            $('#huService').classList.toggle('hu-none', !PROFILE_SERVICES[profile.service]);
             placeHud(unitEl, unitCfg);
         }
 
@@ -4532,7 +4654,8 @@
 
     // Fiches des Recherches : alerte des BOLOs actifs (cliquer pour ouvrir le BOLO)
     function boloAlerts(r) {
-        return toArray(r.bolos).map((b) => b.possible
+        // alertes des BOLOs de la police du MDC (anciens BOLOs sans police : toutes)
+        return toArray(r.bolos).filter((b) => !b.agency || b.agency === state.agency).map((b) => b.possible
             ? `<div class="sheet-alert yellow bolo-alert">&#9888; Correspondance possible avec le BOLO n°${esc(b.number)} (immatriculation partielle) — ${esc(b.reason)}
                    <button type="button" class="btn btn-small" data-open-bolo="${esc(b.id)}">Voir le BOLO</button></div>`
             : `<div class="sheet-alert bolo-alert">&#9888; BOLO ACTIF n°${esc(b.number)} — ${esc(b.reason)}
@@ -4557,9 +4680,6 @@
             case 'close':
                 closeUI(false);
                 break;
-            case 'civilMode': // mode civil activé / désactivé dans le menu d'interactions (rp_interact)
-                applyCivilMode(data.data && data.data.enabled);
-                break;
             case 'units':
                 setUnits(data.data);
                 break;
@@ -4576,7 +4696,7 @@
             case 'hudState': // client/hud.lua : PLD autorisé + unité du joueur
                 hud.pldAllowed = !!(data.data && data.data.pld);
                 hud.unit = (data.data && data.data.unit) || null;
-                hud.profile = (data.data && data.data.profile) || { sector: '', service: '' };
+                hud.profile = (data.data && data.data.profile) || { sector: '' };
                 renderHud();
                 break;
             case 'pld': // client/hud.lua : localisation (uniquement quand elle change)

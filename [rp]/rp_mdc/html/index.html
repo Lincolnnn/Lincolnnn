@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MDC - Police</title>
+    <title>Mobile Data Computer</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,34 +13,49 @@
         <!-- ================= BARRE DE TITRE (déplacement + boutons fenêtre) ================= -->
         <div class="titlebar" id="titlebar">
             <div class="title">
-                <span class="title-icon">MDC</span>
-                <span>Mobile Data Computer</span>
+                <span class="app-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.6 4.6 5.5v5.8c0 4.6 3.1 8.7 7.4 10.1 4.3-1.4 7.4-5.5 7.4-10.1V5.5L12 2.6Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></svg></span>
+                <span class="app-name">Mobile Data Computer</span>
+                <!-- MDC choisi (Générique, Washington State Patrol, King County Sheriff Office) -->
+                <span class="agency-title hidden" id="agencyTitle"></span>
             </div>
             <div class="win-buttons">
-                <button class="win-btn" id="btnReset" title="Réinitialiser la position et la taille">&#8634;</button>
-                <button class="win-btn" id="btnMax" title="Agrandir">&#9633;</button>
-                <button class="win-btn win-close" id="btnClose" title="Fermer (Échap)">&#10005;</button>
+                <button class="win-btn" id="btnReset" title="Réinitialiser la position et la taille"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8a4.8 4.8 0 1 0 1.4-3.4M3 2.5v2.6h2.6"/></svg></button>
+                <button class="win-btn" id="btnMax" title="Agrandir"></button>
+                <button class="win-btn win-close" id="btnClose" title="Fermer (Échap)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button>
             </div>
         </div>
 
         <div class="frame-body">
-            <!-- ================= BARRE LATÉRALE ================= -->
-            <aside class="sidebar">
-                <div class="group profile-group">
-                    <!-- Nom RP affiché en haut à gauche, uniquement une fois créé -->
-                    <div class="rp-display hidden" id="rpDisplay">
-                        <span class="rp-name" id="rpNameText"></span>
-                        <button class="btn btn-icon" id="rpEdit" title="Modifier le nom RP">&#9998;</button>
-                    </div>
-                    <div class="inline" id="rpForm">
-                        <input id="rpNameInput" type="text" maxlength="40" placeholder="NOM RP" autocomplete="off">
-                        <button id="rpSave" class="btn">OK</button>
+            <!-- ================= VOLET DE NAVIGATION (style Windows 11) ================= -->
+            <aside class="navpane">
+                <!-- Nom RP : affiché une fois créé, sinon champ de saisie -->
+                <div class="profile">
+                    <span class="avatar" id="rpAvatar" aria-hidden="true">?</span>
+                    <div class="profile-main">
+                        <div class="rp-display hidden" id="rpDisplay">
+                            <span class="rp-name" id="rpNameText"></span>
+                            <button class="btn btn-icon btn-ghost" id="rpEdit" title="Modifier le nom RP"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.6 2.6 13.4 5.4 5.6 13.2H2.8v-2.8Z"/></svg></button>
+                        </div>
+                        <div class="inline" id="rpForm">
+                            <input id="rpNameInput" type="text" maxlength="40" placeholder="Nom RP" autocomplete="off">
+                            <button id="rpSave" class="btn btn-default">OK</button>
+                        </div>
+                        <span class="profile-agency" id="profileAgency"></span>
                     </div>
                 </div>
 
-                <!-- Unité du joueur et statuts : en haut à gauche, à la verticale -->
-                <div class="group status-group">
-                    <span class="legend">Statut de l'unité</span>
+                <!-- Pages du MDC : seules celles du MDC choisi sont affichées -->
+                <nav class="sidenav" role="tablist">
+                    <button class="tab" data-page="units" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0zM17 11a3 3 0 1 0 0-6M19 20h3a5 5 0 0 0-4-4.9"/></svg><span>Unités</span></button>
+                    <button class="tab" data-page="interventions" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 16H3zM12 10v4M12 17h.01"/></svg><span>Interventions</span></button>
+                    <button class="tab" data-page="search" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg><span>Recherches</span></button>
+                    <button class="tab" data-page="reports" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/></svg><span>Rapports</span></button>
+                    <button class="tab" data-page="create" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Créations</span></button>
+                </nav>
+
+                <!-- Mon unité et ses statuts (MDC de police) -->
+                <div class="unit-card police-only" id="unitCard">
+                    <span class="legend">Mon unité</span>
                     <div class="my-unit" id="myUnit">Aucune unité</div>
                     <div class="status-list" id="statusList">
                         <button class="status-btn" data-status="available"><span class="sq"></span>Disponible</button>
@@ -50,15 +65,23 @@
                     </div>
                 </div>
 
-                <!-- BOLOs actifs sous les statuts : résumé, détails dépliables, "Voir BOLO" -> page des BOLOs -->
-                <div class="group side-bolos">
+                <!-- BOLOs actifs de la police du MDC : résumé, détails dépliables, "Voir BOLO" -> page des BOLOs -->
+                <div class="side-bolos police-only">
                     <span class="legend">BOLO actifs <span class="side-bolos-count" id="sideBolosCount"></span></span>
                     <div class="side-bolo-list" id="sideBolos"><div class="fold-empty">Aucun BOLO actif.</div></div>
                 </div>
+
+                <nav class="sidenav sidenav-foot" role="tablist">
+                    <button class="tab" data-page="settings" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Paramètres</span></button>
+                </nav>
             </aside>
 
             <!-- ================= PAGES ================= -->
             <main class="content">
+                <header class="page-head">
+                    <h1 id="pageTitle">Unités</h1>
+                    <span class="page-sub" id="pageSub"></span>
+                </header>
 
                 <!-- ============ UNITÉS ============ -->
                 <section class="page active" id="page-units">
@@ -66,15 +89,6 @@
                     <div class="group hidden" id="unitFormGroup">
                         <span class="legend" id="unitFormLegend">Créer une unité</span>
                         <form class="unit-form" id="unitForm" autocomplete="off" novalidate>
-                            <!-- Services : doivent correspondre à DEPARTMENTS dans server.lua -->
-                            <label class="lbl">Service de police *
-                                <select name="dept">
-                                    <option value="">— Choisir —</option>
-                                    <option value="apd">Atlanta Police Department</option>
-                                    <option value="gsp">Georgia State Patrol</option>
-                                    <option value="fcso">Fayette County Sheriff Office</option>
-                                </select>
-                            </label>
                             <label class="lbl">Nom de l'unité *<input name="name" type="text" maxlength="30" placeholder="ex : Patrouille Centre"></label>
                             <!-- Tag : aucun, "SUP." (superviseur : jamais proposé comme unité la plus proche) ou Autre -->
                             <label class="lbl">Tag
@@ -97,7 +111,7 @@
                                     <label class="swatch" title="Gris foncé"><input type="radio" name="color" value="gray"><span class="swatch-box tag-gray"></span></label>
                                 </div>
                             </div>
-                            <div class="lbl">Aperçu<span class="tag-preview-row"><span id="deptPreview"></span><span class="unit-tag tag-green" id="tagPreview">Aucun tag</span></span></div>
+                            <div class="lbl">Aperçu<span class="tag-preview-row"><span class="unit-tag tag-green" id="tagPreview">Aucun tag</span></span></div>
                             <div class="unit-form-actions">
                                 <button type="button" class="btn" id="unitCancelEdit">Annuler</button>
                                 <button type="submit" class="btn btn-default" id="unitSubmit">Créer l'unité</button>
@@ -106,57 +120,24 @@
                     </div>
 
                     <div class="toolbar units-toolbar">
-                        <span class="hint-text">Rejoignez une unité pour définir son statut et prendre des appels. Chacun voit les unités des trois services.</span>
+                        <span class="hint-text">Rejoignez une unité pour définir son statut et prendre des appels. Seules les unités de votre police sont listées.</span>
                         <span class="grow"></span>
                         <button class="btn" id="refreshUnits">Actualiser</button>
                     </div>
 
-                    <!-- Une liste par service de police -->
                     <div class="group fill">
-                        <span class="legend">Atlanta Police Department (APD) <span class="units-count" data-dept="apd"></span></span>
+                        <span class="legend"><span id="unitsTitle">Unités</span> <span class="units-count" id="unitsCount"></span></span>
                         <div class="toolbar">
-                            <button class="btn btn-default" data-new-unit="apd">+ Créer une unité APD</button>
+                            <button class="btn btn-default" id="newUnit">+ Créer une unité</button>
                         </div>
                         <div class="well">
                             <table class="grid">
                                 <thead>
                                     <tr><th>Unité</th><th>Tag</th><th>Membres</th><th>Statut</th><th class="col-actions">Actions</th></tr>
                                 </thead>
-                                <tbody class="units-body" data-dept="apd"></tbody>
+                                <tbody id="unitsBody"></tbody>
                             </table>
-                            <div class="empty units-empty" data-dept="apd">Aucune unité APD.</div>
-                        </div>
-                    </div>
-
-                    <div class="group fill">
-                        <span class="legend">Georgia State Patrol (GSP) <span class="units-count" data-dept="gsp"></span></span>
-                        <div class="toolbar">
-                            <button class="btn btn-default" data-new-unit="gsp">+ Créer une unité GSP</button>
-                        </div>
-                        <div class="well">
-                            <table class="grid">
-                                <thead>
-                                    <tr><th>Unité</th><th>Tag</th><th>Membres</th><th>Statut</th><th class="col-actions">Actions</th></tr>
-                                </thead>
-                                <tbody class="units-body" data-dept="gsp"></tbody>
-                            </table>
-                            <div class="empty units-empty" data-dept="gsp">Aucune unité GSP.</div>
-                        </div>
-                    </div>
-
-                    <div class="group fill">
-                        <span class="legend">Fayette County Sheriff Office (FCSO) <span class="units-count" data-dept="fcso"></span></span>
-                        <div class="toolbar">
-                            <button class="btn btn-default" data-new-unit="fcso">+ Créer une unité FCSO</button>
-                        </div>
-                        <div class="well">
-                            <table class="grid">
-                                <thead>
-                                    <tr><th>Unité</th><th>Tag</th><th>Membres</th><th>Statut</th><th class="col-actions">Actions</th></tr>
-                                </thead>
-                                <tbody class="units-body" data-dept="fcso"></tbody>
-                            </table>
-                            <div class="empty units-empty" data-dept="fcso">Aucune unité FCSO.</div>
+                            <div class="empty" id="unitsEmpty">Aucune unité.</div>
                         </div>
                     </div>
                 </section>
@@ -254,47 +235,12 @@
                         <div class="group">
                             <span class="legend">Interventions et incidents <span id="interventionsCount"></span></span>
                             <div class="toolbar">
-                                <button class="btn btn-default" id="newIncident">+ Nouvel incident</button>
+                                <button class="btn btn-default police-only" id="newIncident">+ Nouvel incident</button>
                                 <span class="grow"></span>
                                 <button class="btn" id="refreshInterventions">Actualiser</button>
                             </div>
-                            <!-- Une liste par service + une liste commune (ordre et ouverture gérés par script.js) -->
-                            <div class="well dept-lists" id="interventionsLists">
-                                <details class="dept-fold" data-dept="apd">
-                                    <summary><span class="dept-badge">APD</span>Atlanta Police Department <span class="dept-count" data-dept-count="apd"></span></summary>
-                                    <table class="grid selectable">
-                                        <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
-                                        <tbody data-dept-body="apd"></tbody>
-                                    </table>
-                                    <div class="empty" data-dept-empty="apd">Aucune intervention.</div>
-                                </details>
-                                <!-- Appels communs (plusieurs services cochés) : visibles par les trois services ; affichée
-                                     seulement s'il y en a, toujours ouverte -->
-                                <details class="dept-fold hidden" data-dept="common">
-                                    <summary><span class="dept-badge">Communs</span>Appels communs (plusieurs services) <span class="dept-count" data-dept-count="common"></span></summary>
-                                    <table class="grid selectable">
-                                        <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
-                                        <tbody data-dept-body="common"></tbody>
-                                    </table>
-                                    <div class="empty" data-dept-empty="common">Aucune intervention.</div>
-                                </details>
-                                <details class="dept-fold" data-dept="gsp">
-                                    <summary><span class="dept-badge">GSP</span>Georgia State Patrol <span class="dept-count" data-dept-count="gsp"></span></summary>
-                                    <table class="grid selectable">
-                                        <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
-                                        <tbody data-dept-body="gsp"></tbody>
-                                    </table>
-                                    <div class="empty" data-dept-empty="gsp">Aucune intervention.</div>
-                                </details>
-                                <details class="dept-fold" data-dept="fcso">
-                                    <summary><span class="dept-badge">FCSO</span>Fayette County Sheriff Office <span class="dept-count" data-dept-count="fcso"></span></summary>
-                                    <table class="grid selectable">
-                                        <thead><tr><th>Titre</th><th>Priorité</th><th>Adresse</th><th>Bloc</th></tr></thead>
-                                        <tbody data-dept-body="fcso"></tbody>
-                                    </table>
-                                    <div class="empty" data-dept-empty="fcso">Aucune intervention.</div>
-                                </details>
-                            </div>
+                            <!-- Police : ses appels + appels communs ; MDC générique : toutes les polices (script.js) -->
+                            <div class="well dept-lists" id="interventionsLists"></div>
                         </div>
                         <div class="group call-detail-group">
                             <div class="detail-head">
@@ -640,14 +586,9 @@
                                         <option value="p3">Priorité 3</option>
                                     </select>
                                 </label>
-                                <!-- Services missionnés (doivent correspondre à DEPARTMENTS) : un seul = appel de ce service ;
-                                     plusieurs = appel commun, que seuls les services cochés peuvent rejoindre -->
-                                <div class="lbl span-3">Services de police * <small class="muted">(un seul : réservé à ce service ; plusieurs : appel commun)</small>
-                                    <span class="dept-checks">
-                                        <label class="check dept-check"><input type="checkbox" name="depts" value="apd"> <span class="dept-tag dept-apd">APD</span> Atlanta Police Department</label>
-                                        <label class="check dept-check"><input type="checkbox" name="depts" value="gsp"> <span class="dept-tag dept-gsp">GSP</span> Georgia State Patrol</label>
-                                        <label class="check dept-check"><input type="checkbox" name="depts" value="fcso"> <span class="dept-tag dept-fcso">FCSO</span> Fayette County Sheriff Office</label>
-                                    </span>
+                                <!-- Polices missionnées : une seule = appel de cette police ; les deux = appel commun -->
+                                <div class="lbl span-3">Polices * <small class="muted">(une seule : réservé à cette police ; les deux : appel commun)</small>
+                                    <span class="dept-checks" data-agency-checks></span>
                                 </div>
                                 <label class="lbl">Nombre idéal d'unités *
                                     <select name="idealUnits">
@@ -708,6 +649,12 @@
 
                 <!-- ============ PARAMÈTRES (HUD et MDC, gardés chez le joueur) ============ -->
                 <section class="page" id="page-settings">
+                    <!-- MDC utilisé : changeable à tout moment (remis à zéro à chaque connexion) -->
+                    <div class="group mdc-choice">
+                        <span class="legend">MDC utilisé</span>
+                        <div class="agency-cards" id="settingsAgencyCards"></div>
+                        <p class="hint-text setting-text" id="agencySwitchHint">Choisi à la première ouverture, redemandé à chaque connexion. Passer d'une police à l'autre (ou au MDC générique) vous fait quitter votre unité.</p>
+                    </div>
                     <!-- Catégories repliables (toutes fermées à l'ouverture du MDC) -->
                     <details class="settings-cat" data-cat="mdc">
                         <summary>MDC <span class="settings-cat-hint">Taille de l'interface, transparence et flou, onglet à l'ouverture, notifications et sons</span></summary>
@@ -722,11 +669,11 @@
                                 <label class="lbl setting-select">Onglet à l'ouverture
                                     <select data-setting="mdc.startTab">
                                         <option value="last">Dernier onglet utilisé</option>
-                                        <option value="units">Unités</option>
+                                        <option value="units">Unités (police)</option>
                                         <option value="interventions">Interventions</option>
-                                        <option value="search">Recherches</option>
+                                        <option value="search">Recherches (police)</option>
                                         <option value="reports">Rapports</option>
-                                        <option value="create">Créations</option>
+                                        <option value="create">Créations (générique)</option>
                                     </select>
                                 </label>
                                 <label class="check"><input type="checkbox" data-setting="mdc.glass"> Fenêtre légèrement transparente</label>
@@ -797,7 +744,6 @@
                                         <label class="check"><input type="checkbox" data-setting="unit.status"> Statut</label>
                                         <label class="check"><input type="checkbox" data-setting="unit.call"> N° d'incident</label>
                                         <label class="check"><input type="checkbox" data-setting="unit.sector"> Secteur</label>
-                                        <label class="check"><input type="checkbox" data-setting="unit.service"> Service principal</label>
                                     </div>
                                 </div>
                                 <div class="setting-row">
@@ -945,7 +891,7 @@
                                         <dt>/qst [texte]</dt><dd><span class="chat-sample qst"><b><u>John Carter</u></b> <b>Question :</b> …</span> — tout le monde</dd>
                                         <dt>/rep [texte]</dt><dd><span class="chat-sample rep"><b><u>John Carter</u></b> <b>Réponse :</b> …</span> — tout le monde</dd>
                                         <dt>/dv</dt><dd>Supprime UN véhicule : celui où vous êtes, sinon celui que vous regardez, sinon le plus proche (5 m) ; jamais un véhicule où se trouve un autre joueur. Sans nom RP aussi.</dd>
-                                        <dt>/eup</dt><dd>Menu des tenues (Police : APD, FCSO, GSP ; Civil), au clavier : flèches, Entrée, Retour arrière. Sans nom RP aussi.</dd>
+                                        <dt>/eup</dt><dd>Menu des tenues (Police : WSP, KCSO ; Civil), au clavier : flèches, Entrée, Retour arrière. Sans nom RP aussi.</dd>
                                         <dt>/fichecivil</dt><dd>Ouvre la fiche civile (création et gestion de vos profils), comme Menu Interaction &gt; Civil. Sans nom RP aussi.</dd>
                                         <dt>/repair</dt><dd>Répare le moteur du véhicule où vous êtes (ou du plus proche, 5 m) ; la carrosserie et les dégâts visibles restent. Sans nom RP aussi.</dd>
                                         <dt>/tuto</dt><dd>Affiche des touches et fonctionnalités en haut de l'écran, au milieu (sans souris ni clavier) ; /tuto à nouveau pour la retirer. Sans nom RP aussi.</dd>
@@ -959,19 +905,6 @@
                 </section>
             </main>
 
-            <!-- ================= PAGES DU MDC (à droite) ================= -->
-            <aside class="navbar">
-                <!-- Navigation : les pages à la verticale, à droite ("Créations" seulement en mode civil, rp_interact) -->
-                <nav class="sidenav" role="tablist">
-                    <button class="tab active" data-page="units" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0zM17 11a3 3 0 1 0 0-6M19 20h3a5 5 0 0 0-4-4.9"/></svg><span>Unités</span></button>
-                    <button class="tab" data-page="interventions" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 16H3zM12 10v4M12 17h.01"/></svg><span>Interventions</span></button>
-                    <button class="tab" data-page="search" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg><span>Recherches</span></button>
-                    <button class="tab" data-page="reports" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/></svg><span>Rapports</span></button>
-                    <button class="tab" data-page="create" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Créations</span></button>
-                    <button class="tab" data-page="settings" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Paramètres</span></button>
-                </nav>
-
-            </aside>
         </div>
 
         <!-- ================= BARRE D'ÉTAT ================= -->
@@ -981,6 +914,16 @@
                 placeholder="Note de l'unité : rappels, observations… (rejoignez une unité)" disabled>
             <span class="sb-cell" id="sbStatus"><span class="sq"></span><span>Hors unité</span></span>
             <span class="sb-cell" id="sbClock">--:--</span>
+        </div>
+
+        <!-- Choix du MDC à la première ouverture (à chaque connexion) -->
+        <div class="chooser hidden" id="agencyChooser">
+            <div class="chooser-box">
+                <span class="app-icon app-icon-lg" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.6 4.6 5.5v5.8c0 4.6 3.1 8.7 7.4 10.1 4.3-1.4 7.4-5.5 7.4-10.1V5.5L12 2.6Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></svg></span>
+                <h2>Choisissez votre MDC</h2>
+                <p class="hint-text">Ce choix vaut pour toute la session (il est redemandé à chaque connexion). Vous pourrez en changer dans Paramètres.</p>
+                <div class="agency-cards" id="agencyCards"></div>
+            </div>
         </div>
 
         <!-- Poignées de redimensionnement (bords + coins) -->
@@ -1054,16 +997,15 @@
 
     <!-- Display MDC : unité du joueur -->
     <div class="hud hud-unit hidden" id="hudUnit" data-hud="unit">
-        <!-- "[N° D'UNITÉ] • [SERVICE]" puis le tag spécial (ex. SUP.) -->
+        <!-- "[N° D'UNITÉ] • [POLICE]" puis le tag spécial (ex. SUP.) -->
         <div class="hu-head">
-            <span class="hu-name" data-part="name"><span id="huName"></span><span class="hu-dept" id="huDept"></span></span>
+            <span class="hu-name" data-part="name"><span id="huName"></span><span class="hu-dept" id="huAgency"></span></span>
             <span class="unit-tag" data-part="tag" id="huTag"></span>
         </div>
         <div class="hu-line" data-part="status"><span class="sq" id="huSq"></span><span id="huStatus"></span></div>
         <div class="hu-line" data-part="call"><span class="hud-label">APPEL</span><span id="huCall"></span></div>
-        <!-- Secteur et service principal : menu d'interactions (rp_interact) > Police -->
+        <!-- Secteur : menu d'interactions (rp_interact) > Police -->
         <div class="hu-line" data-part="sector"><span class="hud-label">SECTEUR</span><span id="huSector"></span></div>
-        <div class="hu-line" data-part="service"><span class="hud-label">SERVICE</span><span id="huService"></span></div>
     </div>
 
     <!-- Car HUD : au-dessus de la minimap, sans fond. Essence (jauge verticale) | vitesse en MPH + ceinture,
@@ -1111,13 +1053,12 @@
 
     <!-- Menu Interaction (rp_interact) : cadre à placer en mode placement (position et taille du vrai menu) -->
     <div class="hud hud-menu hidden" id="hudMenu" data-hud="menu">
-        <div class="hm-title">Menu Interaction</div>
-        <div class="hm-section">Usage</div>
-        <div class="hm-case">Police</div>
-        <div class="hm-case">Civil</div>
-        <div class="hm-section">Configuration</div>
-        <div class="hm-case">Équipements</div>
-        <div class="hm-case">Voiture</div>
+        <div class="hm-banner">Menu Interaction</div>
+        <div class="hm-sub"><span>Accueil</span><span>1 / 4</span></div>
+        <div class="hm-case active">Police<span>&rsaquo;</span></div>
+        <div class="hm-case">Civil<span>&rsaquo;</span></div>
+        <div class="hm-case">Équipements<span>&rsaquo;</span></div>
+        <div class="hm-case">Voiture<span>&rsaquo;</span></div>
     </div>
 
     <!-- Mode placement (onglet Paramètres) -->

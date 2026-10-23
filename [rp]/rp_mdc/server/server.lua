@@ -63,7 +63,20 @@ local Config = {
     MaxSharedHistory = 100, -- historique de recherches partagé par une unité
     MaxBolos = 200,         -- nombre max de BOLOs actifs
 
-    -- Appels des civils : services de police cochés (APD, GSP, FCSO : un, deux ou les trois) et nombre
+    -- MDC disponibles : chaque joueur choisit le sien à la première ouverture du MDC (à chaque connexion et
+    -- après chaque redémarrage), et peut en changer dans Paramètres. Le look est le même pour tous ; seuls le
+    -- titre et les pages changent :
+    --   generic : rôleplay civil : Interventions (lecture seule, sans rejoindre ; les appels des civils y sont
+    --             modifiables), Créations, Rapports, Paramètres ;
+    --   police  : Unités, Interventions, Recherches, Rapports, Paramètres. Unités, appels et BOLOs sont propres à
+    --             chaque police ; les RAPPORTS sont communs à tous les MDC.
+    Agencies = {
+        { key = 'generic', label = 'Générique', short = 'MDC' },
+        { key = 'wsp', label = 'Washington State Patrol', short = 'WSP', police = true },
+        { key = 'kcso', label = 'King County Sheriff Office', short = 'KCSO', police = true },
+    },
+
+    -- Appels des civils : polices missionnées (une ou les deux : appel commun) et nombre
     -- idéal d'unités (1 à 4).
     -- Les N unités disponibles les plus proches (N = nombre idéal, hors superviseurs "SUP.") reçoivent
     -- "Vous êtes l'une des unités les plus proches" : Y pour accepter, N pour refuser (sans le MDC).
@@ -82,6 +95,62 @@ local RESOURCE = GetCurrentResourceName()
 -- Nom réel de cette ressource, publié pour les autres ressources (rp_interact…) quel que soit le
 -- nom du dossier. GlobalState n'est modifiable que par le serveur.
 GlobalState.mdcResource = RESOURCE
+
+-- =========================================================================
+-- MDC (agences) : générique (civils) ou une police. Choix gardé en mémoire pour la session du joueur.
+-- =========================================================================
+local AGENCIES, POLICE_ORDER = {}, {}
+for _, a in ipairs(Config.Agencies) do
+    AGENCIES[a.key] = a
+    if a.police then POLICE_ORDER[#POLICE_ORDER + 1] = a.key end
+end
+local PlayerAgency = {} -- [source] = clé du MDC choisi (nil : pas encore choisi)
+
+local function agencyOf(src) return PlayerAgency[src] end
+local function isPoliceAgency(key) return AGENCIES[key] ~= nil and AGENCIES[key].police == true end
+
+--- Polices d'un appel : texte "wsp", "kcso" ou "wsp+kcso" (appel commun) -> { wsp = true, … }
+local function agencySet(value)
+    local set = {}
+    if type(value) == 'table' then
+        for _, a in pairs(value) do if isPoliceAgency(a) then set[a] = true end end
+    elseif type(value) == 'string' then
+        for a in value:gmatch('[^+,%s]+') do if isPoliceAgency(a) then set[a] = true end end
+    end
+    return set
+end
+
+--- Polices cochées (liste ou texte) -> texte canonique ("wsp+kcso"), nil si aucune
+local function normalizeAgencies(value)
+    local set, list = agencySet(value), {}
+    for _, a in ipairs(POLICE_ORDER) do if set[a] then list[#list + 1] = a end end
+    return #list > 0 and table.concat(list, '+') or nil
+end
+
+--- "WSP & KCSO"
+local function agenciesLabel(value)
+    local set, list = agencySet(value), {}
+    for _, a in ipairs(POLICE_ORDER) do if set[a] then list[#list + 1] = AGENCIES[a].short end end
+    return table.concat(list, ' & ')
+end
+
+--- L'appel concerne-t-il cette police ?
+local function callServes(call, agency)
+    return agencySet(call.agency)[agency] == true
+end
+
+--- Ce joueur voit-il cet appel ? MDC générique : tous ; police : les siens (appels communs compris)
+local function seesCall(src, call)
+    local agency = agencyOf(src)
+    if agency == 'generic' then return true end
+    return isPoliceAgency(agency) and callServes(call, agency)
+end
+
+--- BOLO visible par ce joueur : ceux de sa police (les anciens, sans police, par toutes les polices)
+local function seesBolo(src, bolo)
+    local agency = agencyOf(src)
+    return isPoliceAgency(agency) and (bolo.agency == nil or bolo.agency == agency)
+end
 
 -- Statuts d'une unité : clé technique -> libellé (doit correspondre à index.html)
 local Statuses = {
@@ -319,9 +388,12 @@ local function agentName(src)
     return name ~= '' and name or 'Agent sans nom RP'
 end
 
+--- Envoie à chaque joueur MDC ouvert ; `payload` peut être une fonction (src) -> contenu propre à son MDC
 local function pushToViewers(kind, payload)
     for src in pairs(Viewers) do
-        TriggerClientEvent('mdc:client:push', src, kind, payload)
+        local data = payload
+        if type(payload) == 'function' then data = payload(src) end
+        TriggerClientEvent('mdc:client:push', src, kind, data)
     end
 end
 
@@ -950,48 +1022,6 @@ end)
 -- =========================================================================
 local TAG_COLORS = { green = true, purple = true, blue = true, orange = true, red = true, yellow = true, pink = true, gray = true }
 
--- Services de police (toujours présents ; doivent correspondre à index.html / script.js)
-local DEPARTMENTS = {
-    apd = 'Atlanta Police Department',
-    gsp = 'Georgia State Patrol',
-    fcso = 'Fayette County Sheriff Office',
-}
-local DEPT_ORDER = { 'apd', 'gsp', 'fcso' }
-local DEPT_SHORT = { apd = 'APD', gsp = 'GSP', fcso = 'FCSO' }
-
--- Services d'un appel : texte "apd", "apd+gsp", "apd+gsp+fcso"… (un seul service : appel de ce service ;
--- plusieurs : appel commun, que seuls ces services peuvent rejoindre). Ancien format "both" = APD & GSP.
---- Ensemble des services d'un appel : { apd = true, … }
-local function deptSet(value)
-    local set = {}
-    if value == 'both' then return { apd = true, gsp = true } end
-    if type(value) == 'table' then
-        for _, d in pairs(value) do if DEPARTMENTS[d] then set[d] = true end end
-    elseif type(value) == 'string' then
-        for d in value:gmatch('[^+,%s]+') do if DEPARTMENTS[d] then set[d] = true end end
-    end
-    return set
-end
-
---- Services cochés (liste ou texte) -> texte canonique ("apd+fcso"), nil si aucun
-local function normalizeDepts(value)
-    local set, list = deptSet(value), {}
-    for _, d in ipairs(DEPT_ORDER) do if set[d] then list[#list + 1] = d end end
-    return #list > 0 and table.concat(list, '+') or nil
-end
-
---- "APD & GSP", "à la GSP"…
-local function deptsLabel(value)
-    local set, list = deptSet(value), {}
-    for _, d in ipairs(DEPT_ORDER) do if set[d] then list[#list + 1] = DEPT_SHORT[d] end end
-    return table.concat(list, ' & ')
-end
-
---- L'appel concerne-t-il ce service ? (un des services cochés)
-local function callServes(call, dept)
-    return deptSet(call.dept)[dept] == true
-end
-
 local NextUnitId = 1
 local lastStatusChange = {}
 local pushInterventions -- défini dans la section INTERVENTIONS
@@ -1017,20 +1047,23 @@ local function unitView(unit)
     end
     table.sort(members, function(a, b) return a.name < b.name end)
     return {
-        id = unit.id, name = unit.name, tag = unit.tag, color = unit.color, dept = unit.dept,
+        id = unit.id, name = unit.name, tag = unit.tag, color = unit.color, agency = unit.agency,
         status = unit.status, updatedAt = unit.updatedAt, members = members,
         memo = unit.memo or '', -- note de l'unité (barre du bas du MDC : rappels, observations)
     }
 end
 
-local function unitsList()
+--- Unités d'une police (MDC générique : aucune)
+local function unitsList(agency)
     local list = {}
-    for _, unit in ipairs(Units) do list[#list + 1] = unitView(unit) end
+    for _, unit in ipairs(Units) do
+        if unit.agency == agency then list[#list + 1] = unitView(unit) end
+    end
     return list
 end
 
 local function pushUnits()
-    pushToViewers('units', unitsList())
+    pushToViewers('units', function(src) return unitsList(agencyOf(src)) end)
     pushHud()
 end
 
@@ -1064,17 +1097,21 @@ local function buildUnit(p)
     if not tag then return nil, tagErr end
     if name == '' then return nil, 'Le nom de l\'unité est obligatoire.' end
     if not TAG_COLORS[p.color] then return nil, 'Choisissez la couleur du tag.' end
-    if not DEPARTMENTS[p.dept] then return nil, 'Choisissez le service de police de l\'unité.' end
-    return { name = name, tag = tag, color = p.color, dept = p.dept }
+    return { name = name, tag = tag, color = p.color }
 end
 
-RegisterMDCCallback('getUnits', function()
-    return { ok = true, units = unitsList() }
+local NOT_POLICE = 'Les unités sont réservées aux MDC de police (Paramètres > MDC utilisé).'
+
+RegisterMDCCallback('getUnits', function(src)
+    return { ok = true, units = unitsList(agencyOf(src)) }
 end)
 
 RegisterMDCCallback('createUnit', function(src, payload)
+    local agency = agencyOf(src)
+    if not isPoliceAgency(agency) then return { ok = false, error = NOT_POLICE } end
     local unit, err = buildUnit(payload)
     if not unit then return { ok = false, error = err } end
+    unit.agency = agency -- l'unité appartient à la police du MDC de son créateur
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
 
     unit.id = NextUnitId
@@ -1085,18 +1122,18 @@ RegisterMDCCallback('createUnit', function(src, payload)
     NextUnitId = NextUnitId + 1
     Units[#Units + 1] = unit
 
-    print(('^5[MDC]^0 Unité créée : %s (%s) par %s [%s]'):format(unitLabel(unit), DEPARTMENTS[unit.dept], agentName(src), GetPlayerName(src) or '?'))
+    print(('^5[MDC]^0 Unité créée : %s (%s) par %s [%s]'):format(unitLabel(unit), AGENCIES[unit.agency].label, agentName(src), GetPlayerName(src) or '?'))
     pushUnits()
     return { ok = true, id = unit.id }
 end)
 
-RegisterMDCCallback('updateUnit', function(_, payload)
+RegisterMDCCallback('updateUnit', function(src, payload)
     local unit = findUnit(payload.id)
-    if not unit then return { ok = false, error = 'Unité introuvable.' } end
+    if not unit or unit.agency ~= agencyOf(src) then return { ok = false, error = 'Unité introuvable.' } end
     local data, err = buildUnit(payload)
     if not data then return { ok = false, error = err } end
 
-    unit.name, unit.tag, unit.color, unit.dept = data.name, data.tag, data.color, data.dept
+    unit.name, unit.tag, unit.color = data.name, data.tag, data.color
     unit.updatedAt = os.time()
     pushUnits()
     pushInterventions()
@@ -1105,7 +1142,7 @@ end)
 
 RegisterMDCCallback('joinUnit', function(src, payload)
     local unit = findUnit(payload.id)
-    if not unit then return { ok = false, error = 'Unité introuvable.' } end
+    if not unit or unit.agency ~= agencyOf(src) then return { ok = false, error = 'Unité introuvable.' } end
     if rpNameOf(src) == '' then
         return { ok = false, error = 'Définissez d\'abord votre nom RP (en haut à gauche, ou /nomrp dans le chat) pour rejoindre une unité.' }
     end
@@ -1128,7 +1165,7 @@ end)
 
 RegisterMDCCallback('deleteUnit', function(src, payload)
     local unit, index = findUnit(payload.id)
-    if not unit then return { ok = false, error = 'Unité introuvable.' } end
+    if not unit or unit.agency ~= agencyOf(src) then return { ok = false, error = 'Unité introuvable.' } end
 
     for key in pairs(unit.members) do PlayerUnit[tonumber(key)] = nil end
     for _, intervention in ipairs(Interventions) do intervention.units[tostring(unit.id)] = nil end
@@ -1212,6 +1249,32 @@ end)
 RegisterNetEvent('mdc:server:viewer', function(isViewing)
     local src = source
     Viewers[src] = (isViewing and hasAccess(src)) or nil
+end)
+
+-- ---- MDC choisi par le joueur (à la première ouverture ; remis à zéro à chaque connexion / redémarrage) ----
+RegisterMDCCallback('getAgencies', function(src)
+    local list = {}
+    for _, a in ipairs(Config.Agencies) do
+        list[#list + 1] = { key = a.key, label = a.label, short = a.short, police = a.police == true }
+    end
+    return { ok = true, agencies = list, current = agencyOf(src) }
+end)
+
+RegisterMDCCallback('setAgency', function(src, payload)
+    local key = payload.agency
+    if not AGENCIES[key] then return { ok = false, error = 'MDC inconnu.' } end
+    if PlayerAgency[src] == key then return { ok = true, agency = key } end
+    PlayerAgency[src] = key
+    -- Unité d'une autre police (ou MDC générique) : quittée
+    local unit = findUnit(PlayerUnit[src])
+    if unit and unit.agency ~= key then
+        leaveCurrentUnit(src)
+        pushUnits()
+    else
+        pushHud()
+    end
+    print(('^5[MDC]^0 %s [%s] utilise le MDC %s'):format(agentName(src), GetPlayerName(src) or '?', AGENCIES[key].label))
+    return { ok = true, agency = key, left = unit and unit.agency ~= key or nil }
 end)
 
 -- =========================================================================
@@ -1308,10 +1371,13 @@ local function interventionView(intervention)
     return view
 end
 
--- En cours / en attente en haut (les plus récentes d'abord), terminées en bas
-local function interventionsList()
+-- En cours / en attente en haut (les plus récentes d'abord), terminées en bas ; seulement celles que ce
+-- joueur voit (sa police, ou toutes avec le MDC générique)
+local function interventionsList(src)
     local list = {}
-    for _, intervention in ipairs(Interventions) do list[#list + 1] = interventionView(intervention) end
+    for _, intervention in ipairs(Interventions) do
+        if seesCall(src, intervention) then list[#list + 1] = interventionView(intervention) end
+    end
     table.sort(list, function(a, b)
         if a.closed ~= b.closed then return not a.closed end
         return a.id > b.id
@@ -1320,7 +1386,7 @@ local function interventionsList()
 end
 
 pushInterventions = function()
-    pushToViewers('interventions', interventionsList())
+    pushToViewers('interventions', interventionsList)
     pushHud()
 end
 
@@ -1349,9 +1415,9 @@ local function buildCall(p, kind)
         if not PRIORITIES[p.priority] then return nil, 'Choisissez la priorité de l\'urgence.' end
         r.priority = p.priority
 
-        local depts = normalizeDepts(p.depts or p.dept)
-        if not depts then return nil, 'Cochez au moins un service de police (APD, GSP, FCSO).' end
-        r.dept = depts
+        local agencies = normalizeAgencies(p.agencies or p.agency)
+        if not agencies then return nil, 'Cochez au moins une police (WSP, KCSO).' end
+        r.agency = agencies
         local ideal = math.tointeger(tonumber(p.idealUnits) or 0)
         if not ideal or ideal < 1 or ideal > Config.MaxIdealUnits then
             return nil, ('Choisissez le nombre idéal d\'unités (1 à %d).'):format(Config.MaxIdealUnits)
@@ -1369,17 +1435,17 @@ local function callSummary(call)
     return {
         id = call.id, number = call.number, kind = call.kind, title = call.title, priority = call.priority,
         address = call.address, crossStreet = call.crossStreet, block = call.block, unitName = call.unitName,
-        dept = call.dept, idealUnits = call.idealUnits,
+        agency = call.agency, idealUnits = call.idealUnits,
     }
 end
 
 -- Notification "nouvelle intervention / nouvel incident" (en haut à droite de l'écran) : envoyée
--- uniquement aux membres des unités du service de l'appel (APD, GSP, ou les deux pour un appel
--- commun), sauf aux unités qui ont reçu la proposition "unité la plus proche" (`skip`).
+-- uniquement aux membres des unités de la police de l'appel (ou des deux pour un appel commun), sauf aux
+-- unités qui ont reçu la proposition "unité la plus proche" (`skip`).
 local function notifyNewCall(call, skip)
     local data = callSummary(call)
     for _, unit in ipairs(Units) do
-        if callServes(call, unit.dept) and not (skip and skip[unit.id]) then
+        if callServes(call, unit.agency) and not (skip and skip[unit.id]) then
             for key in pairs(unit.members) do TriggerClientEvent('mdc:client:callNotify', tonumber(key), data) end
         end
     end
@@ -1426,12 +1492,12 @@ local function countKeys(t)
     return n
 end
 
---- Unités pouvant recevoir la proposition, de la plus proche à la plus éloignée : même service,
+--- Unités pouvant recevoir la proposition, de la plus proche à la plus éloignée : même police,
 --- "Disponible", pas superviseur (SUP.), pas déjà sur l'appel ni déjà sollicitée, avec un membre en jeu
 local function offerCandidates(call, offers)
     local list = {}
     for _, unit in ipairs(Units) do
-        if callServes(call, unit.dept) and unit.status == 'available' and not isSupervisor(unit)
+        if callServes(call, unit.agency) and unit.status == 'available' and not isSupervisor(unit)
             and not call.units[tostring(unit.id)] and not offers.offered[unit.id] then
             local d = unitDistance(unit, call.coords)
             if d then list[#list + 1] = { unit = unit, distance = d } end
@@ -1561,19 +1627,15 @@ RegisterMDCCallback('createIncident', function(src, payload)
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
 
     call.unitName = unit.name -- nom de l'unité déclarante (automatique)
-    -- Service de l'unité déclarante, toujours ; services cochés en plus : incident commun
-    local extra = type(payload.depts) == 'table' and payload.depts or {}
-    if payload.joint == true or payload.joint == '1' or payload.joint == 'on' then -- ancien formulaire (APD & GSP)
-        extra = { 'apd', 'gsp' }
-    end
-    local depts = { unit.dept }
-    for _, d in pairs(extra) do depts[#depts + 1] = d end
-    call.dept = normalizeDepts(depts) or unit.dept
+    -- Police de l'unité déclarante, toujours ; l'autre police cochée en plus : incident commun
+    local list = { unit.agency }
+    for _, a in pairs(type(payload.agencies) == 'table' and payload.agencies or {}) do list[#list + 1] = a end
+    call.agency = normalizeAgencies(list) or unit.agency
     return addCall(src, call, 'incident', unit)
 end)
 
-RegisterMDCCallback('getInterventions', function()
-    return { ok = true, interventions = interventionsList() }
+RegisterMDCCallback('getInterventions', function(src)
+    return { ok = true, interventions = interventionsList(src) }
 end)
 
 -- Rejoindre / quitter l'appel, y mettre fin (réservé aux unités)
@@ -1589,9 +1651,9 @@ RegisterMDCCallback('interventionAction', function(src, payload)
     local key = tostring(unit.id)
 
     if payload.action == 'join' then
-        -- Appel d'un seul service : réservé à ses unités (appel commun : les deux services)
-        if not callServes(call, unit.dept) then
-            return { ok = false, error = ('Cet appel est réservé à : %s. Seules leurs unités peuvent le rejoindre.'):format(deptsLabel(call.dept)) }
+        -- Appel d'une police : réservé à ses unités (appel commun : les deux polices)
+        if not callServes(call, unit.agency) then
+            return { ok = false, error = ('Cet appel est réservé à : %s. Seules leurs unités peuvent le rejoindre.'):format(agenciesLabel(call.agency)) }
         end
         joinCall(call, unit) -- rejoindre un appel passe l'unité "En route"
         local offers = Offers[call.id]
@@ -1621,11 +1683,15 @@ end)
 -- Modification des informations d'une intervention / d'un incident
 RegisterMDCCallback('editIntervention', function(src, payload)
     local call = findIntervention(payload.id)
-    if not call then return { ok = false, error = 'Intervention introuvable.' } end
+    if not call or not seesCall(src, call) then return { ok = false, error = 'Intervention introuvable.' } end
     if call.closed then return { ok = false, error = 'Une intervention terminée ne peut plus être modifiée.' } end
+    -- MDC générique : seulement les appels des civils (pas les incidents déclarés par la police)
+    if agencyOf(src) == 'generic' and call.kind ~= 'intervention' then
+        return { ok = false, error = 'Les incidents déclarés par la police ne sont modifiables que par la police.' }
+    end
 
-    -- Service et nombre idéal d'unités : fixés à la création (notifications déjà envoyées)
-    payload.depts, payload.dept, payload.idealUnits = nil, call.dept, call.idealUnits
+    -- Polices et nombre idéal d'unités : fixés à la création (notifications déjà envoyées)
+    payload.agencies, payload.agency, payload.idealUnits = nil, call.agency, call.idealUnits
     local data, err = buildCall(payload, call.kind)
     if not data then return { ok = false, error = err } end
 
@@ -2409,16 +2475,17 @@ local function boloListItem(bolo)
     }
 end
 
-local function bolosList()
+--- BOLOs de la police de ce joueur (MDC générique : aucun)
+local function bolosList(src)
     local list = {}
     for i = #Store.bolos, 1, -1 do -- les plus récents d'abord
-        list[#list + 1] = boloListItem(Store.bolos[i])
+        if seesBolo(src, Store.bolos[i]) then list[#list + 1] = boloListItem(Store.bolos[i]) end
     end
     return list
 end
 
 local function pushBolos()
-    pushToViewers('bolos', bolosList())
+    pushToViewers('bolos', bolosList)
 end
 
 --- BOLOs actifs visant une fiche (affichés en alerte dans les recherches) :
@@ -2440,19 +2507,20 @@ bolosFor = function(kind, record)
             possible = match
         end
         if match then
-            list[#list + 1] = { id = bolo.id, number = bolo.number, reason = bolo.reason, possible = possible or nil }
+            -- police du BOLO : le MDC n'affiche que les alertes de sa police (anciens BOLOs : toutes)
+            list[#list + 1] = { id = bolo.id, number = bolo.number, reason = bolo.reason, possible = possible or nil, agency = bolo.agency }
         end
     end
     return list
 end
 
-RegisterMDCCallback('getBolos', function()
-    return { ok = true, bolos = bolosList() }
+RegisterMDCCallback('getBolos', function(src)
+    return { ok = true, bolos = bolosList(src) }
 end)
 
-RegisterMDCCallback('getBolo', function(_, payload)
+RegisterMDCCallback('getBolo', function(src, payload)
     local bolo = findBy('bolos', 'id', tonumber(payload.id))
-    if not bolo then return { ok = false, error = 'Ce BOLO n\'existe plus.' } end
+    if not bolo or not seesBolo(src, bolo) then return { ok = false, error = 'Ce BOLO n\'existe plus.' } end
     local view = publicView(bolo, bolo.kind) -- kind : 'person' ou 'vehicle'
     -- Nom à jour de l'identité liée (si la fiche existe encore)
     if bolo.identityId then
@@ -2468,11 +2536,12 @@ RegisterMDCCallback('saveBolo', function(src, payload)
     if Locked.bolos then
         return { ok = false, error = 'Enregistrement bloqué : fichier de données corrompu (voir console serveur).' }
     end
+    if not isPoliceAgency(agencyOf(src)) then return { ok = false, error = 'Les BOLOs sont réservés aux MDC de police.' } end
     local id = tonumber(payload.id)
     local old, index
     if id then
         old, index = findBy('bolos', 'id', id)
-        if not old then return { ok = false, error = 'Ce BOLO n\'existe plus.' } end
+        if not old or not seesBolo(src, old) then return { ok = false, error = 'Ce BOLO n\'existe plus.' } end
         if payload.kind ~= old.kind then return { ok = false, error = 'Le type d\'un BOLO ne peut pas être modifié.' } end
     elseif #Store.bolos >= Config.MaxBolos then
         return { ok = false, error = ('%d BOLOs actifs maximum : supprimez ceux qui ne sont plus d\'actualité.'):format(Config.MaxBolos) }
@@ -2487,6 +2556,7 @@ RegisterMDCCallback('saveBolo', function(src, payload)
         record.createdAt, record.createdBy, record.createdByName, record.unitName = old.createdAt, old.createdBy, old.createdByName, old.unitName
         record.updatedAt = os.time()
         record.updatedByName = agentName(src)
+        record.agency = old.agency
         Store.bolos[index] = record
         if not saveStore('bolos') then
             Store.bolos[index] = old
@@ -2499,6 +2569,7 @@ RegisterMDCCallback('saveBolo', function(src, payload)
         record.createdAt = os.time()
         record.createdByName = agentName(src)
         record.unitName = unit and unit.name or nil
+        record.agency = agencyOf(src) -- BOLO propre à cette police
         record.createdBy = getIdentifier(src) -- privé : jamais envoyé aux clients (voir publicView)
         Store.bolos[#Store.bolos + 1] = record
         if not saveStore('bolos') then
@@ -2519,7 +2590,7 @@ RegisterMDCCallback('deleteBolo', function(src, payload)
         return { ok = false, error = 'Suppression bloquée : fichier de données corrompu (voir console serveur).' }
     end
     local bolo, index = findBy('bolos', 'id', tonumber(payload.id))
-    if not bolo then return { ok = false, error = 'Ce BOLO n\'existe plus.' } end
+    if not bolo or not seesBolo(src, bolo) then return { ok = false, error = 'Ce BOLO n\'existe plus.' } end
 
     table.remove(Store.bolos, index)
     if not saveStore('bolos') then
@@ -2761,7 +2832,8 @@ local function hudFor(src)
     end
 
     return {
-        name = unit.name, tag = unit.tag, color = unit.color, dept = unit.dept, status = unit.status,
+        name = unit.name, tag = unit.tag, color = unit.color, status = unit.status,
+        agency = unit.agency, agencyShort = AGENCIES[unit.agency] and AGENCIES[unit.agency].short or nil,
         callNumber = call and call.number or nil,
         callTitle = call and call.title or nil,
     }
@@ -2769,7 +2841,7 @@ end
 
 local function hudKey(info)
     if not info then return '' end
-    return table.concat({ info.name, info.tag, info.color, info.dept or '', info.status, info.callNumber or '', info.callTitle or '' }, '|')
+    return table.concat({ info.name, info.tag, info.color, info.agency or '', info.status, info.callNumber or '', info.callTitle or '' }, '|')
 end
 
 local function sendHud(src, force)
@@ -2797,13 +2869,17 @@ pushHud = function()
 end
 
 -- Unité du joueur pour les autres ressources (côté serveur, fiable) :
---   exports.rp_mdc:getPlayerUnit(source) -> { id, name, tag, dept } ou nil (hors unité)
+--   exports.rp_mdc:getPlayerUnit(source) -> { id, name, tag, agency, agencyLabel, agencyShort } ou nil (hors unité)
 -- Un joueur est "policier" pour rp_interact uniquement s'il est dans une unité du MDC.
 exports('getPlayerUnit', function(src)
     local unit = findUnit(PlayerUnit[tonumber(src)])
     if not unit then return nil end
-    return { id = unit.id, name = unit.name, tag = unit.tag, dept = unit.dept }
+    local a = AGENCIES[unit.agency] or {}
+    return { id = unit.id, name = unit.name, tag = unit.tag, agency = unit.agency, agencyLabel = a.label, agencyShort = a.short }
 end)
+
+--   exports.rp_mdc:getPlayerAgency(source) -> clé du MDC choisi ('generic', 'wsp', 'kcso'…) ou nil
+exports('getPlayerAgency', function(src) return PlayerAgency[tonumber(src)] end)
 
 -- Demande du client au démarrage (accès au MDC + unité actuelle)
 RegisterNetEvent('mdc:server:hudSync', function()
@@ -2818,5 +2894,6 @@ AddEventHandler('playerDropped', function()
     local hadUnit = PlayerUnit[src] ~= nil
     leaveCurrentUnit(src)
     Viewers[src], lastStatusChange[src], lastWrite[src], HudCache[src] = nil, nil, nil, nil
+    PlayerAgency[src] = nil
     if hadUnit then pushUnits() end
 end)

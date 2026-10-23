@@ -32,7 +32,7 @@
           'matrix' tableau de cases par "Unit" (list = liste source, k = clé, groups = { { l, o } })
           'perUnit' tableau de champs par "Unit" (list = liste source, f = champs)
       ph    = texte                   exemple affiché dans un champ vide (texte d'aide pour 'checks')
-      def   = valeur par défaut       ('today', 'now', 'unitDept' = service de l'unité du joueur, ou une valeur)
+      def   = valeur par défaut       ('today', 'now', 'unitAgency' = police de l'unité du joueur, ou une valeur)
       req   = true                    champ obligatoire (uniquement s'il est visible)
       reqIf = { condition }           obligatoire si la condition est vraie
       show  = { condition }           visible seulement si la condition est vraie
@@ -168,7 +168,7 @@ local DOT523 = {
                     { 'gravel', 'Boue / gravier' }, { 'oil', 'Huile / débris' },
                 } },
                 { k = 'county', t = 'text', l = 'Comté', req = true, max = 60, ph = 'ex : Los Santos County' },
-                { k = 'agency', t = 'text', l = 'Service de police', req = true, max = 80, w = 2, def = 'unitDept', ph = 'ex : Atlanta Police Department' },
+                { k = 'agency', t = 'text', l = 'Service de police', req = true, max = 80, w = 2, def = 'unitAgency', ph = 'ex : Washington State Patrol' },
                 { k = 'policeUnits', t = 'num', l = 'Nb d\'unités de police', req = true, min = 1, max = 50, def = 1 },
             },
         },
