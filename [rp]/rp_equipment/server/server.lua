@@ -1,7 +1,7 @@
 --[[
     RP Equipment - serveur
     ----------------------
-    - Types de véhicules : modèles de config.lua + services de rp_interact/data/vehicles.json, publiés à tous
+    - Types de véhicules : modèles de config.lua + polices de rp_interact/data/vehicle.json, publiés à tous
       les clients (GlobalState.rpEquipModels : [hash du modèle] = type).
     - Vérifie chaque demande : policier en service (unité du MDC), près du véhicule, pièce / emplacement permis
       pour ce type de véhicule.
@@ -21,19 +21,6 @@ local function trim(text) return (tostring(text or '')):gsub('^%s+', ''):gsub('%
 -- =========================================================================
 -- TYPES DE VÉHICULES
 -- =========================================================================
-local function readInteractVehicles()
-    local source = Config.InteractVehicles
-    if not source or not source.Resource then return {} end
-    local raw = LoadResourceFile(source.Resource, source.File or 'data/vehicles.json')
-    if not raw or raw == '' then return {} end
-    local ok, list = pcall(json.decode, raw)
-    if not ok or type(list) ~= 'table' then
-        print(('^3[rp_equipment] %s/%s illisible : services des véhicules ignorés^7'):format(source.Resource, source.File))
-        return {}
-    end
-    return list
-end
-
 local function field(object, name)
     if type(object) ~= 'table' then return nil end
     if object[name] ~= nil then return object[name] end
@@ -43,13 +30,35 @@ local function field(object, name)
     return nil
 end
 
+--- Véhicules de rp_interact : { { code, police } } (data/vehicle.json, sinon l'ancien data/vehicles.json)
+local function readInteractVehicles()
+    local source = Config.InteractVehicles
+    if not source or not source.Resource then return {} end
+    for _, file in ipairs({ source.File or 'data/vehicle.json', source.OldFile }) do
+        local raw = file and LoadResourceFile(source.Resource, file)
+        if raw and raw ~= '' then
+            local ok, data = pcall(json.decode, raw)
+            if not ok or type(data) ~= 'table' then
+                print(('^3[rp_equipment] %s/%s illisible : polices des véhicules ignorées^7'):format(source.Resource, file))
+                return {}
+            end
+            local list = {}
+            for _, v in ipairs(type(field(data, 'vehicles')) == 'table' and field(data, 'vehicles') or data) do
+                list[#list + 1] = { code = trim(field(v, 'spawnName') or field(v, 'Code')),
+                    police = trim(field(v, 'subCategory') or field(v, 'Service')) }
+            end
+            return list
+        end
+    end
+    return {}
+end
+
 local function buildModels()
     local models = {}
-    -- 1. Services de rp_interact
+    -- 1. Polices des véhicules de rp_interact
     for _, v in ipairs(readInteractVehicles()) do
-        local code = trim(field(v, 'Code'))
-        local kind = (Config.ServiceTypes or {})[trim(field(v, 'Service')):lower()]
-        if code ~= '' and kind and Config.Types[kind] then models[GetHashKey(code)] = kind end
+        local kind = (Config.ServiceTypes or {})[v.police:lower()]
+        if v.code ~= '' and kind and Config.Types[kind] then models[GetHashKey(v.code)] = kind end
     end
     -- 2. Modèles de config.lua (prioritaires)
     for kind, t in pairs(Config.Types) do
@@ -71,7 +80,7 @@ local OUTFIT_PARTS = {
 }
 local Assets = {}   -- [type] = { { id, name, gender, components = { {n°, modèle, texture} }, props = {...} } }
 
---- Type d'une catégorie du fichier : "Atlanta Police Department" (ServiceTypes) ou directement "apd"
+--- Type d'une catégorie du fichier : "Washington State Patrol" (ServiceTypes) ou directement "wsp"
 local function typeOfCategory(name)
     local key = trim(name):lower()
     local kind = (Config.ServiceTypes or {})[key] or key

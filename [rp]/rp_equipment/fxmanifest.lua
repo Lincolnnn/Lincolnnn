@@ -2,7 +2,7 @@
     RP Equipment - équipement des véhicules de police (portières avant / coffre) et râtelier d'armes longues
     Aucun framework requis (ni ESX, ni QBCore, ni vRP).
     Lié au MDC (rp_mdc : un joueur est "policier" quand il est dans une unité) et, si présent, à
-    rp_interact (data/vehicles.json : service de chaque véhicule) et rp_chat (messages privés).
+    rp_interact (data/vehicle.json : police de chaque véhicule) et rp_chat (messages privés).
 ]]
 
 fx_version 'cerulean'
@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_equipment'
 author 'Lincolnnn'
 description 'Équipement des véhicules de police, râtelier d\'armes longues et coffre (plots, fusées) - standalone, NUI Vanilla JS'
-version '1.6.0'
+version '1.7.0'
 
 ui_page 'html/index.html'
 

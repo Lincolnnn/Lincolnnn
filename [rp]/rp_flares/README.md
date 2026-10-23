@@ -17,7 +17,7 @@
   touche réellement choisie par le joueur, et le nombre de fusées restantes) et, en dessous, **« Utiliser le target pour la reprendre »** (`Help`,
   `HelpPlace`, `HelpTake`).
 - **Poser une fusée en retire une** au joueur (la dernière posée, l'arme disparaît) ; les **équipements de service**
-  (`rp_interact` : Équipement GSP / APD / FCSO) en donnent **10** au départ ; elles se **rangent** et se **reprennent** dans le
+  (`rp_interact` : Équipement WSP / KCSO) en donnent **10** au départ ; elles se **rangent** et se **reprennent** dans le
   **coffre** des véhicules de police (`rp_equipment`, 20 par coffre au maximum).
 - **Reprendre** : avec l'**œil** (rp_interact, **Alt**), viser la fusée : **« Retirer la fusée »** (n'importe quel
   joueur, à moins de 2,5 m) : il se baisse et **récupère la fusée** (une de plus).

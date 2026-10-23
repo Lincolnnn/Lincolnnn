@@ -33,20 +33,20 @@ serveur à chaque action. `PoliceOnly = false` pour l'ouvrir à tout le monde.
   **Objets** (bouton « Prendre » / « Ranger ») : armes du jeu ajoutées dans `equipment.json` (aucun par défaut ; le
   **jerrican d'essence** est désormais dans le **coffre**, voir plus bas).
 
-## Équipement EUP par catégorie : `equipment.json`
+## Équipement EUP par police : `equipment.json`
 
-Le fichier `equipment.json` (dans le dossier `rp_equipment`) a **une liste par catégorie** de véhicule :
-`"Atlanta Police Department"`, `"Georgia State Patrol"`, `"Fayette County Sheriff Office"`. Ce sont les catégories
-des véhicules dans `rp_interact/data/vehicles.json` (champ `Service`).
+Le fichier `equipment.json` (dans le dossier `rp_equipment`) a **une liste par police** (celles du MDC) :
+`"Washington State Patrol"` et `"King County Sheriff Office"` (ou `"WSP"` / `"KCSO"`). C'est la police des
+véhicules dans `rp_interact/data/vehicle.json` (champ `subCategory`).
 
 Chaque pièce s'écrit **comme une tenue du `/eup`** (`data/outfits.json` de rp_interact), avec **seulement les parties
 qu'elle change** :
 
 ```json
 {
-    "Atlanta Police Department": [
-        { "Name": "Gilet pare-balles APD", "Gender": "Male", "Armor": "13:1" },
-        { "Name": "Casquette APD", "Gender": "Male", "Hat": "47:1" }
+    "Washington State Patrol": [
+        { "Name": "Gilet pare-balles WSP", "Gender": "Male", "Armor": "14:1" },
+        { "Name": "Chapeau de Trooper", "Gender": "Male", "Hat": "14:1" }
     ]
 }
 ```
@@ -58,7 +58,7 @@ qu'elle change** :
 - **Objet** (arme du jeu que le policier prend et range) : `"Weapon"` et `"Ammo"` au lieu des parties, ex.
   `{ "Name": "Extincteur", "Weapon": "WEAPON_FIREEXTINGUISHER", "Ammo": 2000 }` (aucun par défaut : le jerrican est
   dans le coffre).
-- Catégorie `"Police"` : véhicules de police qui ne sont dans aucune autre catégorie (râtelier, coffre, et les objets
+- Catégorie `"Police"` : véhicules de police qui ne sont d'aucune de ces polices (râtelier, coffre, et les objets
   que vous y ajoutez).
 
 Après une modification : tapez `rpequip_reload` dans la console serveur.
@@ -69,10 +69,11 @@ Chaque véhicule a un type, qui décide de son équipement :
 
 | Type | Véhicules |
 |---|---|
-| `apd`, `gsp`, `fcso` | véhicules de cette catégorie dans `rp_interact/data/vehicles.json` (« Service »), **ou** modèles listés dans `Types.<type>.Models` |
-| `police` | véhicules d'urgence (classe 18) qui ne sont dans aucune catégorie : râtelier seulement |
+| `wsp`, `kcso` | véhicules de cette police dans `rp_interact/data/vehicle.json` (« subCategory » : `Washington State Patrol`, `King County Sheriff Office`), **ou** modèles listés dans `Types.<type>.Models` |
+| `police` | véhicules d'urgence (classe 18) qui ne sont d'aucune de ces polices : râtelier seulement |
 
-Après avoir modifié `rp_interact/data/vehicles.json` : tapez `rpequip_reload` dans la console serveur.
+L'ancien `rp_interact/data/vehicles.json` (champ `Service`) est lu seulement en l'absence de `vehicle.json`. Après
+avoir modifié le fichier de rp_interact : tapez `rpequip_reload` dans la console serveur.
 
 ## Armes longues (râtelier)
 

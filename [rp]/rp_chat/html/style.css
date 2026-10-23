@@ -1,14 +1,18 @@
 /* =========================================================================
-   RP Chat - même thème que le HUD et le display du MDC (réglable par joueur)
+   RP Chat - thème sombre "Windows 11" du MDC (fond, contour et taille réglables par joueur)
    Les variables sont modifiées par script.js selon les réglages du joueur.
    ========================================================================= */
 :root {
-    --chat-bg: rgba(0, 0, 0, .62);
-    --chat-border: 1.5px solid #7a7a7a;
+    --chat-bg: rgba(32, 32, 32, .8);
+    --chat-border: 1px solid #3a3a3a;
     --chat-font: 14px;
     --chat-w: 32vw;
     --chat-h: 30vh;
-    --font: 'Segoe UI', Tahoma, Arial, sans-serif;
+    --font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "Inter", system-ui, Tahoma, Arial, sans-serif;
+    --accent: #60cdff;
+    --stroke: rgba(255, 255, 255, .08);
+    --stroke-2: rgba(255, 255, 255, .13);
+    --muted: rgba(255, 255, 255, .55);
 
     /* Couleurs des commandes */
     --c-me: #a8e6a1;       /* /me : vert pâle */
@@ -36,9 +40,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
     background: var(--chat-bg);
     border: var(--chat-border);
     border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
     color: #e6e6e6;
     font-size: var(--chat-font);
-    text-shadow: 0 1px 1px rgba(0, 0, 0, .8);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .6);
     transition: opacity .6s ease;
 }
 .chat.hidden { display: none; }
@@ -58,14 +63,14 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
     scrollbar-color: rgba(160, 160, 160, .5) transparent;
 }
 .messages::-webkit-scrollbar { width: 6px; }
-.messages::-webkit-scrollbar-thumb { background: rgba(160, 160, 160, .5); border-radius: 3px; }
+.messages::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .2); border-radius: 3px; }
 .chat.feed .messages { overflow: hidden; }
 /* Remonté dans la conversation : repère "plus récents en bas" */
 .chat { position: relative; }
 .browse-hint {
     position: absolute; right: 10px; bottom: 6px; z-index: 2;
-    padding: 2px 8px; border-radius: 10px;
-    background: rgba(0, 0, 0, .7); color: #ddd; font-size: 11px; text-shadow: none;
+    padding: 2px 10px; border-radius: 10px;
+    background: rgba(32, 32, 32, .95); border: 1px solid var(--stroke-2); color: #ddd; font-size: 11px; text-shadow: none;
     pointer-events: none;
 }
 .chat:not(.feed) .browse-hint { bottom: 46px; }
@@ -96,25 +101,26 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 /* Résultat privé (inspection / fouille rp_interact) : visible uniquement par ce joueur */
 .msg-private { color: #9fd0ff; }
 .msg-private .private-tag {
-    padding: 0 5px; margin-right: 2px;
-    font-size: calc(var(--chat-font) - 4px); font-weight: bold; letter-spacing: .5px;
-    color: #0b1a2b; background: #9fd0ff; border-radius: 3px; vertical-align: 1px;
+    padding: 0 6px; margin-right: 2px;
+    font-size: calc(var(--chat-font) - 4px); font-weight: 700; letter-spacing: .4px;
+    color: #00202e; background: #9fd0ff; border-radius: 4px; vertical-align: 1px; text-shadow: none;
 }
 .msg-private .private-subject { color: #7fa8cc; }
 
-.input-row { padding: 6px 8px 8px; border-top: 1px solid rgba(122, 122, 122, .45); }
+.input-row { padding: 6px 8px 8px; border-top: 1px solid var(--stroke); }
 #input {
     width: 100%;
-    height: calc(var(--chat-font) + 14px);
-    padding: 0 8px;
-    background: rgba(0, 0, 0, .45);
+    height: calc(var(--chat-font) + 16px);
+    padding: 0 10px;
+    background: rgba(18, 18, 18, .85);
     color: #fff;
     font: var(--chat-font) var(--font);
-    border: 1px solid rgba(122, 122, 122, .7);
+    border: 1px solid var(--stroke-2);
+    border-bottom: 2px solid var(--accent);
     border-radius: 4px;
     outline: none;
 }
-#input::placeholder { color: #8a8a8a; }
+#input::placeholder { color: rgba(255, 255, 255, .36); }
 #input.no-name::placeholder { color: var(--c-error); }
 
 /* Suggestions de commandes (sous le chat) */
@@ -124,51 +130,53 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
     left: 0;
     right: 0;
     list-style: none;
-    background: var(--chat-bg);
-    border: var(--chat-border);
-    border-radius: 6px;
+    padding: 4px;
+    background: rgba(32, 32, 32, .96);
+    border: 1px solid var(--stroke-2);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
     overflow: hidden;
 }
 .suggest.hidden { display: none; }
-.suggest li { display: flex; gap: 10px; padding: 4px 10px; font-size: calc(var(--chat-font) - 1px); }
-.suggest li.active { background: rgba(255, 255, 255, .12); }
-.suggest .usage { color: #fff; font-weight: bold; white-space: nowrap; }
-.suggest .desc { color: #a9a9a9; }
+.suggest li { position: relative; display: flex; gap: 10px; padding: 5px 10px; border-radius: 4px; font-size: calc(var(--chat-font) - 1px); }
+.suggest li.active { background: rgba(255, 255, 255, .1); }
+.suggest li.active::before { content: ""; position: absolute; left: 0; top: 50%; width: 3px; height: 14px; margin-top: -7px; background: var(--accent); border-radius: 2px; }
+.suggest .usage { color: #fff; font-weight: 600; white-space: nowrap; }
+.suggest .desc { color: var(--muted); }
 /* /tuto et rappel à la connexion : privé, titre en gras puis le texte */
 .msg-tuto { color: #e8dcae; }
 .msg-tuto .tuto-tag { color: #2b230b; background: #e8c86b; }
 
 /* =========================================================================
-   /tuto : affiche en haut de l'écran, au milieu, thème des menus (fond noir 80 %, contour gris, coins arrondis).
+   /tuto : affiche en haut de l'écran, au milieu, thème sombre du MDC (fond "Mica", contour fin, coins arrondis).
    Large et peu haute ; ne capte ni la souris ni le clavier.
    ========================================================================= */
 .tuto {
     position: fixed; top: 2.5vh; left: 50%; transform: translateX(-50%);
     width: min(1000px, 92vw); padding: 12px 16px 10px;
-    background: rgba(0, 0, 0, .80); border: 1.5px solid #7a7a7a; border-radius: 8px;
+    background: rgba(32, 32, 32, .94); border: 1px solid var(--stroke-2); border-radius: 8px;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, .45);
     color: #e6e6e6; font: 13px var(--font); text-shadow: none;
     pointer-events: none; user-select: none; z-index: 1; /* sous le chat, qui reste lisible s'ils se croisent */
 }
 .tuto-head {
     display: flex; align-items: center; gap: 12px;
-    padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid rgba(122, 122, 122, .45);
+    padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--stroke);
 }
-.tuto-title { flex: 1; font-size: 15px; font-weight: bold; color: #fff; letter-spacing: .3px; }
-.tuto-close { font-size: 12px; color: #a9a9a9; }
+.tuto-title { flex: 1; font-size: 16px; font-weight: 600; color: #fff; }
+.tuto-close { font-size: 12px; color: var(--muted); }
 .tuto-cmd {
     display: inline-block; padding: 1px 6px; margin: 0 2px;
-    font: bold 12px var(--font); color: #0b1a2b; background: #6fb1ff; border-radius: 4px;
+    font: 600 12px var(--font); color: #00202e; background: var(--accent); border-radius: 4px;
 }
 .tuto-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 18px; }
-.tuto-section {
-    margin-bottom: 6px; font-size: 11px; font-weight: bold; letter-spacing: .6px; text-transform: uppercase; color: #a9a9a9;
-}
+.tuto-section { margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #fff; }
 .tuto-line { display: flex; align-items: baseline; gap: 7px; margin-bottom: 4px; line-height: 1.3; }
 .tuto-key {
     flex-shrink: 0; min-width: 22px; padding: 1px 6px; text-align: center;
-    font-size: 11.5px; font-weight: bold; color: #fff;
-    background: rgba(255, 255, 255, .06); border: 1px solid rgba(122, 122, 122, .6); border-radius: 5px;
+    font-size: 11.5px; font-weight: 600; color: #fff;
+    background: rgba(255, 255, 255, .1); border: 1px solid var(--stroke-2); border-bottom-width: 2px; border-radius: 4px;
 }
-.tuto-text { color: #d6d6d6; font-size: 12.5px; }
-.tuto-foot { margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(122, 122, 122, .3); font-size: 11.5px; color: #a9a9a9; }
+.tuto-text { color: rgba(255, 255, 255, .8); font-size: 12.5px; }
+.tuto-foot { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--stroke); font-size: 11.5px; color: var(--muted); }
 .tuto.hidden { display: none; }

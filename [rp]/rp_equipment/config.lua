@@ -18,35 +18,33 @@ EquipConfig = {
                                   -- passager avant) ouverte, refermée à la fermeture ; jamais rouverte si déjà ouverte
 
     -- ---------------------------------------------------------------------
-    -- TYPES DE VÉHICULES : un type par catégorie (son équipement : equipment.json)
-    -- Un véhicule est d'un type si son modèle est dans Models, sinon si rp_interact (data/vehicles.json) le
-    -- range dans une catégorie ("Service" : ServiceTypes), sinon si sa classe est dans Classes.
+    -- TYPES DE VÉHICULES : un type par police du MDC (son équipement : equipment.json)
+    -- Un véhicule est d'un type si son modèle est dans Models, sinon si rp_interact (data/vehicle.json) le
+    -- range dans une police ("subCategory" : ServiceTypes), sinon si sa classe est dans Classes.
     -- ---------------------------------------------------------------------
     Types = {
-        apd    = { Label = 'Atlanta Police Department',     Short = 'APD',  Color = '#12357a', Models = {} },
-        gsp    = { Label = 'Georgia State Patrol',          Short = 'GSP',  Color = '#ff6a00', Models = {} },
-        fcso   = { Label = 'Fayette County Sheriff Office', Short = 'FCSO', Color = '#1e5631', Models = {} },
-        -- Véhicules d'urgence (classe 18) qui ne sont dans aucune catégorie : râtelier, et objets de la catégorie
-        -- "Police" d'equipment.json (jerrican)
-        police = { Label = 'Véhicule de police',            Short = 'POLICE', Color = '#3a3a3a', Models = {}, Classes = { 18 } },
+        wsp    = { Label = 'Washington State Patrol',    Short = 'WSP',  Color = '#2d5f9e', Models = {} },
+        kcso   = { Label = 'King County Sheriff Office', Short = 'KCSO', Color = '#2f6b4f', Models = {} },
+        -- Véhicules d'urgence (classe 18) qui ne sont dans aucune police : râtelier, et objets de la catégorie
+        -- "Police" d'equipment.json
+        police = { Label = 'Véhicule de police',         Short = 'POLICE', Color = '#4a4f58', Models = {}, Classes = { 18 } },
     },
-    -- Services de rp_interact/data/vehicles.json ("Service") -> type
-    InteractVehicles = { Resource = 'rp_interact', File = 'data/vehicles.json' },
+    -- Véhicules de rp_interact : data/vehicle.json ("subCategory") ; à défaut, l'ancien data/vehicles.json ("Service")
+    InteractVehicles = { Resource = 'rp_interact', File = 'data/vehicle.json', OldFile = 'data/vehicles.json' },
     ServiceTypes = {
-        ['atlanta police department'] = 'apd',
-        ['georgia state patrol'] = 'gsp',
-        ['fayette county sheriff office'] = 'fcso',
+        ['washington state patrol'] = 'wsp', wsp = 'wsp',
+        ['king county sheriff office'] = 'kcso', ["king county sheriff's office"] = 'kcso', kcso = 'kcso',
     },
 
     -- ---------------------------------------------------------------------
     -- ÉQUIPEMENT EUP (casque, gilet, casquette…) : fichier equipment.json de ce dossier, une liste par
-    -- catégorie de véhicule ("Atlanta Police Department", "Georgia State Patrol", "Fayette County Sheriff
-    -- Office" : la catégorie du véhicule dans rp_interact/data/vehicles.json, champ "Service"). Chaque pièce
+    -- police ("Washington State Patrol", "King County Sheriff Office" : la police du véhicule dans
+    -- rp_interact/data/vehicle.json, champ "subCategory"). Chaque pièce
     -- s'écrit comme une tenue du /eup ("Name", "Gender", et seulement les parties qu'elle change, ex.
     -- "Armor": "13:1") : le policier la met et la retire de sa tenue depuis le menu.
     -- OBJETS : une entrée avec "Weapon" (et "Ammo") est un objet que le policier PREND et RANGE (sans limite). Le
     -- jerrican d'essence n'est plus ici : il est dans le COFFRE (Stock.Jerrycans, un par véhicule, à prendre et ranger).
-    -- Catégorie "Police" : véhicules de police sans service.
+    -- Catégorie "Police" : véhicules de police d'aucune de ces polices.
     -- ---------------------------------------------------------------------
     EquipmentFile = 'equipment.json',
     Eup = { OneBased = true },    -- numéros comptés à partir de 1, comme les tenues du /eup (rp_interact)
