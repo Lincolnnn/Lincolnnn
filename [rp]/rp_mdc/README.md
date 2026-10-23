@@ -1,6 +1,12 @@
 # MDC Standalone (FiveM)
 
-Mobile Data Computer de police **100% standalone** (sans ESX / QBCore / vRP), interface NUI en HTML/CSS/Vanilla JS, style sombre moderne : boutons principaux en verre teinté (contour lumineux fin), élément sélectionné en surbrillance claire avec un trait d'accent (couleur réglable : `--accent` / `--accent-rgb` à la fin de `html/style.css`).
+Mobile Data Computer **100% standalone** (sans ESX / QBCore / vRP), interface NUI en HTML/CSS/Vanilla JS, au look
+**Windows 11** sombre et sobre (fenêtre « Mica », volet de navigation à gauche, cartes, boutons et champs Fluent,
+accent bleu clair). Les couleurs se changent dans les variables en haut de `html/style.css` (`--accent`, `--mica`…).
+
+**Trois MDC**, choisis à la première ouverture : **Générique** (rôleplay civil), **Washington State Patrol** (WSP) et
+**King County Sheriff Office** (KCSO). Même apparence pour les trois : seuls le titre (à côté de « Mobile Data
+Computer ») et le contenu changent. Il n'y a plus de services APD / GSP / FCSO.
 
 ## Installation
 
@@ -43,7 +49,7 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
    Le MDC publie son nom de ressource (`GlobalState.mdcResource`) : son dossier peut être renommé.
 3. En jeu : touche **K** (modifiable dans *Paramètres > Raccourcis clavier > FiveM*) ou `/mdc`. **Échap** pour fermer.
 
-Le dépôt contient aussi le **menu d'interactions / fiches civiles / Eye Target** dans [`rp_interact/`](../rp_interact/README.md)
+Le dépôt contient aussi le **menu d'interactions (au clavier) / fiches civiles / Eye Target** dans [`rp_interact/`](../rp_interact/README.md)
 (ressource séparée : un joueur y est « policier » quand il est dans une unité du MDC, voir l'export serveur
 `getPlayerUnit(source)` et l'état `Player(source).state.mdcUnit`). Le MDC publie son nom de ressource
 (`GlobalState.mdcResource`) : le nom de son dossier n'a pas d'importance.
@@ -87,52 +93,60 @@ la police du jeu (gangs, organisations ou forces de l'ordre) : armes réparties 
 spéciales comprises), convoi de véhicules et hélicoptère de la faction, silencieux, grenades, musique de poursuite du
 jeu, HUD en haut de l'écran. Volontairement absent du MDC et du `/tuto`.
 
+## Trois MDC (choisis à l'ouverture)
+
+À la **première ouverture** du MDC, une fenêtre demande lequel utiliser. Ce choix est **oublié à chaque connexion et
+à chaque redémarrage du serveur** (il est redemandé). On en change à tout moment, **tout en haut des Paramètres**
+(« MDC utilisé » : un clic choisit, un deuxième clic confirme ; changer de police fait quitter son unité).
+
+| MDC | Pages | Pour qui |
+|---|---|---|
+| **Générique** | Interventions, Créations, Rapports, Paramètres | rôleplay civil : voir **tous** les appels (sans les rejoindre), **modifier directement** les appels (interventions) depuis la page Interventions, créer identités, véhicules et appels |
+| **Washington State Patrol** | Unités, Interventions, Recherches, Rapports, Paramètres | policiers WSP |
+| **King County Sheriff Office** | Unités, Interventions, Recherches, Rapports, Paramètres | policiers KCSO |
+
+Les deux MDC de police sont **séparés mais liés** : chacun a **ses unités, ses appels, ses recherches et ses BOLOs** ;
+un appel peut viser **les deux polices** (appel commun, visible et rejoignable par les deux) ; les **Rapports sont
+communs** à tous les MDC. Côté serveur : export `getPlayerAgency(source)` (`'generic'`, `'wsp'`, `'kcso'` ou nil) et
+`getPlayerUnit(source)` qui donne aussi `agency`, `agencyLabel`, `agencyShort`. Polices et libellés : `Config.Agencies`
+dans `server/server.lua`.
+
 ## Fenêtre
 
-- Déplacement : glisser la barre de titre.
-- Redimensionnement : bords et coins de la fenêtre.
-- Agrandir / rétrécir : bouton ☐ ou double-clic sur la barre de titre. Bouton ↺ : position par défaut.
+- Barre de titre Windows 11 : icône, « Mobile Data Computer » et le **nom du MDC choisi**, boutons réduire /
+  agrandir / fermer. Déplacement : glisser la barre de titre ; redimensionnement : bords et coins ; agrandir /
+  rétrécir : bouton ☐ ou double-clic sur la barre de titre ; ↺ : position par défaut.
 - La position est gardée d'une ouverture à l'autre et réinitialisée à chaque reconnexion.
 
 ## Disposition de la fenêtre
 
-Interface moderne (mêmes couleurs, plus aucun effet « Windows ») en trois colonnes :
-- **à gauche, en haut** : le **nom RP** puis le **statut de l'unité**, à la verticale ; en dessous, les **BOLO
-  actifs** (type, numéro, motif ; mis à jour en direct). Chaque BOLO est une case **repliée** : un clic l'ouvre et
-  affiche ses détails (description ou véhicule, lieu, détails, date), comme les cases des fiches des Recherches ;
-  le bouton **Voir BOLO** ouvre la vraie page des BOLOs (Recherches > BOLOs) sur ce BOLO ;
-- **au centre** : le contenu de la page ouverte ;
-- **à droite** : les **6 pages à la verticale** (Unités, Interventions, Recherches, Rapports, Créations, Paramètres) ;
-- **en bas** : une **case de notes propre à l'unité** (rappels, observations… 160 caractères, partagée par tous ses
-  membres, enregistrée automatiquement pendant la frappe ; Entrée pour valider), puis la disponibilité et l'heure.
-  La note est **gardée dans l'unité** (serveur) : elle reste en changeant de page ou en rouvrant le MDC ; en changeant
-  d'unité, on voit la note de la nouvelle unité, et on retrouve l'ancienne en y revenant.
+- **Volet de navigation à gauche** : en haut, le **nom RP** et le MDC utilisé ; les **pages** du MDC ; pour les
+  polices, la carte **Mon unité** avec les **4 statuts** (2 × 2) et les **BOLO actifs** (cases repliées : un clic
+  affiche les détails, **Voir BOLO** ouvre la page des BOLOs sur celui-ci) ; tout en bas, **Paramètres**.
+- **À droite** : le **titre de la page** et son sous-titre, puis le contenu, en cartes.
+- **En bas** (polices) : une **case de notes propre à l'unité** (160 caractères, partagée par ses membres, enregistrée
+  pendant la frappe ; gardée dans l'unité côté serveur), puis la disponibilité et l'heure du jeu.
 
-Tous les boutons colorés de statut sont **carrés** (liste des statuts et listes des unités) ; le statut choisi n'est
-plus que légèrement surligné. La fenêtre est **légèrement transparente** (opacité **93 %** par défaut, de 50 à
-100 %) et, MDC ouvert, le **jeu** derrière elle est **flouté** (flou des menus du jeu) : une **case** dans
-*Paramètres > MDC* l'active ou le désactive. Les **HUD (PLD, display MDC, car HUD) restent toujours nets**. La
-**minimap** est dessinée par le jeu par-dessus l'image : aucun flou ne peut l'atteindre, elle est donc **masquée** tant
-que le flou est actif, puis réaffichée si elle l'était. Le flou est retiré à la fermeture du MDC et pendant le placement
-des HUD.
+La fenêtre est **légèrement transparente** (opacité **93 %** par défaut, de 50 à 100 %) et, MDC ouvert, le **jeu**
+derrière elle est **flouté** (case dans *Paramètres > MDC*). Les **HUD (PLD, display MDC, car HUD) restent toujours
+nets**. La **minimap** (dessinée par le jeu par-dessus tout) est **masquée** tant que le flou est actif. Le flou est
+retiré à la fermeture du MDC et pendant le placement des HUD.
 
 - **NOM RP** : il s'affiche en haut à gauche et dans les unités (le pseudo Steam/FiveM n'est jamais affiché). **Obligatoire pour
   rejoindre une unité.** Il est partagé avec le chat écrit : `/nomrp John Carter` dans le chat change aussi celui du MDC, et
   inversement. Il n'est enregistré nulle part : il est remis à zéro à chaque déconnexion (état `rpName` du joueur côté serveur).
 - **Statut de l'unité** : Disponible (vert), En route (jaune), Sur place (orange), Indisponible (rouge). Le statut est celui de l'unité rejointe.
 
-L'heure affichée en bas à droite du MDC est l'heure du jeu.
-
 ## Onglets
 
 | Onglet | Rôle |
 |---|---|
-| Unités | Trois listes, une par service : **Atlanta Police Department**, **Georgia State Patrol** et **Fayette County Sheriff Office** (chacun voit les trois). Bouton **Créer une unité** par service (service, nom, **tag** au menu déroulant : Aucun, **SUP.** (superviseur) ou **Autre** à saisir, couleur). Chaque unité porte aussi un **tag de service**, séparé du tag spécial : **APD** (bleu foncé), **GSP** (orange vif) ou **FCSO** (vert foncé). Chacun peut rejoindre (4 joueurs max par unité), quitter, modifier ou supprimer une unité (une seule unité à la fois par joueur). Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
-| Interventions | Une liste par service (**APD**, **GSP**, **FCSO**) et une liste des **appels communs** (appels de plusieurs services, avec leurs tags), affichée seulement s'il y en a et visible par les **trois** services. Policier : la liste de **son service** est en haut et toujours ouverte, la liste commune vient en deuxième et est toujours ouverte, les listes des autres services sont fermées (il peut les ouvrir pour consulter, **sans pouvoir rejoindre** leurs appels). Seuls les **services cochés** peuvent rejoindre un appel (ex. appel GSP & FCSO : visible dans la liste commune par l'APD, mais l'APD ne peut pas le rejoindre ; vérifié par le serveur). Hors unité : APD, communs, GSP, FCSO. Incident : service de l'unité déclarante toujours coché, **cases** pour y ajouter d'autres services (incident commun). Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer (ou **✕** en haut du panneau) pour le masquer : **sans appel choisi, le panneau des détails est réduit à une fine colonne** et la liste prend toute la place. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
-| Recherches | Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
-| Rapports | DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
-| Paramètres | Trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, transparence de la fenêtre, flou de l'arrière-plan (le jeu ; HUD toujours nets), case à cocher, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule ; **Menu Interaction** de `rp_interact` : taille, et emplacement avec « Placer les HUD à l'écran », appliqués aussitôt — le menu se montre un instant) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
-| Créations | Affichée **uniquement quand le mode civil est activé** (menu d'interactions F1 > Civil, rp_interact). Réservé aux civils : identité, véhicule, intervention (requérant, téléphone généré, priorité, **services de police** en **cases à cocher** (APD, GSP, FCSO : une case = appel réservé à ce service ; deux ou trois = appel commun, rejoignable par les services cochés seulement), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
+| Unités | (polices) Une liste : les unités **de votre police** seulement. Bouton **Créer une unité** (nom, **tag** au menu déroulant : Aucun, **SUP.** (superviseur) ou **Autre** à saisir, couleur) ; l'unité appartient à la police du MDC (pastille **WSP** bleue / **KCSO** verte). Chacun peut rejoindre (4 joueurs max par unité), quitter, modifier ou supprimer une unité de sa police (une seule unité à la fois par joueur). Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
+| Interventions | **Police** : les appels de **sa police** (toujours ouverts), puis les **appels communs** (WSP & KCSO) ; les appels de l'autre police ne sont **pas** visibles. Seules les polices visées peuvent rejoindre un appel (vérifié par le serveur). Incident : police de l'unité déclarante toujours cochée, **case** pour y ajouter l'autre police (incident commun). **Générique** : les listes de **chaque police** et les appels communs, **en lecture** (pas de « Rejoindre ») ; bouton **Modifier** sur les **interventions** (appels des civils) pour les corriger directement. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer (ou **✕** en haut du panneau) pour le masquer : **sans appel choisi, le panneau des détails est réduit à une fine colonne** et la liste prend toute la place. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
+| Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
+| Rapports | **Communs à tous les MDC**. DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
+| Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, transparence de la fenêtre, flou de l'arrière-plan (le jeu ; HUD toujours nets), case à cocher, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule ; **Menu Interaction** de `rp_interact` : taille, et emplacement avec « Placer les HUD à l'écran », appliqués aussitôt — le menu se montre un instant) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
+| Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, priorité, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
 
@@ -153,8 +167,8 @@ Page des **BOLOs actifs** (n°, type, motif, résumé ; filtre Individus / Véhi
   « Créer un BOLO Individu avec ce véhicule », propriétaire présélectionné).
 
 Une description non cochée ou non renseignée est affichée **Inconnue**. Cliquer sur un BOLO affiche ses détails,
-avec **Modifier** (puis Enregistrer) et **Supprimer** (deux clics). Tous les agents peuvent créer, modifier et
-supprimer un BOLO. Dans les Recherches, une fiche visée par un BOLO affiche une alerte (et l'étiquette `BOLO`
+avec **Modifier** (puis Enregistrer) et **Supprimer** (deux clics). Chaque police a **ses propres BOLOs** : les agents
+d'une police créent, modifient et suppriment les siens (les alertes BOLO ne concernent que leur police). Dans les Recherches, une fiche visée par un BOLO affiche une alerte (et l'étiquette `BOLO`
 dans les résultats) ; une immatriculation correspondant à un BOLO véhicule partiel affiche « Correspondance possible ».
 
 ### Unité : espace partagé
@@ -167,7 +181,7 @@ Les membres d'une même unité (4 au maximum) partagent en direct :
 
 ### HUD et notifications
 
-Affichages séparés, au thème du MDC (fond noir transparent, bordure grise fine et arrondie ; le car HUD, lui, sans
+Affichages séparés, au thème du MDC (fond sombre « Mica », contour fin, coins arrondis ; le car HUD, lui, sans
 fond), visibles même MDC fermé :
 
 - **PLD** (Player Localisation Display), **affiché pour chaque joueur dès sa connexion**, sans utiliser le MDC
@@ -195,11 +209,10 @@ fond), visibles même MDC fermé :
   Commande **`/mdc_streets`** (F8) : noms à votre position (et ceux du jeu), pour vérifier.
   Les blocs se dessinent dans **`config/blocks.json`** (cercles, rectangles, polygones, filtre par rue) : voir
   `config/LISEZMOI.txt` ; la commande `/mdc_pos` (console F8) donne la ligne à copier.
-- **Display MDC** : affiché seulement dans une unité : « **[N° d'unité] • [SERVICE]** » (ex. `417 • GSP`, tag de
-  service APD bleu foncé / GSP orange vif / FCSO vert foncé) suivi du tag spécial (ex. SUP.), statut, n° d'incident (uniquement quand
-  l'unité est sur un appel), **secteur** (zone de jeu) et **service principal** (APD, GSP, FCSO ou plusieurs) choisis dans le
-  menu d'interactions (`rp_interact`, Police, tout en bas) : « aucun sélectionné » tant que rien n'est choisi. Chaque
-  ligne se masque dans « Paramètres ».
+- **Display MDC** : affiché seulement dans une unité : « **[N° d'unité] • [POLICE]** » (ex. `417 • WSP`, pastille
+  WSP bleue / KCSO verte) suivi du tag spécial (ex. SUP.), statut, n° d'incident (uniquement quand l'unité est sur un
+  appel) et **secteur** (zone de jeu) choisi dans le Menu Interaction (`rp_interact`, Police > Display MDC) : « aucun
+  sélectionné » tant que rien n'est choisi. Chaque ligne se masque dans « Paramètres ».
 - **Car HUD**, à bord d'un véhicule : **toujours affiché pour le conducteur**, entièrement **grisé moteur coupé** et
   qui **s'illumine au démarrage** ; seulement le logo de la ceinture pour les passagers ; **au-dessus de la minimap** et **sans aucun fond** (ni opaque, ni transparent,
   ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple nombre), une fine **barre horizontale
@@ -217,15 +230,15 @@ fond), visibles même MDC fermé :
   ([`rp_vehiclecontrol/`](../rp_vehiclecontrol/README.md)) : sans cette ressource, le car HUD n'apparaît pas
   (`client/carhud.lua` ne fait que relayer ses données au NUI, sans boucle).
 - **Notifications** (en haut à droite) : toutes les notifications du MDC, et, même MDC fermé : nouvel appel
-  (titre, service, priorité, adresse, croisement, bloc) et nouvel incident (titre, unité créatrice, adresse,
-  croisement, bloc) pour **les membres des unités du service de l'appel uniquement** ; changement de statut pour les
+  (titre, police, priorité, adresse, croisement, bloc) et nouvel incident (titre, unité créatrice, adresse,
+  croisement, bloc) pour **les membres des unités de la police de l'appel uniquement** ; changement de statut pour les
   membres de l'unité.
-- **Unités les plus proches** : quand un civil émet un appel, les unités **Disponibles** du service choisi les plus
+- **Unités les plus proches** : quand un civil émet un appel, les unités **Disponibles** de la police choisie les plus
   proches du civil (autant que le nombre idéal d'unités, 4 max ; jamais une unité au tag **SUP.**, c'est alors la
   suivante qui est choisie) reçoivent à la place une notification différente : « **Vous êtes l'une des unités les plus
   proches** », avec **Y** pour accepter (l'unité est rattachée à l'appel et passe « En route », sans ouvrir le MDC) ou
   **N** pour refuser (30 s pour répondre, `OfferTimeout`). Refus ou sans réponse : l'unité suivante la plus proche est
-  sollicitée. Les autres unités du service gardent la notification habituelle et peuvent rejoindre l'appel depuis le
+  sollicitée. Les autres unités de la police gardent la notification habituelle et peuvent rejoindre l'appel depuis le
   MDC. Touches modifiables : Paramètres > Raccourcis clavier > FiveM > « MDC : accepter / refuser l'appel ».
   Position des joueurs lue par le serveur (**OneSync**) ; à défaut, la position du civil est envoyée par son jeu. Chacune se désactive dans
   « Paramètres ». Un son accompagne les nouveaux appels (deux tons) et incidents (trois tons) : son **volume (0 à 100 %)**

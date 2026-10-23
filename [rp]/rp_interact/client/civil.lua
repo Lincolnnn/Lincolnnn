@@ -117,7 +117,6 @@ end
 local function setCivilMode(enabled)
     civilMode = enabled == true
     SetResourceKvp(KVP_KEY, civilMode and '1' or '0')
-    LocalPlayer.state:set('rpiCivilMode', civilMode, false) -- MDC : page "Créations" en mode civil uniquement
     if not civilMode then tips.shown, tips.aimed = false, false end
     renderTips()
 end
