@@ -1,22 +1,22 @@
-/* RP Equipment : thème sombre "Windows 11" (Fluent), sobre : mêmes couleurs que le MDC */
+/* RP Equipment : thème CLAIR "Windows 11" (Fluent), sobre : mêmes couleurs que le MDC */
 :root {
-    --mica:      20, 25, 34;
-    --card:      rgba(140, 170, 220, .06);
-    --card-2:    rgba(140, 170, 220, .1);
-    --card-3:    rgba(140, 170, 220, .16);
-    --stroke:    rgba(140, 170, 220, .13);
-    --stroke-2:  rgba(140, 170, 220, .22);
-    --text:      #f2f6fc;
-    --text-2:    rgba(226, 234, 246, .82);
-    --muted:     rgba(200, 214, 234, .58);
-    --faint:     rgba(200, 214, 234, .36);
-    --accent:    #3b8cf6;
-    --accent-rgb: 59, 140, 246;
+    --mica:      243, 245, 248;
+    --card:      #ffffff;
+    --card-2:    rgba(0, 0, 0, .045);
+    --card-3:    rgba(0, 0, 0, .075);
+    --stroke:    rgba(0, 0, 0, .09);
+    --stroke-2:  rgba(0, 0, 0, .15);
+    --text:      #1b1f24;
+    --text-2:    rgba(20, 26, 34, .76);
+    --muted:     rgba(20, 26, 34, .56);
+    --faint:     rgba(20, 26, 34, .38);
+    --accent:    #0067c0;
+    --accent-rgb: 0, 103, 192;
     --accent-ink: #ffffff;
-    --danger:    #ff99a4;
-    --ok:        #6ccb5f;
-    --radius:    8px;
-    --radius-sm: 4px;
+    --danger:    #c42b1c;
+    --ok:        #107c10;
+    --radius:    5px;                          /* presque carré (Windows 11) */
+    --radius-sm: 3px;
     --font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "Inter", system-ui, -apple-system, Roboto, Arial, sans-serif;
     --font-display: "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", system-ui, Arial, sans-serif;
 }
@@ -31,8 +31,8 @@ html, body {
     position: absolute; right: 4vw; top: 50%; transform: translateY(-50%);
     width: 380px; max-height: 86vh; overflow-y: auto;
     display: flex; flex-direction: column;
-    background: rgba(var(--mica), .96); border: 1px solid var(--stroke-2); border-radius: var(--radius);
-    box-shadow: 0 32px 64px rgba(0, 0, 0, .56), 0 2px 21px rgba(0, 0, 0, .55);
+    background: rgba(var(--mica), .98); border: 1px solid var(--stroke-2); border-radius: var(--radius);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, .28), 0 2px 10px rgba(0, 0, 0, .14);
     animation: eq-in .14s ease-out;
 }
 @keyframes eq-in { from { opacity: 0; transform: translateY(-50%) translateX(12px); } }
@@ -78,20 +78,20 @@ html, body {
 /* Boutons Fluent */
 .eq-btn {
     flex-shrink: 0; height: 30px; padding: 0 12px; cursor: pointer;
-    background: var(--card-2); color: var(--text); font: 12.5px var(--font);
-    border: 1px solid var(--stroke-2); border-bottom-color: rgba(255, 255, 255, .07); border-radius: var(--radius-sm);
+    background: #ffffff; color: var(--text); font: 12.5px var(--font);
+    border: 1px solid var(--stroke-2); border-bottom-color: rgba(0, 0, 0, .24); border-radius: var(--radius-sm);
 }
-.eq-btn:hover { background: var(--card-3); }
-.eq-btn:active { background: var(--card); color: var(--text-2); }
-.eq-btn:disabled { color: var(--faint); background: var(--card); cursor: default; }
+.eq-btn:hover { background: #f6f7f9; }
+.eq-btn:active { background: #f0f1f3; color: var(--text-2); }
+.eq-btn:disabled { color: var(--faint); background: #f6f7f9; cursor: default; }
 .eq-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
-.eq-primary:hover:not(:disabled) { background: #5aa0ff; }
-.eq-primary:disabled { background: rgba(var(--accent-rgb), .18); border-color: transparent; color: rgba(255, 255, 255, .45); }
+.eq-primary:hover:not(:disabled) { background: #1975c5; }
+.eq-primary:disabled { background: rgba(var(--accent-rgb), .18); border-color: transparent; color: rgba(255, 255, 255, .85); }
 
 .eq-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .eq-slot {
     display: flex; flex-direction: column; gap: 6px; min-height: 104px;
-    padding: 10px; border-radius: var(--radius-sm); border: 1px dashed var(--stroke-2); background: rgba(0, 0, 0, .15);
+    padding: 10px; border-radius: var(--radius-sm); border: 1px dashed var(--stroke-2); background: rgba(0, 0, 0, .025);
 }
 .eq-slot.full { border-style: solid; border-color: rgba(var(--accent-rgb), .4); background: rgba(var(--accent-rgb), .06); }
 .eq-slot.target { box-shadow: inset 3px 0 0 var(--accent); }
@@ -109,13 +109,13 @@ html, body {
 .eq-foot { padding: 8px 12px 10px; font-size: 11px; color: var(--muted); text-align: center; border-top: 1px solid var(--stroke); margin-top: 8px; }
 
 ::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border: 3px solid transparent; border-radius: 10px; background-clip: padding-box; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, .22); border: 3px solid transparent; border-radius: 10px; background-clip: padding-box; }
 
 /* Coffre : plots de circulation, jerrican, fusées */
 .eq-stock { display: flex; flex-direction: column; gap: 8px; }
 .eq-stock-row {
     display: flex; align-items: center; gap: 10px; padding: 9px 10px;
-    background: rgba(0, 0, 0, .12); border: 1px solid var(--stroke); border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, .025); border: 1px solid var(--stroke); border-radius: var(--radius-sm);
 }
 .eq-stock-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .eq-stock-name { font-weight: 600; }
