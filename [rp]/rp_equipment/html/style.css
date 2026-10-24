@@ -88,7 +88,7 @@ html, body {
 .eq-primary:hover:not(:disabled) { background: #1975c5; }
 .eq-primary:disabled { background: rgba(var(--accent-rgb), .18); border-color: transparent; color: rgba(255, 255, 255, .85); }
 
-.eq-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.eq-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .eq-slot {
     display: flex; flex-direction: column; gap: 6px; min-height: 104px;
     padding: 10px; border-radius: var(--radius-sm); border: 1px dashed var(--stroke-2); background: rgba(0, 0, 0, .025);
@@ -155,3 +155,46 @@ html, body {
 .eq-sub { color: rgba(255, 255, 255, .82); }
 .eq-tag { background: rgba(255, 255, 255, .18) !important; border: 1px solid rgba(255, 255, 255, .25); }
 .eq-close { color: #fff; }
+
+/* =========================================================================
+   MODE NUIT (réglé dans le MDC : Paramètres > MDC > Apparence ; <html data-theme="night">, client/theme.lua)
+   Fond noir très sombre, tout en VERT : titres vert foncé, texte vert clair ; les couleurs du mode jour deviennent des
+   nuances de vert plus claires ou plus sombres. Aucune autre couleur.
+   ========================================================================= */
+[data-theme="night"] .equip {
+    background: rgba(2, 8, 4, .97); border-color: rgba(60, 255, 130, .28); color: var(--text);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, .7), 0 0 0 1px rgba(60, 255, 130, .08);
+    --accent: #3ddc74; --accent-rgb: 61, 220, 116; --text: #a8ffc6; --text-2: rgba(150, 245, 185, .84);
+    --muted: rgba(110, 205, 145, .64); --line: rgba(60, 255, 130, .18); --danger: #e6fff0; --ok: #7dffa8;
+    --head-color: #0f4d26 !important;
+}
+[data-theme="night"] [data-theme="night"] .eq-legend { color: #24b955; }
+[data-theme="night"] .eq-head { background: radial-gradient(120% 140% at 0% 0%, rgba(120, 255, 170, .12), transparent 55%), linear-gradient(125deg, #0f4d26 0%, #0a3519 55%, #04170b 100%); border-bottom-color: rgba(60, 255, 130, .25); }
+[data-theme="night"] .eq-name { color: #c6ffd9; }
+[data-theme="night"] .eq-sub { color: rgba(150, 245, 185, .8); }
+[data-theme="night"] .eq-tag { color: #c6ffd9; background: rgba(60, 255, 130, .14) !important; border-color: rgba(60, 255, 130, .3) !important; box-shadow: none; }
+[data-theme="night"] .eq-close { color: #c6ffd9; }
+[data-theme="night"] .eq-close:hover { background: #1d7a3f; color: #eafff1; }
+[data-theme="night"] .eq-section, [data-theme="night"] .eq-kind, [data-theme="night"] .eq-item, [data-theme="night"] .eq-summary, [data-theme="night"] .eq-chip, [data-theme="night"] .eq-faction, [data-theme="night"] .eq-weapon, [data-theme="night"] .eq-stock-row, [data-theme="night"] .eq-slot { background: rgba(7, 24, 13, .92); border-color: rgba(60, 255, 130, .18); }
+[data-theme="night"] .eq-kind:hover, [data-theme="night"] .eq-faction:hover { background: rgba(60, 255, 130, .08); border-color: rgba(60, 255, 130, .45); }
+[data-theme="night"] .eq-faction.active, [data-theme="night"] .eq-chip.active, [data-theme="night"] .eq-seg-btn.active { background: rgba(60, 255, 130, .16); border-color: rgba(60, 255, 130, .6); color: #c6ffd9; }
+[data-theme="night"] .eq-input, [data-theme="night"] .eq-box { background: #030b06; color: var(--text); border-color: rgba(60, 255, 130, .2); border-bottom-color: rgba(60, 255, 130, .5); }
+[data-theme="night"] .eq-input:focus { background: #030b06; }
+[data-theme="night"] select.eq-input option, [data-theme="night"] select.eq-input optgroup { background: #030b06; color: var(--text); }
+[data-theme="night"] .eq-seg { background: rgba(60, 255, 130, .05); }
+[data-theme="night"] .eq-btn, [data-theme="night"] .eq-qty-btn { background: #04100a; color: var(--text); border-color: rgba(60, 255, 130, .34); border-bottom-color: rgba(60, 255, 130, .5); }
+[data-theme="night"] .eq-btn:hover, [data-theme="night"] .eq-qty-btn:hover:not(:disabled) { background: #082414; }
+[data-theme="night"] .eq-primary, [data-theme="night"] .eq-listen.playing { background: #0e4a24; border-color: #2fbf5f; color: #c6ffd9; }
+[data-theme="night"] .eq-primary:hover, [data-theme="night"] .eq-primary:hover:not(:disabled) { background: #136030; }
+[data-theme="night"] .eq-primary:disabled { background: #04100a; color: var(--muted); }
+[data-theme="night"] .eq-danger, [data-theme="night"] .eq-danger:hover, [data-theme="night"] .eq-danger:hover:not(:disabled), [data-theme="night"] .eq-remove:hover { background: #1d7a3f; border-color: #3ddc74; color: #eafff1; }
+[data-theme="night"] .eq-step { color: #c6ffd9; background: rgba(60, 255, 130, .14); box-shadow: inset 0 0 0 1px rgba(60, 255, 130, .5); }
+[data-theme="night"] .eq-badge { color: #021006; }
+[data-theme="night"] .eq ::-webkit-scrollbar-thumb, [data-theme="night"] ::-webkit-scrollbar-thumb { background: rgba(60, 255, 130, .25); background-clip: padding-box; }
+[data-theme="night"] .equip { --card: rgba(7, 24, 13, .92); --card-2: rgba(60, 255, 130, .06); --card-3: rgba(60, 255, 130, .11);
+    --stroke: rgba(60, 255, 130, .16); --stroke-2: rgba(60, 255, 130, .3); --faint: rgba(110, 205, 145, .42); --accent-ink: #021006; }
+[data-theme="night"] .eq-item.worn { background: rgba(60, 255, 130, .08); }
+[data-theme="night"] .eq-check { color: #7dffa8; }
+[data-theme="night"] .eq-slot.full { border-color: rgba(60, 255, 130, .45); background: rgba(60, 255, 130, .07); }
+[data-theme="night"] .eq-stock-bar span { background: #3ddc74; }
+[data-theme="night"] .eq-head { border-bottom-color: rgba(60, 255, 130, .25); }

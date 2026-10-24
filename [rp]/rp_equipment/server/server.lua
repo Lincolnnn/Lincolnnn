@@ -179,6 +179,36 @@ local function loadRacks()
 end
 loadRacks()
 
+--- Anciens emplacements (une arme par sorte : shotgun, rifle…) : armes déplacées dans les emplacements actuels
+--- libres (fusil à pompe -> avant, fusil d'assaut -> coffre) ; aucune arme n'est perdue
+local function migrateRacks()
+    local known, prefer = {}, { shotgun = 'front', rifle = 'trunk' }
+    for _, slot in ipairs(Config.LongGuns.Slots) do known[slot.Id] = true end
+    local changed = false
+    for plate, rack in pairs(Racks) do
+        local old = {} -- liste d'abord : ajouter des clés pendant un parcours pairs() est interdit
+        for id in pairs(rack) do if not known[id] then old[#old + 1] = id end end
+        table.sort(old, function(a, b) return tostring(a) < tostring(b) end)
+        for _, id in ipairs(old) do
+            local weapon = rack[id]
+            local target = prefer[id] and known[prefer[id]] and not rack[prefer[id]] and prefer[id] or nil
+            if not target then
+                for _, slot in ipairs(Config.LongGuns.Slots) do
+                    if not rack[slot.Id] then target = slot.Id break end
+                end
+            end
+            if target then
+                rack[target], rack[id] = weapon, nil
+                changed = true
+            else
+                print(('^3[rp_equipment] %s : arme "%s" gardée dans l\'ancien emplacement "%s" (aucun emplacement libre)^7')
+                    :format(plate, tostring(weapon.label), id))
+            end
+        end
+    end
+    return changed
+end
+
 local function saveRacks()
     SaveResourceFile(GetCurrentResourceName(), Config.LongGuns.SaveFile, json.encode(Racks, { indent = true }), -1)
 end
@@ -187,6 +217,8 @@ local function plateOf(vehicle)
     local plate = trim(GetVehicleNumberPlateText(vehicle))
     return plate ~= '' and plate:upper() or nil
 end
+
+if migrateRacks() then saveRacks() end
 
 --- Résumé d'un râtelier pour le menu : [emplacement] = { label, components } ou false
 local function rackSummary(plate)
@@ -239,6 +271,9 @@ end
 local SLOTS = {}
 for _, slot in ipairs(Config.LongGuns.Slots) do SLOTS[slot.Id] = slot end
 
+--- Emplacement accessible d'ici : l'avant seulement des portières avant, le coffre seulement du coffre
+local function slotHere(slot, where) return slot ~= nil and allowedWhere(slot.Where, where) end
+
 --- Contexte d'une demande : unité, véhicule, type, plaque ; nil + erreur
 local function context(src, data)
     if type(data) ~= 'table' then return nil, 'Demande invalide.' end
@@ -254,7 +289,11 @@ end
 
 local function rackAllowed(ctx)
     local lg = Config.LongGuns
-    return allowedWhere(lg.Where, ctx.where) and allowedFor(lg, ctx.kind)
+    if not allowedFor(lg, ctx.kind) then return false end
+    for _, slot in ipairs(lg.Slots) do
+        if slotHere(slot, ctx.where) then return true end
+    end
+    return false
 end
 
 -- =========================================================================
@@ -563,6 +602,7 @@ function Handlers.store(src, data)
     local slot = SLOTS[tostring(data.slot)]
     local w = type(data.weapon) == 'table' and data.weapon or nil
     if not slot or not w or type(w.hash) ~= 'number' then return { ok = false, error = 'Arme invalide.' } end
+    if not slotHere(slot, ctx.where) then return { ok = false, error = ('"%s" : pas accessible d\'ici.'):format(slot.Label) } end
     local ped = GetPlayerPed(src)
     local current = GetSelectedPedWeapon(ped) -- arme en main (synchronisée) ; 0 / nil : non disponible
     if current and current ~= 0 and (current & 0xFFFFFFFF) ~= (w.hash & 0xFFFFFFFF) then
@@ -599,6 +639,7 @@ function Handlers.retrieve(src, data)
     if not ctx then return { ok = false, error = err } end
     if not rackAllowed(ctx) or not ctx.plate then return { ok = false, error = 'Pas de râtelier ici.' } end
     local slot = SLOTS[tostring(data.slot)]
+    if slot and not slotHere(slot, ctx.where) then return { ok = false, error = ('"%s" : pas accessible d\'ici.'):format(slot.Label) } end
     local rack = Racks[ctx.plate]
     local weapon = slot and rack and rack[slot.Id]
     if not weapon then return { ok = false, error = 'Cet emplacement est vide.' } end

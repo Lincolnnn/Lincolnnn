@@ -117,6 +117,8 @@
         box.style.setProperty('--head-color', t.color || '#2d63b3'); // bannière : couleur de la police du véhicule
         $('eqTag').title = t.label || '';
         $('eqSub').textContent = `${data.where === 'trunk' ? 'Coffre' : 'Portières avant'}${data.plate ? ` · ${data.plate}` : ''}`;
+        // une arme longue à l'avant, une dans le coffre : chacune ne se prend que là où elle est rangée
+        $('eqRackLegend').textContent = data.where === 'trunk' ? 'Arme longue · coffre' : 'Arme longue · avant';
         $('eqFoot').textContent = `Se ferme à plus de ${data.closeDistance || 4} m du véhicule · Échap pour fermer`;
         state = { slots: Array.isArray(data.slots) ? data.slots : [], rack: data.rack || {}, held: false, freemode: data.freemode !== false,
             stock: data.stock || false, inv: state.inv, coneQty: 1 };
@@ -151,6 +153,11 @@
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !box.classList.contains('hidden')) post('close');
+    });
+
+    // Mode nuit des menus (MDC : Paramètres > MDC > Apparence), envoyé par client/theme.lua
+    window.addEventListener('message', ({ data }) => {
+        if (data && data.action === 'uiTheme') document.documentElement.dataset.theme = data.data && data.data.theme === 'night' ? 'night' : 'day';
     });
 
     window.addEventListener('message', (event) => {

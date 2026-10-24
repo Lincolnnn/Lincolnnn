@@ -11,6 +11,8 @@ la touche **E** (modifiable) ouvre le menu **Équipement** du véhicule.
 2. Dans `server.cfg`, après le MDC et `rp_interact` : `ensure rp_equipment`
 3. Touche : *Paramètres > Raccourcis clavier > FiveM > « Véhicule de police : menu Équipement »*.
 
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour le menu Équipement (`client/theme.lua` ; sans le MDC : thème jour).
+
 ## Qui y a accès
 
 Les **policiers en service** : les joueurs dans une unité du MDC. Le MDC est trouvé **quel que soit le nom de son
@@ -77,10 +79,17 @@ avoir modifié le fichier de rp_interact : tapez `rpequip_reload` dans la consol
 
 ## Armes longues (râtelier)
 
-- Par défaut, un véhicule n'a **aucune** arme longue. Il peut en stocker **deux** : un **fusil à pompe** et un
-  **fusil d'assaut** (groupes d'armes `GROUP_SHOTGUN` / `GROUP_RIFLE`).
-- **« Ranger l'arme longue »** : le policier doit **tenir l'arme dans les mains**. Elle va dans l'emplacement qui
-  lui correspond, s'il est libre. Le menu indique l'arme tenue et si son emplacement est déjà occupé.
+- Par défaut, un véhicule n'a **aucune** arme longue. Il a **deux emplacements séparés**, **une arme longue
+  chacun** (fusil à pompe, fusil d'assaut, fusil de précision, mitrailleuse : `LongGuns.Groups`) :
+  - **à l'avant** (habitacle) : menu ouvert à une **portière avant** ;
+  - **dans le coffre** : menu ouvert au **coffre**.
+  Une arme rangée à l'avant **ne se reprend qu'à l'avant**, une arme rangée dans le coffre **qu'au coffre** : le
+  menu ne montre que l'emplacement de l'endroit où l'on est (le serveur vérifie aussi).
+- **« Ranger l'arme longue »** : le policier doit **tenir l'arme dans les mains**. Elle va dans l'emplacement de
+  l'endroit où il est (avant ou coffre), s'il est libre. Le menu indique l'arme tenue et si l'emplacement est déjà
+  occupé.
+- Ancien `data/racks.json` (un emplacement par sorte d'arme) : converti tout seul au démarrage (fusil à pompe ->
+  avant, fusil d'assaut -> coffre ; aucune arme perdue).
 - L'arme est **sauvegardée telle quelle** : modèle, **accessoires** (lampe, viseur, poignée, silencieux, chargeur,
   bouche, canon, camouflage…), **teinte** de l'arme et des accessoires. Pas de gestion des munitions.
 - **« Sortir l'arme »** : lui **ou un collègue** la récupère **identique**, directement en main, avec 250 munitions
@@ -160,7 +169,7 @@ menu** (jamais ceux du décor).
 | `EquipmentFile`, `Eup` | fichier de l'équipement EUP (`equipment.json`), numéros comptés à partir de 1 |
 | `OpenFrontDoor` | ouvrir la portière avant la plus proche pendant le menu |
 | `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` = 5 portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), jerrican (`Jerrycans` : 1 plein d'origine, 1 max, `Ammo` = plein), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |
-| `LongGuns` | râtelier : endroit (`Where`), types concernés, emplacements et groupes d'armes, munitions données (`GiveAmmo`), fichier de sauvegarde, accessoires et noms en plus |
+| `LongGuns` | râtelier : types concernés, armes longues acceptées (`Groups`), emplacements (`Slots` : avant / coffre, `Where`), munitions données (`GiveAmmo`), fichier de sauvegarde, accessoires et noms en plus |
 
 ## Performance
 

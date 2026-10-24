@@ -170,12 +170,17 @@ local function weaponLabel(hash)
     return name and NAMES[name] or 'Arme longue', name
 end
 
---- Emplacement du râtelier qui accepte cette arme (groupe d'arme), ou nil
-local function slotFor(hash)
+--- Emplacement accessible d'ici (avant : portières avant, coffre : coffre)
+local function slotHere(slot, where) return slot.Where == nil or slot.Where == 'both' or slot.Where == where end
+
+--- Emplacement du râtelier, accessible d'ici (`where`), qui accepte cette arme (groupe d'arme), ou nil
+local function slotFor(hash, where)
     local group = GetWeapontypeGroup(hash)
     for _, slot in ipairs(Config.LongGuns.Slots) do
-        for _, g in ipairs(slot.Groups or {}) do
-            if GetHashKey(g) == group then return slot end
+        if slotHere(slot, where) then
+            for _, g in ipairs(slot.Groups or Config.LongGuns.Groups or {}) do
+                if GetHashKey(g) == group then return slot end
+            end
         end
     end
     return nil
@@ -214,11 +219,11 @@ local function giveStored(ped, w)
     SetCurrentPedWeapon(ped, hash, true)
 end
 
---- Arme tenue : { slot, label } si elle peut aller au râtelier, sinon nil
-local function heldLongGun(ped)
+--- Arme tenue : { slot, label } si elle peut aller au râtelier d'ici (`where`), sinon nil
+local function heldLongGun(ped, where)
     local hash = GetSelectedPedWeapon(ped)
     if hash == 0 or hash == GetHashKey('WEAPON_UNARMED') then return nil end
-    local slot = slotFor(hash)
+    local slot = slotFor(hash, where)
     if not slot then return nil end
     return { hash = hash, slot = slot.Id, label = (weaponLabel(hash)) }
 end
@@ -303,15 +308,18 @@ local function setAssets(all)
     end
 end
 
-local function slotsView()
+--- Emplacements accessibles d'ici seulement (l'avant ou le coffre)
+local function slotsView(where)
     local list = {}
-    for _, slot in ipairs(Config.LongGuns.Slots) do list[#list + 1] = { id = slot.Id, label = slot.Label } end
+    for _, slot in ipairs(Config.LongGuns.Slots) do
+        if slotHere(slot, where) then list[#list + 1] = { id = slot.Id, label = slot.Label } end
+    end
     return list
 end
 
 local function sendHeld()
     if not open then return end
-    local held = heldLongGun(PlayerPedId())
+    local held = heldLongGun(PlayerPedId(), open.where)
     local key = held and (held.hash .. held.slot) or ''
     if key == lastHeld then return end
     lastHeld = key
@@ -405,7 +413,7 @@ local function openMenu(access)
             where = access.where, plate = res.plate,
             assets = (function() setAssets(res.assets) return assetsView() end)(),
             freemode = gender(PlayerPedId()) ~= nil,
-            slots = res.rack and slotsView() or {}, rack = res.rack or {},
+            slots = res.rack and slotsView(access.where) or {}, rack = res.rack or {},
             stock = res.stock or false,
             closeDistance = Config.CloseDistance or 4.0,
         } })
@@ -462,10 +470,10 @@ RegisterNUICallback('store', function(_, cb)
     cb({ ok = true })
     if not open then return end
     local ped = PlayerPedId()
-    local held = heldLongGun(ped)
+    local held = heldLongGun(ped, open.where)
     if not held then
         return SendNUIMessage({ action = 'message', data = { error = true,
-            text = 'Tenez dans les mains l\'arme longue à ranger (fusil à pompe ou fusil d\'assaut).' } })
+            text = 'Tenez dans les mains l\'arme longue à ranger (fusil à pompe, fusil d\'assaut…).' } })
     end
     local payload = context()
     payload.slot, payload.weapon = held.slot, capture(ped, held.hash)

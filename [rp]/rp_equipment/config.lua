@@ -50,17 +50,20 @@ EquipConfig = {
     Eup = { OneBased = true },    -- numéros comptés à partir de 1, comme les tenues du /eup (rp_interact)
 
     -- ---------------------------------------------------------------------
-    -- RÂTELIER D'ARMES LONGUES : vide par défaut, un emplacement par sorte d'arme. Le policier range l'arme
+    -- RÂTELIER D'ARMES LONGUES : vide par défaut. DEUX emplacements séparés, une arme longue chacun : l'AVANT
+    -- (portières avant) et le COFFRE. Une arme rangée à l'avant ne se reprend qu'à l'avant, une arme rangée dans le
+    -- coffre qu'au coffre (Slots : Where = 'front' / 'trunk'). Le policier range l'arme
     -- qu'il TIENT EN MAIN ("Ranger l'arme longue") : modèle, accessoires et teintes sont gardés ; lui ou un
     -- collègue la ressort à l'identique (pas de gestion des munitions : l'arme ressort avec GiveAmmo). Sauvegardé par plaque (data/racks.json) : gardé au
     -- redémarrage du serveur et quand le véhicule réapparaît avec la même plaque.
     -- ---------------------------------------------------------------------
     LongGuns = {
-        Where = 'both',           -- 'front', 'trunk' ou 'both'
         Vehicles = nil,           -- types de véhicules qui ont un râtelier (nil : tous)
+        -- Armes longues acceptées (groupes d'armes du jeu) ; un emplacement peut avoir ses propres Groups
+        Groups = { 'GROUP_SHOTGUN', 'GROUP_RIFLE', 'GROUP_SNIPER', 'GROUP_MG' },
         Slots = {
-            { Id = 'shotgun', Label = 'Fusil à pompe',   Groups = { 'GROUP_SHOTGUN' } },
-            { Id = 'rifle',   Label = 'Fusil d\'assaut', Groups = { 'GROUP_RIFLE' } },
+            { Id = 'front', Label = 'Avant (habitacle)', Where = 'front' },
+            { Id = 'trunk', Label = 'Coffre',            Where = 'trunk' },
         },
         SaveFile = 'data/racks.json',
         GiveAmmo = 250,           -- munitions données avec l'arme quand elle est sortie
