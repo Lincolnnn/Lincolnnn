@@ -210,6 +210,72 @@ VCConfig = {
         SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
     },
 
+    -- DÉBRIS : après un gros choc (violence d'au moins Min, pas un piéton ni un plot), des morceaux de carrosserie
+    -- restent sur la route du côté touché (Base + 1 par Step de violence, au plus Max ; objets Models posés à plat,
+    -- sans collision) avec une gerbe d'étincelles (Effect). Vus par les joueurs à moins de Range m (relayé par le
+    -- serveur), retirés après Lifetime ms ; MaxPieces au plus autour de soi (les plus anciens disparaissent).
+    -- /cleardebris : retire les débris et le verre autour de soi (chez soi). /cleardebrisall : chez tous les joueurs,
+    -- réservé à la permission ACE ClearAllAce (server.cfg : add_ace group.admin rp_vehiclecontrol.cleardebris allow).
+    Debris = {
+        Enabled = true, Min = 32.0, Base = 2, Step = 12.0, Max = 7, Spread = 1.4,
+        Lifetime = 600000, MaxPieces = 120, Range = 150.0,
+        Models = { 'prop_rub_carpart_02', 'prop_rub_carpart_03', 'prop_rub_carpart_04', 'prop_rub_carpart_05' },
+        Effect = { 'core', 'bul_carmetal', 2.5 },
+        Command = 'cleardebris', CommandAll = 'cleardebrisall', ClearAllAce = 'rp_vehiclecontrol.cleardebris',
+        ClearRange = 60.0,
+        SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
+    },
+
+    -- TERRAIN : sol sous le véhicule (lu toutes les Interval ms en roulant). Sur l'herbe, la terre, le gravier, le
+    -- sable, la boue, la neige : moins de puissance (Power : 1 = normal), vitesse freinée au-dessus de MaxSpeed MPH et
+    -- adhérence réduite (Grip = true : le véhicule glisse). Sol détrempé (pluie d'au moins RainLevel) : effet x Rain.
+    -- ClassFactor : part de l'effet subie selon le type de véhicule (tout-terrain, SUV, militaires presque pas ;
+    -- sportives, supercars davantage). Surfaces : codes de matière du jeu (/vcsurface, si Debug = true, affiche celui
+    -- sous le véhicule pour en ajouter).
+    Terrain = {
+        Enabled = true, Interval = 250, MinSpeed = 8.0, Rain = 1.35, RainLevel = 0.25, Debug = false,
+        Surfaces = {
+            grass  = { Power = 0.82, MaxSpeed = 70.0, Grip = false, Materials = { 1333033863, -1286696947, -461750719, -1833527165, 581794674 } },
+            dirt   = { Power = 0.88, MaxSpeed = 75.0, Grip = false, Materials = { -1885547121, -700658213, 1144315879, 560985072 } },
+            gravel = { Power = 0.85, MaxSpeed = 70.0, Grip = true,  Materials = { 951832588, 2128369009, -356706482 } },
+            sand   = { Power = 0.62, MaxSpeed = 45.0, Grip = true,  Materials = { -1595148316, 510490462, 909950165, -1907520769, 1288448767, -1918439396 } },
+            mud    = { Power = 0.55, MaxSpeed = 40.0, Grip = true,  Materials = { -1942898710, 1635937914, 1109728704 } },
+        },
+        ClassFactor = { [9] = 0.2, [19] = 0.2, [2] = 0.55, [10] = 0.6, [11] = 0.7, [20] = 0.7, [12] = 0.85, [6] = 1.2, [7] = 1.35, [5] = 1.15 },
+        SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
+    },
+
+    -- OCCUPANTS : chaque joueur à bord ressent un gros choc (violence d'au moins Min ; pas un piéton ni un plot).
+    -- Blessure (Injury) : (violence - Min) x Factor points de vie (x Belted avec la ceinture), au plus Max, jamais sous
+    -- MinHealth (100 = mort : ce script ne tue pas). Effets (Effects) : flash blanc à partir de Flash, vue troublée et
+    -- caméra qui tangue (Shake) pendant (violence - Min) x Duration ms (au plus MaxDuration, x Belted avec la ceinture).
+    -- Sonné (Stun) : à partir de Min, plus de volant ni de pédales pendant Time ms (x Belted avec la ceinture).
+    -- Vue à la première personne (FirstPerson) : la tête part avec le choc (Kick degrés).
+    Occupants = {
+        Enabled = true, Min = 28.0, Cooldown = 1500,
+        Injury = { Enabled = true, Factor = 1.3, Belted = 0.35, Max = 70, MinHealth = 115 },
+        Effects = { Enabled = true, Flash = 40.0, Duration = 160, MaxDuration = 9000, Belted = 0.6, Shake = 'DRUNK_SHAKE', ShakeAmp = 0.8, Blur = 'hud_def_blur' },
+        Stun = { Enabled = true, Min = 50.0, Time = { 1500, 3500 }, Belted = 0.5 },
+        FirstPerson = { Enabled = true, Kick = 9.0 },
+        SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
+    },
+
+    -- /inspectvehicle : état du véhicule où l'on est (ou du plus proche, Distance m) : moteur, carrosserie, réservoir,
+    -- essence, pneus, roues, portières / capot / coffre, pare-chocs, vitres, phares. Affiché Duration ms (la commande
+    -- refait disparaît la fiche).
+    Inspect = { Command = 'inspectvehicle', Distance = 5.0, Duration = 15000 },
+
+    -- /fieldrepair : réparation de fortune, à pied, devant le capot (FrontDistance m) : animation de Duration ms (capot
+    -- ouvert), annulée en s'éloignant ou en montant ; le moteur remonte à Engine (s'il est plus bas) : le véhicule roule
+    -- de nouveau, puissance réduite. Au plus Max réparations de fortune par véhicule (une vraie réparation remet le
+    -- compte à zéro). Moteur détruit : seulement si AllowDestroyed. Restricted = true : permission ACE
+    -- "command.fieldrepair".
+    FieldRepair = {
+        Command = 'fieldrepair', Restricted = false, Distance = 4.0, FrontDistance = 2.2, Duration = 15000,
+        Engine = 450.0, Max = 2, AllowDestroyed = false,
+        Anim = { 'mini@repair', 'fixing_a_ped' },
+    },
+
     Damage = {
         -- Dégâts du moteur reçus du jeu, multipliés (1.0 = jeu de base ; moins = plus solide).
         -- Véhicules ~8 % plus résistants qu'avant (0.25 / 0.9 / 0.8 / 0.15 / 2.5).

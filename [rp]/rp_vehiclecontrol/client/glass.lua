@@ -119,6 +119,19 @@ RegisterNetEvent('rp_vehiclecontrol:glass', function(points)
     end)
 end)
 
+--- /cleardebris : éclats posés autour de `center` retirés (tous si `range` est nil ; les décalques : debris.lua)
+function VC.clearGlass(center, range)
+    local kept = {}
+    for _, entry in ipairs(pieces) do
+        if range and DoesEntityExist(entry.object) and #(GetEntityCoords(entry.object) - center) > range then
+            kept[#kept + 1] = entry
+        else
+            removePiece(entry)
+        end
+    end
+    pieces = kept
+end
+
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     for _, entry in ipairs(pieces) do removePiece(entry) end

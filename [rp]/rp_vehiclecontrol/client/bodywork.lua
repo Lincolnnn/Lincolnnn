@@ -124,6 +124,11 @@ function VC.breakWheel(vehicle, w)
     BreakOffVehicleWheel(vehicle, w.index, true, false, true, false)
     VC.lostWheels[vehicle] = VC.lostWheels[vehicle] or {}
     VC.lostWheels[vehicle][w.index] = true
+    -- roues perdues, vues par tous (/inspectvehicle)
+    local list = {}
+    for index in pairs(VC.lostWheels[vehicle]) do list[#list + 1] = index end
+    table.sort(list)
+    if VC.setState then VC.setState(vehicle, 'vcWheels', list) end
     return true
 end
 
@@ -355,6 +360,7 @@ VC.on('tick', function(_, vehicle)
     if (VC.lostWheels[vehicle] or VC.wear[vehicle]) and GetVehicleBodyHealth(vehicle) >= 999.0
         and GetVehicleEngineHealth(vehicle) >= 999.0 then
         VC.lostWheels[vehicle], VC.wear[vehicle] = nil, nil
+        if VC.seat == -1 and VC.state(vehicle, 'vcWheels') then VC.setState(vehicle, 'vcWheels', false) end
     end
     -- vitres cassées entre deux chocs (balles…) : pas de verre au prochain choc ; jamais relevé pendant un choc
     if VC.seat == -1 and not VC.inCrash then VC.windows[vehicle] = windowState(vehicle) end

@@ -219,9 +219,10 @@ VC.on('impact', function(vehicle, _, drop, _, hit)
     if A.Enabled ~= false and heavy and drop >= (A.MinDrop or 25.0) then accident(vehicle) end
 end)
 
--- Puissance réduite (à chaque image, seulement au volant d'un véhicule abîmé)
+-- Puissance réduite (à chaque image, seulement au volant d'un véhicule abîmé ou sur un sol meuble : terrain.lua)
 VC.on('frame', function(_, vehicle)
-    if power < 1.0 and VC.seat == -1 then SetVehicleCheatPowerIncrease(vehicle, power) end
+    local p = power * (VC.terrainPower or 1.0)
+    if p < 1.0 and VC.seat == -1 then SetVehicleCheatPowerIncrease(vehicle, p) end
 end)
 
 VC.on('leave', function(vehicle, _, info)
@@ -337,11 +338,37 @@ end)
 -- =========================================================================
 local Repair = VCConfig.Repair or {}
 
-local function repairTarget()
+--- Moteur remonté à `health` (s'il est plus bas) : véhicule de nouveau utilisable, plus de fumée. `full` : vraie
+--- réparation (le compte des réparations de fortune repart de zéro). Appelle `done(ok)` une fois fait.
+function VC.repairEngine(vehicle, health, full, done)
+    NetworkRequestControlOfEntity(vehicle)
+    CreateThread(function()
+        local timeout = GetGameTimer() + 1500
+        while NetworkGetEntityIsNetworked(vehicle) and not NetworkHasControlOfEntity(vehicle) and GetGameTimer() < timeout do
+            Wait(50)
+            NetworkRequestControlOfEntity(vehicle)
+        end
+        if not DoesEntityExist(vehicle) then return done and done(false) end
+        health = math.max(GetVehicleEngineHealth(vehicle), health)
+        SetVehicleEngineHealth(vehicle, health) -- moteur seulement : ni SetVehicleFixed, ni carrosserie
+        SetVehicleUndriveable(vehicle, false)
+        if last.vehicle == vehicle then last.engine = health end
+        if stageOf(health) < 2 and VC.state(vehicle, 'vcBroken') == true then VC.setState(vehicle, 'vcBroken', false) end
+        if stageOf(health) < 1 and VC.state(vehicle, 'vcDamaged') == true then
+            VC.setState(vehicle, 'vcDamaged', false)
+            VC.smokeLocal(vehicle, false)
+        end
+        if VC.vehicle == vehicle and VC.seat == -1 then updateState(vehicle, health) end
+        if full and NetworkGetEntityIsNetworked(vehicle) then TriggerServerEvent('rp_vehiclecontrol:engineRepaired', VehToNet(vehicle)) end
+        if done then done(true) end
+    end)
+end
+
+function VC.nearestVehicle(distance)
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
     if vehicle ~= 0 then return vehicle end
-    local pos, best, bestDistance = GetEntityCoords(ped), nil, Repair.Distance or 5.0
+    local pos, best, bestDistance = GetEntityCoords(ped), nil, distance or 5.0
     for _, v in ipairs(GetGamePool('CVehicle')) do
         local d = #(GetEntityCoords(v) - pos)
         if d <= bestDistance then best, bestDistance = v, d end
@@ -351,28 +378,12 @@ end
 
 if Repair.Command then
     RegisterCommand(Repair.Command, function()
-        local vehicle = repairTarget()
+        local vehicle = VC.nearestVehicle(Repair.Distance or 5.0)
         if not vehicle then
             return VC.chat(('Aucun véhicule dans un rayon de %d m.'):format(math.floor(Repair.Distance or 5.0)))
         end
-        NetworkRequestControlOfEntity(vehicle)
-        CreateThread(function()
-            local timeout = GetGameTimer() + 1500
-            while NetworkGetEntityIsNetworked(vehicle) and not NetworkHasControlOfEntity(vehicle) and GetGameTimer() < timeout do
-                Wait(50)
-                NetworkRequestControlOfEntity(vehicle)
-            end
-            if not DoesEntityExist(vehicle) then return end
-            SetVehicleEngineHealth(vehicle, 1000.0) -- moteur seulement : ni SetVehicleFixed, ni carrosserie
-            SetVehicleUndriveable(vehicle, false)
-            if last.vehicle == vehicle then last.engine = 1000.0 end
-            if VC.state(vehicle, 'vcBroken') == true then VC.setState(vehicle, 'vcBroken', false) end
-            if VC.state(vehicle, 'vcDamaged') == true then
-                VC.setState(vehicle, 'vcDamaged', false)
-                VC.smokeLocal(vehicle, false)
-            end
-            if VC.vehicle == vehicle and VC.seat == -1 then updateState(vehicle, 1000.0) end
-            VC.chat('Moteur réparé (la carrosserie n\'est pas réparée).')
+        VC.repairEngine(vehicle, 1000.0, true, function(ok)
+            if ok then VC.chat('Moteur réparé (la carrosserie n\'est pas réparée).') end
         end)
     end, Repair.Restricted == true)
 end

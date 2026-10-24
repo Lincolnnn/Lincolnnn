@@ -282,6 +282,54 @@ vélos, bateaux, hélicoptères, avions et trains. Calculé par le conducteur (p
 tombés, ce qui s'ouvre, les roues perdues et les tonneaux se voient chez tous les joueurs. `Glass.Models` (vide par défaut) :
 objets posés en plus, si vous trouvez un modèle qui vous convient.
 
+**Débris de carrosserie** (`Debris`) : après un gros choc (violence d'au moins 32), des **morceaux de carrosserie**
+restent sur la route du côté touché (2 morceaux, +1 tous les 12 de violence, 7 au plus) avec une gerbe d'étincelles.
+Posés à plat, sans collision (personne ne bute dessus) ; vus par tous les joueurs à moins de 150 m ; retirés après
+10 minutes. **`/cleardebris`** : retire débris et verre autour de soi (60 m, chez soi). **`/cleardebrisall`** : chez
+tous les joueurs, réservé à la permission ACE `rp_vehiclecontrol.cleardebris`
+(`add_ace group.admin rp_vehiclecontrol.cleardebris allow`). `Models` : objets utilisés (à changer librement).
+
+### Comportement selon le sol (`Terrain`)
+
+Le sol sous le véhicule est lu en roulant (toutes les 250 ms). Sur la route : rien ne change. Ailleurs :
+
+| Sol | Puissance | Freiné au-dessus de | Glisse |
+|---|---|---|---|
+| herbe | x0,82 | 70 MPH | non |
+| terre | x0,88 | 75 MPH | non |
+| gravier | x0,85 | 70 MPH | oui |
+| sable | x0,62 | 45 MPH | oui |
+| boue | x0,55 | 40 MPH | oui |
+
+Sol détrempé (pluie) : effet x1,35. Selon le véhicule (`ClassFactor`) : tout-terrain et militaires presque pas gênés
+(x0,2), SUV x0,55, industriels x0,6 ; sportives x1,2, supercars x1,35. Pas pour les motos, vélos, bateaux, aéronefs.
+Les surfaces sont des codes de matière du jeu : `Terrain.Debug = true` active **`/vcsurface`**, qui affiche le code du
+sol sous le véhicule (pour en ajouter dans `Surfaces`).
+
+### Occupants (`Occupants`)
+
+Chaque joueur à bord ressent un **gros choc** (violence d'au moins 28 ; pas un piéton ni un plot) :
+- **blessure** : (violence - 28) x 1,3 points de vie, x0,35 avec la ceinture, 70 au plus ; ce script ne tue jamais
+  (jamais sous 115 de vie) ;
+- **flash blanc** à partir de 40, puis **vue floue et caméra qui tangue** : 0,16 s par point de violence au-dessus de
+  28 (9 s au plus, x0,6 avec la ceinture), qui s'estompent peu à peu ;
+- **sonné** à partir de 50 : plus de volant ni de pédales pendant 1,5 à 3,5 s (moitié moins avec la ceinture) ;
+- **vue à la première personne** : la tête part avec le choc.
+Éjecté à travers le pare-brise : seulement les blessures du jeu.
+
+### État du véhicule (`/inspectvehicle`) et réparation de fortune (`/fieldrepair`)
+
+**`/inspectvehicle`** : fiche de l'état du véhicule où l'on est (ou du plus proche, 5 m), affichée 15 s (la commande
+refaite la fait disparaître) : moteur (et son état), carrosserie, réservoir (fuite), essence, chaque pneu (bon, crevé,
+sur la jante, roue arrachée), capot / coffre / portières ouverts ou arrachés, pare-chocs, vitres, pare-brise, phares,
+réparations de fortune faites. Thème du MDC, mode nuit compris.
+
+**`/fieldrepair`** : à pied, **devant le capot** : le capot s'ouvre, animation de réparation de 15 s avec une barre de
+progression (annulée en s'éloignant, en montant, à terre ou avec **X**). Le moteur remonte à **450** (au-dessus de
+« très abîmé ») : le véhicule roule de nouveau, puissance un peu réduite. Carrosserie, pneus et roues ne sont pas
+réparés. **2 au plus par véhicule** (compté par le serveur ; `/repair` ou un mécanicien remet le compte à zéro). Moteur
+détruit : impossible (`AllowDestroyed`).
+
 ### Tirs sur un véhicule (`Gunshots`)
 
 Une balle **bien placée** abîme vraiment le véhicule :
@@ -402,6 +450,10 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `Gear` | marche avant / arrière : activée, vitesse considérée comme « arrêté », son du changement, classes sans rapport |
 | `Rollover` | tonneaux : départ plus facile (`Trip` : dérapage, virage mal engagé, PIT, facteur par classe, délai), tonneaux accentués (vitesse minimale, inclinaison de départ, vitesse de rotation, élan, nombre de relances, intervalle), classes sans tonneaux forcés |
 | `Wheels` | roues qui se détachent : virage beaucoup trop violent (`Turn` : vitesse, accélération latérale, glissade, chance), trottoir percuté très fort (`Curb` : vitesse, secousse, coup, éclatement, détachement), classes ignorées |
+| `Debris` | débris de carrosserie : violence minimale, nombre, dispersion, durée, portée, objets, étincelles, commandes `/cleardebris` et `/cleardebrisall` (permission ACE), rayon du nettoyage |
+| `Terrain` | sol : intervalle, vitesse minimale, pluie, surfaces (puissance, vitesse maximale, glisse, codes de matière), facteur par classe, `/vcsurface` (Debug) |
+| `Occupants` | gros choc ressenti à bord : violence minimale, blessure (facteur, ceinture, maximum, vie minimale), flash / vue floue / caméra qui tangue, sonné, tête qui part (1re personne) |
+| `Inspect`, `FieldRepair` | `/inspectvehicle` (distance, durée) ; `/fieldrepair` (distance, devant le capot, durée, moteur remonté à, maximum par véhicule, moteur détruit, animation, permission) |
 | `KeepDoorOpenOnExit` | portière ouverte gardée ouverte en descendant |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle jusqu'à l'arrêt complet, l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), aucune chute ajoutée pour les petits incidents (comportement du jeu), seuils, dégâts |
@@ -425,7 +477,7 @@ directement dans un autre véhicule, l'ancien existe toujours (ex. `rp_interact`
 - À pied : une vérification toutes les 500 ms (~0.00 ms). Près d'un véhicule poussable (6 m) : toutes les 100 ms.
   Boucle à chaque image seulement près d'une pompe, pistolet de pompe sorti, jerrican en main, ou pendant la poussée.
   Tuyaux des autres joueurs : aucune boucle (état du joueur `vcHose`).
-- À bord : ~0.02 ms (chocs, puissance, trottoirs : une lecture de vitesse par image) ; essence, dégâts, alarme et car HUD toutes les 100 ms ; ce qui a été
+- À bord : ~0.02 ms (chocs, puissance, trottoirs : une lecture de vitesse par image ; sol : un rayon toutes les 250 ms en roulant) ; essence, dégâts, alarme et car HUD toutes les 100 ms ; ce qui a été
   percuté n'est cherché qu'au moment d'un choc ;
   car HUD envoyé seulement quand il change.
 - Feux stop des véhicules des autres joueurs : boucle à chaque image seulement tant qu'un véhicule proche est arrêté

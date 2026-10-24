@@ -382,6 +382,47 @@
         entry.timer = setInterval(tick, Math.max(100, Number(interval) || 1000));
     }
 
+    // /inspectvehicle : fiche de l'état du véhicule (client/inspect.lua)
+    const el = (tag, cls, text) => {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text !== undefined) e.textContent = text;
+        return e;
+    };
+    const level = (v) => (v >= 60 ? 'ok' : v >= 30 ? 'warn' : 'bad');
+    function row(label, state, lvl) {
+        const r = el('div', 'vc-row');
+        r.append(el('span', '', label), el('span', 'vc-row-state ' + (lvl || ''), state));
+        return r;
+    }
+    function gauge(label, value, text, lvl) {
+        const g = el('div', 'vc-gauge');
+        const track = el('span', 'vc-gauge-track');
+        const fill = el('span', 'vc-gauge-fill ' + (lvl || level(value)));
+        fill.style.width = Math.max(0, Math.min(100, value)) + '%';
+        track.append(fill);
+        g.append(el('div', 'vc-gauge-label', label), el('div', 'vc-gauge-value ' + (lvl || level(value)), text), track);
+        return g;
+    }
+    function showInspect(d) {
+        const card = document.getElementById('inspect');
+        if (!d) { card.classList.remove('show'); return; }
+        document.getElementById('inspName').textContent = d.name && d.name !== 'NULL' ? d.name : 'Véhicule';
+        document.getElementById('inspPlate').textContent = d.plate || '';
+        const gauges = document.getElementById('inspGauges');
+        gauges.replaceChildren(
+            gauge('Moteur', d.engine, d.engine + ' % · ' + d.engineState, d.engineLevel),
+            gauge('Carrosserie', d.body, d.body + ' %'),
+            gauge('Réservoir', d.tank, d.tank + ' %' + (d.leaking ? ' · fuite' : ''), d.leaking ? 'bad' : undefined),
+            d.fuel === undefined || d.fuel === null ? gauge('Essence', 0, '—', 'warn') : gauge('Essence', d.fuel, d.fuel + ' %', d.fuel < 15 ? 'warn' : 'ok'),
+        );
+        document.getElementById('inspTyres').replaceChildren(...(d.tyres || []).map((t) => row(t.label, t.state, t.level)));
+        const parts = (d.parts || []).map((p) => row(p.label, p.state, p.level));
+        document.getElementById('inspParts').replaceChildren(...(parts.length ? parts : [row('Tout est en place', 'Bon état', 'ok')]));
+        document.getElementById('inspFoot').textContent = 'Réparations de fortune : ' + (d.field || 0) + ' / ' + (d.fieldMax || 0);
+        card.classList.add('show');
+    }
+
     // Mode nuit des menus (MDC : Paramètres > MDC > Apparence), envoyé par client/theme.lua
     window.addEventListener('message', ({ data }) => {
         if (!data || data.action !== 'uiTheme') return;
@@ -404,6 +445,14 @@
             new Set([...Object.keys((data && data.seamless) || {}), ...Object.keys((data && data.maxGap) || {})]).forEach(prepare);
         } else if (msg.action === 'soundLoop') {
             soundLoop(data);
+        } else if (msg.action === 'inspect') {
+            showInspect(msg.data);
+        } else if (msg.action === 'progress') {
+            const bar = document.getElementById('progress');
+            if (!msg.data) { bar.classList.remove('show'); return; }
+            document.getElementById('progressText').textContent = msg.data.text || '';
+            document.getElementById('progressBar').style.width = Math.max(0, Math.min(100, (Number(msg.data.value) || 0) * 100)) + '%';
+            bar.classList.add('show');
         } else if (msg.action === 'push') {
             if (TEXTS[data.mode]) {
                 document.getElementById('pushKey').textContent = data.key || 'K';

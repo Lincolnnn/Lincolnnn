@@ -11,6 +11,26 @@
         <span class="push-key" id="pushKey">K</span>
         <span class="push-text" id="pushText">Pousser le véhicule</span>
     </div>
+    <!-- /inspectvehicle : état du véhicule -->
+    <div class="vc-card" id="inspect">
+        <div class="vc-head">
+            <span class="vc-title" id="inspName">Véhicule</span>
+            <span class="vc-plate" id="inspPlate"></span>
+        </div>
+        <div class="vc-body">
+            <div class="vc-gauges" id="inspGauges"></div>
+            <div class="vc-section">Pneus et roues</div>
+            <div class="vc-list" id="inspTyres"></div>
+            <div class="vc-section">Carrosserie</div>
+            <div class="vc-list" id="inspParts"></div>
+            <div class="vc-foot" id="inspFoot"></div>
+        </div>
+    </div>
+    <!-- /fieldrepair : progression -->
+    <div class="vc-progress" id="progress">
+        <span class="vc-progress-text" id="progressText"></span>
+        <span class="vc-progress-track"><span class="vc-progress-bar" id="progressBar"></span></span>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>

@@ -70,6 +70,13 @@ local STATE_KEYS = {
     vcSignal = function(v) return v == false or SIGNALS[v] == true end,
     vcStopLights = function(v) return type(v) == 'boolean' end,
     vcSteer = function(v) return v == false or (type(v) == 'number' and v == v and math.abs(v) <= 90.0) end,
+    -- roues perdues (numéros 0 à 3), lues par /inspectvehicle
+    vcWheels = function(v)
+        if v == false then return true end
+        if type(v) ~= 'table' or #v > 4 then return false end
+        for _, w in ipairs(v) do if w ~= 0 and w ~= 1 and w ~= 2 and w ~= 3 then return false end end
+        return true
+    end,
 }
 -- Envoyés aussi juste après la descente du conducteur (il est alors à côté du véhicule)
 -- Clés modifiables par un joueur à côté du véhicule (pas à bord) : feux stop éteints, angle des roues,
@@ -217,6 +224,61 @@ RegisterNetEvent('rp_vehiclecontrol:glass', function(points)
     TriggerClientEvent('rp_vehiclecontrol:glass', -1, clean)
 end)
 AddEventHandler('playerDropped', function() glassAt[source] = nil end)
+
+-- ---- Débris de carrosserie (gros choc) : relayés à tout le monde, chacun pose les siens ----
+local debrisAt = {} -- [src] = dernier envoi (ms)
+RegisterNetEvent('rp_vehiclecontrol:debris', function(point)
+    local src = source
+    local D = Config.Debris or {}
+    if D.Enabled == false or type(point) ~= 'table' then return end
+    local x, y, z, count = tonumber(point.x), tonumber(point.y), tonumber(point.z), tonumber(point.count)
+    if not (x and y and z and count) or x ~= x or y ~= y or z ~= z then return end
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 or #(GetEntityCoords(ped) - vector3(x, y, z)) > 20.0 then return end
+    local now = GetGameTimer()
+    if debrisAt[src] and now - debrisAt[src] < 1000 then return end
+    debrisAt[src] = now
+    TriggerClientEvent('rp_vehiclecontrol:debris', -1, { x = x, y = y, z = z, count = math.max(1, math.min(math.floor(count), D.Max or 7)) })
+end)
+AddEventHandler('playerDropped', function() debrisAt[source] = nil end)
+
+-- /cleardebrisall : débris et verre retirés chez tous les joueurs (permission ACE)
+RegisterNetEvent('rp_vehiclecontrol:clearDebrisAll', function()
+    local src = source
+    local D = Config.Debris or {}
+    if not IsPlayerAceAllowed(src, D.ClearAllAce or 'rp_vehiclecontrol.cleardebris') then
+        TriggerClientEvent('chat:addMessage', src, { args = { 'Véhicule', 'Permission refusée.' }, color = { 140, 200, 255 } })
+        return
+    end
+    TriggerClientEvent('rp_vehiclecontrol:clearDebrisAll', -1)
+end)
+
+-- ---- Réparation de fortune (/fieldrepair) : au plus FieldRepair.Max par véhicule ----
+RegisterNetEvent('rp_vehiclecontrol:fieldRepair', function(netId)
+    local src = source
+    local F = Config.FieldRepair or {}
+    local vehicle = vehicleFromNet(netId)
+    if not vehicle then return end
+    if not near(src, vehicle, (F.Distance or 4.0) + 3.0) then return end
+    if F.Restricted and not IsPlayerAceAllowed(src, 'command.' .. (F.Command or 'fieldrepair')) then return end
+    local state = Entity(vehicle).state
+    local done = tonumber(state.vcFieldRepairs) or 0
+    if done >= (F.Max or 2) then
+        return TriggerClientEvent('rp_vehiclecontrol:fieldRepair', src, netId, false, done)
+    end
+    state:set('vcFieldRepairs', done + 1, true)
+    -- le moteur remonte au-dessus des paliers "détruit" / "très abîmé" : plus de fumée, plus cassé
+    local D = Config.Damage or {}
+    if (F.Engine or 450.0) > (D.Broken or 100.0) and state.vcBroken == true then state:set('vcBroken', false, true) end
+    if (F.Engine or 450.0) >= (D.Critical or 300.0) and state.vcDamaged == true then state:set('vcDamaged', false, true) end
+    TriggerClientEvent('rp_vehiclecontrol:fieldRepair', src, netId, true, done + 1)
+end)
+
+-- Vraie réparation (/repair, mécanicien) : compte des réparations de fortune remis à zéro
+RegisterNetEvent('rp_vehiclecontrol:engineRepaired', function(netId)
+    local vehicle = vehicleFromNet(netId)
+    if vehicle and near(source, vehicle, 10.0) then Entity(vehicle).state:set('vcFieldRepairs', 0, true) end
+end)
 
 -- Véhicule percuté sans conducteur joueur (garé, PNJ) : signalé par celui qui l'a percuté, relayé à celui qui le
 -- contrôle (ou au signaleur si le serveur le garde), qui y applique les dégâts visuels (coffre, capot, portières…).

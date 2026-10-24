@@ -84,3 +84,51 @@ body { font-family: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", T
 /* Mode nuit (réglé dans le MDC : Paramètres > MDC > Apparence ; client/theme.lua) : couleur du mode nuit sur fond noir */
 [data-theme="night"] .push-box { background: rgba(var(--n-bg-rgb), .94); border-color: rgba(var(--n-rgb), .3); color: var(--n-text); }
 [data-theme="night"] .push-key { color: var(--n-text); background: var(--n-btn); border-color: rgba(var(--n-rgb), .35); }
+
+/* /inspectvehicle et /fieldrepair : thème CLAIR "Windows 11" du MDC (presque carré) */
+.vc-card {
+    position: fixed; right: 3vw; top: 50%; width: 330px;
+    background: rgba(243, 245, 248, .98); color: #1b1f24;
+    border: 1px solid rgba(0, 0, 0, .15); border-radius: 5px;
+    box-shadow: 0 24px 56px rgba(0, 0, 0, .28), 0 2px 10px rgba(0, 0, 0, .14);
+    font-size: 13px; line-height: 1.4;
+    opacity: 0; transform: translate(12px, -50%); transition: opacity .18s, transform .18s; pointer-events: none;
+}
+.vc-card.show { opacity: 1; transform: translate(0, -50%); }
+.vc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; border-bottom: 1px solid rgba(0, 0, 0, .09); background: #fff; border-radius: 5px 5px 0 0; }
+.vc-title { font-weight: 600; font-size: 15px; }
+.vc-plate { padding: 2px 8px; border: 1px solid rgba(0, 0, 0, .15); border-radius: 3px; font-weight: 700; font-size: 11.5px; letter-spacing: .6px; background: #fff; }
+.vc-body { padding: 10px 14px 12px; }
+.vc-gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vc-gauge { padding: 7px 9px; background: #fff; border: 1px solid rgba(0, 0, 0, .09); border-radius: 4px; }
+.vc-gauge-label { font-size: 11px; color: rgba(20, 26, 34, .56); }
+.vc-gauge-value { font-weight: 600; font-size: 14px; }
+.vc-gauge-track { display: block; height: 4px; margin-top: 4px; background: rgba(0, 0, 0, .075); border-radius: 2px; overflow: hidden; }
+.vc-gauge-fill { display: block; height: 100%; background: #0067c0; }
+.vc-section { margin: 11px 0 5px; font-weight: 600; font-size: 12px; color: rgba(20, 26, 34, .76); }
+.vc-list { display: flex; flex-direction: column; gap: 3px; }
+.vc-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 9px; background: #fff; border: 1px solid rgba(0, 0, 0, .06); border-radius: 3px; }
+.vc-row-state { font-weight: 600; }
+.vc-foot { margin-top: 10px; font-size: 11.5px; color: rgba(20, 26, 34, .56); }
+.ok { color: #107c10; } .warn { color: #9d5d00; } .bad { color: #c42b1c; }
+.vc-gauge-fill.warn { background: #c27c00; } .vc-gauge-fill.bad { background: #c42b1c; }
+
+.vc-progress {
+    position: fixed; left: 50%; bottom: 13vh; width: 300px; padding: 9px 14px 11px;
+    background: rgba(243, 245, 248, .98); color: #1b1f24; border: 1px solid rgba(0, 0, 0, .15); border-radius: 5px;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, .3); font-size: 13px;
+    opacity: 0; transform: translate(-50%, 8px); transition: opacity .2s, transform .2s; pointer-events: none;
+}
+.vc-progress.show { opacity: 1; transform: translate(-50%, 0); }
+.vc-progress-text { display: block; margin-bottom: 6px; }
+.vc-progress-track { display: block; height: 5px; background: rgba(0, 0, 0, .09); border-radius: 3px; overflow: hidden; }
+.vc-progress-bar { display: block; height: 100%; width: 0; background: #0067c0; transition: width .1s linear; }
+
+[data-theme="night"] .vc-card, [data-theme="night"] .vc-progress { background: rgba(var(--n-bg-rgb), .97); color: var(--n-text); border-color: rgba(var(--n-rgb), .3); }
+[data-theme="night"] .vc-head, [data-theme="night"] .vc-gauge, [data-theme="night"] .vc-row, [data-theme="night"] .vc-plate { background: rgba(var(--n-card-rgb), .95); border-color: rgba(var(--n-rgb), .22); }
+[data-theme="night"] .vc-title { color: var(--n-title); }
+[data-theme="night"] .vc-section, [data-theme="night"] .vc-gauge-label, [data-theme="night"] .vc-foot { color: rgba(var(--n-muted-rgb), 1); }
+[data-theme="night"] .vc-gauge-track, [data-theme="night"] .vc-progress-track { background: rgba(var(--n-rgb), .12); }
+[data-theme="night"] .vc-gauge-fill, [data-theme="night"] .vc-progress-bar { background: var(--n-accent); }
+[data-theme="night"] .vc-gauge-fill.warn { background: var(--n-strong); } [data-theme="night"] .vc-gauge-fill.bad { background: var(--n-title); }
+[data-theme="night"] .ok { color: var(--n-soft); } [data-theme="night"] .warn { color: var(--n-light); } [data-theme="night"] .bad { color: var(--n-bright); }
