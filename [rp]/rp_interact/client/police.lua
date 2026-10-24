@@ -853,13 +853,21 @@ local function playerInside(vehicle)
     return false
 end
 
+--- Porte (rp_doorlock) : jamais supprimable avec l'œil
+local function isDoor(entity)
+    local res = Config.DoorlockResource or 'rp_doorlock'
+    if GetResourceState(res) ~= 'started' then return false end
+    local ok, door = pcall(function() return exports[res]:isDoor(entity) end)
+    return ok and door == true
+end
+
 --- Élément supprimable ? (jamais un joueur, ni un véhicule occupé par un joueur ; les véhicules et
 --- objets créés par des joueurs ou des scripts le sont)
 function Police.deletable(ctx)
     if ctx.isSelf then return false end
     if ctx.type == 'ped' then return not ctx.isPlayer end
     if ctx.type == 'vehicle' then return not playerInside(ctx.entity) end
-    return ctx.type == 'object'
+    return ctx.type == 'object' and not isDoor(ctx.entity)
 end
 
 --- Suppression par ce client : il prend le contrôle de l'entité (si elle est en réseau), puis la

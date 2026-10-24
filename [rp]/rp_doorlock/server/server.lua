@@ -1,12 +1,12 @@
 --[[
     RP Doorlock - serveur : tous les verrous, décidés ici
     ------------------------------------------------------
-    - Verrouiller (n'importe quel joueur ; policiers en service si PoliceCanLock) : à côté de la porte (et de son
-      second battant), dans la limite MaxPerPlayer ; la porte appartient alors à ce joueur (sa licence : il la retrouve
-      après une reconnexion).
-    - Déverrouiller : seulement son propriétaire (ou un admin, permission AdminAce).
-    - Enfoncer (policiers en service, unité du MDC) : un coup de pied à la fois (Cooldown), Kick.Chance de céder,
-      cède forcément au Kick.Max-ième coup ; le verrou saute, la porte s'ouvre en grand chez tout le monde.
+    - Verrouiller : joueurs EN MODE CIVIL seulement (état rpiCivilMode de rp_interact ; jamais un policier en service),
+      à côté de la porte (et de son second battant), dans la limite MaxPerPlayer ; la porte appartient alors à ce
+      joueur (sa licence : il la retrouve après une reconnexion).
+    - Déverrouiller : son propriétaire, en mode civil (ou un admin, permission AdminAce).
+    - Enfoncer (policiers en service, unité du MDC) : un coup de pied à la fois (Cooldown) ; Kick.Steps coups réussis
+      (barre de réussite du client) : le verrou saute, la porte s'ouvre en grand chez tout le monde.
     - Frapper : le bruit est relayé aux joueurs proches.
     Les joueurs ne reçoivent jamais la licence du propriétaire, seulement une empreinte (tag) pour savoir « c'est la
     mienne ». Verrous gardés dans data/locks.json (Save). Aucune boucle.
@@ -38,6 +38,13 @@ local function isPolice(src)
     local ok, unit = pcall(function() return exports[mdc]:getPlayerUnit(src) end)
     return ok and type(unit) == 'table'
 end
+
+--- Mode civil de rp_interact (Menu F1 > Civil : état répliqué "rpiCivilMode") ; sans rp_interact : tout le monde
+local function isCivil(src)
+    if GetResourceState(Config.InteractResource or 'rp_interact') ~= 'started' then return true end
+    return Player(src).state.rpiCivilMode == true
+end
+local CIVIL_ONLY = 'Réservé au mode civil (Menu Interaction > Civil > Mode civil).'
 
 local function number(v)
     v = tonumber(v)
@@ -117,7 +124,7 @@ end)
 RegisterNetEvent('rp_doorlock:lock', function(doors)
     local src = source
     if type(doors) ~= 'table' or #doors == 0 or #doors > 2 or not throttle(src, 'lock', 800) then return end
-    if not Config.PoliceCanLock and isPolice(src) then return notify(src, 'En service, vous ne pouvez pas verrouiller de porte.') end
+    if not isCivil(src) or isPolice(src) then return notify(src, CIVIL_ONLY) end
     local license = licenseOf(src)
     local entries = {}
     for i, d in ipairs(doors) do
@@ -151,7 +158,10 @@ RegisterNetEvent('rp_doorlock:unlock', function(id)
     local l = type(id) == 'string' and locks[id] or nil
     if not l or not throttle(src, 'unlock', 800) then return end
     if not near(src, l.x, l.y, l.z, 1.0) then return end
-    if l.owner ~= licenseOf(src) and not isAdmin(src) then return notify(src, 'Vous n\'avez pas la clé de cette porte.') end
+    if not isAdmin(src) then
+        if not isCivil(src) or isPolice(src) then return notify(src, CIVIL_ONLY) end
+        if l.owner ~= licenseOf(src) then return notify(src, 'Vous n\'avez pas la clé de cette porte.') end
+    end
     local ids = removeGroup(id)
     kicks[l.group] = nil
     save()
@@ -159,28 +169,34 @@ RegisterNetEvent('rp_doorlock:unlock', function(id)
     notify(src, #ids > 1 and 'Portes déverrouillées.' or 'Porte déverrouillée.')
 end)
 
-RegisterNetEvent('rp_doorlock:kick', function(id)
+--- Début de la barre de réussite : les coups d'avant ne comptent plus
+RegisterNetEvent('rp_doorlock:breachStart', function(id)
+    local src = source
+    local l = type(id) == 'string' and locks[id] or nil
+    if l and isPolice(src) and near(src, l.x, l.y, l.z, 1.0) then kicks[l.group] = 0 end
+end)
+
+--- Un coup de pied : réussi (curseur dans la zone verte) ou raté ; Steps coups réussis -> la porte cède
+RegisterNetEvent('rp_doorlock:kick', function(id, hit)
     local src = source
     local K = Config.Kick or {}
     local l = type(id) == 'string' and locks[id] or nil
     if K.Enabled == false or not l then return end
     if not isPolice(src) then return notify(src, 'Seuls les policiers en service peuvent enfoncer une porte.') end
-    if not near(src, l.x, l.y, l.z, 0.8) or not throttle(src, 'kick', K.Cooldown or 1500) then return end
+    if not near(src, l.x, l.y, l.z, 1.0) or not throttle(src, 'kick', K.Cooldown or 700) then return end
+    if hit ~= true then return end
     local n = (kicks[l.group] or 0) + 1
     kicks[l.group] = n
-    if n >= (K.Max or 5) or math.random() < (K.Chance or 0.35) then
-        local ped = GetPlayerPed(src)
-        local from = GetEntityCoords(ped)
-        local doors = {}
-        for _, d in ipairs(groupOf(id)) do doors[#doors + 1] = public(d) end
-        removeGroup(id)
-        kicks[l.group] = nil
-        save()
-        TriggerClientEvent('rp_doorlock:breach', -1, doors, { x = from.x, y = from.y, z = from.z })
-        notify(src, 'La porte cède !')
-    else
-        TriggerClientEvent('rp_doorlock:kicked', src, n, K.Max or 5)
-    end
+    if n < (K.Steps or 3) then return end
+    local ped = GetPlayerPed(src)
+    local from = GetEntityCoords(ped)
+    local doors = {}
+    for _, d in ipairs(groupOf(id)) do doors[#doors + 1] = public(d) end
+    removeGroup(id)
+    kicks[l.group] = nil
+    save()
+    TriggerClientEvent('rp_doorlock:breach', -1, doors, { x = from.x, y = from.y, z = from.z })
+    notify(src, 'La porte cède !')
 end)
 
 RegisterNetEvent('rp_doorlock:knock', function(x, y, z)

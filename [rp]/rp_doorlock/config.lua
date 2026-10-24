@@ -1,14 +1,15 @@
 --[[
     RP Doorlock - configuration
-    Portes du jeu (et des maps ajoutées) que les joueurs verrouillent / déverrouillent avec l'œil (rp_interact) ;
-    les policiers en service (unité du MDC) peuvent enfoncer une porte verrouillée à coups de pied.
+    Portes du jeu (et des maps ajoutées) que les joueurs EN MODE CIVIL (rp_interact : Menu F1 > Civil) verrouillent /
+    déverrouillent avec l'œil ; les policiers en service (unité du MDC) enfoncent une porte verrouillée (barre de
+    réussite). Un policier, ou un joueur ni civil ni policier, ne peut ni verrouiller ni déverrouiller.
 ]]
 
 DoorlockConfig = {
     MdcResource = 'rp_mdc',          -- MDC : un joueur dans une unité est un policier en service
+    InteractResource = 'rp_interact', -- mode civil (sans cette ressource : tout le monde est civil)
     Distance = 2.0,                  -- m : distance maximale entre le joueur et la porte (œil et serveur)
     MaxPerPlayer = 10,               -- portes verrouillées au plus par joueur (0 : sans limite)
-    PoliceCanLock = true,            -- les policiers en service peuvent aussi verrouiller (une cellule, un local…)
     AdminAce = 'rp_doorlock.admin',  -- permission ACE : déverrouiller n'importe quelle porte (add_ace group.admin rp_doorlock.admin allow)
     PairDistance = 2.6,              -- m : porte double (deux battants) verrouillée / déverrouillée / enfoncée ensemble
 
@@ -26,11 +27,13 @@ DoorlockConfig = {
     KnockAnim = { 'timetable@jimmy@doorknock@', 'knockdoor_idle', 2500 },
     Knock = { Enabled = true, Sound = { 'Door_Knock_Normal', 'dlc_btl_deliver_goods_sounds' }, Range = 15.0 },
 
-    -- Enfoncer (policiers en service) : un coup de pied à chaque fois ; Chance de céder par coup, et au plus Max
-    -- coups (la porte cède forcément au Max-ième). Cooldown ms entre deux coups. La porte s'ouvre violemment et reste
-    -- déverrouillée (le verrou de son propriétaire saute).
+    -- Enfoncer (policiers en service) : barre de réussite en bas de l'écran ; un curseur va et vient, ESPACE quand il
+    -- est dans la zone verte (un coup de pied à chaque essai). Steps essais réussis : la porte cède. Zone : largeur
+    -- de la zone verte à chaque étape (part de la barre) ; Speed : allers par seconde du curseur. MaxMisses essais
+    -- ratés : le policier s'arrête (il peut recommencer). Cooldown ms au moins entre deux coups (serveur). La porte
+    -- s'ouvre violemment et reste déverrouillée (le verrou de son propriétaire saute).
     Kick = {
-        Enabled = true, Chance = 0.35, Max = 5, Cooldown = 1500,
+        Enabled = true, Steps = 3, Zone = { 0.2, 0.15, 0.11 }, Speed = { 0.9, 1.15, 1.4 }, MaxMisses = 3, Cooldown = 700,
         Anims = { { 'missprologuemcs_1', 'kick_down_player_zero', 1600, 650 }, -- dict, clip, durée, moment de l'impact
             { 'anim@scripted@player@freemode@ig6_stash_entry@door_trans@hinge_l@', 'kick_player1', 1600, 650 } },
         Force = 22.0,                -- poussée donnée au battant (il s'ouvre en grand)

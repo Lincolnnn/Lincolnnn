@@ -31,8 +31,9 @@ local civilMode = GetResourceKvpString(KVP_KEY) == '1'
 -- aimed : un policier vise le joueur en ce moment (titre rouge).
 local tips = { shown = false, aimed = false }
 
--- Publié pour ce joueur (non répliqué) : rp_RoleplayZone réserve /scene au mode civil
-LocalPlayer.state:set('rpiCivilMode', civilMode, false)
+-- Publié (répliqué : le serveur le lit aussi) : rp_RoleplayZone réserve /scene au mode civil, rp_doorlock le
+-- verrouillage des portes
+LocalPlayer.state:set('rpiCivilMode', civilMode, true)
 
 function RPI.civilMode() return civilMode end
 function RPI.tipsManual() return civilMode and tips.shown end
@@ -117,7 +118,7 @@ end
 local function setCivilMode(enabled)
     civilMode = enabled == true
     SetResourceKvp(KVP_KEY, civilMode and '1' or '0')
-    LocalPlayer.state:set('rpiCivilMode', civilMode, false) -- rp_RoleplayZone : /scene réservé au mode civil
+    LocalPlayer.state:set('rpiCivilMode', civilMode, true) -- rp_RoleplayZone (/scene), rp_doorlock (portes)
     if not civilMode then tips.shown, tips.aimed = false, false end
     renderTips()
 end

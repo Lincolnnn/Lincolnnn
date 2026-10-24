@@ -1,0 +1,53 @@
+/* RP Doorlock : barre de réussite pour enfoncer une porte (en bas de l'écran, par-dessus le jeu) */
+:root {
+    --track: rgba(20, 25, 34, .82);
+    --stroke: rgba(140, 170, 220, .22);
+    --zone: #4cc463;
+    --zone-hit: #7be08d;
+    --miss: #ff6b6b;
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, Arial, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font: 13px var(--font); user-select: none; }
+.hidden { display: none !important; }
+
+.breach {
+    position: fixed; left: 50%; bottom: 9vh; transform: translateX(-50%);
+    width: min(620px, 52vw);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    pointer-events: none;
+}
+.breach-track {
+    position: relative; width: 100%; height: 22px;
+    background: var(--track);
+    border: 1px solid var(--stroke); border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+}
+.breach-zone {
+    position: absolute; top: 3px; bottom: 3px; left: 40%; width: 20%;
+    background: var(--zone); border-radius: 2px;
+    box-shadow: 0 0 10px rgba(76, 196, 99, .45);
+    transition: left .18s ease, width .18s ease, background-color .15s;
+}
+.breach-cursor {
+    position: absolute; top: -6px; bottom: -6px; left: 0; width: 4px; margin-left: -2px;
+    background: #fff; border-radius: 2px;
+    box-shadow: 0 0 8px rgba(255, 255, 255, .8);
+}
+.breach.hit .breach-zone { background: var(--zone-hit); box-shadow: 0 0 16px rgba(123, 224, 141, .8); }
+.breach.hit .breach-cursor { background: var(--zone-hit); }
+.breach.miss .breach-track { border-color: var(--miss); animation: breach-shake .3s; }
+.breach.miss .breach-cursor { background: var(--miss); box-shadow: 0 0 8px rgba(255, 107, 107, .8); }
+@keyframes breach-shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+.breach-steps { display: flex; gap: 6px; }
+.breach-step { width: 22px; height: 8px; border-radius: 2px; background: rgba(140, 150, 165, .6); }
+.breach-step.done { background: var(--zone); box-shadow: 0 0 6px rgba(76, 196, 99, .5); }
+.breach-step.current { background: rgba(200, 210, 225, .85); }
+
+.breach-hint { color: #fff; font-size: 13px; text-shadow: 0 1px 2px rgba(0, 0, 0, .9), 0 0 6px rgba(0, 0, 0, .6); }
+.breach-hint kbd {
+    display: inline-block; padding: 0 5px; margin: 0 2px; border-radius: 3px;
+    font: 600 11px var(--font); color: #fff;
+    background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .3); border-bottom-width: 2px;
+}

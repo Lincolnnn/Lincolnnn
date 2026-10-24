@@ -169,6 +169,8 @@ Ajoute des options visuelles propres au rôle de civil. La première : les **tip
 - Il apparaît quand un **policier** (joueur dans une unité du MDC) vous **met en joue avec une arme** : visée directe
   ou à moins de **5 m** autour de vous (titre « Un policier vous tient en joue »).
 - Sans mise en joue : Menu > Civil > **Tips arrestation** l'affiche.
+- **Portes** (`rp_doorlock`) : seuls les joueurs en mode civil (et pas en service dans une unité du MDC) peuvent
+  **verrouiller / déverrouiller** une porte. La case est publiée au serveur (état `rpiCivilMode`), qui vérifie aussi.
 - Il ne se ferme **qu'avec la touche Échap** (rappel « Échap : fermer » écrit en tout petit, en gris foncé, en bas du
   mini menu) : il **reste affiché quand le policier arrête de viser** (le titre redevient « Tips arrestation »).
   Pendant qu'il est affiché, Échap ferme les tips **sans ouvrir le menu pause ni la carte** (la pause reste bloquée
@@ -267,6 +269,7 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     `targetOptions(info)` -> `{ label, options = { { id, label, icon } } }` et `targetSelect(id, info)`.
   - **Secteur d'une scène de roleplay** (`SceneResource`, `rp_RoleplayZone` : zone / lieu / objet + 70 m) : **ni
     « Supprimer » ni « Supprimer le props »** à l'œil, et le serveur refuse la suppression (rien ne doit disparaître).
+    Les **portes** reconnues par `rp_doorlock` (export `isDoor`) ne sont jamais proposées à la suppression.
     Reconnaissance automatique (OneSync) : à chaque objet créé par un script, le serveur demande à son créateur quel
     script l'a fait apparaître ; si c'est `props`, l'objet est marqué pour tout le monde. Votre script de props peut
     aussi marquer ses objets (`exports.rp_interact:registerProp(entity)`) ou être reconnu par un état / un export

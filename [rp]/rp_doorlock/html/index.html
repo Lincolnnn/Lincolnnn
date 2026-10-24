@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>RP Doorlock</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Enfoncer une porte : barre de réussite (ESPACE quand le curseur est dans la zone verte) -->
+    <div class="breach hidden" id="breach" aria-hidden="true">
+        <div class="breach-track" id="breachTrack">
+            <div class="breach-zone" id="breachZone"></div>
+            <div class="breach-cursor" id="breachCursor"></div>
+        </div>
+        <div class="breach-steps" id="breachSteps"></div>
+        <div class="breach-hint"><kbd>ESPACE</kbd> dans le vert · <kbd>RETOUR</kbd> pour arrêter</div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
