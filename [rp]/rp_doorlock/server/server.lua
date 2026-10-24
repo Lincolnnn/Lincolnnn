@@ -1,12 +1,14 @@
 --[[
     RP Doorlock - serveur : tous les verrous, décidés ici
     ------------------------------------------------------
-    - Verrouiller : joueurs EN MODE CIVIL seulement (état rpiCivilMode de rp_interact ; jamais un policier en service),
-      à côté de la porte (et de son second battant), dans la limite MaxPerPlayer ; la porte appartient alors à ce
-      joueur (sa licence : il la retrouve après une reconnexion).
-    - Déverrouiller : son propriétaire, en mode civil (ou un admin, permission AdminAce).
-    - Enfoncer (policiers en service, unité du MDC) : un coup de pied à la fois (Cooldown) ; Kick.Steps coups réussis
-      (barre de réussite du client) : le verrou saute, la porte s'ouvre en grand chez tout le monde.
+    - Verrouiller : joueurs en mode civil ou sans rôle (jamais un policier en service, unité du MDC), à côté de la
+      porte (et de son second battant), dans la limite MaxPerPlayer, sauf porte forcée ; la porte appartient alors à
+      ce joueur (sa licence : il la retrouve après une reconnexion).
+    - Déverrouiller : son propriétaire (pas en service de police) ou un admin (permission AdminAce).
+    - Enfoncer (TOUT LE MONDE) : un coup de pied à la fois (Cooldown) ; Kick.Steps coups réussis (barre de réussite du
+      client) : le verrou saute, la porte s'ouvre en grand chez tout le monde et reste CASSÉE (Broken) : elle ne se
+      verrouille plus, sa description « Elle a été forcée. » s'affiche, jusqu'à sa réparation (admin, Broken.Duration
+      minutes, ou redémarrage du serveur).
     - Frapper : le bruit est relayé aux joueurs proches.
     Les joueurs ne reçoivent jamais la licence du propriétaire, seulement une empreinte (tag) pour savoir « c'est la
     mienne ». Verrous gardés dans data/locks.json (Save). Aucune boucle.
@@ -16,6 +18,7 @@ local Config = DoorlockConfig
 local RES = GetCurrentResourceName()
 
 local locks = {}  -- [id] = { id, model, x, y, z, owner, tag, group }
+local broken = {} -- [id] = { id, model, x, y, z, group } : portes enfoncées (jusqu'à réparation)
 local kicks = {}  -- [groupe] = coups reçus
 local lastAct = {} -- [src] = { [action] = heure }
 
@@ -39,12 +42,7 @@ local function isPolice(src)
     return ok and type(unit) == 'table'
 end
 
---- Mode civil de rp_interact (Menu F1 > Civil : état répliqué "rpiCivilMode") ; sans rp_interact : tout le monde
-local function isCivil(src)
-    if GetResourceState(Config.InteractResource or 'rp_interact') ~= 'started' then return true end
-    return Player(src).state.rpiCivilMode == true
-end
-local CIVIL_ONLY = 'Réservé au mode civil (Menu Interaction > Civil > Mode civil).'
+local NOT_POLICE = 'Un policier en service ne verrouille pas les portes (civils et joueurs sans rôle seulement).'
 
 local function number(v)
     v = tonumber(v)
@@ -118,13 +116,15 @@ RegisterNetEvent('rp_doorlock:sync', function()
     local src = source
     local list = {}
     for _, l in pairs(locks) do list[#list + 1] = public(l) end
-    TriggerClientEvent('rp_doorlock:all', src, list, tagOf(licenseOf(src)), isAdmin(src))
+    local forced = {}
+    for _, b in pairs(broken) do forced[#forced + 1] = b end
+    TriggerClientEvent('rp_doorlock:all', src, list, tagOf(licenseOf(src)), isAdmin(src), forced)
 end)
 
 RegisterNetEvent('rp_doorlock:lock', function(doors)
     local src = source
     if type(doors) ~= 'table' or #doors == 0 or #doors > 2 or not throttle(src, 'lock', 800) then return end
-    if not isCivil(src) or isPolice(src) then return notify(src, CIVIL_ONLY) end
+    if isPolice(src) then return notify(src, NOT_POLICE) end
     local license = licenseOf(src)
     local entries = {}
     for i, d in ipairs(doors) do
@@ -135,6 +135,7 @@ RegisterNetEvent('rp_doorlock:lock', function(doors)
         if not near(src, x, y, z, i == 1 and 1.0 or (Config.PairDistance or 2.6) + 1.0) then return end
         local id = DoorlockId(model, x, y, z)
         if locks[id] then return notify(src, 'Cette porte est déjà verrouillée.') end
+        if broken[id] then return notify(src, 'Cette porte a été forcée : elle ne se verrouille plus.') end
         entries[#entries + 1] = { id = id, model = math.floor(model), x = x, y = y, z = z }
     end
     if (Config.MaxPerPlayer or 0) > 0 and countOf(license) >= Config.MaxPerPlayer then
@@ -159,7 +160,7 @@ RegisterNetEvent('rp_doorlock:unlock', function(id)
     if not l or not throttle(src, 'unlock', 800) then return end
     if not near(src, l.x, l.y, l.z, 1.0) then return end
     if not isAdmin(src) then
-        if not isCivil(src) or isPolice(src) then return notify(src, CIVIL_ONLY) end
+        if isPolice(src) then return notify(src, NOT_POLICE) end
         if l.owner ~= licenseOf(src) then return notify(src, 'Vous n\'avez pas la clé de cette porte.') end
     end
     local ids = removeGroup(id)
@@ -169,20 +170,33 @@ RegisterNetEvent('rp_doorlock:unlock', function(id)
     notify(src, #ids > 1 and 'Portes déverrouillées.' or 'Porte déverrouillée.')
 end)
 
+--- Porte réparée : elle se verrouille de nouveau, sa description disparaît
+local function repair(ids)
+    local out = {}
+    for _, id in ipairs(ids) do
+        if broken[id] then
+            broken[id] = nil
+            out[#out + 1] = id
+        end
+    end
+    if #out > 0 then TriggerClientEvent('rp_doorlock:repaired', -1, out) end
+    return out
+end
+
 --- Début de la barre de réussite : les coups d'avant ne comptent plus
 RegisterNetEvent('rp_doorlock:breachStart', function(id)
     local src = source
     local l = type(id) == 'string' and locks[id] or nil
-    if l and isPolice(src) and near(src, l.x, l.y, l.z, 1.0) then kicks[l.group] = 0 end
+    if l and near(src, l.x, l.y, l.z, 1.0) then kicks[l.group] = 0 end
 end)
 
---- Un coup de pied : réussi (curseur dans la zone verte) ou raté ; Steps coups réussis -> la porte cède
+--- Un coup de pied (tout le monde) : réussi (curseur dans la zone verte) ou raté ; Steps coups réussis -> la porte
+--- cède et reste cassée
 RegisterNetEvent('rp_doorlock:kick', function(id, hit)
     local src = source
     local K = Config.Kick or {}
     local l = type(id) == 'string' and locks[id] or nil
     if K.Enabled == false or not l then return end
-    if not isPolice(src) then return notify(src, 'Seuls les policiers en service peuvent enfoncer une porte.') end
     if not near(src, l.x, l.y, l.z, 1.0) or not throttle(src, 'kick', K.Cooldown or 700) then return end
     if hit ~= true then return end
     local n = (kicks[l.group] or 0) + 1
@@ -190,13 +204,30 @@ RegisterNetEvent('rp_doorlock:kick', function(id, hit)
     if n < (K.Steps or 3) then return end
     local ped = GetPlayerPed(src)
     local from = GetEntityCoords(ped)
-    local doors = {}
-    for _, d in ipairs(groupOf(id)) do doors[#doors + 1] = public(d) end
+    local doors, ids = {}, {}
+    for _, d in ipairs(groupOf(id)) do
+        doors[#doors + 1] = public(d)
+        ids[#ids + 1] = d.id
+        broken[d.id] = { id = d.id, model = d.model, x = d.x, y = d.y, z = d.z, group = d.group }
+    end
     removeGroup(id)
     kicks[l.group] = nil
     save()
     TriggerClientEvent('rp_doorlock:breach', -1, doors, { x = from.x, y = from.y, z = from.z })
     notify(src, 'La porte cède !')
+    local minutes = tonumber((Config.Broken or {}).Duration) or 0
+    if minutes > 0 then SetTimeout(math.floor(minutes * 60000), function() repair(ids) end) end
+end)
+
+--- Réparer une porte forcée (admin, avec l'œil) : la porte double en entier
+RegisterNetEvent('rp_doorlock:repair', function(id)
+    local src = source
+    local b = type(id) == 'string' and broken[id] or nil
+    if not b or not isAdmin(src) or not near(src, b.x, b.y, b.z, 1.0) then return end
+    local ids = {}
+    for otherId, other in pairs(broken) do if other.group == b.group then ids[#ids + 1] = otherId end end
+    repair(ids)
+    notify(src, 'Porte réparée : elle se verrouille de nouveau.')
 end)
 
 RegisterNetEvent('rp_doorlock:knock', function(x, y, z)

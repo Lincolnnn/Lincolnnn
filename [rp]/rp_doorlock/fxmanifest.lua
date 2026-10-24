@@ -1,6 +1,6 @@
 --[[
-    RP Doorlock - portes verrouillées / déverrouillées par les joueurs en mode civil avec l'œil (rp_interact),
-    enfoncées par les policiers en service (MDC) avec une barre de réussite. Aucun framework.
+    RP Doorlock - portes verrouillées / déverrouillées avec l'œil (rp_interact) par les joueurs qui ne sont pas
+    policiers en service, enfoncées par tout le monde avec une barre de réussite (porte cassée ensuite). Aucun framework.
 ]]
 
 fx_version 'cerulean'
@@ -9,8 +9,8 @@ lua54 'yes'
 
 name 'rp_doorlock'
 author 'Lincolnnn'
-description 'Portes à verrouiller / déverrouiller, à frapper, enfoncées par la police - standalone'
-version '1.1.0'
+description 'Portes à verrouiller / déverrouiller, à frapper, à enfoncer (porte forcée) - standalone'
+version '1.2.0'
 
 ui_page 'html/index.html'
 

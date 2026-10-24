@@ -22,6 +22,7 @@
             const cls = i < game.step ? 'done' : (i === game.step ? 'current' : '');
             return `<span class="breach-step ${cls}"></span>`;
         }).join('');
+        $('breachCount').textContent = `${Math.min(game.step, game.steps)} / ${game.steps} réussis`;
     }
 
     // Curseur : va et vient d'un bout à l'autre, `speed` allers par seconde

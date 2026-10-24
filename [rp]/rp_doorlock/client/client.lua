@@ -2,16 +2,20 @@
     RP Doorlock - client
     --------------------
     Avec l'œil de rp_interact (Alt), en visant une porte du jeu (ou d'une map ajoutée) à moins de Distance m :
-      - MODE CIVIL seulement (rp_interact : Menu F1 > Civil > Mode civil ; jamais un policier en service) :
-        « Verrouiller la porte », et « Déverrouiller la porte » pour son propriétaire ;
-      - porte verrouillée, policier en service : « Enfoncer la porte » : barre de réussite en bas de l'écran (ESPACE
-        quand le curseur passe dans la zone verte, Steps fois ; RETOUR ARRIÈRE pour arrêter), un coup de pied à
-        chaque essai ;
+      - « Verrouiller la porte » : joueurs en mode civil ou sans rôle (jamais un policier en service, unité du MDC) ;
+        « Déverrouiller la porte » pour son propriétaire (même règle) ou un admin ;
+      - porte verrouillée, TOUT LE MONDE : « Enfoncer la porte » : barre de réussite en bas de l'écran (ESPACE
+        quand le curseur passe dans la zone verte, Steps fois ; RETOUR ARRIÈRE pour arrêter), un coup de pied
+        (animation) à chaque essai ;
+      - porte enfoncée : cassée, elle ne se verrouille plus ; description « Elle a été forcée. » affichée au-dessus
+        (comme la description visuelle d'une scène de /scene) ; un admin peut la réparer ;
       - tout le monde : « Frapper à la porte ».
     Une porte double (deux battants côte à côte) est verrouillée / déverrouillée / enfoncée en entier.
-    Les verrous viennent du serveur et sont appliqués avec le système de portes du jeu (porte bloquée fermée chez
-    tout le monde, même loin d'elle). Les portes ne peuvent pas être supprimées avec l'œil (rp_interact : export isDoor).
-    Performance : aucune boucle, sauf pendant la barre de réussite (lecture des touches, à chaque image).
+    Verrous : système de portes du jeu (porte fermée et bloquée chez tout le monde), ré-appliqué quand la porte se
+    charge près du joueur, et porte figée une fois fermée (elle ne bat plus, même une porte de bâtiment du jeu de base).
+    Les portes ne peuvent pas être supprimées avec l'œil (rp_interact : export isDoor).
+    Performance : aucune boucle sans verrou ni porte forcée ; sinon une vérification par seconde (0,5 s près d'une
+    porte), et l'affichage de la description seulement quand elle est visible à moins de 10 m.
 ]]
 
 local Config = DoorlockConfig
@@ -23,7 +27,8 @@ local IGNORED = {}
 for _, m in ipairs(Config.IgnoredModels or {}) do IGNORED[type(m) == 'number' and m or GetHashKey(m)] = true end
 
 local locks = {}        -- [id] = { id, model, x, y, z, tag, group } (du serveur)
-local applied = {}      -- [id] = { hash, own } : porte inscrite dans le système de portes du jeu
+local broken = {}       -- [id] = { id, model, x, y, z, group } : portes enfoncées (du serveur)
+local applied = {}      -- [id] = { hash, loaded, object } : porte inscrite dans le système de portes du jeu
 local myTag, admin = nil, false
 local busy = false
 
@@ -86,48 +91,217 @@ function DL.pairOf(entity)
 end
 
 -- =========================================================================
--- APPLIQUER LES VERROUS (système de portes du jeu)
+-- APPLIQUER LES VERROUS (système de portes du jeu + porte figée une fois fermée)
 -- =========================================================================
 --- Nombres reçus du serveur : modèle en ENTIER (un nombre à virgule passé à une native attendant un entier serait
 --- lu de travers : la porte ne serait jamais reconnue), position en nombres à virgule
 local function toInt(v) return math.tointeger(v) or math.floor(tonumber(v) or 0) end
+
+--- La porte (objet) d'un verrou, si elle est chargée près du joueur
+local function doorObject(l)
+    local obj = GetClosestObjectOfType(l.x + 0.0, l.y + 0.0, l.z + 0.0, 1.0, toInt(l.model), false, false, false)
+    return obj ~= 0 and obj or nil
+end
+
+--- Verrouillée dans le système de portes : la porte se referme et reste bloquée. Le jeu n'applique un état qu'une
+--- fois la porte chargée (physique) : `lockState` est donc rappelé quand elle se charge près du joueur.
+local function lockState(a)
+    DoorSystemSetDoorState(a.hash, 4, false, false) -- remise à zéro de l'état, puis :
+    DoorSystemSetDoorState(a.hash, 1, false, true)  -- verrouillée, appliqué tout de suite
+end
 
 local function apply(l)
     local a = applied[l.id]
     if not a then
         -- toujours NOTRE inscription dans le système de portes (comme les scripts de portes éprouvés) : une porte
         -- déjà gérée par le jeu ou un autre script garderait sinon l'état qu'ils lui donnent
-        a = { hash = GetHashKey('rp_doorlock:' .. l.id), own = true }
-        AddDoorToSystem(a.hash, toInt(l.model), l.x + 0.0, l.y + 0.0, l.z + 0.0, false, false, false)
+        a = { hash = GetHashKey('rp_doorlock:' .. l.id) }
         applied[l.id] = a
     end
-    DoorSystemSetDoorState(a.hash, 4, false, false) -- remise à zéro de l'état, puis :
-    DoorSystemSetDoorState(a.hash, 1, false, false) -- verrouillée (elle se referme et reste bloquée)
+    if not IsDoorRegisteredWithSystem(a.hash) then
+        AddDoorToSystem(a.hash, toInt(l.model), l.x + 0.0, l.y + 0.0, l.z + 0.0, false, false, false)
+    end
+    lockState(a)
+    a.loaded = DoorSystemGetIsPhysicsLoaded(a.hash) == true or DoorSystemGetIsPhysicsLoaded(a.hash) == 1
+end
+
+local function unfreeze(a)
+    if a.object and DoesEntityExist(a.object) then FreezeEntityPosition(a.object, false) end
+    a.object = nil
 end
 
 local function release(id, keepOpen)
     local a = applied[id]
     if not a then return end
     applied[id] = nil
-    DoorSystemSetDoorState(a.hash, 0, false, false) -- déverrouillée
-    if a.own then
-        if keepOpen then
-            -- enfoncée : la porte reste libre de battre un instant, puis rendue au jeu
-            SetTimeout(3000, function() if not applied[id] and IsDoorRegisteredWithSystem(a.hash) then RemoveDoorFromSystem(a.hash) end end)
-        else
-            RemoveDoorFromSystem(a.hash)
-        end
+    unfreeze(a)
+    DoorSystemSetDoorState(a.hash, 0, false, true) -- déverrouillée
+    if keepOpen then
+        -- enfoncée : la porte reste libre de battre un instant, puis rendue au jeu
+        SetTimeout(3000, function() if not applied[id] and IsDoorRegisteredWithSystem(a.hash) then RemoveDoorFromSystem(a.hash) end end)
+    else
+        RemoveDoorFromSystem(a.hash)
     end
 end
 
-RegisterNetEvent('rp_doorlock:all', function(list, tag, isAdmin)
+--- Une porte verrouillée proche : état ré-appliqué quand elle se charge, figée une fois fermée (elle ne bat plus)
+local function holdLocked(l)
+    local a = applied[l.id]
+    if not a then return end
+    if not IsDoorRegisteredWithSystem(a.hash) then
+        AddDoorToSystem(a.hash, toInt(l.model), l.x + 0.0, l.y + 0.0, l.z + 0.0, false, false, false)
+        a.loaded = false
+    end
+    local loaded = DoorSystemGetIsPhysicsLoaded(a.hash)
+    loaded = loaded == true or loaded == 1
+    if loaded and (not a.loaded or DoorSystemGetDoorState(a.hash) ~= 1) then lockState(a) end
+    a.loaded = loaded
+    local obj = doorObject(l)
+    if a.object and a.object ~= obj then unfreeze(a) end
+    if obj and not a.object and math.abs(DoorSystemGetOpenRatio(a.hash)) < 0.02 then
+        FreezeEntityPosition(obj, true)
+        a.object = obj
+    end
+end
+
+-- =========================================================================
+-- PORTE FORCÉE : description au-dessus de la porte (même rendu que la description visuelle de /scene)
+-- =========================================================================
+local B = Config.Broken or {}
+local looks = {}         -- [id] = { anchor, entity, visible, lines }
+local lookRunning = false
+
+--- Texte coupé en lignes de ~38 caractères
+local function wrap(text, width)
+    local lines = {}
+    for paragraph in (tostring(text) .. '\n'):gmatch('(.-)\n') do
+        local line = ''
+        for word in paragraph:gmatch('%S+') do
+            if #line + #word + 1 > width and line ~= '' then lines[#lines + 1] = line; line = word
+            else line = line == '' and word or (line .. ' ' .. word) end
+        end
+        if line ~= '' then lines[#lines + 1] = line end
+    end
+    return lines
+end
+
+--- Point au-dessus duquel la description s'affiche : au milieu du battant, juste au-dessus
+local function lookAnchor(l)
+    local obj = doorObject(l)
+    if obj then
+        local min, max = GetModelDimensions(GetEntityModel(obj))
+        return GetOffsetFromEntityInWorldCoords(obj, (min.x + max.x) / 2, (min.y + max.y) / 2, max.z + 0.25), obj
+    end
+    return vector3(l.x, l.y, l.z + 2.35), nil
+end
+
+--- Visible : rien entre la caméra et le point (un mur…), la porte elle-même mise à part
+local function inSight(anchor, entity)
+    local cam = GetFinalRenderedCamCoord()
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(cam.x, cam.y, cam.z, anchor.x, anchor.y, anchor.z,
+        1 + 2 + 16, PlayerPedId(), 7)
+    local _, hit, coords, _, hitEntity = GetShapeTestResult(ray)
+    if hit ~= 1 and hit ~= true then return true end
+    if entity and hitEntity == entity then return true end
+    return #(coords - anchor) <= 0.6
+end
+
+local function drawLook(anchor, lines, distance)
+    local scale = (B.Scale or 0.34) * math.max(0.75, math.min(1.15, 6.0 / math.max(distance, 1.0)))
+    local color = B.Color or { 245, 238, 215 }
+    local lineH = 0.028 * scale / 0.34
+    local longest = 0
+    for _, l in ipairs(lines) do if #l > longest then longest = #l end end
+    SetDrawOrigin(anchor.x, anchor.y, anchor.z, 0)
+    DrawRect(0.0, (#lines - 1) * lineH / 2 + lineH * 0.45, longest * 0.0052 * scale / 0.34 + 0.016, #lines * lineH + 0.012, 0, 0, 0, 140)
+    for i, l in ipairs(lines) do
+        SetTextFont(4)
+        SetTextScale(0.0, scale)
+        SetTextColour(color[1], color[2], color[3], 235)
+        SetTextCentre(true)
+        SetTextOutline()
+        BeginTextCommandDisplayText('STRING')
+        AddTextComponentSubstringPlayerName(l)
+        EndTextCommandDisplayText(0.0, (i - 1) * lineH)
+    end
+    ClearDrawOrigin()
+end
+
+local function lookLoop()
+    if lookRunning then return end
+    lookRunning = true
+    CreateThread(function()
+        while next(looks) do
+            if not IsPauseMenuActive() then
+                local me = GetEntityCoords(PlayerPedId())
+                for _, look in pairs(looks) do
+                    if look.visible then drawLook(look.anchor, look.lines, #(me - look.anchor)) end
+                end
+            end
+            Wait(0)
+        end
+        lookRunning = false
+    end)
+end
+
+--- Descriptions des portes forcées proches (depuis la boucle des portes)
+local function updateLooks(me)
+    if B.Text == false or B.Text == '' then return end
+    local range = B.Distance or 10.0
+    for id, l in pairs(broken) do
+        local close = #(me - vector3(l.x, l.y, l.z)) <= range + 3.0
+        if close then
+            local look = looks[id] or { lines = wrap(B.Text or 'Elle a été forcée.', 38) }
+            look.anchor, look.entity = lookAnchor(l)
+            look.visible = #(me - look.anchor) <= range + 0.5 and inSight(look.anchor, look.entity)
+            looks[id] = look
+        else
+            looks[id] = nil
+        end
+    end
+    for id in pairs(looks) do if not broken[id] then looks[id] = nil end end
+    if next(looks) then lookLoop() end
+end
+
+-- =========================================================================
+-- BOUCLE DES PORTES : seulement s'il y a des verrous ou des portes forcées ; plus rapide près de l'une d'elles
+-- =========================================================================
+local watching = false
+local function watch()
+    if watching then return end
+    watching = true
+    CreateThread(function()
+        while next(locks) or next(broken) do
+            local me = GetEntityCoords(PlayerPedId())
+            local close = false
+            for id, l in pairs(locks) do
+                if #(me - vector3(l.x, l.y, l.z)) <= (Config.HoldDistance or 40.0) then
+                    close = true
+                    holdLocked(l)
+                elseif applied[id] and applied[id].object then
+                    unfreeze(applied[id]) -- hors de portée : l'objet peut disparaître
+                    applied[id].loaded = false
+                end
+            end
+            updateLooks(me)
+            if next(looks) then close = true end
+            Wait(close and 500 or 1000)
+        end
+        looks = {}
+        watching = false
+    end)
+end
+
+RegisterNetEvent('rp_doorlock:all', function(list, tag, isAdmin, brokenList)
     myTag, admin = tag, isAdmin == true
     for id in pairs(locks) do release(id) end
-    locks = {}
+    locks, broken = {}, {}
     for _, l in ipairs(type(list) == 'table' and list or {}) do
         locks[l.id] = l
         apply(l)
     end
+    for _, l in ipairs(type(brokenList) == 'table' and brokenList or {}) do broken[l.id] = l end
+    watch()
 end)
 
 RegisterNetEvent('rp_doorlock:set', function(list)
@@ -135,6 +309,7 @@ RegisterNetEvent('rp_doorlock:set', function(list)
         locks[l.id] = l
         apply(l)
     end
+    watch()
 end)
 
 RegisterNetEvent('rp_doorlock:unset', function(ids)
@@ -144,7 +319,7 @@ RegisterNetEvent('rp_doorlock:unset', function(ids)
     end
 end)
 
---- Enfoncée : déverrouillée, et le battant est projeté loin du policier
+--- Enfoncée : déverrouillée, cassée (description), et le battant est projeté loin de celui qui l'a enfoncée
 local stopBreach -- barre de réussite (plus bas)
 
 RegisterNetEvent('rp_doorlock:breach', function(doors, from)
@@ -152,9 +327,10 @@ RegisterNetEvent('rp_doorlock:breach', function(doors, from)
     if stopBreach then stopBreach() end
     for _, l in ipairs(type(doors) == 'table' and doors or {}) do
         locks[l.id] = nil
+        broken[l.id] = l
         release(l.id, true)
-        local obj = GetClosestObjectOfType(l.x, l.y, l.z, 1.5, l.model, false, false, false)
-        if obj and obj ~= 0 and type(from) == 'table' then
+        local obj = doorObject(l)
+        if obj and type(from) == 'table' then
             local c = GetEntityCoords(obj)
             local dx, dy = c.x - from.x, c.y - from.y
             local len = math.sqrt(dx * dx + dy * dy)
@@ -164,8 +340,16 @@ RegisterNetEvent('rp_doorlock:breach', function(doors, from)
             end
         end
     end
+    watch()
 end)
 
+--- Porte réparée (admin, ou après Broken.Duration minutes) : elle se verrouille de nouveau
+RegisterNetEvent('rp_doorlock:repaired', function(ids)
+    for _, id in ipairs(type(ids) == 'table' and ids or {}) do
+        broken[id] = nil
+        looks[id] = nil
+    end
+end)
 
 RegisterNetEvent('rp_doorlock:knock', function(p)
     local K = Config.Knock or {}
@@ -193,7 +377,7 @@ local function faceDoor(door)
     SetEntityHeading(ped, GetHeadingFromVector_2d(door.x - p.x, door.y - p.y))
 end
 
---- Joue une animation (dict, clip, durée) ; renvoie une fois terminée
+--- Joue une animation (dict, clip, durée) ; renvoie tout de suite
 local function playAnim(anim, flag)
     if not anim or not loadAnim(anim[1]) then return false end
     TaskPlayAnim(PlayerPedId(), anim[1], anim[2], 4.0, -4.0, anim[3] or 1500, flag or 48, 0.0, false, false, false)
@@ -231,10 +415,13 @@ local function knock(door)
     Wait((Config.KnockAnim or {})[3] or 2500)
 end
 
---- Un coup de pied (animation, secousse si réussi) ; renvoie quand le pied touche la porte, puis la fin
+--- Un coup de pied dans la porte : le personnage joue l'animation à CHAQUE essai (réussi ou raté) ; secousse si
+--- réussi. Renvoie quand le pied touche la porte, avec le temps restant de l'animation.
 local function kickAnim(door, hit)
     local K = Config.Kick or {}
+    local ped = PlayerPedId()
     faceDoor(door)
+    ClearPedTasks(ped) -- l'animation précédente (coup d'avant) ne bloque pas la nouvelle
     local played
     for _, anim in ipairs(K.Anims or {}) do
         if playAnim(anim, 0) then played = anim break end
@@ -247,7 +434,7 @@ end
 -- =========================================================================
 -- ENFONCER : BARRE DE RÉUSSITE (en bas de l'écran, html/) - ESPACE quand le curseur est dans la zone verte
 -- =========================================================================
-local breach = nil -- { door, step, misses, waiting, session }
+local breach = nil -- { door, step, misses, waiting }
 local BREACH_DISABLED = { 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36, 44, 140, 141, 142, 143, 177, 194, 199, 200, 257, 263, 322 }
 
 local function stepData(step)
@@ -269,6 +456,10 @@ local function startBreach(door)
     breach = { door = door, step = 0, misses = 0, waiting = false }
     local mine = breach
     TriggerServerEvent('rp_doorlock:breachStart', door.id)
+    -- animations chargées dès le début : le premier coup de pied part sans attendre
+    for _, anim in ipairs((Config.Kick or {}).Anims or {}) do
+        if DoesAnimDictExist(anim[1]) then RequestAnimDict(anim[1]) end
+    end
     faceDoor(door)
     SendNUIMessage({ action = 'breach', data = stepData(0) })
     CreateThread(function()
@@ -337,26 +528,27 @@ exports('targetOptions', function(info)
     if busy or breach then return nil end
     local door = doorFromInfo(info)
     if not door then return nil end
-    local lock = locks[door.id]
-    local police = info.police == true
-    local civil = DL.civilMode() and not police -- verrouiller / déverrouiller : mode civil seulement
+    local lock, forced = locks[door.id], broken[door.id]
+    local police = info.police == true -- policier en service : ne verrouille pas (civils et joueurs sans rôle oui)
     local options = {}
-    if not lock then
-        if civil then
+    if forced then
+        if admin then options[#options + 1] = { id = 'repair', icon = 'tool', label = 'Réparer la porte' } end
+    elseif not lock then
+        if not police then
             options[#options + 1] = { id = 'lock', icon = 'lock', label = 'Verrouiller la porte' }
         end
     else
-        if (civil and lock.tag == myTag) or admin then
+        if (not police and lock.tag == myTag) or admin then
             options[#options + 1] = { id = 'unlock', icon = 'unlock', label = 'Déverrouiller la porte' }
         end
-        if police and (Config.Kick or {}).Enabled ~= false then
-            options[#options + 1] = { id = 'kick', icon = 'door', label = 'Enfoncer la porte', police = true }
+        if (Config.Kick or {}).Enabled ~= false then
+            options[#options + 1] = { id = 'kick', icon = 'door', label = 'Enfoncer la porte' }
         end
     end
     if (Config.Knock or {}).Enabled ~= false then
         options[#options + 1] = { id = 'knock', icon = 'hand', label = 'Frapper à la porte' }
     end
-    return { label = lock and 'Porte verrouillée' or 'Porte', options = options }
+    return { label = forced and 'Porte forcée' or (lock and 'Porte verrouillée' or 'Porte'), options = options }
 end)
 
 exports('targetSelect', function(id, info)
@@ -371,18 +563,14 @@ exports('targetSelect', function(id, info)
             unlockDoor(door)
         elseif id == 'kick' then
             startBreach(door)
+        elseif id == 'repair' then
+            TriggerServerEvent('rp_doorlock:repair', door.id)
         elseif id == 'knock' then
             knock(door)
         end
         busy = false
     end)
 end)
-
---- Mode civil de rp_interact (Menu F1 > Civil) ; sans rp_interact : tout le monde est civil
-function DL.civilMode()
-    if GetResourceState(Config.InteractResource or 'rp_interact') ~= 'started' then return true end
-    return LocalPlayer.state.rpiCivilMode == true
-end
 
 --- rp_interact : une porte ne peut pas être supprimée avec l'œil
 exports('isDoor', function(entity) return DL.isDoor(entity) end)

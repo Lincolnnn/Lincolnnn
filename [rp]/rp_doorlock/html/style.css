@@ -1,53 +1,63 @@
-/* RP Doorlock : barre de réussite pour enfoncer une porte (en bas de l'écran, par-dessus le jeu) */
+/* RP Doorlock : barre de réussite pour enfoncer une porte (en bas de l'écran) - thème CLAIR du MDC (Windows 11) */
 :root {
-    --track: rgba(20, 25, 34, .82);
-    --stroke: rgba(140, 170, 220, .22);
-    --zone: #4cc463;
-    --zone-hit: #7be08d;
-    --miss: #ff6b6b;
-    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, Arial, sans-serif;
+    --card: rgba(255, 255, 255, .97);
+    --stroke: rgba(0, 0, 0, .12);
+    --text: #1b1f24;
+    --muted: rgba(20, 26, 34, .58);
+    --track: #e7ebf0;
+    --zone: #2ea043;
+    --zone-hit: #1a7f37;
+    --miss: #c42b1c;
+    --accent: #0067c0;
+    --font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, Arial, sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font: 13px var(--font); user-select: none; }
 .hidden { display: none !important; }
 
 .breach {
-    position: fixed; left: 50%; bottom: 9vh; transform: translateX(-50%);
-    width: min(620px, 52vw);
+    position: fixed; left: 50%; bottom: 8vh; transform: translateX(-50%);
+    width: min(640px, 54vw); padding: 12px 16px 11px;
     display: flex; flex-direction: column; align-items: center; gap: 10px;
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--stroke); border-radius: 5px;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, .28), 0 2px 8px rgba(0, 0, 0, .14);
     pointer-events: none;
 }
+.breach-head { display: flex; align-items: baseline; justify-content: space-between; width: 100%; }
+.breach-title { font-size: 14px; font-weight: 600; }
+.breach-count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
 .breach-track {
     position: relative; width: 100%; height: 22px;
     background: var(--track);
-    border: 1px solid var(--stroke); border-radius: 4px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+    border: 1px solid rgba(0, 0, 0, .1); border-radius: 3px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .08);
 }
 .breach-zone {
     position: absolute; top: 3px; bottom: 3px; left: 40%; width: 20%;
-    background: var(--zone); border-radius: 2px;
-    box-shadow: 0 0 10px rgba(76, 196, 99, .45);
+    background: linear-gradient(180deg, #3fb950, var(--zone)); border-radius: 2px;
     transition: left .18s ease, width .18s ease, background-color .15s;
 }
 .breach-cursor {
     position: absolute; top: -6px; bottom: -6px; left: 0; width: 4px; margin-left: -2px;
-    background: #fff; border-radius: 2px;
-    box-shadow: 0 0 8px rgba(255, 255, 255, .8);
+    background: var(--text); border-radius: 2px;
+    box-shadow: 0 0 0 1px #ffffff, 0 1px 3px rgba(0, 0, 0, .35);
 }
-.breach.hit .breach-zone { background: var(--zone-hit); box-shadow: 0 0 16px rgba(123, 224, 141, .8); }
+.breach.hit .breach-zone { background: var(--zone-hit); box-shadow: 0 0 10px rgba(46, 160, 67, .55); }
 .breach.hit .breach-cursor { background: var(--zone-hit); }
 .breach.miss .breach-track { border-color: var(--miss); animation: breach-shake .3s; }
-.breach.miss .breach-cursor { background: var(--miss); box-shadow: 0 0 8px rgba(255, 107, 107, .8); }
+.breach.miss .breach-cursor { background: var(--miss); }
 @keyframes breach-shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
 .breach-steps { display: flex; gap: 6px; }
-.breach-step { width: 22px; height: 8px; border-radius: 2px; background: rgba(140, 150, 165, .6); }
-.breach-step.done { background: var(--zone); box-shadow: 0 0 6px rgba(76, 196, 99, .5); }
-.breach-step.current { background: rgba(200, 210, 225, .85); }
+.breach-step { width: 22px; height: 8px; border-radius: 2px; background: #d3d9e1; }
+.breach-step.done { background: var(--zone); }
+.breach-step.current { background: var(--accent); }
 
-.breach-hint { color: #fff; font-size: 13px; text-shadow: 0 1px 2px rgba(0, 0, 0, .9), 0 0 6px rgba(0, 0, 0, .6); }
+.breach-hint { color: var(--muted); font-size: 12.5px; }
 .breach-hint kbd {
     display: inline-block; padding: 0 5px; margin: 0 2px; border-radius: 3px;
-    font: 600 11px var(--font); color: #fff;
-    background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .3); border-bottom-width: 2px;
+    font: 600 11px var(--font); color: var(--text);
+    background: #ffffff; border: 1px solid rgba(0, 0, 0, .18); border-bottom-width: 2px;
 }
