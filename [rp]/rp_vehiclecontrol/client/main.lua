@@ -10,7 +10,9 @@
         puissance réduite d'un moteur abîmé, détection des chocs) ;
       - 'tick'  : toutes les 100 ms à bord (essence, dégâts, alarme de ceinture, car HUD) ;
       - 'impact' : choc violent (vitesse avant le choc, perte de vitesse, vitesse du véhicule, ce qui a
-        été percuté : { severity = 'light' | 'heavy', kind = 'ped' | 'vehicle' | 'object' | 'world' }) ;
+        été percuté : { severity = 'light' | 'heavy', kind = 'ped' | 'vehicle' | 'object' | 'world', entity },
+        secousse = plus grand changement de vitesse en MPH, toutes directions : aussi quand le véhicule est
+        percuté à l'arrêt ou par l'arrière, sans perdre de vitesse) ;
       - 'idle'  : toutes les 500 ms à pied (pompes, jerrican, véhicule à pousser).
 
     Car HUD : dessiné par le MDC (rp_mdc, Paramètres > HUD & Display), qui reçoit les données
@@ -232,39 +234,40 @@ for _, name in ipairs(Damage.LightModels or {}) do modelSeverity[GetHashKey(name
 for _, name in ipairs(Damage.HeavyModels or {}) do modelSeverity[GetHashKey(name)] = 'heavy' end
 
 local HIT_MS = 600  -- durée pendant laquelle les dégâts reçus sont attribués à ce choc
-local lastHit = nil -- { vehicle, severity, kind, untilTime }
+local lastHit = nil -- { vehicle, severity, kind, entity, untilTime }
 
+--- Entité au contact du véhicule (la plus « lourde ») : severity, entity
 local function touching(vehicle, pool, range, classify)
     local pos = GetEntityCoords(vehicle)
-    local found = nil
+    local found, foundEntity = nil, nil
     for _, entity in ipairs(GetGamePool(pool)) do
         if entity ~= vehicle and #(GetEntityCoords(entity) - pos) <= range and IsEntityTouchingEntity(vehicle, entity)
             -- remorque attelée, objet porté… : toujours au contact, ce n'est pas un choc
             and not IsEntityAttachedToEntity(entity, vehicle) and not IsEntityAttachedToEntity(vehicle, entity) then
             local severity = classify(entity)
-            if severity == 'heavy' then return 'heavy' end
-            found = severity or found
+            if severity == 'heavy' then return 'heavy', entity end
+            if severity and not found then found, foundEntity = severity, entity end
         end
     end
-    return found
+    return found, foundEntity
 end
 
---- Ce que le véhicule vient de percuter : { severity = 'light' | 'heavy', kind }
+--- Ce que le véhicule vient de percuter : { severity = 'light' | 'heavy', kind, entity }
 function VC.classifyHit(vehicle)
     local ped = PlayerPedId()
-    local severity = touching(vehicle, 'CVehicle', 12.0, function(other)
+    local severity, entity = touching(vehicle, 'CVehicle', 12.0, function(other)
         return Damage.LightVehicleClasses[GetVehicleClass(other)] and 'light' or 'heavy'
     end)
-    if severity then return { severity = severity, kind = 'vehicle' } end
-    severity = touching(vehicle, 'CObject', 10.0, function(object)
+    if severity then return { severity = severity, kind = 'vehicle', entity = entity } end
+    severity, entity = touching(vehicle, 'CObject', 10.0, function(object)
         return modelSeverity[GetEntityModel(object)] or Damage.UnknownObject or 'light'
     end)
-    if severity then return { severity = severity, kind = 'object' } end
-    severity = touching(vehicle, 'CPed', 6.0, function(other)
+    if severity then return { severity = severity, kind = 'object', entity = entity } end
+    severity, entity = touching(vehicle, 'CPed', 6.0, function(other)
         if other == ped or GetVehiclePedIsIn(other, false) == vehicle then return nil end
         return 'light'
     end)
-    if severity then return { severity = severity, kind = 'ped' } end
+    if severity then return { severity = severity, kind = 'ped', entity = entity } end
     return { severity = 'heavy', kind = 'world' } -- mur, bâtiment, rocher, décor fixe
 end
 
@@ -275,7 +278,7 @@ function VC.currentHit(vehicle)
     if lastHit and lastHit.vehicle == vehicle and now <= lastHit.untilTime then return lastHit end
     if not HasEntityCollidedWithAnything(vehicle) then return nil end
     local hit = VC.classifyHit(vehicle)
-    lastHit = { vehicle = vehicle, severity = hit.severity, kind = hit.kind, untilTime = now + HIT_MS }
+    lastHit = { vehicle = vehicle, severity = hit.severity, kind = hit.kind, entity = hit.entity, untilTime = now + HIT_MS }
     return lastHit
 end
 
@@ -283,7 +286,7 @@ end
 -- CHOCS : perte de vitesse brutale pendant un contact (mur, objet fixe, véhicule)
 -- =========================================================================
 local history = {}  -- vitesses des 400 dernières ms : { t, speed }
-local crash = nil   -- choc en cours : { before, min, untilTime, velocity, hit }
+local crash = nil   -- choc en cours : { before, min, untilTime, velocity, hit, jolt }
 local lastVelocity = vector3(0.0, 0.0, 0.0)
 
 local function recentPeak(now)
@@ -299,25 +302,30 @@ end
 local function detectImpact(vehicle)
     local now = GetGameTimer()
     local speed = GetEntitySpeed(vehicle) * VC.MPH
+    local velocity = GetEntityVelocity(vehicle)
     if not crash and HasEntityCollidedWithAnything(vehicle) then
         local before = math.max(recentPeak(now), speed)
-        if before > 5.0 then
+        -- secousse : changement brutal de vitesse (aussi percuté à l'arrêt ou par l'arrière)
+        local jump = #(velocity - lastVelocity) * VC.MPH
+        if before > 5.0 or jump > 4.0 then
             lastHit = nil -- nouveau choc : reconnu maintenant
-            crash = { before = before, min = speed, untilTime = now + 250, velocity = lastVelocity, hit = VC.currentHit(vehicle) }
+            crash = { before = before, min = speed, untilTime = now + 250, velocity = lastVelocity, hit = VC.currentHit(vehicle), jolt = 0.0 }
         end
     end
     if crash then
         if speed < crash.min then crash.min = speed end
+        local jolt = #(velocity - crash.velocity) * VC.MPH
+        if jolt > crash.jolt then crash.jolt, crash.after = jolt, velocity end
         -- Fin du choc : 250 ms écoulées, ou véhicule arrêté net
         if now >= crash.untilTime or crash.min < 2.0 then
-            emit('impact', vehicle, crash.before, crash.before - crash.min, crash.velocity, crash.hit)
+            emit('impact', vehicle, crash.before, crash.before - crash.min, crash.velocity, crash.hit, crash.jolt, crash.after)
             crash = nil
         end
     end
     VC.inCrash = crash ~= nil -- choc en cours (les modules ne relèvent pas l'état du véhicule pendant ce temps)
     history[#history + 1] = { t = now, speed = speed }
     if #history > 60 then table.remove(history, 1) end
-    lastVelocity = GetEntityVelocity(vehicle)
+    lastVelocity = velocity
 end
 
 -- =========================================================================

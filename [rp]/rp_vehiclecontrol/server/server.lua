@@ -217,3 +217,28 @@ RegisterNetEvent('rp_vehiclecontrol:glass', function(points)
     TriggerClientEvent('rp_vehiclecontrol:glass', -1, clean)
 end)
 AddEventHandler('playerDropped', function() glassAt[source] = nil end)
+
+-- Véhicule percuté sans conducteur joueur (garé, PNJ) : signalé par celui qui l'a percuté, relayé à celui qui le
+-- contrôle (ou au signaleur si le serveur le garde), qui y applique les dégâts visuels (coffre, capot, portières…).
+-- Vérifié : véhicule proche du signaleur, violence bornée, une fois par véhicule toutes les 500 ms.
+local SIDES = { front = true, rear = true, left = true, right = true }
+local otherAt = {} -- [véhicule] = dernier relais (ms)
+RegisterNetEvent('rp_vehiclecontrol:bodyworkOther', function(netId, sev, side, where)
+    local src = source
+    local O = (Config.Bodywork or {}).Other or {}
+    local vehicle = vehicleFromNet(netId)
+    sev = tonumber(sev)
+    if O.Enabled == false or not vehicle or not sev or sev ~= sev or not SIDES[side] then return end
+    if not near(src, vehicle, O.MaxDistance or 15.0) then return end
+    local driver = GetPedInVehicleSeat(vehicle, -1)
+    if driver and driver ~= 0 and IsPedAPlayer(driver) then return end -- son conducteur s'en occupe
+    local now = GetGameTimer()
+    if otherAt[vehicle] and now - otherAt[vehicle] < 500 then return end
+    otherAt[vehicle] = now
+    where = tonumber(where)
+    if where then where = math.max(-1.0, math.min(1.0, where)) end
+    local owner = NetworkGetEntityOwner(vehicle)
+    TriggerClientEvent('rp_vehiclecontrol:bodyworkOther', (owner and owner > 0) and owner or src, netId,
+        math.min(sev, 150.0), side, where)
+end)
+AddEventHandler('entityRemoved', function(entity) otherAt[entity] = nil end)

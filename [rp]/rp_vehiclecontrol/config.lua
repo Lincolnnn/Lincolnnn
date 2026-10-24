@@ -125,28 +125,37 @@ VCConfig = {
         SkipClasses = { [13] = true, [14] = true, [15] = true, [16] = true, [21] = true }, -- vélos, bateaux, aéronefs, trains
     },
 
-    -- DÉGÂTS VISUELS : le véhicule perd des morceaux seulement après de vrais gros accidents ou une addition
-    -- d'accidents. Chaque choc fort (perte de vitesse brutale >= MinDrop MPH) ajoute cette perte à l'USURE du côté
-    -- touché (un choc de côté ajoute aussi SideToBumpers x la perte aux pare-chocs). Une pièce peut tomber (Chance)
-    -- quand l'usure de son côté dépasse Wear, par ordre de priorité : pare-chocs, capot / coffre, pare-brise, puis
-    -- seulement bien plus tard les portières ; roues : perte d'au moins Wheel.Drop MPH d'un coup ou usure extrême.
-    -- Ex. : un choc frontal à 65 MPH -> pare-choc avant (et peut-être une roue) ; trois chocs de 30 MPH à l'avant
-    -- (usure 90) -> pare-choc, capot, peut-être le pare-brise. Carrosserie sous WornBody : seuils x WornFactor.
+    -- DÉGÂTS VISUELS DES ACCIDENTS. Violence d'un choc (MPH) : la perte de vitesse (on percute) ou la secousse x
+    -- JoltFactor (on est percuté, même à l'arrêt ou par l'arrière). Un choc d'au moins MinDrop MPH compte ; il ajoute
+    -- sa violence à l'USURE du côté touché (un choc de côté ajoute aussi SideToBumpers x la violence aux pare-chocs).
+    -- CE QUI S'OUVRE (Open ; ne se détache jamais, NeverFall) : COFFRE sur un choc à l'arrière, CAPOT sur un choc à
+    -- l'avant, PORTIÈRES touchées sur un choc de côté (avant / arrière selon l'endroit du choc), une portière
+    -- entrebâillée sur un très gros choc avant / arrière ; aussi dès que l'usure du côté dépasse Open.Wear. Ouverture :
+    -- entre Angle[1] et Angle[2] (0 = fermé, 1 = grand ouvert). Unlock : la sécurité saute (déverrouillé).
+    -- CE QUI SE DÉTACHE (usure du côté >= Wear, avec Chance) : pare-chocs, pare-brise ; roues : choc d'au moins
+    -- Wheel.Drop MPH d'un coup ou usure extrême. CE QUI S'ABÎME : bosses en plus au point d'impact (Deform), vitres du
+    -- côté touché, pneu le plus proche qui éclate (Tyre). Carrosserie sous WornBody : seuils x WornFactor.
+    -- Véhicule percuté sans conducteur joueur (garé, PNJ) : même calcul, appliqué par celui qui le contrôle (Other).
     Bodywork = {
         Enabled = true,
         MinDrop = 22.0,                          -- en dessous : un accrochage, ne compte pas
+        JoltFactor = 1.0,                        -- secousse (percuté) -> violence
         SideToBumpers = 0.4,
+        Open = {
+            Trunk = { Min = 22.0, Chance = 0.8, Angle = { 0.45, 1.0 } },     -- choc à l'arrière : le coffre s'ouvre
+            Hood = { Min = 26.0, Chance = 0.65, Angle = { 0.15, 0.5 } },      -- choc à l'avant : le capot se soulève
+            Doors = { Min = 24.0, Chance = 0.6, Angle = { 0.25, 0.7 }, Max = 2 }, -- choc de côté : portières touchées
+            FrontRear = { Min = 40.0, Chance = 0.25, Angle = { 0.06, 0.18 } }, -- très gros choc avant / arrière
+            Wear = 110.0,                         -- côté très usé : s'ouvre comme sur un choc
+            Unlock = true, NeverFall = true,
+        },
         Windows = { Wear = 35.0, Chance = 0.4 },  -- vitres du côté touché
         Bumper = { Wear = 60.0, Chance = 0.85 },
-        HoodTrunk = { Wear = 75.0, Chance = 0.75 },
         Windscreen = { Wear = 90.0, Chance = 0.5 },
-        -- Portières : elles ne tombent JAMAIS (NeverFall : le jeu ne peut plus les arracher). Gros choc (Drop MPH) ou
-        -- côté très usé (Wear) : la sécurité saute, le véhicule se déverrouille (Unlock) et des portières
-        -- s'ENTROUVRENT (ouverture entre Angle[1] et Angle[2], 0 = fermée, 1 = grande ouverte). Choc de côté : celles
-        -- de ce côté (Chance chacune) ; choc avant / arrière : n'importe laquelle, plus rarement (FrontRearChance).
-        DoorsAjar = { Drop = 40.0, Wear = 110.0, Chance = 0.5, FrontRearChance = 0.3, Max = 2, Angle = { 0.08, 0.2 },
-            Unlock = true, NeverFall = true },
         Wheel = { Drop = 60.0, Wear = 140.0, Chance = 0.5, Second = 0.25 },
+        Deform = { Enabled = true, Min = 24.0, Factor = 7.0, Max = 450.0, Radius = 0.8 }, -- bosses en plus
+        Tyre = { Min = 35.0, Chance = 0.35 },     -- pneu de la roue la plus proche du choc qui éclate
+        Other = { Enabled = true, MaxDistance = 15.0 }, -- véhicule percuté sans conducteur joueur
         WornBody = 400.0, WornFactor = 0.75,
         BumperForce = 900.0, -- déformation appliquée pour arracher un pare-choc
         -- Verre brisé au sol : gros accident (MinDrop MPH), sous chaque vitre qui vient de casser (Outside m à
@@ -166,12 +175,40 @@ VCConfig = {
         SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
     },
 
-    -- TONNEAUX ACCENTUÉS : un véhicule qui part en tonneau (penché de plus de StartRoll degrés, plus sur ses roues, à au
-    -- moins MinSpeed MPH) en fait davantage : rotation relancée (au moins RollSpeed rad/s, ou Boost x la rotation du
-    -- moment) avec un petit élan vers le haut (Lift m/s) ; Max relances par accident, une toutes les Interval ms ;
+    -- TONNEAUX. Départ (Trip) : un véhicule part plus facilement en tonneau quand il glisse sur le côté à une vitesse
+    -- inadaptée : dérapage (glissade latérale d'au moins Slide m/s à au moins MinSpeed MPH), virage mal engagé (il
+    -- penche déjà d'au moins Lean degrés : chance x2), PIT (après un choc de côté par un véhicule, pendant PitWindow
+    -- ms : glissade PitSlide m/s suffit, chance PitChance). Chance toutes les 100 ms x intensité de la glissade x
+    -- ClassFactor du type de véhicule ; il bascule du côté où il glisse (RollSpeed rad/s, élan Lift m/s).
+    -- Accentués : un véhicule qui part en tonneau (penché de plus de StartRoll degrés, plus sur ses roues, à au moins
+    -- MinSpeed MPH) en fait davantage et plus vite : rotation relancée (au moins RollSpeed rad/s, ou Boost x la
+    -- rotation du moment) avec un élan vers le haut (Lift m/s) ; Max relances par accident, une toutes les Interval ms ;
     -- une vitre peut éclater à chaque relance (SmashWindow). Enabled = false : tonneaux du jeu de base.
-    Rollover = { Enabled = true, MinSpeed = 30.0, StartRoll = 55.0, RollSpeed = 4.5, Boost = 1.35, Lift = 1.8,
-        Max = 2, Interval = 650, SmashWindow = true },
+    Rollover = {
+        Enabled = true, MinSpeed = 28.0, StartRoll = 45.0, RollSpeed = 5.2, Boost = 1.45, Lift = 2.0,
+        Max = 3, Interval = 550, SmashWindow = true,
+        Trip = {
+            Enabled = true, MinSpeed = 35.0, Slide = 10.0, Chance = 0.04, Lean = 14.0,
+            PitWindow = 2500, PitSlide = 5.0, PitChance = 0.3,
+            RollSpeed = 3.2, Lift = 2.4, Cooldown = 4000,
+            -- plus haut = bascule plus vite : SUV 2, tout-terrain 9, industriels 10, utilitaires 12, commerciaux 20 ;
+            -- plus bas = moins vite : sportives 6, supercars 7, sportives classiques 5
+            ClassFactor = { [2] = 1.5, [9] = 1.4, [10] = 1.3, [12] = 1.6, [20] = 1.3, [5] = 0.8, [6] = 0.6, [7] = 0.5 },
+        },
+        SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
+    },
+
+    -- ROUES QUI SE DÉTACHENT hors des chocs. Virage beaucoup trop violent (Turn) : à au moins MinSpeed MPH, accélération
+    -- latérale d'au moins Accel m/s² ou glissade latérale d'au moins Slide m/s : la roue avant extérieure peut se
+    -- détacher (Chance toutes les 100 ms x l'excès). Trottoir percuté très fort (Curb) : à au moins MinSpeed MPH,
+    -- secousse vers le haut d'au moins Jolt m/s d'un coup avec un coup sur le côté / vers l'arrière d'au moins Kick m/s,
+    -- roues au sol juste avant : la roue qui a tapé éclate (Burst) ou se détache (Detach), x la violence.
+    Wheels = {
+        Enabled = true,
+        Turn = { Enabled = true, MinSpeed = 60.0, Accel = 16.0, Slide = 12.0, Chance = 0.03 },
+        Curb = { Enabled = true, MinSpeed = 35.0, Jolt = 3.0, Kick = 2.0, Burst = 0.45, Detach = 0.15 },
+        SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
+    },
 
     Damage = {
         -- Dégâts du moteur reçus du jeu, multipliés (1.0 = jeu de base ; moins = plus solide).

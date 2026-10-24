@@ -207,34 +207,67 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
   `Repair.Restricted = true` la réserve à la permission ACE `command.repair`.
 - Ce script ne fait jamais prendre feu un véhicule (il ne descend pas le moteur sous 10).
 
-### Dégâts visuels : le véhicule perd des morceaux (`Bodywork`)
+### Accidents réalistes : ce qui s'ouvre, se détache, s'abîme (`Bodywork`)
 
-Les morceaux ne tombent que sur de **vraiment gros accidents**, ou quand **plusieurs accidents** se sont additionnés
-(mur, voiture, poteau… pas un piéton ni un plot ; perte de vitesse brutale d'au moins **22 MPH**, `MinDrop`) :
+**Détection du choc** : la perte de vitesse brutale **et** la secousse (`JoltFactor`) : la plus forte variation de la
+vitesse pendant le choc, en MPH. Un véhicule **arrêté** qui se fait percuter par l'arrière, ou qui recule violemment
+sur celui de derrière, est donc bien touché. Le **côté touché** vient du sens de la secousse ; l'**endroit** (vers
+l'avant ou vers l'arrière d'un flanc) vient de la position de l'autre véhicule. Pas pour un piéton ni un plot.
 
-- Chaque choc ajoute de l'**usure** au côté touché (avant, arrière, gauche, droite) selon la perte de vitesse. Un
-  choc sur le côté use aussi un peu l'avant et l'arrière (`SideToBumpers`, 40 %). Carrosserie déjà très abîmée (sous 400, `WornBody`) : les seuils baissent de 25 % (`WornFactor`).
-- Un morceau ne peut tomber que quand l'usure de son côté atteint son seuil (`Wear`), puis selon sa chance (`Chance`).
-  **Ordre de priorité** :
+**Ce qui s'ouvre (sans jamais se détacher)** (`Open`), à chaque choc d'au moins la violence indiquée (ou quand le côté
+est très usé, 110) :
+
+| Choc | Ce qui s'ouvre | Violence | Chance | Ouverture |
+|---|---|---|---|---|
+| **arrière** (il se fait taper derrière, ou il recule violemment sur un autre) | le **coffre** | 22 | 80 % | 45 à 100 % |
+| **avant** (il tape un véhicule ou un mur, ou celui de devant lui recule dessus) | le **capot** | 26 | 65 % | 15 à 50 % |
+| **côté** | les **portières touchées** : celle de l'avant si le choc est vers l'avant, celle de l'arrière s'il est vers l'arrière, les deux si l'endroit est inconnu (mur) ; 2 au plus | 24 | 60 % chacune | 25 à 70 % |
+| **avant / arrière très violent** | une portière entrouverte | 40 | 25 % | 6 à 18 % |
+
+Capot, coffre et portières **ne tombent jamais** : dès que le conducteur monte, le jeu ne peut plus les arracher
+(`Open.NeverFall`). Dès que quelque chose s'ouvre, le véhicule se **déverrouille** (`Open.Unlock`). On peut tout
+refermer normalement. Un morceau déjà ouvert n'est pas bougé.
+
+**Véhicule percuté** : un véhicule sans conducteur joueur (garé, PNJ) percuté par un joueur reçoit les mêmes dégâts (son
+coffre, son capot ou ses portières s'ouvrent, il se cabosse…) : le serveur vérifie (distance 15 m, `Other`) et relaie à
+celui qui le contrôle. Un véhicule conduit par un joueur calcule lui-même son choc (il sent la secousse).
+
+**Ce qui s'abîme** :
+- **Cabossage** (`Deform`) : à partir de 24, une déformation supplémentaire de la tôle **à l'endroit du choc**, plus
+  forte selon la violence (au plus 450).
+- **Vitres** du côté touché (usure 35, 40 %), **pneu** du côté touché qui éclate sur un choc d'au moins 35 (`Tyre`, 35 %).
+
+**Ce qui se détache**, quand l'**usure** du côté touché (chaque choc l'augmente de sa violence ; un choc de côté use
+aussi un peu l'avant et l'arrière, `SideToBumpers` 40 %) atteint son seuil, puis selon sa chance. Carrosserie déjà très
+abîmée (sous 400, `WornBody`) : les seuils baissent de 25 % (`WornFactor`).
 
 | Morceau | Usure du côté | Chance |
 |---|---|---|
-| **vitres** du côté touché | 35 | 40 % |
 | **pare-choc** avant / arrière (aussi sur un choc latéral) | 60 | 85 % |
-| **capot** (avant) / **coffre** (arrière) | 75 | 75 % |
 | **pare-brise** (avant) | 90 | 50 % |
-| **roue** du côté touché (ou un seul choc d'au moins 60 MPH) ; parfois une deuxième (25 %) | 140 | 50 % |
+| **roue** du côté touché (ou un seul choc d'au moins 60) ; parfois une deuxième (25 %) | 140 | 50 % |
 
-**Portières : elles ne tombent jamais** (dès que le conducteur monte, le jeu ne peut plus les arracher, même sur un
-très gros choc ; `DoorsAjar.NeverFall`). Sur un **gros choc** (perte de vitesse d'au moins **40 MPH**,
-`DoorsAjar.Drop`) ou quand le côté est très usé (110), la sécurité saute : le véhicule se **déverrouille** et des
-portières **s'entrouvrent** un peu (8 à 20 % de leur ouverture, `Angle`) : celles du côté touché (50 % chacune), ou, sur
-un choc avant / arrière, n'importe laquelle (30 %) ; deux au plus par choc. On peut les refermer normalement.
+**Roues qui se détachent hors des chocs** (`Wheels`, calculé par le conducteur) :
+- **Virage beaucoup trop violent** (`Turn`) : à au moins 60 MPH, accélération latérale d'au moins 16 m/s² (virage serré
+  bien trop rapide) ou glissade latérale d'au moins 12 m/s : la **roue avant extérieure** peut se détacher (3 % toutes
+  les 100 ms, jusqu'à x2 selon l'excès).
+- **Trottoir percuté très fort** (`Curb`) : à au moins 35 MPH, une secousse brutale vers le haut (3 m/s d'un coup) avec
+  un coup sur le côté ou vers l'arrière (2 m/s), roues au sol juste avant (pas un atterrissage de saut) : la roue qui a
+  tapé **éclate** (45 %) ou **se détache** (15 %), davantage selon la violence.
 
-**Tonneaux accentués** (`Rollover`) : un véhicule qui part **déjà** en tonneau (penché de plus de 55°, plus sur ses
-roues, à au moins 30 MPH) en fait **davantage** : sa rotation est relancée dans le même sens (au moins 4,5 rad/s ou
-1,35 x celle du moment) avec un petit élan vers le haut, deux fois au plus par accident (une toutes les 0,65 s) ; une
-vitre peut éclater à chaque relance. Rien dans les virages ordinaires. `Rollover.Enabled = false` : tonneaux du jeu.
+**Tonneaux** (`Rollover`) :
+- **Départ plus facile** (`Trip`) : un véhicule qui **dérape** à une vitesse inadaptée (glissade latérale d'au moins
+  10 m/s à au moins 35 MPH) peut partir en tonneau, du côté où il glisse (4 % toutes les 100 ms, jusqu'à x2 selon la
+  glissade). **Virage mal engagé** (il penche déjà de 14° ou plus) : chance x2. **PIT** : dans les 2,5 s après un choc
+  de côté par un autre véhicule, une glissade de 5 m/s suffit et la chance passe à 30 %. Selon le véhicule
+  (`ClassFactor`) : vans x1,6, SUV x1,5, tout-terrain x1,4, industriels / utilitaires x1,3 ;
+  sportives classiques x0,8, sportives x0,6, supercars x0,5.
+  4 s au moins entre deux départs.
+- **Tonneaux accentués** : un véhicule qui part en tonneau (penché de plus de 45°, plus sur ses roues, à au moins
+  28 MPH) en fait **davantage et plus vite** : sa rotation est relancée dans le même sens (au moins 5,2 rad/s ou
+  1,45 x celle du moment) avec un élan vers le haut, trois fois au plus par accident (une toutes les 0,55 s) ; une
+  vitre peut éclater à chaque relance.
+- `Rollover.Enabled = false` : tonneaux du jeu ; `Trip.Enabled = false` : seulement les tonneaux accentués.
 
 **Verre brisé au sol** (gros accident : perte de vitesse d'au moins **35 MPH**, `Glass`) : sous chaque vitre qui vient
 de casser (par le choc ou par ce script), une gerbe d'éclats (effet du jeu `glass_shards`), du **verre brisé à plat sur
@@ -246,7 +279,7 @@ l'accident (balles…) ne laissent pas de nouveau verre.
 
 Chaque morceau ne tombe qu'une fois ; tout revient (usure comprise) à la réparation complète. Rien sur les motos,
 vélos, bateaux, hélicoptères, avions et trains. Calculé par le conducteur (propriétaire du véhicule) : les morceaux
-tombés, les portières entrouvertes et les tonneaux se voient chez tous les joueurs. `Glass.Models` (vide par défaut) :
+tombés, ce qui s'ouvre, les roues perdues et les tonneaux se voient chez tous les joueurs. `Glass.Models` (vide par défaut) :
 objets posés en plus, si vous trouvez un modèle qui vous convient.
 
 ### Tirs sur un véhicule (`Gunshots`)
@@ -365,9 +398,10 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, plein à la pompe (vitesse : 1 min max, distances, trappe arrière gauche `Flap`, pistolet et tuyau `Nozzle`), pompes, jerrican (2/5 d'un plein, vitesse, remplissage), stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, warnings automatiques d'accident important (`AccidentHazards`), paliers (abîmé ; 1 très abîmé : puissance, vitesse maxi, calages, warnings automatiques ; 2 détruit), fumée (`Smoke`), classes de véhicules légères, listes d'objets légers / forts |
-| `Bodywork` | dégâts visuels : choc minimum (22 MPH), usure et chance de chaque morceau (vitres, pare-chocs, capot / coffre, pare-brise, roues), portières entrouvertes et déverrouillées sur un gros choc, jamais arrachées (`DoorsAjar`), verre brisé au sol (`Glass` : seuil, décalques, durée, effet, bruit, portée, objets facultatifs), part des chocs latéraux sur les pare-chocs, carrosserie usée, force pour arracher un pare-choc, classes sans dégâts visuels |
+| `Bodywork` | accidents réalistes : choc minimum (22), secousse (`JoltFactor`), ce qui s'ouvre sans se détacher (`Open` : coffre, capot, portières touchées, portière entrouverte ; violence, chance, ouverture, déverrouillage, `NeverFall`), cabossage à l'endroit du choc (`Deform`), pneus (`Tyre`), véhicules percutés sans conducteur joueur (`Other`), usure et chance de ce qui se détache (vitres, pare-chocs, pare-brise, roues), verre brisé au sol (`Glass` : seuil, décalques, durée, effet, bruit, portée, objets facultatifs), part des chocs latéraux sur les pare-chocs, carrosserie usée, force pour arracher un pare-choc, classes sans dégâts visuels |
 | `Gear` | marche avant / arrière : activée, vitesse considérée comme « arrêté », son du changement, classes sans rapport |
-| `Rollover` | tonneaux accentués : vitesse minimale, inclinaison de départ, vitesse de rotation, élan, nombre de relances |
+| `Rollover` | tonneaux : départ plus facile (`Trip` : dérapage, virage mal engagé, PIT, facteur par classe, délai), tonneaux accentués (vitesse minimale, inclinaison de départ, vitesse de rotation, élan, nombre de relances, intervalle), classes sans tonneaux forcés |
+| `Wheels` | roues qui se détachent : virage beaucoup trop violent (`Turn` : vitesse, accélération latérale, glissade, chance), trottoir percuté très fort (`Curb` : vitesse, secousse, coup, éclatement, détachement), classes ignorées |
 | `KeepDoorOpenOnExit` | portière ouverte gardée ouverte en descendant |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle jusqu'à l'arrêt complet, l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), aucune chute ajoutée pour les petits incidents (comportement du jeu), seuils, dégâts |
@@ -391,7 +425,7 @@ directement dans un autre véhicule, l'ancien existe toujours (ex. `rp_interact`
 - À pied : une vérification toutes les 500 ms (~0.00 ms). Près d'un véhicule poussable (6 m) : toutes les 100 ms.
   Boucle à chaque image seulement près d'une pompe, pistolet de pompe sorti, jerrican en main, ou pendant la poussée.
   Tuyaux des autres joueurs : aucune boucle (état du joueur `vcHose`).
-- À bord : ~0.02 ms (chocs, puissance ; à moto, en plus, une lecture de vitesse verticale pour les trottoirs) ; essence, dégâts, alarme et car HUD toutes les 100 ms ; ce qui a été
+- À bord : ~0.02 ms (chocs, puissance, trottoirs : une lecture de vitesse par image) ; essence, dégâts, alarme et car HUD toutes les 100 ms ; ce qui a été
   percuté n'est cherché qu'au moment d'un choc ;
   car HUD envoyé seulement quand il change.
 - Feux stop des véhicules des autres joueurs : boucle à chaque image seulement tant qu'un véhicule proche est arrêté
