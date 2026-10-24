@@ -260,6 +260,13 @@
             const ids = this.fixSel(items);
             const banner = (typeof p.banner === 'function' ? p.banner() : p.banner) || {};
             this.el.style.setProperty('--kb-color', banner.color || MENU_COLORS.home);
+            const icon = $('.kb-icon', this.el);
+            const logo = banner.logo || '';
+            if (icon.dataset.logo !== logo) {
+                icon.dataset.logo = logo;
+                icon.innerHTML = logo ? `<img src="${esc(logo)}" alt="">` : (this.opts.icon || '');
+                icon.classList.toggle('has-logo', !!logo);
+            }
             $('.kb-title', this.el).textContent = banner.title || p.title || '';
             $('.kb-sub', this.el).textContent = banner.sub || '';
             $('.kb-path', this.el).textContent = this.stack.map((x) => x.title).join(' › ');
@@ -401,6 +408,9 @@
         return '';
     };
     const agencyColor = (text) => AGENCY_COLORS[agencyCode(text)] || '';
+    // Logos des polices (html/img), dans les bannières
+    const AGENCY_LOGOS = { wsp: 'img/wsp.png', kcso: 'img/kcso.png' };
+    const agencyLogo = (text) => AGENCY_LOGOS[agencyCode(text)] || '';
     const isLocked = (section) => !!(menu.data.locked && menu.data.locked[section]);
     const menuOn = (id) => interact.open && interact.page && interact.page.id === id;
     const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
@@ -412,44 +422,12 @@
     });
     const rerender = () => interact.render();
 
-    // Position (fraction de l'écran, coin haut-gauche) et taille choisies dans le MDC ; sinon, par défaut
-    let menuLayout = null;
-    function applyMenuLayout() {
-        const el = $('#menu');
-        const l = menuLayout;
-        if (!l) {
-            el.style.left = ''; el.style.top = ''; el.style.transform = '';
-            return;
-        }
-        const scale = Math.min(Math.max(Number(l.scale) || 1, 0.7), 1.5);
-        el.style.left = `${Math.round(Math.min(Math.max(Number(l.x) || 0, 0), 0.95) * innerWidth)}px`;
-        el.style.top = `${Math.round(Math.min(Math.max(Number(l.y) || 0, 0), 0.95) * innerHeight)}px`;
-        el.style.transform = `scale(${scale})`;
-    }
-    window.addEventListener('resize', applyMenuLayout);
-
-    // Réglage modifié dans le MDC : menu montré un instant (accueil) s'il est fermé
-    let previewTimer = null;
-    function setMenuLayout(data) {
-        menuLayout = data && data.layout ? data.layout : null;
-        applyMenuLayout();
-        if (!data || !data.preview || interact.open) return;
-        const el = $('#menu');
-        interact.start([homePage()]);
-        interact.open = false; // aperçu seulement : les touches ne le pilotent pas
-        el.classList.add('preview');
-        clearTimeout(previewTimer);
-        previewTimer = setTimeout(() => {
-            el.classList.remove('preview');
-            if (!interact.open) el.classList.add('hidden');
-        }, 2500);
-    }
-
     // ---- Accueil ----
     function homePage() {
         return {
             id: 'home', title: 'Menu Interaction',
-            banner: () => ({ title: 'Interactions', sub: menu.data.activeName ? `Profil actif : ${menu.data.activeName}` : 'Menu Interaction', color: MENU_COLORS.home }),
+            banner: () => ({ title: 'Interactions', sub: menu.data.activeName ? `Profil actif : ${menu.data.activeName}` : 'Menu Interaction', color: MENU_COLORS.home,
+                logo: menu.data.police ? agencyLogo(menu.data.agency) : '' }),
             items: () => {
                 const d = menu.data;
                 const locked = (section) => (isLocked(section) ? { disabled: true, why: LOCKED_TEXT, right: 'Réservé' } : {});
@@ -480,7 +458,7 @@
         return {
             id: 'police', title: 'Police',
             banner: () => ({ title: 'Police', sub: menu.data.police ? `${menu.data.agencyLabel || 'En service'} — unité ${menu.data.police}` : 'Hors service',
-                color: agencyColor(menu.data.agency) || MENU_COLORS.police }),
+                color: agencyColor(menu.data.agency) || MENU_COLORS.police, logo: agencyLogo(menu.data.agency) }),
             items: () => {
                 const d = menu.data;
                 const action = (key, fallback, why) => {
@@ -952,16 +930,12 @@
     }
 
     function setMenu(data) {
-        clearTimeout(previewTimer);
-        $('#menu').classList.remove('preview');
         if (!data.open) {
             interact.stop();
             return;
         }
         menu.data = data;
         Object.keys(actions).forEach((k) => delete actions[k]);
-        menuLayout = data.layout || null;
-        applyMenuLayout();
         interact.start(menuPages(data.view));
     }
 
@@ -1668,7 +1642,7 @@
                 ...eupPoliceGroups().map((g) => ({
                     kind: 'menu', label: g.name, right: g.name !== g.code ? g.code : `${g.list.length}`, color: g.color,
                     desc: `${plural(g.list.length, 'tenue')}${lockedText}`,
-                    open: () => eupOutfitPage(g.code, g.list, { title: g.name, sub: g.name !== g.code ? `${g.code} · ${plural(g.list.length, 'tenue')}` : 'Police', color: g.color }),
+                    open: () => eupOutfitPage(g.code, g.list, { title: g.name, sub: g.name !== g.code ? `${g.code} · ${plural(g.list.length, 'tenue')}` : 'Police', color: g.color, logo: agencyLogo(g.code) }),
                 })),
                 { kind: 'section', label: 'Civil' },
                 { kind: 'menu', label: 'Civil', right: `${civilCount}`, open: eupCivilPage, desc: plural(civilCount, 'tenue') },
@@ -1697,7 +1671,6 @@
             case 'result': if (data.data) showResult(data.data); break;
             case 'menu': setMenu(data.data || {}); break;
             case 'menuGo': menuGo(data.data && data.data.view); break;
-            case 'menuLayout': setMenuLayout(data.data || {}); break;
             case 'menuPolice': // entrée / sortie d'une unité du MDC pendant que le menu est ouvert
                 menu.data.police = data.data ? data.data.police : null;
                 if (!menu.data.police) menu.data.agency = menu.data.agencyLabel = null;

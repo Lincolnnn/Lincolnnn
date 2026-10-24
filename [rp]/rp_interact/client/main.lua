@@ -366,19 +366,6 @@ RegisterNUICallback('setPoliceProfile', function(data, cb)
     cb({ ok = true, profile = profile })
 end)
 
---- Position et taille du Menu Interaction, choisies dans le MDC (Paramètres > HUD & Display) ; nil : par défaut
-local function menuLayout()
-    local mdc = Config.MdcResource
-    if GetResourceState(mdc) ~= 'started' then return nil end
-    local ok, layout = pcall(function() return exports[mdc]:interactMenuLayout() end)
-    return ok and type(layout) == 'table' and layout or nil
-end
-
--- Réglage modifié dans le MDC : appliqué tout de suite (menu montré un instant s'il est fermé)
-AddEventHandler('mdc:interactMenuLayout', function(layout, preview)
-    SendNUIMessage({ action = 'menuLayout', data = { layout = type(layout) == 'table' and layout or false, preview = preview == true } })
-end)
-
 local closeMenu
 
 --- Ouvre le menu (sur la page `view` si elle est donnée, ex. 'radio' depuis l'œil)
@@ -402,7 +389,6 @@ local function openMenu(view)
             tipsManual = RPI.tipsManual and RPI.tipsManual() or false,
             policeProfile = policeProfile(),
             locked = res and res.locked or {},  -- catégories réservées (config.lua : Permissions)
-            layout = menuLayout() or false,
         } })
     end)
 end

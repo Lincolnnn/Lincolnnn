@@ -41,8 +41,11 @@ ligne** et le rappel des touches. Les lignes grisées sont indisponibles (Entré
 l'écrire, Ctrl+V pour coller), **Entrée** valide, **Échap** annule.
 
 L'accueil est en deux parties : **Usage** (**Police**, **Civil**) et **Configuration** (**Équipements**, **Voiture**).
-Emplacement et taille du menu : réglés par chaque joueur dans le MDC (*Paramètres > HUD & Display > Menu Interaction* :
-taille, et emplacement avec « Placer les HUD à l'écran ») ; sans le MDC, à gauche de l'écran. Ouvrir `/eup` ferme ce
+Le menu est **toujours en haut à gauche**, comme les menus du jeu (il n'est plus réglable), avec une **bannière** de
+couleur en haut, comme le `/eup` : le **logo de la police** (WSP, KCSO) y est affiché pour un policier en service
+(accueil, page Police) et sur les pages WSP / KCSO du `/eup`. Thème clair du MDC (coins presque carrés) ; la
+**fiche civile** est une fenêtre blanche, comme le MDC. Notifications, barres et tips, affichés sur le jeu, restent
+sombres. Ouvrir `/eup` ferme ce
 menu (un seul menu au clavier à la fois). L'œil (Alt) reste utilisable menu ouvert (les touches du menu attendent).
 
 **Permissions** (`Permissions` dans `config.lua`) — **temporairement désactivées** (`Enabled = false` : tout le
@@ -169,8 +172,8 @@ Ajoute des options visuelles propres au rôle de civil. La première : les **tip
 - Il apparaît quand un **policier** (joueur dans une unité du MDC) vous **met en joue avec une arme** : visée directe
   ou à moins de **5 m** autour de vous (titre « Un policier vous tient en joue »).
 - Sans mise en joue : Menu > Civil > **Tips arrestation** l'affiche.
-- **Portes** (`rp_doorlock`) : seuls les joueurs en mode civil (et pas en service dans une unité du MDC) peuvent
-  **verrouiller / déverrouiller** une porte. La case est publiée au serveur (état `rpiCivilMode`), qui vérifie aussi.
+- La case est publiée au serveur (état `rpiCivilMode`), pour les autres scripts. Portes (`rp_doorlock`) : tout joueur
+  qui n'est pas policier en service (civil ou sans rôle) peut **verrouiller / déverrouiller** une porte.
 - Il ne se ferme **qu'avec la touche Échap** (rappel « Échap : fermer » écrit en tout petit, en gris foncé, en bas du
   mini menu) : il **reste affiché quand le policier arrête de viser** (le titre redevient « Tips arrestation »).
   Pendant qu'il est affiché, Échap ferme les tips **sans ouvrir le menu pause ni la carte** (la pause reste bloquée
