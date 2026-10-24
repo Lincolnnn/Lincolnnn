@@ -14,7 +14,7 @@ sécurité, moteur toujours allumé, portières depuis l'intérieur, clignotants
 Sans le MDC, tout fonctionne mais le car HUD n'est pas affiché. Sans `rp_chat`, les messages « Portière ouverte. »
 passent par le chat d'origine.
 
-**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour le message « pousser le véhicule » (le car HUD suit le réglage du MDC) (`client/theme.lua` ; sans le MDC : thème jour).
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **fond noir et couleur du mode nuit** (vert, jaune, rouge ou bleu) pour le message « pousser le véhicule » (le car HUD suit le réglage du MDC) (`client/theme.lua` ; sans le MDC : thème jour).
 
 ## Touches (par défaut, modifiables : Paramètres > Raccourcis clavier > FiveM)
 

@@ -38,7 +38,7 @@
     };
     const AGENCY_DESC = {
         generic: 'Rôleplay civil : Interventions (consultation et modification des appels), Créations, Rapports.',
-        police: 'Unités, Interventions, Recherches et BOLOs propres à ce service ; Rapports communs.',
+        police: 'Unités, Interventions et Recherches propres à ce service ; BOLOs et Rapports communs.',
     };
     const KIND_LABELS = { identity: 'Identité', vehicle: 'Véhicule', intervention: 'Intervention' };
     const KIND_SAVED = { identity: 'Identité enregistrée', vehicle: 'Véhicule enregistré', intervention: 'Intervention enregistrée' };
@@ -3370,12 +3370,14 @@
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, zone: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true },
         // Fenêtre : légère transparence (opacity) ; thème Jour (clair) / Nuit (vert sur noir) et où il s'applique :
-        // 'all' (MDC et tous les menus), 'mdc' (MDC seulement), 'menus' (menus des autres ressources, pas le MDC)
-        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97, theme: 'day', themeScope: 'all' },
+        // 'all' (MDC et tous les menus), 'mdc' (MDC seulement), 'menus' (menus des autres ressources, pas le MDC) ;
+        // couleur du mode nuit (textes, boutons, contour du chat) : 'green', 'yellow', 'red', 'blue'
+        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97, theme: 'day', themeScope: 'all', nightColor: 'green' },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
     };
+    const NIGHT_COLORS = ['green', 'yellow', 'red', 'blue'];
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
@@ -3415,6 +3417,7 @@
         if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
         if (!['day', 'night'].includes(out.mdc.theme)) out.mdc.theme = 'day';
         if (!['all', 'mdc', 'menus'].includes(out.mdc.themeScope)) out.mdc.themeScope = 'all';
+        if (!NIGHT_COLORS.includes(out.mdc.nightColor)) out.mdc.nightColor = 'green';
         return out;
     }
 
@@ -3637,7 +3640,9 @@
         win.style.setProperty('--glass-a', s.glass ? s.opacity : 1); // transparence de la fenêtre
         // Mode nuit sur le MDC (fenêtre, HUD, notifications) sauf s'il ne s'applique qu'aux menus des autres ressources
         document.documentElement.dataset.theme = s.theme === 'night' && s.themeScope !== 'menus' ? 'night' : 'day';
+        document.documentElement.dataset.nightColor = s.nightColor;
         $('[data-setting="mdc.themeScope"]').disabled = s.theme !== 'night';
+        $('[data-setting="mdc.nightColor"]').disabled = s.theme !== 'night';
     }
 
     $('#page-settings').addEventListener('input', (e) => {
@@ -4065,7 +4070,7 @@
         $('#bolosEmpty').textContent = bolos.list.length ? 'Aucun BOLO de ce type.' : 'Aucun BOLO actif.';
         $('#bolosBody').innerHTML = list.map((b) => `
             <tr data-id="${esc(b.id)}" class="${b.id === bolos.selected ? 'selected' : ''}" title="${esc(`Émis le ${formatDate(b.createdAt)}${b.location ? ` — ${b.location}` : ''}`)}">
-                <td><b>${esc(b.number)}</b></td>
+                <td><b>${esc(b.number)}</b>${b.agency && agencyInfo(b.agency) ? ` <span class="dept-tag agency-${esc(b.agency)}" title="Émis par ${esc(agencyInfo(b.agency).label)}">${esc(agencyShort(b.agency))}</span>` : ''}</td>
                 <td>${flag(b.kind === 'vehicle' ? 'c-orange' : 'c-red', BOLO_KIND_LABELS[b.kind] || b.kind)}</td>
                 <td class="cell-ellipsis bolo-reason"><b>${esc(b.reason)}</b></td>
                 <td class="cell-ellipsis bolo-summary">${esc(b.summary)}</td>
@@ -4664,8 +4669,8 @@
 
     // Fiches des Recherches : alerte des BOLOs actifs (cliquer pour ouvrir le BOLO)
     function boloAlerts(r) {
-        // alertes des BOLOs de la police du MDC (anciens BOLOs sans police : toutes)
-        return toArray(r.bolos).filter((b) => !b.agency || b.agency === state.agency).map((b) => b.possible
+        // BOLOs communs à toutes les polices : toutes les alertes
+        return toArray(r.bolos).map((b) => b.possible
             ? `<div class="sheet-alert yellow bolo-alert">&#9888; Correspondance possible avec le BOLO n°${esc(b.number)} (immatriculation partielle) — ${esc(b.reason)}
                    <button type="button" class="btn btn-small" data-open-bolo="${esc(b.id)}">Voir le BOLO</button></div>`
             : `<div class="sheet-alert bolo-alert">&#9888; BOLO ACTIF n°${esc(b.number)} — ${esc(b.reason)}

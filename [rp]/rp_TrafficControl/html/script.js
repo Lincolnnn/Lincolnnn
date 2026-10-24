@@ -154,7 +154,10 @@
 
     // Mode nuit des menus (MDC : Paramètres > MDC > Apparence), envoyé par client/theme.lua
     window.addEventListener('message', ({ data }) => {
-        if (data && data.action === 'uiTheme') document.documentElement.dataset.theme = data.data && data.data.theme === 'night' ? 'night' : 'day';
+        if (!data || data.action !== 'uiTheme') return;
+        const t = data.data || {};
+        document.documentElement.dataset.theme = t.theme === 'night' ? 'night' : 'day';
+        document.documentElement.dataset.nightColor = ['green', 'yellow', 'red', 'blue'].includes(t.color) ? t.color : 'green';
     });
 
     window.addEventListener('message', (event) => {

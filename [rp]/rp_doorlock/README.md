@@ -58,7 +58,7 @@ Le serveur vérifie les mêmes règles.
 - Les portes ne peuvent **pas être supprimées** avec l'œil de `rp_interact` (« Supprimer » n'est pas proposé sur une
   porte ; export client `isDoor(entity)`).
 
-**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour la barre pour enfoncer une porte (`client/theme.lua` ; sans le MDC : thème jour).
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **fond noir et couleur du mode nuit** (vert, jaune, rouge ou bleu) pour la barre pour enfoncer une porte (`client/theme.lua` ; sans le MDC : thème jour).
 
 ## Quelles portes ?
 

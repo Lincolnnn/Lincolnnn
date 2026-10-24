@@ -12,7 +12,7 @@ Volontairement **absent du MDC et du `/tuto`** : seule la commande l'ouvre.
 3. Avec **rp_NPCcontrol** (« everyone ignore player ») : version **1.7.0** ou plus, sinon les ennemis ne voient pas
    le joueur. Pendant une chasse, « ignore player » est coupé pour le joueur traqué seulement.
 
-**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour le menu et le HUD de la chasse (`client/theme.lua` ; sans le MDC : thème jour).
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **fond noir et couleur du mode nuit** (vert, jaune, rouge ou bleu) pour le menu et le HUD de la chasse (`client/theme.lua` ; sans le MDC : thème jour).
 
 ## Utilisation
 

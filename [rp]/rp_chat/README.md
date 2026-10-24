@@ -38,7 +38,7 @@ Conçu pour fonctionner avec le MDC du même dépôt (`rp_mdc`), mais utilisable
   faisait le chat d'origine.
 - Pour garder le chat d'origine actif malgré tout : `StopDefaultChat = false` dans `config.lua`.
 
-**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour la page `/tuto` (le chat garde ses réglages et les couleurs des commandes) (`client/theme.lua` ; sans le MDC : thème jour).
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **fond noir et couleur du mode nuit** (vert, jaune, rouge ou bleu) pour la page `/tuto`, et le **contour du chat** prend la couleur du mode nuit (le chat garde son fond et les couleurs des commandes) (`client/theme.lua` ; sans le MDC : thème jour).
 
 ## Utilisation
 

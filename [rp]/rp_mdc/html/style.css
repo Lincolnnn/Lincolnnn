@@ -1090,46 +1090,103 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 /* MDC générique : pas d'unité (note et statut de l'unité masqués dans la barre du bas) */
 .window.agency-generic #sbStatus { visibility: hidden; }
 
+/* Couleur du mode nuit (Paramètres > MDC > Apparence) : vert (par défaut), jaune, rouge ou bleu ; <html
+   data-night-color="…">. Mêmes contrastes et intensités pour chaque couleur (titres plus foncés, texte plus clair,
+   boutons plus ou moins vifs) ; fond noir. Valeurs générées depuis le vert (même luminosité, teinte changée). */
+:root {
+    --n-ink: #020c05; --n-field: #010402; --n-btn: #020703; --n-head: #030c06; --n-hover: #06190d; --n-press: #082212;
+    --n-press-2: #0b3c1d; --n-step: #0a2614; --n-primary: #0e4a24; --n-primary-hover: #136030;
+    --n-primary-border: #2fbf5f; --n-strong: #1d7a3f; --n-strong-press: #16602f; --n-banner-1: #0e4423;
+    --n-banner-2: #082c15; --n-banner-3: #020a05; --n-tag-1: #2e9e57; --n-tag-2: #268a4a; --n-tag-3: #217a41;
+    --n-tag-4: #1c6b38; --n-tag-5: #185e31; --n-tag-6: #14522a; --n-tag-7: #104624; --n-tag-8: #0c3a1e;
+    --n-tag-9: #0f3f21; --n-tag-kcso: #12502a; --n-title: #24b955; --n-accent: #3ddc74; --n-light: #7dffa8;
+    --n-soft: #8fe6ad; --n-text: #a8ffc6; --n-pale: #c6ffd9; --n-bright: #e6fff0; --n-rgb: 60, 255, 130;
+    --n-text-rgb: 150, 245, 185; --n-muted-rgb: 110, 205, 145; --n-glow-rgb: 120, 255, 170;
+    --n-light-rgb: 125, 255, 168; --n-bg-rgb: 0, 3, 1; --n-bg2-rgb: 1, 5, 2; --n-card-rgb: 2, 10, 5;
+    --n-accent-rgb: 61, 220, 116; --n-danger-rgb: 70, 230, 125; --n-warn-rgb: 50, 190, 100; --n-ok-rgb: 40, 160, 85;
+    --n-p1: 150, 255, 185; --n-p2: 80, 225, 130; --n-p3: 45, 180, 95; --n-pn: 30, 125, 65; --n-hue: 75deg;
+}
+:root[data-night-color="yellow"] {
+    --n-ink: #0c0a02; --n-field: #040301; --n-btn: #070502; --n-head: #0c0a03; --n-hover: #191606; --n-press: #221e08;
+    --n-press-2: #3c340b; --n-step: #26210a; --n-primary: #4a400e; --n-primary-hover: #605413;
+    --n-primary-border: #bfa22f; --n-strong: #7a6a1d; --n-strong-press: #605216; --n-banner-1: #443c0e;
+    --n-banner-2: #2c2608; --n-banner-3: #0a0902; --n-tag-1: #9e8b2e; --n-tag-2: #8a7926; --n-tag-3: #7a6b21;
+    --n-tag-4: #6b5d1c; --n-tag-5: #5e5218; --n-tag-6: #524714; --n-tag-7: #463d10; --n-tag-8: #3a330c;
+    --n-tag-9: #3f370f; --n-tag-kcso: #504712; --n-title: #b99b24; --n-accent: #dcbe3d; --n-light: #ffe57d;
+    --n-soft: #e6d68f; --n-text: #ffefa8; --n-pale: #fff4c6; --n-bright: #fffce6; --n-rgb: 255, 221, 60;
+    --n-text-rgb: 245, 229, 150; --n-muted-rgb: 205, 189, 110; --n-glow-rgb: 255, 233, 120;
+    --n-light-rgb: 255, 229, 125; --n-bg-rgb: 3, 2, 0; --n-bg2-rgb: 5, 4, 1; --n-card-rgb: 10, 9, 2;
+    --n-accent-rgb: 220, 190, 61; --n-danger-rgb: 230, 200, 70; --n-warn-rgb: 190, 165, 50; --n-ok-rgb: 160, 141, 40;
+    --n-p1: 255, 234, 150; --n-p2: 225, 198, 80; --n-p3: 180, 158, 45; --n-pn: 125, 109, 30; --n-hue: 12deg;
+}
+:root[data-night-color="red"] {
+    --n-ink: #0c0203; --n-field: #040101; --n-btn: #070203; --n-head: #0c0303; --n-hover: #190606; --n-press: #3b0f0e;
+    --n-press-2: #561010; --n-step: #3e1011; --n-primary: #641313; --n-primary-hover: #7a1918;
+    --n-primary-border: #cf3d42; --n-strong: #932323; --n-strong-press: #791c1e; --n-banner-1: #5d1513;
+    --n-banner-2: #460d0d; --n-banner-3: #0a0202; --n-tag-1: #b63535; --n-tag-2: #a22d2d; --n-tag-3: #922828;
+    --n-tag-4: #832224; --n-tag-5: #761e1f; --n-tag-6: #6b1a1b; --n-tag-7: #5f1616; --n-tag-8: #531311;
+    --n-tag-9: #581515; --n-tag-kcso: #691918; --n-title: #d3292f; --n-accent: #e1575a; --n-light: #ff7d82;
+    --n-soft: #e68f91; --n-text: #ffa8aa; --n-pale: #ffc6c8; --n-bright: #ffe7e6; --n-rgb: 255, 60, 61;
+    --n-text-rgb: 245, 150, 150; --n-muted-rgb: 205, 110, 110; --n-glow-rgb: 255, 121, 120;
+    --n-light-rgb: 255, 125, 130; --n-bg-rgb: 3, 0, 0; --n-bg2-rgb: 5, 1, 1; --n-card-rgb: 10, 2, 2;
+    --n-accent-rgb: 225, 87, 90; --n-danger-rgb: 234, 97, 100; --n-warn-rgb: 205, 65, 67; --n-ok-rgb: 184, 47, 46;
+    --n-p1: 255, 150, 153; --n-p2: 229, 106, 109; --n-p3: 204, 52, 51; --n-pn: 150, 36, 36; --n-hue: -42deg;
+}
+:root[data-night-color="blue"] {
+    --n-ink: #02070c; --n-field: #010204; --n-btn: #020507; --n-head: #03070c; --n-hover: #060e19; --n-press: #112747;
+    --n-press-2: #123563; --n-step: #142c4a; --n-primary: #153d71; --n-primary-hover: #1b4886;
+    --n-primary-border: #4a89d2; --n-strong: #265a9f; --n-strong-press: #1f4e85; --n-banner-1: #16386a;
+    --n-banner-2: #0f2d53; --n-banner-3: #02050a; --n-tag-1: #3874c2; --n-tag-2: #3067ae; --n-tag-3: #2b5e9e;
+    --n-tag-4: #26558f; --n-tag-5: #214c83; --n-tag-6: #1d4577; --n-tag-7: #193c6b; --n-tag-8: #143360;
+    --n-tag-9: #183864; --n-tag-kcso: #1a4075; --n-title: #3381d7; --n-accent: #649ee3; --n-light: #7dbaff;
+    --n-soft: #8fb7e6; --n-text: #a8d0ff; --n-pale: #c6e1ff; --n-bright: #e6f0ff; --n-rgb: 60, 146, 255;
+    --n-text-rgb: 150, 191, 245; --n-muted-rgb: 110, 151, 205; --n-glow-rgb: 120, 178, 255;
+    --n-light-rgb: 125, 186, 255; --n-bg-rgb: 0, 1, 3; --n-bg2-rgb: 1, 3, 5; --n-card-rgb: 2, 5, 10;
+    --n-accent-rgb: 100, 158, 227; --n-danger-rgb: 110, 167, 235; --n-warn-rgb: 78, 135, 208;
+    --n-ok-rgb: 49, 112, 197; --n-p1: 150, 199, 255; --n-p2: 119, 170, 232; --n-p3: 64, 125, 207; --n-pn: 39, 92, 162;
+    --n-hue: 172deg;
+}
+
 /* =========================================================================
    MODE NUIT (Paramètres > MDC > Apparence ; <html data-theme="night">, posé par script.js)
-   Fond noir très sombre, tout en VERT : les écarts de couleur du mode jour deviennent des écarts de vert (titres
+   Fond noir très sombre, dans la COULEUR du mode nuit (vert par défaut, jaune, rouge ou bleu) : les écarts de couleur du mode jour deviennent des écarts de vert (titres
    vert foncé, texte vert clair, zones et boutons plus ou moins verts). Seuls les STATUTS des unités (Disponible,
    En route, Sur place, Indisponible : --st-*) gardent leurs couleurs.
    ========================================================================= */
 :root[data-theme="night"] {
-    --mica:      2, 7, 4;
-    --mica-2:    4, 12, 7;
-    --card:      rgba(7, 24, 13, .92);
-    --card-2:    rgba(60, 255, 130, .06);
-    --card-3:    rgba(60, 255, 130, .11);
-    --input:     #030b06;
-    --input-hover: #06140b;
-    --input-focus: #030b06;
-    --stroke:    rgba(60, 255, 130, .16);
-    --stroke-2:  rgba(60, 255, 130, .3);
-    --text:      #a8ffc6;                      /* texte : vert clair */
-    --text-2:    rgba(150, 245, 185, .84);
-    --muted:     rgba(110, 205, 145, .64);
-    --faint:     rgba(110, 205, 145, .42);
-    --title:     #24b955;                      /* titres : vert plus foncé */
-    --accent:    #3ddc74;
-    --accent-rgb: 61, 220, 116;
-    --accent-ink: #021006;
-    --danger:    #c8ffda;
-    --danger-rgb: 70, 230, 125;
-    --warn-rgb:  50, 190, 100;
-    --ok-rgb:    40, 160, 85;
-    --shadow:    0 24px 56px rgba(0, 0, 0, .7), 0 0 0 1px rgba(60, 255, 130, .08);
-    --agency-wsp:  #1c6b38;
-    --agency-kcso: #12502a;
+    --mica:      var(--n-bg-rgb);
+    --mica-2:    var(--n-bg2-rgb);
+    --card:      rgba(var(--n-card-rgb), .92);
+    --card-2:    rgba(var(--n-rgb), .06);
+    --card-3:    rgba(var(--n-rgb), .11);
+    --input:     var(--n-field);
+    --input-hover: var(--n-head);
+    --input-focus: var(--n-field);
+    --stroke:    rgba(var(--n-rgb), .16);
+    --stroke-2:  rgba(var(--n-rgb), .3);
+    --text:      var(--n-text);                      /* texte : vert clair */
+    --text-2:    rgba(var(--n-text-rgb), .84);
+    --muted:     rgba(var(--n-muted-rgb), .64);
+    --faint:     rgba(var(--n-muted-rgb), .42);
+    --title:     var(--n-title);                      /* titres : vert plus foncé */
+    --accent:    var(--n-accent);
+    --accent-rgb: var(--n-accent-rgb);
+    --accent-ink: var(--n-ink);
+    --danger:    var(--n-pale);
+    --danger-rgb: var(--n-danger-rgb);
+    --warn-rgb:  var(--n-warn-rgb);
+    --ok-rgb:    var(--n-ok-rgb);
+    --shadow:    0 24px 56px rgba(0, 0, 0, .7), 0 0 0 1px rgba(var(--n-rgb), .08);
+    --agency-wsp:  var(--n-tag-4);
+    --agency-kcso: var(--n-tag-kcso);
     color-scheme: dark;
 }
 /* Les HUD et notifications (déjà sombres) passent aussi au vert */
 [data-theme="night"] .hud, [data-theme="night"] .toasts, [data-theme="night"] .hud-placebar, [data-theme="night"] .car-notice-anchor {
-    --card: rgba(60, 255, 130, .05); --card-2: rgba(60, 255, 130, .08); --card-3: rgba(60, 255, 130, .14);
-    --stroke: rgba(60, 255, 130, .16); --stroke-2: rgba(60, 255, 130, .3);
-    --text: #a8ffc6; --text-2: rgba(150, 245, 185, .84); --muted: rgba(110, 205, 145, .64); --faint: rgba(110, 205, 145, .42);
-    --accent: #3ddc74; --accent-rgb: 61, 220, 116;
+    --card: rgba(var(--n-rgb), .05); --card-2: rgba(var(--n-rgb), .08); --card-3: rgba(var(--n-rgb), .14);
+    --stroke: rgba(var(--n-rgb), .16); --stroke-2: rgba(var(--n-rgb), .3);
+    --text: var(--n-text); --text-2: rgba(var(--n-text-rgb), .84); --muted: rgba(var(--n-muted-rgb), .64); --faint: rgba(var(--n-muted-rgb), .42);
+    --accent: var(--n-accent); --accent-rgb: var(--n-accent-rgb);
 }
 [data-theme="night"] body { color: var(--text); }
 
@@ -1142,106 +1199,106 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 
 /* Logos (WSP, KCSO) : en vert, comme le reste */
 [data-theme="night"] .app-icon img, [data-theme="night"] .agency-card-icon img, [data-theme="night"] .chooser-logos img {
-    filter: grayscale(1) sepia(1) hue-rotate(75deg) saturate(3.2) brightness(.85);
+    filter: grayscale(1) sepia(1) hue-rotate(var(--n-hue)) saturate(3.2) brightness(.85);
 }
 
 /* Fenêtre */
-[data-theme="night"] .win-btn:hover, [data-theme="night"] .title-action:hover { background: rgba(60, 255, 130, .08); }
-[data-theme="night"] .win-close:hover { background: #1d7a3f; color: #eafff1; }
-[data-theme="night"] .win-close:active { background: #16602f; }
+[data-theme="night"] .win-btn:hover, [data-theme="night"] .title-action:hover { background: rgba(var(--n-rgb), .08); }
+[data-theme="night"] .win-close:hover { background: var(--n-strong); color: var(--n-bright); }
+[data-theme="night"] .win-close:active { background: var(--n-strong-press); }
 
 /* Boutons : plus ou moins verts, aucune autre couleur */
-[data-theme="night"] .btn { background: #04100a; border-color: rgba(60, 255, 130, .34); border-bottom-color: rgba(60, 255, 130, .5); color: var(--text); }
-[data-theme="night"] .btn:hover { background: #082414; }
-[data-theme="night"] .btn:active, [data-theme="night"] .btn.active { background: #0b2e19; color: var(--text); }
-[data-theme="night"] .btn-default { background: #0e4a24; border-color: #2fbf5f; color: #c6ffd9; }
-[data-theme="night"] .btn-default:hover { background: #136030; }
-[data-theme="night"] .btn-default:active, [data-theme="night"] .btn-default.active { background: #0b3c1d; color: #c6ffd9; }
-[data-theme="night"] .btn-default:disabled { background: #04100a; color: var(--faint); }
-[data-theme="night"] .btn-danger:hover, [data-theme="night"] .btn-danger.confirm { background: #1d7a3f; border-color: #3ddc74; color: #eafff1; }
+[data-theme="night"] .btn { background: var(--n-btn); border-color: rgba(var(--n-rgb), .34); border-bottom-color: rgba(var(--n-rgb), .5); color: var(--text); }
+[data-theme="night"] .btn:hover { background: var(--n-hover); }
+[data-theme="night"] .btn:active, [data-theme="night"] .btn.active { background: var(--n-press); color: var(--text); }
+[data-theme="night"] .btn-default { background: var(--n-primary); border-color: var(--n-primary-border); color: var(--n-pale); }
+[data-theme="night"] .btn-default:hover { background: var(--n-primary-hover); }
+[data-theme="night"] .btn-default:active, [data-theme="night"] .btn-default.active { background: var(--n-press-2); color: var(--n-pale); }
+[data-theme="night"] .btn-default:disabled { background: var(--n-btn); color: var(--faint); }
+[data-theme="night"] .btn-danger:hover, [data-theme="night"] .btn-danger.confirm { background: var(--n-strong); border-color: var(--n-accent); color: var(--n-bright); }
 [data-theme="night"] .btn-ghost, [data-theme="night"] .btn.subtab { background: transparent; border-color: transparent; }
 [data-theme="night"] .btn.subtab.active { background: var(--card-2); border-color: var(--stroke); }
-[data-theme="night"] .agency-card.active { background: rgba(60, 255, 130, .08); }
-[data-theme="night"] .agency-card.confirm { border-color: #3ddc74; background: rgba(60, 255, 130, .12); }
+[data-theme="night"] .agency-card.active { background: rgba(var(--n-rgb), .08); }
+[data-theme="night"] .agency-card.confirm { border-color: var(--n-accent); background: rgba(var(--n-rgb), .12); }
 
 /* Champs, listes, tableaux */
 [data-theme="night"] input[type="text"], [data-theme="night"] input[type="number"], [data-theme="night"] textarea,
-[data-theme="night"] select, [data-theme="night"] .multi-btn { border-bottom-color: rgba(60, 255, 130, .5); }
-[data-theme="night"] select option { background: #030b06; color: var(--text); }
+[data-theme="night"] select, [data-theme="night"] .multi-btn { border-bottom-color: rgba(var(--n-rgb), .5); }
+[data-theme="night"] select option { background: var(--n-field); color: var(--text); }
 [data-theme="night"] select option:disabled { color: var(--faint); }
-[data-theme="night"] input:invalid:not(:placeholder-shown) { color: #e6fff0; }
-[data-theme="night"] input.invalid, [data-theme="night"] select.invalid, [data-theme="night"] textarea.invalid { border-color: #3ddc74; border-bottom-color: #3ddc74; background: rgba(60, 255, 130, .12); }
-[data-theme="night"] .multi-panel, [data-theme="night"] .suggest, [data-theme="night"] .well, [data-theme="night"] .mx-wrap { background: #030b06; box-shadow: 0 8px 20px rgba(0, 0, 0, .6); }
-[data-theme="night"] .grid th, [data-theme="night"] .dept-fold > summary, [data-theme="night"] .dept-fold.locked > summary:hover { background: #06140b; color: var(--title); }
-[data-theme="night"] .dept-fold > summary:hover { background: #0a1f11; }
-[data-theme="night"] .grid td { border-bottom-color: rgba(60, 255, 130, .08); }
-[data-theme="night"] .grid.selectable tbody tr:hover td, [data-theme="night"] .grid.matrix tbody tr:hover td { background: rgba(60, 255, 130, .05); }
-[data-theme="night"] .grid.selectable tbody tr.selected td { background: rgba(60, 255, 130, .12); }
-[data-theme="night"] .grid tr.row-wanted td { color: #e6fff0; }
-[data-theme="night"] .subgroup, [data-theme="night"] .fold-body, [data-theme="night"] .settings-grid .group, [data-theme="night"] .sheet dt { background: rgba(60, 255, 130, .03); }
-[data-theme="night"] ::-webkit-scrollbar-thumb { background: rgba(60, 255, 130, .25); background-clip: padding-box; }
-[data-theme="night"] ::-webkit-scrollbar-thumb:hover { background: rgba(60, 255, 130, .4); background-clip: padding-box; }
+[data-theme="night"] input:invalid:not(:placeholder-shown) { color: var(--n-bright); }
+[data-theme="night"] input.invalid, [data-theme="night"] select.invalid, [data-theme="night"] textarea.invalid { border-color: var(--n-accent); border-bottom-color: var(--n-accent); background: rgba(var(--n-rgb), .12); }
+[data-theme="night"] .multi-panel, [data-theme="night"] .suggest, [data-theme="night"] .well, [data-theme="night"] .mx-wrap { background: var(--n-field); box-shadow: 0 8px 20px rgba(0, 0, 0, .6); }
+[data-theme="night"] .grid th, [data-theme="night"] .dept-fold > summary, [data-theme="night"] .dept-fold.locked > summary:hover { background: var(--n-head); color: var(--title); }
+[data-theme="night"] .dept-fold > summary:hover { background: var(--n-hover); }
+[data-theme="night"] .grid td { border-bottom-color: rgba(var(--n-rgb), .08); }
+[data-theme="night"] .grid.selectable tbody tr:hover td, [data-theme="night"] .grid.matrix tbody tr:hover td { background: rgba(var(--n-rgb), .05); }
+[data-theme="night"] .grid.selectable tbody tr.selected td { background: rgba(var(--n-rgb), .12); }
+[data-theme="night"] .grid tr.row-wanted td { color: var(--n-bright); }
+[data-theme="night"] .subgroup, [data-theme="night"] .fold-body, [data-theme="night"] .settings-grid .group, [data-theme="night"] .sheet dt { background: rgba(var(--n-rgb), .03); }
+[data-theme="night"] ::-webkit-scrollbar-thumb { background: rgba(var(--n-rgb), .25); background-clip: padding-box; }
+[data-theme="night"] ::-webkit-scrollbar-thumb:hover { background: rgba(var(--n-rgb), .4); background-clip: padding-box; }
 
 /* Pastilles et étiquettes de couleur -> nuances de vert (plus la couleur était forte, plus le vert est clair) */
-[data-theme="night"] .flag { background: rgba(60, 255, 130, .07); color: var(--text-2); }
-[data-theme="night"] .flag.c-red    { background: rgba(60, 255, 130, .26); color: #e6fff0; }
-[data-theme="night"] .flag.c-orange { background: rgba(60, 255, 130, .2);  color: #d2ffe2; }
-[data-theme="night"] .flag.c-yellow { background: rgba(60, 255, 130, .15); color: #bfffd5; }
-[data-theme="night"] .flag.c-green  { background: rgba(60, 255, 130, .11); color: #a8ffc6; }
-[data-theme="night"] .flag.c-blue, [data-theme="night"] .flag.c-purple { background: rgba(60, 255, 130, .08); color: #8fe6ad; }
-[data-theme="night"] .flag.c-gray   { background: rgba(60, 255, 130, .05); color: var(--muted); }
-[data-theme="night"] .sheet-alert, [data-theme="night"] .sheet-alert.yellow, [data-theme="night"] .sheet-alert.orange { background: rgba(60, 255, 130, .14); color: #e6fff0; border-color: rgba(60, 255, 130, .45); }
-[data-theme="night"] .hint-box, [data-theme="night"] .report-call, [data-theme="night"] .share-hint { color: var(--text); background: rgba(60, 255, 130, .06); border-color: rgba(60, 255, 130, .25); }
+[data-theme="night"] .flag { background: rgba(var(--n-rgb), .07); color: var(--text-2); }
+[data-theme="night"] .flag.c-red    { background: rgba(var(--n-rgb), .26); color: var(--n-bright); }
+[data-theme="night"] .flag.c-orange { background: rgba(var(--n-rgb), .2);  color: var(--n-pale); }
+[data-theme="night"] .flag.c-yellow { background: rgba(var(--n-rgb), .15); color: var(--n-pale); }
+[data-theme="night"] .flag.c-green  { background: rgba(var(--n-rgb), .11); color: var(--n-text); }
+[data-theme="night"] .flag.c-blue, [data-theme="night"] .flag.c-purple { background: rgba(var(--n-rgb), .08); color: var(--n-soft); }
+[data-theme="night"] .flag.c-gray   { background: rgba(var(--n-rgb), .05); color: var(--muted); }
+[data-theme="night"] .sheet-alert, [data-theme="night"] .sheet-alert.yellow, [data-theme="night"] .sheet-alert.orange { background: rgba(var(--n-rgb), .14); color: var(--n-bright); border-color: rgba(var(--n-rgb), .45); }
+[data-theme="night"] .hint-box, [data-theme="night"] .report-call, [data-theme="night"] .share-hint { color: var(--text); background: rgba(var(--n-rgb), .06); border-color: rgba(var(--n-rgb), .25); }
 [data-theme="night"] .report-call .lbl { color: var(--title); }
-[data-theme="night"] .unit-tag, [data-theme="night"] .dept-tag, [data-theme="night"] .dept-badge, [data-theme="night"] .side-bolo-kind { color: #d9ffe6; }
-[data-theme="night"] .tag-red    { background: #2e9e57; }
-[data-theme="night"] .tag-orange { background: #268a4a; }
-[data-theme="night"] .tag-yellow { background: #217a41; }
-[data-theme="night"] .tag-pink   { background: #1c6b38; }
-[data-theme="night"] .tag-purple { background: #185e31; }
-[data-theme="night"] .tag-blue   { background: #14522a; }
-[data-theme="night"] .tag-green  { background: #104624; }
-[data-theme="night"] .tag-gray   { background: #0c3a1e; }
-[data-theme="night"] .agency-common, [data-theme="night"] .dept-tag, [data-theme="night"] .dept-badge { background: #0f3f21; }
+[data-theme="night"] .unit-tag, [data-theme="night"] .dept-tag, [data-theme="night"] .dept-badge, [data-theme="night"] .side-bolo-kind { color: var(--n-bright); }
+[data-theme="night"] .tag-red    { background: var(--n-tag-1); }
+[data-theme="night"] .tag-orange { background: var(--n-tag-2); }
+[data-theme="night"] .tag-yellow { background: var(--n-tag-3); }
+[data-theme="night"] .tag-pink   { background: var(--n-tag-4); }
+[data-theme="night"] .tag-purple { background: var(--n-tag-5); }
+[data-theme="night"] .tag-blue   { background: var(--n-tag-6); }
+[data-theme="night"] .tag-green  { background: var(--n-tag-7); }
+[data-theme="night"] .tag-gray   { background: var(--n-tag-8); }
+[data-theme="night"] .agency-common, [data-theme="night"] .dept-tag, [data-theme="night"] .dept-badge { background: var(--n-tag-9); }
 [data-theme="night"] .agency-wsp { background: var(--agency-wsp); }
 [data-theme="night"] .agency-kcso { background: var(--agency-kcso); }
-[data-theme="night"] .side-bolo-kind.per { background: #2e9e57; }
-[data-theme="night"] .side-bolo-kind.veh { background: #1c6b38; }
+[data-theme="night"] .side-bolo-kind.per { background: var(--n-tag-1); }
+[data-theme="night"] .side-bolo-kind.veh { background: var(--n-tag-4); }
 /* Priorités des appels : P1 vert le plus clair … non urgent le plus sombre */
-[data-theme="night"] .grid tr.prio-p1, [data-theme="night"] .call-toast.prio-p1 { --prio: 150, 255, 185; }
-[data-theme="night"] .grid tr.prio-p2, [data-theme="night"] .call-toast.prio-p2 { --prio: 80, 225, 130; }
-[data-theme="night"] .grid tr.prio-p3, [data-theme="night"] .call-toast.prio-p3 { --prio: 45, 180, 95; }
-[data-theme="night"] .grid tr.prio-nonurgent, [data-theme="night"] .call-toast.prio-nonurgent { --prio: 30, 125, 65; }
-[data-theme="night"] .call-toast, [data-theme="night"] .status-toast { --prio: 45, 180, 95; }
+[data-theme="night"] .grid tr.prio-p1, [data-theme="night"] .call-toast.prio-p1 { --prio: var(--n-p1); }
+[data-theme="night"] .grid tr.prio-p2, [data-theme="night"] .call-toast.prio-p2 { --prio: var(--n-p2); }
+[data-theme="night"] .grid tr.prio-p3, [data-theme="night"] .call-toast.prio-p3 { --prio: var(--n-p3); }
+[data-theme="night"] .grid tr.prio-nonurgent, [data-theme="night"] .call-toast.prio-nonurgent { --prio: var(--n-pn); }
+[data-theme="night"] .call-toast, [data-theme="night"] .status-toast { --prio: var(--n-p3); }
 
 /* HUD (PLD, display de l'unité, car HUD) et notifications */
 [data-theme="night"] .hud:not(.hud-car), [data-theme="night"] .toast, [data-theme="night"] .call-toast, [data-theme="night"] .car-notice, [data-theme="night"] .hud-placebar {
-    background: rgba(2, 8, 4, .88); border-color: rgba(60, 255, 130, .25); color: var(--text);
+    background: rgba(var(--n-bg-rgb), .88); border-color: rgba(var(--n-rgb), .25); color: var(--text);
 }
 [data-theme="night"] .hud-label, [data-theme="night"] .pld-zone, [data-theme="night"] .pld-line, [data-theme="night"] .hu-sep,
 [data-theme="night"] .hu-none, [data-theme="night"] .ct-number, [data-theme="night"] .offer-time, [data-theme="night"] .car-notice-text small { color: var(--muted); }
 [data-theme="night"] .pld-street, [data-theme="night"] .hu-name, [data-theme="night"] .ct-title, [data-theme="night"] .ct-status,
 [data-theme="night"] .car-notice-text b, [data-theme="night"] .offer-toast .ct-head { color: var(--text); }
 [data-theme="night"] .ct-unit { color: var(--text-2); }
-[data-theme="night"] .toast.error::before, [data-theme="night"] .toast.success::before { background: #3ddc74; color: #021006; }
-[data-theme="night"] .offer-keys kbd, [data-theme="night"] .car-notice-key { color: #021006; background: #a8ffc6; box-shadow: 0 2px 0 #1c6b38; }
+[data-theme="night"] .toast.error::before, [data-theme="night"] .toast.success::before { background: var(--n-accent); color: var(--n-ink); }
+[data-theme="night"] .offer-keys kbd, [data-theme="night"] .car-notice-key { color: var(--n-ink); background: var(--n-text); box-shadow: 0 2px 0 var(--n-tag-4); }
 /* Car HUD : vert ; les alertes (réserve, panne, ceinture) se voient à l'intensité du vert et au clignotement */
-[data-theme="night"] #carSpeed, [data-theme="night"] .car-gear-letter { color: #a8ffc6; }
-[data-theme="night"] .car-unit, [data-theme="night"] .car-fuel-icon { color: rgba(150, 245, 185, .75); }
-[data-theme="night"] .car-rpm, [data-theme="night"] .car-fuel-bar { background: rgba(60, 255, 130, .2); }
-[data-theme="night"] .car-rpm-fill, [data-theme="night"] .car-fuel-fill { background: #7dffa8; }
-[data-theme="night"] .car-rpm-fill.car-redline, [data-theme="night"] .car-fuel-fill.car-low { background: #d9ffe6; }
+[data-theme="night"] #carSpeed, [data-theme="night"] .car-gear-letter { color: var(--n-text); }
+[data-theme="night"] .car-unit, [data-theme="night"] .car-fuel-icon { color: rgba(var(--n-text-rgb), .75); }
+[data-theme="night"] .car-rpm, [data-theme="night"] .car-fuel-bar { background: rgba(var(--n-rgb), .2); }
+[data-theme="night"] .car-rpm-fill, [data-theme="night"] .car-fuel-fill { background: var(--n-light); }
+[data-theme="night"] .car-rpm-fill.car-redline, [data-theme="night"] .car-fuel-fill.car-low { background: var(--n-bright); }
 [data-theme="night"] .car-fuel-fill.car-empty { background: #ffffff; }
-[data-theme="night"] .car-belt.belt-on svg * { fill: #a8ffc6; }
-[data-theme="night"] .car-gear-pill, [data-theme="night"] .car-gear.gear-r .car-gear-pill { background: #a8ffc6; }
-[data-theme="night"] .car-gear:not(.gear-r) .car-gear-letter[data-gear="D"], [data-theme="night"] .car-gear.gear-r .car-gear-letter[data-gear="R"] { color: #021006; }
-[data-theme="night"] .car-broken { color: #d9ffe6; }
-[data-theme="night"] .car-broken.car-damaged { color: #7dffa8; }
-[data-theme="night"] .hud-car.car-is-broken #carSpeed, [data-theme="night"] .hud-car.car-is-broken .car-unit, [data-theme="night"] .hud-car.car-is-broken .car-fuel-icon { color: #e6fff0; }
-[data-theme="night"] .hud-car.car-is-broken .car-rpm-fill, [data-theme="night"] .hud-car.car-is-broken .car-fuel-fill { background: #e6fff0; }
-[data-theme="night"] .hud-car.car-is-broken .car-rpm, [data-theme="night"] .hud-car.car-is-broken .car-fuel-bar { background: rgba(60, 255, 130, .35); }
-[data-theme="night"] .hud-car.car-is-broken .car-belt svg * { stroke: #e6fff0; }
-[data-theme="night"] .hud-car.car-is-broken .car-belt.belt-on svg * { fill: #e6fff0; }
+[data-theme="night"] .car-belt.belt-on svg * { fill: var(--n-text); }
+[data-theme="night"] .car-gear-pill, [data-theme="night"] .car-gear.gear-r .car-gear-pill { background: var(--n-text); }
+[data-theme="night"] .car-gear:not(.gear-r) .car-gear-letter[data-gear="D"], [data-theme="night"] .car-gear.gear-r .car-gear-letter[data-gear="R"] { color: var(--n-ink); }
+[data-theme="night"] .car-broken { color: var(--n-bright); }
+[data-theme="night"] .car-broken.car-damaged { color: var(--n-light); }
+[data-theme="night"] .hud-car.car-is-broken #carSpeed, [data-theme="night"] .hud-car.car-is-broken .car-unit, [data-theme="night"] .hud-car.car-is-broken .car-fuel-icon { color: var(--n-bright); }
+[data-theme="night"] .hud-car.car-is-broken .car-rpm-fill, [data-theme="night"] .hud-car.car-is-broken .car-fuel-fill { background: var(--n-bright); }
+[data-theme="night"] .hud-car.car-is-broken .car-rpm, [data-theme="night"] .hud-car.car-is-broken .car-fuel-bar { background: rgba(var(--n-rgb), .35); }
+[data-theme="night"] .hud-car.car-is-broken .car-belt svg * { stroke: var(--n-bright); }
+[data-theme="night"] .hud-car.car-is-broken .car-belt.belt-on svg * { fill: var(--n-bright); }
 [data-theme="night"] .hud-car.car-is-broken .car-broken { color: #ffffff; }
 [data-theme="night"] .car-belt svg * { animation-name: belt-blink-night; }
-@keyframes belt-blink-night { 0% { fill: #e6fff0; } 50% { fill: transparent; } }
+@keyframes belt-blink-night { 0% { fill: var(--n-bright); } 50% { fill: transparent; } }

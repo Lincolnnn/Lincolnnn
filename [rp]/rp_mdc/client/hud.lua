@@ -390,21 +390,29 @@ exports('carSoundVolume', function()
 end)
 
 -- Mode nuit (Paramètres > MDC > Apparence) pour les menus des AUTRES ressources (rp_interact, /scene, équipement…) :
--- 'night' si le thème est Nuit et qu'il s'applique à toutes les interfaces ou aux menus extérieurs, sinon 'day'.
--- Chaque ressource le lit à son démarrage (export uiTheme) et reçoit ses changements (événement client
--- "mdc:uiTheme", theme), puis l'envoie à son NUI. Le MDC lui-même l'applique dans html/script.js.
+-- 'night' si le thème est Nuit et qu'il s'applique à toutes les interfaces ou aux menus extérieurs, sinon 'day' ;
+-- et sa couleur (vert, jaune, rouge, bleu). Chaque ressource les lit à son démarrage (exports uiTheme, uiNightColor)
+-- et reçoit leurs changements (événement client "mdc:uiTheme", theme, color), puis les envoie à son NUI. Le MDC
+-- lui-même les applique dans html/script.js.
 local function uiTheme()
     local m = type(settings.mdc) == 'table' and settings.mdc or {}
     local scope = (m.themeScope == 'mdc' or m.themeScope == 'menus') and m.themeScope or 'all'
     return (m.theme == 'night' and scope ~= 'mdc') and 'night' or 'day'
 end
 exports('uiTheme', uiTheme)
+--- Couleur du mode nuit : 'green' (par défaut), 'yellow', 'red' ou 'blue'
+local NIGHT_COLORS = { green = true, yellow = true, red = true, blue = true }
+local function uiNightColor()
+    local m = type(settings.mdc) == 'table' and settings.mdc or {}
+    return NIGHT_COLORS[m.nightColor] and m.nightColor or 'green'
+end
+exports('uiNightColor', uiNightColor)
 local sentTheme = nil
 local function publishTheme()
-    local theme = uiTheme()
-    if theme == sentTheme then return end
-    sentTheme = theme
-    TriggerEvent('mdc:uiTheme', theme)
+    local theme, color = uiTheme(), uiNightColor()
+    if sentTheme == theme .. ':' .. color then return end
+    sentTheme = theme .. ':' .. color
+    TriggerEvent('mdc:uiTheme', theme, color)
 end
 
 -- Bouton "Tester" / curseur du volume des sons du véhicule

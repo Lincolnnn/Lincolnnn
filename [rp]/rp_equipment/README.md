@@ -11,7 +11,7 @@ la touche **E** (modifiable) ouvre le menu **Équipement** du véhicule.
 2. Dans `server.cfg`, après le MDC et `rp_interact` : `ensure rp_equipment`
 3. Touche : *Paramètres > Raccourcis clavier > FiveM > « Véhicule de police : menu Équipement »*.
 
-**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour le menu Équipement (`client/theme.lua` ; sans le MDC : thème jour).
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **fond noir et couleur du mode nuit** (vert, jaune, rouge ou bleu) pour le menu Équipement (`client/theme.lua` ; sans le MDC : thème jour).
 
 ## Qui y a accès
 

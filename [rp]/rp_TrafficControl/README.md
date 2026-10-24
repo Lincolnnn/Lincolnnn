@@ -24,7 +24,7 @@ Les nœuds fermés ne sont plus empruntés par les PNJ (ni par le trafic qui app
 leur route sont dirigés à l'approche. Tout est **temporaire** (15 min, 30 min, 1 h, 2 h ou illimité) ; mesure levée :
 réseau routier rendu **à l'original**, PNJ relâchés (route et vitesse normales).
 
-**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour le menu de gestion du trafic (`client/theme.lua` ; sans le MDC : thème jour).
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **fond noir et couleur du mode nuit** (vert, jaune, rouge ou bleu) pour le menu de gestion du trafic (`client/theme.lua` ; sans le MDC : thème jour).
 
 ## Installation
 

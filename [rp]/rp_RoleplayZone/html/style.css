@@ -253,55 +253,112 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .rz-tag { color: #fff; background: rgba(255, 255, 255, .18) !important; border: 1px solid rgba(255, 255, 255, .25); box-shadow: none; }
 .rz-close { align-self: stretch; width: 46px; height: auto; border-radius: 0; color: #fff; }
 
+/* Couleur du mode nuit (Paramètres > MDC > Apparence) : vert (par défaut), jaune, rouge ou bleu ; <html
+   data-night-color="…">. Mêmes contrastes et intensités pour chaque couleur (titres plus foncés, texte plus clair,
+   boutons plus ou moins vifs) ; fond noir. Valeurs générées depuis le vert (même luminosité, teinte changée). */
+:root {
+    --n-ink: #020c05; --n-field: #010402; --n-btn: #020703; --n-head: #030c06; --n-hover: #06190d; --n-press: #082212;
+    --n-press-2: #0b3c1d; --n-step: #0a2614; --n-primary: #0e4a24; --n-primary-hover: #136030;
+    --n-primary-border: #2fbf5f; --n-strong: #1d7a3f; --n-strong-press: #16602f; --n-banner-1: #0e4423;
+    --n-banner-2: #082c15; --n-banner-3: #020a05; --n-tag-1: #2e9e57; --n-tag-2: #268a4a; --n-tag-3: #217a41;
+    --n-tag-4: #1c6b38; --n-tag-5: #185e31; --n-tag-6: #14522a; --n-tag-7: #104624; --n-tag-8: #0c3a1e;
+    --n-tag-9: #0f3f21; --n-tag-kcso: #12502a; --n-title: #24b955; --n-accent: #3ddc74; --n-light: #7dffa8;
+    --n-soft: #8fe6ad; --n-text: #a8ffc6; --n-pale: #c6ffd9; --n-bright: #e6fff0; --n-rgb: 60, 255, 130;
+    --n-text-rgb: 150, 245, 185; --n-muted-rgb: 110, 205, 145; --n-glow-rgb: 120, 255, 170;
+    --n-light-rgb: 125, 255, 168; --n-bg-rgb: 0, 3, 1; --n-bg2-rgb: 1, 5, 2; --n-card-rgb: 2, 10, 5;
+    --n-accent-rgb: 61, 220, 116; --n-danger-rgb: 70, 230, 125; --n-warn-rgb: 50, 190, 100; --n-ok-rgb: 40, 160, 85;
+    --n-p1: 150, 255, 185; --n-p2: 80, 225, 130; --n-p3: 45, 180, 95; --n-pn: 30, 125, 65; --n-hue: 75deg;
+}
+:root[data-night-color="yellow"] {
+    --n-ink: #0c0a02; --n-field: #040301; --n-btn: #070502; --n-head: #0c0a03; --n-hover: #191606; --n-press: #221e08;
+    --n-press-2: #3c340b; --n-step: #26210a; --n-primary: #4a400e; --n-primary-hover: #605413;
+    --n-primary-border: #bfa22f; --n-strong: #7a6a1d; --n-strong-press: #605216; --n-banner-1: #443c0e;
+    --n-banner-2: #2c2608; --n-banner-3: #0a0902; --n-tag-1: #9e8b2e; --n-tag-2: #8a7926; --n-tag-3: #7a6b21;
+    --n-tag-4: #6b5d1c; --n-tag-5: #5e5218; --n-tag-6: #524714; --n-tag-7: #463d10; --n-tag-8: #3a330c;
+    --n-tag-9: #3f370f; --n-tag-kcso: #504712; --n-title: #b99b24; --n-accent: #dcbe3d; --n-light: #ffe57d;
+    --n-soft: #e6d68f; --n-text: #ffefa8; --n-pale: #fff4c6; --n-bright: #fffce6; --n-rgb: 255, 221, 60;
+    --n-text-rgb: 245, 229, 150; --n-muted-rgb: 205, 189, 110; --n-glow-rgb: 255, 233, 120;
+    --n-light-rgb: 255, 229, 125; --n-bg-rgb: 3, 2, 0; --n-bg2-rgb: 5, 4, 1; --n-card-rgb: 10, 9, 2;
+    --n-accent-rgb: 220, 190, 61; --n-danger-rgb: 230, 200, 70; --n-warn-rgb: 190, 165, 50; --n-ok-rgb: 160, 141, 40;
+    --n-p1: 255, 234, 150; --n-p2: 225, 198, 80; --n-p3: 180, 158, 45; --n-pn: 125, 109, 30; --n-hue: 12deg;
+}
+:root[data-night-color="red"] {
+    --n-ink: #0c0203; --n-field: #040101; --n-btn: #070203; --n-head: #0c0303; --n-hover: #190606; --n-press: #3b0f0e;
+    --n-press-2: #561010; --n-step: #3e1011; --n-primary: #641313; --n-primary-hover: #7a1918;
+    --n-primary-border: #cf3d42; --n-strong: #932323; --n-strong-press: #791c1e; --n-banner-1: #5d1513;
+    --n-banner-2: #460d0d; --n-banner-3: #0a0202; --n-tag-1: #b63535; --n-tag-2: #a22d2d; --n-tag-3: #922828;
+    --n-tag-4: #832224; --n-tag-5: #761e1f; --n-tag-6: #6b1a1b; --n-tag-7: #5f1616; --n-tag-8: #531311;
+    --n-tag-9: #581515; --n-tag-kcso: #691918; --n-title: #d3292f; --n-accent: #e1575a; --n-light: #ff7d82;
+    --n-soft: #e68f91; --n-text: #ffa8aa; --n-pale: #ffc6c8; --n-bright: #ffe7e6; --n-rgb: 255, 60, 61;
+    --n-text-rgb: 245, 150, 150; --n-muted-rgb: 205, 110, 110; --n-glow-rgb: 255, 121, 120;
+    --n-light-rgb: 255, 125, 130; --n-bg-rgb: 3, 0, 0; --n-bg2-rgb: 5, 1, 1; --n-card-rgb: 10, 2, 2;
+    --n-accent-rgb: 225, 87, 90; --n-danger-rgb: 234, 97, 100; --n-warn-rgb: 205, 65, 67; --n-ok-rgb: 184, 47, 46;
+    --n-p1: 255, 150, 153; --n-p2: 229, 106, 109; --n-p3: 204, 52, 51; --n-pn: 150, 36, 36; --n-hue: -42deg;
+}
+:root[data-night-color="blue"] {
+    --n-ink: #02070c; --n-field: #010204; --n-btn: #020507; --n-head: #03070c; --n-hover: #060e19; --n-press: #112747;
+    --n-press-2: #123563; --n-step: #142c4a; --n-primary: #153d71; --n-primary-hover: #1b4886;
+    --n-primary-border: #4a89d2; --n-strong: #265a9f; --n-strong-press: #1f4e85; --n-banner-1: #16386a;
+    --n-banner-2: #0f2d53; --n-banner-3: #02050a; --n-tag-1: #3874c2; --n-tag-2: #3067ae; --n-tag-3: #2b5e9e;
+    --n-tag-4: #26558f; --n-tag-5: #214c83; --n-tag-6: #1d4577; --n-tag-7: #193c6b; --n-tag-8: #143360;
+    --n-tag-9: #183864; --n-tag-kcso: #1a4075; --n-title: #3381d7; --n-accent: #649ee3; --n-light: #7dbaff;
+    --n-soft: #8fb7e6; --n-text: #a8d0ff; --n-pale: #c6e1ff; --n-bright: #e6f0ff; --n-rgb: 60, 146, 255;
+    --n-text-rgb: 150, 191, 245; --n-muted-rgb: 110, 151, 205; --n-glow-rgb: 120, 178, 255;
+    --n-light-rgb: 125, 186, 255; --n-bg-rgb: 0, 1, 3; --n-bg2-rgb: 1, 3, 5; --n-card-rgb: 2, 5, 10;
+    --n-accent-rgb: 100, 158, 227; --n-danger-rgb: 110, 167, 235; --n-warn-rgb: 78, 135, 208;
+    --n-ok-rgb: 49, 112, 197; --n-p1: 150, 199, 255; --n-p2: 119, 170, 232; --n-p3: 64, 125, 207; --n-pn: 39, 92, 162;
+    --n-hue: 172deg;
+}
+
 /* =========================================================================
    MODE NUIT (réglé dans le MDC : Paramètres > MDC > Apparence ; <html data-theme="night">, client/theme.lua)
-   Fond noir très sombre, tout en VERT : titres vert foncé, texte vert clair ; les couleurs du mode jour deviennent des
+   Fond noir très sombre, dans la COULEUR du mode nuit (vert par défaut, jaune, rouge ou bleu) : titres vert foncé, texte vert clair ; les couleurs du mode jour deviennent des
    nuances de vert plus claires ou plus sombres. Aucune autre couleur.
    ========================================================================= */
 [data-theme="night"] .rz {
-    background: rgba(2, 8, 4, .97); border-color: rgba(60, 255, 130, .28); color: var(--text);
-    box-shadow: 0 24px 56px rgba(0, 0, 0, .7), 0 0 0 1px rgba(60, 255, 130, .08);
-    --accent: #3ddc74; --accent-rgb: 61, 220, 116; --text: #a8ffc6; --text-2: rgba(150, 245, 185, .84);
-    --muted: rgba(110, 205, 145, .64); --line: rgba(60, 255, 130, .18); --danger: #e6fff0; --ok: #7dffa8;
-    --head-color: #0f4d26 !important;
+    background: rgba(var(--n-bg-rgb), .97); border-color: rgba(var(--n-rgb), .28); color: var(--text);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, .7), 0 0 0 1px rgba(var(--n-rgb), .08);
+    --accent: var(--n-accent); --accent-rgb: var(--n-accent-rgb); --text: var(--n-text); --text-2: rgba(var(--n-text-rgb), .84);
+    --muted: rgba(var(--n-muted-rgb), .64); --line: rgba(var(--n-rgb), .18); --danger: var(--n-bright); --ok: var(--n-light);
+    --head-color: var(--n-banner-1) !important;
 }
-[data-theme="night"] [data-theme="night"] .rz-legend { color: #24b955; }
-[data-theme="night"] .rz-head { background: radial-gradient(120% 140% at 0% 0%, rgba(120, 255, 170, .12), transparent 55%), linear-gradient(125deg, #0f4d26 0%, #0a3519 55%, #04170b 100%); border-bottom-color: rgba(60, 255, 130, .25); }
-[data-theme="night"] .rz-name { color: #c6ffd9; }
-[data-theme="night"] .rz-sub { color: rgba(150, 245, 185, .8); }
-[data-theme="night"] .rz-tag { color: #c6ffd9; background: rgba(60, 255, 130, .14) !important; border-color: rgba(60, 255, 130, .3) !important; box-shadow: none; }
-[data-theme="night"] .rz-close { color: #c6ffd9; }
-[data-theme="night"] .rz-close:hover { background: #1d7a3f; color: #eafff1; }
-[data-theme="night"] .rz-section, [data-theme="night"] .rz-kind, [data-theme="night"] .rz-item, [data-theme="night"] .rz-summary, [data-theme="night"] .rz-chip, [data-theme="night"] .rz-faction, [data-theme="night"] .rz-weapon, [data-theme="night"] .rz-stock-row, [data-theme="night"] .rz-slot { background: rgba(7, 24, 13, .92); border-color: rgba(60, 255, 130, .18); }
-[data-theme="night"] .rz-kind:hover, [data-theme="night"] .rz-faction:hover { background: rgba(60, 255, 130, .08); border-color: rgba(60, 255, 130, .45); }
-[data-theme="night"] .rz-faction.active, [data-theme="night"] .rz-chip.active, [data-theme="night"] .rz-seg-btn.active { background: rgba(60, 255, 130, .16); border-color: rgba(60, 255, 130, .6); color: #c6ffd9; }
-[data-theme="night"] .rz-input, [data-theme="night"] .rz-box { background: #030b06; color: var(--text); border-color: rgba(60, 255, 130, .2); border-bottom-color: rgba(60, 255, 130, .5); }
-[data-theme="night"] .rz-input:focus { background: #030b06; }
-[data-theme="night"] select.rz-input option, [data-theme="night"] select.rz-input optgroup { background: #030b06; color: var(--text); }
-[data-theme="night"] .rz-seg { background: rgba(60, 255, 130, .05); }
-[data-theme="night"] .rz-btn, [data-theme="night"] .rz-qty-btn { background: #04100a; color: var(--text); border-color: rgba(60, 255, 130, .34); border-bottom-color: rgba(60, 255, 130, .5); }
-[data-theme="night"] .rz-btn:hover, [data-theme="night"] .rz-qty-btn:hover:not(:disabled) { background: #082414; }
-[data-theme="night"] .rz-primary, [data-theme="night"] .rz-listen.playing { background: #0e4a24; border-color: #2fbf5f; color: #c6ffd9; }
-[data-theme="night"] .rz-primary:hover, [data-theme="night"] .rz-primary:hover:not(:disabled) { background: #136030; }
-[data-theme="night"] .rz-primary:disabled { background: #04100a; color: var(--muted); }
-[data-theme="night"] .rz-danger, [data-theme="night"] .rz-danger:hover, [data-theme="night"] .rz-danger:hover:not(:disabled), [data-theme="night"] .rz-remove:hover { background: #1d7a3f; border-color: #3ddc74; color: #eafff1; }
-[data-theme="night"] .rz-step { color: #c6ffd9; background: rgba(60, 255, 130, .14); box-shadow: inset 0 0 0 1px rgba(60, 255, 130, .5); }
-[data-theme="night"] .rz-badge { color: #021006; }
-[data-theme="night"] .rz ::-webkit-scrollbar-thumb, [data-theme="night"] ::-webkit-scrollbar-thumb { background: rgba(60, 255, 130, .25); background-clip: padding-box; }
-[data-theme="night"] .rz { --zone: #7dffa8; --perimeter: #3ddc74; --object: #24b955; }
-[data-theme="night"] .ico-zone, [data-theme="night"] .ico-perimeter, [data-theme="night"] .ico-object { background: rgba(60, 255, 130, .1); }
+[data-theme="night"] [data-theme="night"] .rz-legend { color: var(--n-title); }
+[data-theme="night"] .rz-head { background: radial-gradient(120% 140% at 0% 0%, rgba(var(--n-glow-rgb), .12), transparent 55%), linear-gradient(125deg, var(--n-banner-1) 0%, var(--n-banner-2) 55%, var(--n-banner-3) 100%); border-bottom-color: rgba(var(--n-rgb), .25); }
+[data-theme="night"] .rz-name { color: var(--n-pale); }
+[data-theme="night"] .rz-sub { color: rgba(var(--n-text-rgb), .8); }
+[data-theme="night"] .rz-tag { color: var(--n-pale); background: rgba(var(--n-rgb), .14) !important; border-color: rgba(var(--n-rgb), .3) !important; box-shadow: none; }
+[data-theme="night"] .rz-close { color: var(--n-pale); }
+[data-theme="night"] .rz-close:hover { background: var(--n-strong); color: var(--n-bright); }
+[data-theme="night"] .rz-section, [data-theme="night"] .rz-kind, [data-theme="night"] .rz-item, [data-theme="night"] .rz-summary, [data-theme="night"] .rz-chip, [data-theme="night"] .rz-faction, [data-theme="night"] .rz-weapon, [data-theme="night"] .rz-stock-row, [data-theme="night"] .rz-slot { background: rgba(var(--n-card-rgb), .92); border-color: rgba(var(--n-rgb), .18); }
+[data-theme="night"] .rz-kind:hover, [data-theme="night"] .rz-faction:hover { background: rgba(var(--n-rgb), .08); border-color: rgba(var(--n-rgb), .45); }
+[data-theme="night"] .rz-faction.active, [data-theme="night"] .rz-chip.active, [data-theme="night"] .rz-seg-btn.active { background: rgba(var(--n-rgb), .16); border-color: rgba(var(--n-rgb), .6); color: var(--n-pale); }
+[data-theme="night"] .rz-input, [data-theme="night"] .rz-box { background: var(--n-field); color: var(--text); border-color: rgba(var(--n-rgb), .2); border-bottom-color: rgba(var(--n-rgb), .5); }
+[data-theme="night"] .rz-input:focus { background: var(--n-field); }
+[data-theme="night"] select.rz-input option, [data-theme="night"] select.rz-input optgroup { background: var(--n-field); color: var(--text); }
+[data-theme="night"] .rz-seg { background: rgba(var(--n-rgb), .05); }
+[data-theme="night"] .rz-btn, [data-theme="night"] .rz-qty-btn { background: var(--n-btn); color: var(--text); border-color: rgba(var(--n-rgb), .34); border-bottom-color: rgba(var(--n-rgb), .5); }
+[data-theme="night"] .rz-btn:hover, [data-theme="night"] .rz-qty-btn:hover:not(:disabled) { background: var(--n-hover); }
+[data-theme="night"] .rz-primary, [data-theme="night"] .rz-listen.playing { background: var(--n-primary); border-color: var(--n-primary-border); color: var(--n-pale); }
+[data-theme="night"] .rz-primary:hover, [data-theme="night"] .rz-primary:hover:not(:disabled) { background: var(--n-primary-hover); }
+[data-theme="night"] .rz-primary:disabled { background: var(--n-btn); color: var(--muted); }
+[data-theme="night"] .rz-danger, [data-theme="night"] .rz-danger:hover, [data-theme="night"] .rz-danger:hover:not(:disabled), [data-theme="night"] .rz-remove:hover { background: var(--n-strong); border-color: var(--n-accent); color: var(--n-bright); }
+[data-theme="night"] .rz-step { color: var(--n-pale); background: rgba(var(--n-rgb), .14); box-shadow: inset 0 0 0 1px rgba(var(--n-rgb), .5); }
+[data-theme="night"] .rz-badge { color: var(--n-ink); }
+[data-theme="night"] .rz ::-webkit-scrollbar-thumb, [data-theme="night"] ::-webkit-scrollbar-thumb { background: rgba(var(--n-rgb), .25); background-clip: padding-box; }
+[data-theme="night"] .rz { --zone: var(--n-light); --perimeter: var(--n-accent); --object: var(--n-title); }
+[data-theme="night"] .ico-zone, [data-theme="night"] .ico-perimeter, [data-theme="night"] .ico-object { background: rgba(var(--n-rgb), .1); }
 [data-theme="night"] .rz-item-text { color: var(--text-2); }
 /* HUD sur le jeu (zone de recherche, flèche, fouille, résultats, rappel de l'arme) : vert aussi */
-[data-theme="night"] .zbanner, [data-theme="night"] .progress, [data-theme="night"] .result, [data-theme="night"] .whint { background: rgba(2, 8, 4, .9); border-color: rgba(60, 255, 130, .28); color: #a8ffc6; }
-[data-theme="night"] .zone-head, [data-theme="night"] .result-head, [data-theme="night"] .zone-label, [data-theme="night"] .progress-hint, [data-theme="night"] .whint-alt { color: rgba(110, 205, 145, .7); }
-[data-theme="night"] .zone-dot { background: #3ddc74; box-shadow: 0 0 8px #3ddc74; }
-[data-theme="night"] .zone-title, [data-theme="night"] .result-title, [data-theme="night"] .progress-head { color: #24b955; }
-[data-theme="night"] .progress-time { color: #7dffa8; }
-[data-theme="night"] .progress-bar { background: #3ddc74; }
-[data-theme="night"] .result { box-shadow: inset 3px 0 0 #3ddc74, 0 16px 32px rgba(0, 0, 0, .6); }
-[data-theme="night"] .progress-hint kbd, [data-theme="night"] .whint kbd { color: #a8ffc6; background: rgba(60, 255, 130, .1); border-color: rgba(60, 255, 130, .3); }
-[data-theme="night"] .whint-wheel svg { stroke: #a8ffc6; }
-[data-theme="night"] .arrow-ring { border-color: rgba(125, 255, 168, .6); box-shadow: 0 0 18px rgba(60, 255, 130, .3), inset 0 0 12px rgba(60, 255, 130, .15); }
-[data-theme="night"] .arrow-rot svg { fill: #a8ffc6; filter: drop-shadow(0 0 6px rgba(60, 255, 130, .8)); }
-[data-theme="night"] .arrow-label { color: #a8ffc6; }
-[data-theme="night"] .arrow-dist { color: rgba(150, 245, 185, .8); }
+[data-theme="night"] .zbanner, [data-theme="night"] .progress, [data-theme="night"] .result, [data-theme="night"] .whint { background: rgba(var(--n-bg-rgb), .9); border-color: rgba(var(--n-rgb), .28); color: var(--n-text); }
+[data-theme="night"] .zone-head, [data-theme="night"] .result-head, [data-theme="night"] .zone-label, [data-theme="night"] .progress-hint, [data-theme="night"] .whint-alt { color: rgba(var(--n-muted-rgb), .7); }
+[data-theme="night"] .zone-dot { background: var(--n-accent); box-shadow: 0 0 8px var(--n-accent); }
+[data-theme="night"] .zone-title, [data-theme="night"] .result-title, [data-theme="night"] .progress-head { color: var(--n-title); }
+[data-theme="night"] .progress-time { color: var(--n-light); }
+[data-theme="night"] .progress-bar { background: var(--n-accent); }
+[data-theme="night"] .result { box-shadow: inset 3px 0 0 var(--n-accent), 0 16px 32px rgba(0, 0, 0, .6); }
+[data-theme="night"] .progress-hint kbd, [data-theme="night"] .whint kbd { color: var(--n-text); background: rgba(var(--n-rgb), .1); border-color: rgba(var(--n-rgb), .3); }
+[data-theme="night"] .whint-wheel svg { stroke: var(--n-text); }
+[data-theme="night"] .arrow-ring { border-color: rgba(var(--n-light-rgb), .6); box-shadow: 0 0 18px rgba(var(--n-rgb), .3), inset 0 0 12px rgba(var(--n-rgb), .15); }
+[data-theme="night"] .arrow-rot svg { fill: var(--n-text); filter: drop-shadow(0 0 6px rgba(var(--n-rgb), .8)); }
+[data-theme="night"] .arrow-label { color: var(--n-text); }
+[data-theme="night"] .arrow-dist { color: rgba(var(--n-text-rgb), .8); }

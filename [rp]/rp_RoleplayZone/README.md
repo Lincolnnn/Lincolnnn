@@ -23,7 +23,7 @@ fouille, sur place. Sans `rp_interact` (pas d'œil) : « E Fouiller » sur place
 3. (Facultatif) administrateurs (créer en service, voir / supprimer toutes les scènes) :
    `add_ace group.admin rpscene.admin allow`.
 
-**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour le menu `/scene` et les affichages sur le jeu (zone de recherche, flèche, fouille, résultats) (`client/theme.lua` ; sans le MDC : thème jour).
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **fond noir et couleur du mode nuit** (vert, jaune, rouge ou bleu) pour le menu `/scene` et les affichages sur le jeu (zone de recherche, flèche, fouille, résultats) (`client/theme.lua` ; sans le MDC : thème jour).
 
 ## Civils : préparer une scène (`/scene`)
 
