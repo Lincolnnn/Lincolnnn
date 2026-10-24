@@ -1,12 +1,16 @@
 # MDC Standalone (FiveM)
 
 Mobile Data Computer **100% standalone** (sans ESX / QBCore / vRP), interface NUI en HTML/CSS/Vanilla JS, au look
-**Windows 11** sombre et sobre (fenêtre « Mica », volet de navigation à gauche, cartes, boutons et champs Fluent,
-accent bleu clair). Les couleurs se changent dans les variables en haut de `html/style.css` (`--accent`, `--mica`…).
+**Windows 11** clair (jour) et sobre (fenêtre « Mica » claire aux coins presque carrés, volet de navigation à gauche,
+cartes blanches, boutons et champs Fluent, accent bleu). Les couleurs se changent dans les variables en haut de
+`html/style.css` (`--accent`, `--mica`, `--radius`…). Les autres menus (`rp_interact`, `rp_RoleplayZone`,
+`rp_equipment`, `rp_TrafficControl`, `rp_Ganghunt`, `/tuto` de `rp_chat`) reprennent ce thème.
 
 **Trois MDC**, choisis à la première ouverture : **Générique** (rôleplay civil), **Washington State Patrol** (WSP) et
 **King County Sheriff Office** (KCSO). Même apparence pour les trois : seuls le titre (à côté de « Mobile Data
-Computer ») et le contenu changent. Il n'y a plus de services APD / GSP / FCSO.
+Computer ») et le contenu changent. Il n'y a plus de services APD / GSP / FCSO. Le **logo** de la barre de titre est
+celui de la police choisie (**badge WSP** ou **étoile KCSO**, `html/img/`, fond transparent) ; bouclier pour le MDC
+Générique. Les deux logos sont aussi sur l'écran de choix du MDC.
 
 ## Installation
 
@@ -113,7 +117,7 @@ dans `server/server.lua`.
 
 ## Fenêtre
 
-- Barre de titre Windows 11 : icône, « Mobile Data Computer » et le **nom du MDC choisi**, boutons réduire /
+- Barre de titre Windows 11 : logo de la police (ou bouclier), « Mobile Data Computer » et le **nom du MDC choisi**, boutons réduire /
   agrandir / fermer. Déplacement : glisser la barre de titre ; redimensionnement : bords et coins ; agrandir /
   rétrécir : bouton ☐ ou double-clic sur la barre de titre ; ↺ : position par défaut.
 - La position est gardée d'une ouverture à l'autre et réinitialisée à chaque reconnexion.
@@ -122,7 +126,7 @@ dans `server/server.lua`.
 
 - **Thème clair (jour)** : fond gris très clair, cartes blanches, texte foncé, accent bleu. Les HUD affichés sur le
   jeu (PLD, display MDC, car HUD) et les notifications restent sombres, pour rester lisibles sur l'image du jeu.
-- **Volet de navigation à gauche** : en haut, le **nom RP** et le MDC utilisé ; les **pages** du MDC ; pour les
+- **Volet de navigation à gauche** : en haut, le **nom RP** (sans image de profil) et le MDC utilisé ; les **pages** du MDC ; pour les
   polices, juste en dessous des pages, les **4 statuts listés l'un sous l'autre** : chaque bouton est **entièrement
   de la couleur de son statut**, celui de l'unité est mis en avant (opaque, cerclé, ✓) ; puis les **BOLO actifs**
   (cases repliées : un clic affiche les détails, **Voir BOLO** ouvre la page des BOLOs sur celui-ci) ; tout en bas,
@@ -150,7 +154,7 @@ plus de flou de l'arrière-plan.
 | Interventions | **Police** : les appels de **sa police** (toujours ouverts), puis les **appels communs** (WSP & KCSO) ; les appels de l'autre police ne sont **pas** visibles. Seules les polices visées peuvent rejoindre un appel (vérifié par le serveur). Incident : police de l'unité déclarante toujours cochée, **case** pour y ajouter l'autre police (incident commun). **Générique** : les listes de **chaque police** et les appels communs, **en lecture** (pas de « Rejoindre ») ; bouton **Modifier** sur les **interventions** (appels des civils) pour les corriger directement. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer (ou **✕** en haut du panneau) pour le masquer : **sans appel choisi, le panneau des détails est réduit à une fine colonne** et la liste prend toute la place. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
 | Rapports | **Communs à tous les MDC**. DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
-| Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule ; **Menu Interaction** de `rp_interact` : taille, et emplacement avec « Placer les HUD à l'écran », appliqués aussitôt — le menu se montre un instant) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
+| Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule ; le Menu Interaction de `rp_interact` n'est plus réglable : il est toujours en haut à gauche, comme les menus du jeu) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
 | Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, priorité, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.

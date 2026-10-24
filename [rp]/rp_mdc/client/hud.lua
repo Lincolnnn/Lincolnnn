@@ -383,18 +383,6 @@ RegisterNUICallback('hudReady', function(_, cb)
     end
 end)
 
--- RP Interact (rp_interact) : position (fraction de l'écran, coin haut-gauche) et taille du Menu Interaction,
--- choisies dans "Paramètres > HUD & Display" (mode placement des HUD). nil : position par défaut du menu.
-local function menuLayout()
-    local m = type(settings.menu) == 'table' and settings.menu or nil
-    if not m or type(m.x) ~= 'number' or type(m.y) ~= 'number' or type(m.scale) ~= 'number' then return nil end
-    return {
-        x = math.max(0.0, math.min(0.98, m.x)), y = math.max(0.0, math.min(0.98, m.y)),
-        scale = math.max(0.7, math.min(1.5, m.scale)),
-    }
-end
-exports('interactMenuLayout', menuLayout)
-
 -- Vehicle Control (rp_vehiclecontrol) : volume des sons du véhicule choisi dans "Paramètres"
 exports('carSoundVolume', function()
     local car = type(settings.car) == 'table' and settings.car or {}
@@ -418,14 +406,10 @@ RegisterNUICallback('saveSettings', function(data, cb)
         cb({ ok = false, error = 'Réglages trop volumineux.' })
         return
     end
-    local before = json.encode(menuLayout() or {})
     settings = data
     SetResourceKvp('mdc_hud_settings', encoded)
     cb({ ok = true })
     refreshHud()
-    -- Menu Interaction déplacé / redimensionné : rp_interact l'applique (et le montre un instant)
-    local layout = menuLayout()
-    if json.encode(layout or {}) ~= before then TriggerEvent('mdc:interactMenuLayout', layout, true) end
 end)
 
 -- Bouton "Position actuelle" des formulaires d'intervention / d'incident : rue, croisement, bloc

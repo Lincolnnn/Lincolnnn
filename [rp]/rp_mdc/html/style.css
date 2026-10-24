@@ -1,6 +1,6 @@
 /* =========================================================================
    Mobile Data Computer - thème "Windows 11" CLAIR (jour, Fluent), sobre
-   - Fenêtre "Mica" claire, légèrement transparente (Paramètres > MDC), coins arrondis, traits fins
+   - Fenêtre "Mica" claire, légèrement transparente (Paramètres > MDC), coins presque carrés, traits fins
    - Les HUD affichés par-dessus le jeu (PLD, display MDC, car HUD, notifications) restent sombres (lisibles sur
      le jeu, de jour comme de nuit) : leurs couleurs sont dans le bloc .hud / .toasts plus bas
    - Volet de navigation à gauche (pages, mon unité et ses statuts, BOLOs, Paramètres en bas)
@@ -30,8 +30,8 @@
     --danger-rgb: 196, 43, 28;
     --warn-rgb:  206, 150, 0;
     --ok-rgb:    16, 124, 16;
-    --radius:    8px;                          /* cartes, fenêtre */
-    --radius-sm: 4px;                          /* contrôles */
+    --radius:    5px;                          /* cartes, fenêtre : presque carré (Windows 11) */
+    --radius-sm: 3px;                          /* contrôles */
     --shadow:    0 24px 56px rgba(0, 0, 0, .28), 0 2px 10px rgba(0, 0, 0, .14);
     --font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "Inter", system-ui, -apple-system, Roboto, Arial, sans-serif;
     --font-display: "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", system-ui, Arial, sans-serif;
@@ -122,12 +122,14 @@ body.dragging, body.dragging * { user-select: none !important; }
     display: inline-grid; place-items: center; flex-shrink: 0;
     width: 18px; height: 18px; color: var(--accent);
 }
+.app-icon.has-logo { width: 26px; height: 26px; }
+.app-icon img, .agency-card-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .app-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .app-name { color: var(--text-2); white-space: nowrap; }
 /* MDC choisi : à côté du nom */
 .agency-title {
     display: inline-flex; align-items: center; height: 22px; padding: 0 10px;
-    border-radius: 11px; background: var(--card-2); border: 1px solid var(--stroke);
+    border-radius: var(--radius-sm); background: var(--card-2); border: 1px solid var(--stroke);
     font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -159,13 +161,7 @@ body.dragging, body.dragging * { user-select: none !important; }
 }
 
 /* Profil (nom RP) */
-.profile { display: flex; align-items: center; gap: 10px; padding: 8px 8px 6px; }
-.avatar {
-    display: grid; place-items: center; flex-shrink: 0;
-    width: 36px; height: 36px; border-radius: 50%;
-    background: linear-gradient(135deg, #2b88d8, #0058a3);
-    color: #fff; font: 600 13px var(--font-display);
-}
+.profile { display: flex; align-items: center; gap: 10px; padding: 8px 10px 6px; }
 .profile-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .rp-display { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .rp-name { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -342,9 +338,10 @@ body.dragging, body.dragging * { user-select: none !important; }
     padding: 24px;
     background: rgba(var(--mica), .98);
 }
-.window.choosing .frame-body, .window.choosing .statusbar { visibility: hidden; }
+.window.choosing .frame-body, .window.choosing .statusbar, .window.choosing #btnMemo, .window.choosing .memopane { visibility: hidden; }
 .chooser-box { display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(760px, 100%); text-align: center; }
-.app-icon-lg { width: 40px; height: 40px; }
+.chooser-logos { display: flex; align-items: center; gap: 16px; }
+.chooser-logos img { height: 64px; width: auto; object-fit: contain; }
 .chooser-box h2 { font: 600 28px var(--font-display); }
 .chooser-box .hint-text { max-width: 520px; margin-bottom: 10px; }
 .agency-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
@@ -362,6 +359,7 @@ body.dragging, body.dragging * { user-select: none !important; }
 .agency-card.active { border-color: rgba(var(--accent-rgb), .7); background: rgba(var(--accent-rgb), .08); cursor: default; }
 .agency-card.confirm { border-color: rgba(var(--warn-rgb), .7); background: rgba(var(--warn-rgb), .07); }
 .agency-card-icon { width: 30px; height: 30px; color: var(--accent); }
+.agency-card-icon.has-logo { width: 46px; height: 46px; }
 .agency-card-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .agency-card-text { display: flex; flex-direction: column; gap: 3px; }
 .agency-card-text b { font: 600 15px var(--font-display); }
@@ -369,7 +367,7 @@ body.dragging, body.dragging * { user-select: none !important; }
 .agency-card-text span { font-size: 12px; color: var(--muted); line-height: 1.45; }
 .agency-card-check {
     position: absolute; top: 12px; right: 12px;
-    padding: 1px 8px; border-radius: 10px;
+    padding: 1px 8px; border-radius: var(--radius-sm);
     background: rgba(var(--accent-rgb), .18); color: var(--accent); font-size: 11px; font-weight: 600;
 }
 .mdc-choice .agency-cards .agency-card { min-height: 0; }
@@ -572,7 +570,7 @@ input[type="range"] { accent-color: var(--accent); }
 .empty { padding: 26px; text-align: center; color: var(--muted); }
 
 /* Étiquettes colorées (statuts, conditions) */
-.flag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: rgba(0, 0, 0, .07); color: var(--text-2); }
+.flag { display: inline-block; padding: 1px 8px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; background: rgba(0, 0, 0, .07); color: var(--text-2); }
 .flag.c-green  { background: #dff6dd; color: #0e5a0e; }
 .flag.c-red    { background: #fde7e9; color: #a4262c; }
 .flag.c-yellow { background: #fff4ce; color: #7a5c00; }
@@ -663,7 +661,7 @@ input[type="range"] { accent-color: var(--accent); }
 .dept-tag, .dept-badge {
     display: inline-flex; align-items: center; flex-shrink: 0;
     height: 18px; padding: 0 7px;
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     font-size: 10px; font-weight: 700; letter-spacing: .5px; color: #fff;
     background: #4a4a4a;
     white-space: nowrap;
@@ -743,7 +741,7 @@ input[type="range"] { accent-color: var(--accent); }
 .report-starter select { min-width: 260px; }
 textarea.upper-text { text-transform: uppercase; }
 .call-form .form-grid { margin-top: 4px; }
-.share-hint { padding: 1px 10px; font-size: 11px; color: #004e8c; background: rgba(var(--accent-rgb), .12); border-radius: 10px; }
+.share-hint { padding: 1px 10px; font-size: 11px; color: #004e8c; background: rgba(var(--accent-rgb), .12); border-radius: var(--radius-sm); }
 
 .call-links { border: 1px solid var(--stroke); border-radius: var(--radius-sm); background: var(--card); overflow: hidden; }
 .call-link { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--stroke); }
@@ -1013,23 +1011,6 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .car-notice-text { display: flex; flex-direction: column; line-height: 1.25; }
 .car-notice-text b { font-size: 13px; color: #fff; }
 .car-notice-text small { font-size: 11px; color: rgba(255, 255, 255, .6); }
-
-/* Menu Interaction (rp_interact) : cadre de placement à l'image du menu au clavier (400 px) */
-.hud-menu { width: 400px; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
-.hm-banner {
-    position: relative; display: flex; flex-direction: column; justify-content: center; height: 76px; padding: 0 18px;
-    background:
-        radial-gradient(120% 140% at 0% 0%, rgba(255, 255, 255, .16), transparent 55%),
-        linear-gradient(125deg, #3a6ab3 0%, #2f5ea8 45%, #1b3156 100%);
-    border-bottom: 1px solid rgba(255, 255, 255, .12);
-}
-.hm-banner b { font: 700 22px/1.12 var(--font-display); color: #fff; }
-.hm-banner small { font-size: 12px; color: rgba(255, 255, 255, .82); }
-.hm-sub { display: flex; justify-content: space-between; padding: 6px 14px; font-size: 11px; font-weight: 600; color: var(--muted); background: rgba(0, 0, 0, .18); border-bottom: 1px solid var(--stroke); }
-.hm-list { padding: 4px; }
-.hm-section { padding: 8px 12px 4px; font-size: 11px; font-weight: 600; color: var(--muted); }
-.hm-case { position: relative; display: flex; justify-content: space-between; align-items: center; height: 34px; padding: 0 12px; font-size: 13.5px; color: var(--text-2); border-radius: var(--radius-sm); }
-.hm-case.active { background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 78%, #1a2a44)); color: #fff; }
 
 /* Mode placement : HUD déplaçables, MDC masqué */
 body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed rgba(255, 255, 255, .7); outline-offset: 4px; }

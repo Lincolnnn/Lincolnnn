@@ -331,12 +331,16 @@
     }
 
     const shieldIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6 4.6 5.5v5.8c0 4.6 3.1 8.7 7.4 10.1 4.3-1.4 7.4-5.5 7.4-10.1V5.5L12 2.6Z"/></svg>';
+    // Logos des polices (html/img) ; MDC générique : bouclier
+    const AGENCY_LOGOS = { wsp: 'img/wsp.png', kcso: 'img/kcso.png' };
+    const appShieldIcon = $('#appIcon').innerHTML;
+    const agencyIconHtml = (a) => (AGENCY_LOGOS[a.key] ? `<img src="${AGENCY_LOGOS[a.key]}" alt="">` : (a.police ? shieldIcon : civilIcon));
     const civilIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>';
 
     function agencyCardsHtml(current) {
         return state.agencies.map((a) => `
             <button type="button" class="agency-card ${a.key === current ? 'active' : ''}" data-agency="${esc(a.key)}">
-                <span class="agency-card-icon">${a.police ? shieldIcon : civilIcon}</span>
+                <span class="agency-card-icon ${AGENCY_LOGOS[a.key] ? 'has-logo' : ''}">${agencyIconHtml(a)}</span>
                 <span class="agency-card-text">
                     <b>${esc(a.key === 'generic' ? 'Mobile Data Computer' : a.label)}</b>
                     <small>${esc(a.key === 'generic' ? 'Générique' : a.short)}</small>
@@ -416,6 +420,9 @@
         const title = $('#agencyTitle');
         title.textContent = info ? (info.key === 'generic' ? 'Générique' : info.label) : '';
         title.classList.toggle('hidden', !info);
+        const logo = info && AGENCY_LOGOS[info.key];
+        $('#appIcon').innerHTML = logo ? `<img src="${logo}" alt="">` : appShieldIcon;
+        $('#appIcon').classList.toggle('has-logo', !!logo);
         $('#profileAgency').textContent = info ? (police ? info.short : 'Générique') : '';
         $$('.tab').forEach((t) => t.classList.toggle('hidden', !allowedPages().includes(t.dataset.page)));
         $$('.police-only').forEach((el) => el.classList.toggle('hidden', !police));
@@ -499,8 +506,6 @@
         $('#rpForm').classList.toggle('hidden', showName);
         $('#rpNameText').textContent = state.rpName;
         $('#rpNameInput').value = state.rpName;
-        const initials = state.rpName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
-        $('#rpAvatar').textContent = initials || '?';
     }
 
     async function saveRpName() {
@@ -3364,13 +3369,11 @@
     const HUD_DEFAULTS = {
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, zone: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true },
-        // Fenêtre : légère transparence (opacity) et flou du jeu et des HUD derrière, désactivables
+        // Fenêtre : légère transparence (opacity)
         mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97 },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
-        // Menu Interaction (rp_interact) : position (coin haut-gauche) et taille, lues par rp_interact
-        menu: { x: 0.04, y: 0.2, scale: 1 },
     };
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -3398,11 +3401,11 @@
                 if (typeof src[key] === typeof out[group][key]) out[group][key] = src[key];
             });
         });
-        ['pld', 'unit', 'car', 'menu'].forEach((kind) => {
+        ['pld', 'unit', 'car'].forEach((kind) => {
             const s = out[kind];
             s.x = Math.min(Math.max(s.x, 0), 0.98);
             s.y = Math.min(Math.max(s.y, 0), 0.98);
-            s.scale = Math.min(Math.max(s.scale, kind === 'menu' ? 0.7 : 0.5), kind === 'menu' ? 1.5 : 2);
+            s.scale = Math.min(Math.max(s.scale, 0.5), 2);
         });
         out.mdc.zoom = Math.min(Math.max(out.mdc.zoom, 0.8), 1.3);
         out.mdc.opacity = Math.min(Math.max(out.mdc.opacity, 0.5), 1);
@@ -3432,10 +3435,6 @@
     }
 
     function renderHud() {
-        // Menu Interaction (rp_interact) : cadre visible seulement en mode placement
-        const menuEl = $('#hudMenu');
-        menuEl.classList.toggle('hidden', !hud.placing);
-        if (hud.placing) placeHud(menuEl, hud.settings.menu);
         const paused = !!(hud.pld && hud.pld.paused);
         const pldEl = $('#hudPld');
         const unitEl = $('#hudUnit');
@@ -3596,8 +3595,7 @@
             if (!hud.placing) return;
             e.preventDefault();
             const cfg = hud.settings[el.dataset.hud];
-            const [min, max] = el.dataset.hud === 'menu' ? [0.7, 1.5] : [0.5, 2];
-            cfg.scale = Math.round(Math.min(Math.max(cfg.scale + (e.deltaY < 0 ? 0.05 : -0.05), min), max) * 100) / 100;
+            cfg.scale = Math.round(Math.min(Math.max(cfg.scale + (e.deltaY < 0 ? 0.05 : -0.05), 0.5), 2) * 100) / 100;
             placeHud(el, cfg);
         }, { passive: false });
     });
@@ -3616,7 +3614,7 @@
 
     // ---- Onglet "Paramètres" ----
     const settingGet = (path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), hud.settings);
-    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'menu.scale', 'mdc.zoom', 'mdc.opacity', 'notify.volume', 'car.volume'];
+    const PERCENT_SETTINGS = ['pld.scale', 'unit.scale', 'car.scale', 'mdc.zoom', 'mdc.opacity', 'notify.volume', 'car.volume'];
 
     function renderSettings() {
         $$('[data-setting]').forEach((input) => {
