@@ -18,6 +18,11 @@
                 <!-- MDC choisi (Générique, Washington State Patrol, King County Sheriff Office) -->
                 <span class="agency-title hidden" id="agencyTitle"></span>
             </div>
+            <!-- Note de l'unité : panneau à droite (MDC de police) -->
+            <button class="title-action police-only" id="btnMemo" title="Note de l'unité (rappels, observations)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 12h8M8 16h5"/></svg>
+                <span>Note de l'unité</span><span class="memo-dot hidden" id="memoDot"></span>
+            </button>
             <div class="win-buttons">
                 <button class="win-btn" id="btnReset" title="Réinitialiser la position et la taille"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8a4.8 4.8 0 1 0 1.4-3.4M3 2.5v2.6h2.6"/></svg></button>
                 <button class="win-btn" id="btnMax" title="Agrandir"></button>
@@ -120,7 +125,7 @@
                     </div>
 
                     <div class="toolbar units-toolbar">
-                        <span class="hint-text">Rejoignez une unité pour définir son statut et prendre des appels. Seules les unités de votre police sont listées.</span>
+                        <span class="hint-text">Rejoignez une unité pour définir son statut et prendre des appels (une seule à la fois : quittez la vôtre pour en rejoindre une autre). Seuls ses membres peuvent modifier ou supprimer une unité.</span>
                         <span class="grow"></span>
                         <button class="btn" id="refreshUnits">Actualiser</button>
                     </div>
@@ -682,9 +687,6 @@
                                     <input type="range" min="50" max="100" step="1" data-setting="mdc.opacity">
                                     <span class="setting-value" data-setting-value="mdc.opacity"></span>
                                 </div>
-                                <label class="check"><input type="checkbox" data-setting="mdc.blur"> Flouter l'arrière-plan (le jeu) derrière le MDC</label>
-                                <p class="hint-text setting-text">Les HUD (PLD, car HUD, display MDC) restent toujours nets. La minimap du jeu ne peut pas
-                                    être floutée (elle est dessinée par-dessus l'image) : elle est masquée pendant le flou, puis réaffichée.</p>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn" id="mdcResetWindow">Réinitialiser la fenêtre</button>
                                     <button type="button" class="btn btn-danger" id="settingsReset">Réglages par défaut</button>
@@ -905,14 +907,23 @@
                 </section>
             </main>
 
+            <!-- ================= NOTE DE L'UNITÉ (ouverte par le bouton en haut à droite) ================= -->
+            <aside class="memopane hidden" id="memoPane">
+                <div class="memo-head">
+                    <span class="legend">Note de l'unité</span>
+                    <button class="btn btn-icon btn-ghost" id="memoClose" title="Fermer la note"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button>
+                </div>
+                <div class="memo-unit" id="memoUnit">Aucune unité</div>
+                <textarea id="unitMemo" maxlength="500" spellcheck="false" disabled
+                    placeholder="Rappels, observations… (rejoignez une unité)"></textarea>
+                <p class="hint-text">Partagée entre les membres de l'unité et enregistrée pendant la frappe. Gardée dans l'unité :
+                    en changeant d'unité, on voit la note de la nouvelle.</p>
+            </aside>
         </div>
 
         <!-- ================= BARRE D'ÉTAT ================= -->
         <div class="statusbar">
-            <!-- Note de l'unité : rappels, observations… (partagée entre ses membres) -->
-            <input class="sb-memo grow" id="sbMemo" type="text" maxlength="160" autocomplete="off" spellcheck="false"
-                placeholder="Note de l'unité : rappels, observations… (rejoignez une unité)" disabled>
-            <span class="sb-cell" id="sbStatus"><span class="sq"></span><span>Hors unité</span></span>
+            <span class="sb-cell grow" id="sbStatus"><span class="sq"></span><span>Hors unité</span></span>
             <span class="sb-cell" id="sbClock">--:--</span>
         </div>
 

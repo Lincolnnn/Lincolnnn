@@ -124,31 +124,8 @@ local function openMDC()
     TriggerServerEvent('mdc:server:viewer', true)
 end
 
--- Flou du jeu derrière le MDC (le NUI ne voit pas le jeu : c'est le flou des menus du jeu). Activé / retiré
--- par le NUI (Paramètres > MDC : case à cocher), qui floute aussi ses propres HUD. Case décochée : jeu et
--- HUD restent nets. La minimap (dessinée par le jeu PAR-DESSUS l'image, aucun flou ne peut l'atteindre)
--- est masquée tant que le flou est actif, puis réaffichée si elle l'était.
-local HIDE_MINIMAP = true
-local blur = { on = false, radar = nil }
-
-local function setBlur(enabled)
-    if enabled and not blur.on then
-        TriggerScreenblurFadeIn(250.0)
-        if HIDE_MINIMAP then
-            blur.radar = not IsRadarHidden()
-            DisplayRadar(false)
-        end
-        blur.on = true
-    elseif not enabled and blur.on then
-        TriggerScreenblurFadeOut(250.0)
-        if blur.radar then DisplayRadar(true) end
-        blur.on, blur.radar = false, nil
-    end
-end
-
 local function closeMDC()
     if not isOpen then return end
-    setBlur(false)
     isOpen = false
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
@@ -168,16 +145,6 @@ RegisterKeyMapping(Config.Command, 'Ouvrir le MDC (Police)', 'keyboard', Config.
 -- =========================================================================
 -- CALLBACKS NUI (appelés depuis html/script.js via fetch)
 -- =========================================================================
-
--- Flou derrière le MDC : { enabled }
-RegisterNUICallback('mdcBlur', function(data, cb)
-    setBlur(isOpen and type(data) == 'table' and data.enabled == true)
-    cb({ ok = true })
-end)
-
-AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() then setBlur(false) end
-end)
 
 -- Fermeture (touche Échap ou bouton de fermeture dans l'UI)
 RegisterNUICallback('close', function(_, cb)

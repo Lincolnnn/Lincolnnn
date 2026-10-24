@@ -1049,7 +1049,7 @@ local function unitView(unit)
     return {
         id = unit.id, name = unit.name, tag = unit.tag, color = unit.color, agency = unit.agency,
         status = unit.status, updatedAt = unit.updatedAt, members = members,
-        memo = unit.memo or '', -- note de l'unité (barre du bas du MDC : rappels, observations)
+        memo = unit.memo or '', -- note de l'unité (panneau à droite du MDC : rappels, observations)
     }
 end
 
@@ -1127,9 +1127,13 @@ RegisterMDCCallback('createUnit', function(src, payload)
     return { ok = true, id = unit.id }
 end)
 
+-- Modifier / supprimer une unité : seulement ses membres
+local NOT_MEMBER = 'Seuls les membres de l\'unité peuvent la modifier ou la supprimer.'
+
 RegisterMDCCallback('updateUnit', function(src, payload)
     local unit = findUnit(payload.id)
     if not unit or unit.agency ~= agencyOf(src) then return { ok = false, error = 'Unité introuvable.' } end
+    if PlayerUnit[src] ~= unit.id then return { ok = false, error = NOT_MEMBER } end
     local data, err = buildUnit(payload)
     if not data then return { ok = false, error = err } end
 
@@ -1147,10 +1151,11 @@ RegisterMDCCallback('joinUnit', function(src, payload)
         return { ok = false, error = 'Définissez d\'abord votre nom RP (en haut à gauche, ou /nomrp dans le chat) pour rejoindre une unité.' }
     end
     if PlayerUnit[src] == unit.id then return { ok = true } end
+    -- Une seule unité à la fois : quitter la sienne avant d'en rejoindre une autre
+    if findUnit(PlayerUnit[src]) then return { ok = false, error = 'Quittez d\'abord votre unité pour en rejoindre une autre.' } end
     local count = 0
     for _ in pairs(unit.members) do count = count + 1 end
     if count >= Config.MaxUnitMembers then return { ok = false, error = 'Cette unité est complète.' } end
-    leaveCurrentUnit(src) -- une seule unité à la fois
     unit.members[tostring(src)] = true
     PlayerUnit[src] = unit.id
     pushUnits()
@@ -1166,6 +1171,7 @@ end)
 RegisterMDCCallback('deleteUnit', function(src, payload)
     local unit, index = findUnit(payload.id)
     if not unit or unit.agency ~= agencyOf(src) then return { ok = false, error = 'Unité introuvable.' } end
+    if PlayerUnit[src] ~= unit.id then return { ok = false, error = NOT_MEMBER } end
 
     for key in pairs(unit.members) do PlayerUnit[tonumber(key)] = nil end
     for _, intervention in ipairs(Interventions) do intervention.units[tostring(unit.id)] = nil end
@@ -1213,7 +1219,7 @@ end)
 RegisterMDCCallback('setUnitMemo', function(src, payload)
     local unit = findUnit(PlayerUnit[src])
     if not unit then return { ok = false, error = 'Rejoignez une unité pour écrire sa note.' } end
-    local memo = clean(payload.memo, 160)
+    local memo = cleanMultiline(payload.memo, 500) -- panneau "Note de l'unité" (à droite du MDC)
     if memo == (unit.memo or '') then return { ok = true } end
     unit.memo = memo
     pushUnits()

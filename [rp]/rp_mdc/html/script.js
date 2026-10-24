@@ -289,7 +289,6 @@
         renderProfile();
         renderSidebarUnit();
         win.classList.remove('hidden');
-        syncBlur();
 
         updateClock();
         state.clockTimer = setInterval(updateClock, 1000);
@@ -420,6 +419,8 @@
         $('#profileAgency').textContent = info ? (police ? info.short : 'Générique') : '';
         $$('.tab').forEach((t) => t.classList.toggle('hidden', !allowedPages().includes(t.dataset.page)));
         $$('.police-only').forEach((el) => el.classList.toggle('hidden', !police));
+        if (!police) $('#memoPane').classList.add('hidden'); // MDC générique : pas d'unité, pas de note
+        else $('#memoPane').classList.toggle('hidden', !$('#btnMemo').classList.contains('active'));
         $('#unitsTitle').textContent = police ? `Unités ${info.short}` : 'Unités';
         $('#settingsAgencyCards').innerHTML = agencyCardsHtml(state.agency);
         $$('[data-agency-checks]').forEach((el) => { el.innerHTML = agencyChecksHtml(null); });
@@ -438,7 +439,6 @@
         win.classList.add('hidden');
         clearInterval(state.clockTimer);
         state.clockTimer = null;
-        syncBlur();
 
         // Relâche le SetNuiFocus côté Lua
         if (notifyLua) post('close');
@@ -463,16 +463,6 @@
     // =====================================================================
     // NAVIGATION
     // =====================================================================
-    // Flou derrière le MDC : le jeu (client/client.lua) et les HUD (PLD, display, car HUD) ;
-    // MDC ouvert, hors mode placement des HUD
-    let blurred = null;
-    function syncBlur() {
-        const on = !!(state.open && !hud.placing && hud.settings.mdc.blur);
-        document.body.classList.toggle('mdc-blur', on); // (repère : les HUD restent nets)
-        if (on === blurred) return;
-        blurred = on;
-        post('mdcBlur', { enabled: on });
-    }
 
     function showPage(page) {
         if (!state.agency) return;
@@ -560,10 +550,12 @@
         cell.querySelector('.sq').dataset.status = unit ? unit.status : '';
         cell.lastElementChild.textContent = unit ? `${unit.name} — ${STATUS_LABELS[unit.status] || unit.status}` : 'Hors unité';
 
-        // Note de l'unité (barre du bas) : partagée entre ses membres
-        const memo = $('#sbMemo');
+        // Note de l'unité (panneau à droite) : partagée entre ses membres
+        const memo = $('#unitMemo');
         memo.disabled = !unit;
-        memo.placeholder = unit ? `Note de l'unité ${unit.name} : rappels, observations…` : 'Note de l\'unité : rejoignez une unité';
+        memo.placeholder = unit ? 'Rappels, observations…' : 'Rejoignez une unité pour écrire sa note.';
+        $('#memoUnit').innerHTML = unit ? `<span>${esc(unit.name)}</span>${unitTag(unit)}` : '<span class="muted">Aucune unité</span>';
+        $('#memoDot').classList.toggle('hidden', !(unit && unit.memo));
         if (document.activeElement !== memo || !unit || unit.id !== memoUnitId) {
             if (document.activeElement === memo) memo.blur(); // unité changée pendant la saisie
             memo.value = unit ? (unit.memo || '') : '';
@@ -579,19 +571,28 @@
         clearTimeout(memoTimer);
         const unit = myUnit();
         if (!unit || unit.id !== memoUnitId) return;
-        const memo = $('#sbMemo').value;
+        const memo = $('#unitMemo').value;
         if (memo === (unit.memo || '')) return;
         unit.memo = memo; // affichage immédiat (le serveur renvoie ensuite les unités)
         post('setUnitMemo', { memo });
     };
-    $('#sbMemo').addEventListener('focus', () => { memoUnitId = myUnit() ? myUnit().id : null; });
-    $('#sbMemo').addEventListener('input', () => {
+    $('#unitMemo').addEventListener('focus', () => { memoUnitId = myUnit() ? myUnit().id : null; });
+    $('#unitMemo').addEventListener('input', () => {
         if (memoUnitId == null) memoUnitId = myUnit() ? myUnit().id : null;
         clearTimeout(memoTimer);
         memoTimer = setTimeout(saveMemo, 700);
     });
-    $('#sbMemo').addEventListener('change', saveMemo);
-    $('#sbMemo').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
+    $('#unitMemo').addEventListener('change', saveMemo);
+
+    // Bouton en haut à droite : ouvre / ferme le panneau de la note (gardé ouvert ou fermé d'une ouverture à l'autre)
+    function setMemoPane(open) {
+        $('#memoPane').classList.toggle('hidden', !open);
+        $('#btnMemo').classList.toggle('active', open);
+        try { localStorage.setItem('mdc_memo_open', open ? '1' : '0'); } catch (err) { /* stockage indisponible */ }
+    }
+    $('#btnMemo').addEventListener('click', () => setMemoPane($('#memoPane').classList.contains('hidden')));
+    $('#memoClose').addEventListener('click', () => setMemoPane(false));
+    try { if (localStorage.getItem('mdc_memo_open') === '1') setMemoPane(true); } catch (err) { /* stockage indisponible */ }
 
     async function changeStatus(status) {
         const unit = myUnit();
@@ -621,6 +622,19 @@
         renderSidebarUnit();
     }
 
+    // Actions d'une unité : membre -> Quitter, Modifier, Supprimer ; déjà dans une autre unité -> rien (la quitter
+    // d'abord) ; sans unité -> Rejoindre. Le serveur vérifie les mêmes règles.
+    function unitActionsHtml(u, isMine, inUnit, count) {
+        const id = esc(u.id);
+        if (isMine) {
+            return `<button class="btn btn-small" data-unit-action="leave" data-id="${id}">Quitter</button>
+                <button class="btn btn-small" data-unit-action="edit" data-id="${id}">Modifier</button>
+                <button class="btn btn-small btn-danger" data-unit-action="delete" data-id="${id}">Supprimer</button>`;
+        }
+        if (inUnit) return '<span class="muted unit-locked" title="Quittez votre unité pour en rejoindre une autre">—</span>';
+        return `<button class="btn btn-small btn-default" data-unit-action="join" data-id="${id}" ${count >= MAX_UNIT_MEMBERS ? 'disabled' : ''}>Rejoindre</button>`;
+    }
+
     function unitRowsHtml(units) {
         const mine = myUnit();
         return units.map((u) => {
@@ -632,13 +646,7 @@
                 <td>${unitTag(u) || '<span class="muted">Aucun</span>'}</td>
                 <td>${members.length ? members.map((m) => esc(m.name)).join(', ') : '<span class="muted">Aucun membre</span>'}</td>
                 <td><span class="badge"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</span></td>
-                <td class="col-actions">
-                    ${isMine
-                        ? `<button class="btn btn-small" data-unit-action="leave" data-id="${esc(u.id)}">Quitter</button>`
-                        : `<button class="btn btn-small btn-default" data-unit-action="join" data-id="${esc(u.id)}" ${members.length >= MAX_UNIT_MEMBERS ? 'disabled' : ''}>Rejoindre</button>`}
-                    <button class="btn btn-small" data-unit-action="edit" data-id="${esc(u.id)}">Modifier</button>
-                    <button class="btn btn-small btn-danger" data-unit-action="delete" data-id="${esc(u.id)}">Supprimer</button>
-                </td>
+                <td class="col-actions">${unitActionsHtml(u, isMine, !!mine, members.length)}</td>
             </tr>`;
         }).join('');
     }
@@ -3357,7 +3365,7 @@
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, zone: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true },
         // Fenêtre : légère transparence (opacity) et flou du jeu et des HUD derrière, désactivables
-        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.93, blur: true },
+        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97 },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
@@ -3568,7 +3576,6 @@
         win.classList.toggle('placing-hidden', on);
         $('#hudPlacebar').classList.toggle('hidden', !on);
         renderHud();
-        syncBlur(); // pas de flou pendant le placement des HUD
         if (!on) {
             saveSettings();
             renderSettings();
@@ -3627,7 +3634,6 @@
         const s = hud.settings.mdc;
         win.style.setProperty('--ui-zoom', s.zoom);
         win.style.setProperty('--glass-a', s.glass ? s.opacity : 1); // transparence de la fenêtre
-        syncBlur();
     }
 
     $('#page-settings').addEventListener('input', (e) => {
