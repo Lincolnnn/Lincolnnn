@@ -120,17 +120,22 @@ dans `server/server.lua`.
 
 ## Disposition de la fenêtre
 
+- **Thème clair (jour)** : fond gris très clair, cartes blanches, texte foncé, accent bleu. Les HUD affichés sur le
+  jeu (PLD, display MDC, car HUD) et les notifications restent sombres, pour rester lisibles sur l'image du jeu.
 - **Volet de navigation à gauche** : en haut, le **nom RP** et le MDC utilisé ; les **pages** du MDC ; pour les
-  polices, la carte **Mon unité** avec les **4 statuts** (2 × 2) et les **BOLO actifs** (cases repliées : un clic
-  affiche les détails, **Voir BOLO** ouvre la page des BOLOs sur celui-ci) ; tout en bas, **Paramètres**.
-- **À droite** : le **titre de la page** et son sous-titre, puis le contenu, en cartes.
-- **En bas** (polices) : une **case de notes propre à l'unité** (160 caractères, partagée par ses membres, enregistrée
-  pendant la frappe ; gardée dans l'unité côté serveur), puis la disponibilité et l'heure du jeu.
+  polices, juste en dessous des pages, les **4 statuts listés l'un sous l'autre** : chaque bouton est **entièrement
+  de la couleur de son statut**, celui de l'unité est mis en avant (opaque, cerclé, ✓) ; puis les **BOLO actifs**
+  (cases repliées : un clic affiche les détails, **Voir BOLO** ouvre la page des BOLOs sur celui-ci) ; tout en bas,
+  **Paramètres**.
+- **Au centre** : le **titre de la page** et son sous-titre, puis le contenu, en cartes.
+- **Note de l'unité** (polices) : bouton **en haut à droite** de la fenêtre (barre de titre, un point bleu quand une
+  note existe) : il ouvre / ferme un **panneau à droite** avec la note propre à l'unité (500 caractères, plusieurs
+  lignes, partagée par ses membres, enregistrée pendant la frappe ; gardée dans l'unité côté serveur). Panneau ouvert
+  ou fermé : gardé chez le joueur.
+- **En bas** : la disponibilité et l'heure du jeu.
 
-La fenêtre est **légèrement transparente** (opacité **93 %** par défaut, de 50 à 100 %) et, MDC ouvert, le **jeu**
-derrière elle est **flouté** (case dans *Paramètres > MDC*). Les **HUD (PLD, display MDC, car HUD) restent toujours
-nets**. La **minimap** (dessinée par le jeu par-dessus tout) est **masquée** tant que le flou est actif. Le flou est
-retiré à la fermeture du MDC et pendant le placement des HUD.
+La fenêtre est **légèrement transparente** (opacité **97 %** par défaut, de 50 à 100 %, *Paramètres > MDC*). Il n'y a
+plus de flou de l'arrière-plan.
 
 - **NOM RP** : il s'affiche en haut à gauche et dans les unités (le pseudo Steam/FiveM n'est jamais affiché). **Obligatoire pour
   rejoindre une unité.** Il est partagé avec le chat écrit : `/nomrp John Carter` dans le chat change aussi celui du MDC, et
@@ -141,11 +146,11 @@ retiré à la fermeture du MDC et pendant le placement des HUD.
 
 | Onglet | Rôle |
 |---|---|
-| Unités | (polices) Une liste : les unités **de votre police** seulement. Bouton **Créer une unité** (nom, **tag** au menu déroulant : Aucun, **SUP.** (superviseur) ou **Autre** à saisir, couleur) ; l'unité appartient à la police du MDC (pastille **WSP** bleue / **KCSO** verte). Chacun peut rejoindre (4 joueurs max par unité), quitter, modifier ou supprimer une unité de sa police (une seule unité à la fois par joueur). Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
+| Unités | (polices) Une liste : les unités **de votre police** seulement. Bouton **Créer une unité** (nom, **tag** au menu déroulant : Aucun, **SUP.** (superviseur) ou **Autre** à saisir, couleur) ; l'unité appartient à la police du MDC (pastille **WSP** bleue / **KCSO** verte). Chacun peut rejoindre une unité de sa police (4 joueurs max par unité) ; **une seule unité à la fois** : dans une unité, le bouton « Rejoindre » des autres disparaît, il faut d'abord **quitter** la sienne (le serveur refuse aussi). **Modifier** et **Supprimer** : réservés aux **membres** de l'unité. Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
 | Interventions | **Police** : les appels de **sa police** (toujours ouverts), puis les **appels communs** (WSP & KCSO) ; les appels de l'autre police ne sont **pas** visibles. Seules les polices visées peuvent rejoindre un appel (vérifié par le serveur). Incident : police de l'unité déclarante toujours cochée, **case** pour y ajouter l'autre police (incident commun). **Générique** : les listes de **chaque police** et les appels communs, **en lecture** (pas de « Rejoindre ») ; bouton **Modifier** sur les **interventions** (appels des civils) pour les corriger directement. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer (ou **✕** en haut du panneau) pour le masquer : **sans appel choisi, le panneau des détails est réduit à une fine colonne** et la liste prend toute la place. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
 | Rapports | **Communs à tous les MDC**. DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
-| Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, transparence de la fenêtre, flou de l'arrière-plan (le jeu ; HUD toujours nets), case à cocher, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule ; **Menu Interaction** de `rp_interact` : taille, et emplacement avec « Placer les HUD à l'écran », appliqués aussitôt — le menu se montre un instant) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
+| Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule ; **Menu Interaction** de `rp_interact` : taille, et emplacement avec « Placer les HUD à l'écran », appliqués aussitôt — le menu se montre un instant) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
 | Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, priorité, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
