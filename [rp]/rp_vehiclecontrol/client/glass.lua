@@ -2,10 +2,10 @@
     Vehicle Control - verre brisé au sol après un gros accident (client, chez TOUS les joueurs proches)
     --------------------------------------------------------------------------------------------------
     Le conducteur signale les vitres qui viennent de casser (client/bodywork.lua) ; le serveur relaie à tout le
-    monde. Chaque joueur à moins de Glass.Range m voit, sous chaque vitre : une gerbe d'éclats (effet du jeu), des
-    éclats de verre posés au sol (objets locaux, sans collision) qui disparaissent après Glass.Lifetime, et entend le
-    bruit du verre.
-    Performance : rien en dehors d'un accident ; un nettoyage toutes les 5 s seulement tant qu'il reste du verre.
+    monde. Chaque joueur à moins de Glass.Range m voit, sous chaque vitre : une gerbe d'éclats (effet du jeu), du verre
+    brisé à plat sur le sol (décalques "verre" du jeu, comme les traces de pneus : épousent la route, aucun objet) qui
+    disparaît après Glass.Lifetime, et entend le bruit du verre. Glass.Models (facultatif) : objets en plus.
+    Performance : rien en dehors d'un accident ; un nettoyage toutes les 5 s seulement tant qu'il reste des objets.
 ]]
 
 local Config = VCConfig.Bodywork and VCConfig.Bodywork.Glass or {}
@@ -71,6 +71,23 @@ local function scatter(models, x, y, z)
     while #pieces > (Config.MaxPieces or 150) do removePiece(table.remove(pieces, 1)) end
 end
 
+--- Verre brisé à plat sur le sol : quelques décalques "verre" du jeu, orientés au hasard, qui épousent la route
+local function decals(x, y, z)
+    local types = Config.Decals or { 5031, 5032 }
+    if #types == 0 then return end
+    local size = Config.DecalSize or { 0.7, 1.3 }
+    local timeout = (Config.Lifetime or 300000) / 1000.0
+    for _ = 1, Config.DecalCount or 3 do
+        local a, r = math.random() * 2.0 * math.pi, math.sqrt(math.random()) * (Config.Spread or 0.6)
+        local side = math.random() * 2.0 * math.pi
+        local w = size[1] + math.random() * (size[2] - size[1])
+        AddDecal(types[math.floor(math.random() * #types) + 1],
+            x + math.cos(a) * r, y + math.sin(a) * r, z + 0.05,
+            0.0, 0.0, -1.0, math.cos(side), math.sin(side), 0.0, -- vers le sol, rotation au hasard
+            w, w, 1.0, 1.0, 1.0, 1.0, timeout, false, false, false)
+    end
+end
+
 RegisterNetEvent('rp_vehiclecontrol:glass', function(points)
     if Config.Enabled == false or type(points) ~= 'table' or #points == 0 then return end
     local me = GetEntityCoords(PlayerPedId())
@@ -94,6 +111,7 @@ RegisterNetEvent('rp_vehiclecontrol:glass', function(points)
         end
         for _, p in ipairs(near) do
             effect(p.x, p.y, p.z)
+            decals(p.x, p.y, p.z)
             if #models > 0 then scatter(models, p.x, p.y, p.z) end
         end
         for _, hash in ipairs(models) do SetModelAsNoLongerNeeded(hash) end

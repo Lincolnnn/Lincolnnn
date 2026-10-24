@@ -140,28 +140,38 @@ VCConfig = {
         Bumper = { Wear = 60.0, Chance = 0.85 },
         HoodTrunk = { Wear = 75.0, Chance = 0.75 },
         Windscreen = { Wear = 90.0, Chance = 0.5 },
-        -- Portières : elles ne tombent JAMAIS. Gros choc (Drop MPH) ou côté très usé (Wear) : elles s'ouvrent toutes
-        -- seules, battantes, comme si la sécurité avait sauté. Choc de côté : celles de ce côté (Chance chacune) ;
-        -- choc avant / arrière : n'importe laquelle, plus rarement (FrontRearChance). Max par choc.
-        DoorsOpen = { Drop = 40.0, Wear = 110.0, Chance = 0.5, FrontRearChance = 0.3, Max = 2 },
+        -- Portières : elles ne tombent JAMAIS (NeverFall : le jeu ne peut plus les arracher). Gros choc (Drop MPH) ou
+        -- côté très usé (Wear) : la sécurité saute, le véhicule se déverrouille (Unlock) et des portières
+        -- s'ENTROUVRENT (ouverture entre Angle[1] et Angle[2], 0 = fermée, 1 = grande ouverte). Choc de côté : celles
+        -- de ce côté (Chance chacune) ; choc avant / arrière : n'importe laquelle, plus rarement (FrontRearChance).
+        DoorsAjar = { Drop = 40.0, Wear = 110.0, Chance = 0.5, FrontRearChance = 0.3, Max = 2, Angle = { 0.08, 0.2 },
+            Unlock = true, NeverFall = true },
         Wheel = { Drop = 60.0, Wear = 140.0, Chance = 0.5, Second = 0.25 },
         WornBody = 400.0, WornFactor = 0.75,
         BumperForce = 900.0, -- déformation appliquée pour arracher un pare-choc
         -- Verre brisé au sol : gros accident (MinDrop MPH), sous chaque vitre qui vient de casser (Outside m à
-        -- l'extérieur) : gerbe d'éclats (Effect), Pieces éclats posés au sol dans un rayon de Spread m (Models, au
-        -- hasard), retirés après Lifetime ms (MaxPieces au plus autour de soi), bruit du verre (Sound) ; vu et
-        -- entendu par les joueurs à moins de Range m.
+        -- l'extérieur) : gerbe d'éclats (Effect), DecalCount plaques de verre brisé à plat sur la route (Decals :
+        -- décalques "verre" du jeu, 5031 / 5032 ; taille DecalSize m) dans un rayon de Spread m, retirées après
+        -- Lifetime ms, bruit du verre (Sound) ; vu et entendu par les joueurs à moins de Range m. Models (facultatif,
+        -- vide par défaut) : objets posés en plus (Pieces par vitre, MaxPieces au plus autour de soi).
         Glass = {
             Enabled = true, MinDrop = 35.0, Outside = 0.35,
+            Decals = { 5031, 5032 }, DecalCount = 3, DecalSize = { 0.7, 1.3 },
             Pieces = 6, Spread = 0.6, Lifetime = 300000, MaxPieces = 150, Range = 120.0,
-            Models = { 'ng_proc_brkbottle_02a', 'ng_proc_brkbottle_02b', 'ng_proc_brkbottle_02c', 'ng_proc_brkbottle_02d',
-                'ng_proc_brkbottle_02e', 'ng_proc_brkbottle_02f', 'ng_proc_brkbottle_02g' },
+            Models = {},
             Effect = { 'core', 'glass_shards', 1.0 },
             Sound = { 'Glass_Smash', 'FBI_HEIST_RAID', 25 }, -- nom, groupe, portée (m) ; nil : seulement le bruit du jeu
         },
         -- pas de dégâts visuels : motos, vélos, bateaux, hélicoptères, avions, trains
         SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
     },
+
+    -- TONNEAUX ACCENTUÉS : un véhicule qui part en tonneau (penché de plus de StartRoll degrés, plus sur ses roues, à au
+    -- moins MinSpeed MPH) en fait davantage : rotation relancée (au moins RollSpeed rad/s, ou Boost x la rotation du
+    -- moment) avec un petit élan vers le haut (Lift m/s) ; Max relances par accident, une toutes les Interval ms ;
+    -- une vitre peut éclater à chaque relance (SmashWindow). Enabled = false : tonneaux du jeu de base.
+    Rollover = { Enabled = true, MinSpeed = 30.0, StartRoll = 55.0, RollSpeed = 4.5, Boost = 1.35, Lift = 1.8,
+        Max = 2, Interval = 650, SmashWindow = true },
 
     Damage = {
         -- Dégâts du moteur reçus du jeu, multipliés (1.0 = jeu de base ; moins = plus solide).

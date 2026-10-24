@@ -223,21 +223,29 @@ Les morceaux ne tombent que sur de **vraiment gros accidents**, ou quand **plusi
 | **pare-brise** (avant) | 90 | 50 % |
 | **roue** du côté touché (ou un seul choc d'au moins 60 MPH) ; parfois une deuxième (25 %) | 140 | 50 % |
 
-**Portières : elles ne tombent jamais.** Sur un **gros choc** (perte de vitesse d'au moins **40 MPH**,
-`DoorsOpen.Drop`) ou quand le côté est très usé (110), elles **s'ouvrent toutes seules et battent**, comme si la
-sécurité avait sauté : celles du côté touché (50 % chacune), ou, sur un choc avant / arrière, n'importe laquelle
-(30 %) ; deux au plus par choc. On peut les refermer normalement.
+**Portières : elles ne tombent jamais** (dès que le conducteur monte, le jeu ne peut plus les arracher, même sur un
+très gros choc ; `DoorsAjar.NeverFall`). Sur un **gros choc** (perte de vitesse d'au moins **40 MPH**,
+`DoorsAjar.Drop`) ou quand le côté est très usé (110), la sécurité saute : le véhicule se **déverrouille** et des
+portières **s'entrouvrent** un peu (8 à 20 % de leur ouverture, `Angle`) : celles du côté touché (50 % chacune), ou, sur
+un choc avant / arrière, n'importe laquelle (30 %) ; deux au plus par choc. On peut les refermer normalement.
+
+**Tonneaux accentués** (`Rollover`) : un véhicule qui part **déjà** en tonneau (penché de plus de 55°, plus sur ses
+roues, à au moins 30 MPH) en fait **davantage** : sa rotation est relancée dans le même sens (au moins 4,5 rad/s ou
+1,35 x celle du moment) avec un petit élan vers le haut, deux fois au plus par accident (une toutes les 0,65 s) ; une
+vitre peut éclater à chaque relance. Rien dans les virages ordinaires. `Rollover.Enabled = false` : tonneaux du jeu.
 
 **Verre brisé au sol** (gros accident : perte de vitesse d'au moins **35 MPH**, `Glass`) : sous chaque vitre qui vient
-de casser (par le choc ou par ce script), une gerbe d'éclats (effet du jeu `glass_shards`), des **éclats de verre
-posés au sol** (6 par vitre, objets du jeu `ng_proc_brkbottle_02a…g`, sans collision) qui restent **5 minutes**, et
+de casser (par le choc ou par ce script), une gerbe d'éclats (effet du jeu `glass_shards`), du **verre brisé à plat sur
+la route** (3 plaques par vitre, décalques « verre » du jeu `5031` / `5032`, de 0,7 à 1,3 m, qui épousent le sol : plus
+d'objets ni de bouteilles cassées) qui reste **5 minutes**, et
 le **bruit du verre** (`Glass_Smash`, en plus de celui du jeu). Vu et entendu par tous les joueurs à moins de 120 m
 (relayé par le serveur, chacun pose ses propres éclats : rien de synchronisé à gérer). Les vitres déjà cassées avant
 l'accident (balles…) ne laissent pas de nouveau verre.
 
 Chaque morceau ne tombe qu'une fois ; tout revient (usure comprise) à la réparation complète. Rien sur les motos,
 vélos, bateaux, hélicoptères, avions et trains. Calculé par le conducteur (propriétaire du véhicule) : les morceaux
-tombés et les portières ouvertes se voient chez tous les joueurs.
+tombés, les portières entrouvertes et les tonneaux se voient chez tous les joueurs. `Glass.Models` (vide par défaut) :
+objets posés en plus, si vous trouvez un modèle qui vous convient.
 
 ### Tirs sur un véhicule (`Gunshots`)
 
@@ -355,8 +363,9 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, plein à la pompe (vitesse : 1 min max, distances, trappe arrière gauche `Flap`, pistolet et tuyau `Nozzle`), pompes, jerrican (2/5 d'un plein, vitesse, remplissage), stations (icônes) |
 | `Damage` | dégâts légers / forts / sans choc, chocs violents, warnings automatiques d'accident important (`AccidentHazards`), paliers (abîmé ; 1 très abîmé : puissance, vitesse maxi, calages, warnings automatiques ; 2 détruit), fumée (`Smoke`), classes de véhicules légères, listes d'objets légers / forts |
-| `Bodywork` | dégâts visuels : choc minimum (22 MPH), usure et chance de chaque morceau (vitres, pare-chocs, capot / coffre, pare-brise, roues), portières qui s'ouvrent sur un gros choc (`DoorsOpen`), verre brisé au sol (`Glass` : seuil, éclats, durée, effet, bruit, portée), part des chocs latéraux sur les pare-chocs, carrosserie usée, force pour arracher un pare-choc, classes sans dégâts visuels |
+| `Bodywork` | dégâts visuels : choc minimum (22 MPH), usure et chance de chaque morceau (vitres, pare-chocs, capot / coffre, pare-brise, roues), portières entrouvertes et déverrouillées sur un gros choc, jamais arrachées (`DoorsAjar`), verre brisé au sol (`Glass` : seuil, décalques, durée, effet, bruit, portée, objets facultatifs), part des chocs latéraux sur les pare-chocs, carrosserie usée, force pour arracher un pare-choc, classes sans dégâts visuels |
 | `Gear` | marche avant / arrière : activée, vitesse considérée comme « arrêté », son du changement, classes sans rapport |
+| `Rollover` | tonneaux accentués : vitesse minimale, inclinaison de départ, vitesse de rotation, élan, nombre de relances |
 | `KeepDoorOpenOnExit` | portière ouverte gardée ouverte en descendant |
 | `Seatbelt` | sons et carillons de la ceinture (un / plusieurs détachés ; dès 1 MPH moteur allumé, en boucle jusqu'à l'arrêt complet, l'attache, le moteur coupé ou la descente ; lecture des carillons `ChimeSoundMode` / `ChimeInterval`, boucle recollée `ChimeSeamless`, silence max `ChimeMaxGap`), éjection (dès 60 MPH : 70 % arrêt brutal / 45 % accident ; projeté en ragdoll, distance idéale 20-60 m selon la vitesse), classes sans ceinture |
 | `Bike` | motos (pilote et passager) : projection dès 35 MPH (85 %, distance idéale 12-60 m selon la vitesse, 25 % sur le côté ou vers l'arrière si probable), aucune chute ajoutée pour les petits incidents (comportement du jeu), seuils, dégâts |

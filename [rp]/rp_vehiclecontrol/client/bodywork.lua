@@ -7,9 +7,9 @@
     Quand l'usure d'un côté dépasse un seuil, la pièce peut tomber, par ordre de priorité :
       1. pare-choc (avant / arrière), 2. capot (avant) ou coffre (arrière), 3. pare-brise (avant),
       4. roues (choc très violent ou usure extrême).
-    Portières : elles ne tombent JAMAIS. Sur un gros choc (DoorsOpen.Drop MPH) ou un côté très usé, elles s'ouvrent
-    toutes seules, battantes, comme si la sécurité avait sauté (celles du côté touché ; sur un choc avant / arrière,
-    plus rarement, n'importe laquelle).
+    Portières : elles ne tombent JAMAIS (le jeu ne peut plus les arracher). Sur un gros choc (DoorsAjar.Drop MPH) ou un
+    côté très usé, la sécurité saute : le véhicule se DÉVERROUILLE et des portières s'ENTROUVRENT un peu (celles du
+    côté touché ; sur un choc avant / arrière, plus rarement, n'importe laquelle).
     Vitres du côté touché : peuvent éclater dès une usure moyenne. Gros accident (Glass.MinDrop MPH) : chaque vitre
     qui vient de casser laisse du verre brisé au sol, avec le bruit du verre (client/glass.lua, vu par tous). Carrosserie déjà très abîmée (WornBody) : seuils
     plus bas. Chaque morceau ne tombe qu'une fois ; tout revient à la réparation (usure remise à zéro). Pas de dégâts
@@ -66,12 +66,22 @@ local function breakBumper(vehicle, front)
     return IsVehicleBumperBrokenOff(vehicle, front)
 end
 
---- Portière qui s'ouvre toute seule, battante (la sécurité a sauté) : jamais détachée
-local function popDoor(vehicle, door)
+--- Portière qui s'entrouvre toute seule (la sécurité a sauté) : un peu ouverte, jamais détachée
+local function ajarDoor(vehicle, door, D)
     if not GetIsDoorValid(vehicle, door) or IsVehicleDoorDamaged(vehicle, door) then return false end
-    if GetVehicleDoorAngleRatio(vehicle, door) > 0.1 then return false end -- déjà ouverte
-    SetVehicleDoorOpen(vehicle, door, true, false) -- true : battante (loose), pas d'ouverture instantanée
+    if GetVehicleDoorAngleRatio(vehicle, door) > 0.05 then return false end -- déjà ouverte
+    local angle = D.Angle or { 0.08, 0.2 }
+    SetDoorAllowedToBeBrokenOff(vehicle, door, false)
+    SetVehicleDoorControl(vehicle, door, 1, angle[1] + math.random() * (angle[2] - angle[1]))
     return true
+end
+
+--- Portières qui ne tombent jamais (le jeu les arracherait sur un gros choc) : posé par le conducteur
+function VC.keepDoors(vehicle)
+    if (Config.DoorsAjar or {}).NeverFall == false then return end
+    for _, door in ipairs(ALL_DOORS) do
+        if GetIsDoorValid(vehicle, door) then SetDoorAllowedToBeBrokenOff(vehicle, door, false) end
+    end
 end
 
 local function shuffled(list)
@@ -157,17 +167,18 @@ function VC.bodywork(vehicle, drop, side)
         PopOutVehicleWindscreen(vehicle)
         lost[#lost + 1] = 'windscreen'
     end
-    -- 4. portières : gros choc (ou côté très usé) -> elles s'ouvrent, battantes, sans jamais tomber
-    local D = part('DoorsOpen')
+    -- 4. portières : gros choc (ou côté très usé) -> la sécurité saute : déverrouillé, portières entrouvertes
+    local D = part('DoorsAjar')
     local sideHit = SIDE_DOORS[side] ~= nil
-    if drop >= (D.Drop or 40.0) or (sideHit and worn('DoorsOpen', w[side])) then
+    if drop >= (D.Drop or 40.0) or (sideHit and worn('DoorsAjar', w[side])) then
+        if D.Unlock ~= false then SetVehicleDoorsLocked(vehicle, 1) end -- 1 : déverrouillé
         local chance = sideHit and (D.Chance or 0.5) or (D.FrontRearChance or 0.3)
         local opened = 0
         for _, door in ipairs(shuffled(SIDE_DOORS[side] or ALL_DOORS)) do
             if opened >= (D.Max or 2) then break end
-            if math.random() < chance and popDoor(vehicle, door) then
+            if math.random() < chance and ajarDoor(vehicle, door, D) then
                 opened = opened + 1
-                lost[#lost + 1] = 'door_open' .. door
+                lost[#lost + 1] = 'door_ajar' .. door
             end
         end
     end
@@ -235,7 +246,10 @@ VC.on('impact', function(vehicle, _, drop, velocity, hit)
     VC.windows[vehicle] = windowState(vehicle)
 end)
 
-VC.on('enter', function(_, vehicle) VC.windows[vehicle] = windowState(vehicle) end)
+VC.on('enter', function(_, vehicle)
+    VC.windows[vehicle] = windowState(vehicle)
+    if VC.seat == -1 then VC.keepDoors(vehicle) end
+end)
 
 -- Réparé : roues revenues, usure remise à zéro
 VC.on('tick', function(_, vehicle)
