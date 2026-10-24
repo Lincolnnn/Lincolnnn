@@ -146,10 +146,10 @@ local function seesCall(src, call)
     return isPoliceAgency(agency) and callServes(call, agency)
 end
 
---- BOLO visible par ce joueur : ceux de sa police (les anciens, sans police, par toutes les polices)
+--- BOLO visible par ce joueur : les BOLOs sont COMMUNS à toutes les polices (WSP et KCSO voient, modifient et
+--- suppriment les mêmes) ; le MDC générique n'en voit aucun. `bolo.agency` garde la police qui l'a émis.
 local function seesBolo(src, bolo)
-    local agency = agencyOf(src)
-    return isPoliceAgency(agency) and (bolo.agency == nil or bolo.agency == agency)
+    return isPoliceAgency(agencyOf(src))
 end
 
 -- Statuts d'une unité : clé technique -> libellé (doit correspondre à index.html)
@@ -2475,13 +2475,13 @@ end
 
 local function boloListItem(bolo)
     return {
-        id = bolo.id, number = bolo.number, kind = bolo.kind, reason = bolo.reason,
+        id = bolo.id, number = bolo.number, kind = bolo.kind, reason = bolo.reason, agency = bolo.agency,
         summary = boloSummary(bolo), location = bolo.location,
         createdAt = bolo.createdAt, updatedAt = bolo.updatedAt,
     }
 end
 
---- BOLOs de la police de ce joueur (MDC générique : aucun)
+--- BOLOs (communs à toutes les polices ; MDC générique : aucun)
 local function bolosList(src)
     local list = {}
     for i = #Store.bolos, 1, -1 do -- les plus récents d'abord
@@ -2513,7 +2513,7 @@ bolosFor = function(kind, record)
             possible = match
         end
         if match then
-            -- police du BOLO : le MDC n'affiche que les alertes de sa police (anciens BOLOs : toutes)
+            -- BOLOs communs : l'alerte s'affiche dans tous les MDC de police (agency : police qui l'a émis)
             list[#list + 1] = { id = bolo.id, number = bolo.number, reason = bolo.reason, possible = possible or nil, agency = bolo.agency }
         end
     end
@@ -2575,7 +2575,7 @@ RegisterMDCCallback('saveBolo', function(src, payload)
         record.createdAt = os.time()
         record.createdByName = agentName(src)
         record.unitName = unit and unit.name or nil
-        record.agency = agencyOf(src) -- BOLO propre à cette police
+        record.agency = agencyOf(src) -- police qui l'a émis (le BOLO est commun à toutes les polices)
         record.createdBy = getIdentifier(src) -- privé : jamais envoyé aux clients (voir publicView)
         Store.bolos[#Store.bolos + 1] = record
         if not saveStore('bolos') then
