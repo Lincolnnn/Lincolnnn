@@ -252,3 +252,56 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .rz-sub { color: rgba(255, 255, 255, .82); }
 .rz-tag { color: #fff; background: rgba(255, 255, 255, .18) !important; border: 1px solid rgba(255, 255, 255, .25); box-shadow: none; }
 .rz-close { align-self: stretch; width: 46px; height: auto; border-radius: 0; color: #fff; }
+
+/* =========================================================================
+   MODE NUIT (réglé dans le MDC : Paramètres > MDC > Apparence ; <html data-theme="night">, client/theme.lua)
+   Fond noir très sombre, tout en VERT : titres vert foncé, texte vert clair ; les couleurs du mode jour deviennent des
+   nuances de vert plus claires ou plus sombres. Aucune autre couleur.
+   ========================================================================= */
+[data-theme="night"] .rz {
+    background: rgba(2, 8, 4, .97); border-color: rgba(60, 255, 130, .28); color: var(--text);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, .7), 0 0 0 1px rgba(60, 255, 130, .08);
+    --accent: #3ddc74; --accent-rgb: 61, 220, 116; --text: #a8ffc6; --text-2: rgba(150, 245, 185, .84);
+    --muted: rgba(110, 205, 145, .64); --line: rgba(60, 255, 130, .18); --danger: #e6fff0; --ok: #7dffa8;
+    --head-color: #0f4d26 !important;
+}
+[data-theme="night"] [data-theme="night"] .rz-legend { color: #24b955; }
+[data-theme="night"] .rz-head { background: radial-gradient(120% 140% at 0% 0%, rgba(120, 255, 170, .12), transparent 55%), linear-gradient(125deg, #0f4d26 0%, #0a3519 55%, #04170b 100%); border-bottom-color: rgba(60, 255, 130, .25); }
+[data-theme="night"] .rz-name { color: #c6ffd9; }
+[data-theme="night"] .rz-sub { color: rgba(150, 245, 185, .8); }
+[data-theme="night"] .rz-tag { color: #c6ffd9; background: rgba(60, 255, 130, .14) !important; border-color: rgba(60, 255, 130, .3) !important; box-shadow: none; }
+[data-theme="night"] .rz-close { color: #c6ffd9; }
+[data-theme="night"] .rz-close:hover { background: #1d7a3f; color: #eafff1; }
+[data-theme="night"] .rz-section, [data-theme="night"] .rz-kind, [data-theme="night"] .rz-item, [data-theme="night"] .rz-summary, [data-theme="night"] .rz-chip, [data-theme="night"] .rz-faction, [data-theme="night"] .rz-weapon, [data-theme="night"] .rz-stock-row, [data-theme="night"] .rz-slot { background: rgba(7, 24, 13, .92); border-color: rgba(60, 255, 130, .18); }
+[data-theme="night"] .rz-kind:hover, [data-theme="night"] .rz-faction:hover { background: rgba(60, 255, 130, .08); border-color: rgba(60, 255, 130, .45); }
+[data-theme="night"] .rz-faction.active, [data-theme="night"] .rz-chip.active, [data-theme="night"] .rz-seg-btn.active { background: rgba(60, 255, 130, .16); border-color: rgba(60, 255, 130, .6); color: #c6ffd9; }
+[data-theme="night"] .rz-input, [data-theme="night"] .rz-box { background: #030b06; color: var(--text); border-color: rgba(60, 255, 130, .2); border-bottom-color: rgba(60, 255, 130, .5); }
+[data-theme="night"] .rz-input:focus { background: #030b06; }
+[data-theme="night"] select.rz-input option, [data-theme="night"] select.rz-input optgroup { background: #030b06; color: var(--text); }
+[data-theme="night"] .rz-seg { background: rgba(60, 255, 130, .05); }
+[data-theme="night"] .rz-btn, [data-theme="night"] .rz-qty-btn { background: #04100a; color: var(--text); border-color: rgba(60, 255, 130, .34); border-bottom-color: rgba(60, 255, 130, .5); }
+[data-theme="night"] .rz-btn:hover, [data-theme="night"] .rz-qty-btn:hover:not(:disabled) { background: #082414; }
+[data-theme="night"] .rz-primary, [data-theme="night"] .rz-listen.playing { background: #0e4a24; border-color: #2fbf5f; color: #c6ffd9; }
+[data-theme="night"] .rz-primary:hover, [data-theme="night"] .rz-primary:hover:not(:disabled) { background: #136030; }
+[data-theme="night"] .rz-primary:disabled { background: #04100a; color: var(--muted); }
+[data-theme="night"] .rz-danger, [data-theme="night"] .rz-danger:hover, [data-theme="night"] .rz-danger:hover:not(:disabled), [data-theme="night"] .rz-remove:hover { background: #1d7a3f; border-color: #3ddc74; color: #eafff1; }
+[data-theme="night"] .rz-step { color: #c6ffd9; background: rgba(60, 255, 130, .14); box-shadow: inset 0 0 0 1px rgba(60, 255, 130, .5); }
+[data-theme="night"] .rz-badge { color: #021006; }
+[data-theme="night"] .rz ::-webkit-scrollbar-thumb, [data-theme="night"] ::-webkit-scrollbar-thumb { background: rgba(60, 255, 130, .25); background-clip: padding-box; }
+[data-theme="night"] .rz { --zone: #7dffa8; --perimeter: #3ddc74; --object: #24b955; }
+[data-theme="night"] .ico-zone, [data-theme="night"] .ico-perimeter, [data-theme="night"] .ico-object { background: rgba(60, 255, 130, .1); }
+[data-theme="night"] .rz-item-text { color: var(--text-2); }
+/* HUD sur le jeu (zone de recherche, flèche, fouille, résultats, rappel de l'arme) : vert aussi */
+[data-theme="night"] .zbanner, [data-theme="night"] .progress, [data-theme="night"] .result, [data-theme="night"] .whint { background: rgba(2, 8, 4, .9); border-color: rgba(60, 255, 130, .28); color: #a8ffc6; }
+[data-theme="night"] .zone-head, [data-theme="night"] .result-head, [data-theme="night"] .zone-label, [data-theme="night"] .progress-hint, [data-theme="night"] .whint-alt { color: rgba(110, 205, 145, .7); }
+[data-theme="night"] .zone-dot { background: #3ddc74; box-shadow: 0 0 8px #3ddc74; }
+[data-theme="night"] .zone-title, [data-theme="night"] .result-title, [data-theme="night"] .progress-head { color: #24b955; }
+[data-theme="night"] .progress-time { color: #7dffa8; }
+[data-theme="night"] .progress-bar { background: #3ddc74; }
+[data-theme="night"] .result { box-shadow: inset 3px 0 0 #3ddc74, 0 16px 32px rgba(0, 0, 0, .6); }
+[data-theme="night"] .progress-hint kbd, [data-theme="night"] .whint kbd { color: #a8ffc6; background: rgba(60, 255, 130, .1); border-color: rgba(60, 255, 130, .3); }
+[data-theme="night"] .whint-wheel svg { stroke: #a8ffc6; }
+[data-theme="night"] .arrow-ring { border-color: rgba(125, 255, 168, .6); box-shadow: 0 0 18px rgba(60, 255, 130, .3), inset 0 0 12px rgba(60, 255, 130, .15); }
+[data-theme="night"] .arrow-rot svg { fill: #a8ffc6; filter: drop-shadow(0 0 6px rgba(60, 255, 130, .8)); }
+[data-theme="night"] .arrow-label { color: #a8ffc6; }
+[data-theme="night"] .arrow-dist { color: rgba(150, 245, 185, .8); }

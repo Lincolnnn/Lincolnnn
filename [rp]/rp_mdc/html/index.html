@@ -661,7 +661,7 @@
                     </div>
                     <!-- Catégories repliables (toutes fermées à l'ouverture du MDC) -->
                     <details class="settings-cat" data-cat="mdc">
-                        <summary>MDC <span class="settings-cat-hint">Taille de l'interface, transparence, onglet à l'ouverture, notifications et sons</span></summary>
+                        <summary>MDC <span class="settings-cat-hint">Taille de l'interface, apparence (jour / nuit), transparence, onglet à l'ouverture, notifications et sons</span></summary>
                         <div class="settings-grid">
                             <div class="group">
                                 <span class="legend">Interface</span>
@@ -678,6 +678,19 @@
                                         <option value="search">Recherches (police)</option>
                                         <option value="reports">Rapports</option>
                                         <option value="create">Créations (générique)</option>
+                                    </select>
+                                </label>
+                                <label class="lbl setting-select">Apparence
+                                    <select data-setting="mdc.theme">
+                                        <option value="day">Jour (clair)</option>
+                                        <option value="night">Nuit (vert sur fond noir)</option>
+                                    </select>
+                                </label>
+                                <label class="lbl setting-select">Le mode nuit s'applique à
+                                    <select data-setting="mdc.themeScope">
+                                        <option value="all">Toutes les interfaces (MDC et menus)</option>
+                                        <option value="mdc">Seulement le MDC</option>
+                                        <option value="menus">Seulement les menus extérieurs (pas le MDC)</option>
                                     </select>
                                 </label>
                                 <label class="check"><input type="checkbox" data-setting="mdc.glass"> Fenêtre légèrement transparente</label>
@@ -840,7 +853,7 @@
                                         <div class="setting-row">
                                             <span class="lbl-inline">Couleur</span>
                                             <div class="swatches" id="chatBorderSwatches"></div>
-                                            <input type="text" class="chat-color-input" maxlength="7" data-chat-setting="borderColor" placeholder="#7a7a7a">
+                                            <input type="text" class="chat-color-input" maxlength="7" data-chat-setting="borderColor" placeholder="#ffffff">
                                         </div>
                                         <div class="setting-row">
                                             <span class="lbl-inline">Épaisseur</span>

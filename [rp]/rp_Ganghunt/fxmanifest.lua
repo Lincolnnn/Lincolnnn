@@ -15,7 +15,7 @@ lua54 'yes'
 name 'rp_Ganghunt'
 author 'Lincolnnn'
 description 'Ganghunt : vagues d\'ennemis (gangs, organisations, forces) qui traquent le joueur - standalone, NUI Vanilla JS'
-version '1.6.0'
+version '1.7.0'
 
 ui_page 'html/index.html'
 
@@ -30,6 +30,7 @@ files {
 shared_script 'config.lua'
 
 client_scripts {
+    'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'client/spawn.lua', -- apparition : positions sûres, convoi, hélicoptère, armes, silencieux, grenades
     'client/ai.lua',    -- comportement : repéré / recherche (comme la police du jeu), poursuite, grenades, corps à corps
     'client/hunt.lua',  -- la chasse : vagues, musique, HUD, fin

@@ -3369,8 +3369,9 @@
     const HUD_DEFAULTS = {
         pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, zone: true, crossing: true, dir: true, block: true, time: true },
         unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true },
-        // Fenêtre : légère transparence (opacity)
-        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97 },
+        // Fenêtre : légère transparence (opacity) ; thème Jour (clair) / Nuit (vert sur noir) et où il s'applique :
+        // 'all' (MDC et tous les menus), 'mdc' (MDC seulement), 'menus' (menus des autres ressources, pas le MDC)
+        mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97, theme: 'day', themeScope: 'all' },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
@@ -3412,6 +3413,8 @@
         out.notify.volume = Math.min(Math.max(out.notify.volume, 0), 1);
         out.car.volume = Math.min(Math.max(out.car.volume, 0), 1);
         if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
+        if (!['day', 'night'].includes(out.mdc.theme)) out.mdc.theme = 'day';
+        if (!['all', 'mdc', 'menus'].includes(out.mdc.themeScope)) out.mdc.themeScope = 'all';
         return out;
     }
 
@@ -3632,6 +3635,9 @@
         const s = hud.settings.mdc;
         win.style.setProperty('--ui-zoom', s.zoom);
         win.style.setProperty('--glass-a', s.glass ? s.opacity : 1); // transparence de la fenêtre
+        // Mode nuit sur le MDC (fenêtre, HUD, notifications) sauf s'il ne s'applique qu'aux menus des autres ressources
+        document.documentElement.dataset.theme = s.theme === 'night' && s.themeScope !== 'menus' ? 'night' : 'day';
+        $('[data-setting="mdc.themeScope"]').disabled = s.theme !== 'night';
     }
 
     $('#page-settings').addEventListener('input', (e) => {
@@ -3691,7 +3697,7 @@
 
     // ---- Paramètres > "Chat écrit et commandes" (ressource rp_chat) ----
     // Réglages gardés par le chat (KVP du joueur) : lus et modifiés via le client Lua du MDC.
-    const CHAT_BORDER_COLORS = ['#2e3a4d', '#3a3a3a', '#5a5a5a', '#7a7a7a', '#a0a0a0', '#d0d0d0', '#3a6ea5', '#8a2a2a', '#2f7a43'];
+    const CHAT_BORDER_COLORS = ['#ffffff', '#3a3a3a', '#5a5a5a', '#7a7a7a', '#a0a0a0', '#d0d0d0', '#3a6ea5', '#8a2a2a', '#2f7a43'];
     const chatSet = { settings: null, defaults: null, timer: null };
 
     const shadeLabel = (v) => (v <= 10 ? 'Noir' : v <= 35 ? 'Plutôt noir' : v <= 60 ? 'Gris foncé' : v <= 85 ? 'Gris' : 'Gris clair');

@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_doorlock'
 author 'Lincolnnn'
 description 'Portes à verrouiller / déverrouiller, à frapper, à enfoncer (porte forcée) - standalone'
-version '1.2.0'
+version '1.3.0'
 
 ui_page 'html/index.html'
 
@@ -26,6 +26,7 @@ shared_scripts {
 }
 
 client_scripts {
+    'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'models.lua',          -- modèles de portes du jeu
     'client/client.lua',
 }

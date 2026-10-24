@@ -209,3 +209,59 @@ select.gh-input option, select.gh-input optgroup { background: #ffffff; color: v
 .hud-bar-count { font-size: 11.5px; text-align: right; color: #dcdcdc; font-variant-numeric: tabular-nums; }
 .hud-sub { margin-top: 6px; font-size: 12px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #dcdcdc; font-variant-numeric: tabular-nums; }
 .hud.search .hud-sub { color: #cfcfcf; }
+
+/* =========================================================================
+   MODE NUIT (réglé dans le MDC : Paramètres > MDC > Apparence ; <html data-theme="night">, client/theme.lua)
+   Fond noir très sombre, tout en VERT : titres vert foncé, texte vert clair ; les couleurs du mode jour deviennent des
+   nuances de vert plus claires ou plus sombres. Aucune autre couleur.
+   ========================================================================= */
+[data-theme="night"] .gh {
+    background: rgba(2, 8, 4, .97); border-color: rgba(60, 255, 130, .28); color: var(--text);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, .7), 0 0 0 1px rgba(60, 255, 130, .08);
+    --accent: #3ddc74; --accent-rgb: 61, 220, 116; --text: #a8ffc6; --text-2: rgba(150, 245, 185, .84);
+    --muted: rgba(110, 205, 145, .64); --line: rgba(60, 255, 130, .18); --danger: #e6fff0; --ok: #7dffa8;
+    --head-color: #0f4d26 !important;
+}
+[data-theme="night"] [data-theme="night"] .gh-legend, [data-theme="night"] .gh-name { color: #24b955; }
+[data-theme="night"] .gh-head { background: radial-gradient(120% 140% at 0% 0%, rgba(120, 255, 170, .12), transparent 55%), linear-gradient(125deg, #0f4d26 0%, #0a3519 55%, #04170b 100%); border-bottom-color: rgba(60, 255, 130, .25); }
+[data-theme="night"] .gh-name { color: #c6ffd9; }
+[data-theme="night"] .gh-sub { color: rgba(150, 245, 185, .8); }
+[data-theme="night"] .gh-tag { color: #c6ffd9; background: rgba(60, 255, 130, .14) !important; border-color: rgba(60, 255, 130, .3) !important; box-shadow: none; }
+[data-theme="night"] .gh-close { color: #c6ffd9; }
+[data-theme="night"] .gh-close:hover { background: #1d7a3f; color: #eafff1; }
+[data-theme="night"] .gh-section, [data-theme="night"] .gh-kind, [data-theme="night"] .gh-item, [data-theme="night"] .gh-summary, [data-theme="night"] .gh-chip, [data-theme="night"] .gh-faction, [data-theme="night"] .gh-weapon, [data-theme="night"] .gh-stock-row, [data-theme="night"] .gh-slot { background: rgba(7, 24, 13, .92); border-color: rgba(60, 255, 130, .18); }
+[data-theme="night"] .gh-kind:hover, [data-theme="night"] .gh-faction:hover { background: rgba(60, 255, 130, .08); border-color: rgba(60, 255, 130, .45); }
+[data-theme="night"] .gh-faction.active, [data-theme="night"] .gh-chip.active, [data-theme="night"] .gh-seg-btn.active { background: rgba(60, 255, 130, .16); border-color: rgba(60, 255, 130, .6); color: #c6ffd9; }
+[data-theme="night"] .gh-input, [data-theme="night"] .gh-box { background: #030b06; color: var(--text); border-color: rgba(60, 255, 130, .2); border-bottom-color: rgba(60, 255, 130, .5); }
+[data-theme="night"] .gh-input:focus { background: #030b06; }
+[data-theme="night"] select.gh-input option, [data-theme="night"] select.gh-input optgroup { background: #030b06; color: var(--text); }
+[data-theme="night"] .gh-seg { background: rgba(60, 255, 130, .05); }
+[data-theme="night"] .gh-btn, [data-theme="night"] .gh-qty-btn { background: #04100a; color: var(--text); border-color: rgba(60, 255, 130, .34); border-bottom-color: rgba(60, 255, 130, .5); }
+[data-theme="night"] .gh-btn:hover, [data-theme="night"] .gh-qty-btn:hover:not(:disabled) { background: #082414; }
+[data-theme="night"] .gh-primary, [data-theme="night"] .gh-listen.playing { background: #0e4a24; border-color: #2fbf5f; color: #c6ffd9; }
+[data-theme="night"] .gh-primary:hover, [data-theme="night"] .gh-primary:hover:not(:disabled) { background: #136030; }
+[data-theme="night"] .gh-primary:disabled { background: #04100a; color: var(--muted); }
+[data-theme="night"] .gh-danger, [data-theme="night"] .gh-danger:hover, [data-theme="night"] .gh-danger:hover:not(:disabled), [data-theme="night"] .gh-remove:hover { background: #1d7a3f; border-color: #3ddc74; color: #eafff1; }
+[data-theme="night"] .gh-step { color: #c6ffd9; background: rgba(60, 255, 130, .14); box-shadow: inset 0 0 0 1px rgba(60, 255, 130, .5); }
+[data-theme="night"] .gh-badge { color: #021006; }
+[data-theme="night"] .gh ::-webkit-scrollbar-thumb, [data-theme="night"] ::-webkit-scrollbar-thumb { background: rgba(60, 255, 130, .25); background-clip: padding-box; }
+[data-theme="night"] .gh { --hunt: #7dffa8; }
+[data-theme="night"] .gh-active { background: rgba(60, 255, 130, .08); border-color: rgba(60, 255, 130, .35); }
+[data-theme="night"] .gh-total { color: #7dffa8; } [data-theme="night"] .gh-total.bad { color: #e6fff0; }
+[data-theme="night"] .gh-check input:checked + .gh-box { border-color: #3ddc74; background-color: #0e4a24; }
+/* HUD de la chasse (en haut) : vert ; l'état se lit à l'intensité du vert et au clignotement */
+[data-theme="night"] .hud { background: rgba(2, 8, 4, .88); border-color: rgba(60, 255, 130, .4); color: #a8ffc6; }
+[data-theme="night"] .hud-title, [data-theme="night"] .hud-bar-label { color: rgba(110, 205, 145, .75); }
+[data-theme="night"] .hud-wave, [data-theme="night"] .hud.engaged .hud-state-text { color: #c6ffd9; }
+[data-theme="night"] .hud.search .hud-state-text, [data-theme="night"] .hud.waiting .hud-state-text, [data-theme="night"] .hud.calm .hud-state-text { color: #7dffa8; }
+[data-theme="night"] .hud-bar { background: rgba(60, 255, 130, .15); }
+[data-theme="night"] .hud-fill.wave { background: #c6ffd9; box-shadow: 0 0 6px rgba(60, 255, 130, .6); }
+[data-theme="night"] .hud-fill.hunt { background: #3ddc74; box-shadow: 0 0 6px rgba(60, 255, 130, .5); }
+[data-theme="night"] .hud-bar-count, [data-theme="night"] .hud-sub, [data-theme="night"] .hud.search .hud-sub { color: rgba(150, 245, 185, .85); }
+[data-theme="night"] .hud.engaged { border-color: #3ddc74; }
+[data-theme="night"] .hud-lights i, [data-theme="night"] .hud.waiting .hud-lights i, [data-theme="night"] .hud.calm .hud-lights i, [data-theme="night"] .hud.search .hud-lights i { background: #3ddc74; box-shadow: 0 0 6px #3ddc74; }
+[data-theme="night"] .hud.engaged .hud-lights i:first-child, [data-theme="night"] .hud.engaged .hud-lights i:last-child { animation-name: light-green; }
+@keyframes light-green { 0% { background: #c6ffd9; box-shadow: 0 0 10px #3ddc74; } 50% { background: #0a3519; box-shadow: none; } }
+[data-theme="night"] .gh-head { background: none; border-bottom: 0; }
+[data-theme="night"] .gh-name { color: #24b955; }
+[data-theme="night"] .gh-sub { color: rgba(110, 205, 145, .7); }

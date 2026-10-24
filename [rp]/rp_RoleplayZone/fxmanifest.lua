@@ -17,7 +17,7 @@ lua54 'yes'
 name 'rp_RoleplayZone'
 author 'Lincolnnn'
 description 'Zones de recherche, périmètres et objets à fouiller, armes lâchées, œil d\'aigle - standalone, NUI Vanilla JS'
-version '1.5.0'
+version '1.6.0'
 
 ui_page 'html/index.html'
 
@@ -30,6 +30,7 @@ files {
 shared_script 'config.lua'
 
 client_scripts {
+    'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'client/shared.lua',   -- outils (demandes au serveur, droits, cercle qui épouse le terrain)
     'client/world.lua',    -- scènes appliquées : zone (message, son, carte), fouilles, protection, armes lâchées
     'client/selector.lua', -- mode sélection (cercle blanc qui suit le terrain, objet visé en surbrillance)

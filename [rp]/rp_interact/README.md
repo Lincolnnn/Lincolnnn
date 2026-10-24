@@ -20,6 +20,8 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
    introuvable est signalée en jaune : vérifiez son nom dans `config.lua` (`Emotes`, `Surrender`) ou ajoutez le
    fichier qui la définit à `EmoteFiles`. `rpi_emotes` (console) relit les fichiers.
 
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour le Menu Interaction, le `/eup`, la fiche civile, l'œil, les résultats, barres, tips et notifications (`client/theme.lua` ; sans le MDC : thème jour).
+
 ## Menu Interaction (touche F1)
 
 Un **vrai menu de jeu, au clavier** (comme `/eup`, même apparence), **sans souris** : vous continuez de bouger

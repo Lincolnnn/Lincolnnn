@@ -61,3 +61,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
     font: 600 11px var(--font); color: var(--text);
     background: #ffffff; border: 1px solid rgba(0, 0, 0, .18); border-bottom-width: 2px;
 }
+
+/* Mode nuit (réglé dans le MDC : Paramètres > MDC > Apparence ; client/theme.lua) : vert sur fond noir, la zone à
+   viser en vert clair, le curseur en vert très clair */
+:root[data-theme="night"] {
+    --card: rgba(2, 8, 4, .96); --stroke: rgba(60, 255, 130, .3); --text: #a8ffc6; --muted: rgba(110, 205, 145, .7);
+    --track: #06140b; --zone: #2e9e57; --zone-hit: #7dffa8; --miss: #e6fff0; --accent: #7dffa8;
+}
+[data-theme="night"] .breach-title { color: #24b955; }
+[data-theme="night"] .breach-track { border-color: rgba(60, 255, 130, .2); }
+[data-theme="night"] .breach-zone { background: linear-gradient(180deg, #3ddc74, var(--zone)); }
+[data-theme="night"] .breach-cursor { background: #e6fff0; box-shadow: 0 0 0 1px #021006, 0 0 6px rgba(60, 255, 130, .6); }
+[data-theme="night"] .breach-step { background: #0c2e18; }
+[data-theme="night"] .breach-hint kbd { color: #a8ffc6; background: #04100a; border-color: rgba(60, 255, 130, .35); }

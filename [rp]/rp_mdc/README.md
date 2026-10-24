@@ -141,6 +141,22 @@ dans `server/server.lua`.
 La fenêtre est **légèrement transparente** (opacité **97 %** par défaut, de 50 à 100 %, *Paramètres > MDC*). Il n'y a
 plus de flou de l'arrière-plan.
 
+### Mode nuit (*Paramètres > MDC > Apparence*)
+
+- **Apparence** : **Jour** (thème clair, par défaut) ou **Nuit** : **fond noir très sombre, tout en vert**. Les écarts
+  de couleur du mode jour deviennent des écarts de vert : **titres en vert foncé**, **texte en vert clair**, zones,
+  boutons, pastilles (polices, tags d'unité, priorités des appels, BOLO, alertes) plus ou moins verts, logos WSP / KCSO
+  teintés en vert. **Seuls les statuts des unités** (Disponible, En route, Sur place, Indisponible) **gardent leurs
+  couleurs**. Les HUD (PLD, display, car HUD) et les notifications passent aussi au vert ; les alertes du car HUD se
+  lisent alors à l'intensité du vert et au clignotement.
+- **Le mode nuit s'applique à** : **toutes les interfaces** (MDC et menus, par défaut), **seulement le MDC**, ou
+  **seulement les menus extérieurs** (pas le MDC) : Menu Interaction et `/eup`, fiche civile, œil, `/scene`,
+  équipement du véhicule, gestion du trafic, Ganghunt, page `/tuto`, barre pour enfoncer une porte, message
+  « pousser ». Le chat écrit garde ses réglages et les couleurs des commandes.
+- Gardé chez le joueur, comme les autres réglages. Pour les développeurs : export client `uiTheme()` ('night' ou
+  'day', pour les menus extérieurs) et événement client `mdc:uiTheme` (theme) à chaque changement ; chaque ressource
+  l'envoie à son NUI (`client/theme.lua`), qui pose `data-theme="night"` sur la page.
+
 - **NOM RP** : il s'affiche en haut à gauche et dans les unités (le pseudo Steam/FiveM n'est jamais affiché). **Obligatoire pour
   rejoindre une unité.** Il est partagé avec le chat écrit : `/nomrp John Carter` dans le chat change aussi celui du MDC, et
   inversement. Il n'est enregistré nulle part : il est remis à zéro à chaque déconnexion (état `rpName` du joueur côté serveur).
@@ -154,7 +170,7 @@ plus de flou de l'arrière-plan.
 | Interventions | **Police** : les appels de **sa police** (toujours ouverts), puis les **appels communs** (WSP & KCSO) ; les appels de l'autre police ne sont **pas** visibles. Seules les polices visées peuvent rejoindre un appel (vérifié par le serveur). Incident : police de l'unité déclarante toujours cochée, **case** pour y ajouter l'autre police (incident commun). **Générique** : les listes de **chaque police** et les appels communs, **en lecture** (pas de « Rejoindre ») ; bouton **Modifier** sur les **interventions** (appels des civils) pour les corriger directement. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer (ou **✕** en haut du panneau) pour le masquer : **sans appel choisi, le panneau des détails est réduit à une fine colonne** et la liste prend toute la place. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
 | Rapports | **Communs à tous les MDC**. DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
-| Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule ; le Menu Interaction de `rp_interact` n'est plus réglable : il est toujours en haut à gauche, comme les menus du jeu) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
+| Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, **apparence jour / nuit** et où le mode nuit s'applique, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule ; le Menu Interaction de `rp_interact` n'est plus réglable : il est toujours en haut à gauche, comme les menus du jeu) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
 | Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, priorité, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.

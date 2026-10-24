@@ -79,6 +79,11 @@
         post('breachResult', { hit, pos: game.pos });
     }
 
+    // Mode nuit des menus (MDC : Paramètres > MDC > Apparence), envoyé par client/theme.lua
+    window.addEventListener('message', ({ data }) => {
+        if (data && data.action === 'uiTheme') document.documentElement.dataset.theme = data.data && data.data.theme === 'night' ? 'night' : 'day';
+    });
+
     window.addEventListener('message', ({ data }) => {
         if (!data || !data.action) return;
         if (data.action === 'breach') {

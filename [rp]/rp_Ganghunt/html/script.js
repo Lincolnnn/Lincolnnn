@@ -382,6 +382,11 @@
     restore();
     if (state.volume != null) Music.setVolume(Math.max(0, Math.min(100, Number(state.volume) || 0)) / 100);
 
+    // Mode nuit des menus (MDC : Paramètres > MDC > Apparence), envoyé par client/theme.lua
+    window.addEventListener('message', ({ data }) => {
+        if (data && data.action === 'uiTheme') document.documentElement.dataset.theme = data.data && data.data.theme === 'night' ? 'night' : 'day';
+    });
+
     window.addEventListener('message', (e) => {
         const msg = e.data || {};
         if (msg.action === 'open') open(msg.data || {});

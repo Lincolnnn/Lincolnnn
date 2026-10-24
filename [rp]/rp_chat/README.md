@@ -1,7 +1,7 @@
 # RP Chat (FiveM)
 
 Chat écrit rôleplay **100% standalone** (sans ESX / QBCore / vRP) qui **remplace le chat d'origine** de FiveM.
-Interface NUI en HTML/CSS/Vanilla JS, fond sombre « bleu nuit » (à 80 %, contour fin, coins presque carrés ; réglables par joueur) pour rester lisible sur le jeu ; la page `/tuto` reprend le thème clair du MDC.
+Interface NUI en HTML/CSS/Vanilla JS, fond sombre « bleu nuit » (à 80 %), **contour blanc** fin et coins presque carrés comme le MDC (réglables par joueur ; l'ancien contour bleu nuit par défaut devient blanc) pour rester lisible sur le jeu ; la page `/tuto` reprend le thème clair du MDC.
 Conçu pour fonctionner avec le MDC du même dépôt (`rp_mdc`), mais utilisable seul.
 
 ## Installation
@@ -37,6 +37,8 @@ Conçu pour fonctionner avec le MDC du même dépôt (`rp_mdc`), mais utilisable
 - Le **chat intégré de GTA Online** (celui du jeu, sans rapport avec ces ressources) est désactivé par rp_chat, comme le
   faisait le chat d'origine.
 - Pour garder le chat d'origine actif malgré tout : `StopDefaultChat = false` dans `config.lua`.
+
+**Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **vert sur fond noir** pour la page `/tuto` (le chat garde ses réglages et les couleurs des commandes) (`client/theme.lua` ; sans le MDC : thème jour).
 
 ## Utilisation
 

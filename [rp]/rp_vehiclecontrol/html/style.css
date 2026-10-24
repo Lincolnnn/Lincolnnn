@@ -23,3 +23,7 @@ body { font-family: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", T
     border: 1px solid rgba(140, 170, 220, .22); border-bottom-width: 2px; border-radius: 3px;
     font-weight: 600; font-size: 12px; color: #fff;
 }
+
+/* Mode nuit (réglé dans le MDC : Paramètres > MDC > Apparence ; client/theme.lua) : vert sur fond noir */
+[data-theme="night"] .push-box { background: rgba(2, 8, 4, .94); border-color: rgba(60, 255, 130, .3); color: #a8ffc6; }
+[data-theme="night"] .push-key { color: #a8ffc6; background: #04100a; border-color: rgba(60, 255, 130, .35); }

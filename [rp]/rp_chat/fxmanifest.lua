@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_chat'
 author 'Lincolnnn'
 description 'Chat écrit rôleplay standalone (commandes police / RP) - NUI Vanilla JS'
-version '1.15.0'
+version '1.16.0'
 
 -- Remplace la ressource "chat" d'origine : les ressources qui dépendent de "chat"
 -- (ou qui envoient "chat:addMessage") fonctionnent avec ce chat.
@@ -28,6 +28,7 @@ files {
 shared_script 'config.lua'
 
 client_scripts {
+    'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'client/client.lua',
     'client/overhead.lua',
 }

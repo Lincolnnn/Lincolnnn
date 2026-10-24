@@ -389,6 +389,24 @@ exports('carSoundVolume', function()
     return type(car.volume) == 'number' and math.max(0.0, math.min(1.0, car.volume)) or 0.7
 end)
 
+-- Mode nuit (Paramètres > MDC > Apparence) pour les menus des AUTRES ressources (rp_interact, /scene, équipement…) :
+-- 'night' si le thème est Nuit et qu'il s'applique à toutes les interfaces ou aux menus extérieurs, sinon 'day'.
+-- Chaque ressource le lit à son démarrage (export uiTheme) et reçoit ses changements (événement client
+-- "mdc:uiTheme", theme), puis l'envoie à son NUI. Le MDC lui-même l'applique dans html/script.js.
+local function uiTheme()
+    local m = type(settings.mdc) == 'table' and settings.mdc or {}
+    local scope = (m.themeScope == 'mdc' or m.themeScope == 'menus') and m.themeScope or 'all'
+    return (m.theme == 'night' and scope ~= 'mdc') and 'night' or 'day'
+end
+exports('uiTheme', uiTheme)
+local sentTheme = nil
+local function publishTheme()
+    local theme = uiTheme()
+    if theme == sentTheme then return end
+    sentTheme = theme
+    TriggerEvent('mdc:uiTheme', theme)
+end
+
 -- Bouton "Tester" / curseur du volume des sons du véhicule
 RegisterNUICallback('testCarSound', function(data, cb)
     cb({ ok = true })
@@ -410,6 +428,7 @@ RegisterNUICallback('saveSettings', function(data, cb)
     SetResourceKvp('mdc_hud_settings', encoded)
     cb({ ok = true })
     refreshHud()
+    publishTheme()
 end)
 
 -- Bouton "Position actuelle" des formulaires d'intervention / d'incident : rue, croisement, bloc
@@ -424,3 +443,9 @@ RegisterCommand('mdc_pos', function()
     print(('[MDC] Rue : %s | Croisement : %s | Bloc affiché : %s'):format(location.street, location.crossing, location.block))
     print(('{ "name": "A RENOMMER", "type": "circle", "center": [%.2f, %.2f], "radius": 60 }'):format(coords.x, coords.y))
 end, false)
+
+-- Démarrage (ou redémarrage) du MDC : les autres ressources reçoivent le thème des menus
+CreateThread(function()
+    Wait(1000)
+    publishTheme()
+end)

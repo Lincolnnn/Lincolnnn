@@ -1,10 +1,10 @@
 /* =========================================================================
-   RP Chat - thème sombre "Windows 11" du MDC (fond, contour et taille réglables par joueur)
+   RP Chat - fond sombre, contour blanc, coins presque carrés comme le MDC (fond, contour et taille réglables par joueur)
    Les variables sont modifiées par script.js selon les réglages du joueur.
    ========================================================================= */
 :root {
     --chat-bg: rgba(32, 32, 32, .8);
-    --chat-border: 1px solid #3a3a3a;
+    --chat-border: 1px solid #ffffff;
     --chat-font: 14px;
     --chat-w: 32vw;
     --chat-h: 30vh;
@@ -181,3 +181,15 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .tuto-text { color: rgba(20, 26, 34, .76); font-size: 12.5px; }
 .tuto-foot { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--stroke); font-size: 11.5px; color: var(--muted); }
 .tuto.hidden { display: none; }
+
+/* Mode nuit (réglé dans le MDC : Paramètres > MDC > Apparence ; client/theme.lua) : la page /tuto passe en vert sur
+   fond noir. Le chat lui-même garde ses réglages (fond, contour) et les couleurs des commandes (/me, /info…). */
+[data-theme="night"] .tuto {
+    background: rgba(2, 8, 4, .96); border-color: rgba(60, 255, 130, .3); color: #a8ffc6;
+    --stroke: rgba(60, 255, 130, .16); --stroke-2: rgba(60, 255, 130, .3); --muted: rgba(110, 205, 145, .64); --accent: #0e4a24;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, .7);
+}
+[data-theme="night"] .tuto-title, [data-theme="night"] .tuto-section { color: #24b955; }
+[data-theme="night"] .tuto-text { color: rgba(150, 245, 185, .84); }
+[data-theme="night"] .tuto-key { color: #a8ffc6; background: #04100a; }
+[data-theme="night"] .tuto-cmd { color: #c6ffd9; }

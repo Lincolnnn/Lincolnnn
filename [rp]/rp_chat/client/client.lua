@@ -38,8 +38,7 @@ SetTextChatEnabled(false)
 
 -- =========================================================================
 -- RÉGLAGES DU JOUEUR
--- Par défaut : même fond et même contour que le MDC (thème sombre bleu nuit à 80 % d'opacité, contour fin
--- de 1 px).
+-- Par défaut : fond sombre bleu nuit à 80 % d'opacité, contour BLANC fin de 1 px, coins presque carrés (comme le MDC).
 -- =========================================================================
 local DEFAULTS = {
     shade = 22,             -- teinte du fond : 0 = noir … 100 = gris bleuté (22 : bleu nuit du MDC)
@@ -48,7 +47,7 @@ local DEFAULTS = {
     width = 32,             -- largeur du chat (% de l'écran)
     height = 30,            -- hauteur du chat (% de l'écran)
     border = true,          -- contour affiché
-    borderColor = '#2e3a4d',
+    borderColor = '#ffffff',
     borderWidth = 1,        -- épaisseur du contour (px)
     meMode = 'chat',        -- /me : 'chat' (dans le chat, rayon 50 m) ou 'head' (au-dessus des têtes)
     feed = 'fade',          -- nouveaux messages chat fermé : 'fade' (affichés 8 s), 'always', 'never'
@@ -82,6 +81,8 @@ local function sanitize(input)
     if type(input.border) == 'boolean' then out.border = input.border end
     if type(input.borderColor) == 'string' and input.borderColor:match('^#%x%x%x%x%x%x$') then
         out.borderColor = input.borderColor:lower()
+        -- ancien contour par défaut (bleu nuit) : remplacé par le nouveau, blanc
+        if out.borderColor == '#2e3a4d' then out.borderColor = DEFAULTS.borderColor end
     end
     return out
 end

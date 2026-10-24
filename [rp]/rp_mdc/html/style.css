@@ -1089,3 +1089,159 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 
 /* MDC générique : pas d'unité (note et statut de l'unité masqués dans la barre du bas) */
 .window.agency-generic #sbStatus { visibility: hidden; }
+
+/* =========================================================================
+   MODE NUIT (Paramètres > MDC > Apparence ; <html data-theme="night">, posé par script.js)
+   Fond noir très sombre, tout en VERT : les écarts de couleur du mode jour deviennent des écarts de vert (titres
+   vert foncé, texte vert clair, zones et boutons plus ou moins verts). Seuls les STATUTS des unités (Disponible,
+   En route, Sur place, Indisponible : --st-*) gardent leurs couleurs.
+   ========================================================================= */
+:root[data-theme="night"] {
+    --mica:      2, 7, 4;
+    --mica-2:    4, 12, 7;
+    --card:      rgba(7, 24, 13, .92);
+    --card-2:    rgba(60, 255, 130, .06);
+    --card-3:    rgba(60, 255, 130, .11);
+    --input:     #030b06;
+    --input-hover: #06140b;
+    --input-focus: #030b06;
+    --stroke:    rgba(60, 255, 130, .16);
+    --stroke-2:  rgba(60, 255, 130, .3);
+    --text:      #a8ffc6;                      /* texte : vert clair */
+    --text-2:    rgba(150, 245, 185, .84);
+    --muted:     rgba(110, 205, 145, .64);
+    --faint:     rgba(110, 205, 145, .42);
+    --title:     #24b955;                      /* titres : vert plus foncé */
+    --accent:    #3ddc74;
+    --accent-rgb: 61, 220, 116;
+    --accent-ink: #021006;
+    --danger:    #c8ffda;
+    --danger-rgb: 70, 230, 125;
+    --warn-rgb:  50, 190, 100;
+    --ok-rgb:    40, 160, 85;
+    --shadow:    0 24px 56px rgba(0, 0, 0, .7), 0 0 0 1px rgba(60, 255, 130, .08);
+    --agency-wsp:  #1c6b38;
+    --agency-kcso: #12502a;
+    color-scheme: dark;
+}
+/* Les HUD et notifications (déjà sombres) passent aussi au vert */
+[data-theme="night"] .hud, [data-theme="night"] .toasts, [data-theme="night"] .hud-placebar, [data-theme="night"] .car-notice-anchor {
+    --card: rgba(60, 255, 130, .05); --card-2: rgba(60, 255, 130, .08); --card-3: rgba(60, 255, 130, .14);
+    --stroke: rgba(60, 255, 130, .16); --stroke-2: rgba(60, 255, 130, .3);
+    --text: #a8ffc6; --text-2: rgba(150, 245, 185, .84); --muted: rgba(110, 205, 145, .64); --faint: rgba(110, 205, 145, .42);
+    --accent: #3ddc74; --accent-rgb: 61, 220, 116;
+}
+[data-theme="night"] body { color: var(--text); }
+
+/* Titres : vert foncé */
+[data-theme="night"] .page-head h1, [data-theme="night"] .legend, [data-theme="night"] .subgroup-title,
+[data-theme="night"] .chooser-box h2, [data-theme="night"] .agency-card-text b, [data-theme="night"] .sheet-title,
+[data-theme="night"] .settings-cat > summary, [data-theme="night"] .app-name, [data-theme="night"] .rp-name,
+[data-theme="night"] .navpane .legend, [data-theme="night"] .memo-head .legend { color: var(--title); }
+[data-theme="night"] .agency-title { color: var(--text); }
+
+/* Logos (WSP, KCSO) : en vert, comme le reste */
+[data-theme="night"] .app-icon img, [data-theme="night"] .agency-card-icon img, [data-theme="night"] .chooser-logos img {
+    filter: grayscale(1) sepia(1) hue-rotate(75deg) saturate(3.2) brightness(.85);
+}
+
+/* Fenêtre */
+[data-theme="night"] .win-btn:hover, [data-theme="night"] .title-action:hover { background: rgba(60, 255, 130, .08); }
+[data-theme="night"] .win-close:hover { background: #1d7a3f; color: #eafff1; }
+[data-theme="night"] .win-close:active { background: #16602f; }
+
+/* Boutons : plus ou moins verts, aucune autre couleur */
+[data-theme="night"] .btn { background: #04100a; border-color: rgba(60, 255, 130, .34); border-bottom-color: rgba(60, 255, 130, .5); color: var(--text); }
+[data-theme="night"] .btn:hover { background: #082414; }
+[data-theme="night"] .btn:active, [data-theme="night"] .btn.active { background: #0b2e19; color: var(--text); }
+[data-theme="night"] .btn-default { background: #0e4a24; border-color: #2fbf5f; color: #c6ffd9; }
+[data-theme="night"] .btn-default:hover { background: #136030; }
+[data-theme="night"] .btn-default:active, [data-theme="night"] .btn-default.active { background: #0b3c1d; color: #c6ffd9; }
+[data-theme="night"] .btn-default:disabled { background: #04100a; color: var(--faint); }
+[data-theme="night"] .btn-danger:hover, [data-theme="night"] .btn-danger.confirm { background: #1d7a3f; border-color: #3ddc74; color: #eafff1; }
+[data-theme="night"] .btn-ghost, [data-theme="night"] .btn.subtab { background: transparent; border-color: transparent; }
+[data-theme="night"] .btn.subtab.active { background: var(--card-2); border-color: var(--stroke); }
+[data-theme="night"] .agency-card.active { background: rgba(60, 255, 130, .08); }
+[data-theme="night"] .agency-card.confirm { border-color: #3ddc74; background: rgba(60, 255, 130, .12); }
+
+/* Champs, listes, tableaux */
+[data-theme="night"] input[type="text"], [data-theme="night"] input[type="number"], [data-theme="night"] textarea,
+[data-theme="night"] select, [data-theme="night"] .multi-btn { border-bottom-color: rgba(60, 255, 130, .5); }
+[data-theme="night"] select option { background: #030b06; color: var(--text); }
+[data-theme="night"] select option:disabled { color: var(--faint); }
+[data-theme="night"] input:invalid:not(:placeholder-shown) { color: #e6fff0; }
+[data-theme="night"] input.invalid, [data-theme="night"] select.invalid, [data-theme="night"] textarea.invalid { border-color: #3ddc74; border-bottom-color: #3ddc74; background: rgba(60, 255, 130, .12); }
+[data-theme="night"] .multi-panel, [data-theme="night"] .suggest, [data-theme="night"] .well, [data-theme="night"] .mx-wrap { background: #030b06; box-shadow: 0 8px 20px rgba(0, 0, 0, .6); }
+[data-theme="night"] .grid th, [data-theme="night"] .dept-fold > summary, [data-theme="night"] .dept-fold.locked > summary:hover { background: #06140b; color: var(--title); }
+[data-theme="night"] .dept-fold > summary:hover { background: #0a1f11; }
+[data-theme="night"] .grid td { border-bottom-color: rgba(60, 255, 130, .08); }
+[data-theme="night"] .grid.selectable tbody tr:hover td, [data-theme="night"] .grid.matrix tbody tr:hover td { background: rgba(60, 255, 130, .05); }
+[data-theme="night"] .grid.selectable tbody tr.selected td { background: rgba(60, 255, 130, .12); }
+[data-theme="night"] .grid tr.row-wanted td { color: #e6fff0; }
+[data-theme="night"] .subgroup, [data-theme="night"] .fold-body, [data-theme="night"] .settings-grid .group, [data-theme="night"] .sheet dt { background: rgba(60, 255, 130, .03); }
+[data-theme="night"] ::-webkit-scrollbar-thumb { background: rgba(60, 255, 130, .25); background-clip: padding-box; }
+[data-theme="night"] ::-webkit-scrollbar-thumb:hover { background: rgba(60, 255, 130, .4); background-clip: padding-box; }
+
+/* Pastilles et étiquettes de couleur -> nuances de vert (plus la couleur était forte, plus le vert est clair) */
+[data-theme="night"] .flag { background: rgba(60, 255, 130, .07); color: var(--text-2); }
+[data-theme="night"] .flag.c-red    { background: rgba(60, 255, 130, .26); color: #e6fff0; }
+[data-theme="night"] .flag.c-orange { background: rgba(60, 255, 130, .2);  color: #d2ffe2; }
+[data-theme="night"] .flag.c-yellow { background: rgba(60, 255, 130, .15); color: #bfffd5; }
+[data-theme="night"] .flag.c-green  { background: rgba(60, 255, 130, .11); color: #a8ffc6; }
+[data-theme="night"] .flag.c-blue, [data-theme="night"] .flag.c-purple { background: rgba(60, 255, 130, .08); color: #8fe6ad; }
+[data-theme="night"] .flag.c-gray   { background: rgba(60, 255, 130, .05); color: var(--muted); }
+[data-theme="night"] .sheet-alert, [data-theme="night"] .sheet-alert.yellow, [data-theme="night"] .sheet-alert.orange { background: rgba(60, 255, 130, .14); color: #e6fff0; border-color: rgba(60, 255, 130, .45); }
+[data-theme="night"] .hint-box, [data-theme="night"] .report-call, [data-theme="night"] .share-hint { color: var(--text); background: rgba(60, 255, 130, .06); border-color: rgba(60, 255, 130, .25); }
+[data-theme="night"] .report-call .lbl { color: var(--title); }
+[data-theme="night"] .unit-tag, [data-theme="night"] .dept-tag, [data-theme="night"] .dept-badge, [data-theme="night"] .side-bolo-kind { color: #d9ffe6; }
+[data-theme="night"] .tag-red    { background: #2e9e57; }
+[data-theme="night"] .tag-orange { background: #268a4a; }
+[data-theme="night"] .tag-yellow { background: #217a41; }
+[data-theme="night"] .tag-pink   { background: #1c6b38; }
+[data-theme="night"] .tag-purple { background: #185e31; }
+[data-theme="night"] .tag-blue   { background: #14522a; }
+[data-theme="night"] .tag-green  { background: #104624; }
+[data-theme="night"] .tag-gray   { background: #0c3a1e; }
+[data-theme="night"] .agency-common, [data-theme="night"] .dept-tag, [data-theme="night"] .dept-badge { background: #0f3f21; }
+[data-theme="night"] .agency-wsp { background: var(--agency-wsp); }
+[data-theme="night"] .agency-kcso { background: var(--agency-kcso); }
+[data-theme="night"] .side-bolo-kind.per { background: #2e9e57; }
+[data-theme="night"] .side-bolo-kind.veh { background: #1c6b38; }
+/* Priorités des appels : P1 vert le plus clair … non urgent le plus sombre */
+[data-theme="night"] .grid tr.prio-p1, [data-theme="night"] .call-toast.prio-p1 { --prio: 150, 255, 185; }
+[data-theme="night"] .grid tr.prio-p2, [data-theme="night"] .call-toast.prio-p2 { --prio: 80, 225, 130; }
+[data-theme="night"] .grid tr.prio-p3, [data-theme="night"] .call-toast.prio-p3 { --prio: 45, 180, 95; }
+[data-theme="night"] .grid tr.prio-nonurgent, [data-theme="night"] .call-toast.prio-nonurgent { --prio: 30, 125, 65; }
+[data-theme="night"] .call-toast, [data-theme="night"] .status-toast { --prio: 45, 180, 95; }
+
+/* HUD (PLD, display de l'unité, car HUD) et notifications */
+[data-theme="night"] .hud:not(.hud-car), [data-theme="night"] .toast, [data-theme="night"] .call-toast, [data-theme="night"] .car-notice, [data-theme="night"] .hud-placebar {
+    background: rgba(2, 8, 4, .88); border-color: rgba(60, 255, 130, .25); color: var(--text);
+}
+[data-theme="night"] .hud-label, [data-theme="night"] .pld-zone, [data-theme="night"] .pld-line, [data-theme="night"] .hu-sep,
+[data-theme="night"] .hu-none, [data-theme="night"] .ct-number, [data-theme="night"] .offer-time, [data-theme="night"] .car-notice-text small { color: var(--muted); }
+[data-theme="night"] .pld-street, [data-theme="night"] .hu-name, [data-theme="night"] .ct-title, [data-theme="night"] .ct-status,
+[data-theme="night"] .car-notice-text b, [data-theme="night"] .offer-toast .ct-head { color: var(--text); }
+[data-theme="night"] .ct-unit { color: var(--text-2); }
+[data-theme="night"] .toast.error::before, [data-theme="night"] .toast.success::before { background: #3ddc74; color: #021006; }
+[data-theme="night"] .offer-keys kbd, [data-theme="night"] .car-notice-key { color: #021006; background: #a8ffc6; box-shadow: 0 2px 0 #1c6b38; }
+/* Car HUD : vert ; les alertes (réserve, panne, ceinture) se voient à l'intensité du vert et au clignotement */
+[data-theme="night"] #carSpeed, [data-theme="night"] .car-gear-letter { color: #a8ffc6; }
+[data-theme="night"] .car-unit, [data-theme="night"] .car-fuel-icon { color: rgba(150, 245, 185, .75); }
+[data-theme="night"] .car-rpm, [data-theme="night"] .car-fuel-bar { background: rgba(60, 255, 130, .2); }
+[data-theme="night"] .car-rpm-fill, [data-theme="night"] .car-fuel-fill { background: #7dffa8; }
+[data-theme="night"] .car-rpm-fill.car-redline, [data-theme="night"] .car-fuel-fill.car-low { background: #d9ffe6; }
+[data-theme="night"] .car-fuel-fill.car-empty { background: #ffffff; }
+[data-theme="night"] .car-belt.belt-on svg * { fill: #a8ffc6; }
+[data-theme="night"] .car-gear-pill, [data-theme="night"] .car-gear.gear-r .car-gear-pill { background: #a8ffc6; }
+[data-theme="night"] .car-gear:not(.gear-r) .car-gear-letter[data-gear="D"], [data-theme="night"] .car-gear.gear-r .car-gear-letter[data-gear="R"] { color: #021006; }
+[data-theme="night"] .car-broken { color: #d9ffe6; }
+[data-theme="night"] .car-broken.car-damaged { color: #7dffa8; }
+[data-theme="night"] .hud-car.car-is-broken #carSpeed, [data-theme="night"] .hud-car.car-is-broken .car-unit, [data-theme="night"] .hud-car.car-is-broken .car-fuel-icon { color: #e6fff0; }
+[data-theme="night"] .hud-car.car-is-broken .car-rpm-fill, [data-theme="night"] .hud-car.car-is-broken .car-fuel-fill { background: #e6fff0; }
+[data-theme="night"] .hud-car.car-is-broken .car-rpm, [data-theme="night"] .hud-car.car-is-broken .car-fuel-bar { background: rgba(60, 255, 130, .35); }
+[data-theme="night"] .hud-car.car-is-broken .car-belt svg * { stroke: #e6fff0; }
+[data-theme="night"] .hud-car.car-is-broken .car-belt.belt-on svg * { fill: #e6fff0; }
+[data-theme="night"] .hud-car.car-is-broken .car-broken { color: #ffffff; }
+[data-theme="night"] .car-belt svg * { animation-name: belt-blink-night; }
+@keyframes belt-blink-night { 0% { fill: #e6fff0; } 50% { fill: transparent; } }
