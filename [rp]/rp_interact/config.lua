@@ -71,8 +71,9 @@ InteractConfig = {
     -- une action qui prévient le SERVEUR de ce script (événement réseau, avec le n° réseau de l'objet) ;
     -- plusieurs actions : Options = { { Label, Icon, Event }, ... }.
     ExternalSnap = 0.7,             -- m : objet ci-dessous trouvé même si le rayon touche le sol à côté (arme couchée)
-    -- Scripts qui ajoutent leurs options à l'œil (exports targetOptions / targetSelect), même sur le sol ou un mur
-    TargetProviders = { 'rp_RoleplayZone', 'rp_doorlock', 'rp_vehicleprops', 'rp_taser10' },
+    -- Scripts qui ajoutent leurs options à l'œil (exports targetOptions / targetSelect), même sur le sol ou un mur ;
+    -- 'ox_target' : le pont [rp]/ox_target (options des scripts qui exigent ox_target, ex. riven_spikes)
+    TargetProviders = { 'rp_RoleplayZone', 'rp_doorlock', 'rp_vehicleprops', 'rp_taser10', 'ox_target' },
     -- Scènes de roleplay : dans leur secteur (zone / lieu / objet + 70 m), « Supprimer » (props, véhicules, objets)
     -- n'est ni proposé ni accepté
     SceneResource = 'rp_RoleplayZone',

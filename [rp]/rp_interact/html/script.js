@@ -73,6 +73,8 @@
         hand: '<path d="M8 13V6a1.5 1.5 0 0 1 3 0v5V4a1.5 1.5 0 0 1 3 0v7V5.5a1.5 1.5 0 0 1 3 0V15c0 3.5-2.5 6-6 6-2.5 0-4-1.2-5.5-3.5L3.5 14a1.6 1.6 0 0 1 2.6-1.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
         lock: '<rect x="5" y="11" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" fill="none" stroke="currentColor" stroke-width="1.8"/>',
         unlock: '<rect x="5" y="11" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+        barrier: '<path d="M3 9h18v5H3Z M6 14v6M18 14v6M6 9V5M18 9V5M7 9l5 5M12 9l5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>',
+        box: '<path d="M3 4h18v4H3Z M5 8v12h14V8 M10 12h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>',
     };
     const icon = (name) => `<svg viewBox="0 0 24 24">${ICONS[name] || ICONS.eye}</svg>`;
 
