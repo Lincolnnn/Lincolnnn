@@ -17,7 +17,14 @@ VCConfig = {
     -- coupe alors ses propres modules qui feraient doublon (voir README, « Avec Riven Impact Dynamics ») et garde
     -- le reste : essence, moteur (O), portières, clignotants, warnings d'accident, D / R, poussée, motos, tirs, car
     -- HUD du MDC (ceinture lue chez Riven). Mode : 'auto' (dès que la ressource est installée), true ou false.
-    Riven = { Mode = 'auto', Resource = 'riven-impact-dynamics' },
+    -- Pont riven/bridge.lua (UNE ligne à ajouter dans le fxmanifest de Riven, voir README) :
+    --   Lamps : ses voyants de dégâts juste au-dessus du car HUD du MDC, liés à lui (place, taille, affichés avec lui) ;
+    --     le logo « moteur abîmé » du car HUD disparaît : les dégâts, ce sont ses voyants ;
+    --   HideLamps : ses voyants déjà présents sur le car HUD (ceinture) ;
+    --   Notify : ses notifications en français, en message privé du chat (titre « Véhicule ») comme les nôtres ;
+    --   MuteBelt : sauf « ceinture attachée / détachée » (le logo du car HUD et le son suffisent).
+    Riven = { Mode = 'auto', Resource = 'riven-impact-dynamics',
+        Lamps = true, HideLamps = { 'belt' }, Notify = true, MuteBelt = true },
 
     Keys = {
         engine = 'O',        -- SEULE touche qui allume / coupe le moteur (conducteur)

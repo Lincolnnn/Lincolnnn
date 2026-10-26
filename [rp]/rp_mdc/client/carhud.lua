@@ -20,3 +20,19 @@ local ACTIONS = {
 AddEventHandler('mdc:carHud', function(action, data)
     if ACTIONS[action] and type(data) == 'table' then SendNUIMessage({ action = action, data = data }) end
 end)
+
+-- Riven Impact Dynamics : ses voyants de dégâts se placent juste au-dessus du car HUD et le suivent
+-- (rp_vehiclecontrol/riven/bridge.lua, chargé dans la ressource de Riven, reçoit sa place par "rp_mdc:carHudRect")
+local carRect = { visible = false } -- { visible, x, y, w, h (fractions de l'écran), scale }
+RegisterNUICallback('carHudRect', function(data, cb)
+    cb({ ok = true })
+    if type(data) ~= 'table' then return end
+    carRect = data
+    TriggerEvent('rp_mdc:carHudRect', carRect)
+end)
+AddEventHandler('rp_mdc:carHudRectRequest', function() TriggerEvent('rp_mdc:carHudRect', carRect) end)
+
+-- Voyants allumés : la notification du moteur monte d'un cran pour ne pas les cacher
+AddEventHandler('riven-impact-dynamics:lamps', function(list)
+    SendNUIMessage({ action = 'rivenLamps', data = { count = type(list) == 'table' and #list or 0 } })
+end)

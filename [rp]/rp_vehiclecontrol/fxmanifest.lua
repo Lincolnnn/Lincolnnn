@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_vehiclecontrol'
 author 'Lincolnnn'
 description 'Vehicle Control : essence, dégâts, accidents réalistes, terrain, ceinture, motos (projection), moteur, portières, clignotants et poussée - standalone'
-version '1.38.0'
+version '1.39.0'
 
 ui_page 'html/index.html' -- message "pousser le véhicule", sons du véhicule, fiche /inspectvehicle, réparation de fortune (le car HUD est dessiné par le MDC)
 
@@ -20,6 +20,7 @@ files {
     'html/style.css',
     'html/script.js',
     'html/sounds/*.ogg', -- sons du véhicule (ceinture, carillons de ceinture et de portière, clignotants) : à déposer vous-même (voir LISEZMOI.txt)
+    'riven/bridge.lua',  -- chargé par Riven Impact Dynamics (client_script '@rp_vehiclecontrol/riven/bridge.lua', voir README)
 }
 
 shared_script 'config.lua'
@@ -42,6 +43,7 @@ client_scripts {
     'client/terrain.lua',   -- sol : herbe, terre, gravier, sable, boue (puissance, vitesse, adhérence)
     'client/occupants.lua', -- occupants : blessures, vue troublée, sonnés, tête qui part (1re personne)
     'client/inspect.lua',   -- /inspectvehicle (état du véhicule), /fieldrepair (réparation de fortune)
+    'client/riven.lua',     -- Riven Impact Dynamics : réglages et notifications du pont (riven/bridge.lua)
     'client/controls.lua',  -- moteur (O), portières (U / I)
     'client/signals.lua',   -- clignotants et warnings (flèches gauche / droite / bas)
     'client/gear.lua',      -- marche avant / marche arrière (flèche haut)

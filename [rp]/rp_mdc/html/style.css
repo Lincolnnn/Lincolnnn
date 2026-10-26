@@ -987,6 +987,8 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 
 /* Notification du moteur : juste au-dessus du car HUD, entre par la gauche */
 .car-notice-anchor { position: fixed; z-index: 31; transform-origin: top left; pointer-events: none; width: 0; height: 0; }
+/* Voyants de Riven Impact Dynamics allumés juste au-dessus du car HUD : la notification passe au-dessus d'eux */
+.car-notice-anchor.riven-lit .car-notice { bottom: calc(8px + 2.8vh); }
 .car-notice {
     position: absolute; left: 0; bottom: 8px;
     display: flex; align-items: center; gap: 12px;

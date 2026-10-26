@@ -3500,7 +3500,7 @@
         const show = cfg.enabled && !!car && (hud.placing || !car.paused);
         el.classList.toggle('hidden', !show);
         placeCarNotice();
-        if (!show) return;
+        if (!show) return reportCarRect(false);
         // Conducteur : car HUD complet ; passagers : seulement le logo de la ceinture
         el.classList.toggle('car-passenger', car.mode === 'passenger');
         // Moteur coupé : tout est grisé ; il s'illumine au démarrage
@@ -3537,6 +3537,23 @@
         gear.classList.toggle('part-empty', car.gear !== 'D' && car.gear !== 'R');
         gear.classList.toggle('gear-r', car.gear === 'R');
         placeHud(el, cfg);
+        reportCarRect(true);
+    }
+
+    // Riven Impact Dynamics (rp_vehiclecontrol/riven/bridge.lua) : ses voyants de dégâts se placent au-dessus du
+    // car HUD ; sa place (fractions de l'écran) n'est envoyée que lorsqu'elle change
+    let carRectKey = '';
+    function reportCarRect(show) {
+        let data = { visible: false };
+        if (show) {
+            const r = $('#hudCar').getBoundingClientRect();
+            data = { visible: r.width > 0, x: r.left / innerWidth, y: r.top / innerHeight,
+                w: r.width / innerWidth, h: r.height / innerHeight, scale: hud.settings.car.scale };
+        }
+        const key = data.visible ? [data.x, data.y, data.w, data.h, data.scale].map((v) => Number(v).toFixed(3)).join('|') : 'hidden';
+        if (key === carRectKey) return;
+        carRectKey = key;
+        post('carHudRect', data);
     }
 
     // Notification du moteur : au-dessus du car HUD (même position / taille), glisse depuis la gauche
@@ -4719,6 +4736,9 @@
                 hud.car = data.data || null;
                 if (!(hud.car && hud.car.inVehicle)) hideCarNotice(true); // descendu du véhicule
                 renderCar();
+                break;
+            case 'rivenLamps': // voyants de Riven allumés au-dessus du car HUD : la notification du moteur monte
+                $('#carNoticeAnchor').classList.toggle('riven-lit', !!(data.data && data.data.count > 0));
                 break;
             case 'carNoticeHide': // touche du moteur utilisée
                 hideCarNotice(false);

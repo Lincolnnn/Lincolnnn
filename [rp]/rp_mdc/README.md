@@ -30,13 +30,18 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
 ├── rp_doorlock/         portes verrouillées, frapper, enfoncer (police)
 ├── rp_vehicleprops/     objets collés sur les véhicules (œil)
 ├── rp_taser10/          TASER 10 (sondes, fils, laser, lampe ; œil)
+├── ox_target/           pont : les scripts qui exigent ox_target utilisent l'œil (herses de riven_spikes)
 ├── rp_TrafficControl/   gestion du trafic
 ├── rp_RoleplayZone/     scènes de roleplay
 └── rp_Ganghunt/         vagues d'ennemis (/ganghunt)
 ```
 
 Facultatif : **Riven Impact Dynamics** (script payant, installé à part dans `[rp]/riven-impact-dynamics/`, jamais
-dans ce dépôt) ; `rp_vehiclecontrol` lui laisse alors les accidents et la ceinture (voir son README).
+dans ce dépôt) ; `rp_vehiclecontrol` lui laisse alors les accidents et la ceinture, et ses **voyants de dégâts
+s'affichent juste au-dessus du car HUD** (même place, même taille, affichés avec lui ; voir le README de
+`rp_vehiclecontrol`).
+Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans ce dépôt) : il exige `ox_lib` (gratuit,
+à installer) et `ox_target`, remplacé ici par le **pont [`ox_target/`](../ox_target/README.md)** branché sur l'œil.
 
 1. Copiez le dossier **`[rp]`** tel quel dans `resources/` (FiveM trouve les ressources dans les dossiers entre
    crochets).
@@ -47,6 +52,9 @@ dans ce dépôt) ; `rp_vehiclecontrol` lui laisse alors les accidents et la cein
    # ensure riven-impact-dynamics   (facultatif, script payant : AVANT rp_vehiclecontrol)
    ensure rp_vehiclecontrol
    ensure rp_interact
+   ensure ox_target                 # le pont vers l'œil (PAS le vrai ox_target), après rp_interact
+   # ensure ox_lib                  (facultatif : seulement pour riven_spikes)
+   # ensure riven_spikes            (facultatif, script payant : après ox_lib et ox_target)
    ensure rp_equipment
    ensure rp_camshake
    ensure rp_NPCcontrol

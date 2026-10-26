@@ -478,7 +478,8 @@ function VC.sendHud(vehicle)
     local rpm = running and GetVehicleCurrentRpm(vehicle) or 0.0
     rpm = math.max(0.0, math.min(1.0, (rpm - 0.2) / 0.8)) -- ralenti ~0.2 -> 0 %, régime maximal -> 100 %
     local h = VC.hud
-    local broken = VC.state(vehicle, 'vcBroken') == true
+    -- Riven : ses voyants (au-dessus du car HUD, riven/bridge.lua) montrent les dégâts ; pas de logo moteur ici
+    local broken = not VC.riven and VC.state(vehicle, 'vcBroken') == true
     local show = driver or h.belt ~= nil -- passager sans ceinture (moto…) : rien
     local data = {
         inVehicle = true,
@@ -490,7 +491,7 @@ function VC.sendHud(vehicle)
         fuel = h.fuel and math.floor(h.fuel + 0.5) or nil, -- nil : pas de réservoir (jauge masquée)
         alarm = h.alarm == true,
         broken = broken,                                   -- logo rouge : moteur détruit (palier 2)
-        damaged = not broken and VC.state(vehicle, 'vcDamaged') == true, -- logo orange : très abîmé (palier 1)
+        damaged = not VC.riven and not broken and VC.state(vehicle, 'vcDamaged') == true, -- logo orange : très abîmé (palier 1)
         paused = IsPauseMenuActive() or IsScreenFadedOut(),
     }
     if h.belt ~= nil then data.belt = h.belt end -- absent : pas de ceinture (logo masqué)
