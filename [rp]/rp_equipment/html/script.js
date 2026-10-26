@@ -3,7 +3,7 @@
     const $ = (id) => document.getElementById(id);
     const box = $('equip');
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_equipment';
-    let state = { slots: [], rack: {}, held: false, stock: false, inv: { carrying: 0, maxCarry: 5, flares: 0, maxHeld: 25, jerrycan: false }, coneQty: 1 };
+    let state = { slots: [], rack: {}, held: false, stock: false, inv: { carrying: 0, maxCarry: 5, flares: 0, maxHeld: 25, jerrycan: false, radar: false }, coneQty: 1 };
     let messageTimer = null;
 
     function post(name, data) {
@@ -93,6 +93,12 @@
         $('eqCanHeld').textContent = held ? `Sur vous : 1 (${inv.jerrycan} %)` : 'Sur vous : aucun';
         $('eqCanTake').disabled = cans <= 0 || held;
         $('eqCanStore').disabled = !held || cans >= (st.maxJerrycans || 1);
+        // Pistolet radar : un par coffre
+        const radars = Number(st.radars) || 0;
+        $('eqRadars').textContent = `${radars} / ${st.maxRadars || 1} dans le coffre`;
+        $('eqRadarHeld').textContent = inv.radar ? 'Sur vous : 1' : 'Sur vous : aucun';
+        $('eqRadarTake').disabled = radars <= 0 || !!inv.radar;
+        $('eqRadarStore').disabled = !inv.radar || radars >= (st.maxRadars || 1);
         $('eqFlares').textContent = `${st.flares} / ${st.maxFlares} dans le coffre`;
         $('eqFlaresHeld').textContent = `Sur vous : ${inv.flares}`;
         box.querySelectorAll('[data-flares="take"]').forEach((b) => { b.disabled = st.flares <= 0 || inv.flares >= inv.maxHeld; });
@@ -145,6 +151,8 @@
         if (e.target.closest('#eqConeStore')) return post('coneStore');
         if (e.target.closest('#eqCanTake')) return post('jerrycan', { mode: 'take' });
         if (e.target.closest('#eqCanStore')) return post('jerrycan', { mode: 'store' });
+        if (e.target.closest('#eqRadarTake')) return post('radarGun', { mode: 'take' });
+        if (e.target.closest('#eqRadarStore')) return post('radarGun', { mode: 'store' });
         const flares = e.target.closest('[data-flares]');
         if (flares) return post('flares', { mode: flares.dataset.flares, all: !!flares.dataset.all });
         if (e.target.closest('#eqClose')) return post('close');

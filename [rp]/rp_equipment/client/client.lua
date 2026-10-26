@@ -528,6 +528,7 @@ end
 
 local PETROLCAN = GetHashKey(S.Jerrycans and S.Jerrycans.Weapon or 'WEAPON_PETROLCAN')
 local CAN_AMMO = S.Jerrycans and S.Jerrycans.Ammo or 4500
+local RADARGUN = GetHashKey(S.RadarGuns and S.RadarGuns.Weapon or 'WEAPON_RADARGUN')
 
 --- Jerrican sur soi : essence restante (en % d'un jerrican plein), false s'il n'en a pas
 local function canHeld(ped)
@@ -540,11 +541,12 @@ sendInventory = function(force)
     local ped = PlayerPedId()
     local cones = carried and carried.count or 0
     local can = canHeld(ped)
-    local key = ('%d:%d:%s'):format(cones, flaresHeld(ped), tostring(can))
+    local radar = HasPedGotWeapon(ped, RADARGUN, false)
+    local key = ('%d:%d:%s:%s'):format(cones, flaresHeld(ped), tostring(can), tostring(radar))
     if key == lastInventory and not force then return end
     lastInventory = key
     SendNUIMessage({ action = 'inventory', data = { carrying = cones, maxCarry = MAX_CARRY, flares = flaresHeld(ped),
-        maxHeld = MAX_FLARES_HELD, jerrycan = can } })
+        maxHeld = MAX_FLARES_HELD, jerrycan = can, radar = radar } })
 end
 
 local function loadAnim(dict)
@@ -777,7 +779,7 @@ RegisterCommand(S.RestockCommand or 'restock', function()
     if not vehicle then return notify('Aucun véhicule de police à côté de vous.') end
     request('restock', { net = VehToNet(vehicle), type = kind, where = 'trunk' }, function(res)
         if not res.ok then return notify(res.error or 'Action impossible.') end
-        notify(('Véhicule %s réapprovisionné : %d / %d plots, %d / %d fusées (armes longues : à ranger vous-même).'):format(
+        notify(('Véhicule %s réapprovisionné : %d / %d plots, %d / %d fusées, jerrican et pistolet radar (armes longues : à ranger vous-même).'):format(
             res.plate or '', res.stock.cones, res.stock.maxCones, res.stock.flares, res.stock.maxFlares))
     end)
 end, false)
@@ -830,6 +832,27 @@ RegisterNUICallback('jerrycan', function(data, cb)
         else
             RemoveWeaponFromPed(p, PETROLCAN)
             SendNUIMessage({ action = 'message', data = { text = 'Jerrican rangé dans le coffre.' } })
+        end
+        sendInventory(true)
+    end)
+end)
+
+-- Pistolet radar : { mode = 'take' | 'store' }
+RegisterNUICallback('radarGun', function(data, cb)
+    cb({ ok = true })
+    if not open or type(data) ~= 'table' then return end
+    local payload = context()
+    payload.mode = data.mode == 'take' and 'take' or 'store'
+    payload.held = HasPedGotWeapon(PlayerPedId(), RADARGUN, false)
+    request('radarGun', payload, function(res)
+        if not stockResult(res) then return end
+        local p = PlayerPedId()
+        if res.mode == 'take' then
+            GiveWeaponToPed(p, RADARGUN, 1, false, true)
+            SendNUIMessage({ action = 'message', data = { text = 'Pistolet radar pris.' } })
+        else
+            RemoveWeaponFromPed(p, RADARGUN)
+            SendNUIMessage({ action = 'message', data = { text = 'Pistolet radar rangé dans le coffre.' } })
         end
         sendInventory(true)
     end)

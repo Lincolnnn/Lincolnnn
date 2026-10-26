@@ -99,7 +99,7 @@ avoir modifié le fichier de rp_interact : tapez `rpequip_reload` dans la consol
   avec la même plaque.
 - Armes addon : leurs accessoires se déclarent dans `LongGuns.ExtraComponents`, leur nom dans `LongGuns.Names`.
 
-## Coffre : plots de circulation et fusées (inventaire)
+## Coffre : plots de circulation, jerrican, pistolet radar et fusées (inventaire)
 
 Au **coffre** d'un véhicule de police, la partie **« Coffre »** du menu se gère **comme un inventaire**, sauvegardé
 **par plaque** dans `data/stock.json` (gardé au redémarrage du serveur et quand le véhicule réapparaît avec la même
@@ -108,7 +108,7 @@ plaque). C'est le **même coffre pour tous** les policiers.
 **Plots de circulation** (cône orange à bandes blanches, `prop_roadcone02a`)
 - **7 plots d'origine** dans chaque véhicule de police (`Stock.Cones.Default`), **10 au maximum** (`Stock.Cones.Max`).
 - **`/restock`** (policier en service, assis dans le véhicule de police ou à 6 m de lui) : coffre rempli à **100 %** :
-  **10 / 10 plots**, **20 / 20 fusées** et un **jerrican plein**. Les **armes longues** ne sont pas touchées (à ranger soi-même).
+  **10 / 10 plots**, **20 / 20 fusées**, un **jerrican plein** et le **pistolet radar**. Les **armes longues** ne sont pas touchées (à ranger soi-même).
 - **Prendre** : le policier **choisit le nombre** avec **− / +** (de 1 à ce que le coffre contient et ce qu'il peut
   encore porter : **5 plots au plus** à la fois, `Stock.Cones.MaxCarry`), puis **« Prendre N plots »**. Il les **porte en pile dans les mains**.
   Plots en main : pas d'arme, pas de coup, pas de visée, pas de montée en véhicule.
@@ -150,6 +150,14 @@ menu** (jamais ceux du décor).
   (40 %) »). Un seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi.
 - **`/restock`** remet un jerrican **plein** dans le coffre.
 
+**Pistolet radar** (`WEAPON_RADARGUN`, `Stock.RadarGuns`)
+- **Un pistolet radar** dans le coffre de **chaque véhicule de police** (1 / 1) : **« Prendre »** / **« Ranger »**. Un
+  seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi. **`/restock`** le remet.
+
+**Herse** (script payant **riven_spikes**, facultatif) : elle ne passe pas par ce menu mais par **l'œil** (Alt) sur le
+coffre de tout véhicule d'urgence : **« Prendre : Herse »** / **« Ranger la herse dans le coffre »** (une par véhicule,
+policiers en service ; voir [`ox_target/`](../ox_target/README.md)).
+
 **Fusées de détresse** (`WEAPON_FLARE`, posées au sol avec `rp_flares`)
 - Rangeables **comme les armes longues** : **« Ranger 1 »** / **« Tout ranger »** (celles que le policier a sur lui) et
   **« Prendre 1 »** / **« Prendre tout »**. **20 au maximum** par coffre (`Stock.Flares.Max`), aucune d'origine (les
@@ -168,7 +176,7 @@ menu** (jamais ceux du décor).
 | `Types`, `InteractVehicles`, `ServiceTypes` | types de véhicules (catégories de rp_interact, modèles, classes) |
 | `EquipmentFile`, `Eup` | fichier de l'équipement EUP (`equipment.json`), numéros comptés à partir de 1 |
 | `OpenFrontDoor` | ouvrir la portière avant la plus proche pendant le menu |
-| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` = 5 portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), jerrican (`Jerrycans` : 1 plein d'origine, 1 max, `Ammo` = plein), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |
+| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` = 5 portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), jerrican (`Jerrycans` : 1 plein d'origine, 1 max, `Ammo` = plein), pistolet radar (`RadarGuns` : 1 d'origine, 1 max), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |
 | `LongGuns` | râtelier : types concernés, armes longues acceptées (`Groups`), emplacements (`Slots` : avant / coffre, `Where`), munitions données (`GiveAmmo`), fichier de sauvegarde, accessoires et noms en plus |
 
 ## Performance

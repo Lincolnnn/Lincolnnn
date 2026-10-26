@@ -80,6 +80,7 @@ EquipConfig = {
     --     policier le PORTE ; touche PlaceKey (G) : posé au sol ; l'œil (rp_interact) : "Ramasser le plot" ; menu du
     --     coffre : "Ranger le plot" (n'importe quel coffre, dans la limite).
     --   - Fusées de détresse (WEAPON_FLARE, rp_flares) : rangées / prises comme les armes longues.
+    --   - Jerrican d'essence et pistolet radar (WEAPON_RADARGUN) : un de chaque par coffre, à prendre et ranger.
     -- ---------------------------------------------------------------------
     Stock = {
         Enabled = true,
@@ -117,8 +118,11 @@ EquipConfig = {
         -- Jerrican d'essence : PLEIN dans le coffre de chaque véhicule de police (Default), à prendre et ranger ; il garde
         -- l'essence qui lui reste (plein = Ammo = 2/5 d'un réservoir avec rp_vehiclecontrol). /restock le remet plein.
         Jerrycans = { Default = 1, Max = 1, Weapon = 'WEAPON_PETROLCAN', Ammo = 4500 },
+        -- Pistolet radar (jumelles de vitesse) : un dans le coffre de chaque véhicule de police, à prendre et ranger
+        -- (la herse de riven_spikes se prend aussi au coffre, avec l'œil : voir README)
+        RadarGuns = { Default = 1, Max = 1, Weapon = 'WEAPON_RADARGUN' },
         PlaceKey = 'G',
-        RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots et fusées), sauf armes longues
+        RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots, fusées, jerrican, pistolet radar), sauf armes longues
         RestockDistance = 6.0,      -- m : véhicule de police le plus proche (ou celui où l'on est assis)
     },
 }
