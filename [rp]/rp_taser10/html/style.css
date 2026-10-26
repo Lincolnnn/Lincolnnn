@@ -1,0 +1,81 @@
+:root {
+    font-family: Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: transparent !important;
+}
+
+.cid {
+    position: fixed;
+    right: 2.2vw;
+    bottom: 4vh;
+    width: 330px;
+    transition: opacity .15s, transform .15s;
+}
+
+.cid.hidden {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.cid.stealth {
+    opacity: .35;
+}
+
+.axon-display {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1491 / 465;
+    background-image: url('imgs/background.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+    image-rendering: pixelated;
+}
+
+.screen-display {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background-image: url('imgs/charge/cart10.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+}
+
+.battery-display {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 29%;
+    height: 100%;
+    z-index: 2;
+    transform: translateX(1px);
+    background-image: url('imgs/full_battery.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+.battery-display.hidden {
+    display: none;
+}
+
+
+@media (max-width: 900px) {
+    .cid {
+        width: 280px;
+        transform: scale(.86);
+        transform-origin: right bottom;
+    }
+}

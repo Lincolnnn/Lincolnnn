@@ -29,6 +29,7 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
 ├── rp_flares/           fusées de détresse
 ├── rp_doorlock/         portes verrouillées, frapper, enfoncer (police)
 ├── rp_vehicleprops/     objets collés sur les véhicules (œil)
+├── rp_taser10/          TASER 10 (sondes, fils, laser, lampe ; œil)
 ├── rp_TrafficControl/   gestion du trafic
 ├── rp_RoleplayZone/     scènes de roleplay
 └── rp_Ganghunt/         vagues d'ennemis (/ganghunt)
@@ -48,6 +49,7 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
    ensure rp_flares
    ensure rp_doorlock
    ensure rp_vehicleprops
+   ensure rp_taser10
    ensure rp_TrafficControl
    ensure rp_RoleplayZone
    ensure rp_Ganghunt
@@ -84,6 +86,9 @@ les policiers en service **enfoncent** une porte verrouillée à coups de pied.
 
 Et **RP VehicleProps** dans [`rp_vehicleprops/`](../rp_vehicleprops/README.md) : avec l'œil sur un véhicule, **ajouter,
 déplacer ou retirer des objets collés** dessus (sac, arme, radio, carton…), vus par tous les joueurs.
+
+Et le **TASER 10** dans [`rp_taser10/`](../rp_taser10/README.md) : script de Cartoon adapté sans `ox_target` (retirer
+les sondes et recharger avec l'œil).
 
 Et **RP TrafficControl** dans [`rp_TrafficControl/`](../rp_TrafficControl/README.md) : gestion du trafic **sans supprimer
 de véhicules**, sur un tronçon précis (**une voie**, **un sens** ou **la route entière**) : fermeture (nœuds du jeu

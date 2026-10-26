@@ -72,7 +72,7 @@ InteractConfig = {
     -- plusieurs actions : Options = { { Label, Icon, Event }, ... }.
     ExternalSnap = 0.7,             -- m : objet ci-dessous trouvé même si le rayon touche le sol à côté (arme couchée)
     -- Scripts qui ajoutent leurs options à l'œil (exports targetOptions / targetSelect), même sur le sol ou un mur
-    TargetProviders = { 'rp_RoleplayZone', 'rp_doorlock', 'rp_vehicleprops' },
+    TargetProviders = { 'rp_RoleplayZone', 'rp_doorlock', 'rp_vehicleprops', 'rp_taser10' },
     -- Scènes de roleplay : dans leur secteur (zone / lieu / objet + 70 m), « Supprimer » (props, véhicules, objets)
     -- n'est ni proposé ni accepté
     SceneResource = 'rp_RoleplayZone',
