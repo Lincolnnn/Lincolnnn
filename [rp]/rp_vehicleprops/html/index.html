@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Objets du véhicule</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="vp hidden" id="vp">
+        <div class="vp-banner">
+            <div class="vp-icon">
+                <svg viewBox="0 0 24 24"><path d="M3 15l2-6a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 9l2 6v3a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1H6.5v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 4h6v3.6H9z" fill="currentColor" opacity=".85"/></svg>
+            </div>
+            <div class="vp-head">
+                <div class="vp-title" id="vpTitle">Objets du véhicule</div>
+                <div class="vp-sub" id="vpSub"></div>
+            </div>
+            <button type="button" class="vp-close" id="vpClose" title="Fermer (Échap)">✕</button>
+        </div>
+
+        <!-- Liste : objets à ajouter, ou objets posés (déplacer / retirer) -->
+        <div class="vp-body" id="vpList"></div>
+
+        <!-- Éditeur : position et rotation -->
+        <div class="vp-body hidden" id="vpEditor">
+            <div class="vp-hint" id="vpHint"></div>
+            <div class="vp-section">
+                <div class="vp-legend">Position <small>(m, depuis le centre du véhicule)</small></div>
+                <div id="vpPos"></div>
+            </div>
+            <div class="vp-section">
+                <div class="vp-legend">Rotation <small>(degrés)</small></div>
+                <div id="vpRot"></div>
+            </div>
+            <div class="vp-section">
+                <div class="vp-row">
+                    <span class="vp-label">Sensibilité</span>
+                    <input type="range" id="vpSens">
+                    <span class="vp-val" id="vpSensVal"></span>
+                </div>
+            </div>
+            <div class="vp-actions">
+                <button type="button" class="vp-btn" id="vpReset" title="Remettre la rotation à zéro">Rotation à zéro</button>
+                <span class="grow"></span>
+                <button type="button" class="vp-btn" id="vpCancel">Annuler</button>
+                <button type="button" class="vp-btn primary" id="vpSave">Enregistrer</button>
+            </div>
+        </div>
+        <div class="vp-keys"><kbd>Échap</kbd> <span id="vpKeyText">Fermer</span></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

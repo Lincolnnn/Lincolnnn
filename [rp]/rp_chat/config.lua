@@ -85,7 +85,7 @@ ChatConfig = {
                 { "Verr. Maj", "police : œil d'aigle (ce qui est à fouiller, zone proche)" },
                 { "/scene", "civil : zone de recherche, lieu ou objet à fouiller" },
                 { "G", "civil, arme en main : jeter / poser son arme (molette)" },
-                { "Alt", "œil (maintenir) : inspecter, fouiller, portières, s'asseoir…" },
+                { "Alt", "œil (maintenir) : inspecter, fouiller, portières, s'asseoir, objets sur un véhicule…" },
             } },
             { title = "Véhicule", items = {
                 { "O", "moteur" }, { "G", "ceinture" }, { "U / I", "sa portière / les deux avant" },
