@@ -865,9 +865,6 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .setting-text { line-height: 1.5; }
 .settings-chat-missing { margin: 12px 16px; padding: 10px 12px; color: var(--muted); font-style: italic; border: 1px dashed var(--stroke-2); border-radius: var(--radius-sm); }
 .chat-border-options.disabled { opacity: .45; pointer-events: none; }
-.chat-color-input { width: 90px !important; font-family: monospace; text-transform: lowercase; }
-.swatch-chat { width: 18px; height: 18px; border: 1px solid rgba(0, 0, 0, .2); border-radius: 50%; cursor: pointer; padding: 0; }
-.swatch-chat.active { outline: 2px solid var(--text); outline-offset: 1px; }
 .chat-commands { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; font-size: 12px; align-items: baseline; }
 .chat-commands dt { font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; }
 .chat-commands dd { color: var(--muted); }
@@ -1148,12 +1145,12 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 }
 
 /* =========================================================================
-   MODE NUIT (Paramètres > MDC > Apparence ; <html data-theme="night">, posé par script.js)
+   MODE NUIT (Paramètres > MDC > Apparence ; data-theme="night" sur #mdc / #suggestBox et sur #hudLayer, posé par script.js)
    Fond noir très sombre, dans la COULEUR du mode nuit (vert par défaut, jaune, rouge ou bleu) : les écarts de couleur du mode jour deviennent des écarts de vert (titres
    vert foncé, texte vert clair, zones et boutons plus ou moins verts). Seuls les STATUTS des unités (Disponible,
    En route, Sur place, Indisponible : --st-*) gardent leurs couleurs.
    ========================================================================= */
-:root[data-theme="night"] {
+[data-theme="night"] {
     --mica:      var(--n-bg-rgb);
     --mica-2:    var(--n-bg2-rgb);
     --card:      rgba(var(--n-card-rgb), .92);
@@ -1180,9 +1177,11 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
     --agency-wsp:  var(--n-tag-4);
     --agency-kcso: var(--n-tag-kcso);
 }
-/* Contrôles et barres de défilement sombres : sur le body, JAMAIS sur la racine (<html>). Le NUI est un cadre dans la
-   page du jeu : une racine en color-scheme sombre lui donne un fond opaque noir qui cache tout l'écran. */
-[data-theme="night"] body { color-scheme: dark; }
+/* Thème posé sur la fenêtre du MDC (#mdc, #suggestBox) et sur la couche des HUD / notifications (#hudLayer), JAMAIS
+   sur la racine (<html>) : le NUI est un cadre dans la page du jeu, une racine en color-scheme sombre lui donnerait un
+   fond opaque noir qui cache tout l'écran. */
+[data-theme="night"] { color: var(--text); color-scheme: dark; }
+.theme-layer { display: contents; }
 /* Les HUD et notifications (déjà sombres) passent aussi au vert */
 [data-theme="night"] .hud, [data-theme="night"] .toasts, [data-theme="night"] .hud-placebar, [data-theme="night"] .car-notice-anchor {
     --card: rgba(var(--n-rgb), .05); --card-2: rgba(var(--n-rgb), .08); --card-3: rgba(var(--n-rgb), .14);
@@ -1190,7 +1189,6 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
     --text: var(--n-text); --text-2: rgba(var(--n-text-rgb), .84); --muted: rgba(var(--n-muted-rgb), .64); --faint: rgba(var(--n-muted-rgb), .42);
     --accent: var(--n-accent); --accent-rgb: var(--n-accent-rgb);
 }
-[data-theme="night"] body { color: var(--text); }
 
 /* Titres : vert foncé */
 [data-theme="night"] .page-head h1, [data-theme="night"] .legend, [data-theme="night"] .subgroup-title,

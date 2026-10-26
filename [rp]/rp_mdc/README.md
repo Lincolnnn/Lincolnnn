@@ -150,15 +150,19 @@ plus de flou de l'arrière-plan.
   vifs, logos WSP / KCSO teintés. Les quatre couleurs ont exactement les mêmes contrastes. **Seuls les statuts des unités** (Disponible, En route, Sur place, Indisponible) **gardent leurs
   couleurs**. Les HUD (PLD, display, car HUD) et les notifications prennent aussi cette couleur ; les alertes du car
   HUD se lisent alors à l'intensité de la couleur et au clignotement.
-- **Le mode nuit s'applique à** : **toutes les interfaces** (MDC et menus, par défaut), **seulement le MDC**, ou
-  **seulement les menus extérieurs** (pas le MDC) : Menu Interaction et `/eup`, fiche civile, œil, `/scene`,
-  équipement du véhicule, gestion du trafic, Ganghunt, page `/tuto`, barre pour enfoncer une porte, message
-  « pousser ». Le **contour du chat écrit** prend la couleur du mode nuit (s'il est affiché) ; le chat garde son fond
-  et les couleurs des commandes.
+- **Le mode nuit s'applique à** : **toutes les interfaces** (MDC, HUD, PLD et menus, par défaut), **seulement le MDC**
+  (la fenêtre du MDC uniquement : HUD, PLD, car HUD et notifications gardent leur thème habituel), ou **seulement les
+  menus extérieurs** (pas la fenêtre du MDC) : HUD (PLD, display, car HUD) et notifications du MDC, Menu Interaction
+  et `/eup`, fiche civile, œil, `/scene`, équipement du véhicule, gestion du trafic, Ganghunt, page `/tuto`, barre pour
+  enfoncer une porte, message « pousser ». Le **contour du chat écrit** n'est plus réglable en couleur : **blanc** en
+  mode jour, **couleur du mode nuit** (vert, jaune, rouge ou bleu) quand le mode nuit s'applique aux menus ; le chat
+  garde son fond et les couleurs des commandes.
 - Gardé chez le joueur, comme les autres réglages. Pour les développeurs : exports client `uiTheme()` ('night' ou
   'day', pour les menus extérieurs) et `uiNightColor()` ('green', 'yellow', 'red', 'blue'), événement client
   `mdc:uiTheme` (theme, color) à chaque changement ; chaque ressource les envoie à son NUI (`client/theme.lua`), qui
-  pose `data-theme="night"` et `data-night-color` sur la page (couleurs : variables `--n-*` en haut du bloc « mode
+  pose `data-theme="night"` et `data-night-color` sur la page (dans le MDC : `data-theme` sur la fenêtre `#mdc` et
+  sur la couche des HUD `#hudLayer`, jamais `color-scheme` sur la racine ; jamais de `color-mix()`, inconnu du
+  navigateur du jeu) (couleurs : variables `--n-*` en haut du bloc « mode
   nuit » de chaque `style.css`).
 
 - **NOM RP** : il s'affiche en haut à gauche et dans les unités (le pseudo Steam/FiveM n'est jamais affiché). **Obligatoire pour

@@ -8,7 +8,7 @@
 </head>
 <body>
     <!-- Fenêtre principale : masquée par défaut, positionnée/redimensionnée par script.js -->
-    <div id="mdc" class="window hidden" role="application" aria-label="Mobile Data Computer">
+    <div id="mdc" class="window hidden" data-theme="day" role="application" aria-label="Mobile Data Computer">
 
         <!-- ================= BARRE DE TITRE (déplacement + boutons fenêtre) ================= -->
         <div class="titlebar" id="titlebar">
@@ -696,9 +696,9 @@
                                 </label>
                                 <label class="lbl setting-select">Le mode nuit s'applique à
                                     <select data-setting="mdc.themeScope">
-                                        <option value="all">Toutes les interfaces (MDC et menus)</option>
-                                        <option value="mdc">Seulement le MDC</option>
-                                        <option value="menus">Seulement les menus extérieurs (pas le MDC)</option>
+                                        <option value="all">Toutes les interfaces (MDC, HUD, PLD et menus)</option>
+                                        <option value="mdc">Seulement le MDC (la fenêtre)</option>
+                                        <option value="menus">Seulement les menus extérieurs, HUD et PLD (pas le MDC)</option>
                                     </select>
                                 </label>
                                 <label class="check"><input type="checkbox" data-setting="mdc.glass"> Fenêtre légèrement transparente</label>
@@ -858,11 +858,7 @@
                                     <span class="subgroup-title">Contour</span>
                                     <label class="check"><input type="checkbox" data-chat-setting="border"> Afficher le contour</label>
                                     <div class="chat-border-options" id="chatBorderOptions">
-                                        <div class="setting-row">
-                                            <span class="lbl-inline">Couleur</span>
-                                            <div class="swatches" id="chatBorderSwatches"></div>
-                                            <input type="text" class="chat-color-input" maxlength="7" data-chat-setting="borderColor" placeholder="#ffffff">
-                                        </div>
+                                        <p class="hint-text">Couleur automatique : blanc en mode jour, couleur du mode nuit (vert, jaune, rouge ou bleu) en mode nuit.</p>
                                         <div class="setting-row">
                                             <span class="lbl-inline">Épaisseur</span>
                                             <input type="range" min="1" max="4" step="0.5" data-chat-setting="borderWidth">
@@ -997,7 +993,14 @@
         </div>
     </template>
 
+    <!-- Rapports : liste déroulante de l'historique des recherches (nom de famille / immatriculation) : thème du MDC -->
+    <div id="suggestBox" class="suggest hidden" data-theme="day"></div>
+
     <!-- ================= HUD (hors du MDC, visibles même MDC fermé) ================= -->
+    <!-- Mode nuit : la fenêtre du MDC (#mdc) et ces HUD / notifications ont chacun leur thème (data-theme) :
+         "Seulement le MDC" ne change que la fenêtre ; HUD, PLD et notifications suivent "Toutes les interfaces" et
+         "Seulement les menus extérieurs" -->
+    <div id="hudLayer" class="theme-layer" data-theme="day">
     <!-- PLD : Player Localisation Display -->
     <div class="hud hud-pld hidden" id="hudPld" data-hud="pld">
         <div class="pld-dir" data-part="dir" id="pldDir">N</div>
@@ -1078,11 +1081,10 @@
         <button type="button" class="btn btn-default" id="hudPlaceDone">Terminer</button>
     </div>
 
-    <!-- Rapports : liste déroulante de l'historique des recherches (nom de famille / immatriculation) -->
-    <div id="suggestBox" class="suggest hidden"></div>
 
     <!-- Notifications -->
     <div id="toasts" class="toasts"></div>
+    </div>
 
     <script src="script.js"></script>
 </body>

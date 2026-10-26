@@ -3638,8 +3638,15 @@
         const s = hud.settings.mdc;
         win.style.setProperty('--ui-zoom', s.zoom);
         win.style.setProperty('--glass-a', s.glass ? s.opacity : 1); // transparence de la fenêtre
-        // Mode nuit sur le MDC (fenêtre, HUD, notifications) sauf s'il ne s'applique qu'aux menus des autres ressources
-        document.documentElement.dataset.theme = s.theme === 'night' && s.themeScope !== 'menus' ? 'night' : 'day';
+        // Mode nuit : la FENÊTRE du MDC (et sa liste de suggestions) avec "Toutes les interfaces" ou "Seulement le
+        // MDC" ; les HUD (PLD, unité, car HUD) et les notifications avec "Toutes les interfaces" ou "Seulement les
+        // menus extérieurs"
+        const night = s.theme === 'night';
+        const mdcTheme = night && s.themeScope !== 'menus' ? 'night' : 'day';
+        const hudTheme = night && s.themeScope !== 'mdc' ? 'night' : 'day';
+        win.dataset.theme = mdcTheme;
+        $('#suggestBox').dataset.theme = mdcTheme;
+        $('#hudLayer').dataset.theme = hudTheme;
         document.documentElement.dataset.nightColor = s.nightColor;
         $('[data-setting="mdc.themeScope"]').disabled = s.theme !== 'night';
         $('[data-setting="mdc.nightColor"]').disabled = s.theme !== 'night';
@@ -3702,7 +3709,6 @@
 
     // ---- Paramètres > "Chat écrit et commandes" (ressource rp_chat) ----
     // Réglages gardés par le chat (KVP du joueur) : lus et modifiés via le client Lua du MDC.
-    const CHAT_BORDER_COLORS = ['#ffffff', '#3a3a3a', '#5a5a5a', '#7a7a7a', '#a0a0a0', '#d0d0d0', '#3a6ea5', '#8a2a2a', '#2f7a43'];
     const chatSet = { settings: null, defaults: null, timer: null };
 
     const shadeLabel = (v) => (v <= 10 ? 'Noir' : v <= 35 ? 'Plutôt noir' : v <= 60 ? 'Gris foncé' : v <= 85 ? 'Gris' : 'Gris clair');
@@ -3731,8 +3737,6 @@
             el.textContent = CHAT_VALUE_TEXT[key](s[key]);
         });
         $('#chatBorderOptions').classList.toggle('disabled', !s.border);
-        $('#chatBorderSwatches').innerHTML = CHAT_BORDER_COLORS.map((c) => `
-            <button type="button" class="swatch-chat ${c === s.borderColor ? 'active' : ''}" data-chat-color="${c}" style="background:${c}" title="${c}"></button>`).join('');
     }
 
     async function loadChatSettings() {
@@ -3771,14 +3775,7 @@
         if (!key || !chatSet.settings) return;
         if (input.type === 'checkbox') setChatSetting(key, input.checked);
         else if (input.type === 'range') setChatSetting(key, Number(input.value));
-        else if (key === 'borderColor') {
-            // Couleur tapée à la main : appliquée dès qu'elle est complète (#rrggbb)
-            if (/^#[0-9a-fA-F]{6}$/.test(input.value)) setChatSetting(key, input.value.toLowerCase());
-        } else setChatSetting(key, input.value);
-    });
-    $('#chatSettings').addEventListener('click', (e) => {
-        const swatch = e.target.closest('[data-chat-color]');
-        if (swatch) setChatSetting('borderColor', swatch.dataset.chatColor);
+        else setChatSetting(key, input.value);
     });
 
     $('#chatReset').addEventListener('click', async (e) => {

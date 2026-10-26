@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_TrafficControl'
 author 'Lincolnnn'
 description 'Gestion du trafic voie par voie : fermeture (nœuds / PNJ rabattus), ralentissement, arrêt - standalone, NUI Vanilla JS'
-version '1.4.1'
+version '1.4.2'
 
 ui_page 'html/index.html'
 

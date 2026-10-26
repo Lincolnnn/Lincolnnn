@@ -63,7 +63,8 @@
         const shade = (s.shade / 100) * 120;
         const tint = (k) => Math.min(255, Math.round(shade * k));
         root.setProperty('--chat-bg', `rgba(${tint(0.78)}, ${tint(0.93)}, ${tint(1.25)}, ${s.opacity / 100})`);
-        root.setProperty('--chat-border', s.border ? `${s.borderWidth}px solid ${s.borderColor}` : 'none');
+        // Contour : blanc le jour ; couleur du mode nuit la nuit (style.css, [data-theme="night"] .chat)
+        root.setProperty('--chat-border', s.border ? `${s.borderWidth}px solid #ffffff` : 'none');
         root.setProperty('--chat-font', `${s.fontSize}px`);
         root.setProperty('--chat-w', `${s.width}vw`);
         root.setProperty('--chat-h', `${s.height}vh`);

@@ -46,8 +46,7 @@ local DEFAULTS = {
     fontSize = 14,          -- taille du texte (px)
     width = 32,             -- largeur du chat (% de l'écran)
     height = 30,            -- hauteur du chat (% de l'écran)
-    border = true,          -- contour affiché
-    borderColor = '#ffffff',
+    border = true,          -- contour affiché (couleur automatique : blanc le jour, couleur du mode nuit la nuit)
     borderWidth = 1,        -- épaisseur du contour (px)
     meMode = 'chat',        -- /me : 'chat' (dans le chat, rayon 50 m) ou 'head' (au-dessus des têtes)
     feed = 'fade',          -- nouveaux messages chat fermé : 'fade' (affichés 8 s), 'always', 'never'
@@ -79,11 +78,7 @@ local function sanitize(input)
         if set[input[key]] then out[key] = input[key] end
     end
     if type(input.border) == 'boolean' then out.border = input.border end
-    if type(input.borderColor) == 'string' and input.borderColor:match('^#%x%x%x%x%x%x$') then
-        out.borderColor = input.borderColor:lower()
-        -- ancien contour par défaut (bleu nuit) : remplacé par le nouveau, blanc
-        if out.borderColor == '#2e3a4d' then out.borderColor = DEFAULTS.borderColor end
-    end
+    -- (ancien réglage borderColor ignoré : la couleur du contour suit le thème)
     return out
 end
 

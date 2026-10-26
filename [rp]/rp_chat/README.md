@@ -1,7 +1,7 @@
 # RP Chat (FiveM)
 
 Chat écrit rôleplay **100% standalone** (sans ESX / QBCore / vRP) qui **remplace le chat d'origine** de FiveM.
-Interface NUI en HTML/CSS/Vanilla JS, fond sombre « bleu nuit » (à 80 %), **contour blanc** fin et coins presque carrés comme le MDC (réglables par joueur ; l'ancien contour bleu nuit par défaut devient blanc) pour rester lisible sur le jeu ; la page `/tuto` reprend le thème clair du MDC.
+Interface NUI en HTML/CSS/Vanilla JS, fond sombre « bleu nuit » (à 80 %), **contour blanc** fin et coins presque carrés comme le MDC (contour affiché ou non et épaisseur réglables par joueur ; sa couleur suit le thème : blanc le jour, couleur du mode nuit la nuit) pour rester lisible sur le jeu ; la page `/tuto` reprend le thème clair du MDC.
 Conçu pour fonctionner avec le MDC du même dépôt (`rp_mdc`), mais utilisable seul.
 
 ## Installation
@@ -97,7 +97,7 @@ Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` e
 Dans le MDC : onglet **Paramètres > Chat écrit et commandes**. Gardés chez chaque joueur (KVP `rpchat_settings`), même après une reconnexion :
 
 - Teinte du fond (de noir à gris), opacité du fond, taille du texte, largeur et hauteur du chat ;
-- Contour : affiché ou non, couleur (couleurs proposées ou code `#rrggbb`), épaisseur ;
+- Contour : affiché ou non, épaisseur (couleur automatique : blanc en mode jour, couleur du mode nuit en mode nuit) ;
 - Nouveaux messages, chat fermé : affichés quelques secondes / toujours affichés / masqués ;
 - **Affichage des /me** : dans le chat écrit (par défaut), ou **au-dessus de la tête** des joueurs. Ce choix ne concerne que
   le joueur qui l'a fait : il voit alors ses `/me` et ceux des autres au-dessus des têtes, en vert pâle, sans fond et en

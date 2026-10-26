@@ -139,9 +139,11 @@ kbd {
 /* Bannière : pleine couleur de la page (ou de la police), dégradé vers le bas à droite, reflet discret */
 .kb-banner {
     position: relative; display: flex; align-items: center; gap: 14px; height: 76px; padding: 0 18px;
-    background:
+    /* pas de color-mix() : le navigateur du jeu (Chromium de FiveM) ne le connaît pas, la couleur disparaîtrait */
+    background-color: var(--kb-color);
+    background-image:
         radial-gradient(120% 140% at 0% 0%, rgba(255, 255, 255, .16), transparent 55%),
-        linear-gradient(125deg, color-mix(in srgb, var(--kb-color) 100%, #ffffff 8%) 0%, var(--kb-color) 45%, color-mix(in srgb, var(--kb-color) 55%, #0a0e15) 100%);
+        linear-gradient(125deg, rgba(255, 255, 255, .07) 0%, rgba(255, 255, 255, 0) 45%, rgba(10, 14, 21, .45) 100%);
     border-bottom: 1px solid rgba(255, 255, 255, .12);
 }
 .kb-banner::after {
@@ -166,10 +168,13 @@ kbd {
 .kb-sub { margin-top: 3px; font-size: 12px; color: rgba(255, 255, 255, .82); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .kb-crumb {
-    display: flex; justify-content: space-between; gap: 12px; padding: 6px 14px;
-    font-size: 11px; font-weight: 600; color: var(--muted); background: var(--card-2);
+    position: relative; display: flex; justify-content: space-between; gap: 12px; padding: 6px 14px;
+    font-size: 11px; font-weight: 600; color: var(--kb-color); background: var(--card-2);
     border-bottom: 1px solid var(--stroke);
 }
+/* Fil d'Ariane légèrement teinté de la couleur de la bannière */
+.kb-crumb::before { content: ""; position: absolute; inset: 0; background: var(--kb-color); opacity: .09; pointer-events: none; }
+.kb-path, .kb-count { position: relative; }
 .kb-path { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .kb-count { flex: none; font-variant-numeric: tabular-nums; }
 
@@ -181,9 +186,11 @@ kbd {
     position: relative; display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px;
     font-size: 13.5px; color: var(--text-2); border-radius: var(--radius-sm);
 }
+/* Ligne choisie : pleine couleur de la bannière (page ou police), bien visible */
 .kb-item.sel {
-    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 82%, #003a70));
-    color: #fff; box-shadow: 0 2px 6px rgba(var(--accent-rgb), .25);
+    background-color: var(--kb-color);
+    background-image: linear-gradient(90deg, rgba(255, 255, 255, .1), rgba(0, 0, 0, .14));
+    color: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .22), inset 3px 0 0 rgba(255, 255, 255, .55);
 }
 .kb-item.disabled { color: var(--faint); }
 .kb-item.disabled.sel { background: var(--card-3); color: var(--muted); box-shadow: none; }
@@ -199,9 +206,9 @@ kbd {
 .kb-arrow { flex: none; font-size: 18px; line-height: 1; color: var(--muted); }
 .kb-section {
     display: flex; align-items: center; gap: 8px;
-    padding: 10px 12px 4px; font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted);
+    padding: 10px 12px 4px; font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--kb-color);
 }
-.kb-section::after { content: ""; flex: 1; height: 1px; background: var(--stroke); }
+.kb-section::after { content: ""; flex: 1; height: 1px; background: var(--kb-color); opacity: .3; }
 .kb-section:first-child { padding-top: 4px; }
 .kb-info {
     padding: 6px 12px; font-size: 12px; color: var(--text-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
@@ -218,7 +225,7 @@ kbd {
     content: ""; position: absolute; top: 3px; left: 3px; width: 10px; height: 10px; border-radius: 50%;
     background: var(--text-2); transition: transform .12s ease;
 }
-.kb-check.on { background: var(--accent); border-color: var(--accent); }
+.kb-check.on { background: var(--kb-color, var(--accent)); border-color: var(--kb-color, var(--accent)); }
 .kb-check.on::after { transform: translateX(18px); background: var(--accent-ink); }
 .kb-item.disabled .kb-check { opacity: .45; }
 
@@ -230,7 +237,7 @@ kbd {
 .kb-item.sel .kb-check { border-color: rgba(255, 255, 255, .8); }
 .kb-item.sel .kb-check::after { background: #fff; }
 .kb-item.sel .kb-check.on { background: #fff; border-color: #fff; }
-.kb-item.sel .kb-check.on::after { background: var(--accent); }
+.kb-item.sel .kb-check.on::after { background: var(--kb-color, var(--accent)); }
 .kb-item.sel .kb-value { color: #fff; background: rgba(0, 0, 0, .2); border-color: rgba(255, 255, 255, .25); }
 .kb-item.sel .kb-value.is-empty { color: rgba(255, 255, 255, .7); }
 
@@ -574,6 +581,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 [data-theme="night"] .kb-item.sel .kb-check.on::after { background: var(--n-press-2); }
 [data-theme="night"] .kb-item.sel .kb-value { color: var(--n-bright); background: rgba(0, 0, 0, .35); border-color: rgba(var(--n-rgb), .35); }
 [data-theme="night"] .kb-tag { background: var(--n-accent); }
+[data-theme="night"] .kb-crumb::before { display: none; }
+[data-theme="night"] .kb-section::after { background: var(--stroke); opacity: 1; }
+[data-theme="night"] .kb-check.on { background: var(--accent); border-color: var(--accent); }
 [data-theme="night"] .kb-list { box-shadow: none; }
 [data-theme="night"] .eye.has-options .eye-icon { color: var(--n-accent); }
 /* Barres, tips d'arrestation, notifications : vert (l'alerte « mis en joue » se voit au vert plus clair et au clignotement) */
