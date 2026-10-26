@@ -9,6 +9,9 @@
     Performance : rien en dehors d'un accident ; un nettoyage toutes les 5 s seulement tant qu'il reste des débris.
 ]]
 
+-- Riven Impact Dynamics installé : c'est lui qui gère les débris (config.lua : Riven)
+if VC.riven then return end
+
 local Config = VCConfig.Debris or {}
 local Bodywork = VCConfig.Bodywork or {}
 

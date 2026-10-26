@@ -35,12 +35,16 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
 └── rp_Ganghunt/         vagues d'ennemis (/ganghunt)
 ```
 
+Facultatif : **Riven Impact Dynamics** (script payant, installé à part dans `[rp]/riven-impact-dynamics/`, jamais
+dans ce dépôt) ; `rp_vehiclecontrol` lui laisse alors les accidents et la ceinture (voir son README).
+
 1. Copiez le dossier **`[rp]`** tel quel dans `resources/` (FiveM trouve les ressources dans les dossiers entre
    crochets).
 2. Dans `server.cfg`, démarrez celles que vous voulez, le MDC en premier :
    ```
    ensure rp_chat
    ensure rp_mdc
+   # ensure riven-impact-dynamics   (facultatif, script payant : AVANT rp_vehiclecontrol)
    ensure rp_vehiclecontrol
    ensure rp_interact
    ensure rp_equipment

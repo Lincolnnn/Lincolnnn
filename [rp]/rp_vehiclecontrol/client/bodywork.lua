@@ -19,6 +19,9 @@
     trains (SkipClasses). Performance : rien en dehors d'un choc.
 ]]
 
+-- Riven Impact Dynamics installé : c'est lui qui gère la carrosserie (config.lua : Riven)
+if VC.riven then return end
+
 local Config = VCConfig.Bodywork or {}
 
 local WHEELS = { -- os des roues -> numéro de roue et de pneu du jeu

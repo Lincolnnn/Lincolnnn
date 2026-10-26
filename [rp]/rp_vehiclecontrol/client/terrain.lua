@@ -11,6 +11,9 @@
     Performance : un rayon vers le bas toutes les Interval ms en roulant ; rien à l'arrêt ni à pied.
 ]]
 
+-- Riven Impact Dynamics installé : c'est lui qui gère le terrain (config.lua : Riven)
+if VC.riven then return end
+
 local Config = VCConfig.Terrain or {}
 local MPH = 2.236936
 

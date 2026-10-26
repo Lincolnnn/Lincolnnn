@@ -12,6 +12,9 @@
     Performance : une lecture de la vitesse par image à bord (déjà faite par la boucle), le reste toutes les 100 ms.
 ]]
 
+-- Riven Impact Dynamics installé : c'est lui qui gère les roues (config.lua : Riven)
+if VC.riven then return end
+
 local Config = VCConfig.Wheels or {}
 local Turn, Curb = Config.Turn or {}, Config.Curb or {}
 local MPH = 2.236936

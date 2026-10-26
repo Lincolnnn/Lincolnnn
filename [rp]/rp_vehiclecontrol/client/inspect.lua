@@ -11,6 +11,9 @@
     Performance : rien en dehors des commandes ; une boucle à chaque image pendant la réparation seulement.
 ]]
 
+-- Riven Impact Dynamics installé : c'est lui qui gère /inspectvehicle et /fieldrepair (config.lua : Riven)
+if VC.riven then return end
+
 local Inspect = VCConfig.Inspect or {}
 local Field = VCConfig.FieldRepair or {}
 local Damage = VCConfig.Damage or {}

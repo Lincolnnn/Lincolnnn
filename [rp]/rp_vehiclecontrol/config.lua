@@ -11,6 +11,14 @@ VCConfig = {
     -- TOUCHES (valeurs par défaut : chaque joueur les change dans
     -- Paramètres > Raccourcis clavier > FiveM)
     -- ---------------------------------------------------------------------
+    -- RIVEN IMPACT DYNAMICS (script payant de Riven Systems, installé à part, jamais dans ce dépôt) : s'il est sur le
+    -- serveur, c'est LUI qui gère les accidents, la carrosserie, le verre, les débris, les tonneaux, les roues, le
+    -- terrain, les blessures, la ceinture (touche G, voir son config) et /inspectvehicle, /fieldrepair. Ce script
+    -- coupe alors ses propres modules qui feraient doublon (voir README, « Avec Riven Impact Dynamics ») et garde
+    -- le reste : essence, moteur (O), portières, clignotants, warnings d'accident, D / R, poussée, motos, tirs, car
+    -- HUD du MDC (ceinture lue chez Riven). Mode : 'auto' (dès que la ressource est installée), true ou false.
+    Riven = { Mode = 'auto', Resource = 'riven-impact-dynamics' },
+
     Keys = {
         engine = 'O',        -- SEULE touche qui allume / coupe le moteur (conducteur)
         seatbelt = 'G',      -- attacher / détacher la ceinture (K ouvre le MDC)

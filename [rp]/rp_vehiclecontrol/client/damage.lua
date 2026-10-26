@@ -148,8 +148,10 @@ local function updateState(vehicle, engine)
         VC.setState(vehicle, 'vcDamaged', damaged)
         VC.smokeLocal(vehicle, damaged)
     end
-    capSpeed(vehicle, stage == 1 and Config.CriticalMaxSpeed or 0.0)
     updateHazards(vehicle, stage)
+    -- Riven : puissance, calages et vitesse d'un moteur abîmé gérés par ses organes mécaniques
+    if VC.riven then capSpeed(vehicle, 0.0); power = 1.0; return end
+    capSpeed(vehicle, stage == 1 and Config.CriticalMaxSpeed or 0.0)
     power = (stage >= 1 and Config.CriticalPower) or (engine < Config.Damaged and Config.DamagedPower) or 1.0
 end
 
@@ -172,6 +174,11 @@ VC.on('tick', function(_, vehicle, dt)
     -- Dégâts reçus depuis la dernière mesure (une hausse = réparation : simple mise à jour), selon ce
     -- qui a été percuté
     local loss, bodyLoss = math.max(last.engine - engine, 0.0), math.max(last.body - body, 0.0)
+    -- Riven : les dégâts du moteur sont les siens (ne pas les réduire ni en ajouter) ; seul l'état est suivi
+    if VC.riven then
+        last.engine, last.body = engine, body
+        return updateState(vehicle, engine)
+    end
     if loss > 0.0 or bodyLoss > 0.0 then
         local hit = VC.currentHit(vehicle)
         local severity = hit and hit.severity or nil
@@ -207,7 +214,7 @@ end
 VC.on('impact', function(vehicle, _, drop, _, hit)
     if VC.seat ~= -1 then return end
     local heavy = not (hit and hit.severity == 'light')
-    if drop > Config.ImpactMinDrop and heavy then
+    if drop > Config.ImpactMinDrop and heavy and not VC.riven then -- Riven : ses dégâts, pas les nôtres
         local engine = GetVehicleEngineHealth(vehicle)
         engine = hurtEngine(vehicle, engine, (drop - Config.ImpactMinDrop) ^ 1.5 * Config.ImpactFactor)
         last.engine = engine

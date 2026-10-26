@@ -19,6 +19,9 @@
     Performance : quelques lectures dans la boucle du véhicule (100 ms) ; rien d'autre.
 ]]
 
+-- Riven Impact Dynamics installé : c'est lui qui gère les tonneaux (config.lua : Riven)
+if VC.riven then return end
+
 local Config = VCConfig.Rollover or {}
 local Trip = Config.Trip or {}
 local MPH = 2.236936

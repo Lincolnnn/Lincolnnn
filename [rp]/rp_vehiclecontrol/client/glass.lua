@@ -8,6 +8,9 @@
     Performance : rien en dehors d'un accident ; un nettoyage toutes les 5 s seulement tant qu'il reste des objets.
 ]]
 
+-- Riven Impact Dynamics installé : c'est lui qui gère le verre brisé (config.lua : Riven)
+if VC.riven then return end
+
 local Config = VCConfig.Bodywork and VCConfig.Bodywork.Glass or {}
 
 local pieces = {}       -- { { object, expires } } : éclats posés, du plus ancien au plus récent

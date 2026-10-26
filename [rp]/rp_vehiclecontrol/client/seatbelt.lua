@@ -73,7 +73,13 @@ local function setBelt(state, silent)
     if not silent then beltSound(state and 'on' or 'off', 1.0, false) end
 end
 
-function VC.isBuckled() return belt end
+--- Riven Impact Dynamics : sa ceinture (touche G chez lui) compte pour ses blessures ; on la lit pour le car HUD
+local function rivenBelt()
+    local ok, on = pcall(function() return exports[VC.rivenResource]:IsSeatbeltOn() end)
+    return ok and on == true
+end
+
+function VC.isBuckled() if VC.riven then return rivenBelt() end return belt end
 --- Carillon de ceinture du joueur en cours (détaché, moteur allumé, véhicule parti) ?
 function VC.beltAlarm() return alarm end
 
@@ -93,18 +99,20 @@ local function beltGesture(ped, vehicle)
     end)
 end
 
-RegisterCommand('vc_seatbelt', function()
-    local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped, false)
-    if vehicle == 0 or not hasBelt(vehicle) or IsPauseMenuActive() then return end
-    setBelt(not belt)
-    if belt then beltGesture(ped, vehicle) end
-end, false)
-RegisterKeyMapping('vc_seatbelt', 'Véhicule : attacher / détacher la ceinture', 'keyboard', VCConfig.Keys.seatbelt)
+if not VC.riven then -- avec Riven : sa propre touche de ceinture (G, voir son config)
+    RegisterCommand('vc_seatbelt', function()
+        local ped = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        if vehicle == 0 or not hasBelt(vehicle) or IsPauseMenuActive() then return end
+        setBelt(not belt)
+        if belt then beltGesture(ped, vehicle) end
+    end, false)
+    RegisterKeyMapping('vc_seatbelt', 'Véhicule : attacher / détacher la ceinture', 'keyboard', VCConfig.Keys.seatbelt)
+end
 
 VC.on('enter', function(ped, vehicle)
     SetPedConfigFlag(ped, 32, false) -- pas d'éjection automatique du jeu : seule la règle ci-dessous compte
-    if hasBelt(vehicle) then VC.hud.belt = belt else VC.hud.belt = nil end
+    if hasBelt(vehicle) then VC.hud.belt = VC.isBuckled() else VC.hud.belt = nil end
     VC.hud.alarm = false
 end)
 
@@ -129,6 +137,11 @@ AddEventHandler('rp_vehiclecontrol:testSound', function(volume)
 end)
 
 VC.on('tick', function(ped, vehicle)
+    -- Riven : ceinture, carillon et éjection chez lui ; le car HUD du MDC montre sa ceinture
+    if VC.riven then
+        if hasBelt(vehicle) then VC.hud.belt = rivenBelt() end
+        return
+    end
     local speed = GetEntitySpeed(vehicle) * VC.MPH
     -- Descend du véhicule : ceinture retirée (avec le son)
     if belt and GetIsTaskActive(ped, 2) then setBelt(false) end
@@ -277,7 +290,7 @@ local function eject(ped, vehicle, before, velocity)
 end
 
 VC.on('impact', function(vehicle, before, drop, velocity)
-    if not Config.Eject then return end -- éjection désactivée (config.lua : Seatbelt.Eject)
+    if not Config.Eject or VC.riven then return end -- éjection désactivée (Seatbelt.Eject) ou gérée par Riven
     if belt or not hasBelt(vehicle) then return end
     local chance = VC.ejectChance(before, drop)
     if chance <= 0.0 or math.random() >= chance then return end

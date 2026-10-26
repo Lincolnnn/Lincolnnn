@@ -32,6 +32,16 @@ VC = {
     hud = {},        -- données du car HUD remplies par les modules
 }
 
+-- Riven Impact Dynamics installé (config.lua : Riven) : les modules qui feraient doublon ne se chargent pas
+do
+    local R = Config.Riven or {}
+    VC.rivenResource = R.Resource or 'riven-impact-dynamics'
+    -- démarré (ou en train de démarrer : server.cfg le lance avant ce script) ; arrêté (licence refusée) : sans lui
+    local state = GetResourceState(VC.rivenResource)
+    VC.riven = R.Mode == true or (R.Mode ~= false and (state == 'started' or state == 'starting'))
+    if VC.riven then print(('[rp_vehiclecontrol] %s détecté : accidents, carrosserie, verre, débris, terrain, blessures et ceinture gérés par lui'):format(VC.rivenResource)) end
+end
+
 local hooks = { enter = {}, leave = {}, seat = {}, frame = {}, tick = {}, impact = {}, idle = {} }
 
 function VC.on(event, fn) table.insert(hooks[event], fn) end

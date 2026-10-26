@@ -438,10 +438,49 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
   (jaune en R). Pas de rapport sur les vélos, bateaux, hélicoptères, avions et trains (`Gear.SkipClasses`), ni pendant
   que le véhicule est poussé.
 
+## Avec Riven Impact Dynamics
+
+**Riven Impact Dynamics** (script payant de Riven Systems) peut tourner à côté. Il n'est **jamais** dans ce dépôt
+(licence, et sa clé `riven_auth.token` est liée à l'IP du serveur ; `.gitignore` les exclut).
+
+**Installation**
+1. Copiez le dossier de Riven tel que vous l'avez acheté dans `resources/[rp]/riven-impact-dynamics/` (le nom du dossier
+   compte : `config.lua`, `Riven.Resource`), avec votre `riven_auth.token` et les modèles de `stream/`.
+2. Remplacez ses `riven_settings.lua` et `riven_impact_config.lua` par les versions réglées pour ce serveur (fournies à
+   part : 4 lignes changent, marquées `[rp]`) :
+   - ceinture sur **G** (comme avant) ;
+   - **frein à main coupé** (K = pousser / MDC, frein à main retiré de ce serveur) ;
+   - **warnings d'accident** laissés à ce script (synchronisés) ;
+   - commandes de test (`/crashtest`) coupées pour les joueurs.
+3. `server.cfg` : `ensure riven-impact-dynamics` **avant** `ensure rp_vehiclecontrol`.
+
+**Qui fait quoi** (`config.lua` : `Riven = { Mode = 'auto' }`, détecté tout seul) :
+
+| Riven | Ce script |
+|---|---|
+| chocs, déformation, carrosserie, portières / capot / coffre, roues | essence, plein, jerrican |
+| verre (pare-brise feuilleté, vitres trempées) | moteur (O), démarrage, moteur détruit / très abîmé (logos du car HUD, fumée) |
+| débris, `/cleardebrisall`, flaques, airbags | portières (U / I), clignotants, warnings (aussi après un accident) |
+| pneus (crevaison, perte d'air, `/tyregauge`, `/plugtyre`) | marche avant / arrière (↑), poussée (K), feux stop |
+| tonneaux, terrain, neige, chaînes, pluie | éjection des **motos** |
+| organes mécaniques (moteur, radiateur, boîte, freins…) : puissance, calages | tirs dans le moteur / le réservoir |
+| **ceinture** (G), carillon, éjection, blessures, vue troublée, 1re personne | **car HUD du MDC** (la ceinture affichée est celle de Riven) |
+| `/inspectvehicle`, `/fieldrepair`, `/repaircar` (ACE) | `/repair` (moteur seul) |
+| petite barre de voyants (seulement quand quelque chose ne va pas ; `/impacthudpos` pour la déplacer) | |
+
+Riven est pris en compte s'il est **démarré** quand ce script démarre (d'où l'ordre du `server.cfg`) ; s'il s'est
+arrêté (licence refusée), ce script garde tous ses modules. Avec Riven, ce script ne charge **pas** ses modules carrosserie, verre, débris, tonneaux, roues, terrain, blessures,
+inspection ; il ne réduit ni n'ajoute de dégâts au moteur (ceux de Riven comptent tels quels) et ne bride plus la
+puissance d'un moteur abîmé. Sans Riven, tout fonctionne comme avant. `Riven.Mode = false` : ignorer Riven.
+
+Les voyants de Riven restent dans **sa** barre : il ne publie sa liste de voyants que si sa barre est affichée, ils ne
+peuvent donc pas être recopiés dans le car HUD du MDC sans modifier son code.
+
 ## Configuration (`config.lua`)
 
 | Clé | Rôle |
 |---|---|
+| `Riven` | Riven Impact Dynamics : `Mode` (`'auto'`, `true`, `false`), nom de sa ressource (voir « Avec Riven Impact Dynamics ») |
 | `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓, marche avant / arrière ↑) |
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, plein à la pompe (vitesse : 1 min max, distances, trappe arrière gauche `Flap`, pistolet et tuyau `Nozzle`), pompes, jerrican (2/5 d'un plein, vitesse, remplissage), stations (icônes) |

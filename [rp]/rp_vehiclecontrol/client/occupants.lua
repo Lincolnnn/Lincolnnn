@@ -13,6 +13,9 @@
     Performance : rien en dehors d'un choc ; une boucle à chaque image seulement pendant les effets.
 ]]
 
+-- Riven Impact Dynamics installé : c'est lui qui gère les blessures des occupants (config.lua : Riven)
+if VC.riven then return end
+
 local Config = VCConfig.Occupants or {}
 local Bodywork = VCConfig.Bodywork or {}
 
