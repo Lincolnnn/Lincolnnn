@@ -36,8 +36,20 @@ local hooks = { enter = {}, leave = {}, seat = {}, frame = {}, tick = {}, impact
 
 function VC.on(event, fn) table.insert(hooks[event], fn) end
 
+-- Une erreur dans un module (native absente de la version du jeu…) ne doit jamais arrêter la boucle du véhicule
+-- (car HUD, moteur, ceinture…) : elle est signalée une fois dans la console F8, les autres modules continuent.
+local reported = {}
 local function emit(event, ...)
-    for _, fn in ipairs(hooks[event]) do fn(...) end
+    for i, fn in ipairs(hooks[event]) do
+        local ok, err = pcall(fn, ...)
+        if not ok then
+            local key = event .. '#' .. i .. ':' .. tostring(err)
+            if not reported[key] then
+                reported[key] = true
+                print(('^1[rp_vehiclecontrol] erreur dans un module (%s) : %s^7'):format(event, tostring(err)))
+            end
+        end
+    end
 end
 VC.emit = emit
 

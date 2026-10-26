@@ -1179,8 +1179,10 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
     --shadow:    0 24px 56px rgba(0, 0, 0, .7), 0 0 0 1px rgba(var(--n-rgb), .08);
     --agency-wsp:  var(--n-tag-4);
     --agency-kcso: var(--n-tag-kcso);
-    color-scheme: dark;
 }
+/* Contrôles et barres de défilement sombres : sur le body, JAMAIS sur la racine (<html>). Le NUI est un cadre dans la
+   page du jeu : une racine en color-scheme sombre lui donne un fond opaque noir qui cache tout l'écran. */
+[data-theme="night"] body { color-scheme: dark; }
 /* Les HUD et notifications (déjà sombres) passent aussi au vert */
 [data-theme="night"] .hud, [data-theme="night"] .toasts, [data-theme="night"] .hud-placebar, [data-theme="night"] .car-notice-anchor {
     --card: rgba(var(--n-rgb), .05); --card-2: rgba(var(--n-rgb), .08); --card-3: rgba(var(--n-rgb), .14);

@@ -549,8 +549,10 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
     --danger:    var(--n-bright);
     --danger-rgb: var(--n-danger-rgb);
     --shadow:    0 16px 32px rgba(0, 0, 0, .7), 0 0 0 1px rgba(var(--n-rgb), .08);
-    color-scheme: dark;
 }
+/* Contrôles et barres de défilement sombres : sur le body, JAMAIS sur la racine (<html>). Le NUI est un cadre dans la
+   page du jeu : une racine en color-scheme sombre lui donne un fond opaque noir qui cache tout l'écran. */
+[data-theme="night"] body { color-scheme: dark; }
 /* Menus au clavier : bannière verte (plus de couleur par page ou par police), ligne choisie verte */
 [data-theme="night"] .kb-banner {
     background: radial-gradient(120% 140% at 0% 0%, rgba(var(--n-glow-rgb), .12), transparent 55%), linear-gradient(125deg, var(--n-banner-1) 0%, var(--n-banner-2) 55%, var(--n-banner-3) 100%);

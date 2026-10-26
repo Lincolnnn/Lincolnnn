@@ -87,7 +87,7 @@ local function openPanel(vehicle, door, angle)
     if not GetIsDoorValid(vehicle, door) or IsVehicleDoorDamaged(vehicle, door) then return false end
     angle = angle or { 0.2, 0.6 }
     if GetVehicleDoorAngleRatio(vehicle, door) >= angle[1] then return false end -- déjà ouvert
-    SetDoorAllowedToBeBrokenOff(vehicle, door, false)
+    SetVehicleDoorCanBreak(vehicle, door, false)
     SetVehicleDoorControl(vehicle, door, 1, angle[1] + math.random() * (angle[2] - angle[1]))
     return true
 end
@@ -96,7 +96,7 @@ end
 function VC.keepDoors(vehicle)
     if (Config.Open or {}).NeverFall == false then return end
     for door = 0, 5 do
-        if GetIsDoorValid(vehicle, door) then SetDoorAllowedToBeBrokenOff(vehicle, door, false) end
+        if GetIsDoorValid(vehicle, door) then SetVehicleDoorCanBreak(vehicle, door, false) end
     end
 end
 
