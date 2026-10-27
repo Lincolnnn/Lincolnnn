@@ -36,9 +36,20 @@ VC = {
 do
     local R = Config.Riven or {}
     VC.rivenResource = R.Resource or 'riven-impact-dynamics'
-    -- démarré (ou en train de démarrer : server.cfg le lance avant ce script) ; arrêté (licence refusée) : sans lui
+    -- dossier renommé : retrouvé par le nom écrit dans son fxmanifest (name 'Riven Impact Dynamics')
+    if GetResourceState(VC.rivenResource) == 'missing' then
+        for i = 0, GetNumResources() - 1 do
+            local res = GetResourceByFindIndex(i)
+            if res and (GetResourceMetadata(res, 'name', 0) or ''):lower() == 'riven impact dynamics' then
+                VC.rivenResource = res
+                break
+            end
+        end
+    end
+    -- installé sur le serveur (démarré, en train de démarrer, ou pas encore démarré : server.cfg le lance après ce
+    -- script) ; absent : sans lui
     local state = GetResourceState(VC.rivenResource)
-    VC.riven = R.Mode == true or (R.Mode ~= false and (state == 'started' or state == 'starting'))
+    VC.riven = R.Mode == true or (R.Mode ~= false and state ~= 'missing' and state ~= 'unknown')
     if VC.riven then print(('[rp_vehiclecontrol] %s détecté : accidents, carrosserie, verre, débris, terrain, blessures et ceinture gérés par lui'):format(VC.rivenResource)) end
 end
 
@@ -456,7 +467,7 @@ end)
 -- =========================================================================
 local lastKey = nil
 
-local HUD_KEYS = { 'inVehicle', 'show', 'mode', 'engine', 'speed', 'rpm', 'fuel', 'belt', 'alarm', 'broken', 'damaged', 'paused', 'gear' }
+local HUD_KEYS = { 'inVehicle', 'show', 'mode', 'engine', 'speed', 'rpm', 'fuel', 'belt', 'alarm', 'broken', 'damaged', 'paused', 'gear', 'park' }
 
 local function sendHud(data)
     local parts = {}
@@ -496,6 +507,7 @@ function VC.sendHud(vehicle)
     }
     if h.belt ~= nil then data.belt = h.belt end -- absent : pas de ceinture (logo masqué)
     if driver and h.gear then data.gear = h.gear end -- 'D' / 'R' (client/gear.lua) ; absent : pas de rapport
+    if driver and h.park then data.park = true end   -- frein de parking de Riven serré : « P » (client/riven.lua)
     sendHud(data)
 end
 

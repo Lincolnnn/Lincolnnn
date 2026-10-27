@@ -959,6 +959,13 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .car-belt.belt-blink svg * { animation: belt-blink 1s steps(1, end) infinite; }
 @keyframes belt-blink { 0% { fill: #ff9e96; } 50% { fill: transparent; } }
 /* Rapport : R au-dessus de D, la pastille glisse de l'un à l'autre */
+.car-park {
+    display: inline-grid; place-items: center; width: 19px; height: 19px; box-sizing: border-box;
+    border: 2px solid #ff3b30; border-radius: 50%; color: #ff3b30;
+    font: 800 11px/1 var(--font); letter-spacing: 0;
+    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .8)); animation: park-in .2s ease-out;
+}
+@keyframes park-in { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
 .car-gear { position: relative; display: flex; flex-direction: column; justify-content: space-between; align-items: center; width: 18px; height: 38px; padding: 1px 0; align-self: center; }
 .car-gear-pill {
     position: absolute; left: 0; top: 1px; width: 18px; height: 17px; border-radius: 4px;
@@ -968,14 +975,18 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .car-gear.gear-r .car-gear-pill { transform: translateY(0); background: #ffd27a; }
 .car-gear-letter { position: relative; z-index: 1; width: 18px; height: 17px; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, .7); transition: color .28s; text-shadow: 0 1px 2px rgba(0, 0, 0, .95); }
 .car-gear:not(.gear-r) .car-gear-letter[data-gear="D"], .car-gear.gear-r .car-gear-letter[data-gear="R"] { color: #111; text-shadow: none; }
-.hud-car.car-off { filter: grayscale(1) brightness(.75); opacity: .55; }
+/* Moteur coupé : tout est grisé, sauf le « P » du frein de parking (un voyant reste allumé moteur coupé) */
+.hud-car.car-off .car-fuel, .hud-car.car-off .car-speed, .hud-car.car-off .car-belt, .hud-car.car-off .car-broken,
+.hud-car.car-off .car-rpm, .hud-car.car-off .car-gear { filter: grayscale(1) brightness(.75); opacity: .55; }
 .hud-car.car-passenger .car-fuel, .hud-car.car-passenger .car-speed, .hud-car.car-passenger .car-rpm,
-.hud-car.car-passenger .car-broken, .hud-car.car-passenger .car-gear { display: none !important; }
+.hud-car.car-passenger .car-broken, .hud-car.car-passenger .car-gear, .hud-car.car-passenger .car-park { display: none !important; }
 .car-broken { display: inline-flex; width: 22px; height: 22px; color: #ff3b30; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .9)); }
 .car-broken svg { width: 100%; height: 100%; }
 .car-broken.car-damaged { color: #ff9500; }
 /* Véhicule cassé : car HUD allumé, rouge vif clignotant ; logo du moteur fixe, rouge foncé */
-.hud-car.car-is-broken, .hud-car.car-is-broken.car-off { filter: none; opacity: 1; }
+.hud-car.car-is-broken, .hud-car.car-is-broken.car-off,
+.hud-car.car-is-broken.car-off .car-fuel, .hud-car.car-is-broken.car-off .car-speed, .hud-car.car-is-broken.car-off .car-belt,
+.hud-car.car-is-broken.car-off .car-broken, .hud-car.car-is-broken.car-off .car-rpm, .hud-car.car-is-broken.car-off .car-gear { filter: none; opacity: 1; }
 .hud-car.car-is-broken .car-fuel, .hud-car.car-is-broken .car-speed, .hud-car.car-is-broken .car-rpm { animation: car-broken-blink .9s steps(1, end) infinite; }
 .hud-car.car-is-broken #carSpeed, .hud-car.car-is-broken .car-unit, .hud-car.car-is-broken .car-fuel-icon { color: #ff1a1a; }
 .hud-car.car-is-broken .car-rpm, .hud-car.car-is-broken .car-fuel-bar { background: rgba(255, 26, 26, .35); }

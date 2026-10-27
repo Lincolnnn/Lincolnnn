@@ -787,6 +787,7 @@
                                         <label class="check"><input type="checkbox" data-setting="car.rpm"> Barre d'accélération</label>
                                         <label class="check"><input type="checkbox" data-setting="car.fuel"> Jauge d'essence</label>
                                         <label class="check"><input type="checkbox" data-setting="car.belt"> Logo de la ceinture</label>
+                                        <label class="check"><input type="checkbox" data-setting="car.park"> « P » du frein de parking (Riven)</label>
                                         <label class="check"><input type="checkbox" data-setting="car.broken"> Logo « véhicule cassé »</label>
                                     </div>
                                 </div>
@@ -1050,6 +1051,8 @@
                         <path d="M12.6 7.2l1.5 1.4-7.4 8-1.5-1.4z"/>
                     </svg>
                 </span>
+                <!-- Frein de parking (Riven Impact Dynamics) : « P » rouge cerclé tant qu'il est serré -->
+                <span class="car-park part-empty" data-part="park" id="carPark" title="Frein de parking serré">P</span>
                 <!-- Véhicule cassé : jamais visible, sauf quand le véhicule est hors d'usage (rouge) -->
                 <span class="car-broken part-empty" data-part="broken" id="carBroken" title="Véhicule hors d'usage">
                     <svg viewBox="0 0 24 24" aria-hidden="true">

@@ -3375,7 +3375,7 @@
         mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97, theme: 'day', themeScope: 'all', nightColor: 'green' },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
-        car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, broken: true, volume: 0.7 },
+        car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, park: true, broken: true, volume: 0.7 },
     };
     const NIGHT_COLORS = ['green', 'yellow', 'red', 'blue'];
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
@@ -3429,7 +3429,7 @@
     // Exemple affiché en mode placement quand il n'y a pas encore de données
     const PLD_SAMPLE = { street: 'Nom de la rue', zone: 'Zone', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
     const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', agency: 'wsp', agencyShort: 'WSP', status: 'available', callNumber: '00-0000' };
-    const CAR_SAMPLE = { inVehicle: true, show: true, mode: 'driver', speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true, gear: 'D' };
+    const CAR_SAMPLE = { inVehicle: true, show: true, mode: 'driver', speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true, gear: 'D', park: true };
 
     function placeHud(el, cfg) {
         el.style.left = `${Math.round(cfg.x * innerWidth)}px`;
@@ -3532,6 +3532,8 @@
         belt.classList.toggle('part-empty', typeof car.belt !== 'boolean');
         belt.classList.toggle('belt-on', car.belt === true);
         belt.classList.toggle('belt-blink', car.belt === false && (car.speed || 0) >= 1); // roule sans ceinture
+        // Frein de parking de Riven Impact Dynamics serré : « P » (absent : desserré, ou pas de Riven)
+        $('#carPark').classList.toggle('part-empty', car.park !== true);
         // Rapport (Vehicle Control) : R / D, absent = pas de rapport (vélo, bateau, aéronef)
         const gear = $('#carGear');
         gear.classList.toggle('part-empty', car.gear !== 'D' && car.gear !== 'R');

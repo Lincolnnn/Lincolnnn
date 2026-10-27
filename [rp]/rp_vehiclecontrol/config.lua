@@ -22,11 +22,15 @@ VCConfig = {
     --     le logo « moteur abîmé » du car HUD disparaît : les dégâts, ce sont ses voyants ;
     --   HideLamps : ses voyants déjà présents sur le car HUD (ceinture) ;
     --   Notify : ses notifications en français, en message privé du chat (titre « Véhicule ») comme les nôtres ;
-    --   MuteBelt : true = sans « ceinture attachée / détachée » (le logo du car HUD et le son suffisent).
-    -- Pont absent (ligne oubliée) : Fallback = notifications de secours en français (voyants qui s'allument, ceinture)
-    -- et HideGameFeed = notifications du jeu (celles de Riven, en anglais) masquées à bord. Console F8 : « pont Riven actif ».
+    --   MuteBelt / MutePark : true = sans « ceinture attachée / détachée », « frein de parking serré / desserré »
+    --     (ces deux-là sont écrits par ce script, client/riven.lua, avec ou sans le pont).
+    -- Frein de parking de Riven serré : « P » sur le car HUD du MDC (état du véhicule ParkStateKey, comme son config).
+    -- HideGameFeed : notifications du jeu (celles de Riven, en anglais) supprimées à bord, même sans le pont.
+    -- Pont absent (ligne oubliée) : Fallback = notifications de secours en français quand un voyant s'allume.
+    -- Console F8 : « pont Riven actif ». Dossier de Riven renommé : retrouvé tout seul (nom dans son fxmanifest).
     Riven = { Mode = 'auto', Resource = 'riven-impact-dynamics',
-        Lamps = true, HideLamps = { 'belt' }, Notify = true, MuteBelt = false, Fallback = true, HideGameFeed = true },
+        Lamps = true, HideLamps = { 'belt' }, Notify = true, MuteBelt = false, MutePark = false,
+        ParkStateKey = 'rivenParkingBrake', Fallback = true, HideGameFeed = true },
 
     Keys = {
         engine = 'O',        -- SEULE touche qui allume / coupe le moteur (conducteur)

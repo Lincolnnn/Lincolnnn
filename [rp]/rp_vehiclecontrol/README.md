@@ -444,12 +444,13 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 (licence, et sa clé `riven_auth.token` est liée à l'IP du serveur ; `.gitignore` les exclut).
 
 **Installation**
-1. Copiez le dossier de Riven tel que vous l'avez acheté dans `resources/[rp]/riven-impact-dynamics/` (le nom du dossier
-   compte : `config.lua`, `Riven.Resource`), avec votre `riven_auth.token` et les modèles de `stream/`.
+1. Copiez le dossier de Riven tel que vous l'avez acheté dans `resources/[rp]/riven-impact-dynamics/` (dossier renommé :
+   retrouvé tout seul par le nom écrit dans son `fxmanifest.lua`), avec votre `riven_auth.token` et les modèles de `stream/`.
 2. Remplacez ses `riven_settings.lua` et `riven_impact_config.lua` par les versions réglées pour ce serveur (fournies à
-   part : 4 lignes changent, marquées `[rp]`) :
+   part, lignes marquées `[rp]`) :
    - ceinture sur **G** (comme avant) ;
-   - **frein à main coupé** (K = pousser / MDC, frein à main retiré de ce serveur) ;
+   - **frein de parking** sur **B** (K = pousser / MDC ; Espace tapé à l'arrêt marche aussi, accélérer le desserre) ;
+     ses notifications du jeu coupées (`Notify = false`) : c'est ce script qui écrit les siennes, en français ;
    - **warnings d'accident** laissés à ce script (synchronisés) ;
    - commandes de test (`/crashtest`) coupées pour les joueurs.
 3. Remplacez son `fxmanifest.lua` par la version fournie à part : **une seule ligne ajoutée** (marquée `[RP]`) à la fin
@@ -467,15 +468,25 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
    - **plus de logo « moteur abîmé / détruit » sur le car HUD** (ni de clignotement rouge) : les dégâts, ce sont les
      voyants de Riven ;
    - **notifications en français**, en **message privé du chat** (titre « Véhicule », envoyé directement à `rp_chat`),
-     comme celles de ce script : ceinture attachée / détachée, moteur calé, pneu crevé, portière coincée, feu,
-     réparation de fortune… (`Riven.MuteBelt = true` : sans les messages de ceinture). Les textes à l'écran de Riven
+     comme celles de ce script : moteur calé, pneu crevé, portière coincée, feu, réparation de fortune… Les textes à l'écran de Riven
      (portière coincée, barre de réparation) sont traduits aussi. Un message inconnu s'affiche en anglais, sans ses
      codes de couleur.
 
    **Vérifier** (console F8 du jeu) : `pont Riven chargé dans riven-impact-dynamics` (la ligne est bien lue), puis
    `pont Riven actif` (Riven a démarré, tout est relié). Rien : la ligne n'est pas dans son `fxmanifest.lua` ou les
    ressources n'ont pas été redémarrées. `pont Riven absent` en montant dans un véhicule : idem.
-4. `server.cfg` : `ensure riven-impact-dynamics` **avant** `ensure rp_vehiclecontrol`.
+
+   **Ceinture et frein de parking**, avec ou sans le pont : ce script les lit chez Riven et écrit lui-même, en message
+   privé du chat, « Ceinture attachée. » / « Ceinture détachée. » et « Frein de parking serré. » / « Frein de parking
+   desserré. » (le pont coupe ceux de Riven : jamais en double ; `Riven.MuteBelt` / `Riven.MutePark` pour les taire).
+   Frein de parking serré : **« P » rouge cerclé sur le car HUD du MDC** (conducteur), retiré dès qu'il est desserré ;
+   il reste rouge moteur coupé. Il vient de l'état synchronisé du véhicule chez Riven (`rivenParkingBrake`) : il suit
+   aussi le serrage automatique après un accident ou un tonneau.
+
+   **Notifications du jeu supprimées à bord** (`Riven.HideGameFeed`) : celles de Riven en anglais (petites bulles au
+   dessus de la minimap) sont masquées puis retirées tant que l'on est dans un véhicule, **même sans le pont**. Ce
+   serveur n'utilise pas ces bulles (nos messages passent par le chat).
+4. `server.cfg` : `ensure riven-impact-dynamics` (de préférence avant `ensure rp_vehiclecontrol`).
 
 **Qui fait quoi** (`config.lua` : `Riven = { Mode = 'auto' }`, détecté tout seul) :
 
@@ -488,25 +499,24 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 | tonneaux, terrain, neige, chaînes, pluie | éjection des **motos** |
 | organes mécaniques (moteur, radiateur, boîte, freins…) : puissance, calages | tirs dans le moteur / le réservoir |
 | **ceinture** (G), carillon, éjection, blessures, vue troublée, 1re personne | **car HUD du MDC** (la ceinture affichée est celle de Riven) |
+| **frein de parking** (B, Espace à l'arrêt), serrage automatique après un accident | « P » sur le car HUD, messages en français |
 | `/inspectvehicle`, `/fieldrepair`, `/repaircar` (ACE) | `/repair` (moteur seul) |
 | voyants de dégâts (seulement quand quelque chose ne va pas), placés **au-dessus du car HUD** par le pont | notifications de Riven traduites, en message privé du chat |
 
-Riven est pris en compte s'il est **démarré** quand ce script démarre (d'où l'ordre du `server.cfg`) ; s'il s'est
-arrêté (licence refusée), ce script garde tous ses modules. Avec Riven, ce script ne charge **pas** ses modules carrosserie, verre, débris, tonneaux, roues, terrain, blessures,
+Riven est pris en compte s'il est **installé** sur le serveur (démarré avant ou après ce script). Avec Riven, ce script ne charge **pas** ses modules carrosserie, verre, débris, tonneaux, roues, terrain, blessures,
 inspection ; il ne réduit ni n'ajoute de dégâts au moteur (ceux de Riven comptent tels quels) et ne bride plus la
 puissance d'un moteur abîmé. Sans Riven, tout fonctionne comme avant. `Riven.Mode = false` : ignorer Riven.
 
 Sans la ligne du pont dans son `fxmanifest.lua` (**secours**, `Riven.Fallback`) : ses voyants restent à la place
 choisie dans son config ; ce script fait ses propres notifications en français dans le chat à partir de ce que Riven
-publie (voyants qui s'allument : moteur, surchauffe, boîte, freins, huile, fuite d'essence, direction, pneu, feu ; et
-la ceinture), et masque les notifications du jeu (celles de Riven, en anglais) tant que l'on est à bord
-(`Riven.HideGameFeed`). Les messages précis (moteur calé, portière coincée…) demandent le pont.
+publie (voyants qui s'allument : moteur, surchauffe, boîte, freins, huile, fuite d'essence, direction, pneu, feu). Les
+messages précis (moteur calé, portière coincée…) demandent le pont.
 
 ## Configuration (`config.lua`)
 
 | Clé | Rôle |
 |---|---|
-| `Riven` | Riven Impact Dynamics : `Mode` (`'auto'`, `true`, `false`), nom de sa ressource ; pont : voyants au-dessus du car HUD (`Lamps`), voyants retirés (`HideLamps` : ceinture), notifications en français dans le chat (`Notify`), sans la ceinture (`MuteBelt`), secours sans le pont (`Fallback`, `HideGameFeed`) (voir « Avec Riven Impact Dynamics ») |
+| `Riven` | Riven Impact Dynamics : `Mode` (`'auto'`, `true`, `false`), nom de sa ressource ; pont : voyants au-dessus du car HUD (`Lamps`), voyants retirés (`HideLamps` : ceinture), notifications en français dans le chat (`Notify`), sans la ceinture / le frein de parking (`MuteBelt`, `MutePark`), état du frein de parking (`ParkStateKey`), notifications du jeu supprimées à bord (`HideGameFeed`), secours sans le pont (`Fallback`) (voir « Avec Riven Impact Dynamics ») |
 | `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓, marche avant / arrière ↑) |
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, plein à la pompe (vitesse : 1 min max, distances, trappe arrière gauche `Flap`, pistolet et tuyau `Nozzle`), pompes, jerrican (2/5 d'un plein, vitesse, remplissage), stations (icônes) |

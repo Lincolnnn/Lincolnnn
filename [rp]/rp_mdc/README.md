@@ -39,7 +39,8 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
 Facultatif : **Riven Impact Dynamics** (script payant, installé à part dans `[rp]/riven-impact-dynamics/`, jamais
 dans ce dépôt) ; `rp_vehiclecontrol` lui laisse alors les accidents et la ceinture, et ses **voyants de dégâts
 s'affichent juste au-dessus du car HUD** (même place, même taille, affichés avec lui ; voir le README de
-`rp_vehiclecontrol`).
+`rp_vehiclecontrol`), et son **frein de parking** serré affiche un **« P » rouge** sur le car HUD (case « P » du frein
+de parking dans les Paramètres).
 Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans ce dépôt) : il exige `ox_lib` (gratuit,
 à installer) et `ox_target`, remplacé ici par le **pont [`ox_target/`](../ox_target/README.md)** branché sur l'œil.
 

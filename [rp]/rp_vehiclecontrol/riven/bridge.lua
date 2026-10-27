@@ -15,6 +15,7 @@
     Console F8 : « pont Riven actif » quand tout est en place (sinon : la ligne du fxmanifest manque ou Riven n'a pas
     démarré). rp_vehiclecontrol le sait aussi (événement rp_vehiclecontrol:rivenBridge) : ses notifications de
     secours (sans ce pont) se coupent.
+    Ceinture et frein de parking : messages écrits par rp_vehiclecontrol (client/riven.lua), ceux de Riven coupés ici.
     Réglages : rp_vehiclecontrol/config.lua, Riven (Lamps, HideLamps, Notify, MuteBelt).
     Performance : aucune boucle ; un envoi au NUI de Riven seulement quand le car HUD bouge ou apparaît.
 ]]
@@ -40,6 +41,9 @@ local TYRES = { ['front left'] = 'avant gauche', ['front right'] = 'avant droit'
     ['rear left'] = 'arrière gauche', ['rear right'] = 'arrière droit' }
 
 local BELT = { ['Seatbelt fastened.'] = true, ['Seatbelt unfastened.'] = true }
+-- Frein de parking : rp_vehiclecontrol écrit lui-même ces messages (« P » sur le car HUD), ceux de Riven sont coupés
+local PARK = { ['Parking brake set.'] = true, ['Parking brake released.'] = true,
+    ['Rolled over: parking brake set automatically.'] = true, ['Crash: parking brake set automatically.'] = true }
 
 local EXACT = {
     ['Seatbelt fastened.'] = 'Ceinture attachée.',
@@ -134,7 +138,9 @@ end
 --- Texte français (texte d'origine sans couleurs s'il n'est pas connu) ; muet : rien à afficher
 local function translate(text)
     local p = plain(text)
-    if settings.MuteBelt ~= false and BELT[p] then return p, true end
+    -- ceinture / frein de parking : écrits par rp_vehiclecontrol (OwnBelt / OwnPark), sinon traduits ici
+    if BELT[p] and (settings.MuteBelt == true or (settingsLoaded and settings.OwnBelt)) then return p, true end
+    if PARK[p] and settingsLoaded and settings.OwnPark then return p, true end
     if EXACT[p] then return EXACT[p], false end
     for _, entry in ipairs(PATTERNS) do
         local caps = { p:match(entry[1]) }
