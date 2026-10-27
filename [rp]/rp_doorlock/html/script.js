@@ -1,4 +1,5 @@
 // RP Doorlock : barre de réussite (client/client.lua envoie breach / breachKey ; ESPACE et RETOUR sont lus par le jeu)
+// et bruits des coups de pied / de la porte qui cède (sound)
 (() => {
     'use strict';
 
@@ -79,6 +80,63 @@
         post('breachResult', { hit, pos: game.pos });
     }
 
+    // =====================================================================
+    // BRUITS (générés ici, aucun fichier) : coup de pied réussi / raté, porte qui cède
+    // =====================================================================
+    let ac = null;
+    function audio() {
+        try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { ac = null; }
+        if (ac && ac.state === 'suspended') ac.resume();
+        return ac;
+    }
+    function noise(ctx, length) {
+        const len = Math.floor(ctx.sampleRate * length);
+        const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+        const ch = buf.getChannelData(0);
+        for (let i = 0; i < len; i += 1) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        return src;
+    }
+    /** Choc sourd sur du bois : bruit filtré grave + note basse qui retombe */
+    function thud(ctx, out, at, { gain, cutoff, freq, length }) {
+        const n = noise(ctx, length); const f = ctx.createBiquadFilter(); const g = ctx.createGain();
+        f.type = 'lowpass'; f.frequency.value = cutoff;
+        g.gain.setValueAtTime(gain, at); g.gain.exponentialRampToValueAtTime(0.0001, at + length);
+        n.connect(f); f.connect(g); g.connect(out); n.start(at);
+        const o = ctx.createOscillator(); const og = ctx.createGain();
+        o.type = 'sine'; o.frequency.setValueAtTime(freq, at); o.frequency.exponentialRampToValueAtTime(freq * 0.55, at + length);
+        og.gain.setValueAtTime(gain * 0.9, at); og.gain.exponentialRampToValueAtTime(0.0001, at + length);
+        o.connect(og); og.connect(out); o.start(at); o.stop(at + length + 0.05);
+    }
+    /** Craquement (bois qui éclate) : bruit aigu haché */
+    function crack(ctx, out, at, gain) {
+        for (let i = 0; i < 5; i += 1) {
+            const t = at + i * 0.018 + Math.random() * 0.01;
+            const n = noise(ctx, 0.06); const f = ctx.createBiquadFilter(); const g = ctx.createGain();
+            f.type = 'bandpass'; f.frequency.value = 1400 + Math.random() * 2200; f.Q.value = 1.2;
+            g.gain.setValueAtTime(gain * (1 - i * 0.15), t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+            n.connect(f); f.connect(g); g.connect(out); n.start(t);
+        }
+    }
+    const SOUNDS = {
+        hit(ctx, out, t) { thud(ctx, out, t, { gain: 1.0, cutoff: 520, freq: 78, length: 0.32 }); crack(ctx, out, t + 0.005, 0.12); },
+        miss(ctx, out, t) { thud(ctx, out, t, { gain: 0.55, cutoff: 380, freq: 95, length: 0.2 }); },
+        break(ctx, out, t) {
+            thud(ctx, out, t, { gain: 1.0, cutoff: 700, freq: 70, length: 0.45 });
+            crack(ctx, out, t, 0.5);
+            crack(ctx, out, t + 0.09, 0.3);
+            thud(ctx, out, t + 0.32, { gain: 0.7, cutoff: 900, freq: 120, length: 0.35 }); // le battant tape le mur
+        },
+    };
+    function playSound(d) {
+        const fn = SOUNDS[d.kind]; const ctx = fn && audio();
+        if (!ctx) return;
+        const out = ctx.createGain();
+        out.gain.value = Math.max(0, Math.min(1, Number(d.volume) || 0));
+        out.connect(ctx.destination);
+        try { fn(ctx, out, ctx.currentTime + 0.01); } catch (err) { /* son indisponible */ }
+    }
+
     // Mode nuit des menus (MDC : Paramètres > MDC > Apparence), envoyé par client/theme.lua
     window.addEventListener('message', ({ data }) => {
         if (!data || data.action !== 'uiTheme') return;
@@ -94,6 +152,8 @@
             if (d.show) startStep(d); else stop();
         } else if (data.action === 'breachKey') {
             press();
+        } else if (data.action === 'sound') {
+            playSound(data.data || {});
         }
     });
 })();

@@ -1,8 +1,8 @@
 --[[
     RP Doorlock - configuration
     Portes du jeu (et des maps ajoutées) que les joueurs en mode civil ou sans rôle verrouillent / déverrouillent avec
-    l'œil (jamais un policier en service, unité du MDC) ; porte verrouillée : les civils la déverrouillent ou y
-    frappent, les POLICIERS EN SERVICE y frappent ou l'enfoncent (barre de réussite) : elle reste alors cassée (ne se
+    l'œil (jamais un policier en service, unité du MDC) ; porte verrouillée : les civils la déverrouillent, TOUT LE
+    MONDE y frappe ou l'enfonce (barre de réussite, 3 à 6 coups réussis) : elle reste alors cassée et battante (ne se
     verrouille plus) avec la description « Elle a été forcée. ».
 ]]
 
@@ -29,18 +29,22 @@ DoorlockConfig = {
     KnockAnim = { 'timetable@jimmy@doorknock@', 'knockdoor_idle', 2500 },
     Knock = { Enabled = true, Sound = { 'Door_Knock_Normal', 'dlc_btl_deliver_goods_sounds' }, Range = 15.0 },
 
-    -- Enfoncer (policiers en service seulement) : barre de réussite en bas de l'écran ; un curseur va et vient, ESPACE quand il
-    -- est dans la zone verte (un coup de pied à chaque essai). Steps essais réussis : la porte cède. Zone : largeur
-    -- de la zone verte à chaque étape (part de la barre) ; Speed : allers par seconde du curseur. MaxMisses essais
-    -- ratés : le policier s'arrête (il peut recommencer). Cooldown ms au moins entre deux coups (serveur). La porte
-    -- s'ouvre violemment et reste cassée (le verrou de son propriétaire saute, voir Broken). Un coup de pied (animation)
-    -- à chaque essai, réussi ou raté.
+    -- Enfoncer (TOUT LE MONDE, civil ou policier) : barre de réussite en bas de l'écran ; un curseur va et vient, ESPACE
+    -- quand il est dans la zone verte. Chaque essai = un coup de pied (animation + bruit entendu à Sound.Range m), réussi
+    -- ou raté. Steps : il faut entre Steps[1] et Steps[2] coups réussis (tiré au hasard pour la porte, le même pour ses
+    -- deux battants) ; un coup raté ne compte pas mais n'arrête pas la tentative. Zone : largeur de la zone verte à
+    -- chaque coup réussi (part de la barre) ; Speed : allers par seconde du curseur. Cooldown ms au moins entre deux
+    -- coups (serveur). La porte cède : elle s'ouvre d'un coup sec (Force), avec un bruit, et celui qui l'a enfoncée
+    -- sent la secousse (BreakShake) ; elle reste cassée et battante (voir Broken).
     Kick = {
-        Enabled = true, Steps = 3, Zone = { 0.2, 0.15, 0.11 }, Speed = { 0.9, 1.15, 1.4 }, MaxMisses = 3, Cooldown = 700,
+        Enabled = true, Steps = { 3, 6 }, Cooldown = 700,
+        Zone = { 0.2, 0.17, 0.15, 0.13, 0.12, 0.11 }, Speed = { 0.9, 1.0, 1.1, 1.2, 1.3, 1.4 },
         Anims = { { 'missprologuemcs_1', 'kick_down_player_zero', 1600, 650 }, -- dict, clip, durée, moment de l'impact
             { 'anim@scripted@player@freemode@ig6_stash_entry@door_trans@hinge_l@', 'kick_player1', 1600, 650 } },
-        Force = 22.0,                -- poussée donnée au battant (il s'ouvre en grand)
-        Shake = 0.25,                -- secousse de la caméra du policier à l'impact
+        Force = 30.0,                -- poussée donnée au battant quand la porte cède (coup sec, elle s'ouvre en grand)
+        Shake = 0.25,                -- secousse de la caméra à chaque coup réussi
+        BreakShake = { 'JOLT_SHAKE', 1.2 }, -- secousse (comme un dégât reçu) pour celui qui enfonce la porte
+        Sound = { Range = 25.0, Volume = 0.8 }, -- bruits des coups et de la porte qui cède (générés dans html/)
     },
 
     -- Porte enfoncée : cassée, elle ne se verrouille plus. Description affichée au-dessus d'elle (comme la description

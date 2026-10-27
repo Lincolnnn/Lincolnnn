@@ -156,4 +156,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 [data-theme="night"] .breach-zone { background: linear-gradient(180deg, var(--n-accent), var(--zone)); }
 [data-theme="night"] .breach-cursor { background: var(--n-bright); box-shadow: 0 0 0 1px var(--n-ink), 0 0 6px rgba(var(--n-rgb), .6); }
 [data-theme="night"] .breach-step { background: var(--n-step); }
+[data-theme="night"] .breach-step.done { background: var(--zone); }
+[data-theme="night"] .breach-step.current { background: var(--accent); box-shadow: 0 0 0 1px rgba(255, 255, 255, .5); }
 [data-theme="night"] .breach-hint kbd { color: var(--n-text); background: var(--n-btn); border-color: rgba(var(--n-rgb), .35); }

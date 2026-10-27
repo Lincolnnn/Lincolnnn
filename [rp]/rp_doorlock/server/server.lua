@@ -5,10 +5,13 @@
       porte (et de son second battant), dans la limite MaxPerPlayer, sauf porte forcée ; la porte appartient alors à
       ce joueur (sa licence : il la retrouve après une reconnexion).
     - Déverrouiller : tout joueur en mode civil ou sans rôle (pas en service de police), ou un admin (AdminAce).
-    - Enfoncer (POLICIERS EN SERVICE seulement) : un coup de pied à la fois (Cooldown) ; Kick.Steps coups réussis (barre de réussite du
-      client) : le verrou saute, la porte s'ouvre en grand chez tout le monde et reste CASSÉE (Broken) : elle ne se
-      verrouille plus, sa description « Elle a été forcée. » s'affiche, jusqu'à sa réparation (admin, Broken.Duration
-      minutes, ou redémarrage du serveur).
+    - Enfoncer (TOUT LE MONDE, civil ou policier) : un coup de pied à la fois (Cooldown), bruit relayé aux joueurs
+      proches (réussi ou raté) ; il faut entre Kick.Steps[1] et Kick.Steps[2] coups réussis (tiré au hasard pour la
+      porte, la même pour ses deux battants) ; un coup raté ne compte pas, la tentative continue. La porte cède : le
+      verrou saute, elle s'ouvre d'un coup sec chez tout le monde (bruit, secousse pour celui qui l'a enfoncée) et reste
+      CASSÉE (Broken) : battante, elle ne se verrouille plus, sa description « Elle a été forcée. » s'affiche, jusqu'à
+      sa réparation (admin, Broken.Duration minutes, ou redémarrage du serveur).
+    Une porte double (deux battants) est verrouillée, déverrouillée et enfoncée EN ENTIER (même groupe).
     - Frapper : le bruit est relayé aux joueurs proches.
     Les joueurs ne reçoivent jamais la licence du propriétaire, seulement une empreinte (tag) pour savoir « c'est la
     mienne ». Verrous gardés dans data/locks.json (Save). Aucune boucle.
@@ -19,7 +22,8 @@ local RES = GetCurrentResourceName()
 
 local locks = {}  -- [id] = { id, model, x, y, z, owner, tag, group }
 local broken = {} -- [id] = { id, model, x, y, z, group } : portes enfoncées (jusqu'à réparation)
-local kicks = {}  -- [groupe] = coups reçus
+local kicks = {}  -- [groupe] = coups réussis de la tentative en cours
+local needs = {}  -- [groupe] = coups réussis nécessaires (tirés au hasard une fois, gardés jusqu'à ce qu'elle cède)
 local lastAct = {} -- [src] = { [action] = heure }
 
 local function notify(src, text) TriggerClientEvent('rp_doorlock:notify', src, text) end
@@ -43,6 +47,17 @@ local function isPolice(src)
 end
 
 local NOT_POLICE = 'Un policier en service ne verrouille ni ne déverrouille les portes : il peut frapper ou l\'enfoncer.'
+
+--- Coups réussis nécessaires pour cette porte (groupe) : entre Kick.Steps[1] et Kick.Steps[2], tiré une fois
+local function needOf(group)
+    if not needs[group] then
+        local steps = (Config.Kick or {}).Steps or { 3, 6 }
+        if type(steps) == 'number' then steps = { steps, steps } end
+        local lo, hi = math.floor(steps[1] or 3), math.floor(steps[2] or steps[1] or 6)
+        needs[group] = hi > lo and math.random(lo, hi) or lo
+    end
+    return needs[group]
+end
 
 local function number(v)
     v = tonumber(v)
@@ -155,7 +170,7 @@ RegisterNetEvent('rp_doorlock:lock', function(doors)
         locks[e.id] = e
         out[#out + 1] = public(e)
     end
-    kicks[group] = nil
+    kicks[group], needs[group] = nil, nil
     save()
     TriggerClientEvent('rp_doorlock:set', -1, out)
     notify(src, #out > 1 and 'Portes verrouillées.' or 'Porte verrouillée.')
@@ -168,7 +183,7 @@ RegisterNetEvent('rp_doorlock:unlock', function(id)
     if not near(src, l.x, l.y, l.z, 1.0) then return end
     if not isAdmin(src) and isPolice(src) then return notify(src, NOT_POLICE) end
     local ids = removeGroup(id)
-    kicks[l.group] = nil
+    kicks[l.group], needs[l.group] = nil, nil
     save()
     TriggerClientEvent('rp_doorlock:unset', -1, ids)
     notify(src, #ids > 1 and 'Portes déverrouillées.' or 'Porte déverrouillée.')
@@ -187,26 +202,31 @@ local function repair(ids)
     return out
 end
 
---- Début de la barre de réussite : les coups d'avant ne comptent plus
+--- Début de la barre de réussite (tout le monde) : les coups réussis d'avant ne comptent plus ; le joueur apprend
+--- combien de coups réussis il faut (même nombre pour toute la porte, tiré une fois)
 RegisterNetEvent('rp_doorlock:breachStart', function(id)
     local src = source
     local l = type(id) == 'string' and locks[id] or nil
-    if l and isPolice(src) and near(src, l.x, l.y, l.z, 1.0) then kicks[l.group] = 0 end
+    if not l or (Config.Kick or {}).Enabled == false or not near(src, l.x, l.y, l.z, 1.0) then
+        return TriggerClientEvent('rp_doorlock:breachInfo', src, id, nil)
+    end
+    kicks[l.group] = 0
+    TriggerClientEvent('rp_doorlock:breachInfo', src, id, needOf(l.group))
 end)
 
---- Un coup de pied (policier en service) : réussi (curseur dans la zone verte) ou raté ; Steps coups réussis -> la porte
---- cède et reste cassée
+--- Un coup de pied (tout le monde) : bruit relayé aux joueurs proches ; réussi (curseur dans la zone verte) : compte ;
+--- raté : ne compte pas (la tentative continue). Assez de coups réussis -> la porte (ses deux battants) cède
 RegisterNetEvent('rp_doorlock:kick', function(id, hit)
     local src = source
     local K = Config.Kick or {}
     local l = type(id) == 'string' and locks[id] or nil
     if K.Enabled == false or not l then return end
-    if not isPolice(src) then return notify(src, 'Seul un policier en service peut enfoncer une porte.') end
     if not near(src, l.x, l.y, l.z, 1.0) or not throttle(src, 'kick', K.Cooldown or 700) then return end
+    TriggerClientEvent('rp_doorlock:kickFx', -1, { x = l.x, y = l.y, z = l.z }, hit == true, src)
     if hit ~= true then return end
     local n = (kicks[l.group] or 0) + 1
     kicks[l.group] = n
-    if n < (K.Steps or 3) then return end
+    if n < needOf(l.group) then return end
     local ped = GetPlayerPed(src)
     local from = GetEntityCoords(ped)
     local doors, ids = {}, {}
@@ -216,9 +236,9 @@ RegisterNetEvent('rp_doorlock:kick', function(id, hit)
         broken[d.id] = { id = d.id, model = d.model, x = d.x, y = d.y, z = d.z, group = d.group }
     end
     removeGroup(id)
-    kicks[l.group] = nil
+    kicks[l.group], needs[l.group] = nil, nil
     save()
-    TriggerClientEvent('rp_doorlock:breach', -1, doors, { x = from.x, y = from.y, z = from.z })
+    TriggerClientEvent('rp_doorlock:breach', -1, doors, { x = from.x, y = from.y, z = from.z }, src)
     notify(src, 'La porte cède !')
     local minutes = tonumber((Config.Broken or {}).Duration) or 0
     if minutes > 0 then SetTimeout(math.floor(minutes * 60000), function() repair(ids) end) end

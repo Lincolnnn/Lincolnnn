@@ -3,11 +3,13 @@
     --------------------
     Avec l'œil de rp_interact (Alt), en visant une porte du jeu (ou d'une map ajoutée) à moins de Distance m :
       - joueur CIVIL (mode civil ou sans rôle) : « Verrouiller la porte » ; porte verrouillée : « Déverrouiller la
-        porte » (tout civil) ou « Frapper à la porte » ;
-      - POLICIER en service (unité du MDC) : porte verrouillée : « Frapper à la porte » ou « Enfoncer la porte »
-        seulement (jamais verrouiller / déverrouiller) : barre de réussite en bas de l'écran (ESPACE
-        quand le curseur passe dans la zone verte, Steps fois ; RETOUR ARRIÈRE pour arrêter), un coup de pied
-        (animation) à chaque essai ;
+        porte » (tout civil) ;
+      - POLICIER en service (unité du MDC) : ne verrouille ni ne déverrouille jamais ;
+      - porte verrouillée, TOUT LE MONDE : « Frapper à la porte » ou « Enfoncer la porte » : barre de réussite en bas
+        de l'écran (ESPACE quand le curseur passe dans la zone verte ; 3 à 6 coups réussis, tirés au hasard par le
+        serveur ; un raté ne compte pas mais n'arrête rien ; RETOUR ARRIÈRE pour arrêter), un coup de pied (animation
+        + bruit, entendu autour) à chaque essai ; la porte cède d'un coup sec (bruit, secousse pour celui qui
+        l'enfonce) ;
       - porte enfoncée : cassée, elle ne se verrouille plus ; description « Elle a été forcée. » affichée au-dessus
         (comme la description visuelle d'une scène de /scene) ; un admin peut la réparer ;
       - porte ouverte : tout le monde peut y frapper ; un admin peut déverrouiller toute porte.
@@ -358,24 +360,56 @@ end)
 --- Enfoncée : déverrouillée, cassée (description), et le battant est projeté loin de celui qui l'a enfoncée
 local stopBreach -- barre de réussite (plus bas)
 
-RegisterNetEvent('rp_doorlock:breach', function(doors, from)
+--- Bruit d'une porte (coup de pied réussi / raté, porte qui cède), plus faible avec la distance (html/ : généré)
+local function soundAt(p, kind)
+    local S = (Config.Kick or {}).Sound or {}
+    local range = S.Range or 25.0
+    local d = #(GetEntityCoords(PlayerPedId()) - vector3(p.x, p.y, p.z))
+    if d > range then return end
+    local volume = (S.Volume or 0.8) * (1.0 - d / range) ^ 1.3
+    SendNUIMessage({ action = 'sound', data = { kind = kind, volume = volume } })
+end
+DL.soundAt = soundAt
+
+local function myServerId() return GetPlayerServerId(PlayerId()) end
+
+-- Coup de pied d'un autre joueur (le mien est joué tout de suite chez moi)
+RegisterNetEvent('rp_doorlock:kickFx', function(p, hit, src)
+    if type(p) ~= 'table' or src == myServerId() then return end
+    soundAt(p, hit and 'hit' or 'miss')
+end)
+
+--- Enfoncée (les deux battants d'une porte double) : déverrouillée, cassée (description), ouverte d'un coup sec loin
+--- de celui qui l'a enfoncée, bruit chez tout le monde autour ; secousse pour lui. Elle reste battante.
+RegisterNetEvent('rp_doorlock:breach', function(doors, from, by)
     local K = Config.Kick or {}
     if stopBreach then stopBreach() end
-    for _, l in ipairs(type(doors) == 'table' and doors or {}) do
+    local list = type(doors) == 'table' and doors or {}
+    for _, l in ipairs(list) do
         locks[l.id] = nil
         broken[l.id] = l
-        release(l.id, true)
-        local obj = doorObject(l)
-        if obj and type(from) == 'table' then
-            local c = GetEntityCoords(obj)
-            local dx, dy = c.x - from.x, c.y - from.y
-            local len = math.sqrt(dx * dx + dy * dy)
-            if len > 0.01 then
-                local f = K.Force or 22.0
-                ApplyForceToEntity(obj, 1, dx / len * f, dy / len * f, 0.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
-            end
-        end
+        release(l.id, true) -- libérée (plus figée) : elle bat de nouveau
     end
+    if list[1] then soundAt(list[1], 'break') end
+    if by == myServerId() and K.BreakShake then ShakeGameplayCam(K.BreakShake[1] or 'JOLT_SHAKE', K.BreakShake[2] or 1.2) end
+    CreateThread(function()
+        Wait(0) -- une image après l'avoir libérée : la poussée s'applique
+        for _ = 1, 3 do
+            for _, l in ipairs(list) do
+                local obj = doorObject(l)
+                if obj and type(from) == 'table' then
+                    local c = GetEntityCoords(obj)
+                    local dx, dy = c.x - from.x, c.y - from.y
+                    local len = math.sqrt(dx * dx + dy * dy)
+                    if len > 0.01 then
+                        local f = K.Force or 30.0
+                        ApplyForceToEntity(obj, 1, dx / len * f, dy / len * f, 0.0, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+                    end
+                end
+            end
+            Wait(0)
+        end
+    end)
     watch()
 end)
 
@@ -463,6 +497,7 @@ local function kickAnim(door, hit)
         if playAnim(anim, 0) then played = anim break end
     end
     Wait(played and played[4] or 600) -- moment où le pied touche la porte
+    soundAt(door, hit and 'hit' or 'miss')
     if hit and K.Shake and K.Shake > 0 then ShakeGameplayCam('SMALL_EXPLOSION_SHAKE', K.Shake) end
     return math.max(0, (played and played[3] or 1600) - (played and played[4] or 600))
 end
@@ -470,13 +505,14 @@ end
 -- =========================================================================
 -- ENFONCER : BARRE DE RÉUSSITE (en bas de l'écran, html/) - ESPACE quand le curseur est dans la zone verte
 -- =========================================================================
-local breach = nil -- { door, step, misses, waiting }
+local breach = nil -- { door, step, need, waiting }
 local BREACH_DISABLED = { 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36, 44, 140, 141, 142, 143, 177, 194, 199, 200, 257, 263, 322 }
 
-local function stepData(step)
+local function stepData(b)
     local K = Config.Kick or {}
     local zones, speeds = K.Zone or { 0.2, 0.15, 0.11 }, K.Speed or { 0.9, 1.15, 1.4 }
-    return { show = true, steps = K.Steps or 3, step = step,
+    local step = b.step
+    return { show = true, steps = b.need, step = step,
         zone = zones[math.min(step + 1, #zones)], speed = speeds[math.min(step + 1, #speeds)] }
 end
 
@@ -489,7 +525,7 @@ end
 
 local function startBreach(door)
     if breach then return end
-    breach = { door = door, step = 0, misses = 0, waiting = false }
+    breach = { door = door, step = 0, need = nil, waiting = true } -- en attente du serveur (coups nécessaires)
     local mine = breach
     TriggerServerEvent('rp_doorlock:breachStart', door.id)
     -- animations chargées dès le début : le premier coup de pied part sans attendre
@@ -497,18 +533,16 @@ local function startBreach(door)
         if DoesAnimDictExist(anim[1]) then RequestAnimDict(anim[1]) end
     end
     faceDoor(door)
-    SendNUIMessage({ action = 'breach', data = stepData(0) })
+    SetTimeout(3000, function() if breach == mine and not mine.need then stopBreach() end end) -- serveur muet
     CreateThread(function()
         while breach == mine do
             for _, control in ipairs(BREACH_DISABLED) do DisableControlAction(0, control, true) end
-            if not mine.waiting then
-                if IsDisabledControlJustPressed(0, 22) then -- ESPACE
-                    mine.waiting = true
-                    SendNUIMessage({ action = 'breachKey' })
-                elseif IsDisabledControlJustPressed(0, 177) or IsDisabledControlJustPressed(0, 194)
-                    or IsDisabledControlJustPressed(0, 200) or IsDisabledControlJustPressed(0, 322) then
-                    stopBreach('Vous arrêtez d\'enfoncer la porte.')
-                end
+            if not mine.waiting and IsDisabledControlJustPressed(0, 22) then -- ESPACE
+                mine.waiting = true
+                SendNUIMessage({ action = 'breachKey' })
+            elseif IsDisabledControlJustPressed(0, 177) or IsDisabledControlJustPressed(0, 194)
+                or IsDisabledControlJustPressed(0, 200) or IsDisabledControlJustPressed(0, 322) then
+                stopBreach('Vous arrêtez d\'enfoncer la porte.') -- à tout moment
             end
             if breach == mine then
                 if IsEntityDead(PlayerPedId()) or not locks[door.id] then
@@ -522,30 +556,34 @@ local function startBreach(door)
     end)
 end
 
--- Résultat d'un essai (le NUI sait où était le curseur) : coup de pied, puis étape suivante
+-- Le serveur dit combien de coups réussis il faut (3 à 6, le même pour toute la porte) : la barre s'affiche
+RegisterNetEvent('rp_doorlock:breachInfo', function(id, need)
+    local b = breach
+    if not b or b.door.id ~= id or b.need then return end
+    if not need then return stopBreach('Cette porte ne peut pas être enfoncée.') end
+    b.need, b.waiting = math.floor(need), false
+    SendNUIMessage({ action = 'breach', data = stepData(b) })
+end)
+
+-- Résultat d'un essai (le NUI sait où était le curseur) : coup de pied (animation + bruit), puis essai suivant.
+-- Raté : ne compte pas, la tentative continue (seuls RETOUR ARRIÈRE, s'éloigner ou la porte ouverte l'arrêtent).
 RegisterNUICallback('breachResult', function(data, cb)
     cb({ ok = true })
     local b = breach
-    if not b or not b.waiting then return end
+    if not b or not b.waiting or not b.need then return end
     local hit = type(data) == 'table' and data.hit == true
-    local K = Config.Kick or {}
     CreateThread(function()
         local rest = kickAnim(b.door, hit)
         if breach ~= b then return end
         TriggerServerEvent('rp_doorlock:kick', b.door.id, hit)
-        if hit then b.step = b.step + 1 else b.misses = b.misses + 1 end
-        if not hit and b.misses >= (K.MaxMisses or 3) then
-            Wait(rest)
-            return stopBreach('Vous n\'arrivez pas à enfoncer la porte. Reprenez votre souffle et réessayez.')
-        end
-        if hit and b.step >= (K.Steps or 3) then
+        if hit then b.step = b.step + 1 end
+        if b.step >= b.need then
             SetTimeout(3000, function() if breach == b then stopBreach() end end) -- le serveur fait céder la porte
             return
         end
         Wait(rest)
         if breach ~= b then return end
-        if not hit then notify('La porte tient bon.') end
-        SendNUIMessage({ action = 'breach', data = stepData(b.step) })
+        SendNUIMessage({ action = 'breach', data = stepData(b) })
         b.waiting = false
     end)
 end)
@@ -576,7 +614,7 @@ exports('targetOptions', function(info)
         options[#options + 1] = { id = 'unlock', icon = 'unlock', label = 'Déverrouiller la porte' }
     end
     if K.Enabled ~= false then options[#options + 1] = { id = 'knock', icon = 'hand', label = 'Frapper à la porte' } end
-    if lock and police and (Config.Kick or {}).Enabled ~= false then
+    if lock and (Config.Kick or {}).Enabled ~= false then -- tout le monde (civil ou policier)
         options[#options + 1] = { id = 'kick', icon = 'door', label = 'Enfoncer la porte' }
     end
     if #options == 0 then return nil end
