@@ -147,8 +147,14 @@ dans `server/server.lua`.
 
 ## Disposition de la fenêtre
 
-- **Thème clair (jour)** : fond gris très clair, cartes blanches, texte foncé, accent bleu. Les HUD affichés sur le
-  jeu (PLD, display MDC, car HUD) et les notifications restent sombres, pour rester lisibles sur l'image du jeu.
+- **Thème de jour** (couleurs du logo du serveur : noir, blanc, rouge entre Torino et bordeaux) : fond **gris doux**
+  (pas de blanc éclatant), cartes gris clair, texte foncé, **barre de titre noire soulignée de rouge**, accent **rouge
+  foncé** (boutons principaux, page choisie, focus). Les HUD affichés sur le jeu (PLD, display MDC, car HUD) et les
+  notifications restent sombres, aux couleurs du logo (jauges blanches : le rouge et l'orange restent des alertes).
+- **Menus des autres scripts** (œil, Menu Interaction, `/eup`, fiche civile, `/scene`, coffre / équipement, trafic,
+  Ganghunt, chat, `/tuto`, portes, fiche du véhicule…) : **toujours sombres**. De jour : **noir avec touches de rouge
+  foncé** (bandeaux, sélection, boutons), textes clairs ; de nuit : la couleur du mode nuit du MDC, même côté sombre.
+  Jamais de texte foncé sur fond sombre.
 - **Volet de navigation à gauche** : en haut, le **nom RP** (sans image de profil) et le MDC utilisé ; les **pages** du MDC ; pour les
   polices, juste en dessous des pages, les **4 statuts listés l'un sous l'autre** : chaque bouton est **entièrement
   de la couleur de son statut**, celui de l'unité est mis en avant (opaque, cerclé, ✓) ; puis les **BOLO actifs**
@@ -166,7 +172,8 @@ plus de flou de l'arrière-plan.
 
 ### Mode nuit (*Paramètres > MDC > Apparence*)
 
-- **Apparence** : **Jour** (thème clair, par défaut) ou **Nuit** : **fond noir**, tout dans **une seule couleur**
+- **Apparence** : **Jour** (gris doux et rouge du logo, par défaut) ou **Nuit** : **fond noir**, couleurs sombres (textes et accents
+  foncés, rien d'éblouissant), tout dans **une seule couleur**
   au choix (**Couleur du mode nuit** : **vert** par défaut, **jaune**, **rouge** ou **bleu**). Les écarts de couleur
   du mode jour deviennent des écarts de contraste et d'intensité de cette couleur : **titres plus foncés**, **texte
   plus clair**, zones, boutons, pastilles (polices, tags d'unité, priorités des appels, BOLO, alertes) plus ou moins
@@ -183,10 +190,11 @@ plus de flou de l'arrière-plan.
 - Gardé chez le joueur, comme les autres réglages. Pour les développeurs : exports client `uiTheme()` ('night' ou
   'day', pour les menus extérieurs) et `uiNightColor()` ('green', 'yellow', 'red', 'blue'), événement client
   `mdc:uiTheme` (theme, color) à chaque changement ; chaque ressource les envoie à son NUI (`client/theme.lua`), qui
-  pose `data-theme="night"` et `data-night-color` sur la page (dans le MDC : `data-theme` sur la fenêtre `#mdc` et
-  sur la couche des HUD `#hudLayer`, jamais `color-scheme` sur la racine ; jamais de `color-mix()`, inconnu du
-  navigateur du jeu) (couleurs : variables `--n-*` en haut du bloc « mode
-  nuit » de chaque `style.css`).
+  pose toujours `data-theme="night"` (structure sombre) et `data-night-color` sur la page : la couleur du mode nuit, ou
+  `logo` de jour (dans le MDC : `data-theme` sur la fenêtre `#mdc` ; la couche des HUD `#hudLayer` est toujours sombre,
+  `data-night-color` = couleur du mode nuit ou `logo` ; jamais `color-scheme` sur la racine ; jamais de `color-mix()`,
+  inconnu du navigateur du jeu). Couleurs : variables `--n-*` du bloc « Couleurs des interfaces sombres » de chaque
+  `style.css` (vert, jaune, rouge, bleu, logo).
 
 - **NOM RP** : il s'affiche en haut à gauche et dans les unités (le pseudo Steam/FiveM n'est jamais affiché). **Obligatoire pour
   rejoindre une unité.** Il est partagé avec le chat écrit : `/nomrp John Carter` dans le chat change aussi celui du MDC, et

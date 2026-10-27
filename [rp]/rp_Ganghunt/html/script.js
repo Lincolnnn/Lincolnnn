@@ -386,8 +386,8 @@
     window.addEventListener('message', ({ data }) => {
         if (!data || data.action !== 'uiTheme') return;
         const t = data.data || {};
-        document.documentElement.dataset.theme = t.theme === 'night' ? 'night' : 'day';
-        document.documentElement.dataset.nightColor = ['green', 'yellow', 'red', 'blue'].includes(t.color) ? t.color : 'green';
+        document.documentElement.dataset.theme = 'night'; // toujours sombre : de jour, couleurs du logo du serveur
+        document.documentElement.dataset.nightColor = t.theme === 'night' && ['green', 'yellow', 'red', 'blue'].includes(t.color) ? t.color : 'logo';
     });
 
     window.addEventListener('message', (e) => {

@@ -116,8 +116,8 @@
         if (!data || !data.action) return;
         const d = data.data || {};
         if (data.action === 'uiTheme') {
-            document.documentElement.dataset.theme = d.theme === 'night' ? 'night' : 'day';
-            document.documentElement.dataset.nightColor = ['green', 'yellow', 'red', 'blue'].includes(d.color) ? d.color : 'green';
+            document.documentElement.dataset.theme = 'night'; // toujours sombre : de jour, couleurs du logo du serveur
+            document.documentElement.dataset.nightColor = d.theme === 'night' && ['green', 'yellow', 'red', 'blue'].includes(d.color) ? d.color : 'logo';
         } else if (data.action === 'list') {
             showList(d);
         } else if (data.action === 'editor') {

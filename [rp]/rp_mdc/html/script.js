@@ -3665,7 +3665,9 @@
         const hudTheme = night && s.themeScope !== 'mdc' ? 'night' : 'day';
         win.dataset.theme = mdcTheme;
         $('#suggestBox').dataset.theme = mdcTheme;
-        $('#hudLayer').dataset.theme = hudTheme;
+        // HUD, PLD, notifications : toujours sombres ; de jour aux couleurs du logo du serveur (noir, blanc, rouge)
+        $('#hudLayer').dataset.theme = 'night';
+        $('#hudLayer').dataset.nightColor = hudTheme === 'night' ? s.nightColor : 'logo';
         document.documentElement.dataset.nightColor = s.nightColor;
         $('[data-setting="mdc.themeScope"]').disabled = s.theme !== 'night';
         $('[data-setting="mdc.nightColor"]').disabled = s.theme !== 'night';

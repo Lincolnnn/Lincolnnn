@@ -62,61 +62,87 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
     background: #ffffff; border: 1px solid rgba(0, 0, 0, .18); border-bottom-width: 2px;
 }
 
-/* Couleur du mode nuit (Paramètres > MDC > Apparence) : vert (par défaut), jaune, rouge ou bleu ; <html
-   data-night-color="…">. Mêmes contrastes et intensités pour chaque couleur (titres plus foncés, texte plus clair,
-   boutons plus ou moins vifs) ; fond noir. Valeurs générées depuis le vert (même luminosité, teinte changée). */
+/* Couleurs des interfaces sombres : mode nuit (Paramètres > MDC > Apparence : vert par défaut, jaune, rouge ou bleu) et
+   « logo » (menus de jour : noir, blanc et rouge Torino / bordeaux du logo du serveur) ; attribut data-night-color="…"
+   sur <html> (ou sur un bloc). Mêmes contrastes pour chaque couleur : fond noir, textes clairs, jamais de texte foncé
+   sur fond sombre. Nuit : valeurs générées depuis le vert (même luminosité, teinte changée). */
 :root {
-    --n-ink: #020c05; --n-field: #010402; --n-btn: #020703; --n-head: #030c06; --n-hover: #06190d; --n-press: #082212;
-    --n-press-2: #0b3c1d; --n-step: #0a2614; --n-primary: #0e4a24; --n-primary-hover: #136030;
-    --n-primary-border: #2fbf5f; --n-strong: #1d7a3f; --n-strong-press: #16602f; --n-banner-1: #0e4423;
-    --n-banner-2: #082c15; --n-banner-3: #020a05; --n-tag-1: #2e9e57; --n-tag-2: #268a4a; --n-tag-3: #217a41;
-    --n-tag-4: #1c6b38; --n-tag-5: #185e31; --n-tag-6: #14522a; --n-tag-7: #104624; --n-tag-8: #0c3a1e;
-    --n-tag-9: #0f3f21; --n-tag-kcso: #12502a; --n-title: #24b955; --n-accent: #3ddc74; --n-light: #7dffa8;
-    --n-soft: #8fe6ad; --n-text: #a8ffc6; --n-pale: #c6ffd9; --n-bright: #e6fff0; --n-rgb: 60, 255, 130;
-    --n-text-rgb: 150, 245, 185; --n-muted-rgb: 110, 205, 145; --n-glow-rgb: 120, 255, 170;
-    --n-light-rgb: 125, 255, 168; --n-bg-rgb: 0, 3, 1; --n-bg2-rgb: 1, 5, 2; --n-card-rgb: 2, 10, 5;
-    --n-accent-rgb: 61, 220, 116; --n-danger-rgb: 70, 230, 125; --n-warn-rgb: 50, 190, 100; --n-ok-rgb: 40, 160, 85;
-    --n-p1: 150, 255, 185; --n-p2: 80, 225, 130; --n-p3: 45, 180, 95; --n-pn: 30, 125, 65; --n-hue: 75deg;
+    --n-ink: #000502; --n-field: #000201; --n-btn: #010402; --n-head: #020704; --n-hover: #04110a; --n-press: #06190d;
+    --n-press-2: #093016; --n-step: #071d0f; --n-primary: #0b3d1d; --n-primary-hover: #0f4f26;
+    --n-primary-border: #1d8a43; --n-strong: #176533; --n-strong-press: #124f28; --n-banner-1: #0b3a1d;
+    --n-banner-2: #062311; --n-banner-3: #010603; --n-tag-1: #278a4b; --n-tag-2: #21773f; --n-tag-3: #1c6938;
+    --n-tag-4: #185c30; --n-tag-5: #14502a; --n-tag-6: #114524; --n-tag-7: #0d3a1e; --n-tag-8: #0a3018;
+    --n-tag-9: #0c351c; --n-tag-kcso: #0f4423; --n-title: #1a8a3f; --n-accent: #27a854; --n-light: #4cc677;
+    --n-soft: #5fa97a; --n-text: #6cc28b; --n-pale: #8ed3a6; --n-bright: #b4e6c5; --n-rgb: 35, 185, 88;
+    --n-text-rgb: 108, 194, 139; --n-muted-rgb: 84, 150, 108; --n-glow-rgb: 70, 190, 115; --n-light-rgb: 76, 198, 119;
+    --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 0, 2, 1; --n-card-rgb: 1, 6, 3; --n-accent-rgb: 39, 168, 84;
+    --n-danger-rgb: 50, 180, 95; --n-warn-rgb: 40, 165, 85; --n-ok-rgb: 32, 138, 72; --n-p1: 108, 194, 139;
+    --n-p2: 55, 170, 95; --n-p3: 38, 155, 80; --n-pn: 25, 105, 55; --n-hue: 75deg;
 }
-:root[data-night-color="yellow"] {
-    --n-ink: #0c0a02; --n-field: #040301; --n-btn: #070502; --n-head: #0c0a03; --n-hover: #191606; --n-press: #221e08;
-    --n-press-2: #3c340b; --n-step: #26210a; --n-primary: #4a400e; --n-primary-hover: #605413;
-    --n-primary-border: #bfa22f; --n-strong: #7a6a1d; --n-strong-press: #605216; --n-banner-1: #443c0e;
-    --n-banner-2: #2c2608; --n-banner-3: #0a0902; --n-tag-1: #9e8b2e; --n-tag-2: #8a7926; --n-tag-3: #7a6b21;
-    --n-tag-4: #6b5d1c; --n-tag-5: #5e5218; --n-tag-6: #524714; --n-tag-7: #463d10; --n-tag-8: #3a330c;
-    --n-tag-9: #3f370f; --n-tag-kcso: #504712; --n-title: #b99b24; --n-accent: #dcbe3d; --n-light: #ffe57d;
-    --n-soft: #e6d68f; --n-text: #ffefa8; --n-pale: #fff4c6; --n-bright: #fffce6; --n-rgb: 255, 221, 60;
-    --n-text-rgb: 245, 229, 150; --n-muted-rgb: 205, 189, 110; --n-glow-rgb: 255, 233, 120;
-    --n-light-rgb: 255, 229, 125; --n-bg-rgb: 3, 2, 0; --n-bg2-rgb: 5, 4, 1; --n-card-rgb: 10, 9, 2;
-    --n-accent-rgb: 220, 190, 61; --n-danger-rgb: 230, 200, 70; --n-warn-rgb: 190, 165, 50; --n-ok-rgb: 160, 141, 40;
-    --n-p1: 255, 234, 150; --n-p2: 225, 198, 80; --n-p3: 180, 158, 45; --n-pn: 125, 109, 30; --n-hue: 12deg;
+[data-night-color="green"] {
+    --n-ink: #000502; --n-field: #000201; --n-btn: #010402; --n-head: #020704; --n-hover: #04110a; --n-press: #06190d;
+    --n-press-2: #093016; --n-step: #071d0f; --n-primary: #0b3d1d; --n-primary-hover: #0f4f26;
+    --n-primary-border: #1d8a43; --n-strong: #176533; --n-strong-press: #124f28; --n-banner-1: #0b3a1d;
+    --n-banner-2: #062311; --n-banner-3: #010603; --n-tag-1: #278a4b; --n-tag-2: #21773f; --n-tag-3: #1c6938;
+    --n-tag-4: #185c30; --n-tag-5: #14502a; --n-tag-6: #114524; --n-tag-7: #0d3a1e; --n-tag-8: #0a3018;
+    --n-tag-9: #0c351c; --n-tag-kcso: #0f4423; --n-title: #1a8a3f; --n-accent: #27a854; --n-light: #4cc677;
+    --n-soft: #5fa97a; --n-text: #6cc28b; --n-pale: #8ed3a6; --n-bright: #b4e6c5; --n-rgb: 35, 185, 88;
+    --n-text-rgb: 108, 194, 139; --n-muted-rgb: 84, 150, 108; --n-glow-rgb: 70, 190, 115; --n-light-rgb: 76, 198, 119;
+    --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 0, 2, 1; --n-card-rgb: 1, 6, 3; --n-accent-rgb: 39, 168, 84;
+    --n-danger-rgb: 50, 180, 95; --n-warn-rgb: 40, 165, 85; --n-ok-rgb: 32, 138, 72; --n-p1: 108, 194, 139;
+    --n-p2: 55, 170, 95; --n-p3: 38, 155, 80; --n-pn: 25, 105, 55; --n-hue: 75deg;
 }
-:root[data-night-color="red"] {
-    --n-ink: #0c0203; --n-field: #040101; --n-btn: #070203; --n-head: #0c0303; --n-hover: #190606; --n-press: #3b0f0e;
-    --n-press-2: #561010; --n-step: #3e1011; --n-primary: #641313; --n-primary-hover: #7a1918;
-    --n-primary-border: #cf3d42; --n-strong: #932323; --n-strong-press: #791c1e; --n-banner-1: #5d1513;
-    --n-banner-2: #460d0d; --n-banner-3: #0a0202; --n-tag-1: #b63535; --n-tag-2: #a22d2d; --n-tag-3: #922828;
-    --n-tag-4: #832224; --n-tag-5: #761e1f; --n-tag-6: #6b1a1b; --n-tag-7: #5f1616; --n-tag-8: #531311;
-    --n-tag-9: #581515; --n-tag-kcso: #691918; --n-title: #d3292f; --n-accent: #e1575a; --n-light: #ff7d82;
-    --n-soft: #e68f91; --n-text: #ffa8aa; --n-pale: #ffc6c8; --n-bright: #ffe7e6; --n-rgb: 255, 60, 61;
-    --n-text-rgb: 245, 150, 150; --n-muted-rgb: 205, 110, 110; --n-glow-rgb: 255, 121, 120;
-    --n-light-rgb: 255, 125, 130; --n-bg-rgb: 3, 0, 0; --n-bg2-rgb: 5, 1, 1; --n-card-rgb: 10, 2, 2;
-    --n-accent-rgb: 225, 87, 90; --n-danger-rgb: 234, 97, 100; --n-warn-rgb: 205, 65, 67; --n-ok-rgb: 184, 47, 46;
-    --n-p1: 255, 150, 153; --n-p2: 229, 106, 109; --n-p3: 204, 52, 51; --n-pn: 150, 36, 36; --n-hue: -42deg;
+[data-night-color="yellow"] {
+    --n-ink: #050400; --n-field: #020200; --n-btn: #040301; --n-head: #070602; --n-hover: #111004; --n-press: #191606;
+    --n-press-2: #302809; --n-step: #1d1907; --n-primary: #3d340b; --n-primary-hover: #4f440f;
+    --n-primary-border: #8a761d; --n-strong: #655717; --n-strong-press: #4f4412; --n-banner-1: #3a330b;
+    --n-banner-2: #231f06; --n-banner-3: #060501; --n-tag-1: #8a7927; --n-tag-2: #776721; --n-tag-3: #695c1c;
+    --n-tag-4: #5c5018; --n-tag-5: #504614; --n-tag-6: #453c11; --n-tag-7: #3a330d; --n-tag-8: #302a0a;
+    --n-tag-9: #352f0c; --n-tag-kcso: #443c0f; --n-title: #8a731a; --n-accent: #a89027; --n-light: #c6b04c;
+    --n-soft: #a99d5f; --n-text: #c2b36c; --n-pale: #d3c68e; --n-bright: #e6dcb4; --n-rgb: 185, 158, 35;
+    --n-text-rgb: 194, 179, 108; --n-muted-rgb: 150, 139, 84; --n-glow-rgb: 190, 171, 70; --n-light-rgb: 198, 176, 76;
+    --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 2, 2, 0; --n-card-rgb: 6, 5, 1; --n-accent-rgb: 168, 144, 39;
+    --n-danger-rgb: 180, 156, 50; --n-warn-rgb: 165, 143, 40; --n-ok-rgb: 138, 121, 32; --n-p1: 194, 179, 108;
+    --n-p2: 170, 149, 55; --n-p3: 155, 135, 38; --n-pn: 105, 92, 25; --n-hue: 12deg;
 }
-:root[data-night-color="blue"] {
-    --n-ink: #02070c; --n-field: #010204; --n-btn: #020507; --n-head: #03070c; --n-hover: #060e19; --n-press: #112747;
-    --n-press-2: #123563; --n-step: #142c4a; --n-primary: #153d71; --n-primary-hover: #1b4886;
-    --n-primary-border: #4a89d2; --n-strong: #265a9f; --n-strong-press: #1f4e85; --n-banner-1: #16386a;
-    --n-banner-2: #0f2d53; --n-banner-3: #02050a; --n-tag-1: #3874c2; --n-tag-2: #3067ae; --n-tag-3: #2b5e9e;
-    --n-tag-4: #26558f; --n-tag-5: #214c83; --n-tag-6: #1d4577; --n-tag-7: #193c6b; --n-tag-8: #143360;
-    --n-tag-9: #183864; --n-tag-kcso: #1a4075; --n-title: #3381d7; --n-accent: #649ee3; --n-light: #7dbaff;
-    --n-soft: #8fb7e6; --n-text: #a8d0ff; --n-pale: #c6e1ff; --n-bright: #e6f0ff; --n-rgb: 60, 146, 255;
-    --n-text-rgb: 150, 191, 245; --n-muted-rgb: 110, 151, 205; --n-glow-rgb: 120, 178, 255;
-    --n-light-rgb: 125, 186, 255; --n-bg-rgb: 0, 1, 3; --n-bg2-rgb: 1, 3, 5; --n-card-rgb: 2, 5, 10;
-    --n-accent-rgb: 100, 158, 227; --n-danger-rgb: 110, 167, 235; --n-warn-rgb: 78, 135, 208;
-    --n-ok-rgb: 49, 112, 197; --n-p1: 150, 199, 255; --n-p2: 119, 170, 232; --n-p3: 64, 125, 207; --n-pn: 39, 92, 162;
-    --n-hue: 172deg;
+[data-night-color="red"] {
+    --n-ink: #050000; --n-field: #020000; --n-btn: #040101; --n-head: #070202; --n-hover: #110504; --n-press: #190606;
+    --n-press-2: #4a0e10; --n-step: #1d0707; --n-primary: #571010; --n-primary-hover: #691415;
+    --n-primary-border: #a32225; --n-strong: #7e1d1d; --n-strong-press: #681818; --n-banner-1: #541110;
+    --n-banner-2: #3d0b0a; --n-banner-3: #060101; --n-tag-1: #a22e2e; --n-tag-2: #8f2829; --n-tag-3: #812223;
+    --n-tag-4: #741e20; --n-tag-5: #681a1a; --n-tag-6: #5e1717; --n-tag-7: #531313; --n-tag-8: #490f0f;
+    --n-tag-9: #4e1312; --n-tag-kcso: #5d1515; --n-title: #a41f24; --n-accent: #c12d2f; --n-light: #cd6365;
+    --n-soft: #b47373; --n-text: #cb8282; --n-pale: #d38e8f; --n-bright: #e6b4b5; --n-rgb: 211, 40, 42;
+    --n-text-rgb: 203, 130, 130; --n-muted-rgb: 167, 98, 98; --n-glow-rgb: 198, 94, 93; --n-light-rgb: 205, 99, 101;
+    --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 2, 0, 0; --n-card-rgb: 6, 1, 1; --n-accent-rgb: 193, 45, 47;
+    --n-danger-rgb: 201, 60, 63; --n-warn-rgb: 190, 46, 47; --n-ok-rgb: 163, 39, 38; --n-p1: 203, 130, 130;
+    --n-p2: 193, 63, 65; --n-p3: 180, 44, 45; --n-pn: 130, 32, 31; --n-hue: -42deg;
+}
+[data-night-color="blue"] {
+    --n-ink: #000205; --n-field: #000102; --n-btn: #010204; --n-head: #020407; --n-hover: #040811; --n-press: #060e19;
+    --n-press-2: #103157; --n-step: #07111d; --n-primary: #123664; --n-primary-hover: #164076;
+    --n-primary-border: #2564b0; --n-strong: #204f8a; --n-strong-press: #1b4274; --n-banner-1: #123361;
+    --n-banner-2: #0d274a; --n-banner-3: #010306; --n-tag-1: #3168ae; --n-tag-2: #2b5d9b; --n-tag-3: #26538d;
+    --n-tag-4: #214c80; --n-tag-5: #1d4375; --n-tag-6: #1a3d6a; --n-tag-7: #15355f; --n-tag-8: #122f56;
+    --n-tag-9: #14315a; --n-tag-kcso: #173a6a; --n-title: #2165b1; --n-accent: #3077cd; --n-light: #6f9bd1;
+    --n-soft: #7d97b9; --n-text: #8caacf; --n-pale: #8eadd3; --n-bright: #b4cbe6; --n-rgb: 50, 124, 216;
+    --n-text-rgb: 140, 170, 207; --n-muted-rgb: 108, 136, 172; --n-glow-rgb: 104, 146, 202;
+    --n-light-rgb: 111, 155, 209; --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 0, 1, 2; --n-card-rgb: 1, 3, 6;
+    --n-accent-rgb: 48, 119, 205; --n-danger-rgb: 72, 132, 204; --n-warn-rgb: 49, 116, 202; --n-ok-rgb: 41, 98, 175;
+    --n-p1: 140, 170, 207; --n-p2: 74, 130, 197; --n-p3: 47, 111, 192; --n-pn: 34, 80, 142; --n-hue: 172deg;
+}
+[data-night-color="logo"] {
+    --n-ink: #0b0b0c; --n-field: #09090a; --n-btn: #111113; --n-head: #161618; --n-hover: #22151a; --n-press: #2d1218;
+    --n-press-2: #5a0d18; --n-step: #241318; --n-primary: #7a0c19; --n-primary-hover: #931020;
+    --n-primary-border: #c62a37; --n-strong: #8b0e1d; --n-strong-press: #6d0a16; --n-banner-1: #8b0e1d;
+    --n-banner-2: #4e0811; --n-banner-3: #0d0506; --n-tag-1: #a3192a; --n-tag-2: #921626; --n-tag-3: #821322;
+    --n-tag-4: #73111e; --n-tag-5: #650f1a; --n-tag-6: #580d17; --n-tag-7: #4b0b14; --n-tag-8: #3e0a11;
+    --n-tag-9: #430a12; --n-tag-kcso: #5c0d17; --n-title: #e4505c; --n-accent: #d8323f; --n-light: #ef7c86;
+    --n-soft: #c9c4c5; --n-text: #ebe7e7; --n-pale: #f4f1f1; --n-bright: #ffffff; --n-rgb: 205, 35, 50;
+    --n-text-rgb: 235, 231, 231; --n-muted-rgb: 178, 170, 172; --n-glow-rgb: 225, 55, 70;
+    --n-light-rgb: 239, 124, 134; --n-bg-rgb: 7, 7, 8; --n-bg2-rgb: 12, 12, 13; --n-card-rgb: 17, 17, 19;
+    --n-accent-rgb: 216, 50, 63; --n-danger-rgb: 230, 70, 82; --n-warn-rgb: 214, 150, 40; --n-ok-rgb: 60, 170, 90;
+    --n-p1: 240, 120, 130; --n-p2: 216, 50, 63; --n-p3: 170, 30, 45; --n-pn: 120, 22, 32; --n-hue: -42deg;
 }
 
 /* Mode nuit (réglé dans le MDC : Paramètres > MDC > Apparence ; client/theme.lua) : couleur du mode nuit sur fond noir, la zone à
