@@ -22,9 +22,11 @@ VCConfig = {
     --     le logo « moteur abîmé » du car HUD disparaît : les dégâts, ce sont ses voyants ;
     --   HideLamps : ses voyants déjà présents sur le car HUD (ceinture) ;
     --   Notify : ses notifications en français, en message privé du chat (titre « Véhicule ») comme les nôtres ;
-    --   MuteBelt : sauf « ceinture attachée / détachée » (le logo du car HUD et le son suffisent).
+    --   MuteBelt : true = sans « ceinture attachée / détachée » (le logo du car HUD et le son suffisent).
+    -- Pont absent (ligne oubliée) : Fallback = notifications de secours en français (voyants qui s'allument, ceinture)
+    -- et HideGameFeed = notifications du jeu (celles de Riven, en anglais) masquées à bord. Console F8 : « pont Riven actif ».
     Riven = { Mode = 'auto', Resource = 'riven-impact-dynamics',
-        Lamps = true, HideLamps = { 'belt' }, Notify = true, MuteBelt = true },
+        Lamps = true, HideLamps = { 'belt' }, Notify = true, MuteBelt = false, Fallback = true, HideGameFeed = true },
 
     Keys = {
         engine = 'O',        -- SEULE touche qui allume / coupe le moteur (conducteur)

@@ -10,6 +10,30 @@ BridgeConfig = {
     -- Scripts dont les options ne sont proposées qu'aux policiers en service (dans une unité du MDC) : herses de
     -- riven_spikes (coffre des véhicules de police, ramasser / tirer le cordon d'une herse posée)
     PoliceOnly = { riven_spikes = true },
+    -- Libellés des options traduits dans l'œil, par script (que sa langue soit réglée ou non) :
+    -- Labels : texte exact -> texte ; Patterns : { motif Lua, texte avec %s } ; le texte capturé (nom de l'objet)
+    -- passe par Nouns (avec son article)
+    Translations = {
+        riven_spikes = {
+            Labels = {
+                ['Grab cord'] = 'Saisir le cordon',
+                ['Put strip back in trunk'] = 'Ranger la herse dans le coffre',
+                ['Saisir le cordon'] = 'Saisir le cordon',
+                ['Ranger la herse dans le coffre'] = 'Ranger la herse dans le coffre',
+            },
+            Patterns = {
+                { '^Take (.+)$', 'Prendre %s dans le coffre' },
+                { '^Prendre : (.+)$', 'Prendre %s dans le coffre' },
+                { '^Pick up (.+)$', 'Ramasser %s' },
+                { '^Ramasser : (.+)$', 'Ramasser %s' },
+            },
+            Nouns = {
+                ['Spike Strip'] = 'la herse', ['Herse'] = 'la herse',
+                ['Stop Stick'] = 'le Stop Stick', ['Stop Stick (Red)'] = 'le Stop Stick rouge', ['Stop Stick (rouge)'] = 'le Stop Stick rouge',
+                ['Terminator'] = 'le Terminator', ['Terminator XS'] = 'le Terminator XS',
+            },
+        },
+    },
     -- Titre de l'œil sur le sol (zones) selon le script qui a ajouté l'option ; sinon « Lieu »
     Labels = { riven_spikes = 'Herse' },
     -- Icônes Font Awesome d'ox_target -> icônes de l'œil (eye, search, door, car, hand, trash, lock, unlock, cuffs,

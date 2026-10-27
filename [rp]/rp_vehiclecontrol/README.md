@@ -466,10 +466,15 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
      retiré (le car HUD a déjà le sien) ; la notification du moteur (O) passe au-dessus des voyants allumés ;
    - **plus de logo « moteur abîmé / détruit » sur le car HUD** (ni de clignotement rouge) : les dégâts, ce sont les
      voyants de Riven ;
-   - **notifications en français**, en **message privé du chat** (titre « Véhicule »), comme celles de ce script : moteur
-     calé, pneu crevé, portière coincée, feu, réparation de fortune… (« ceinture attachée / détachée » n'est pas
-     affiché : le logo du car HUD et le son suffisent). Les textes à l'écran de Riven (portière coincée, barre de
-     réparation) sont traduits aussi. Un message inconnu s'affiche en anglais, sans ses codes de couleur.
+   - **notifications en français**, en **message privé du chat** (titre « Véhicule », envoyé directement à `rp_chat`),
+     comme celles de ce script : ceinture attachée / détachée, moteur calé, pneu crevé, portière coincée, feu,
+     réparation de fortune… (`Riven.MuteBelt = true` : sans les messages de ceinture). Les textes à l'écran de Riven
+     (portière coincée, barre de réparation) sont traduits aussi. Un message inconnu s'affiche en anglais, sans ses
+     codes de couleur.
+
+   **Vérifier** (console F8 du jeu) : `pont Riven chargé dans riven-impact-dynamics` (la ligne est bien lue), puis
+   `pont Riven actif` (Riven a démarré, tout est relié). Rien : la ligne n'est pas dans son `fxmanifest.lua` ou les
+   ressources n'ont pas été redémarrées. `pont Riven absent` en montant dans un véhicule : idem.
 4. `server.cfg` : `ensure riven-impact-dynamics` **avant** `ensure rp_vehiclecontrol`.
 
 **Qui fait quoi** (`config.lua` : `Riven = { Mode = 'auto' }`, détecté tout seul) :
@@ -491,14 +496,17 @@ arrêté (licence refusée), ce script garde tous ses modules. Avec Riven, ce sc
 inspection ; il ne réduit ni n'ajoute de dégâts au moteur (ceux de Riven comptent tels quels) et ne bride plus la
 puissance d'un moteur abîmé. Sans Riven, tout fonctionne comme avant. `Riven.Mode = false` : ignorer Riven.
 
-Sans la ligne du pont dans son `fxmanifest.lua`, tout fonctionne aussi, mais ses voyants restent à la place choisie
-dans son config et ses notifications restent celles du jeu, en anglais.
+Sans la ligne du pont dans son `fxmanifest.lua` (**secours**, `Riven.Fallback`) : ses voyants restent à la place
+choisie dans son config ; ce script fait ses propres notifications en français dans le chat à partir de ce que Riven
+publie (voyants qui s'allument : moteur, surchauffe, boîte, freins, huile, fuite d'essence, direction, pneu, feu ; et
+la ceinture), et masque les notifications du jeu (celles de Riven, en anglais) tant que l'on est à bord
+(`Riven.HideGameFeed`). Les messages précis (moteur calé, portière coincée…) demandent le pont.
 
 ## Configuration (`config.lua`)
 
 | Clé | Rôle |
 |---|---|
-| `Riven` | Riven Impact Dynamics : `Mode` (`'auto'`, `true`, `false`), nom de sa ressource ; pont : voyants au-dessus du car HUD (`Lamps`), voyants retirés (`HideLamps` : ceinture), notifications en français dans le chat (`Notify`), sauf ceinture (`MuteBelt`) (voir « Avec Riven Impact Dynamics ») |
+| `Riven` | Riven Impact Dynamics : `Mode` (`'auto'`, `true`, `false`), nom de sa ressource ; pont : voyants au-dessus du car HUD (`Lamps`), voyants retirés (`HideLamps` : ceinture), notifications en français dans le chat (`Notify`), sans la ceinture (`MuteBelt`), secours sans le pont (`Fallback`, `HideGameFeed`) (voir « Avec Riven Impact Dynamics ») |
 | `Keys` | touches par défaut (dont clignotants ← / →, warnings ↓, marche avant / arrière ↑) |
 | `SoundVolume`, `SignalCancelAngle`, `SignalSoundMode`, `SignalInterval`, `SignalVolume` | volume sans le MDC, arrêt automatique du clignotant après un virage, son des clignotants (en boucle ou clic répété, rythme, volume) |
 | `Fuel` | durée d'un plein (3 h 30), consommation au ralenti / plein gaz, classes, essence de départ, fuite, plein à la pompe (vitesse : 1 min max, distances, trappe arrière gauche `Flap`, pistolet et tuyau `Nozzle`), pompes, jerrican (2/5 d'un plein, vitesse, remplissage), stations (icônes) |

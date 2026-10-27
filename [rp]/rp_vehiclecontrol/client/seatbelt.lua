@@ -139,7 +139,12 @@ end)
 VC.on('tick', function(ped, vehicle)
     -- Riven : ceinture, carillon et éjection chez lui ; le car HUD du MDC montre sa ceinture
     if VC.riven then
-        if hasBelt(vehicle) then VC.hud.belt = rivenBelt() end
+        if hasBelt(vehicle) then
+            local on = rivenBelt()
+            -- attachée / détachée (pas l'état en montant) : notification de secours si le pont Riven manque (riven.lua)
+            if VC.hud.belt ~= nil and on ~= VC.hud.belt and VC.rivenBeltChanged then VC.rivenBeltChanged(on) end
+            VC.hud.belt = on
+        end
         return
     end
     local speed = GetEntitySpeed(vehicle) * VC.MPH

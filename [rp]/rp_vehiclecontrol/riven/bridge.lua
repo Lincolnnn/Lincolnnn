@@ -10,8 +10,11 @@
         agrandi, ils suivent), affichés seulement quand le car HUD l'est. Le voyant de ceinture est retiré (le car
         HUD a déjà le sien). Ils n'apparaissent, comme chez Riven, que lorsque le véhicule est abîmé ;
       - NOTIFICATIONS : celles de Riven (notifications du jeu, en anglais) deviennent des messages privés du chat en
-        français, titre « Véhicule », comme celles de nos scripts. Ses textes à l'écran (portière coincée, barre de
-        réparation) sont traduits aussi.
+        français (rp_chat), titre « Véhicule », comme celles de nos scripts. Ses textes à l'écran (portière coincée,
+        barre de réparation) sont traduits aussi.
+    Console F8 : « pont Riven actif » quand tout est en place (sinon : la ligne du fxmanifest manque ou Riven n'a pas
+    démarré). rp_vehiclecontrol le sait aussi (événement rp_vehiclecontrol:rivenBridge) : ses notifications de
+    secours (sans ce pont) se coupent.
     Réglages : rp_vehiclecontrol/config.lua, Riven (Lamps, HideLamps, Notify, MuteBelt).
     Performance : aucune boucle ; un envoi au NUI de Riven seulement quand le car HUD bouge ou apparaît.
 ]]
@@ -19,13 +22,16 @@
 local VC_RESOURCE = 'rp_vehiclecontrol'
 
 -- Réglages par défaut (remplacés par ceux de rp_vehiclecontrol/config.lua s'il est démarré)
-local settings = { Lamps = true, HideLamps = { 'belt' }, Notify = true, MuteBelt = true }
+local settings = { Lamps = true, HideLamps = { 'belt' }, Notify = true, MuteBelt = false }
+local settingsLoaded = false
 
 local function loadSettings()
-    if GetResourceState(VC_RESOURCE) ~= 'started' then return end
+    if settingsLoaded or GetResourceState(VC_RESOURCE) ~= 'started' then return end
     local ok, res = pcall(function() return exports[VC_RESOURCE]:rivenSettings() end)
-    if ok and type(res) == 'table' then settings = res end
+    if ok and type(res) == 'table' then settings, settingsLoaded = res, true end
 end
+
+print('^5[rp_vehiclecontrol] pont Riven chargé dans ' .. GetCurrentResourceName() .. ' : en attente du démarrage de Riven^7')
 
 -- =========================================================================
 -- TRADUCTION
@@ -173,6 +179,12 @@ end)
 -- =========================================================================
 -- INSTALLATION (dès que Riven a démarré)
 -- =========================================================================
+local installed = false
+-- rp_vehiclecontrol (re)démarré après nous : il demande si le pont est là
+AddEventHandler('rp_vehiclecontrol:rivenBridgePing', function()
+    if installed then TriggerEvent('rp_vehiclecontrol:rivenBridge') end
+end)
+
 local function install()
     loadSettings()
     local UI = Config and Config.UI
@@ -200,14 +212,27 @@ local function install()
     end
 
     local origNotify = Crash.Notify
+    --- Message privé du chat (rp_chat), comme nos scripts ; sans rp_chat : chat d'origine ; sans chat : jeu
+    local function deliver(text)
+        local chat = GlobalState.rpChatResource or 'rp_chat'
+        if GetResourceState(chat) == 'started'
+            and pcall(function() exports[chat]:addPrivate({ title = 'Véhicule', text = text }) end) then
+            return
+        end
+        if GetResourceState('chat') == 'started' then
+            return TriggerEvent('chat:addMessage', { args = { 'Véhicule', text }, color = { 140, 200, 255 } })
+        end
+        origNotify(text)
+    end
     Crash.Notify = function(text)
         if type(text) ~= 'string' then return origNotify(text) end
+        loadSettings()
         if settings.Notify == false then return origNotify(text) end
         local fr, mute = translate(text)
-        if mute then return end
-        if GetResourceState(VC_RESOURCE) == 'started' then
-            TriggerEvent('rp_vehiclecontrol:rivenNotify', fr)
-        else
+        if mute or fr == '' then return end
+        local ok, err = pcall(deliver, fr)
+        if not ok then
+            print(('^1[rp_vehiclecontrol] pont Riven, notification : %s^7'):format(tostring(err)))
             origNotify(fr)
         end
     end
@@ -222,6 +247,9 @@ local function install()
         end
     end
 
+    installed = true
+    TriggerEvent('rp_vehiclecontrol:rivenBridge') -- rp_vehiclecontrol : notifications de secours coupées
+    print('^2[rp_vehiclecontrol] pont Riven actif : voyants au-dessus du car HUD, notifications en français dans le chat^7')
     TriggerEvent('rp_mdc:carHudRectRequest') -- place actuelle du car HUD
     -- Riven envoie sa propre place au démarrage et quand son style change (toutes les 2 s) : la nôtre après lui
     SetTimeout(1000, sendPosition)
@@ -239,4 +267,5 @@ CreateThread(function()
         end
         Wait(500)
     end
+    print('^3[rp_vehiclecontrol] pont Riven : Riven n\'a pas démarré (licence ?) : voyants et notifications non reliés^7')
 end)

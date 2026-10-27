@@ -247,12 +247,26 @@ local function candidates(info)
     return out
 end
 
+--- Libellé traduit (config.lua : Translations du script qui a ajouté l'option)
+local function translate(resource, label)
+    label = tostring(label or '?')
+    local t = (Config.Translations or {})[resource]
+    if not t then return label end
+    if t.Labels and t.Labels[label] then return t.Labels[label] end
+    for _, p in ipairs(t.Patterns or {}) do
+        local noun = label:match(p[1])
+        if noun then return p[2]:format((t.Nouns or {})[noun] or noun) end
+    end
+    return label
+end
+BridgeTranslate = translate -- pour les tests
+
 exports('targetOptions', function(info)
     local list = candidates(info)
     if #list == 0 then return nil end
     local options, label = {}, nil
     for _, c in ipairs(list) do
-        options[#options + 1] = { id = c.uid, label = tostring(c.option.label or c.option.name or '?'), icon = icon(c.option.icon) }
+        options[#options + 1] = { id = c.uid, label = translate(c.option.resource, c.option.label or c.option.name), icon = icon(c.option.icon) }
         label = label or Config.Labels[c.option.resource]
     end
     return { label = label, options = options }

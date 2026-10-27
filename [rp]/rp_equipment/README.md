@@ -155,7 +155,7 @@ menu** (jamais ceux du décor).
   seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi. **`/restock`** le remet.
 
 **Herse** (script payant **riven_spikes**, facultatif) : elle ne passe pas par ce menu mais par **l'œil** (Alt) sur le
-coffre de tout véhicule d'urgence : **« Prendre : Herse »** / **« Ranger la herse dans le coffre »** (une par véhicule,
+coffre de tout véhicule d'urgence : **« Prendre la herse dans le coffre »** / **« Ranger la herse dans le coffre »** (une par véhicule,
 policiers en service ; voir [`ox_target/`](../ox_target/README.md)).
 
 **Fusées de détresse** (`WEAPON_FLARE`, posées au sol avec `rp_flares`)

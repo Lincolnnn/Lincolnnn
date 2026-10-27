@@ -21,6 +21,10 @@ Ce n'est **pas** le vrai ox_target : ne pas installer les deux (même nom de dos
 | `addSphereZone`, `addBoxZone` (avec rotation), `addPolyZone`, `removeZone`, `zoneExists` | options sur un endroit (le sol visé est dans la zone) |
 | `disableTargeting` | coupe toutes ces options |
 
+Libellés traduits (`config.lua` : `Translations`, par script) : les options de riven_spikes s'affichent **en
+français dans l'œil** quelle que soit la langue réglée (« Prendre la herse dans le coffre », « Ranger la herse dans le
+coffre », « Saisir le cordon », « Ramasser la herse »…).
+
 Dans une option : `label`, `icon` (icône Font Awesome remplacée par une icône de l'œil, `config.lua` : `Icons`),
 `distance` (7 m si absente), `bones` (partie du véhicule visée, ex. `boot` = coffre), `canInteract`, et l'action :
 `onSelect`, `event`, `serverEvent`, `command` ou `export`. **Pas de `groups` / `items`** (aucun framework) : ces
@@ -38,10 +42,11 @@ Script de **Riven Systems** (licence, clé `riven_auth.token` liée au serveur) 
 1. Installez **ox_lib** (gratuit : `ox_lib`, dernière version) dans `resources/` : riven_spikes s'en sert (textes,
    barre de progression, touches, notifications).
 2. Copiez `riven_spikes/` tel que vous l'avez acheté (avec `riven_auth.token` et `stream/`) dans `resources/[rp]/`.
-3. Remplacez son `config.lua` par la version fournie à part (lignes marquées `[RP]`) et ajoutez
-   `locales/fr.json` (fourni à part) :
+3. Remplacez son `config.lua` par la version fournie à part (lignes marquées `[RP]`), et dans `locales/` mettez
+   `fr.json` **et** `en.json` fournis à part (tous deux en français : le texte reste français même sans
+   `setr ox:locale fr`) : aides à l'écran (« [E] Maintenir pour lancer »…), barres de progression, notifications :
    - **sans inventaire** (`Config.Inventory = false`) : pas besoin d'ox_inventory ;
-   - **une herse dans le coffre de chaque véhicule d'urgence** (classe 18) : œil sur le coffre, **« Prendre : Herse »**,
+   - **une herse dans le coffre de chaque véhicule d'urgence** (classe 18) : œil sur le coffre, **« Prendre la herse dans le coffre »**,
      et une fois en main **« Ranger la herse dans le coffre »** (elle y revient) ;
    - pas de commande `/spikestrip` (la herse se prend au coffre), outils de réglage coupés ;
    - textes en français (« Herse », « Glisser » / « Arracher »…).
@@ -54,10 +59,10 @@ Script de **Riven Systems** (licence, clé `riven_auth.token` liée au serveur) 
    ```
    OneSync doit être activé (exigé par riven_spikes).
 
-En jeu (policier en service) : **œil sur le coffre** d'un véhicule de police → **Prendre : Herse** ; **E** maintenu :
+En jeu (policier en service) : **œil sur le coffre** d'un véhicule de police → **Prendre la herse dans le coffre** ; **E** maintenu :
 lancer (relâcher), **X** : ranger en main ; herse posée : l'œil sur la herse ou le bout du cordon → **Saisir le
-cordon** / **Ramasser** ; cordon en main : **E** pour la ramener, **Q** : mode (glisser / arracher).
+cordon** / **Ramasser la herse** ; cordon en main : **E** pour la ramener, **Q** : mode (glisser / arracher).
 Le **pistolet radar** se prend et se range dans le menu **Équipement** du coffre (`rp_equipment`, touche E).
 
-Notifications de riven_spikes : celles d'**ox_lib** (en français avec `fr.json`), pas les messages privés du chat :
-elles sont affichées par ox_lib lui-même.
+Notifications de riven_spikes : celles d'**ox_lib** (en français avec les `.json` fournis), pas les messages privés
+du chat : elles sont affichées par ox_lib lui-même.
