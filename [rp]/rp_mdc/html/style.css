@@ -914,24 +914,6 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .hud .part-off, .hud .part-empty { display: none !important; }
 .hud-label { margin-right: 6px; font-size: 10px; font-weight: 700; letter-spacing: .6px; color: rgba(255, 255, 255, .5); }
 
-/* PLD : direction à gauche, rue / croisement / bloc à droite */
-.hud-pld { display: flex; align-items: stretch; min-width: 260px; --pld-time-gap: 2.5cm; }
-.pld-dir {
-    display: flex; align-items: center; justify-content: center;
-    min-width: 58px; padding: 0 10px;
-    font: 600 28px/1 var(--font-display); color: var(--accent);
-    border-right: 1px solid rgba(255, 255, 255, .1);
-}
-.pld-info { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 7px 14px 7px 12px; }
-.pld-dir.part-off + .pld-info { padding-left: 12px; }
-.pld-streetline { display: flex; align-items: baseline; gap: 10px; }
-.pld-street { font: 600 16px var(--font-display); color: #fff; }
-.pld-zone, .pld-line { font-size: 12px; color: rgba(255, 255, 255, .62); }
-.pld-zone.part-empty { display: none; }
-.pld-line #pldCross { font-style: italic; }
-.pld-bottom { display: flex; align-items: baseline; }
-.pld-time { margin-left: var(--pld-time-gap); font-variant-numeric: tabular-nums; }
-.pld-blockpart.part-off + .pld-time, .pld-blockpart.part-empty + .pld-time { margin-left: 0; }
 
 /* Display MDC : unité, police, tag, statut, appel, secteur */
 .hud-unit { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; min-width: 160px; border-left: 3px solid var(--accent); }
@@ -942,71 +924,108 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .hu-line { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .hu-none { color: rgba(255, 255, 255, .45); font-style: italic; }
 
-/* Car HUD : sans fond (lisible par l'ombre du texte) */
-.hud-car {
-    display: flex; align-items: stretch; gap: 8px;
+/* =========================================================================
+   PLD et CAR HUD : SANS FOND NI CONTOUR, lisibles sur le jeu par l'ombre du texte. Couleurs selon le thème de la
+   couche des HUD (#hudLayer, toujours sombre) : de jour celles du logo (blanc, rouge ; orange / rouge = alertes),
+   de nuit la couleur du mode nuit (alertes : intensité et clignotement).
+   ========================================================================= */
+.hud-pld, .hud-car {
+    --hud-ink: var(--n-text);                     /* texte principal */
+    --hud-dim: rgba(var(--n-text-rgb), .64);      /* texte secondaire */
+    --hud-accent: var(--n-accent);                /* cap, trait, zone */
+    --hud-track: rgba(var(--n-rgb), .22);         /* fond des jauges */
+    --hud-fill: var(--n-light);                   /* jauges */
+    --hud-warn: var(--n-pale);                    /* à surveiller : réserve, moteur très abîmé */
+    --hud-danger: var(--n-bright);                /* alerte : zone rouge, panne sèche, ceinture, frein, moteur détruit */
+    --hud-rev-bg: var(--n-text);                  /* marche arrière */
+    --hud-rev-ink: var(--n-ink);
+    --hud-shadow: 0 1px 2px rgba(0, 0, 0, .95), 0 0 8px rgba(0, 0, 0, .55);
+    --hud-drop: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .9)) drop-shadow(0 0 4px rgba(0, 0, 0, .45));
     background: none; border: 0; border-radius: 0; box-shadow: none;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, .95), 0 0 6px rgba(0, 0, 0, .55);
-    transition: filter .35s, opacity .35s;
+    color: var(--hud-ink); text-shadow: var(--hud-shadow);
 }
-.car-main { display: flex; flex-direction: column; justify-content: center; gap: 5px; }
-.car-top { display: flex; align-items: center; gap: 10px; }
-.car-speed { display: flex; align-items: baseline; gap: 4px; line-height: 1; }
-#carSpeed { min-width: 2ch; font: 600 30px var(--font-display); color: #fff; font-variant-numeric: tabular-nums; transition: color .25s, opacity .25s; }
-.car-unit { font-size: 10px; font-weight: 700; letter-spacing: .8px; color: rgba(255, 255, 255, .7); }
-.car-rpm { width: 112px; height: 4px; border-radius: 2px; overflow: hidden; background: rgba(255, 255, 255, .2); box-shadow: 0 0 3px rgba(0, 0, 0, .6); }
-.car-rpm-fill { width: 0; height: 100%; background: #f2f2f2; border-radius: 2px; transition: width .12s linear, background-color .2s; }
-.car-rpm-fill.car-redline { background: #ff6a5a; }
-.car-fuel { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; }
-.car-fuel-bar { position: relative; width: 4px; height: 34px; border-radius: 2px; overflow: hidden; background: rgba(255, 255, 255, .2); box-shadow: 0 0 3px rgba(0, 0, 0, .6); }
-.car-fuel-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: #f2f2f2; transition: height .4s, background-color .2s; }
-.car-fuel-fill.car-low { background: #ffa62b; }
-.car-fuel-fill.car-empty { background: #ff4a3d; }
-.car-fuel-icon { width: 11px; height: 11px; color: rgba(255, 255, 255, .7); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .9)); }
-/* Ceinture : transparente détachée, blanche attachée, clignote (rouge pâle) en roulant détachée */
-.car-belt { display: inline-flex; width: 22px; height: 22px; }
-.car-belt svg { width: 100%; height: 100%; overflow: visible; }
-.car-belt svg * { fill: transparent; stroke: rgba(0, 0, 0, .14); stroke-width: .8; stroke-linejoin: round; transition: fill .2s; }
-.car-belt.belt-on svg * { fill: #fff; }
-.car-belt.belt-blink svg * { animation: belt-blink 1s steps(1, end) infinite; }
-@keyframes belt-blink { 0% { fill: #ff9e96; } 50% { fill: transparent; } }
-/* Rapport : R au-dessus de D, la pastille glisse de l'un à l'autre */
-.car-park {
-    display: inline-grid; place-items: center; width: 19px; height: 19px; box-sizing: border-box;
-    border: 2px solid #ff3b30; border-radius: 50%; color: #ff3b30;
-    font: 800 11px/1 var(--font); letter-spacing: 0;
-    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .8)); animation: park-in .2s ease-out;
+[data-night-color="logo"] .hud-pld, [data-night-color="logo"] .hud-car {
+    --hud-ink: #ffffff; --hud-dim: rgba(255, 255, 255, .7); --hud-accent: #e3323f;
+    --hud-track: rgba(255, 255, 255, .24); --hud-fill: #f2f2f2; --hud-warn: #ffa62b; --hud-danger: #ff3b30;
+    --hud-rev-bg: #ffc24a; --hud-rev-ink: #1a1206;
 }
-@keyframes park-in { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
-.car-gear { position: relative; display: flex; flex-direction: column; justify-content: space-between; align-items: center; width: 18px; height: 38px; padding: 1px 0; align-self: center; }
-.car-gear-pill {
-    position: absolute; left: 0; top: 1px; width: 18px; height: 17px; border-radius: 4px;
-    background: rgba(255, 255, 255, .92); box-shadow: 0 0 6px rgba(0, 0, 0, .55);
-    transform: translateY(19px); transition: transform .28s cubic-bezier(.4, 0, .2, 1), background-color .2s;
+@keyframes hud-blink { 0% { opacity: 1; } 50% { opacity: .15; } }
+@keyframes hud-light-in { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+
+/* ---- PLD : cap (flèche tournée + lettre), trait, puis rue / zone / croisement · bloc · heure ---- */
+.hud-pld { display: flex; align-items: center; gap: 10px; }
+.pld-compass { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 36px; }
+.pld-arrow { width: 16px; height: 16px; fill: var(--hud-accent); filter: var(--hud-drop); transition: transform .45s ease; }
+.pld-dir { font: 800 28px/1 var(--font-display); letter-spacing: -.5px; color: var(--hud-ink); }
+.pld-rule { align-self: stretch; width: 3px; min-height: 46px; margin: 3px 0; border-radius: 2px; background: linear-gradient(var(--hud-accent), transparent); }
+.pld-body { display: flex; flex-direction: column; gap: 1px; }
+.pld-street { font: 700 20px/1.15 var(--font-display); letter-spacing: .2px; color: var(--hud-ink); }
+.pld-zone { font: 800 11px/1.3 var(--font); letter-spacing: 1.6px; text-transform: uppercase; color: var(--hud-accent); }
+.pld-meta { display: flex; align-items: center; gap: 14px; margin-top: 3px; font: 500 12px var(--font); color: var(--hud-dim); }
+.pld-item { display: inline-flex; align-items: center; gap: 5px; }
+.pld-item svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; filter: var(--hud-drop); }
+.pld-cross svg { transform: rotate(45deg); }
+#pldCross { font-style: italic; color: var(--hud-ink); opacity: .88; }
+.pld-key { font-size: 9.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+#pldBlock, #pldTime { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--hud-ink); }
+
+/* ---- CAR HUD : vitesse | voyants, compte-tours en segments, essence | rapport ---- */
+.hud-car { display: grid; grid-template-columns: auto 128px auto; align-items: end; column-gap: 10px; transition: filter .35s, opacity .35s; }
+.car-speed { display: flex; flex-direction: column; align-items: flex-end; }
+.car-speed-value { min-width: 2ch; text-align: right; font: 700 40px/.86 var(--font-display); letter-spacing: -1.5px; font-variant-numeric: tabular-nums; color: var(--hud-ink); transition: color .25s; }
+.car-unit { margin-top: 5px; font: 800 9.5px/1 var(--font); letter-spacing: 2.4px; color: var(--hud-dim); }
+.car-center { display: flex; flex-direction: column; gap: 6px; padding-bottom: 1px; }
+/* Voyants */
+.car-lights { display: flex; align-items: center; gap: 9px; height: 20px; }
+.car-light { display: inline-flex; width: 20px; height: 20px; filter: var(--hud-drop); }
+.car-light svg { width: 100%; height: 100%; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+.car-light svg .fill { fill: currentColor; stroke: none; }
+.car-light svg .thin { stroke-width: 1.6; }
+.car-belt { color: var(--hud-ink); opacity: .92; transition: color .2s; }
+.car-belt:not(.belt-on) { color: var(--hud-danger); opacity: 1; }
+.car-belt.belt-blink { animation: hud-blink 1s steps(1, end) infinite; }
+.car-park { color: var(--hud-danger); animation: hud-light-in .2s ease-out; }
+.car-broken { color: var(--hud-danger); }
+.car-broken.car-damaged { color: var(--hud-warn); }
+/* Compte-tours : segments inclinés (JS : CAR_RPM_SEGMENTS), les derniers en zone rouge */
+.car-rpm { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; height: 9px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .75)); }
+.car-rpm i { border-radius: 1px; background: var(--hud-track); transform: skewX(-20deg); transition: background-color .08s, opacity .08s; }
+.car-rpm i.on { background: var(--hud-fill); }
+.car-rpm i.red { background: var(--hud-danger); opacity: .35; }
+.car-rpm i.red.on { opacity: 1; }
+/* Essence : jauge graduée en quarts */
+.car-fuel { display: flex; align-items: center; gap: 6px; }
+.car-fuel-icon { width: 12px; height: 12px; flex-shrink: 0; color: var(--hud-dim); filter: var(--hud-drop); }
+.car-fuel-icon .fill { fill: currentColor; }
+.car-fuel-bar { position: relative; flex: 1; height: 4px; border-radius: 2px; overflow: hidden; background: var(--hud-track); box-shadow: 0 0 3px rgba(0, 0, 0, .6); }
+.car-fuel-bar::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), rgba(0, 0, 0, .6) calc(25% - 1px) 25%); }
+.car-fuel-fill { width: 0; height: 100%; background: var(--hud-fill); transition: width .4s, background-color .2s; }
+.car-fuel-fill.car-low { background: var(--hud-warn); }
+.car-fuel-fill.car-empty { background: var(--hud-danger); }
+/* Rapport : D dans un cadre ; R plein (ambre de jour) */
+.car-gear {
+    display: grid; place-items: center; width: 30px; height: 36px; border: 2px solid var(--hud-ink); border-radius: 7px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 2px 6px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(0, 0, 0, .25);
+    transition: background-color .2s, border-color .2s;
 }
-.car-gear.gear-r .car-gear-pill { transform: translateY(0); background: #ffd27a; }
-.car-gear-letter { position: relative; z-index: 1; width: 18px; height: 17px; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, .7); transition: color .28s; text-shadow: 0 1px 2px rgba(0, 0, 0, .95); }
-.car-gear:not(.gear-r) .car-gear-letter[data-gear="D"], .car-gear.gear-r .car-gear-letter[data-gear="R"] { color: #111; text-shadow: none; }
-/* Moteur coupé : tout est grisé, sauf le « P » du frein de parking (un voyant reste allumé moteur coupé) */
-.hud-car.car-off .car-fuel, .hud-car.car-off .car-speed, .hud-car.car-off .car-belt, .hud-car.car-off .car-broken,
-.hud-car.car-off .car-rpm, .hud-car.car-off .car-gear { filter: grayscale(1) brightness(.75); opacity: .55; }
-.hud-car.car-passenger .car-fuel, .hud-car.car-passenger .car-speed, .hud-car.car-passenger .car-rpm,
-.hud-car.car-passenger .car-broken, .hud-car.car-passenger .car-gear, .hud-car.car-passenger .car-park { display: none !important; }
-.car-broken { display: inline-flex; width: 22px; height: 22px; color: #ff3b30; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .9)); }
-.car-broken svg { width: 100%; height: 100%; }
-.car-broken.car-damaged { color: #ff9500; }
-/* Véhicule cassé : car HUD allumé, rouge vif clignotant ; logo du moteur fixe, rouge foncé */
-.hud-car.car-is-broken, .hud-car.car-is-broken.car-off,
-.hud-car.car-is-broken.car-off .car-fuel, .hud-car.car-is-broken.car-off .car-speed, .hud-car.car-is-broken.car-off .car-belt,
-.hud-car.car-is-broken.car-off .car-broken, .hud-car.car-is-broken.car-off .car-rpm, .hud-car.car-is-broken.car-off .car-gear { filter: none; opacity: 1; }
-.hud-car.car-is-broken .car-fuel, .hud-car.car-is-broken .car-speed, .hud-car.car-is-broken .car-rpm { animation: car-broken-blink .9s steps(1, end) infinite; }
-.hud-car.car-is-broken #carSpeed, .hud-car.car-is-broken .car-unit, .hud-car.car-is-broken .car-fuel-icon { color: #ff1a1a; }
-.hud-car.car-is-broken .car-rpm, .hud-car.car-is-broken .car-fuel-bar { background: rgba(255, 26, 26, .35); }
-.hud-car.car-is-broken .car-rpm-fill, .hud-car.car-is-broken .car-fuel-fill { background: #ff1a1a; }
-.hud-car.car-is-broken .car-belt svg * { animation: none; fill: transparent; stroke: #ff1a1a; stroke-width: 1.4; }
-.hud-car.car-is-broken .car-belt.belt-on svg * { fill: #ff1a1a; stroke: rgba(0, 0, 0, .14); stroke-width: .8; }
-.hud-car.car-is-broken .car-broken { color: #9e0b0b; animation: none; opacity: 1; }
-@keyframes car-broken-blink { 0% { opacity: 1; } 50% { opacity: .25; } }
+.car-gear-letter { font: 800 20px/1 var(--font-display); color: var(--hud-ink); }
+.car-gear.gear-r { background: var(--hud-rev-bg); border-color: var(--hud-rev-bg); }
+.car-gear.gear-r .car-gear-letter { color: var(--hud-rev-ink); text-shadow: none; }
+/* Passagers : la ceinture seule */
+.hud-car.car-passenger { display: flex; }
+.hud-car.car-passenger .car-speed, .hud-car.car-passenger .car-rpm, .hud-car.car-passenger .car-fuel,
+.hud-car.car-passenger .car-gear, .hud-car.car-passenger .car-park, .hud-car.car-passenger .car-broken { display: none !important; }
+/* Moteur coupé : tout est grisé, sauf le frein de parking (un voyant reste allumé moteur coupé) */
+.hud-car.car-off .car-speed, .hud-car.car-off .car-rpm, .hud-car.car-off .car-fuel, .hud-car.car-off .car-gear,
+.hud-car.car-off .car-belt, .hud-car.car-off .car-broken { filter: grayscale(1) brightness(.8); opacity: .5; }
+/* Véhicule hors d'usage : vitesse, régime et essence clignotent en alerte ; voyant moteur fixe */
+.hud-car.car-is-broken.car-off .car-speed, .hud-car.car-is-broken.car-off .car-rpm, .hud-car.car-is-broken.car-off .car-fuel,
+.hud-car.car-is-broken.car-off .car-gear, .hud-car.car-is-broken.car-off .car-belt, .hud-car.car-is-broken.car-off .car-broken { filter: none; opacity: 1; }
+.hud-car.car-is-broken .car-speed, .hud-car.car-is-broken .car-rpm, .hud-car.car-is-broken .car-fuel { animation: hud-blink .9s steps(1, end) infinite; }
+.hud-car.car-is-broken .car-speed-value, .hud-car.car-is-broken .car-unit, .hud-car.car-is-broken .car-fuel-icon { color: var(--hud-danger); }
+.hud-car.car-is-broken .car-rpm i, .hud-car.car-is-broken .car-fuel-fill { background: var(--hud-danger); opacity: .35; }
+.hud-car.car-is-broken .car-rpm i.on, .hud-car.car-is-broken .car-fuel-fill { opacity: 1; }
+.hud-car.car-is-broken .car-broken { color: var(--hud-danger); animation: none; opacity: 1; }
 
 /* Notification du moteur : juste au-dessus du car HUD, entre par la gauche */
 .car-notice-anchor { position: fixed; z-index: 31; transform-origin: top left; pointer-events: none; width: 0; height: 0; }
@@ -1323,42 +1342,13 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 [data-theme="night"] .call-toast, [data-theme="night"] .status-toast { --prio: var(--n-p3); }
 
 /* HUD (PLD, display de l'unité, car HUD) et notifications */
-[data-theme="night"] .hud:not(.hud-car), [data-theme="night"] .toast, [data-theme="night"] .call-toast, [data-theme="night"] .car-notice, [data-theme="night"] .hud-placebar {
+[data-theme="night"] .hud:not(.hud-car):not(.hud-pld), [data-theme="night"] .toast, [data-theme="night"] .call-toast, [data-theme="night"] .car-notice, [data-theme="night"] .hud-placebar {
     background: rgba(var(--n-bg-rgb), .88); border-color: rgba(var(--n-rgb), .25); color: var(--text);
 }
-[data-theme="night"] .hud-label, [data-theme="night"] .pld-zone, [data-theme="night"] .pld-line, [data-theme="night"] .hu-sep,
+[data-theme="night"] .hud-label, [data-theme="night"] .hu-sep,
 [data-theme="night"] .hu-none, [data-theme="night"] .ct-number, [data-theme="night"] .offer-time, [data-theme="night"] .car-notice-text small { color: var(--muted); }
-[data-theme="night"] .pld-street, [data-theme="night"] .hu-name, [data-theme="night"] .ct-title, [data-theme="night"] .ct-status,
+[data-theme="night"] .hu-name, [data-theme="night"] .ct-title, [data-theme="night"] .ct-status,
 [data-theme="night"] .car-notice-text b, [data-theme="night"] .offer-toast .ct-head { color: var(--text); }
 [data-theme="night"] .ct-unit { color: var(--text-2); }
 [data-theme="night"] .toast.error::before, [data-theme="night"] .toast.success::before { background: var(--n-accent); color: var(--n-ink); }
 [data-theme="night"] .offer-keys kbd, [data-theme="night"] .car-notice-key { color: var(--n-ink); background: var(--n-text); box-shadow: 0 2px 0 var(--n-tag-4); }
-/* Car HUD : vert ; les alertes (réserve, panne, ceinture) se voient à l'intensité du vert et au clignotement */
-[data-theme="night"] #carSpeed, [data-theme="night"] .car-gear-letter { color: var(--n-text); }
-[data-theme="night"] .car-unit, [data-theme="night"] .car-fuel-icon { color: rgba(var(--n-text-rgb), .75); }
-[data-theme="night"] .car-rpm, [data-theme="night"] .car-fuel-bar { background: rgba(var(--n-rgb), .2); }
-[data-theme="night"] .car-rpm-fill, [data-theme="night"] .car-fuel-fill { background: var(--n-light); }
-[data-theme="night"] .car-rpm-fill.car-redline, [data-theme="night"] .car-fuel-fill.car-low { background: var(--n-bright); }
-[data-theme="night"] .car-fuel-fill.car-empty { background: #ffffff; }
-[data-theme="night"] .car-belt.belt-on svg * { fill: var(--n-text); }
-[data-theme="night"] .car-gear-pill, [data-theme="night"] .car-gear.gear-r .car-gear-pill { background: var(--n-text); }
-[data-theme="night"] .car-gear:not(.gear-r) .car-gear-letter[data-gear="D"], [data-theme="night"] .car-gear.gear-r .car-gear-letter[data-gear="R"] { color: var(--n-ink); }
-[data-theme="night"] .car-broken { color: var(--n-bright); }
-[data-theme="night"] .car-broken.car-damaged { color: var(--n-light); }
-[data-theme="night"] .hud-car.car-is-broken #carSpeed, [data-theme="night"] .hud-car.car-is-broken .car-unit, [data-theme="night"] .hud-car.car-is-broken .car-fuel-icon { color: var(--n-bright); }
-[data-theme="night"] .hud-car.car-is-broken .car-rpm-fill, [data-theme="night"] .hud-car.car-is-broken .car-fuel-fill { background: var(--n-bright); }
-[data-theme="night"] .hud-car.car-is-broken .car-rpm, [data-theme="night"] .hud-car.car-is-broken .car-fuel-bar { background: rgba(var(--n-rgb), .35); }
-[data-theme="night"] .hud-car.car-is-broken .car-belt svg * { stroke: var(--n-bright); }
-[data-theme="night"] .hud-car.car-is-broken .car-belt.belt-on svg * { fill: var(--n-bright); }
-[data-theme="night"] .hud-car.car-is-broken .car-broken { color: #ffffff; }
-[data-theme="night"] .car-belt svg * { animation-name: belt-blink-night; }
-@keyframes belt-blink-night { 0% { fill: var(--n-bright); } 50% { fill: transparent; } }
-
-/* HUD de jour (couleurs du logo) : jauges blanches ; le rouge et l'orange restent réservés aux alertes (réserve,
-   panne sèche, zone rouge du moteur, véhicule hors d'usage) */
-[data-night-color="logo"] .car-rpm-fill, [data-night-color="logo"] .car-fuel-fill { background: #f2f2f2; }
-[data-night-color="logo"] .car-rpm-fill.car-redline { background: #ff6a5a; }
-[data-night-color="logo"] .car-fuel-fill.car-low { background: #ffa62b; }
-[data-night-color="logo"] .car-fuel-fill.car-empty { background: #ff4a3d; }
-[data-night-color="logo"] .hud-car.car-is-broken .car-rpm-fill,
-[data-night-color="logo"] .hud-car.car-is-broken .car-fuel-fill { background: #ff1a1a; }

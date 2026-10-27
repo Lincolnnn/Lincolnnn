@@ -3367,15 +3367,16 @@
     // =====================================================================
     // Positions en fraction de l'écran (0 à 1, coin haut-gauche), taille en facteur (0.5 à 2)
     const HUD_DEFAULTS = {
-        pld: { enabled: true, x: 0.165, y: 0.885, scale: 1, street: true, zone: true, crossing: true, dir: true, block: true, time: true },
-        unit: { enabled: true, x: 0.165, y: 0.765, scale: 1, name: true, tag: true, status: true, call: true, sector: true },
+        // HUD : tous leurs éléments sont toujours affichés ; seuls la position et la taille se règlent
+        pld: { x: 0.18, y: 0.885, scale: 1 },
+        unit: { x: 0.18, y: 0.765, scale: 1 },
         // Fenêtre : légère transparence (opacity) ; thème Jour (clair) / Nuit (vert sur noir) et où il s'applique :
         // 'all' (MDC et tous les menus), 'mdc' (MDC seulement), 'menus' (menus des autres ressources, pas le MDC) ;
         // couleur du mode nuit (textes, boutons, contour du chat) : 'green', 'yellow', 'red', 'blue'
         mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97, theme: 'day', themeScope: 'all', nightColor: 'green' },
         notify: { calls: true, sound: true, status: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
-        car: { enabled: true, x: 0.016, y: 0.715, scale: 1, speed: true, rpm: true, fuel: true, belt: true, park: true, broken: true, volume: 0.7 },
+        car: { x: 0.016, y: 0.715, scale: 1, volume: 0.7 },
     };
     const NIGHT_COLORS = ['green', 'yellow', 'red', 'blue'];
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
@@ -3435,9 +3436,6 @@
         el.style.left = `${Math.round(cfg.x * innerWidth)}px`;
         el.style.top = `${Math.round(cfg.y * innerHeight)}px`;
         el.style.transform = `scale(${cfg.scale})`;
-        el.querySelectorAll('[data-part]').forEach((part) => {
-            part.classList.toggle('part-off', cfg[part.dataset.part] === false);
-        });
     }
 
     function renderHud() {
@@ -3449,10 +3447,13 @@
 
         // ---- PLD : toujours affiché (si activé) ----
         const loc = hud.pld || (hud.placing ? PLD_SAMPLE : null);
-        const showPld = pldCfg.enabled && !!loc && (hud.placing || (hud.pldAllowed && !paused));
+        const showPld = !!loc && (hud.placing || (hud.pldAllowed && !paused));
         pldEl.classList.toggle('hidden', !showPld);
         if (showPld) {
             $('#pldDir').textContent = loc.dir || '-';
+            // flèche du cap : tournée vers la direction (N, NE, E…)
+            const DIR_DEG = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SO: 225, SW: 225, O: 270, W: 270, NO: 315, NW: 315 };
+            pldEl.querySelector('.pld-arrow').style.transform = `rotate(${DIR_DEG[loc.dir] || 0}deg)`;
             $('#pldStreet').textContent = loc.street || '-';
             $('#pldZone').textContent = loc.zone || '';
             $('#pldZone').classList.toggle('part-empty', !loc.zone);
@@ -3466,7 +3467,7 @@
 
         // ---- Display MDC : uniquement dans une unité ----
         const unit = hud.unit || (hud.placing ? UNIT_SAMPLE : null);
-        const showUnit = unitCfg.enabled && !!unit && (hud.placing || !paused);
+        const showUnit = !!unit && (hud.placing || !paused);
         unitEl.classList.toggle('hidden', !showUnit);
         if (showUnit) {
             $('#huName').textContent = unit.name;
@@ -3491,13 +3492,31 @@
         renderCar();
     }
 
-    // ---- Car HUD : vitesse (MPH), régime (barre horizontale), essence (jauge verticale), ceinture ----
+    // Compte-tours : CAR_RPM_SEGMENTS segments créés une fois, les CAR_RPM_RED derniers en zone rouge
+    const CAR_RPM_SEGMENTS = 16;
+    const CAR_RPM_RED = 3;
+    let carRpmSegs = null;
+    function carRpmSegments() {
+        if (carRpmSegs) return carRpmSegs;
+        const box = $('#carRpm');
+        box.innerHTML = '';
+        carRpmSegs = [];
+        for (let i = 0; i < CAR_RPM_SEGMENTS; i++) {
+            const seg = document.createElement('i');
+            if (i >= CAR_RPM_SEGMENTS - CAR_RPM_RED) seg.className = 'red';
+            box.appendChild(seg);
+            carRpmSegs.push(seg);
+        }
+        return carRpmSegs;
+    }
+
+    // ---- Car HUD : vitesse (MPH), compte-tours (segments), essence (jauge graduée), voyants, rapport ----
     // Mis à jour seul (jusqu'à 10 fois par seconde en roulant), sans redessiner les autres HUD.
     function renderCar() {
         const el = $('#hudCar');
         const cfg = hud.settings.car;
         const car = hud.car && hud.car.show ? hud.car : (hud.placing ? CAR_SAMPLE : null);
-        const show = cfg.enabled && !!car && (hud.placing || !car.paused);
+        const show = !!car && (hud.placing || !car.paused);
         el.classList.toggle('hidden', !show);
         placeCarNotice();
         if (!show) return reportCarRect(false);
@@ -3513,17 +3532,18 @@
         $('#carBroken').classList.toggle('car-damaged', !car.broken && !!car.damaged);
         $('#carBroken').title = car.broken ? 'Moteur détruit : véhicule hors d\'usage' : 'Moteur très abîmé';
         el.classList.toggle('car-is-broken', !!car.broken && car.mode !== 'passenger');
+        // Compte-tours : segments allumés selon le régime ; les derniers forment la zone rouge
         const rpm = Math.min(Math.max(Number(car.rpm) || 0, 0), 1);
-        const rpmFill = $('#carRpm');
-        rpmFill.style.width = `${Math.round(rpm * 100)}%`;
-        rpmFill.classList.toggle('car-redline', rpm >= 0.9);
+        const segs = carRpmSegments();
+        const lit = Math.round(rpm * segs.length);
+        segs.forEach((seg, i) => seg.classList.toggle('on', i < lit));
         // Pas de réservoir (vélo, électrique) : jauge masquée
         const hasFuel = typeof car.fuel === 'number';
         el.querySelector('[data-part="fuel"]').classList.toggle('part-empty', !hasFuel);
         if (hasFuel) {
             const fuel = Math.min(Math.max(car.fuel, 0), 100);
             const fill = $('#carFuel');
-            fill.style.height = `${Math.round(fuel)}%`;
+            fill.style.width = `${Math.round(fuel)}%`;
             fill.classList.toggle('car-low', fuel <= 15 && fuel > 5);
             fill.classList.toggle('car-empty', fuel <= 5);
         }
@@ -3538,6 +3558,7 @@
         const gear = $('#carGear');
         gear.classList.toggle('part-empty', car.gear !== 'D' && car.gear !== 'R');
         gear.classList.toggle('gear-r', car.gear === 'R');
+        $('#carGearLetter').textContent = car.gear === 'R' ? 'R' : 'D';
         placeHud(el, cfg);
         reportCarRect(true);
     }
@@ -4748,7 +4769,7 @@
                 hideCarNotice(false);
                 break;
             case 'carNotice': // Vehicle Control : touche du moteur, en montant côté conducteur
-                if (data.data && hud.settings.car.enabled) showCarNotice(data.data);
+                if (data.data) showCarNotice(data.data);
                 break;
             case 'callNotify': // nouvelle intervention / nouvel incident (même MDC fermé)
                 if (data.data) callNotification(data.data);

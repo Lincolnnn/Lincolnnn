@@ -243,8 +243,9 @@ local function pldAllowed()
     return pldReady and (Config.PldForEveryone or hasAccess)
 end
 
+-- Le PLD est toujours affiché (seules sa position et sa taille se règlent dans le MDC)
 local function pldActive()
-    return pldAllowed() and setting('pld', 'enabled')
+    return pldAllowed()
 end
 
 local startLoop

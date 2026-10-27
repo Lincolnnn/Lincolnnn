@@ -39,8 +39,7 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
 Facultatif : **Riven Impact Dynamics** (script payant, installé à part dans `[rp]/riven-impact-dynamics/`, jamais
 dans ce dépôt) ; `rp_vehiclecontrol` lui laisse alors les accidents et la ceinture, et ses **voyants de dégâts
 s'affichent juste au-dessus du car HUD** (même place, même taille, affichés avec lui ; voir le README de
-`rp_vehiclecontrol`), et son **frein de parking** serré affiche un **« P » rouge** sur le car HUD (case « P » du frein
-de parking dans les Paramètres).
+`rp_vehiclecontrol`), et son **frein de parking** serré affiche un **(P) rouge** sur le car HUD.
 Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans ce dépôt) : il exige `ox_lib` (gratuit,
 à installer) et `ox_target`, remplacé ici par le **pont [`ox_target/`](../ox_target/README.md)** branché sur l'œil.
 
@@ -209,7 +208,7 @@ plus de flou de l'arrière-plan.
 | Interventions | **Police** : les appels de **sa police** (toujours ouverts), puis les **appels communs** (WSP & KCSO) ; les appels de l'autre police ne sont **pas** visibles. Seules les polices visées peuvent rejoindre un appel (vérifié par le serveur). Incident : police de l'unité déclarante toujours cochée, **case** pour y ajouter l'autre police (incident commun). **Générique** : les listes de **chaque police** et les appels communs, **en lecture** (pas de « Rejoindre ») ; bouton **Modifier** sur les **interventions** (appels des civils) pour les corriger directement. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer (ou **✕** en haut du panneau) pour le masquer : **sans appel choisi, le panneau des détails est réduit à une fine colonne** et la liste prend toute la place. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
 | Rapports | **Communs à tous les MDC**. DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
-| Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, **apparence jour / nuit**, couleur du mode nuit et où il s'applique, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : affichage, éléments visibles, taille, position ; volume des sons du véhicule ; le Menu Interaction de `rp_interact` n'est plus réglable : il est toujours en haut à gauche, comme les menus du jeu) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
+| Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, **apparence jour / nuit**, couleur du mode nuit et où il s'applique, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : taille et position seulement, tous leurs éléments sont toujours affichés ; volume des sons du véhicule ; le Menu Interaction de `rp_interact` n'est plus réglable : il est toujours en haut à gauche, comme les menus du jeu) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
 | Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, priorité, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
@@ -246,17 +245,18 @@ Les membres d'une même unité (4 au maximum) partagent en direct :
 
 ### HUD et notifications
 
-Affichages séparés, au thème du MDC (fond sombre « Mica », contour fin, coins arrondis ; le car HUD, lui, sans
-fond), visibles même MDC fermé :
+Affichages séparés, visibles même MDC fermé. Le **PLD** et le **car HUD** n'ont **ni fond ni contour** (lisibles sur
+le jeu par l'ombre du texte) ; le display MDC et les notifications sont des cartes sombres. Couleurs : de jour celles
+du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments sont toujours affichés** : dans
+« Paramètres > HUD & Display », on règle seulement leur **taille** et leur **position** (« Placer les HUD à l'écran »).
 
 - **PLD** (Player Localisation Display), **affiché pour chaque joueur dès sa connexion**, sans utiliser le MDC
-  (ni nom RP, ni unité) ; désactivable et réglable dans « Paramètres », réglages propres à chaque joueur
-  (`PldForEveryone` dans `client/hud.lua` pour le réserver aux joueurs ayant accès au MDC) : direction en gros
-  et en gras (N / NE / E / SE / S / SW / W / NW), rue actuelle en gros et, à sa droite, la **zone géographique**
-  (ex. Cypress Flats, West Vinewood ; masquable), **croisement le plus proche** en petit et en
-  italique (toujours présent : largeur stable), **bloc** : celui où se trouve le joueur, sinon le plus proche, et
-  sur la même ligne, décalée d'environ 2,5 cm, l'**heure du jeu** (HH:MM, sans libellé, masquable dans « Paramètres » ;
-  écart réglable : `--pld-time-gap` dans `html/style.css`).
+  (ni nom RP, ni unité) ; taille et position propres à chaque joueur (`PldForEveryone` dans `client/hud.lua` pour le
+  réserver aux joueurs ayant accès au MDC). Composition : à gauche le **cap** (petite flèche rouge tournée vers la
+  direction, puis la lettre en gros : N / NE / E / SE / S / SW / W / NW), un **trait rouge**, puis la **rue** en gros,
+  la **zone géographique** en petites capitales rouges (ex. Cypress Flats ; absente : rien), et une ligne
+  « **× croisement le plus proche** (italique, toujours présent : largeur stable) · **BLOC** n° (celui où se trouve le
+  joueur, sinon le plus proche) · **🕘 heure du jeu** ».
   **Priorité au PLD, au car HUD et au display MDC** : tant que le PLD est affiché, les textes du jeu qui s'y
   superposent (nom de la rue, de la zone, du véhicule et sa classe) sont masqués (`HideGameHud` dans
   `client/hud.lua`). Les scripts de HUD concurrents listés dans `ConflictingHuds` (`server/server.lua` : street
@@ -277,20 +277,21 @@ fond), visibles même MDC fermé :
 - **Display MDC** : affiché seulement dans une unité : « **[N° d'unité] • [POLICE]** » (ex. `417 • WSP`, pastille
   WSP bleue / KCSO verte) suivi du tag spécial (ex. SUP.), statut, n° d'incident (uniquement quand l'unité est sur un
   appel) et **secteur** (zone de jeu) choisi dans le Menu Interaction (`rp_interact`, Police > Display MDC) : « aucun
-  sélectionné » tant que rien n'est choisi. Chaque ligne se masque dans « Paramètres ».
-- **Car HUD**, à bord d'un véhicule : **toujours affiché pour le conducteur**, entièrement **grisé moteur coupé** et
-  qui **s'illumine au démarrage** ; seulement le logo de la ceinture pour les passagers ; **au-dessus de la minimap** et **sans aucun fond** (ni opaque, ni transparent,
-  ni coloré ; seulement une ombre portée pour la lisibilité) : la **vitesse en MPH** (un simple nombre), une fine **barre horizontale
-  d'accélération** (régime du moteur, rouge près du maximum), une **jauge d'essence verticale** (orange sous 15 %, rouge
-  sous 5 %), le petit **logo de la ceinture** (contour noir : vide = détachée, blanc = attachée, clignote en rouge pâle
-  en roulant sans ceinture) et, à côté, un **logo du moteur** : **orange** quand le moteur est **très abîmé**
-  (palier 1 : il roule lentement, cale, fume), sinon jamais visible sauf quand le moteur est **détruit** (palier 2,
-  véhicule hors d'usage) : le car HUD reste alors **allumé, tout en rouge vif clignotant**, ce logo du moteur
-  est **rouge foncé, fixe** ; le logo de la ceinture ne clignote plus : attachée, rempli de **rouge fixe** ;
-  détachée, seulement son **contour en rouge**, centre transparent, fixe. À droite, le **rapport** (conducteur) :
-  **R** au-dessus de **D**, une pastille glisse en douceur de l'un à l'autre (jaune en marche arrière, touche **↑**). En montant côté conducteur, une **notification glisse depuis la gauche juste au-dessus
-  du car HUD** et présente la touche du moteur (**O**) ; elle disparaît après 8 secondes. Déplaçable et redimensionnable comme les autres HUD ; chaque
-  élément se masque dans « Paramètres », avec le volume des sons de la ceinture.
+  sélectionné » tant que rien n'est choisi.
+- **Car HUD**, à bord d'un véhicule, **au-dessus de la minimap**, sans fond : **toujours affiché pour le conducteur**,
+  **grisé moteur coupé** (sauf le frein de parking) et qui **s'illumine au démarrage** ; seulement le voyant de la
+  ceinture pour les passagers. Composition :
+  - à gauche, la **vitesse** en gros chiffres, **MPH** dessous ;
+  - au centre, en haut, les **voyants** : **ceinture** (blanche attachée ; **rouge** détachée, clignote en roulant),
+    **frein de parking** de Riven (**(P) rouge** tant qu'il est serré), **moteur** (sans Riven : **orange** très abîmé
+    — il roule lentement, cale, fume — **rouge** détruit) ; dessous, le **compte-tours en 16 segments inclinés**
+    (les 3 derniers : **zone rouge**), puis la **jauge d'essence graduée en quarts** avec sa pompe (orange : réserve
+    sous 15 %, rouge : sous 5 %) ;
+  - à droite, le **rapport** dans un cadre : **D**, ou **R** sur fond ambre en marche arrière (touche **↑**).
+  Véhicule hors d'usage (moteur détruit) : vitesse, compte-tours et essence **clignotent en rouge**, voyant moteur
+  rouge fixe. En montant côté conducteur, une **notification glisse depuis la gauche juste au-dessus du car HUD** et
+  présente la touche du moteur (**O**) ; elle disparaît après 8 secondes. Volume des sons du véhicule dans
+  « Paramètres ».
   Les données (essence, dégâts, ceinture, moteur) viennent de **Vehicle Control**
   ([`rp_vehiclecontrol/`](../rp_vehiclecontrol/README.md)) : sans cette ressource, le car HUD n'apparaît pas
   (`client/carhud.lua` ne fait que relayer ses données au NUI, sans boucle).
@@ -314,7 +315,7 @@ Onglet **Paramètres** : afficher / masquer chaque HUD et ses éléments, taille
 l'écran** (glisser à la souris, molette = taille), notifications et son.
 
 Performance : le PLD lit la position toutes les 500 ms (`Interval` dans `client/hud.lua`) et n'envoie que les
-changements (~0.01ms) ; PLD désactivé : 0.00ms. Le display MDC et les notifications n'ont aucune boucle.
+changements (~0.01ms). Le display MDC et les notifications n'ont aucune boucle.
 Car HUD : aucune boucle dans le MDC (données envoyées par rp_vehiclecontrol, seulement quand elles changent).
 
 ### Rapports
