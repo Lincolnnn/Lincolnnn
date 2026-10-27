@@ -6,9 +6,11 @@
       - Prendre par le bras (individu le plus proche, 2 m) : le policier fait "/e tenirlebras",
         l'individu est tenu de force à sa droite (accroché à son centre : il reste droit) et le suit
         (marcher, trottiner, gauche, droite) ; le policier ne peut pas sprinter ; X : lâcher le bras
-      - Placer l'individu tenu à l'arrière d'un véhicule : le policier va ouvrir lui-même la portière
-        arrière la plus proche et lâche le bras ; l'individu y monte lui-même (sans téléportation) et
-        laisse la portière ouverte (le policier la referme avec l'œil)
+      - Placer l'individu à l'arrière d'un véhicule : le policier lâche le bras, vise le véhicule avec l'œil
+        (« Placer l'individu à l'arrière », proposé seulement si un joueur civil est à moins de 4 m d'une
+        portière arrière libre) ; la portière s'ouvre toute seule, l'individu y monte lui-même (sans
+        téléportation) et la portière RESTE OUVERTE (le policier la referme avec l'œil). Assis à l'arrière, il
+        ne peut pas descendre seul, sauf si la portière est déjà ouverte
       - Faire sortir l'individu (places arrière) : le policier ouvre la portière, l'individu descend et
         la laisse ouverte
       - Faire s'asseoir l'individu MENOTTÉ au sol ("/e menotté2") / le faire se relever
@@ -488,22 +490,6 @@ local REAR = {
     { seat = 2, door = 3, bone = 'door_pside_r' },
 }
 
---- Place arrière libre la plus proche du policier (nil si aucune)
-function Police.rearSeat(vehicle)
-    if not vehicle or not DoesEntityExist(vehicle) or GetVehicleMaxNumberOfPassengers(vehicle) < 3 then return nil end
-    local origin = GetEntityCoords(PlayerPedId())
-    local best, bestDistance
-    for _, rear in ipairs(REAR) do
-        if IsVehicleSeatFree(vehicle, rear.seat) then
-            local bone = GetEntityBoneIndexByName(vehicle, rear.bone)
-            local pos = bone ~= -1 and GetWorldPositionOfEntityBone(vehicle, bone) or GetEntityCoords(vehicle)
-            local d = #(pos - origin)
-            if not best or d < bestDistance then best, bestDistance = rear, d end
-        end
-    end
-    return best
-end
-
 --- Individus assis à l'arrière
 function Police.rearOccupants(vehicle)
     local list = {}
@@ -533,30 +519,64 @@ local function officerOpenDoor(vehicle, seat, door)
     end
 end
 
---- Le policier ouvre lui-même la portière arrière la plus proche, lâche le bras, l'individu monte
---- seul (sans téléportation) et laisse la portière ouverte : le policier la referme avec l'œil
+--- Individu à placer à l'arrière : le policier NE le tient PAS (bras lâché) et vise le véhicule avec l'œil ; un joueur
+--- civil (pas dans une unité du MDC, à pied) à moins de Config.PlaceDoorDistance m (4 m) d'une portière arrière dont la
+--- place est libre (PNJ menotté par ce policier aussi, pour les essais en solo).
+--- -> { ped, serverId, rear } (le plus proche de sa portière) ou nil
+function Police.placeCandidate(vehicle)
+    if not vehicle or not DoesEntityExist(vehicle) or dragging or GetVehicleMaxNumberOfPassengers(vehicle) < 3 then return nil end
+    local range = Config.PlaceDoorDistance or 4.0
+    local doors = {}
+    for _, rear in ipairs(REAR) do
+        if IsVehicleSeatFree(vehicle, rear.seat) then
+            local bone = GetEntityBoneIndexByName(vehicle, rear.bone)
+            if bone ~= -1 then doors[#doors + 1] = { rear = rear, pos = GetWorldPositionOfEntityBone(vehicle, bone) } end
+        end
+    end
+    if #doors == 0 then return nil end
+    local me = PlayerPedId()
+    local best, bestD
+    local function consider(ped, serverId)
+        if ped == me or not DoesEntityExist(ped) or IsEntityDead(ped) or IsPedInAnyVehicle(ped, true) then return end
+        local pos = GetEntityCoords(ped)
+        for _, door in ipairs(doors) do
+            local d = #(pos - door.pos)
+            if d <= range and (not bestD or d < bestD) then best, bestD = { ped = ped, serverId = serverId, rear = door.rear }, d end
+        end
+    end
+    for _, player in ipairs(GetActivePlayers()) do
+        local serverId = GetPlayerServerId(player)
+        local unit = Player(serverId).state.mdcUnit
+        if not (type(unit) == 'string' and unit ~= '') then consider(GetPlayerPed(player), serverId) end -- civil
+    end
+    for ped in pairs(npcCuffed) do consider(ped, nil) end
+    return best
+end
+
+--- Placer à l'arrière (œil sur le véhicule, bras lâché) : la portière arrière s'ouvre toute seule, le civil y monte
+--- lui-même (sans téléportation) et la portière RESTE OUVERTE : le policier la referme avec l'œil. Assis à
+--- l'arrière, le civil ne peut pas descendre seul tant que la portière est fermée.
 function Police.placeInVehicle(vehicle)
-    local d = dragging
-    if not d or not RPI.isPolice() then return end
-    local rear = Police.rearSeat(vehicle)
-    if not rear then return RPI.notify('Aucune place libre à l\'arrière de ce véhicule.', 'error') end
-    if d.serverId and not NetworkGetEntityIsNetworked(vehicle) then
+    if not RPI.isPolice() then return end
+    if dragging then return RPI.notify('Lâchez d\'abord le bras de l\'individu, puis visez le véhicule.', 'error') end
+    local c = Police.placeCandidate(vehicle)
+    if not c then return RPI.notify('Personne à moins de 4 m d\'une portière arrière libre.', 'error') end
+    if c.serverId and not NetworkGetEntityIsNetworked(vehicle) then
         return RPI.notify('Ce véhicule n\'est pas synchronisé avec le serveur.', 'error')
     end
     CreateThread(function()
-        RPI.cancelEmote() -- "tenir le bras" arrêté pendant qu'il ouvre (l'individu le suit toujours)
-        officerOpenDoor(vehicle, rear.seat, rear.door)
-        if dragging ~= d then return end -- lâché entre-temps
-        dragging = nil
-        if d.serverId then
-            RPI.request('putInVehicle', { target = d.serverId, netId = VehToNet(vehicle), seat = rear.seat }, feedback(nil))
+        if GetVehicleDoorAngleRatio(vehicle, c.rear.door) < 0.5 then
+            RPI.withControl(vehicle, function() SetVehicleDoorOpen(vehicle, c.rear.door, false, false) end)
+            Wait(350)
+        end
+        if c.serverId then
+            RPI.request('putInVehicle', { target = c.serverId, netId = VehToNet(vehicle), seat = c.rear.seat }, feedback(nil))
         else
-            npcSeated[d.ped] = nil
-            RPI.withControl(d.ped, function()
-                holdPed(d.ped, false)
-                npcMoving[d.ped] = GetGameTimer() + 15000
-                handcuffs(d.ped, false) -- le jeu empêche un personnage menotté de monter
-                TaskEnterVehicle(d.ped, vehicle, 15000, rear.seat, 1.0, ENTER_FLAGS, 0)
+            npcSeated[c.ped] = nil
+            RPI.withControl(c.ped, function()
+                npcMoving[c.ped] = GetGameTimer() + 15000
+                handcuffs(c.ped, false) -- le jeu empêche un personnage menotté de monter
+                TaskEnterVehicle(c.ped, vehicle, 15000, c.rear.seat, 1.0, ENTER_FLAGS, 0)
             end)
         end
     end)
@@ -807,7 +827,34 @@ RegisterNetEvent('rp_interact:client:struggleEnd', function(result, role)
     end
 end)
 
--- Placé à l'arrière par un policier (qui a ouvert la portière) : il y monte lui-même
+-- Placé à l'arrière : tant qu'il y est assis, il ne peut pas descendre seul, SAUF si sa portière est déjà ouverte
+-- (touche « sortir du véhicule » bloquée ; pas de passage vers l'avant). Boucle seulement pendant ce temps.
+local placed = nil -- { vehicle, seat, door }
+local EXIT_CONTROLS = { 75 } -- sortir du véhicule (F)
+local REAR_DOOR = { [1] = 2, [2] = 3 }
+
+local function placedLoop(p)
+    CreateThread(function()
+        local ped = PlayerPedId()
+        SetPedConfigFlag(ped, 184, true) -- ne passe pas tout seul à la place du conducteur
+        local boarded = false
+        while placed == p do
+            Wait(0)
+            local vehicle = GetVehiclePedIsIn(ped, false)
+            if vehicle == p.vehicle and GetPedInVehicleSeat(vehicle, p.seat) == ped then
+                boarded = true
+                if GetVehicleDoorAngleRatio(vehicle, p.door) < 0.1 then
+                    for _, control in ipairs(EXIT_CONTROLS) do DisableControlAction(0, control, true) end
+                end
+            elseif boarded or GetGameTimer() > p.untilTime then
+                placed = nil -- descendu (portière ouverte, sorti par un policier) ou jamais monté
+            end
+        end
+        SetPedConfigFlag(ped, 184, false)
+    end)
+end
+
+-- Placé à l'arrière par un policier (la portière vient de s'ouvrir) : il y monte lui-même, sans la refermer
 RegisterNetEvent('rp_interact:client:enterVehicle', function(netId, seat)
     local vehicle = NetToVeh(netId)
     if not vehicle or vehicle == 0 then return end
@@ -818,10 +865,13 @@ RegisterNetEvent('rp_interact:client:enterVehicle', function(netId, seat)
     vehicleMove.kind, vehicleMove.untilTime = 'enter', GetGameTimer() + 15000
     handcuffs(ped, false) -- le jeu empêche un personnage menotté de monter : remises une fois à bord
     TaskEnterVehicle(ped, vehicle, 15000, seat, 1.0, ENTER_FLAGS, 0) -- sans refermer la portière
+    placed = { vehicle = vehicle, seat = seat, door = REAR_DOOR[seat] or 2, untilTime = GetGameTimer() + 15000 }
+    placedLoop(placed)
 end)
 
 -- Le policier a ouvert la portière : l'individu descend sans la refermer
 RegisterNetEvent('rp_interact:client:leaveVehicle', function()
+    placed = nil
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
     if vehicle ~= 0 then
@@ -946,13 +996,13 @@ local menuView = nil
 local function menuState()
     local onDuty = RPI.isPolice()
     local ped = Police.closestPed(Config.ActionDistance)
-    local vehicle = dragging and Police.closestVehicle(Config.PlaceVehicleDistance) or nil
+    local vehicle = not dragging and Police.closestVehicle(Config.PlaceVehicleDistance) or nil
     local pedCuffed = ped and Police.isCuffed(ped) or false
     return {
         onDuty = onDuty,
         cuff = { enabled = onDuty and ped ~= nil, label = pedCuffed and 'Retirer les menottes' or 'Menotter' },
         drag = { enabled = onDuty and (dragging ~= nil or ped ~= nil), label = dragging and 'Lâcher le bras' or 'Prendre par le bras' },
-        place = { enabled = onDuty and vehicle ~= nil and Police.rearSeat(vehicle) ~= nil },
+        place = { enabled = onDuty and vehicle ~= nil and Police.placeCandidate(vehicle) ~= nil },
         seat = { enabled = onDuty and ped ~= nil and pedCuffed and not Police.isDragged(ped),
                  label = ped and Police.isSeated(ped) and 'Faire se relever l\'individu' or 'Faire s\'asseoir l\'individu' },
     }

@@ -41,7 +41,7 @@
 }
 
 /* Affichés sur le jeu (notifications, barres, tips) : restent sombres, lisibles de jour comme de nuit */
-.toasts, .progress, .struggle, .tips {
+.toasts, .progress, .struggle, .tips, .smell {
     --surface:   rgba(20, 25, 34, .94);
     --card:      rgba(140, 170, 220, .06);
     --card-2:    rgba(140, 170, 220, .1);
@@ -73,7 +73,7 @@ kbd {
 }
 
 /* Petite carte "Mica" commune (œil, résultats, notifications, barres, tips) */
-.eye-label, .eye-options, .result, .toast, .progress, .struggle, .tips {
+.eye-label, .eye-options, .result, .toast, .progress, .struggle, .tips, .smell {
     background: var(--surface);
     border: 1px solid var(--stroke-2);
     border-radius: var(--radius);
@@ -553,11 +553,49 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 }
 
 /* =========================================================================
+   ODEUR DÉTECTÉE (policier en service) : en haut au milieu, même allure que l'entrée dans une zone de recherche
+   (/scene), un peu plus bas pour ne pas la cacher
+   ========================================================================= */
+.smell {
+    position: fixed; top: 13vh; left: 50%; transform: translateX(-50%); z-index: 50;
+    min-width: 300px; max-width: min(560px, 46vw); padding: 9px 16px 11px; text-align: center; pointer-events: none;
+    color: var(--text); animation: smell-in .45s ease-out;
+}
+.smell::before { content: ""; position: absolute; left: 16px; right: 16px; top: 0; height: 2px; background: #e8c27a; border-radius: 0 0 2px 2px; }
+.smell.out { animation: smell-out .35s ease-in forwards; }
+@keyframes smell-in { from { opacity: 0; transform: translate(-50%, -10px); } }
+@keyframes smell-out { to { opacity: 0; transform: translate(-50%, -10px); } }
+.smell-head {
+    display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; color: #e8c27a;
+}
+.smell-dot { width: 7px; height: 7px; border-radius: 50%; background: #e8c27a; box-shadow: 0 0 8px #e8c27a; animation: smell-pulse 1.8s ease-in-out infinite; }
+@keyframes smell-pulse { 50% { opacity: .35; } }
+.smell-label { font-weight: 600; letter-spacing: .3px; color: var(--muted); }
+.smell-label:not(:empty)::before { content: "·"; margin-right: 7px; }
+.smell-text { margin-top: 5px; font-size: 13.5px; line-height: 1.45; color: var(--text); }
+.smell-text div + div { margin-top: 2px; }
+
+/* Fiche civile : odeurs détectées automatiquement (cases à cocher en pastilles, 2 au plus) */
+.smell-groups { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.smell-group-title { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.smell-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.smell-chip {
+    padding: 4px 10px; font-size: 12px; color: var(--text); background: var(--input); cursor: pointer;
+    border: 1px solid var(--stroke-2); border-radius: 999px; transition: background .12s, border-color .12s;
+}
+.smell-chip:hover { background: var(--input-hover); }
+.smell-chip.on { background: rgba(var(--accent-rgb), .16); border-color: var(--accent); color: var(--text); font-weight: 600; }
+.smell-chip.on::before { content: "✓ "; color: var(--accent); }
+.smell-chip:disabled { opacity: .45; cursor: default; }
+.smell-count { font-size: 11px; color: var(--muted); margin-left: 6px; font-weight: 400; }
+
+/* =========================================================================
    MODE NUIT (réglé dans le MDC : Paramètres > MDC > Apparence ; <html data-theme="night">, client/theme.lua)
    Fond noir très sombre, dans la COULEUR du mode nuit (vert par défaut, jaune, rouge ou bleu) : titres vert foncé, texte vert clair ; les couleurs du mode jour (pages,
    polices, alertes) deviennent des nuances de vert plus claires ou plus sombres. Aucune autre couleur.
    ========================================================================= */
-:root[data-theme="night"], [data-theme="night"] .toasts, [data-theme="night"] .progress, [data-theme="night"] .struggle, [data-theme="night"] .tips {
+:root[data-theme="night"], [data-theme="night"] .toasts, [data-theme="night"] .progress, [data-theme="night"] .struggle, [data-theme="night"] .tips, [data-theme="night"] .smell {
     --mica:      var(--n-bg-rgb);
     --mica-2:    var(--n-bg2-rgb);
     --surface:   rgba(var(--n-bg-rgb), .95);
@@ -617,6 +655,14 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 [data-theme="night"] .tips::before { background: var(--n-accent); }
 [data-theme="night"] .tips.aimed::before { background: var(--n-bright); }
 [data-theme="night"] .tips-title { color: var(--title); }
+[data-theme="night"] .smell::before, [data-theme="night"] .smell-dot { background: var(--n-accent); box-shadow: 0 0 8px var(--n-accent); }
+[data-theme="night"] .smell::before { box-shadow: none; }
+[data-theme="night"] .smell-head { color: var(--n-light); }
+[data-theme="night"] .smell-label { color: rgba(var(--n-muted-rgb), .7); }
+[data-theme="night"] .smell-chip { background: var(--n-field); border-color: rgba(var(--n-rgb), .3); }
+[data-theme="night"] .smell-chip:hover { background: var(--n-head); }
+[data-theme="night"] .smell-chip.on { background: var(--n-primary); border-color: var(--n-accent); color: var(--n-pale); }
+[data-theme="night"] .smell-chip.on::before { color: var(--n-pale); }
 [data-theme="night"] .tips.aimed .tips-title { color: var(--n-bright); }
 [data-theme="night"] .tips.aimed { animation-name: tips-pulse-night; }
 @keyframes tips-pulse-night { 50% { box-shadow: var(--shadow), 0 0 0 3px rgba(var(--n-rgb), .35); } }

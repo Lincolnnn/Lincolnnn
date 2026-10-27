@@ -475,7 +475,7 @@
                     { kind: 'info', label: d.police ? `En service — unité ${d.police}` : 'Hors service', tone: d.police ? 'ok' : 'muted' },
                     action('cuff', 'Menotter', 'Personne à moins de 2 m.'),
                     action('drag', 'Prendre par le bras', 'Personne à moins de 2 m.'),
-                    action('place', 'Placer l\'individu à l\'arrière du véhicule', 'Tenez un individu par le bras, près d\'un véhicule.'),
+                    action('place', 'Placer l\'individu à l\'arrière du véhicule', 'Lâchez le bras : un civil à moins de 4 m d\'une portière arrière libre.'),
                     action('seat', 'Faire s\'asseoir l\'individu', 'Individu menotté à moins de 2 m (pas tenu par le bras).'),
                     { kind: 'section', label: 'Display MDC' },
                     { kind: 'input', key: 'sector', label: 'Secteur', value: (d.policeProfile || {}).sector || '', max: 40,
@@ -1116,6 +1116,42 @@
         progress.timer = setInterval(tick, 250);
     }
 
+    // ---- Odeur détectée (policier en service, à côté d'un civil / d'un véhicule) ----
+    let smellTimer = null; let smellHide = null; let smellAudio = null;
+    /** Court son discret (deux notes douces qui montent), généré ici : comme l'entrée dans une zone de recherche */
+    function smellSound(volume) {
+        try {
+            smellAudio = smellAudio || new (window.AudioContext || window.webkitAudioContext)();
+            const ac = smellAudio; const t = ac.currentTime + 0.02;
+            const v = Math.max(0, Math.min(1, Number(volume) || 0.4));
+            [[392.0, 0], [523.25, 0.16]].forEach(([f, at]) => {
+                const o = ac.createOscillator(); const g = ac.createGain();
+                o.type = 'triangle'; o.frequency.value = f;
+                g.gain.setValueAtTime(0.0001, t + at);
+                g.gain.exponentialRampToValueAtTime(0.18 * v, t + at + 0.03);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.7);
+                o.connect(g); g.connect(ac.destination); o.start(t + at); o.stop(t + at + 0.75);
+            });
+        } catch (err) { /* son indisponible */ }
+    }
+    function setSmell(data) {
+        const box = $('#smell');
+        clearTimeout(smellTimer); clearTimeout(smellHide);
+        if (!data.show) {
+            if (!box.classList.contains('hidden')) {
+                box.classList.add('out');
+                smellHide = setTimeout(() => box.classList.add('hidden'), 360);
+            }
+            return;
+        }
+        $('#smellLabel').textContent = data.label || '';
+        $('#smellText').innerHTML = toArray(data.lines).map((l) => `<div>${esc(l)}</div>`).join('');
+        box.classList.remove('out', 'hidden');
+        void box.offsetWidth;
+        smellSound(data.volume);
+        smellTimer = setTimeout(() => setSmell({ show: false }), Math.max(2000, Number(data.duration) || 9000));
+    }
+
     // ---- Tips d'arrestation (mode civil) ----
     function setTips(data) {
         const box = $('#tips');
@@ -1142,6 +1178,9 @@
         vehicle: null,       // { netId, label, plate, profile, taken }
         vdraft: null,
         vconfirm: false,
+        smells: [],          // odeurs détectées automatiquement (config.lua : Smells)
+        smellMax: 2,
+        smellsEnabled: true,
     };
 
     const PROFILE_PARTS = [
@@ -1154,11 +1193,56 @@
     const emptyProfile = () => ({
         id: null, name: '', notable: '',
         visualKnown: false, visual: '', olfactoryKnown: false, olfactory: '',
-        upperKnown: false, upper: '', lowerKnown: false, lower: '',
+        upperKnown: false, upper: '', lowerKnown: false, lower: '', smells: [],
     });
     const emptyVehicle = () => ({
-        visualKnown: false, interior: '', exterior: '', olfactory: '', notable: '', cabin: '', rear: '', trunk: '',
+        visualKnown: false, interior: '', exterior: '', olfactory: '', notable: '', cabin: '', rear: '', trunk: '', smells: [],
     });
+
+    // ---- Odeurs détectées automatiquement (2 au plus) ----
+    const smellLabel = (id) => (ed.smells.find((x) => x.id === id) || {}).label || id;
+    const smellText = (list) => toArray(list).map(smellLabel).join(' + ');
+
+    function smellsHtml(d, who) {
+        if (!ed.smellsEnabled || !ed.smells.length) return '';
+        const chosen = toArray(d.smells);
+        const full = chosen.length >= ed.smellMax;
+        const groups = [];
+        ed.smells.forEach((s) => {
+            let g = groups.find((x) => x.name === s.group);
+            if (!g) { g = { name: s.group || 'Autres', list: [] }; groups.push(g); }
+            g.list.push(s);
+        });
+        return `
+            <div class="form-part">
+                <span class="form-section-title">Odeur détectée automatiquement <span class="smell-count">${chosen.length}/${ed.smellMax}</span></span>
+                <div class="form-section-desc">Facultatif. Un policier en service qui passe à moins de 6 m ${who} la sent tout de suite (notification) ; elle s'ajoute aussi à l'inspection olfactive. ${ed.smellMax} odeurs au plus, combinables.</div>
+                <div class="smell-groups">${groups.map((g) => `
+                    <div><div class="smell-group-title">${esc(g.name)}</div><div class="smell-chips">${g.list.map((s) => {
+                        const on = chosen.includes(s.id);
+                        return `<button type="button" class="smell-chip ${on ? 'on' : ''}" data-smell="${esc(s.id)}" ${!on && full ? 'disabled' : ''}>${esc(s.label)}</button>`;
+                    }).join('')}</div></div>`).join('')}
+                </div>
+            </div>`;
+    }
+
+    /** Clic sur une odeur : ajoutée / retirée (2 au plus), formulaire redessiné sans perdre la saisie */
+    function bindSmells(container, getDraft, rerender) {
+        container.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-smell]');
+            const d = getDraft();
+            if (!chip || !d) return;
+            const id = chip.dataset.smell;
+            const list = toArray(d.smells).slice();
+            const i = list.indexOf(id);
+            if (i >= 0) list.splice(i, 1);
+            else if (list.length < ed.smellMax) list.push(id);
+            d.smells = list;
+            const scroll = container.scrollTop;
+            rerender();
+            container.scrollTop = scroll;
+        });
+    }
 
     const valueOrDefault = (text, defaults) => (text
         ? esc(text)
@@ -1243,7 +1327,7 @@
                 </span>
             </div>
             <div class="sheet-sub">Inspection <small>Observations visuelles et olfactives</small></div>
-            <dl class="sheet">${parts(['visual', 'olfactory'])}</dl>
+            <dl class="sheet">${parts(['visual', 'olfactory'])}${ed.smellsEnabled ? `<dt>Odeur détectée automatiquement</dt><dd>${toArray(p.smells).length ? esc(smellText(p.smells)) : '<span class="default-text">Aucune</span>'}</dd>` : ''}</dl>
             <div class="sheet-sub">Fouille <small>Contenu de ce que détient votre personnage</small></div>
             <dl class="sheet">${parts(['upper', 'lower'])}</dl>
             <div class="sheet-sub">Détail notoire</div>
@@ -1268,6 +1352,7 @@
                 <div class="form-section-desc">Observations visuelles et olfactives</div>
                 ${partForm(d, PROFILE_PARTS[0])}
                 ${partForm(d, PROFILE_PARTS[1])}
+                ${smellsHtml(d, 'de vous')}
             </div>
             <div class="form-section">
                 <span class="form-section-title">Fouille</span>
@@ -1327,6 +1412,7 @@
         });
     }
     bindDraft($('#profileDetail'), () => ed.draft);
+    bindSmells($('#profileDetail'), () => (ed.mode === 'form' ? ed.draft : null), () => renderProfilePanel());
 
     $('#profileDetail').addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-act]');
@@ -1433,6 +1519,7 @@
             <div class="form-section">
                 <span class="form-section-title">Inspection olfactive</span>
                 <textarea data-k="olfactory" rows="2" maxlength="1000" placeholder="Vide : « ${esc(DEFAULTS.vehicleOlfactory)} »">${esc(d.olfactory)}</textarea>
+                ${smellsHtml(d, 'du véhicule')}
             </div>
             <div class="form-section">
                 <span class="form-section-title">Détail notoire</span>
@@ -1472,6 +1559,7 @@
     }
 
     bindDraft($('#vehicleDetail'), () => ed.vdraft);
+    bindSmells($('#vehicleDetail'), () => ed.vdraft, () => renderVehicle());
 
     $('#vehicleDetail').addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-act]');
@@ -1530,6 +1618,9 @@
         const profiles = data.profiles || {};
         ed.profiles = toArray(profiles.profiles);
         ed.max = profiles.max || ed.max;
+        ed.smells = toArray(data.smells);
+        ed.smellMax = Number(data.smellMax) || 2;
+        ed.smellsEnabled = data.smellsEnabled !== false;
         if (data.vehicle) setVehicle(data.vehicle);
         ed.selected = null;
         ed.mode = 'empty';
@@ -1687,6 +1778,7 @@
                 interact.render();
                 break;
             case 'tips': setTips(data.data || {}); break;
+            case 'smell': setSmell(data.data || {}); break;
             case 'menuActions': setMenuActions(data.data || {}); break;
             case 'progress': setProgress(data.data || {}); break;
             case 'struggle': setStruggle(data.data || {}); break;

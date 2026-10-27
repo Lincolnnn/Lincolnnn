@@ -2,17 +2,19 @@
     RP Doorlock - client
     --------------------
     Avec l'œil de rp_interact (Alt), en visant une porte du jeu (ou d'une map ajoutée) à moins de Distance m :
-      - « Verrouiller la porte » : joueurs en mode civil ou sans rôle (jamais un policier en service, unité du MDC) ;
-        « Déverrouiller la porte » pour son propriétaire (même règle) ou un admin ;
-      - porte verrouillée, TOUT LE MONDE : « Enfoncer la porte » : barre de réussite en bas de l'écran (ESPACE
+      - joueur CIVIL (mode civil ou sans rôle) : « Verrouiller la porte » ; porte verrouillée : « Déverrouiller la
+        porte » (tout civil) ou « Frapper à la porte » ;
+      - POLICIER en service (unité du MDC) : porte verrouillée : « Frapper à la porte » ou « Enfoncer la porte »
+        seulement (jamais verrouiller / déverrouiller) : barre de réussite en bas de l'écran (ESPACE
         quand le curseur passe dans la zone verte, Steps fois ; RETOUR ARRIÈRE pour arrêter), un coup de pied
         (animation) à chaque essai ;
       - porte enfoncée : cassée, elle ne se verrouille plus ; description « Elle a été forcée. » affichée au-dessus
         (comme la description visuelle d'une scène de /scene) ; un admin peut la réparer ;
-      - tout le monde : « Frapper à la porte ».
+      - porte ouverte : tout le monde peut y frapper ; un admin peut déverrouiller toute porte.
     Une porte double (deux battants côte à côte) est verrouillée / déverrouillée / enfoncée en entier.
     Verrous : système de portes du jeu (porte fermée et bloquée chez tout le monde), ré-appliqué quand la porte se
-    charge près du joueur, et porte figée une fois fermée (elle ne bat plus, même une porte de bâtiment du jeu de base).
+    charge près du joueur ; la porte est refermée d'un coup puis FIGÉE avec ses collisions (elle ne bouge plus du
+    tout et bloque les joueurs, même une porte de bâtiment du jeu de base).
     Les portes ne peuvent pas être supprimées avec l'œil (rp_interact : export isDoor).
     Performance : aucune boucle sans verrou ni porte forcée ; sinon une vérification par seconde (0,5 s près d'une
     porte), et l'affichage de la description seulement quand elle est visible à moins de 10 m.
@@ -110,6 +112,8 @@ local function lockState(a)
     DoorSystemSetDoorState(a.hash, 1, false, true)  -- verrouillée, appliqué tout de suite
 end
 
+local holdLocked -- (plus bas)
+
 local function apply(l)
     local a = applied[l.id]
     if not a then
@@ -123,11 +127,20 @@ local function apply(l)
     end
     lockState(a)
     a.loaded = DoorSystemGetIsPhysicsLoaded(a.hash) == true or DoorSystemGetIsPhysicsLoaded(a.hash) == 1
+    if locks[l.id] then holdLocked(l) end -- porte proche : refermée et figée tout de suite
+end
+
+--- Porte figée : immobile, collisions actives (elle bloque les joueurs comme un mur)
+local function freeze(a, obj)
+    FreezeEntityPosition(obj, true)
+    SetEntityCollision(obj, true, true)
+    a.object = obj
+    a.rotation = GetEntityRotation(obj, 2) -- position fermée : remise en place si quelque chose la décale
 end
 
 local function unfreeze(a)
     if a.object and DoesEntityExist(a.object) then FreezeEntityPosition(a.object, false) end
-    a.object = nil
+    a.object, a.rotation = nil, nil
 end
 
 local function release(id, keepOpen)
@@ -144,8 +157,9 @@ local function release(id, keepOpen)
     end
 end
 
---- Une porte verrouillée proche : état ré-appliqué quand elle se charge, figée une fois fermée (elle ne bat plus)
-local function holdLocked(l)
+--- Une porte verrouillée proche : état ré-appliqué quand elle se charge ; ouverte, elle est refermée d'un coup
+--- (sans attendre qu'elle batte), puis FIGÉE avec ses collisions : elle ne bouge plus du tout.
+function holdLocked(l)
     local a = applied[l.id]
     if not a then return end
     if not IsDoorRegisteredWithSystem(a.hash) then
@@ -158,11 +172,33 @@ local function holdLocked(l)
     a.loaded = loaded
     local obj = doorObject(l)
     if a.object and a.object ~= obj then unfreeze(a) end
-    if obj and not a.object and math.abs(DoorSystemGetOpenRatio(a.hash)) < 0.02 then
-        FreezeEntityPosition(obj, true)
-        a.object = obj
+    if not obj then return end
+    if a.object then
+        -- déjà figée : remise en place si elle a été décalée (autre script, véhicule…)
+        local r = GetEntityRotation(obj, 2)
+        if a.rotation and math.abs(r.z - a.rotation.z) > 0.5 then SetEntityRotation(obj, a.rotation.x, a.rotation.y, a.rotation.z, 2, true) end
+        if not IsEntityPositionFrozen(obj) then FreezeEntityPosition(obj, true) end
+        return
     end
+    if math.abs(DoorSystemGetOpenRatio(a.hash)) < 0.02 then
+        freeze(a, obj)
+    else
+        -- ouverte : refermée tout de suite ; figée à la vérification suivante (quelques images plus tard)
+        DoorSystemSetOpenRatio(a.hash, 0.0, false, true)
+        a.closing = (a.closing or 0) + 1
+        if a.closing > 6 then freeze(a, obj) end -- le jeu ne la referme pas (porte sans physique…) : figée là
+        if not a.pending then
+            a.pending = true
+            SetTimeout(150, function()
+                a.pending = nil
+                if applied[l.id] == a and locks[l.id] then holdLocked(l) end
+            end)
+        end
+        return
+    end
+    a.closing = nil
 end
+DL.holdLocked = holdLocked -- pour les tests
 
 -- =========================================================================
 -- PORTE FORCÉE : description au-dessus de la porte (même rendu que la description visuelle de /scene)
@@ -529,25 +565,21 @@ exports('targetOptions', function(info)
     local door = doorFromInfo(info)
     if not door then return nil end
     local lock, forced = locks[door.id], broken[door.id]
-    local police = info.police == true -- policier en service : ne verrouille pas (civils et joueurs sans rôle oui)
+    local police = info.police == true -- policier en service (unité du MDC) ; sinon : civil
+    local K = Config.Knock or {}
     local options = {}
     if forced then
         if admin then options[#options + 1] = { id = 'repair', icon = 'tool', label = 'Réparer la porte' } end
     elseif not lock then
-        if not police then
-            options[#options + 1] = { id = 'lock', icon = 'lock', label = 'Verrouiller la porte' }
-        end
-    else
-        if (not police and lock.tag == myTag) or admin then
-            options[#options + 1] = { id = 'unlock', icon = 'unlock', label = 'Déverrouiller la porte' }
-        end
-        if (Config.Kick or {}).Enabled ~= false then
-            options[#options + 1] = { id = 'kick', icon = 'door', label = 'Enfoncer la porte' }
-        end
+        if not police then options[#options + 1] = { id = 'lock', icon = 'lock', label = 'Verrouiller la porte' } end
+    elseif not police or admin then
+        options[#options + 1] = { id = 'unlock', icon = 'unlock', label = 'Déverrouiller la porte' }
     end
-    if (Config.Knock or {}).Enabled ~= false then
-        options[#options + 1] = { id = 'knock', icon = 'hand', label = 'Frapper à la porte' }
+    if K.Enabled ~= false then options[#options + 1] = { id = 'knock', icon = 'hand', label = 'Frapper à la porte' } end
+    if lock and police and (Config.Kick or {}).Enabled ~= false then
+        options[#options + 1] = { id = 'kick', icon = 'door', label = 'Enfoncer la porte' }
     end
+    if #options == 0 then return nil end
     return { label = forced and 'Porte forcée' or (lock and 'Porte verrouillée' or 'Porte'), options = options }
 end)
 

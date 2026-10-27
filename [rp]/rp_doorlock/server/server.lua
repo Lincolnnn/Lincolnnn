@@ -4,8 +4,8 @@
     - Verrouiller : joueurs en mode civil ou sans rôle (jamais un policier en service, unité du MDC), à côté de la
       porte (et de son second battant), dans la limite MaxPerPlayer, sauf porte forcée ; la porte appartient alors à
       ce joueur (sa licence : il la retrouve après une reconnexion).
-    - Déverrouiller : son propriétaire (pas en service de police) ou un admin (permission AdminAce).
-    - Enfoncer (TOUT LE MONDE) : un coup de pied à la fois (Cooldown) ; Kick.Steps coups réussis (barre de réussite du
+    - Déverrouiller : tout joueur en mode civil ou sans rôle (pas en service de police), ou un admin (AdminAce).
+    - Enfoncer (POLICIERS EN SERVICE seulement) : un coup de pied à la fois (Cooldown) ; Kick.Steps coups réussis (barre de réussite du
       client) : le verrou saute, la porte s'ouvre en grand chez tout le monde et reste CASSÉE (Broken) : elle ne se
       verrouille plus, sa description « Elle a été forcée. » s'affiche, jusqu'à sa réparation (admin, Broken.Duration
       minutes, ou redémarrage du serveur).
@@ -42,12 +42,19 @@ local function isPolice(src)
     return ok and type(unit) == 'table'
 end
 
-local NOT_POLICE = 'Un policier en service ne verrouille pas les portes (civils et joueurs sans rôle seulement).'
+local NOT_POLICE = 'Un policier en service ne verrouille ni ne déverrouille les portes : il peut frapper ou l\'enfoncer.'
 
 local function number(v)
     v = tonumber(v)
     if not v or v ~= v or math.abs(v) > 100000 then return nil end
     return v
+end
+
+--- Modèle d'une porte (empreinte du jeu, entier sur 32 bits : bien au-delà de 100000, refusé par number())
+local function modelOf(v)
+    v = tonumber(v)
+    if not v or v ~= v or v ~= math.floor(v) or v < -2147483648 or v > 4294967295 then return nil end
+    return math.floor(v)
 end
 
 local function near(src, x, y, z, extra)
@@ -128,7 +135,7 @@ RegisterNetEvent('rp_doorlock:lock', function(doors)
     local license = licenseOf(src)
     local entries = {}
     for i, d in ipairs(doors) do
-        local model, x, y, z = number(type(d) == 'table' and d.model), number(type(d) == 'table' and d.x),
+        local model, x, y, z = modelOf(type(d) == 'table' and d.model), number(type(d) == 'table' and d.x),
             number(type(d) == 'table' and d.y), number(type(d) == 'table' and d.z)
         if not (model and x and y and z) then return end
         -- le second battant peut être un peu plus loin
@@ -136,7 +143,7 @@ RegisterNetEvent('rp_doorlock:lock', function(doors)
         local id = DoorlockId(model, x, y, z)
         if locks[id] then return notify(src, 'Cette porte est déjà verrouillée.') end
         if broken[id] then return notify(src, 'Cette porte a été forcée : elle ne se verrouille plus.') end
-        entries[#entries + 1] = { id = id, model = math.floor(model), x = x, y = y, z = z }
+        entries[#entries + 1] = { id = id, model = model, x = x, y = y, z = z }
     end
     if (Config.MaxPerPlayer or 0) > 0 and countOf(license) >= Config.MaxPerPlayer then
         return notify(src, ('Vous avez déjà verrouillé %d portes : déverrouillez-en une.'):format(Config.MaxPerPlayer))
@@ -159,10 +166,7 @@ RegisterNetEvent('rp_doorlock:unlock', function(id)
     local l = type(id) == 'string' and locks[id] or nil
     if not l or not throttle(src, 'unlock', 800) then return end
     if not near(src, l.x, l.y, l.z, 1.0) then return end
-    if not isAdmin(src) then
-        if isPolice(src) then return notify(src, NOT_POLICE) end
-        if l.owner ~= licenseOf(src) then return notify(src, 'Vous n\'avez pas la clé de cette porte.') end
-    end
+    if not isAdmin(src) and isPolice(src) then return notify(src, NOT_POLICE) end
     local ids = removeGroup(id)
     kicks[l.group] = nil
     save()
@@ -187,16 +191,17 @@ end
 RegisterNetEvent('rp_doorlock:breachStart', function(id)
     local src = source
     local l = type(id) == 'string' and locks[id] or nil
-    if l and near(src, l.x, l.y, l.z, 1.0) then kicks[l.group] = 0 end
+    if l and isPolice(src) and near(src, l.x, l.y, l.z, 1.0) then kicks[l.group] = 0 end
 end)
 
---- Un coup de pied (tout le monde) : réussi (curseur dans la zone verte) ou raté ; Steps coups réussis -> la porte
+--- Un coup de pied (policier en service) : réussi (curseur dans la zone verte) ou raté ; Steps coups réussis -> la porte
 --- cède et reste cassée
 RegisterNetEvent('rp_doorlock:kick', function(id, hit)
     local src = source
     local K = Config.Kick or {}
     local l = type(id) == 'string' and locks[id] or nil
     if K.Enabled == false or not l then return end
+    if not isPolice(src) then return notify(src, 'Seul un policier en service peut enfoncer une porte.') end
     if not near(src, l.x, l.y, l.z, 1.0) or not throttle(src, 'kick', K.Cooldown or 700) then return end
     if hit ~= true then return end
     local n = (kicks[l.group] or 0) + 1

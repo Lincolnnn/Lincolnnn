@@ -298,9 +298,10 @@ local function vehicleOptions(ctx)
     local vehicle = ctx.entity
     local Police = RPI.Police
 
-    -- Police : placer l'individu tenu par le bras à l'arrière / faire sortir les passagers arrière
+    -- Police : placer un civil à l'arrière / faire sortir les passagers arrière
     if ctx.police then
-        if Police.dragging() and within(ctx, Config.PlaceVehicleDistance) and Police.rearSeat(vehicle) then
+        -- (bras lâché, un civil à moins de 4 m d'une portière arrière libre)
+        if not Police.dragging() and within(ctx, Config.PlaceVehicleDistance) and Police.placeCandidate(vehicle) then
             out[#out + 1] = { id = 'police:place', label = 'Placer l\'individu à l\'arrière', icon = 'car', police = true,
                 run = function(c) Police.placeInVehicle(c.entity) end }
         end

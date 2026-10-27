@@ -1,8 +1,9 @@
 --[[
     RP Doorlock - configuration
     Portes du jeu (et des maps ajoutées) que les joueurs en mode civil ou sans rôle verrouillent / déverrouillent avec
-    l'œil (jamais un policier en service, unité du MDC) ; TOUT LE MONDE peut enfoncer une porte verrouillée (barre de
-    réussite) : elle reste alors cassée (ne se verrouille plus) avec la description « Elle a été forcée. ».
+    l'œil (jamais un policier en service, unité du MDC) ; porte verrouillée : les civils la déverrouillent ou y
+    frappent, les POLICIERS EN SERVICE y frappent ou l'enfoncent (barre de réussite) : elle reste alors cassée (ne se
+    verrouille plus) avec la description « Elle a été forcée. ».
 ]]
 
 DoorlockConfig = {
@@ -28,7 +29,7 @@ DoorlockConfig = {
     KnockAnim = { 'timetable@jimmy@doorknock@', 'knockdoor_idle', 2500 },
     Knock = { Enabled = true, Sound = { 'Door_Knock_Normal', 'dlc_btl_deliver_goods_sounds' }, Range = 15.0 },
 
-    -- Enfoncer (tout le monde) : barre de réussite en bas de l'écran ; un curseur va et vient, ESPACE quand il
+    -- Enfoncer (policiers en service seulement) : barre de réussite en bas de l'écran ; un curseur va et vient, ESPACE quand il
     -- est dans la zone verte (un coup de pied à chaque essai). Steps essais réussis : la porte cède. Zone : largeur
     -- de la zone verte à chaque étape (part de la barre) ; Speed : allers par seconde du curseur. MaxMisses essais
     -- ratés : le policier s'arrête (il peut recommencer). Cooldown ms au moins entre deux coups (serveur). La porte

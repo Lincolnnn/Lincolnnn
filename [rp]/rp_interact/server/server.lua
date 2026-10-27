@@ -149,6 +149,7 @@ local function buildProfile(p)
             return nil, ('%s : décrivez ce qu\'il y a (ou décochez la case).'):format(part.label)
         end
     end
+    r.smells = RPISmells.clean(p.smells) -- odeurs détectées automatiquement par la police (2 au plus)
     return r
 end
 
@@ -180,7 +181,10 @@ end
 -- OneSync : véhicule supprimé -> profil supprimé
 AddEventHandler('entityRemoved', function(entity)
     for netId, profile in pairs(VehicleProfiles) do
-        if profile.entity == entity then VehicleProfiles[netId] = nil end
+        if profile.entity == entity then
+            VehicleProfiles[netId] = nil
+            if profile.smells and #profile.smells > 0 and RPIServer and RPIServer.pushSmells then RPIServer.pushSmells() end
+        end
     end
 end)
 
@@ -194,6 +198,7 @@ local function buildVehicleProfile(p)
         return nil, 'Inspection visuelle : remplissez l\'intérieur et / ou l\'extérieur (ou décochez la case).'
     end
     for _, key in ipairs(VEHICLE_TEXTS) do r[key] = cleanMultiline(p[key], Config.TextMax) end
+    r.smells = RPISmells.clean(p.smells)
     return r
 end
 
@@ -292,8 +297,19 @@ local function defaultText(listName, key)
     return list[hash % #list + 1]
 end
 
+--- Inspection olfactive : odeurs détectées automatiquement (fiche civile) + texte écrit par le joueur
+local function withSmells(profile, text)
+    local smell = profile and RPISmells.text(profile.smells)
+    if not smell then return text end
+    smell = RPISmells.sentence(smell) .. '.'
+    return text and (smell .. '\n' .. text) or smell
+end
+
 local function personValue(profile, field, key)
     local spec = PERSON_FIELDS[field]
+    if field == 'olfactory' and profile and RPISmells.text(profile.smells) then
+        return withSmells(profile, profile.olfactoryKnown and profile.olfactory ~= '' and profile.olfactory or nil)
+    end
     if profile then
         if field == 'notable' then
             if profile.notable ~= '' then return profile.notable end
@@ -308,6 +324,9 @@ local VEHICLE_TEXT_OF = { visualInterior = 'interior', visualExterior = 'exterio
 
 local function vehicleValue(profile, field, key)
     local spec = VEHICLE_FIELDS[field]
+    if field == 'olfactory' and profile and RPISmells.text(profile.smells) then
+        return withSmells(profile, profile.olfactory ~= '' and profile.olfactory or nil)
+    end
     if profile then
         local textKey = VEHICLE_TEXT_OF[field] or field
         local visual = VEHICLE_TEXT_OF[field] ~= nil
@@ -382,6 +401,55 @@ local function writeCooldown(src)
     return true
 end
 
+-- =========================================================================
+-- ODEURS DÉTECTÉES AUTOMATIQUEMENT (Config.Smell) : envoyées aux seuls policiers en service, qui sont prévenus à
+-- moins de Smell.Distance m d'un joueur civil (profil actif) ou d'un véhicule (profil) qui en a (client/smell.lua)
+-- =========================================================================
+--- Sources d'odeurs : { players = { { id, text } }, vehicles = { { netId, text } } }
+local function smellSources()
+    local list = { players = {}, vehicles = {} }
+    if (Config.Smell or {}).Enabled == false then return list end
+    local online = {}
+    for _, id in ipairs(GetPlayers()) do online[getIdentifier(tonumber(id))] = tonumber(id) end
+    for _, profile in ipairs(Profiles) do
+        local src = profile.active and online[profile.owner]
+        local text = src and RPISmells.text(profile.smells)
+        -- joueur civil seulement (mode civil ou sans rôle) : un policier en service n'a pas d'odeur de profil
+        if text and not policeUnit(src) then list.players[#list.players + 1] = { id = src, text = text } end
+    end
+    for netId in pairs(VehicleProfiles) do
+        local profile = vehicleProfile(netId)
+        local text = profile and RPISmells.text(profile.smells)
+        if text then list.vehicles[#list.vehicles + 1] = { netId = netId, text = text } end
+    end
+    return list
+end
+
+local smellPending = false
+--- Liste à jour envoyée aux policiers en service (regroupé : un envoi pour plusieurs changements rapprochés)
+local function pushSmells()
+    if smellPending then return end
+    smellPending = true
+    SetTimeout(250, function()
+        smellPending = false
+        local list = smellSources()
+        for _, id in ipairs(GetPlayers()) do
+            local src = tonumber(id)
+            if policeUnit(src) then TriggerClientEvent('rp_interact:client:smells', src, list) end
+        end
+    end)
+end
+RPIServer.pushSmells = pushSmells
+
+-- Policier qui prend son service : il demande la liste
+on('getSmells', function(src)
+    if not policeUnit(src) then return { ok = true, smells = { players = {}, vehicles = {} } } end
+    return { ok = true, smells = smellSources() }
+end)
+
+-- Un joueur entre / sort d'une unité du MDC (il n'est plus / redevient civil) : liste mise à jour
+on('dutyChanged', function() pushSmells() return { ok = true } end)
+
 -- ---- Menu d'interactions : profil actif et service de police ----
 on('getMenuState', function(src)
     local active = activeProfileOf(getIdentifier(src))
@@ -440,6 +508,7 @@ on('saveProfile', function(src, p)
         end
         NextProfileId = NextProfileId + 1
     end
+    pushSmells()
     return { ok = true, id = record.id, active = record.active }
 end)
 
@@ -452,6 +521,7 @@ on('deleteProfile', function(src, p)
         table.insert(Profiles, index, profile)
         return { ok = false, error = 'Erreur d\'écriture sur le serveur (voir console).' }
     end
+    pushSmells()
     return { ok = true }
 end)
 
@@ -468,6 +538,7 @@ on('setActive', function(src, p)
         if profile.owner == owner then profile.active = profile.id == id end
     end
     saveProfiles()
+    pushSmells()
     return { ok = true }
 end)
 
@@ -511,6 +582,7 @@ on('saveVehicleProfile', function(src, p)
     record.createdAt = old and old.createdAt or os.time()
     record.updatedAt = old and os.time() or nil
     VehicleProfiles[netId] = record
+    pushSmells()
     return { ok = true }
 end)
 
@@ -519,6 +591,7 @@ on('deleteVehicleProfile', function(src, p)
     local profile = netId and vehicleProfile(netId)
     if not profile or profile.owner ~= getIdentifier(src) then return { ok = false, error = 'Aucun profil à supprimer.' } end
     VehicleProfiles[netId] = nil
+    pushSmells()
     return { ok = true }
 end)
 
@@ -816,16 +889,22 @@ on('struggleEscape', function(src)
     return { ok = true }
 end)
 
--- Placer à l'arrière : le policier a ouvert la portière ; le civil y monte lui-même (sans téléportation)
+-- Placer à l'arrière : bras lâché, la portière vient de s'ouvrir ; le civil (à moins de 4 m) y monte lui-même
 on('putInVehicle', function(src, p)
     local target, err = policeTarget(src, p, Config.PlaceVehicleDistance + 3.0)
     if not target then return { ok = false, error = err } end
     local seat, netId = tonumber(p.seat), tonumber(p.netId)
     if (seat ~= 1 and seat ~= 2) or not netId then return { ok = false, error = 'Place arrière invalide.' } end
+    if Drags[target] then return { ok = false, error = 'Lâchez d\'abord le bras de l\'individu.' } end
+    if policeUnit(target) then return { ok = false, error = 'Un policier en service ne se place pas à l\'arrière.' } end
     if ONESYNC then
         local entity = vehicleEntity(netId)
         if not entity or tooFar(playerCoords(src), coordsOfEntity(entity), Config.PlaceVehicleDistance + 3.0) then
             return { ok = false, error = 'Rapprochez-vous du véhicule.' }
+        end
+        -- l'individu : à moins de PlaceDoorDistance m d'une portière arrière (+ demi-longueur du véhicule, décalage réseau)
+        if tooFar(playerCoords(target), coordsOfEntity(entity), (Config.PlaceDoorDistance or 4.0) + 3.5) then
+            return { ok = false, error = 'L\'individu est trop loin de la portière arrière.' }
         end
     end
     stopDrag(target)
@@ -1018,6 +1097,7 @@ end, false)
 
 AddEventHandler('playerDropped', function()
     local src = source
+    pushSmells() -- (le joueur parti n'est plus dans la liste : envoi un instant plus tard)
     lastWrite[src], lastInspect[src], lastAimEvent[src], Searches[src] = nil, nil, nil, nil
     for civil in pairs(AimingAt[src] or {}) do releaseAim(src, civil) end
     AimingAt[src], Aimed[src] = nil, nil

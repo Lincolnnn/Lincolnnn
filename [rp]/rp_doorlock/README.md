@@ -1,7 +1,7 @@
 # RP Doorlock
 
-Portes **à verrouiller / déverrouiller** par les joueurs (civils ou sans rôle, jamais un policier en service),
-**à frapper**, et **à enfoncer** par tout le monde (barre de réussite) ; une porte enfoncée reste **cassée**.
+Portes **à verrouiller / déverrouiller** par les **joueurs civils** (mode civil coché ou sans rôle), **à frapper**,
+et **à enfoncer** par les **policiers en service** (barre de réussite) ; une porte enfoncée reste **cassée**.
 100 % standalone (ni ESX, ni QBCore, ni vRP), Lua 5.4.
 
 Fonctionne avec l'**œil** de [`rp_interact`](../rp_interact/README.md) (Alt) : `rp_doorlock` est dans
@@ -22,13 +22,14 @@ Optionnel : déverrouiller n'importe quelle porte et réparer une porte forcée 
 
 | Porte | Qui | Option |
 |---|---|---|
-| ouverte à tous | joueurs **civils ou sans rôle** (pas les policiers en service) | **Verrouiller la porte** |
-| verrouillée | son propriétaire (s'il n'est pas policier en service) ; un admin dans tous les cas | **Déverrouiller la porte** |
-| verrouillée | **tout le monde** | **Enfoncer la porte** (barre de réussite) |
-| forcée | un admin | **Réparer la porte** |
-| toutes | tout le monde | **Frapper à la porte** (bruit entendu à 15 m) |
+| Porte | Joueur civil (mode civil coché ou sans rôle) | Policier en service (unité du MDC, quel que soit le service) |
+|---|---|---|
+| ouverte | **Verrouiller la porte**, **Frapper à la porte** | **Frapper à la porte** |
+| verrouillée | **Déverrouiller la porte** (tout civil, pas seulement celui qui l'a verrouillée), **Frapper à la porte** | **Frapper à la porte**, **Enfoncer la porte** (barre de réussite) |
+| forcée | **Frapper à la porte** | **Frapper à la porte** |
 
-Le serveur vérifie les mêmes règles.
+Un admin peut en plus déverrouiller toute porte et **réparer** une porte forcée. Le serveur vérifie les mêmes règles
+(un civil ne peut pas enfoncer, un policier ne peut ni verrouiller ni déverrouiller).
 
 - **Verrouiller / déverrouiller** : le personnage se tourne vers la porte et fait le geste de la clé
   (`anim@heists@keycard@`). La porte se ferme et reste **bloquée chez tout le monde**, même loin d'elle, **portes des
@@ -37,12 +38,13 @@ Le serveur vérifie les mêmes règles.
     en entier, état « verrouillée » posé en deux temps, comme ox_doorlock) ;
   - le jeu n'applique un verrou qu'une fois la porte **chargée** près du joueur : à moins de 40 m (`HoldDistance`),
     le verrou est donc **ré-appliqué dès que la porte se charge** (ou si le jeu l'a perdu) ;
-  - une fois fermée, la porte est **figée** : elle **ne bat plus** (elle ne s'ouvre plus en la poussant, en courant
-    ou en voiture), puis libérée quand on la déverrouille.
+  - la porte est **refermée d'un coup** (même grande ouverte) puis **figée avec ses collisions** : elle **ne bouge
+    plus du tout** et **bloque les joueurs** comme un mur (ni en la poussant, ni en courant, ni en voiture) ; décalée
+    par quelque chose, elle est remise en place ; libérée quand on la déverrouille.
   Une **porte double** (deux battants côte à côte) est verrouillée en entier.
-- La porte appartient au joueur qui l'a verrouillée (sa licence : il la retrouve après une reconnexion et après un
-  redémarrage, `data/locks.json`). **10 portes** au plus par joueur (`MaxPerPlayer`).
-- **Enfoncer** (tout le monde) : une **barre** blanche apparaît en bas de l'écran (« Enfoncer la porte », réussites
+- Les verrous sont gardés après un redémarrage (`data/locks.json`). **10 portes** au plus verrouillées par joueur
+  (`MaxPerPlayer`) ; n'importe quel joueur civil peut les déverrouiller.
+- **Enfoncer** (policiers en service) : une **barre** blanche apparaît en bas de l'écran (« Enfoncer la porte », réussites
   « 1 / 3 »), avec une **zone verte** et un **curseur** qui va et vient ; trois cases montrent les étapes. **ESPACE**
   quand le curseur est dans le vert. **À chaque essai, réussi ou raté, le personnage donne un coup de pied dans la
   porte** (animation `missprologuemcs_1` du prologue, une autre en secours) ; réussi : petite secousse, étape

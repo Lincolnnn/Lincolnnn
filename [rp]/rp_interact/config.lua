@@ -163,7 +163,8 @@ InteractConfig = {
         Shake = 'JOLT_SHAKE', ShakeAmount = 0.35, PoliceShakeAmount = 0.25,
     },
     DragReleaseKey = 'X',           -- policier : lâcher le bras (modifiable dans les raccourcis FiveM)
-    PlaceVehicleDistance = 6.0,     -- m : véhicule où placer l'individu tenu par le bras
+    PlaceVehicleDistance = 6.0,     -- m : véhicule (visé avec l'œil) où placer un individu à l'arrière
+    PlaceDoorDistance = 4.0,        -- m : l'individu (joueur civil) doit être à moins de 4 m d'une portière arrière libre
 
     -- SUPPRIMER des PNJ, des véhicules sans joueur et des objets (y compris ceux créés par des
     -- joueurs ou des scripts) en les visant, jusqu'à DeleteDistance mètres.
@@ -203,6 +204,35 @@ InteractConfig = {
     AimRange = 60.0,              -- m : portée max de la détection
     AimRefresh = 1000,            -- ms : le policier confirme sa visée à ce rythme (fin auto sinon)
     -- Les tips ne se ferment qu'avec la touche Échap (ni à la fin de la mise en joue, ni après un délai)
+
+    -- ODEURS DÉTECTÉES AUTOMATIQUEMENT (fiche civile /fichecivil : profil et véhicule, Smell.Max au plus, combinables).
+    -- Un policier en service qui passe à moins de Smell.Distance m du joueur civil (profil actif) ou du véhicule qui a
+    -- le profil reçoit une notification en haut de l'écran (comme l'entrée dans une zone de recherche de /scene), une
+    -- fois par source tant qu'il reste à côté (de nouveau après s'être éloigné et Smell.Cooldown ms).
+    -- Les odeurs s'ajoutent aussi à l'inspection olfactive. id : ne pas changer (gardé dans les profils) ;
+    -- label : nom dans la fiche ; text : ce que sent le policier.
+    Smell = { Enabled = true, Distance = 6.0, Max = 2, Duration = 9000, Cooldown = 60000, Volume = 0.4 },
+    Smells = {
+        { id = 'cannabis',       group = 'Drogues', label = 'Cannabis (herbe)',        text = 'une forte odeur d\'herbe de cannabis' },
+        { id = 'cannabis_smoke', group = 'Drogues', label = 'Cannabis fumé',           text = 'une odeur de cannabis fumé' },
+        { id = 'meth',           group = 'Drogues', label = 'Méthamphétamine',         text = 'une odeur chimique d\'ammoniaque et de solvant (typique de la méthamphétamine)' },
+        { id = 'crack',          group = 'Drogues', label = 'Crack fumé',              text = 'une odeur de plastique brûlé (typique du crack fumé)' },
+        { id = 'heroin',         group = 'Drogues', label = 'Héroïne',                 text = 'une odeur de vinaigre (typique de l\'héroïne)' },
+        { id = 'pcp',            group = 'Drogues', label = 'PCP',                     text = 'une odeur d\'éther et de produits chimiques (typique du PCP)' },
+        { id = 'opium',          group = 'Drogues', label = 'Opium fumé',              text = 'une odeur de fumée douceâtre et fleurie (typique de l\'opium)' },
+        { id = 'lean',           group = 'Drogues', label = 'Lean (sirop codéiné)',    text = 'une odeur sucrée de sirop pour la toux' },
+        { id = 'alcohol',        group = 'Alcool',  label = 'Alcool',                  text = 'une odeur d\'alcool' },
+        { id = 'alcohol_strong', group = 'Alcool',  label = 'Alcool fort (haleine chargée)', text = 'une forte odeur d\'alcool' },
+        { id = 'tobacco',        group = 'Autres',  label = 'Tabac froid',             text = 'une odeur de tabac froid' },
+        { id = 'gunpowder',      group = 'Autres',  label = 'Poudre (tirs récents)',   text = 'une odeur de poudre brûlée, comme après des tirs' },
+        { id = 'gasoline',       group = 'Autres',  label = 'Essence',                 text = 'une odeur d\'essence' },
+        { id = 'burnt',          group = 'Autres',  label = 'Brûlé / fumée',           text = 'une odeur de brûlé et de fumée' },
+        { id = 'blood',          group = 'Autres',  label = 'Sang',                    text = 'une odeur métallique de sang' },
+        { id = 'decay',          group = 'Autres',  label = 'Décomposition',           text = 'une odeur de décomposition' },
+        { id = 'bleach',         group = 'Autres',  label = 'Javel / produits ménagers', text = 'une forte odeur de javel' },
+        { id = 'perfume',        group = 'Autres',  label = 'Parfum très fort',        text = 'un parfum très fort, comme pour couvrir une autre odeur' },
+        { id = 'vomit',          group = 'Autres',  label = 'Vomi',                    text = 'une odeur de vomi' },
+    },
 
     -- Réponses par défaut quand la case n'est pas cochée / pas remplie (ou sans profil).
     -- Pour une même cible, la réponse choisie dans la liste est toujours la même.

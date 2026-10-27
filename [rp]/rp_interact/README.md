@@ -213,6 +213,25 @@ actif**, **Modifier** (puis Enregistrer) et **Supprimer**. Le premier profil cr�
 
 Pour une même personne, la réponse par défaut choisie dans la liste est toujours la même.
 
+### Odeur détectée automatiquement (profil et véhicule)
+
+Dans **Inspection** (profil) et **Inspection olfactive** (véhicule) : des pastilles à cocher, **2 odeurs au plus**
+(combinables), facultatif. Un **policier en service** (unité du MDC) qui passe à **moins de 6 m** du joueur civil
+(profil **actif**) ou du véhicule qui a le profil reçoit aussitôt, en haut au milieu de l'écran, une notification
+comme l'entrée dans une zone de recherche de `/scene` : **ODEUR DÉTECTÉE · Individu à proximité** (ou *Véhicule à
+proximité*) et ce qu'il sent (« Une odeur d'alcool et une odeur de cannabis fumé. »), avec un court son. Une fois par
+source tant qu'il reste à côté ; de nouveau après s'être éloigné et une minute (`Smell.Cooldown`). Les odeurs
+s'ajoutent aussi au résultat de l'**inspection olfactive** (avant le texte écrit par le joueur).
+
+| Groupe | Odeurs (`config.lua` : `Smells`) |
+|---|---|
+| Drogues | Cannabis (herbe), Cannabis fumé, Méthamphétamine (ammoniaque / solvant), Crack fumé (plastique brûlé), Héroïne (vinaigre), PCP (éther), Opium fumé (fumée douceâtre), Lean (sirop codéiné) |
+| Alcool | Alcool, Alcool fort (haleine chargée) |
+| Autres | Tabac froid, Poudre (tirs récents), Essence, Brûlé / fumée, Sang, Décomposition, Javel / produits ménagers, Parfum très fort, Vomi |
+
+La cocaïne n'y est pas : elle ne sent presque rien. Seuls les policiers en service reçoivent la liste des odeurs
+(jamais les autres joueurs) ; un joueur entré dans une unité du MDC n'a plus d'odeur de profil.
+
 ### Véhicule (temporaire)
 
 Le véhicule dans lequel vous êtes, sinon le plus proche (6 m). Le profil est **lié au véhicule physique** : il disparaît
@@ -222,7 +241,7 @@ peut le modifier ou le supprimer.
 | Partie | Non rempli |
 |---|---|
 | ☐ **Inspection visuelle** → Intérieur, Extérieur | « Rien d'anormal » / « Tout semble normal » / « Rien de suspect » / « Rien à signaler » |
-| **Inspection olfactive** (texte) | « Rien d'anormal » / « Rien de suspect » |
+| **Inspection olfactive** (texte) + **odeur détectée automatiquement** (2 au plus) | « Rien d'anormal » / « Rien de suspect » |
 | **Détail notoire** | « Aucun détail notoire » |
 | **Fouille** : Habitacle, Banquette arrière, Coffre | « Rien à signaler » / « Aucun élément » / « Rien d'illégal » |
 
@@ -237,7 +256,7 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
 | Cible | Tout le monde | Policier (dans une unité du MDC) en plus |
 |---|---|---|
 | Personne | Inspection visuelle, Inspection olfactive (10 m) | Détail notoire (10 m) ; Fouiller la partie supérieure / inférieure du corps (3 m, **6 s** chacune) ; Menotter / Retirer les menottes, Prendre / Lâcher le bras, Faire s'asseoir / se relever (2 m) |
-| Véhicule | Inspection visuelle intérieure / extérieure, Inspection olfactive (10 m), puis **Inspection visuelle / olfactive de l'occupant le plus proche** (conducteur, passager avant…, selon la portière dont on est le plus près ; seul à bord : lui) | Détail notoire (10 m) ; Fouille de l'habitacle, de la banquette arrière, du coffre (3 m, **35 s**) ; Placer l'individu à l'arrière (6 m, en le tenant par le bras) ; Faire sortir l'individu (arrière) |
+| Véhicule | Inspection visuelle intérieure / extérieure, Inspection olfactive (10 m), puis **Inspection visuelle / olfactive de l'occupant le plus proche** (conducteur, passager avant…, selon la portière dont on est le plus près ; seul à bord : lui) | Détail notoire (10 m) ; Fouille de l'habitacle, de la banquette arrière, du coffre (3 m, **35 s**) ; Placer l'individu à l'arrière (6 m, bras **lâché**, un joueur civil à moins de 4 m d'une portière arrière libre) ; Faire sortir l'individu (arrière) |
 
 - **Occupants d'un véhicule** : on peut aussi viser directement la personne assise (si le rayon l'atteint, par
   une vitre ouverte par exemple) : ses options de personne s'affichent. Sinon, en visant le véhicule, les
@@ -328,10 +347,12 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
   bras ou le placer dans un véhicule le relève aussi.
 - **Menottes** : position réglable (`CuffPropPlacement`, par défaut leur toute première position : rotation
   265 / 155 / 80, prévue pour l'animation du jeu).
-- **Placer l'individu à l'arrière** (en le tenant, véhicule à 6 m) : **le policier va ouvrir lui-même** la portière
-  arrière la plus proche (animation du jeu), puis lâche le bras ; l'individu **monte lui-même** à l'arrière (sans
-  téléportation, places arrière uniquement), même dans un véhicule d'urgence, **sans refermer la portière** : le
-  policier la referme avec l'œil. **Faire sortir l'individu (arrière)** : le policier ouvre la portière, l'individu
+- **Placer l'individu à l'arrière** : le policier **lâche d'abord le bras** (X), puis **vise le véhicule** avec l'œil
+  (6 m) : l'option n'apparaît que si un **joueur civil** (pas dans une unité du MDC) est à **moins de 4 m d'une
+  portière arrière** dont la place est libre (`PlaceDoorDistance`). La portière **s'ouvre toute seule**, l'individu
+  **monte lui-même** à l'arrière (sans téléportation), même dans un véhicule d'urgence, et la portière **reste
+  ouverte** : c'est au policier de la refermer avec l'œil. Assis à l'arrière, le civil **ne peut pas descendre
+  seul** (touche « sortir » bloquée), **sauf si sa portière est déjà ouverte** ; il ne passe pas non plus à l'avant. **Faire sortir l'individu (arrière)** : le policier ouvre la portière, l'individu
   descend et la laisse ouverte ; le policier la referme avec l'œil.
 - Sur un PNJ, le client du policier fait tout lui-même (animation de l'emote lue dans RPEMOTES ; à défaut, les
   animations de secours `CuffAnim` / `SeatedAnim`).
@@ -383,6 +404,8 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `Seats`, `TrashBins` | objets de l'environnement |
 | `Surrender` | tips d'arrestation : commande, touche par défaut, libellé et emote de chaque action |
 | `AimRadius`, `AimRange`, `AimRefresh` | mise en joue : rayon autour du civil, portée, confirmation |
+| `PlaceDoorDistance` | placer à l'arrière : le civil doit être à moins de 4 m d'une portière arrière libre |
+| `Smell`, `Smells` | odeurs détectées automatiquement : activées, distance (6 m), 2 au plus, durée de la notification, délai avant d'être prévenu de nouveau, volume du son ; liste des odeurs (`id` à ne pas changer, nom dans la fiche, ce que sent le policier) |
 
 ## Liens avec le MDC et le chat
 
@@ -458,6 +481,9 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 - Policier en service : une lecture de la visée toutes les 250 ms (~0.00 ms) ; pendant qu'il vise, détection des
   joueurs visés toutes les 150 ms. Hors service : aucune boucle.
 - Barre de chargement : boucle uniquement pendant la fouille / le menottage.
+- Odeurs détectées : policier en service ET au moins une odeur en jeu : une distance par source toutes les 500 ms ;
+  sinon aucune boucle. Civil placé à l'arrière : la touche « sortir » est bloquée à chaque image seulement tant qu'il
+  y est assis.
 - Menotté : boucle pendant qu'on est menotté (contrôles bloqués, emote vérifiée chaque seconde) ; tenu par le bras :
   accroche et marche vérifiées toutes les 100 ms UNIQUEMENT tant qu'on est tenu ; PNJ menottés : 1 s tant qu'il y en a.
 - Lâcher le bras avec X : raccourci FiveM (aucune boucle).
