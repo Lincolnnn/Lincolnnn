@@ -26,6 +26,9 @@ redescend (plus long s'il y a encore plus de tirs), puis plus rien pendant 12 s.
 
 **Pas de rechargement automatique** : chargeur vide, il faut recharger soi-même (touche **R**).
 
+Avec **`rp_camshake`** : avant chaque secousse de tir, il est mis en pause (`TriggerEvent('rp_camshake:pause', 800)`)
+pour que son tremblement de marche ne modifie plus l'amplitude de la secousse du tir (premiers tirs 20 fois trop brusques).
+
 Arme avec **silencieux** : ni flash, ni acouphène, secousse réduite. Le Taser, le pistolet de détresse, le pistolet radar,
 l'extincteur et le jerrican ne sont jamais concernés (`Excluded`). Les armes sont reconnues quel que soit le signe de
 leur empreinte (le problème des « negative hashes » du script d'origine est réglé).

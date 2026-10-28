@@ -7,6 +7,9 @@
     CHOCS À PIED : chute (réception après une chute), personnage à terre (ragdoll), percuté par un véhicule,
       coup ou balle reçus (événement de dégâts du jeu).
     Le tremblement d'un autre script (ivresse, drogue…) n'est jamais coupé ni remplacé par la marche.
+    TIRS : rp_weaponscontrol (ou tout autre script client) envoie TriggerEvent('rp_camshake:pause', ms) juste avant
+      sa propre secousse : pendant ce temps (et tant que sa secousse dure) la marche n'y touche plus (sinon son
+      amplitude, 0.3 à 2.4, était appliquée à la secousse du tir, 0.03 environ : premiers tirs très brusques).
     /tremblement : chaque joueur l'active ou le coupe (gardé chez lui).
 
     Performance : une vérification toutes les 100 ms en mouvement (à pied ou véhicule roulant), toutes les
@@ -20,6 +23,7 @@ local enabled = GetResourceKvpString(KVP) ~= '1'
 local ours = false        -- la secousse en cours a été lancée par ce script
 local move = nil          -- secousse de déplacement en cours : { shake, amp }
 local impactUntil, impactPower = 0, 0
+local pausedUntil = 0     -- un autre script secoue la caméra (tir) : la marche n'y touche pas jusque-là
 
 -- =========================================================================
 -- SECOUSSES
@@ -46,7 +50,8 @@ end
 --- Tremblement de déplacement voulu (nil : aucun), amplitude rapprochée en douceur
 local function setMove(target)
     if not target then return stopMove() end
-    if GetGameTimer() < impactUntil or foreignShake() then return end
+    local now = GetGameTimer()
+    if now < pausedUntil or now < impactUntil or foreignShake() then return end
     if not move or move.shake ~= target.shake or not IsGameplayCamShaking() then
         local amp = move and move.amp or target.amp * C.Smoothing
         ShakeGameplayCam(target.shake, amp)
@@ -147,6 +152,17 @@ AddEventHandler('gameEventTriggered', function(name, args)
     else
         impact('damage')
     end
+end)
+
+-- =========================================================================
+-- PAUSE demandée par un autre script client (secousse de tir de rp_weaponscontrol) : sa secousse remplace la
+-- nôtre ; on la laisse telle quelle (ni amplitude changée, ni arrêt) et la marche reprend une fois finie
+-- =========================================================================
+AddEventHandler('rp_camshake:pause', function(ms)
+    ms = math.max(0, math.min(tonumber(ms) or 800, 10000))
+    pausedUntil = math.max(pausedUntil, GetGameTimer() + ms)
+    ours, move = false, nil
+    impactUntil, impactPower = 0, 0
 end)
 
 -- =========================================================================

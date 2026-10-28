@@ -159,11 +159,18 @@ local function flush(force)
     pending = nil
 end
 
+--- Secousse de tir ; rp_camshake (tremblement de marche) est mis en pause avant, sinon il appliquait son amplitude
+--- (0.3 à 2.4) à cette secousse (0.03 environ) : premiers tirs 20 fois trop brusques
+local function camShake(name, amp)
+    TriggerEvent('rp_camshake:pause', 800)
+    ShakeGameplayCam(name, amp)
+end
+
 local function onShot(ped, weapon, entry)
     local suppressed = IsPedCurrentWeaponSilenced(ped)
     recoil(ped, entry.w)
     local shake = entry.w.shake or entry.p.shake
-    if shake and shake > 0 then ShakeGameplayCam((W.Shake or {}).Name or 'SMALL_EXPLOSION_SHAKE', shake * (suppressed and 0.5 or 1.0)) end
+    if shake and shake > 0 then camShake((W.Shake or {}).Name or 'SMALL_EXPLOSION_SHAKE', shake * (suppressed and 0.5 or 1.0)) end
     if not suppressed then
         flash(ped)
         heard(1, 0.0)
@@ -267,7 +274,7 @@ RegisterNetEvent('rp_weaponscontrol:shots', function(src, count, key, suppressed
     local Sh = W.Shake or {}
     if Sh.Enabled ~= false and d <= (Sh.Range or 15.0) then
         local amount = (Sh.Amount or 0.08) * (p.loudness or 0.8) * (1.0 - d / (Sh.Range or 15.0)) * (suppressed and 0.4 or 1.0)
-        if amount > 0.01 then ShakeGameplayCam(Sh.Name or 'SMALL_EXPLOSION_SHAKE', amount) end
+        if amount > 0.01 then camShake(Sh.Name or 'SMALL_EXPLOSION_SHAKE', amount) end
     end
     if not suppressed then heard(count, d) end
 end)

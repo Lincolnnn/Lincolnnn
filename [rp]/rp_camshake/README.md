@@ -27,6 +27,10 @@ selon ce que fait le personnage.
 - Le tremblement de marche s'ajuste **en douceur** (pas d'à-coup en passant de la marche à la course).
 - Une secousse plus faible ne coupe pas une plus forte en cours ; après un choc, le tremblement de marche reprend.
 - Le tremblement d'un **autre script** (ivresse, drogue…) n'est ni coupé ni remplacé.
+- **Tirs** (`rp_weaponscontrol`) : juste avant sa secousse de tir, il envoie `TriggerEvent('rp_camshake:pause', 800)` ;
+  le tremblement de marche n'y touche alors plus (avant : son amplitude était appliquée à la secousse du tir, d'où
+  des premiers tirs très brusques). Il reprend en douceur une fois la secousse du tir finie. Tout autre script client
+  peut envoyer le même événement avant sa propre secousse.
 - **`/tremblement`** : chaque joueur active ou coupe l'effet (gardé chez lui, même après reconnexion).
 
 ## Configuration (`config.lua`)

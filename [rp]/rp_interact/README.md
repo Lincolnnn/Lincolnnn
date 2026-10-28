@@ -138,8 +138,9 @@ couleur de la police ouverte (bleu WSP, vert KCSO).
   trouvées dans le fichier (ex. `NCSHP`) ;
 - **Civil** : la liste des tenues civiles (ou leurs groupes, si vous en indiquez dans `Category2`).
 Seules les tenues du personnage (**homme / femme**, personnage multijoueur) sont listées ; la tenue mise est cochée.
-Les tenues se configurent **uniquement dans `data/outfits.json`** (relu avec `rpi_vehicles` en console), un objet
-par tenue, au format EUP habituel :
+Les tenues se configurent **uniquement dans `[rp]/rp_interact/data/outfits.json`** (relu avec `rpi_vehicles` en
+console ou au redémarrage de la ressource) : une **liste** `[ ... ]`, un objet par tenue, au format EUP habituel
+(le fichier fourni contient 3 tenues d'exemple à remplacer par les vôtres) :
 
 ```json
 {
