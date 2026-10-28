@@ -1,0 +1,20 @@
+[
+    {
+        "Name": "Exemple WSP - Patrouille", "Gender": "Male", "Category": "EUP", "Category2": "WSP", "Cate": "Police",
+        "Hat": "0:0", "Glasses": "0:0", "Ear": "0:0", "Watch": "0:0", "Mask": "0:0", "Top": "56:1",
+        "UpperSkin": "1:1", "Decal": "0:0", "UnderCoat": "59:1", "Pants": "36:1", "Shoes": "26:1",
+        "Accessories": "1:1", "Armor": "0:0", "Parachute": "0:0"
+    },
+    {
+        "Name": "Exemple KCSO - Patrouille", "Gender": "Female", "Category": "EUP", "Category2": "KCSO", "Cate": "Police",
+        "Hat": "0:0", "Glasses": "0:0", "Ear": "0:0", "Watch": "0:0", "Mask": "0:0", "Top": "49:1",
+        "UpperSkin": "15:1", "Decal": "0:0", "UnderCoat": "36:1", "Pants": "35:1", "Shoes": "27:1",
+        "Accessories": "1:1", "Armor": "0:0", "Parachute": "0:0"
+    },
+    {
+        "Name": "Exemple civil - Jean et t-shirt", "Gender": "Male", "Category": "EUP", "Category2": "", "Cate": "Civil",
+        "Hat": "0:0", "Glasses": "0:0", "Ear": "0:0", "Watch": "0:0", "Mask": "0:0", "Top": "1:1",
+        "UpperSkin": "1:1", "Decal": "0:0", "UnderCoat": "16:1", "Pants": "1:1", "Shoes": "2:1",
+        "Accessories": "1:1", "Armor": "0:0", "Parachute": "0:0"
+    }
+]

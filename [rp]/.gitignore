@@ -3,5 +3,6 @@ rp_mdc/data/*.json
 rp_interact/data/*.json
 rp_equipment/data/*.json
 rp_doorlock/data/*.json
-# Exception : le fichier des véhicules (Voiture > Spawn) est fourni avec rp_interact
+# Exceptions : fichiers à remplir soi-même, fournis avec rp_interact (véhicules de Voiture > Spawn, tenues de /eup)
 !rp_interact/data/vehicle.json
+!rp_interact/data/outfits.json
