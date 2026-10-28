@@ -53,7 +53,7 @@ ensemble.
   avec une **zone verte** et un **curseur** qui va et vient ; des cases montrent les coups réussis. **ESPACE** quand le
   curseur est dans le vert. Il faut **entre 3 et 6 coups réussis** (`Kick.Steps`), tiré au hasard **une fois pour la
   porte** (le même nombre si on recommence, et pour ses deux battants). **À chaque essai, réussi ou raté, le
-  personnage donne un coup de pied** (animation `missprologuemcs_1`, une autre en secours) **avec un bruit** de choc
+  personnage donne un coup de pied** (emote **`/e kick3`** de RPEMOTES, sur place ; animation du jeu en secours sans mode d'emotes) **avec un bruit** de choc
   dans le bois, entendu par les joueurs autour (25 m, plus faible au loin ; plus sourd sur un raté). Réussi : petite
   secousse, coup suivant (zone plus fine, curseur plus rapide). **Raté : ne compte pas mais n'arrête rien**, la
   tentative est seulement plus longue. **RETOUR** (Échap aussi) ou s'éloigner : arrêt (on peut recommencer). Le
@@ -66,6 +66,7 @@ ensemble.
   `/scene` (même texte 3D, à moins de 10 m, seulement si on la voit). Elle est réparée par un admin (**Réparer la
   porte**), au bout de `Broken.Duration` minutes si vous en mettez, ou au redémarrage du serveur.
 - **Frapper** : animation du jeu (`timetable@jimmy@doorknock@`), bruit des coups entendu par les joueurs proches.
+- Verrouiller, frapper, enfoncer : le personnage **ne tourne plus** tout seul (il agit dans la direction où il est).
 - Les portes ne peuvent **pas être supprimées** avec l'œil de `rp_interact` (« Supprimer » n'est pas proposé sur une
   porte ; export client `isDoor(entity)`).
 

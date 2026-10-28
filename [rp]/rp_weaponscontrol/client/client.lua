@@ -1,29 +1,40 @@
 --[[
     RP Weapons Control - client
     ---------------------------
-    TIREUR (arme à feu en main) : à chaque tir, recul de la caméra (type d'arme : Profiles), petite secousse, flash
-    jaune au canon ; tirs rapides (Smoke.Shots dans Smoke.Window ms) : filet de fumée au bout du canon. Les tirs sont
-    envoyés au serveur par paquets (Sync.Batch ms), qui les relaie aux joueurs proches (Sync.Range).
-    JOUEURS AUTOUR : flash au canon du tireur, fumée, secousse s'ils sont proches (Shake.Range), acouphène s'ils sont
-    tout près (Tinnitus.Range) : sifflement (html/) qui monte avec les tirs et redescend tout seul.
-    Silencieux : ni flash, ni acouphène. Le tireur entend aussi un peu ses propres tirs (Tinnitus.Self).
+    TIREUR (arme à feu en main) : à chaque tir, RECUL de la caméra (Recoil.Step degré par image jusqu'à la valeur de
+    l'arme, Weapons ; à la 3e personne, pas en drive-by), SECOUSSE (Weapons : shake), flash jaune au canon ; tirs
+    rapides (Smoke.Shots dans Smoke.Window ms) : filet de fumée au bout du canon. Pas de rechargement automatique.
+    Les tirs sont envoyés au serveur par paquets (Sync.Batch ms), qui les relaie aux joueurs proches (Sync.Range).
+    JOUEURS AUTOUR : flash au canon du tireur, fumée, petite secousse s'ils sont proches (Shake.Range).
+    ACOUPHÈNE (léger) : seulement quand ça tire beaucoup tout près : Tinnitus.Shots tirs en Tinnitus.Window ms par des
+    tireurs à moins de Tinnitus.Range m (soi-même, un autre joueur ou un PNJ). Silencieux : ni flash, ni acouphène.
     Performance : sans arme à feu en main, une vérification toutes les 250 ms ; arme en main : lecture du tir à chaque
-    image (comme le jeu) ; effets seulement quand quelqu'un tire.
+    image (comme le jeu) ; PNJ armés à moins de 10 m : lecture de leurs tirs à chaque image tant qu'il y en a.
 ]]
 
 local W = WeaponsConfig
 
+--- Empreinte du jeu sur 32 bits non signés : les natives renvoient tantôt un nombre négatif, tantôt positif pour la
+--- même arme ; comparées sous cette forme, elles se retrouvent toujours
+local function u32(h) return (math.tointeger(h) or math.floor(tonumber(h) or 0)) & 0xFFFFFFFF end
+
 local PROFILES = {}
-for group, p in pairs(W.Profiles or {}) do PROFILES[GetHashKey(group)] = { key = group, p = p } end
+for group, p in pairs(W.Profiles or {}) do PROFILES[u32(GetHashKey(group))] = { key = group, p = p } end
+local WEAPONS = {}
+for name, w in pairs(W.Weapons or {}) do WEAPONS[u32(GetHashKey(name))] = w end
 local EXCLUDED = {}
-for _, name in ipairs(W.Excluded or {}) do EXCLUDED[GetHashKey(name)] = true end
+for _, name in ipairs(W.Excluded or {}) do EXCLUDED[u32(GetHashKey(name))] = true end
 
-RPWeapons = {} -- pour les tests
+RPWeapons = { u32 = u32 } -- pour les tests
 
---- Profil de l'arme (nil : pas une arme à feu concernée)
+--- Arme à feu concernée : { key = groupe, p = valeurs du groupe, w = valeurs de l'arme } ; nil sinon
 local function profileOf(weapon)
-    if not weapon or weapon == 0 or EXCLUDED[weapon] then return nil end
-    return PROFILES[GetWeapontypeGroup(weapon)]
+    if not weapon or weapon == 0 then return nil end
+    local h = u32(weapon)
+    if EXCLUDED[h] then return nil end
+    local group = PROFILES[u32(GetWeapontypeGroup(weapon))]
+    if not group then return nil end
+    return { key = group.key, p = group.p, w = WEAPONS[h] or group.p }
 end
 RPWeapons.profileOf = profileOf
 
@@ -88,15 +99,28 @@ local function smoke(ped)
 end
 RPWeapons.smoke = smoke
 
---- Acouphène : intensité 0-1 (le NUI garde la plus forte et redescend tout seul)
-local function tinnitus(amount)
+-- =========================================================================
+-- ACOUPHÈNE : seulement quand ça tire beaucoup tout près (soi, joueurs, PNJ)
+-- =========================================================================
+local nearShots = {} -- heures des tirs entendus de près (tireur à moins de Tinnitus.Range m)
+local lastRing = -math.huge
+
+--- n tirs entendus, tireur à d mètres : l'acouphène part quand il y en a assez dans la fenêtre
+local function heard(n, d)
     local T = W.Tinnitus or {}
-    if T.Enabled == false or amount <= 0.02 then return end
-    amount = math.min(1.0, amount)
-    local duration = (T.MinDuration or 2500) + ((T.MaxDuration or 9000) - (T.MinDuration or 2500)) * amount
-    SendNUIMessage({ action = 'tinnitus', data = { amount = amount, volume = T.Volume or 0.16, duration = math.floor(duration) } })
+    if T.Enabled == false or d > (T.Range or 10.0) then return end
+    local now = GetGameTimer()
+    for _ = 1, math.max(1, n or 1) do nearShots[#nearShots + 1] = now end
+    while nearShots[1] and now - nearShots[1] > (T.Window or 10000) do table.remove(nearShots, 1) end
+    local need = T.Shots or 10
+    if #nearShots < need or now - lastRing < (T.Cooldown or 12000) then return end
+    lastRing = now
+    local amount = math.min(1.0, 0.5 + (#nearShots - need) / (need * 2)) -- plus il y a de tirs, plus il dure
+    local duration = (T.MinDuration or 2500) + ((T.MaxDuration or 6000) - (T.MinDuration or 2500)) * amount
+    SendNUIMessage({ action = 'tinnitus', data = { amount = amount, volume = T.Volume or 0.05, duration = math.floor(duration) } })
+    nearShots = {}
 end
-RPWeapons.tinnitus = tinnitus
+RPWeapons.heard = heard
 
 -- =========================================================================
 -- TIREUR : recul, effets, tirs rapides, envoi par paquets
@@ -104,18 +128,28 @@ RPWeapons.tinnitus = tinnitus
 local pending = nil -- { count, key, suppressed, smoke, since }
 local recent = {}   -- heures des derniers tirs (tirs rapides -> fumée)
 local lastSmoke = -math.huge
+local kicking = 0   -- remontée de la caméra restant à faire (degrés)
 
-local function recoil(ped, p)
+--- Recul (comme le script de Lyrad / Blumlaut) : la caméra remonte de Step degré par image jusqu'à la valeur de l'arme
+local function recoil(ped, w)
     local R = W.Recoil or {}
-    if R.Enabled == false then return end
-    local mult = R.Speed or 1.0
-    if GetFollowPedCamViewMode() == 4 then mult = mult * (R.FirstPerson or 1.15) end
-    if IsPedInAnyVehicle(ped, false) then mult = mult * (R.Vehicle or 1.4) end
-    local up = (p.recoil or 0.6) * mult
-    local side = ((math.random() * 2) - 1) * (p.side or 0.25) * mult
-    SetGameplayCamRelativePitch(GetGameplayCamRelativePitch() + up, 1.0)
-    SetGameplayCamRelativeHeading(GetGameplayCamRelativeHeading() + side)
+    if R.Enabled == false or not w.recoil or w.recoil <= 0 then return end
+    if not R.DriveBy and IsPedDoingDriveby(ped) then return end
+    if not R.FirstPerson and GetFollowPedCamViewMode() == 4 then return end
+    local start = kicking <= 0
+    kicking = kicking + w.recoil * (R.Multiplier or 1.0)
+    if not start then return end
+    CreateThread(function()
+        local step = R.Step or 0.1
+        while kicking > 0 do
+            Wait(0)
+            SetGameplayCamRelativePitch(GetGameplayCamRelativePitch() + math.min(step, kicking), R.Smooth or 0.2)
+            kicking = kicking - step
+        end
+        kicking = 0
+    end)
 end
+RPWeapons.recoil = recoil
 
 local function flush(force)
     if not pending then return end
@@ -126,13 +160,13 @@ local function flush(force)
 end
 
 local function onShot(ped, weapon, entry)
-    local p = entry.p
     local suppressed = IsPedCurrentWeaponSilenced(ped)
-    recoil(ped, p)
-    if p.shake and p.shake > 0 then ShakeGameplayCam((W.Shake or {}).Name or 'SMALL_EXPLOSION_SHAKE', p.shake * (suppressed and 0.5 or 1.0)) end
+    recoil(ped, entry.w)
+    local shake = entry.w.shake or entry.p.shake
+    if shake and shake > 0 then ShakeGameplayCam((W.Shake or {}).Name or 'SMALL_EXPLOSION_SHAKE', shake * (suppressed and 0.5 or 1.0)) end
     if not suppressed then
         flash(ped)
-        tinnitus((p.loudness or 0.8) * ((W.Tinnitus or {}).Self or 0.3) * 0.5)
+        heard(1, 0.0)
     end
     -- tirs rapides : fumée au canon
     local now = GetGameTimer()
@@ -153,6 +187,7 @@ RPWeapons.onShot = onShot
 RPWeapons.flush = flush
 
 CreateThread(function()
+    if W.NoAutoReload ~= false then SetWeaponsNoAutoreload(true) end -- chargeur vide : recharger soi-même (R)
     while true do
         local ped = PlayerPedId()
         local entry = nil
@@ -169,6 +204,42 @@ CreateThread(function()
             recent = {}
         end
         Wait(entry and 0 or 250)
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() and W.NoAutoReload ~= false then SetWeaponsNoAutoreload(false) end
+end)
+
+-- =========================================================================
+-- PNJ ARMÉS TOUT PRÈS (acouphène) : liste toutes les 250 ms, leurs tirs lus à chaque image tant qu'il y en a
+-- =========================================================================
+CreateThread(function()
+    local T = W.Tinnitus or {}
+    if T.Enabled == false or T.Npc == false then return end
+    while true do
+        local me = PlayerPedId()
+        local origin = GetEntityCoords(me)
+        local near = {}
+        for _, ped in ipairs(GetGamePool('CPed')) do
+            if ped ~= me and not IsPedAPlayer(ped) and not IsEntityDead(ped) and IsPedArmed(ped, 4)
+                and #(GetEntityCoords(ped) - origin) <= (T.Range or 10.0) then
+                near[#near + 1] = ped
+            end
+        end
+        if #near == 0 then
+            Wait(250)
+        else
+            local untilTime = GetGameTimer() + 250
+            repeat
+                for _, ped in ipairs(near) do
+                    if DoesEntityExist(ped) and IsPedShooting(ped) and not IsPedCurrentWeaponSilenced(ped) then
+                        heard(1, #(GetEntityCoords(ped) - GetEntityCoords(PlayerPedId())))
+                    end
+                end
+                Wait(0)
+            until GetGameTimer() >= untilTime
+        end
     end
 end)
 
@@ -195,11 +266,8 @@ RegisterNetEvent('rp_weaponscontrol:shots', function(src, count, key, suppressed
     if withSmoke and d <= ((W.Smoke or {}).Range or 60.0) then smoke(ped) end
     local Sh = W.Shake or {}
     if Sh.Enabled ~= false and d <= (Sh.Range or 15.0) then
-        local amount = (Sh.Amount or 0.12) * (p.loudness or 0.8) * (1.0 - d / (Sh.Range or 15.0)) * (suppressed and 0.4 or 1.0)
+        local amount = (Sh.Amount or 0.08) * (p.loudness or 0.8) * (1.0 - d / (Sh.Range or 15.0)) * (suppressed and 0.4 or 1.0)
         if amount > 0.01 then ShakeGameplayCam(Sh.Name or 'SMALL_EXPLOSION_SHAKE', amount) end
     end
-    local T = W.Tinnitus or {}
-    if not suppressed and d <= (T.Range or 10.0) then
-        tinnitus((p.loudness or 0.8) * (1.0 - d / (T.Range or 10.0)) * math.min(2.0, math.sqrt(count)))
-    end
+    if not suppressed then heard(count, d) end
 end)

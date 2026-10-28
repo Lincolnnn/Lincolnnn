@@ -208,8 +208,10 @@ On règle tout, puis **« Appliquer à tout le serveur »**. La ligne du haut ra
 redémarrage (`data/weather.json`). Réservé aux joueurs de `Permissions` (section **weather**) — tant que les permissions
 sont désactivées, **tout le monde** peut la régler — ou à ceux qui ont la permission ACE `rp_interact.weather`
 (`add_ace group.admin rp_interact.weather allow`). **Un seul script de météo** : désactivez vSync / qb-weathersync…
-(ou mettez `Weather.Enabled = false` ici). L'heure est calculée par chaque joueur à partir de celle du serveur (même
-heure pour tous, sans trafic réseau) ; une mise à jour par seconde.
+(ou mettez `Weather.Enabled = false` ici), y compris la météo / l'heure de **vMenu** ou de txAdmin : sinon l'heure et le
+temps « sautent ». Le serveur tient l'heure et la republie toutes les 15 s (`SyncSeconds`) ; chaque joueur avance avec
+sa propre horloge à partir de là (petits écarts rattrapés en douceur, jamais de saut). La météo, une fois la transition
+finie, est fixée (comme vSync) et vérifiée toutes les 5 s.
 
 ## Fiche civile (style MDC, en dehors du MDC)
 

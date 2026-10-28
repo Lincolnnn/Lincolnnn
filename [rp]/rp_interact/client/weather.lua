@@ -1,42 +1,76 @@
 --[[
     RP Interact - météo et heure (client) : appliquées d'après le serveur (GlobalState rpWeather / rpClock)
     ------------------------------------------------------------------------------------------------------
-    L'heure du jeu est tenue par ce script (horloge du jeu en pause) : fixe, de base ou réaliste, calculée à partir
-    de l'ancre du serveur (minute + heure du serveur) avec l'heure « cloud » du jeu : la même pour tout le monde.
-    Météo : changement en douceur (TransitionSeconds) ; ré-appliquée si un autre script la modifie.
-    Performance : une mise à jour de l'heure par seconde (une native), rien d'autre.
+    HEURE : le serveur publie la minute exacte (et la republie toutes les SyncSeconds secondes) ; ce client avance à
+    partir de là avec sa propre horloge (GetGameTimer), horloge du jeu en pause : fixe, de base ou réaliste, la même
+    pour tout le monde. Un petit écart à la mise à jour suivante est rattrapé en douceur (jamais de saut en arrière).
+    MÉTÉO : changement en douceur (TransitionSeconds), puis le temps est fixé (comme vSync) ; vérifié toutes les
+    5 s : s'il a été changé par le jeu ou un autre script, il revient. Jamais ré-appliqué pendant une transition.
+    Performance : une mise à jour de l'heure par seconde (une native), une vérification de la météo toutes les 5 s.
 ]]
 
 local W = InteractConfig.Weather or {}
 if W.Enabled == false then return end
 
-local clock = GlobalState.rpClock
-local weather = GlobalState.rpWeather
-local applied = nil -- météo appliquée
+--- Empreinte sur 32 bits non signés (les natives de météo la renvoient tantôt signée, tantôt non)
+local function u32(h) return (math.tointeger(h) or math.floor(tonumber(h) or 0)) & 0xFFFFFFFF end
 
---- Minute (avec fraction) du jeu actuelle, d'après l'ancre du serveur
+local clock = nil    -- { base = minute reçue, at = GetGameTimer() à la réception, ms = ms par minute du jeu }
+local weather = nil  -- météo voulue (nom)
+local applied = nil  -- météo appliquée
+local transitionUntil = 0
+
+--- Minute (avec fraction) du jeu actuelle
 local function minutesNow()
-    if type(clock) ~= 'table' then return nil end
-    local base = tonumber(clock.minutes) or 720
-    local ms = tonumber(clock.ms) or 0
-    if ms <= 0 then return base end
-    local elapsed = GetCloudTimeAsInt() - (tonumber(clock.epoch) or GetCloudTimeAsInt())
-    return (base + math.max(0, elapsed) * 1000 / ms) % 1440
+    if not clock then return nil end
+    if clock.ms <= 0 then return clock.base end
+    return (clock.base + (GetGameTimer() - clock.at) / clock.ms) % 1440
 end
-RPIWeather = { minutesNow = minutesNow } -- pour les tests
+
+--- Heure reçue du serveur ; un écart de moins de 3 minutes (latence, arrondis) n'est pas un saut : on garde notre
+--- avance et on se recale en douceur
+local function setClock(value)
+    if type(value) ~= 'table' then return end
+    local base, ms = tonumber(value.minutes) or 720, tonumber(value.ms) or 0
+    local now = minutesNow()
+    if clock and now and clock.ms == ms and ms > 0 then
+        local diff = (base - now + 720) % 1440 - 720
+        if math.abs(diff) < 3 then
+            -- recalage doux : l'écart est rattrapé sur la minute du jeu suivante
+            clock = { base = now + diff * 0.5, at = GetGameTimer(), ms = ms }
+            return
+        end
+    end
+    clock = { base = base, at = GetGameTimer(), ms = ms }
+end
+
+--- Fixe la météo tout de suite (comme vSync) : plus de cycle du jeu
+local function fixWeather(w)
+    ClearOverrideWeather()
+    ClearWeatherTypePersist()
+    SetWeatherTypePersist(w)
+    SetWeatherTypeNow(w)
+    SetWeatherTypeNowPersist(w)
+    SetRainLevel(-1.0) -- la pluie suit la météo
+end
 
 local function applyWeather(instant)
-    if type(weather) ~= 'table' or type(weather.weather) ~= 'string' then return end
-    local w = weather.weather
+    if type(weather) ~= 'string' or weather == '' then return end
+    local w = weather
     if applied == w and not instant then return end
     if instant or not applied then
-        SetWeatherTypeNowPersist(w)
+        fixWeather(w)
+        transitionUntil = 0
     else
-        SetWeatherTypeOvertimePersist(w, (W.TransitionSeconds or 30) + 0.0)
+        local seconds = (W.TransitionSeconds or 30) + 0.0
+        SetWeatherTypeOvertimePersist(w, seconds)
+        transitionUntil = GetGameTimer() + math.floor(seconds * 1000) + 500
+        SetTimeout(math.floor(seconds * 1000) + 500, function() if weather == w then fixWeather(w) end end)
     end
-    SetRainLevel(-1.0) -- la pluie suit la météo
     applied = w
 end
+
+RPIWeather = { minutesNow = minutesNow, setClock = setClock, u32 = u32 } -- pour les tests
 
 -- Menu Interaction > Configuration > Météo
 RegisterNUICallback('weatherGet', function(_, cb)
@@ -50,13 +84,17 @@ RegisterNUICallback('weatherSet', function(data, cb)
 end)
 
 AddStateBagChangeHandler('rpWeather', 'global', function(_, _, value)
-    weather = value
+    weather = type(value) == 'table' and value.weather or nil
     applyWeather(false)
 end)
-AddStateBagChangeHandler('rpClock', 'global', function(_, _, value) clock = value end)
+AddStateBagChangeHandler('rpClock', 'global', function(_, _, value) setClock(value) end)
 
 CreateThread(function()
+    setClock(GlobalState.rpClock)
+    local w = GlobalState.rpWeather
+    weather = type(w) == 'table' and w.weather or nil
     applyWeather(true)
+    local nextCheck = 0
     while true do
         local m = minutesNow()
         if m then
@@ -64,10 +102,14 @@ CreateThread(function()
             local whole = math.floor(m)
             NetworkOverrideClockTime(whole // 60, whole % 60, math.floor((m - whole) * 60))
         end
-        -- un autre script (ou le jeu) a changé la météo : la nôtre revient
-        if applied and type(weather) == 'table' and GetPrevWeatherTypeHashName() ~= GetHashKey(weather.weather)
-            and GetNextWeatherTypeHashName() ~= GetHashKey(weather.weather) then
-            applyWeather(true)
+        local now = GetGameTimer()
+        if weather and now >= nextCheck and now >= transitionUntil then
+            nextCheck = now + 5000
+            -- changée par le jeu ou un autre script (empreintes comparées sous la même forme) : la nôtre revient
+            local want = u32(GetHashKey(weather))
+            if u32(GetPrevWeatherTypeHashName()) ~= want or u32(GetNextWeatherTypeHashName()) ~= want then
+                fixWeather(weather)
+            end
         end
         Wait(1000)
     end

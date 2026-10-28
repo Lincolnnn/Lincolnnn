@@ -155,14 +155,12 @@ menu** (jamais ceux du décor).
   seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi. **`/restock`** le remet.
 
 **Herse** (script payant **riven_spikes**, facultatif ; `Stock.Spikes`)
-- Ligne **« Herse »** du menu ouvert **au coffre** (seulement si riven_spikes est démarré) : **« Prendre »** /
-  **« Ranger »**. Le menu se ferme et l'action de Riven elle-même se joue (animation au coffre, son stock : une par
-  véhicule d'urgence, ses messages). C'est **le seul endroit** pour la prendre et la ranger : ces deux actions ne sont
-  plus proposées par l'œil (`ox_target` : `HiddenPrefixes`, export `runOption`).
+- Prise et rangée avec **l'œil** (Alt) sur le coffre de tout véhicule d'urgence : **« Prendre la herse dans le
+  coffre »** / **« Ranger la herse dans le coffre »** (options de Riven ; voir [`ox_target/`](../ox_target/README.md)).
+  `Stock.Spikes.Menu = true` ajoute en plus une ligne « Herse » à ce menu (désactivée par défaut).
 - Herse en main : la touche **X** de Riven (« ranger dans la poche ») ne la fait plus disparaître : elle revient
-  aussitôt dans les mains, avec le message « posez-la au sol ou rangez-la dans le coffre ». On doit donc soit la
-  **lancer / poser au sol**, soit la **ranger dans le coffre** (menu). Mort, à bord d'un véhicule, à terre ou menotté :
-  Riven la range lui-même (non redonnée). Le code de Riven n'est pas modifié (`client/spikes.lua`).
+  aussitôt dans les mains. On doit la **lancer / poser au sol** ou la **ranger dans le coffre** (œil). Mort, à bord d'un
+  véhicule, à terre ou menotté : Riven la range lui-même. `Stock.Spikes.KeepInHands = false` : comportement de Riven.
 
 **Fusées de détresse** (`WEAPON_FLARE`, posées au sol avec `rp_flares`)
 - Rangeables **comme les armes longues** : **« Ranger 1 »** / **« Tout ranger »** (celles que le policier a sur lui) et

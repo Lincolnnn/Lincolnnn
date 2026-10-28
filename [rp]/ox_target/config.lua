@@ -11,8 +11,8 @@ BridgeConfig = {
     -- riven_spikes (coffre des véhicules de police, ramasser / tirer le cordon d'une herse posée)
     PoliceOnly = { riven_spikes = true },
     -- Options cachées dans l'œil (nom de l'option qui commence par…) : elles restent utilisables par nos menus
-    -- (export runOption) ; ici, prendre / ranger une herse se fait dans le menu Équipement du coffre (rp_equipment)
-    HiddenPrefixes = { 'riven_spikes_trunk_' },
+    -- (export runOption). Aucune : la herse se prend et se range avec l'œil sur le coffre.
+    HiddenPrefixes = {},
     -- Libellés des options traduits dans l'œil, par script (que sa langue soit réglée ou non) :
     -- Labels : texte exact -> texte ; Patterns : { motif Lua, texte avec %s } ; le texte capturé (nom de l'objet)
     -- passe par Nouns (avec son article)

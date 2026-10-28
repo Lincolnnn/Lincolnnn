@@ -39,6 +39,10 @@ DoorlockConfig = {
     Kick = {
         Enabled = true, Steps = { 3, 6 }, Cooldown = 700,
         Zone = { 0.2, 0.17, 0.15, 0.13, 0.12, 0.11 }, Speed = { 0.9, 1.0, 1.1, 1.2, 1.3, 1.4 },
+        -- Coup de pied : l'emote « /e kick3 » du mode d'emotes du serveur (RPEMOTES), sur place, sans tourner le
+        -- personnage ; Impact : ms jusqu'au moment où le pied touche ; Duration : durée de l'emote (ms)
+        Emote = { Command = 'e kick3', Impact = 600, Duration = 1500 },
+        -- Secours (aucun mode d'emotes démarré) : animations du jeu
         Anims = { { 'missprologuemcs_1', 'kick_down_player_zero', 1600, 650 }, -- dict, clip, durée, moment de l'impact
             { 'anim@scripted@player@freemode@ig6_stash_entry@door_trans@hinge_l@', 'kick_player1', 1600, 650 } },
         Force = 30.0,                -- poussée donnée au battant quand la porte cède (coup sec, elle s'ouvre en grand)

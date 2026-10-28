@@ -7,8 +7,9 @@
           pluvieux (pluie, orage, brumeux, brouillard : RainyCycle), un nouveau temps toutes les CycleMinutes minutes ;
       - HEURE : à la minute près, et son DÉFILEMENT : fixe (l'heure ne bouge plus), de base (rapide : 2 s par minute
         du jeu, comme GTA), réaliste (Config.Weather.RealisticMs par minute du jeu, 40 000 ms par défaut).
-    Publiées dans GlobalState (rpWeather, rpClock) : chaque client calcule l'heure lui-même à partir de l'ancre
-    (minute + heure du serveur + vitesse), sans boucle réseau. L'ancre est remise à jour à chaque changement.
+    Publiées dans GlobalState (rpWeather, rpClock) : le serveur tient l'heure (minute exacte, avec ses fractions) et la
+    republie toutes les SyncSeconds secondes ; chaque client avance à partir de la dernière valeur reçue avec sa propre
+    horloge (aucune dépendance à l'heure de la machine du serveur ou du joueur) : même heure pour tout le monde.
     Qui peut régler : Config.Permissions (section « weather ») ou la permission ACE Config.Weather.Ace.
     Performance : une minuterie seulement pour le défilement de la météo (rien sinon).
 ]]
@@ -25,24 +26,28 @@ local CYCLES = { fair = W.FairCycle or { 'EXTRASUNNY', 'CLEAR', 'CLOUDS' }, rain
 local TYPES = {}
 for _, t in ipairs(W.Types or {}) do TYPES[t.id] = t end
 
-local state = { weather = W.Default or 'CLEAR', weatherMode = 'fixed', timeMode = 'base', minutes = 12 * 60, epoch = os.time() }
+local state = { weather = W.Default or 'CLEAR', weatherMode = 'fixed', timeMode = 'base', minutes = 12 * 60, at = GetGameTimer() }
 local cycleTimer = 0 -- identifiant de la minuterie de défilement en cours (une seule active)
 
---- Minute du jeu actuelle (0-1439), d'après l'ancre
-local function currentMinutes()
+--- Minute du jeu actuelle, avec ses fractions (0 à 1440), d'après l'ancre (horloge du serveur, en ms)
+local function exactMinutes()
     local ms = SPEED[state.timeMode] or 0
     if ms <= 0 then return state.minutes end
-    return math.floor(state.minutes + (os.time() - state.epoch) * 1000 / ms) % 1440
+    return (state.minutes + (GetGameTimer() - state.at) / ms) % 1440
 end
+local function currentMinutes() return math.floor(exactMinutes()) end
 
-local function publish()
+--- Météo publiée seulement quand elle change ; heure : la minute exacte du moment (les clients avancent de là)
+local function publishWeather()
     GlobalState.rpWeather = { weather = state.weather, mode = state.weatherMode }
-    GlobalState.rpClock = { minutes = state.minutes, epoch = state.epoch, ms = SPEED[state.timeMode] or 0, mode = state.timeMode }
 end
+local function publishClock()
+    GlobalState.rpClock = { minutes = exactMinutes(), ms = SPEED[state.timeMode] or 0, mode = state.timeMode }
+end
+local function publish() publishWeather() publishClock() end
 
 local function save()
-    local copy = { weather = state.weather, weatherMode = state.weatherMode, timeMode = state.timeMode,
-        minutes = currentMinutes(), epoch = os.time() }
+    local copy = { weather = state.weather, weatherMode = state.weatherMode, timeMode = state.timeMode, minutes = currentMinutes() }
     SaveResourceFile(RES, FILE, json.encode(copy), -1)
 end
 
@@ -63,7 +68,7 @@ local function scheduleCycle()
     SetTimeout(math.floor((W.CycleMinutes or 20) * 60000), function()
         if mine ~= cycleTimer then return end
         state.weather = pickNext() or state.weather
-        publish()
+        publishWeather()
         save()
         scheduleCycle()
     end)
@@ -78,10 +83,21 @@ do
         if SPEED[saved.timeMode] then state.timeMode = saved.timeMode end
         if tonumber(saved.minutes) then state.minutes = math.floor(tonumber(saved.minutes)) % 1440 end
     end
-    state.epoch = os.time()
+    state.at = GetGameTimer()
     publish()
     scheduleCycle()
 end
+
+-- L'heure republiée régulièrement (rattrape les petits écarts des clients) ; gardée de temps en temps
+CreateThread(function()
+    local n = 0
+    while true do
+        Wait(math.floor((W.SyncSeconds or 15) * 1000))
+        if (SPEED[state.timeMode] or 0) > 0 then publishClock() end
+        n = n + 1
+        if n % 20 == 0 then save() end
+    end
+end)
 
 local function allowed(src)
     if W.Ace and IsPlayerAceAllowed(src, W.Ace) then return true end
@@ -109,8 +125,9 @@ RPIServer.on('setWeather', function(src, p)
     end
     local weatherChanged = weather ~= state.weather or weatherMode ~= state.weatherMode
     state.weather, state.weatherMode, state.timeMode = weather, weatherMode, timeMode
-    state.minutes, state.epoch = math.floor(hour) * 60 + math.floor(minute), os.time()
-    publish()
+    state.minutes, state.at = math.floor(hour) * 60 + math.floor(minute), GetGameTimer()
+    publishClock()
+    if weatherChanged then publishWeather() end
     save()
     if weatherChanged then scheduleCycle() end -- le défilement repart de maintenant
     print(('^5[RP Interact]^0 Météo réglée par %s : %s (%s), %02d:%02d (%s)'):format(GetPlayerName(src) or src,

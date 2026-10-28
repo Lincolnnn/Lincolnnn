@@ -441,11 +441,6 @@ local function loadAnim(dict)
     return HasAnimDictLoaded(dict)
 end
 
-local function faceDoor(door)
-    local ped = PlayerPedId()
-    local p = GetEntityCoords(ped)
-    SetEntityHeading(ped, GetHeadingFromVector_2d(door.x - p.x, door.y - p.y))
-end
 
 --- Joue une animation (dict, clip, durée) ; renvoie tout de suite
 local function playAnim(anim, flag)
@@ -465,21 +460,18 @@ local function lockDoor(door)
         local p = describe(pair)
         list[2] = { model = p.model, x = p.x, y = p.y, z = p.z }
     end
-    faceDoor(door)
     playAnim(Config.LockAnim)
     Wait((Config.LockAnim or {})[3] or 1200)
     if near(door) then TriggerServerEvent('rp_doorlock:lock', list) end
 end
 
 local function unlockDoor(door)
-    faceDoor(door)
     playAnim(Config.LockAnim)
     Wait((Config.LockAnim or {})[3] or 1200)
     if near(door) then TriggerServerEvent('rp_doorlock:unlock', door.id) end
 end
 
 local function knock(door)
-    faceDoor(door)
     playAnim(Config.KnockAnim)
     TriggerServerEvent('rp_doorlock:knock', door.x, door.y, door.z)
     Wait((Config.KnockAnim or {})[3] or 2500)
@@ -487,19 +479,48 @@ end
 
 --- Un coup de pied dans la porte : le personnage joue l'animation à CHAQUE essai (réussi ou raté) ; secousse si
 --- réussi. Renvoie quand le pied touche la porte, avec le temps restant de l'animation.
+--- Mode d'emotes du serveur (RPEMOTES / rpemotes…) démarré : son nom (publié par rp_interact), sinon nil
+local function emoteResource()
+    local list = GlobalState.rpiEmotes
+    local res = type(list) == 'table' and list.resource or nil
+    for _, name in ipairs({ res, 'rpemotes', 'rpemotes-reborn', 'RPEMOTES', 'dpemotes' }) do
+        if name and GetResourceState(name) == 'started' then return name end
+    end
+    return nil
+end
+
+--- Joue l'emote du coup de pied (RPEMOTES « /e kick3 ») ; sans mode d'emotes : une animation de secours (Anims).
+--- Le personnage ne tourne jamais : il donne le coup dans la direction où il est. -> moment de l'impact, durée
+local function playKick()
+    local K = Config.Kick or {}
+    local E = K.Emote or {}
+    local res = E.Command and emoteResource()
+    if res then
+        ExecuteCommand(E.Command)
+        return E.Impact or 600, E.Duration or 1500, res
+    end
+    ClearPedTasks(PlayerPedId()) -- l'animation précédente (coup d'avant) ne bloque pas la nouvelle
+    for _, anim in ipairs(K.Anims or {}) do
+        if playAnim(anim, 0) then return anim[4] or 600, anim[3] or 1600, nil end
+    end
+    return 600, 1600, nil
+end
+
 local function kickAnim(door, hit)
     local K = Config.Kick or {}
-    local ped = PlayerPedId()
-    faceDoor(door)
-    ClearPedTasks(ped) -- l'animation précédente (coup d'avant) ne bloque pas la nouvelle
-    local played
-    for _, anim in ipairs(K.Anims or {}) do
-        if playAnim(anim, 0) then played = anim break end
-    end
-    Wait(played and played[4] or 600) -- moment où le pied touche la porte
+    local impact, duration, res = playKick()
+    Wait(impact) -- moment où le pied touche la porte
     soundAt(door, hit and 'hit' or 'miss')
     if hit and K.Shake and K.Shake > 0 then ShakeGameplayCam('SMALL_EXPLOSION_SHAKE', K.Shake) end
-    return math.max(0, (played and played[3] or 1600) - (played and played[4] or 600))
+    local rest = math.max(0, duration - impact)
+    if res then
+        -- emote terminée (au cas où elle tournerait en boucle) : arrêtée par le mode d'emotes, sans message
+        SetTimeout(rest, function()
+            local ok, playing = pcall(function() return exports[res]:IsPlayerInAnim() end)
+            if not ok or playing then pcall(function() exports[res]:EmoteCancel() end) end
+        end)
+    end
+    return rest
 end
 
 -- =========================================================================
@@ -532,7 +553,6 @@ local function startBreach(door)
     for _, anim in ipairs((Config.Kick or {}).Anims or {}) do
         if DoesAnimDictExist(anim[1]) then RequestAnimDict(anim[1]) end
     end
-    faceDoor(door)
     SetTimeout(3000, function() if breach == mine and not mine.need then stopBreach() end end) -- serveur muet
     CreateThread(function()
         while breach == mine do

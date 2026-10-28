@@ -35,6 +35,7 @@ InteractConfig = {
         RealisticMs = 40000,             -- défilement « réaliste » : ms par minute du jeu (40 s : une journée en 16 h)
         CycleMinutes = 20,               -- défilement de la météo : un nouveau temps toutes les 20 min (réelles)
         TransitionSeconds = 30,          -- passage en douceur d'un temps à l'autre
+        SyncSeconds = 15,                -- l'heure du serveur republiée (les joueurs se recalent) toutes les 15 s
         FairCycle = { 'EXTRASUNNY', 'CLEAR', 'CLOUDS' },          -- « beau temps »
         RainyCycle = { 'RAIN', 'THUNDER', 'SMOG', 'FOGGY' },      -- « pluvieux » : pluie, orage, brumeux, brouillard
         Types = {
