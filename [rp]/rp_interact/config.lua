@@ -21,7 +21,31 @@ InteractConfig = {
             'steam:11000011977aecd',
             'steam:110000114f6ac4d',
         },
-        Sections = { equipment = true, car = true }, -- Équipements, Voiture (spawn, radio)
+        Sections = { equipment = true, car = true, weather = true }, -- Équipements, Voiture (spawn, radio), Météo
+    },
+
+    -- MENU > CONFIGURATION > MÉTÉO : météo et heure du serveur, les mêmes pour tout le monde (server/weather.lua).
+    -- Réglables par les joueurs de Permissions (section weather) ou ceux qui ont la permission ACE Ace. Enabled = false
+    -- si un autre script gère déjà la météo (vSync, qb-weathersync…) : ils se contrediraient.
+    Weather = {
+        Enabled = true,
+        Ace = 'rp_interact.weather',     -- add_ace group.admin rp_interact.weather allow
+        Default = 'CLEAR',
+        BaseMs = 2000,                   -- défilement « de base » (rapide, comme GTA) : ms par minute du jeu
+        RealisticMs = 40000,             -- défilement « réaliste » : ms par minute du jeu (40 s : une journée en 16 h)
+        CycleMinutes = 20,               -- défilement de la météo : un nouveau temps toutes les 20 min (réelles)
+        TransitionSeconds = 30,          -- passage en douceur d'un temps à l'autre
+        FairCycle = { 'EXTRASUNNY', 'CLEAR', 'CLOUDS' },          -- « beau temps »
+        RainyCycle = { 'RAIN', 'THUNDER', 'SMOG', 'FOGGY' },      -- « pluvieux » : pluie, orage, brumeux, brouillard
+        Types = {
+            { id = 'EXTRASUNNY', label = 'Grand soleil' }, { id = 'CLEAR', label = 'Dégagé' },
+            { id = 'CLOUDS', label = 'Nuageux' }, { id = 'OVERCAST', label = 'Couvert' },
+            { id = 'CLEARING', label = 'Éclaircies' }, { id = 'SMOG', label = 'Brumeux' },
+            { id = 'FOGGY', label = 'Brouillard' }, { id = 'RAIN', label = 'Pluie' },
+            { id = 'THUNDER', label = 'Orage' }, { id = 'SNOWLIGHT', label = 'Neige légère' },
+            { id = 'SNOW', label = 'Neige' }, { id = 'BLIZZARD', label = 'Blizzard' },
+            { id = 'XMAS', label = 'Noël (neige au sol)' }, { id = 'HALLOWEEN', label = 'Halloween' },
+        },
     },
 
     -- MENU > VOITURE (véhicules de data/vehicle.json) et ÉQUIPEMENTS (armes de data/loadouts.json)

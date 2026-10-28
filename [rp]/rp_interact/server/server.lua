@@ -595,6 +595,33 @@ on('deleteVehicleProfile', function(src, p)
     return { ok = true }
 end)
 
+-- ---- Corps laissés sur place (rp_revive) : copie du profil actif du joueur mort, SANS l'odeur détectée ----
+local Corpses = {} -- [n° réseau] = { entity, profile }
+
+--- Corps : { profile = copie du profil, ou false s'il n'en avait pas d'actif } ; nil si ce n'est pas un corps / disparu
+local function corpseOf(netId)
+    local c = netId and Corpses[netId]
+    if not c then return nil end
+    if ONESYNC and vehicleEntity(netId) ~= c.entity then Corpses[netId] = nil return nil end
+    return c
+end
+
+exports('rememberCorpse', function(src, netId)
+    netId = tonumber(netId)
+    if not netId then return false end
+    local active = activeProfileOf(getIdentifier(tonumber(src)))
+    local copy = {}
+    for k, v in pairs(active or {}) do
+        if k ~= 'smells' and k ~= 'owner' then copy[k] = v end -- l'odeur ne reste pas sur le corps
+    end
+    Corpses[netId] = { entity = ONESYNC and vehicleEntity(netId) or nil, profile = active and copy or false }
+    return true
+end)
+
+AddEventHandler('entityRemoved', function(entity)
+    for netId, c in pairs(Corpses) do if c.entity == entity then Corpses[netId] = nil end end
+end)
+
 -- ---- Inspection d'une personne ou d'un véhicule (œil) ----
 -- p = { kind = 'player' | 'npc' | 'vehicle', target = id serveur (player) / n° réseau, field, label }
 -- Observations (visuel, olfactif, détail notoire) : jusqu'à ObserveDistance (10 m), immédiates.
@@ -673,6 +700,10 @@ on('inspect', function(src, p)
         local profile = activeProfileOf(getIdentifier(target))
         text = personValue(profile, p.field, 'player:' .. getIdentifier(target) .. ':' .. tostring(profile and profile.id or 0))
         subject = 'Individu'
+    elseif p.kind == 'npc' and corpseOf(target) then
+        -- Corps laissé par un joueur réanimé (rp_revive) : la description de son profil, sans l'odeur détectée
+        text = personValue(corpseOf(target).profile or nil, p.field, 'corpse:' .. tostring(target))
+        subject = 'Corps'
     elseif p.kind == 'npc' then
         -- Personnage non joueur : pas de profil, réponses par défaut (présenté comme un individu)
         text = personValue(nil, p.field, 'npc:' .. tostring(target or p.label or ''))

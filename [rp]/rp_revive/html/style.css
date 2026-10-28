@@ -1,0 +1,142 @@
+/* Couleurs des interfaces sombres : mode nuit (Paramètres > MDC > Apparence : vert par défaut, jaune, rouge ou bleu) et
+   « logo » (menus de jour : noir, blanc et rouge Torino / bordeaux du logo du serveur) ; attribut data-night-color="…"
+   sur <html> (ou sur un bloc). Mêmes contrastes pour chaque couleur : fond noir, textes clairs, jamais de texte foncé
+   sur fond sombre. Nuit : valeurs générées depuis le vert (même luminosité, teinte changée). */
+:root {
+    --n-ink: #000502; --n-field: #000201; --n-btn: #010402; --n-head: #020704; --n-hover: #04110a; --n-press: #06190d;
+    --n-press-2: #093016; --n-step: #071d0f; --n-primary: #0b3d1d; --n-primary-hover: #0f4f26;
+    --n-primary-border: #1d8a43; --n-strong: #176533; --n-strong-press: #124f28; --n-banner-1: #0b3a1d;
+    --n-banner-2: #062311; --n-banner-3: #010603; --n-tag-1: #278a4b; --n-tag-2: #21773f; --n-tag-3: #1c6938;
+    --n-tag-4: #185c30; --n-tag-5: #14502a; --n-tag-6: #114524; --n-tag-7: #0d3a1e; --n-tag-8: #0a3018;
+    --n-tag-9: #0c351c; --n-tag-kcso: #0f4423; --n-title: #1a8a3f; --n-accent: #27a854; --n-light: #4cc677;
+    --n-soft: #5fa97a; --n-text: #6cc28b; --n-pale: #8ed3a6; --n-bright: #b4e6c5; --n-rgb: 35, 185, 88;
+    --n-text-rgb: 108, 194, 139; --n-muted-rgb: 84, 150, 108; --n-glow-rgb: 70, 190, 115; --n-light-rgb: 76, 198, 119;
+    --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 0, 2, 1; --n-card-rgb: 1, 6, 3; --n-accent-rgb: 39, 168, 84;
+    --n-danger-rgb: 50, 180, 95; --n-warn-rgb: 40, 165, 85; --n-ok-rgb: 32, 138, 72; --n-p1: 108, 194, 139;
+    --n-p2: 55, 170, 95; --n-p3: 38, 155, 80; --n-pn: 25, 105, 55; --n-hue: 75deg;
+}
+[data-night-color="green"] {
+    --n-ink: #000502; --n-field: #000201; --n-btn: #010402; --n-head: #020704; --n-hover: #04110a; --n-press: #06190d;
+    --n-press-2: #093016; --n-step: #071d0f; --n-primary: #0b3d1d; --n-primary-hover: #0f4f26;
+    --n-primary-border: #1d8a43; --n-strong: #176533; --n-strong-press: #124f28; --n-banner-1: #0b3a1d;
+    --n-banner-2: #062311; --n-banner-3: #010603; --n-tag-1: #278a4b; --n-tag-2: #21773f; --n-tag-3: #1c6938;
+    --n-tag-4: #185c30; --n-tag-5: #14502a; --n-tag-6: #114524; --n-tag-7: #0d3a1e; --n-tag-8: #0a3018;
+    --n-tag-9: #0c351c; --n-tag-kcso: #0f4423; --n-title: #1a8a3f; --n-accent: #27a854; --n-light: #4cc677;
+    --n-soft: #5fa97a; --n-text: #6cc28b; --n-pale: #8ed3a6; --n-bright: #b4e6c5; --n-rgb: 35, 185, 88;
+    --n-text-rgb: 108, 194, 139; --n-muted-rgb: 84, 150, 108; --n-glow-rgb: 70, 190, 115; --n-light-rgb: 76, 198, 119;
+    --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 0, 2, 1; --n-card-rgb: 1, 6, 3; --n-accent-rgb: 39, 168, 84;
+    --n-danger-rgb: 50, 180, 95; --n-warn-rgb: 40, 165, 85; --n-ok-rgb: 32, 138, 72; --n-p1: 108, 194, 139;
+    --n-p2: 55, 170, 95; --n-p3: 38, 155, 80; --n-pn: 25, 105, 55; --n-hue: 75deg;
+}
+[data-night-color="yellow"] {
+    --n-ink: #050400; --n-field: #020200; --n-btn: #040301; --n-head: #070602; --n-hover: #111004; --n-press: #191606;
+    --n-press-2: #302809; --n-step: #1d1907; --n-primary: #3d340b; --n-primary-hover: #4f440f;
+    --n-primary-border: #8a761d; --n-strong: #655717; --n-strong-press: #4f4412; --n-banner-1: #3a330b;
+    --n-banner-2: #231f06; --n-banner-3: #060501; --n-tag-1: #8a7927; --n-tag-2: #776721; --n-tag-3: #695c1c;
+    --n-tag-4: #5c5018; --n-tag-5: #504614; --n-tag-6: #453c11; --n-tag-7: #3a330d; --n-tag-8: #302a0a;
+    --n-tag-9: #352f0c; --n-tag-kcso: #443c0f; --n-title: #8a731a; --n-accent: #a89027; --n-light: #c6b04c;
+    --n-soft: #a99d5f; --n-text: #c2b36c; --n-pale: #d3c68e; --n-bright: #e6dcb4; --n-rgb: 185, 158, 35;
+    --n-text-rgb: 194, 179, 108; --n-muted-rgb: 150, 139, 84; --n-glow-rgb: 190, 171, 70; --n-light-rgb: 198, 176, 76;
+    --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 2, 2, 0; --n-card-rgb: 6, 5, 1; --n-accent-rgb: 168, 144, 39;
+    --n-danger-rgb: 180, 156, 50; --n-warn-rgb: 165, 143, 40; --n-ok-rgb: 138, 121, 32; --n-p1: 194, 179, 108;
+    --n-p2: 170, 149, 55; --n-p3: 155, 135, 38; --n-pn: 105, 92, 25; --n-hue: 12deg;
+}
+[data-night-color="red"] {
+    --n-ink: #050000; --n-field: #020000; --n-btn: #040101; --n-head: #070202; --n-hover: #110504; --n-press: #190606;
+    --n-press-2: #4a0e10; --n-step: #1d0707; --n-primary: #571010; --n-primary-hover: #691415;
+    --n-primary-border: #a32225; --n-strong: #7e1d1d; --n-strong-press: #681818; --n-banner-1: #541110;
+    --n-banner-2: #3d0b0a; --n-banner-3: #060101; --n-tag-1: #a22e2e; --n-tag-2: #8f2829; --n-tag-3: #812223;
+    --n-tag-4: #741e20; --n-tag-5: #681a1a; --n-tag-6: #5e1717; --n-tag-7: #531313; --n-tag-8: #490f0f;
+    --n-tag-9: #4e1312; --n-tag-kcso: #5d1515; --n-title: #a41f24; --n-accent: #c12d2f; --n-light: #cd6365;
+    --n-soft: #b47373; --n-text: #cb8282; --n-pale: #d38e8f; --n-bright: #e6b4b5; --n-rgb: 211, 40, 42;
+    --n-text-rgb: 203, 130, 130; --n-muted-rgb: 167, 98, 98; --n-glow-rgb: 198, 94, 93; --n-light-rgb: 205, 99, 101;
+    --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 2, 0, 0; --n-card-rgb: 6, 1, 1; --n-accent-rgb: 193, 45, 47;
+    --n-danger-rgb: 201, 60, 63; --n-warn-rgb: 190, 46, 47; --n-ok-rgb: 163, 39, 38; --n-p1: 203, 130, 130;
+    --n-p2: 193, 63, 65; --n-p3: 180, 44, 45; --n-pn: 130, 32, 31; --n-hue: -42deg;
+}
+[data-night-color="blue"] {
+    --n-ink: #000205; --n-field: #000102; --n-btn: #010204; --n-head: #020407; --n-hover: #040811; --n-press: #060e19;
+    --n-press-2: #103157; --n-step: #07111d; --n-primary: #123664; --n-primary-hover: #164076;
+    --n-primary-border: #2564b0; --n-strong: #204f8a; --n-strong-press: #1b4274; --n-banner-1: #123361;
+    --n-banner-2: #0d274a; --n-banner-3: #010306; --n-tag-1: #3168ae; --n-tag-2: #2b5d9b; --n-tag-3: #26538d;
+    --n-tag-4: #214c80; --n-tag-5: #1d4375; --n-tag-6: #1a3d6a; --n-tag-7: #15355f; --n-tag-8: #122f56;
+    --n-tag-9: #14315a; --n-tag-kcso: #173a6a; --n-title: #2165b1; --n-accent: #3077cd; --n-light: #6f9bd1;
+    --n-soft: #7d97b9; --n-text: #8caacf; --n-pale: #8eadd3; --n-bright: #b4cbe6; --n-rgb: 50, 124, 216;
+    --n-text-rgb: 140, 170, 207; --n-muted-rgb: 108, 136, 172; --n-glow-rgb: 104, 146, 202;
+    --n-light-rgb: 111, 155, 209; --n-bg-rgb: 0, 0, 0; --n-bg2-rgb: 0, 1, 2; --n-card-rgb: 1, 3, 6;
+    --n-accent-rgb: 48, 119, 205; --n-danger-rgb: 72, 132, 204; --n-warn-rgb: 49, 116, 202; --n-ok-rgb: 41, 98, 175;
+    --n-p1: 140, 170, 207; --n-p2: 74, 130, 197; --n-p3: 47, 111, 192; --n-pn: 34, 80, 142; --n-hue: 172deg;
+}
+[data-night-color="logo"] {
+    --n-ink: #0b0b0c; --n-field: #09090a; --n-btn: #111113; --n-head: #161618; --n-hover: #22151a; --n-press: #2d1218;
+    --n-press-2: #5a0d18; --n-step: #241318; --n-primary: #7a0c19; --n-primary-hover: #931020;
+    --n-primary-border: #c62a37; --n-strong: #8b0e1d; --n-strong-press: #6d0a16; --n-banner-1: #8b0e1d;
+    --n-banner-2: #4e0811; --n-banner-3: #0d0506; --n-tag-1: #a3192a; --n-tag-2: #921626; --n-tag-3: #821322;
+    --n-tag-4: #73111e; --n-tag-5: #650f1a; --n-tag-6: #580d17; --n-tag-7: #4b0b14; --n-tag-8: #3e0a11;
+    --n-tag-9: #430a12; --n-tag-kcso: #5c0d17; --n-title: #e4505c; --n-accent: #d8323f; --n-light: #ef7c86;
+    --n-soft: #c9c4c5; --n-text: #ebe7e7; --n-pale: #f4f1f1; --n-bright: #ffffff; --n-rgb: 205, 35, 50;
+    --n-text-rgb: 235, 231, 231; --n-muted-rgb: 178, 170, 172; --n-glow-rgb: 225, 55, 70;
+    --n-light-rgb: 239, 124, 134; --n-bg-rgb: 7, 7, 8; --n-bg2-rgb: 12, 12, 13; --n-card-rgb: 17, 17, 19;
+    --n-accent-rgb: 216, 50, 63; --n-danger-rgb: 230, 70, 82; --n-warn-rgb: 214, 150, 40; --n-ok-rgb: 60, 170, 90;
+    --n-p1: 240, 120, 130; --n-p2: 216, 50, 63; --n-p3: 170, 30, 45; --n-pn: 120, 22, 32; --n-hue: -42deg;
+}
+
+/* Mode nuit (réglé dans le MDC : Paramètres > MDC > Apparence ; client/theme.lua) : couleur du mode nuit sur fond noir, la zone à
+
+/* =========================================================================
+   RP Revive : écran de mort, toujours sombre (couleurs du logo le jour, couleur du mode nuit la nuit)
+   ========================================================================= */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; user-select: none; }
+body { font: 13px/1.4 "Segoe UI Variable Text", "Segoe UI", "Inter", system-ui, Arial, sans-serif; color: var(--n-text); }
+.hidden { display: none !important; }
+
+.death { position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12vh; }
+.death-veil {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, .05) 35%, rgba(0, 0, 0, .65) 100%);
+    animation: veil-in 1.2s ease-out;
+}
+@keyframes veil-in { from { opacity: 0; } }
+.death-card {
+    position: relative; width: min(560px, 92vw); padding: 16px 18px 14px;
+    background: rgba(var(--n-bg-rgb), .94); border: 1px solid rgba(var(--n-rgb), .3); border-radius: 6px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .7), 0 0 0 1px rgba(var(--n-rgb), .06);
+    animation: card-in .5s ease-out;
+}
+.death-card::before { content: ""; position: absolute; left: 18px; right: 18px; top: 0; height: 2px; background: var(--n-accent); border-radius: 0 0 2px 2px; }
+@keyframes card-in { from { opacity: 0; transform: translateY(14px); } }
+.death-head { display: flex; align-items: center; gap: 9px; }
+.death-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--n-accent); box-shadow: 0 0 10px var(--n-accent); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.death-title { font-size: 18px; font-weight: 700; letter-spacing: .3px; color: var(--n-bright); }
+.death-sub { margin-top: 4px; color: rgba(var(--n-muted-rgb), .9); }
+.death-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.death-btn {
+    display: flex; align-items: center; gap: 11px; padding: 11px 12px; text-align: left; cursor: pointer;
+    font: inherit; color: var(--n-text); background: var(--n-btn); border: 1px solid rgba(var(--n-rgb), .3); border-radius: 5px;
+    transition: background .12s, border-color .12s, transform .08s;
+}
+.death-btn.primary { background: var(--n-primary); border-color: var(--n-primary-border); color: var(--n-pale); }
+.death-btn:hover:not(:disabled) { background: var(--n-primary-hover); }
+.death-btn:active:not(:disabled) { transform: translateY(1px); }
+.death-btn:disabled { opacity: .45; cursor: default; }
+.death-btn-text { display: flex; flex-direction: column; gap: 2px; }
+.death-btn-text b { font-size: 14px; color: var(--n-bright); }
+.death-btn-text small { font-size: 11.5px; color: rgba(var(--n-text-rgb), .78); }
+.death-key {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 6px;
+    font: 700 12px/1 inherit; color: var(--n-bright); background: rgba(0, 0, 0, .35);
+    border: 1px solid rgba(var(--n-rgb), .45); border-bottom-width: 2px; border-radius: 3px; flex-shrink: 0;
+}
+.death-key.small { min-width: 18px; height: 18px; font-size: 10.5px; padding: 0 4px; vertical-align: 1px; }
+.death-check { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 9px 10px; cursor: pointer;
+    border: 1px solid rgba(var(--n-rgb), .16); border-radius: 5px; background: rgba(var(--n-card-rgb), .9); }
+.death-check input { position: absolute; opacity: 0; pointer-events: none; }
+.death-box { width: 16px; height: 16px; margin-top: 1px; flex-shrink: 0; border: 1px solid rgba(var(--n-rgb), .55); border-radius: 3px; background: var(--n-field); }
+.death-check input:checked + .death-box { background: var(--n-accent); border-color: var(--n-accent); box-shadow: inset 0 0 0 3px var(--n-field); }
+.death-check-text { display: flex; flex-direction: column; gap: 2px; }
+.death-check-line { display: flex; align-items: center; gap: 8px; }
+.death-check-text b { color: var(--n-text); font-weight: 600; }
+.death-check-text small { font-size: 11.5px; color: rgba(var(--n-muted-rgb), .85); }
+.death-wait { margin-top: 10px; text-align: center; font-size: 12px; color: rgba(var(--n-muted-rgb), .9); min-height: 16px; }

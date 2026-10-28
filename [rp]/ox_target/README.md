@@ -33,6 +33,14 @@ conditions sont ignorées. Les options d'un script disparaissent quand il s'arr�
 `PoliceOnly` (`config.lua`) : les options de ces scripts ne sont proposées qu'aux **policiers en service** (dans une
 unité du MDC). Par défaut : `riven_spikes`.
 
+Options **mises en avant** dans l'œil (surlignées, en tête) : celles liées à une partie précise visée (`bones` : le
+coffre…) et celles des scripts `PoliceOnly` (herses).
+
+Options **cachées** dans l'œil (`HiddenPrefixes` : nom qui commence par…) : par défaut `riven_spikes_trunk_` (prendre /
+ranger la herse au coffre, faits dans le menu Équipement de `rp_equipment`). Elles restent utilisables par nos menus
+avec l'export client **`runOption(nom, entité)`** (point visé = la partie demandée par l'option ; `canInteract`
+respecté) → `true, 'ok'` ou `false, 'missing' | 'unavailable' | 'disabled'`.
+
 Performance : rien ne tourne ; le travail se fait seulement pendant que l'œil vise.
 
 ## riven_spikes (herses, script payant)
@@ -46,8 +54,8 @@ Script de **Riven Systems** (licence, clé `riven_auth.token` liée au serveur) 
    `fr.json` **et** `en.json` fournis à part (tous deux en français : le texte reste français même sans
    `setr ox:locale fr`) : aides à l'écran (« [E] Maintenir pour lancer »…), barres de progression, notifications :
    - **sans inventaire** (`Config.Inventory = false`) : pas besoin d'ox_inventory ;
-   - **une herse dans le coffre de chaque véhicule d'urgence** (classe 18) : œil sur le coffre, **« Prendre la herse dans le coffre »**,
-     et une fois en main **« Ranger la herse dans le coffre »** (elle y revient) ;
+   - **une herse dans le coffre de chaque véhicule d'urgence** (classe 18) : prise et rangée dans le menu
+     **Équipement** du coffre (`rp_equipment`, ligne « Herse ») ;
    - pas de commande `/spikestrip` (la herse se prend au coffre), outils de réglage coupés ;
    - textes en français (« Herse », « Glisser » / « Arracher »…).
 4. `server.cfg` :
@@ -59,9 +67,10 @@ Script de **Riven Systems** (licence, clé `riven_auth.token` liée au serveur) 
    ```
    OneSync doit être activé (exigé par riven_spikes).
 
-En jeu (policier en service) : **œil sur le coffre** d'un véhicule de police → **Prendre la herse dans le coffre** ; **E** maintenu :
-lancer (relâcher), **X** : ranger en main ; herse posée : l'œil sur la herse ou le bout du cordon → **Saisir le
-cordon** / **Ramasser la herse** ; cordon en main : **E** pour la ramener, **Q** : mode (glisser / arracher).
+En jeu (policier en service) : menu **Équipement** au coffre d'un véhicule de police → **Herse : Prendre** ; **E**
+maintenu : lancer (relâcher) ; **X** ne la range plus dans la poche (elle revient en main) : la lancer / poser, ou la
+ranger au coffre (menu Équipement) ; herse posée : l'œil sur la herse ou le bout du cordon → **Saisir le cordon** /
+**Ramasser la herse** ; cordon en main : **E** pour la ramener, **Q** : mode (glisser / arracher).
 Le **pistolet radar** se prend et se range dans le menu **Équipement** du coffre (`rp_equipment`, touche E).
 
 Notifications de riven_spikes : celles d'**ox_lib** (en français avec les `.json` fournis), pas les messages privés

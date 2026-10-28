@@ -42,7 +42,8 @@ ligne** et le rappel des touches. Les lignes grisées sont indisponibles (Entré
 (secteur, lien de la radio, nom d'un équipement) : Entrée ouvre la saisie (le clavier passe au menu le temps de
 l'écrire, Ctrl+V pour coller), **Entrée** valide, **Échap** annule.
 
-L'accueil est en deux parties : **Usage** (**Police**, **Civil**) et **Configuration** (**Équipements**, **Voiture**).
+L'accueil est en deux parties : **Usage** (**Police**, **Civil**) et **Configuration** (**Équipements**, **Voiture**,
+**Météo**).
 Le menu est **toujours en haut à gauche**, comme les menus du jeu (il n'est plus réglable), avec une **bannière** de
 couleur en haut, comme le `/eup` : le **logo de la police** (WSP, KCSO) y est affiché pour un policier en service
 (accueil, page Police) et sur les pages WSP / KCSO du `/eup`. Thème clair du MDC (coins presque carrés) ; la
@@ -194,6 +195,22 @@ Ajoute des options visuelles propres au rôle de civil. La première : les **tip
 
 Thème : celui du HUD (contour gris fin, angles légèrement arrondis), fond noir foncé transparent à 20 %.
 
+### Configuration > Météo (météo et heure du serveur, pour tout le monde)
+
+| Réglage | Choix |
+|---|---|
+| **Temps** | grand soleil, dégagé, nuageux, couvert, éclaircies, brumeux, brouillard, pluie, orage, neige légère, neige, blizzard, Noël, Halloween (`Weather.Types`) |
+| **Défilement de la météo** | **Fixe** (ne change plus) ; **Beau temps** (passe d'un temps clair à un autre : grand soleil, dégagé, nuageux) ; **Pluvieux** (pluie, orage, brumeux, brouillard) ; un nouveau temps toutes les 20 min (`CycleMinutes`), en douceur |
+| **Heure** | à la minute près (champ « HH:MM », ex. 21:45) |
+| **Défilement du temps** | **Fixe** (l'heure ne bouge plus) ; **De base** (rapide : 2 s par minute du jeu, comme GTA) ; **Réaliste** (40 000 ms par minute du jeu : une journée en 16 h, `RealisticMs`) |
+
+On règle tout, puis **« Appliquer à tout le serveur »**. La ligne du haut rappelle l'état actuel. Réglages gardés après un
+redémarrage (`data/weather.json`). Réservé aux joueurs de `Permissions` (section **weather**) — tant que les permissions
+sont désactivées, **tout le monde** peut la régler — ou à ceux qui ont la permission ACE `rp_interact.weather`
+(`add_ace group.admin rp_interact.weather allow`). **Un seul script de météo** : désactivez vSync / qb-weathersync…
+(ou mettez `Weather.Enabled = false` ici). L'heure est calculée par chaque joueur à partir de celle du serveur (même
+heure pour tous, sans trafic réseau) ; une mise à jour par seconde.
+
 ## Fiche civile (style MDC, en dehors du MDC)
 
 S'ouvre par Menu Interaction > Civil (**Créer un profil** / **Créer un véhicule**) ou par la commande **`/fichecivil`**
@@ -250,6 +267,12 @@ peut le modifier ou le supprimer.
 Un œil apparaît au centre de l'écran ; il s'allume (bleu) quand la cible propose des options, avec son nom.
 **Clic gauche** : liste des options, clic sur une option pour l'exécuter. **Échap**, clic droit ou clic à côté : fermer.
 
+Options **principales** mises en avant (surlignées dans la couleur du thème, en tête de liste, puis un séparateur
+avant les autres) : celles qui n'existent que pour **ce qui est visé précisément** (portière visée : l'ouvrir / monter,
+radio, banc, poubelle, objet d'un autre script, porte de `rp_doorlock`, herse au coffre ou au sol…) et **les options de
+police** (sauf « Faire s'asseoir / se relever »). Un script de l'œil peut en proposer avec `primary = true`. Les
+options sont plus espacées.
+
 Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : visez votre personnage en vue à la
 3e personne, `AllowSelfTarget`), **tous les véhicules** (avec ou sans profil, enregistrés ou non) et les objets configurés.
 
@@ -269,6 +292,10 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
   Pendant la fouille on ne se déplace pas ; **X** l'annule (elle s'interrompt aussi si la cible s'éloigne). Le serveur ne
   donne le résultat qu'une fois le temps écoulé.
 - Une personne est toujours présentée comme « **Individu** » : ni identité, ni nom du profil actif, ni mention PNJ.
+- **Corps** laissé sur place par un joueur réanimé ([`rp_revive`](../rp_revive/README.md)) : présenté comme
+  « **Corps** », avec la description du **profil actif** du joueur au moment de sa mort (sans l'odeur détectée
+  automatiquement) ; inspections et fouilles, mais ni menottes ni « prendre par le bras » (export serveur
+  `rememberCorpse(source, netId)`).
 - Les résultats d'une personne sont **ceux de son profil actif** ; sans profil (ou PNJ) : réponses par défaut.
 - Les inspections sont listées en premier, puis les actions sur l'environnement :
   - véhicule : **ouvrir / fermer la portière visée** (avant gauche, avant droite, arrière…), le capot ou le coffre,
@@ -405,6 +432,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `Surrender` | tips d'arrestation : commande, touche par défaut, libellé et emote de chaque action |
 | `AimRadius`, `AimRange`, `AimRefresh` | mise en joue : rayon autour du civil, portée, confirmation |
 | `PlaceDoorDistance` | placer à l'arrière : le civil doit être à moins de 4 m d'une portière arrière libre |
+| `Weather` | page Météo : activée, permission ACE, temps par défaut, vitesses du temps (de base / réaliste), défilement de la météo (minutes, transition, listes beau temps / pluvieux), temps proposés |
 | `Smell`, `Smells` | odeurs détectées automatiquement : activées, distance (6 m), 2 au plus, durée de la notification, délai avant d'être prévenu de nouveau, volume du son ; liste des odeurs (`id` à ne pas changer, nom dans la fiche, ce que sent le policier) |
 
 ## Liens avec le MDC et le chat

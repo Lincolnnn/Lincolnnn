@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '3.4.0'
+version '3.5.0'
 
 ui_page 'html/index.html'
 
@@ -42,10 +42,12 @@ client_scripts {
     'client/eup.lua',      -- /eup : menu des tenues au clavier (data/outfits.json)
     'client/combat.lua',   -- arme à feu en main : ni coup de crosse / coup dans le vide, ni roulade
     'client/smell.lua',    -- policier en service : odeurs détectées à côté d'un civil / d'un véhicule
+    'client/weather.lua',  -- météo et heure du serveur (Menu > Configuration > Météo)
 }
 
 server_scripts {
     'server/emotes.lua',   -- lecture des emotes du mode d'emotes (RPEMOTES / rpemotes)
     'server/server.lua',
     'server/vehicles.lua', -- liste des véhicules, radio, équipements
+    'server/weather.lua',  -- météo et heure du serveur, réglées dans le menu
 }

@@ -119,8 +119,12 @@ EquipConfig = {
         -- l'essence qui lui reste (plein = Ammo = 2/5 d'un réservoir avec rp_vehiclecontrol). /restock le remet plein.
         Jerrycans = { Default = 1, Max = 1, Weapon = 'WEAPON_PETROLCAN', Ammo = 4500 },
         -- Pistolet radar (jumelles de vitesse) : un dans le coffre de chaque véhicule de police, à prendre et ranger
-        -- (la herse de riven_spikes se prend aussi au coffre, avec l'œil : voir README)
         RadarGuns = { Default = 1, Max = 1, Weapon = 'WEAPON_RADARGUN' },
+        -- Herse de riven_spikes (script payant, s'il est installé) : prise et rangée UNIQUEMENT dans ce menu (coffre) ;
+        -- en main, elle ne peut plus être rangée « dans la poche » (touche X de Riven) : la poser au sol ou la ranger
+        -- dans le coffre. Type : modèle de Riven pris au coffre (spikestrip, stopstick…). Le stock du coffre est celui
+        -- de Riven (Config.Trunk.stock de son config.lua).
+        Spikes = { Enabled = true, Resource = 'riven_spikes', Type = 'spikestrip' },
         PlaceKey = 'G',
         RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots, fusées, jerrican, pistolet radar), sauf armes longues
         RestockDistance = 6.0,      -- m : véhicule de police le plus proche (ou celui où l'on est assis)

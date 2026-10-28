@@ -607,15 +607,15 @@ exports('targetOptions', function(info)
     local K = Config.Knock or {}
     local options = {}
     if forced then
-        if admin then options[#options + 1] = { id = 'repair', icon = 'tool', label = 'Réparer la porte' } end
+        if admin then options[#options + 1] = { id = 'repair', icon = 'tool', label = 'Réparer la porte', primary = true } end
     elseif not lock then
-        if not police then options[#options + 1] = { id = 'lock', icon = 'lock', label = 'Verrouiller la porte' } end
+        if not police then options[#options + 1] = { id = 'lock', icon = 'lock', label = 'Verrouiller la porte', primary = true } end
     elseif not police or admin then
-        options[#options + 1] = { id = 'unlock', icon = 'unlock', label = 'Déverrouiller la porte' }
+        options[#options + 1] = { id = 'unlock', icon = 'unlock', label = 'Déverrouiller la porte', primary = true }
     end
     if K.Enabled ~= false then options[#options + 1] = { id = 'knock', icon = 'hand', label = 'Frapper à la porte' } end
     if lock and (Config.Kick or {}).Enabled ~= false then -- tout le monde (civil ou policier)
-        options[#options + 1] = { id = 'kick', icon = 'door', label = 'Enfoncer la porte' }
+        options[#options + 1] = { id = 'kick', icon = 'door', label = 'Enfoncer la porte', primary = true }
     end
     if #options == 0 then return nil end
     return { label = forced and 'Porte forcée' or (lock and 'Porte verrouillée' or 'Porte'), options = options }

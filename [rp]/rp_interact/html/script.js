@@ -95,16 +95,22 @@
 
     function showEyeOptions(data) {
         eye.menu = true;
-        const list = toArray(data.options);
-        $('#eyeLabel').classList.add('hidden');
-        $('#eyeOptions').innerHTML = `
-            ${data.label ? `<li class="opt-title">${esc(data.label)}</li>` : ''}
-            ${list.map((o) => `
-                <li class="opt ${o.disabled ? 'disabled' : ''}" data-index="${esc(o.index)}">
+        // Options principales (ce qui est visé précisément, police) en tête et mises en avant, puis un séparateur
+        const all = toArray(data.options);
+        const primary = all.filter((o) => o.primary);
+        const others = all.filter((o) => !o.primary);
+        const row = (o) => `
+                <li class="opt ${o.primary ? 'primary' : ''} ${o.disabled ? 'disabled' : ''}" data-index="${esc(o.index)}">
                     ${icon(o.icon)}
                     <span class="opt-label">${esc(o.label)}</span>
                     ${o.police ? '<span class="opt-police">POLICE</span>' : ''}
-                </li>`).join('')}`;
+                </li>`;
+        $('#eyeLabel').classList.add('hidden');
+        $('#eyeOptions').innerHTML = `
+            ${data.label ? `<li class="opt-title">${esc(data.label)}</li>` : ''}
+            ${primary.map(row).join('')}
+            ${primary.length && others.length ? '<li class="opt-sep" aria-hidden="true"></li>' : ''}
+            ${others.map(row).join('')}`;
         $('#eyeOptions').classList.remove('hidden');
     }
 
@@ -402,7 +408,7 @@
     const LOCKED_TEXT = 'Accès réservé : vous n\'avez pas la permission.';
     // Couleur de la bannière : une par partie du menu ; WSP / KCSO : couleur de la police (comme le MDC)
     const AGENCY_COLORS = { wsp: '#2d63b3', kcso: '#2f7a55' };
-    const MENU_COLORS = { home: '#2f5ea8', police: '#28509a', civil: '#6a4fa0', equipment: '#a0662a', car: '#23827a' };
+    const MENU_COLORS = { home: '#2f5ea8', police: '#28509a', civil: '#6a4fa0', equipment: '#a0662a', car: '#23827a', weather: '#3a6f8f' };
     const agencyCode = (text) => {
         const t = String(text || '').toLowerCase();
         if (t === 'wsp' || t.startsWith('washington')) return 'wsp';
@@ -444,6 +450,7 @@
                     { kind: 'section', label: 'Configuration' },
                     { kind: 'menu', label: 'Équipements', open: equipmentPage, desc: 'Tenues (/eup) et armes.', ...locked('equipment') },
                     { kind: 'menu', label: 'Voiture', open: carPage, desc: 'Faire apparaître un véhicule, radio du véhicule.', ...locked('car') },
+                    { kind: 'menu', label: 'Météo', open: weatherPage, desc: 'Météo et heure du serveur (pour tout le monde), et leur défilement.', ...locked('weather') },
                 ];
             },
         };
@@ -747,6 +754,70 @@
                 { kind: 'menu', label: 'Spawn', open: spawnPage, desc: 'Faire apparaître un véhicule (data/vehicle.json).' },
                 { kind: 'menu', label: 'Radio', open: radioPage, desc: 'Musique, vidéo, podcast dans le véhicule, pour tout le monde.' },
             ],
+        };
+    }
+
+    // ---- Configuration > Météo : météo et heure du serveur (server/weather.lua) ----
+    const WEATHER_MODES = [{ id: 'fixed', label: 'Fixe' }, { id: 'fair', label: 'Beau temps' }, { id: 'rainy', label: 'Pluvieux' }];
+    const TIME_MODES = [{ id: 'fixed', label: 'Fixe (ne bouge plus)' }, { id: 'base', label: 'De base (rapide)' }, { id: 'realistic', label: 'Réaliste' }];
+    const wx = { loaded: false, allowed: false, types: [], current: null, draft: null };
+    const two = (n) => String(n).padStart(2, '0');
+    const labelOf = (list, id) => (list.find((x) => x.id === id) || {}).label || id;
+
+    async function loadWeather() {
+        const res = await post('weatherGet');
+        if (!res || !res.ok) return;
+        wx.loaded = true;
+        wx.allowed = !!res.allowed;
+        wx.types = toArray(res.types);
+        wx.current = res;
+        wx.draft = { weather: res.weather, weatherMode: res.weatherMode, timeMode: res.timeMode, hour: res.hour, minute: res.minute };
+        rerender();
+    }
+
+    function weatherPage() {
+        return {
+            id: 'weather', title: 'Météo',
+            banner: { title: 'Météo', sub: 'Météo et heure du serveur', color: MENU_COLORS.weather },
+            onEnter: loadWeather,
+            items: () => {
+                const c = wx.current; const d = wx.draft;
+                if (!wx.loaded || !d) return [{ kind: 'info', label: 'Chargement…', tone: 'muted' }];
+                const lock = wx.allowed ? {} : { disabled: true, why: LOCKED_TEXT };
+                const index = (list, id) => Math.max(0, list.findIndex((x) => x.id === id));
+                return [
+                    { kind: 'info', label: `Actuellement : ${labelOf(wx.types, c.weather)} · ${two(c.hour)}:${two(c.minute)}`
+                        + ` · météo ${labelOf(WEATHER_MODES, c.weatherMode).toLowerCase()} · heure ${labelOf(TIME_MODES, c.timeMode).toLowerCase()}`, tone: 'muted' },
+                    !wx.allowed && { kind: 'info', label: 'Réservé : vous ne pouvez pas régler la météo.', tone: 'warn' },
+                    { kind: 'section', label: 'Météo' },
+                    { kind: 'list', label: 'Temps', options: wx.types.map((t) => t.label), index: index(wx.types, d.weather), ...lock,
+                        desc: 'Le temps qu\'il fait maintenant (changement en douceur pour tout le monde).',
+                        onChange: (i) => { d.weather = wx.types[i].id; rerender(); } },
+                    { kind: 'list', label: 'Défilement de la météo', options: WEATHER_MODES.map((m) => m.label), index: index(WEATHER_MODES, d.weatherMode), ...lock,
+                        desc: 'Fixe : le temps ne change plus. Beau temps : passe d\'un temps clair à un autre. Pluvieux : pluie, orage, brumeux, brouillard.',
+                        onChange: (i) => { d.weatherMode = WEATHER_MODES[i].id; rerender(); } },
+                    { kind: 'section', label: 'Heure' },
+                    { kind: 'input', key: 'time', label: 'Heure', value: `${two(d.hour)}:${two(d.minute)}`, max: 5, placeholder: 'HH:MM', ...lock,
+                        desc: 'Entrée : écrire l\'heure à la minute près (ex : 21:45), Entrée pour valider.',
+                        onChange: (value) => {
+                            const m = /^\s*(\d{1,2})\s*[:h.]\s*(\d{1,2})\s*$/.exec(value || '');
+                            if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) { toast('Heure invalide : 00:00 à 23:59.', 'error'); rerender(); return; }
+                            d.hour = Number(m[1]); d.minute = Number(m[2]); rerender();
+                        } },
+                    { kind: 'list', label: 'Défilement du temps', options: TIME_MODES.map((m) => m.label), index: index(TIME_MODES, d.timeMode), ...lock,
+                        desc: 'Fixe : l\'heure ne bouge plus. De base : 2 s par minute du jeu (GTA). Réaliste : 40 s par minute du jeu.',
+                        onChange: (i) => { d.timeMode = TIME_MODES[i].id; rerender(); } },
+                    { kind: 'section', label: 'Appliquer' },
+                    { kind: 'button', label: 'Appliquer à tout le serveur', ...lock,
+                        action: async () => {
+                            const res = await post('weatherSet', d);
+                            if (!res || !res.ok) { toast(res?.error || 'Réglage impossible.', 'error'); return; }
+                            wx.current = res;
+                            toast(`Météo : ${labelOf(wx.types, res.weather)}, ${two(res.hour)}:${two(res.minute)}.`, 'success');
+                            rerender();
+                        } },
+                ].filter(Boolean);
+            },
         };
     }
 

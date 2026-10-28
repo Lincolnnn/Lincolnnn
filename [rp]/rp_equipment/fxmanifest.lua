@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_equipment'
 author 'Lincolnnn'
 description 'Équipement des véhicules de police, râtelier d\'armes longues et coffre (plots, fusées) - standalone, NUI Vanilla JS'
-version '1.10.1'
+version '1.11.0'
 
 ui_page 'html/index.html'
 
@@ -27,5 +27,6 @@ client_scripts {
     'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'client/client.lua',
     'client/traffic.lua',
+    'client/spikes.lua',    -- herse de riven_spikes : prise / rangée au coffre, jamais « rangée dans la poche »
 }
 server_script 'server/server.lua'

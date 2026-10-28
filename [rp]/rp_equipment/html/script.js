@@ -99,6 +99,13 @@
         $('eqRadarHeld').textContent = inv.radar ? 'Sur vous : 1' : 'Sur vous : aucun';
         $('eqRadarTake').disabled = radars <= 0 || !!inv.radar;
         $('eqRadarStore').disabled = !inv.radar || radars >= (st.maxRadars || 1);
+        // Herse (riven_spikes) : seulement si le script est là, dans le coffre ; en main ou non
+        $('eqSpikeRow').classList.toggle('hidden', !inv.spikes);
+        if (inv.spikes) {
+            $('eqSpikeHeld').textContent = inv.spikeHeld ? 'En main : une herse' : 'En main : aucune';
+            $('eqSpikeTake').disabled = !!inv.spikeHeld;
+            $('eqSpikeStore').disabled = !inv.spikeHeld;
+        }
         $('eqFlares').textContent = `${st.flares} / ${st.maxFlares} dans le coffre`;
         $('eqFlaresHeld').textContent = `Sur vous : ${inv.flares}`;
         box.querySelectorAll('[data-flares="take"]').forEach((b) => { b.disabled = st.flares <= 0 || inv.flares >= inv.maxHeld; });
@@ -153,6 +160,8 @@
         if (e.target.closest('#eqCanStore')) return post('jerrycan', { mode: 'store' });
         if (e.target.closest('#eqRadarTake')) return post('radarGun', { mode: 'take' });
         if (e.target.closest('#eqRadarStore')) return post('radarGun', { mode: 'store' });
+        if (e.target.closest('#eqSpikeTake')) return post('spikes', { mode: 'take' });
+        if (e.target.closest('#eqSpikeStore')) return post('spikes', { mode: 'store' });
         const flares = e.target.closest('[data-flares]');
         if (flares) return post('flares', { mode: flares.dataset.flares, all: !!flares.dataset.all });
         if (e.target.closest('#eqClose')) return post('close');

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="night" data-night-color="logo">
+<head>
+    <meta charset="UTF-8">
+    <title>RP Revive</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Mort : réanimer sur place ou à l'hôpital (au hasard), laisser son corps sur place -->
+    <div class="death hidden" id="death" aria-hidden="true">
+        <div class="death-veil"></div>
+        <div class="death-card">
+            <div class="death-head">
+                <span class="death-dot"></span>
+                <span class="death-title">Vous êtes mort</span>
+            </div>
+            <div class="death-sub" id="deathSub">Choisissez comment revenir.</div>
+            <div class="death-choices">
+                <button class="death-btn primary" id="reviveHere" data-where="here">
+                    <span class="death-key" id="keyHere">E</span>
+                    <span class="death-btn-text"><b>Réanimer sur place</b><small>Là où se trouve votre corps</small></span>
+                </button>
+                <button class="death-btn primary" id="reviveHospital" data-where="hospital">
+                    <span class="death-key" id="keyHospital">H</span>
+                    <span class="death-btn-text"><b>Réanimer à l'hôpital</b><small id="hospitalList">Un hôpital au hasard</small></span>
+                </button>
+            </div>
+            <label class="death-check" id="corpseRow">
+                <input type="checkbox" id="corpse">
+                <span class="death-box" aria-hidden="true"></span>
+                <span class="death-check-text">
+                    <span class="death-check-line"><b>Laisser mon corps sur place</b><span class="death-key small" id="keyCorpse">C</span></span>
+                    <small>Une copie de votre personnage reste allongée ici (description de votre profil, sans l'odeur).</small>
+                </span>
+            </label>
+            <div class="death-wait" id="deathWait"></div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

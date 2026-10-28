@@ -104,9 +104,16 @@ kbd {
     border-bottom: 1px solid var(--stroke); margin-bottom: 4px;
 }
 .eye-options li.opt {
-    position: relative; display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+    position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 3px 0;
     color: var(--text); border-radius: var(--radius-sm); cursor: pointer;
 }
+/* Options principales (portière visée, herse, porte, police…) : surlignées, en tête de liste */
+.eye-options li.opt.primary {
+    background: rgba(var(--accent-rgb), .14); box-shadow: inset 3px 0 0 var(--accent); font-weight: 600;
+}
+.eye-options li.opt.primary svg { color: var(--accent); }
+.eye-options li.opt.primary:hover { background: rgba(var(--accent-rgb), .24); }
+.eye-options li.opt-sep { height: 1px; margin: 7px 8px; background: var(--stroke-2); list-style: none; }
 .eye-options li.opt:hover { background: var(--card-2); }
 .eye-options li.opt:hover::before {
     content: ""; position: absolute; left: 0; top: 50%; width: 3px; height: 16px; transform: translateY(-50%);

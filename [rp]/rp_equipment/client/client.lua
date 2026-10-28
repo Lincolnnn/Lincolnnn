@@ -30,6 +30,7 @@ local function notify(text)
     AddTextComponentSubstringPlayerName(text)
     EndTextCommandThefeedPostTicker(false, false)
 end
+EquipNotify = notify -- client/spikes.lua
 
 local pending, nextId = {}, 0
 local function request(action, data, cb)
@@ -542,11 +543,13 @@ sendInventory = function(force)
     local cones = carried and carried.count or 0
     local can = canHeld(ped)
     local radar = HasPedGotWeapon(ped, RADARGUN, false)
-    local key = ('%d:%d:%s:%s'):format(cones, flaresHeld(ped), tostring(can), tostring(radar))
+    local spikes = RPSpikes ~= nil and RPSpikes.available(open) -- (client/spikes.lua)
+    local spikeHeld = spikes and RPSpikes.held() or false
+    local key = ('%d:%d:%s:%s:%s:%s'):format(cones, flaresHeld(ped), tostring(can), tostring(radar), tostring(spikes), tostring(spikeHeld))
     if key == lastInventory and not force then return end
     lastInventory = key
     SendNUIMessage({ action = 'inventory', data = { carrying = cones, maxCarry = MAX_CARRY, flares = flaresHeld(ped),
-        maxHeld = MAX_FLARES_HELD, jerrycan = can, radar = radar } })
+        maxHeld = MAX_FLARES_HELD, jerrycan = can, radar = radar, spikes = spikes, spikeHeld = spikeHeld } })
 end
 
 local function loadAnim(dict)
@@ -856,6 +859,15 @@ RegisterNUICallback('radarGun', function(data, cb)
         end
         sendInventory(true)
     end)
+end)
+
+-- Herse (riven_spikes) : { mode = 'take' | 'store' } : le menu se ferme, Riven fait la suite (animation au coffre)
+RegisterNUICallback('spikes', function(data, cb)
+    cb({ ok = true })
+    if not open or type(data) ~= 'table' then return end
+    local vehicle = open.vehicle
+    closeMenu()
+    if RPSpikes then RPSpikes.run(data.mode == 'store' and 'store' or 'take', vehicle) end
 end)
 
 -- Fusées : { mode = 'take' | 'store', all = true | false }

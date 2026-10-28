@@ -117,7 +117,7 @@ local function providerOptions(ctx, options)
                 for _, o in ipairs(res.options) do
                     local id = o.id
                     options[#options + 1] = { id = ('%s:%s'):format(resource, tostring(id)), label = o.label or '?',
-                        icon = o.icon or 'search', police = o.police,
+                        icon = o.icon or 'search', police = o.police, primary = o.primary,
                         run = function() exports[resource]:targetSelect(id, info) end }
                 end
                 if #res.options > 0 and res.label then ctx.providerLabel = res.label end
@@ -127,6 +127,17 @@ local function providerOptions(ctx, options)
     ctx.providerOnly = base == 0 and #options > 0
     return options
 end
+
+--- Options PRINCIPALES (mises en avant dans la liste, en tête) : celles qui n'existent que pour ce qui est visé
+--- précisément (portière visée, herse, porte, banc…) et les options de police (sauf faire s'asseoir au sol)
+local NOT_PRIMARY = { ['police:seat'] = true }
+local function markPrimary(options)
+    for _, option in ipairs(options) do
+        option.primary = option.primary == true or (option.police == true and not NOT_PRIMARY[option.id]) or nil
+    end
+    return options
+end
+RPI.markPrimary = markPrimary -- pour les tests
 
 local function update()
     local canDelete = RPI.Police.canDelete()
@@ -139,7 +150,7 @@ local function update()
     end
     local ctx = coords and buildContext(coords, entity, canDelete) or nil
     local options = ctx and RPI.getOptions(ctx) or {}
-    if ctx then options = providerOptions(ctx, options) end
+    if ctx then options = markPrimary(providerOptions(ctx, options)) end
     if #options == 0 then ctx = nil end
 
     -- Envoi au NUI seulement quand la cible ou ses options changent
@@ -167,7 +178,8 @@ local function openOptions()
     SetCursorLocation(0.5, 0.5)
     local list = {}
     for i, option in ipairs(current.options) do
-        list[i] = { index = i, label = option.label, icon = option.icon, police = option.police, disabled = option.disabled }
+        list[i] = { index = i, label = option.label, icon = option.icon, police = option.police, primary = option.primary,
+            disabled = option.disabled }
     end
     SendNUIMessage({ action = 'eyeOptions', data = { label = RPI.targetLabel(current.ctx), options = list } })
 end

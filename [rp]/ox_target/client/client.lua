@@ -216,6 +216,15 @@ local function evaluate(option, entity, hit, distance, zone)
     return { entity = entity, coords = hit, distance = distance, zone = zone, bone = bone }
 end
 
+--- Option cachée dans l'œil (Config.HiddenPrefixes) : seulement par nos menus (runOption)
+local function hidden(option)
+    if type(option.name) ~= 'string' then return false end
+    for _, prefix in ipairs(Config.HiddenPrefixes or {}) do
+        if option.name:sub(1, #prefix) == prefix then return true end
+    end
+    return false
+end
+
 --- Options possibles pour ce qui est visé : liste de { uid, option, data }
 local function candidates(info)
     local out = {}
@@ -228,6 +237,7 @@ local function candidates(info)
         for _, uid in ipairs(list or {}) do
             local option = registry[uid]
             if option and (Config.PoliceOnly or {})[option.resource] and not info.police then option = nil end
+            if option and hidden(option) then option = nil end
             local data = option and evaluate(option, entity, hit, distance, zoneId)
             if data then out[#out + 1] = { uid = uid, option = option, data = data } end
         end
@@ -266,31 +276,68 @@ exports('targetOptions', function(info)
     if #list == 0 then return nil end
     local options, label = {}, nil
     for _, c in ipairs(list) do
-        options[#options + 1] = { id = c.uid, label = translate(c.option.resource, c.option.label or c.option.name), icon = icon(c.option.icon) }
+        -- principale (mise en avant dans l'œil) : liée à une partie précise visée (coffre…) ou script réservé à la police
+        local primary = c.option.bones ~= nil or (Config.PoliceOnly or {})[c.option.resource] == true or nil
+        options[#options + 1] = { id = c.uid, label = translate(c.option.resource, c.option.label or c.option.name), icon = icon(c.option.icon),
+            primary = primary }
         label = label or Config.Labels[c.option.resource]
     end
     return { label = label, options = options }
 end)
 
+--- Exécute l'action d'une option (onSelect, export, event, serverEvent, command)
+local function run(option, data)
+    data.name = option.name
+    if option.onSelect then
+        local ok, err = pcall(option.onSelect, option.qtarget and data.entity or data)
+        if not ok then print(('^1[ox_target (pont)] %s : %s^7'):format(tostring(option.resource), tostring(err))) end
+    elseif option.export then
+        pcall(function() exports[option.resource][option.export](nil, data) end)
+    elseif option.event then
+        TriggerEvent(option.event, data)
+    elseif option.serverEvent then
+        data.entity = data.entity ~= 0 and NetworkGetEntityIsNetworked(data.entity) and NetworkGetNetworkIdFromEntity(data.entity) or 0
+        TriggerServerEvent(option.serverEvent, data)
+    elseif option.command then
+        ExecuteCommand(option.command)
+    end
+end
+
 exports('targetSelect', function(id, info)
     for _, c in ipairs(candidates(info)) do
-        if c.uid == tonumber(id) then
-            local option, data = c.option, c.data
-            data.name = option.name
-            if option.onSelect then
-                local ok, err = pcall(option.onSelect, option.qtarget and data.entity or data)
-                if not ok then print(('^1[ox_target (pont)] %s : %s^7'):format(tostring(option.resource), tostring(err))) end
-            elseif option.export then
-                pcall(function() exports[option.resource][option.export](nil, data) end)
-            elseif option.event then
-                TriggerEvent(option.event, data)
-            elseif option.serverEvent then
-                data.entity = data.entity ~= 0 and NetworkGetEntityIsNetworked(data.entity) and NetworkGetNetworkIdFromEntity(data.entity) or 0
-                TriggerServerEvent(option.serverEvent, data)
-            elseif option.command then
-                ExecuteCommand(option.command)
+        if c.uid == tonumber(id) then return run(c.option, c.data) end
+    end
+end)
+
+--- Lance une option par son NOM sur une entité, depuis un de nos menus (ex. rp_equipment : prendre / ranger la herse
+--- du coffre), même cachée dans l'œil. Le point visé est la partie demandée par l'option (bones : le coffre…).
+--- Ses conditions (canInteract) sont respectées. -> true, 'ok' ou false + raison ('missing', 'unavailable', 'disabled')
+exports('runOption', function(name, entity)
+    if disabled then return false, 'disabled' end
+    entity = tonumber(entity) or 0
+    if entity == 0 or not DoesEntityExist(entity) then return false, 'missing' end
+    local kind = ({ [1] = 'ped', [2] = 'vehicle', [3] = 'object' })[GetEntityType(entity)]
+    local lists = { globals[kind or 'any'], globals.any, models[GetEntityModel(entity)], localEntities[entity] }
+    if NetworkGetEntityIsNetworked(entity) then lists[#lists + 1] = netEntities[NetworkGetNetworkIdFromEntity(entity)] end
+    for i = 1, #lists do
+        for _, uid in ipairs(lists[i] or {}) do
+            local option = registry[uid]
+            if option and option.name == name then
+                local hit, bone = nil, nil
+                for _, b in ipairs(type(option.bones) == 'table' and option.bones or { option.bones }) do
+                    local index = GetEntityBoneIndexByName(entity, b)
+                    if index ~= -1 then hit, bone = GetWorldPositionOfEntityBone(entity, index), index break end
+                end
+                hit = hit or GetEntityCoords(entity)
+                local distance = #(GetEntityCoords(PlayerPedId()) - hit)
+                if option.canInteract then
+                    local ok, allowed = pcall(option.canInteract, entity, distance, hit, option.name, bone)
+                    if not ok or not allowed then return false, 'unavailable' end
+                end
+                run(option, { entity = entity, coords = hit, distance = distance, bone = bone })
+                return true, 'ok'
             end
-            return
         end
     end
+    return false, 'missing'
 end)

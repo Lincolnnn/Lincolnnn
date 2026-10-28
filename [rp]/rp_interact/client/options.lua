@@ -317,7 +317,7 @@ local function vehicleOptions(ctx)
             local bone = GetEntityBoneIndexByName(vehicle, front.bone)
             if bone ~= -1 and GetVehicleDoorAngleRatio(vehicle, front.door) > 0.1
                 and #(ctx.hit - GetWorldPositionOfEntityBone(vehicle, bone)) < 1.3 then
-                out[#out + 1] = { id = 'radio', label = 'Radio du véhicule', icon = 'music',
+                out[#out + 1] = { id = 'radio', label = 'Radio du véhicule', icon = 'music', primary = true,
                     run = function(c) RPI.openRadio(c.entity) end }
                 break
             end
@@ -330,7 +330,7 @@ local function vehicleOptions(ctx)
     local locked = isLocked(vehicle)
     local isOpen = GetVehicleDoorAngleRatio(vehicle, door.index) > 0.05
     out[#out + 1] = {
-        id = 'door:toggle', icon = 'door', disabled = locked and not isOpen or nil,
+        id = 'door:toggle', icon = 'door', primary = true, disabled = locked and not isOpen or nil, -- portière visée
         label = ('%s %s%s'):format(isOpen and 'Fermer' or 'Ouvrir', door.name, locked and not isOpen and ' (verrouillé)' or ''),
         run = function(c)
             withControl(c.entity, function()
@@ -346,7 +346,7 @@ local function vehicleOptions(ctx)
     }
     if door.seat and not IsPedInAnyVehicle(PlayerPedId(), false) and IsVehicleSeatFree(vehicle, door.seat) then
         out[#out + 1] = {
-            id = 'door:enter', icon = 'seat', label = door.seatName .. (locked and ' (verrouillé)' or ''),
+            id = 'door:enter', icon = 'seat', primary = true, label = door.seatName .. (locked and ' (verrouillé)' or ''),
             disabled = locked or nil,
             run = function(c) TaskEnterVehicle(PlayerPedId(), c.entity, 10000, door.seat, 1.0, 1, 0) end,
         }
@@ -363,7 +363,8 @@ local function personOptions(ctx)
     local ped = ctx.entity
 
     -- Police, à 2 m : menotter / retirer les menottes, prendre / lâcher le bras (joueurs et PNJ)
-    if ctx.police and not ctx.isSelf and within(ctx, Config.ActionDistance) and not IsPedInAnyVehicle(ped, false) then
+    if ctx.police and not ctx.isSelf and within(ctx, Config.ActionDistance) and not IsPedInAnyVehicle(ped, false)
+        and not IsPedDeadOrDying(ped, true) then -- (un corps : inspections et fouilles seulement)
         local cuffed = Police.isCuffed(ped)
         out[#out + 1] = { id = 'police:cuff', label = cuffed and 'Retirer les menottes' or 'Menotter', icon = 'cuffs', police = true,
             run = function(c) Police.cuff(c.entity, not cuffed) end }
@@ -453,7 +454,7 @@ local function objectOptions(ctx)
         if within(ctx, external.Distance or 2.5) then
             for _, action in ipairs(external.Options or { external }) do
                 if action.Event then
-                    out[#out + 1] = { id = 'ext:' .. action.Event, label = action.Label or 'Retirer', icon = action.Icon or 'hand',
+                    out[#out + 1] = { id = 'ext:' .. action.Event, label = action.Label or 'Retirer', icon = action.Icon or 'hand', primary = true,
                         run = function(c) TriggerServerEvent(action.Event, ObjToNet(c.entity)) end }
                 end
             end
@@ -465,11 +466,11 @@ local function objectOptions(ctx)
     local seat = SEATS[ctx.model]
     local near = within(ctx, Config.ObjectDistance)
     if near and seat and not seated and not IsPedInAnyVehicle(PlayerPedId(), false) then
-        out[#out + 1] = { id = 'env:sit', label = 'S\'asseoir', icon = 'seat', run = function(c) sit(c, seat) end }
+        out[#out + 1] = { id = 'env:sit', label = 'S\'asseoir', icon = 'seat', primary = true, run = function(c) sit(c, seat) end }
     end
     if near and TRASH[ctx.model] then
         out[#out + 1] = {
-            id = 'env:bin', label = 'Fouiller la poubelle', icon = 'search',
+            id = 'env:bin', label = 'Fouiller la poubelle', icon = 'search', primary = true,
             run = function(c)
                 faceEntity(c.entity)
                 TaskStartScenarioInPlace(PlayerPedId(), 'PROP_HUMAN_BUM_BIN', 0, true)

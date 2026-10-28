@@ -28,6 +28,8 @@ script dans son propre dossier à côté, jamais à l'intérieur du MDC) :
 ├── rp_NPCcontrol/       PNJ, services d'urgence, densité
 ├── rp_flares/           fusées de détresse
 ├── rp_doorlock/         portes verrouillées (civils), frapper, enfoncer (tout le monde)
+├── rp_revive/           réanimation sur place ou à l'hôpital, corps laissé sur place
+├── rp_weaponscontrol/   recul, effets au tir, acouphènes, flash et fumée du canon
 ├── rp_vehicleprops/     objets collés sur les véhicules (œil)
 ├── rp_taser10/          TASER 10 (sondes, fils, laser, lampe ; œil)
 ├── ox_target/           pont : les scripts qui exigent ox_target utilisent l'œil (herses de riven_spikes)
@@ -60,6 +62,8 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_NPCcontrol
    ensure rp_flares
    ensure rp_doorlock
+   ensure rp_revive
+   ensure rp_weaponscontrol
    ensure rp_vehicleprops
    ensure rp_taser10
    ensure rp_TrafficControl
