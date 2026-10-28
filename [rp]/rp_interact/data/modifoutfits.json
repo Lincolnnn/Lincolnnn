@@ -1,0 +1,20 @@
+{
+    "WSP": [
+        { "Name": "Gilet de Haute Visibilité", "Category": "Gilets", "Gender": "Male", "Armor": "110:1" },
+        { "Name": "Gilet pare-balles", "Category": "Gilets", "Gender": "Male", "Armor": "13:1" },
+        { "Name": "Chapeau de campagne", "Category": "Couvre-chefs", "Gender": "Male", "Hat": "14:1" },
+        { "Name": "Sans couvre-chef", "Category": "Couvre-chefs", "Hat": "0:0" }
+    ],
+    "KCSO": [
+        { "Name": "Gilet de Haute Visibilité", "Category": "Gilets", "Gender": "Female", "Armor": "110:1" },
+        { "Name": "Casquette KCSO", "Category": "Couvre-chefs", "Gender": "Female", "Hat": "46:1" }
+    ],
+    "Civil": [
+        { "Name": "Lunettes de soleil", "Category": "Accessoires", "Glasses": "6:1" },
+        { "Name": "Montre", "Category": "Accessoires", "Gender": "Male", "Watch": "2:1" },
+        { "Name": "Veste en cuir", "Gender": "Male", "Top": "7:1", "UpperSkin": "1:1" }
+    ],
+    "Tous": [
+        { "Name": "Gants noirs", "Gender": "Male", "UpperSkin": "20:1" }
+    ]
+}

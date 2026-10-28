@@ -22,6 +22,11 @@ Dossier de données de RP Interact.
                    (voir README.md, partie "Menu des tenues"). Fourni avec 3 tenues d'EXEMPLE (numéros
                    à remplacer par ceux de votre pack EUP) : remplacez-les par les vôtres, en gardant les
                    crochets [ ] autour de la liste et une virgule entre chaque tenue { ... }.
+  modifoutfits.json -> PIÈCES du bouton "Modifier ma tenue" du menu /eup : à remplir vous-même, une liste par
+                   service : { "WSP": [ ... ], "KCSO": [ ... ], "Civil": [ ... ], "Tous": [ ... ] }, chaque pièce
+                   { "Name": "Gilet de Haute Visibilité", "Category": "Gilets", "Gender": "Male", "Armor": "110:1" }
+                   (une ou plusieurs parties, mêmes noms que outfits.json ; Category et Gender facultatifs).
+                   Fourni avec des pièces d'EXEMPLE (numéros à remplacer). Voir README.md, "Modifier ma tenue".
 
 Fichiers JSON : une virgule en trop ou un guillemet manquant rend le fichier invalide (la console serveur
 l'indique). Après une modification : tapez  rpi_vehicles  dans la console serveur pour les relire.

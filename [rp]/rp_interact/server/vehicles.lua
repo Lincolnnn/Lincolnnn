@@ -3,7 +3,7 @@
     -------------------------------------------------------------
     - Fichiers JSON du dossier data/ (remplis à la main, relus avec la commande console "rpi_vehicles") :
       vehicle.json (véhicules du menu Voiture > Spawn), loadouts.json (armes du menu Équipements),
-      outfits.json (tenues du menu /eup). Seuls les véhicules de vehicle.json peuvent être demandés ;
+      outfits.json (tenues du menu /eup), modifoutfits.json (pièces de "Modifier ma tenue" par service). Seuls les véhicules de vehicle.json peuvent être demandés ;
       véhicules de police réservés aux policiers en service si SpawnPoliceOnly.
     - Radio : état du véhicule "rpiRadio" = { url, start (heure UTC de lancement, s), volume (0-100),
       queue (file "Écouter ensuite", 5 liens max), history (5 morceaux précédents), seq (n° du morceau),
@@ -12,7 +12,8 @@
       au véhicule (œil, portière avant ouverte) : lancer, ajouter à la file, pause / reprise, début du
       morceau (deux fois : morceau précédent), suivant, arrêter, volume. À la fin d'un morceau (signalée
       par un joueur qui l'entend), le suivant de la file démarre.
-    - Équipements : armes de loadouts.json ; tenues de outfits.json (menu /eup, vérification de l'accès).
+    - Équipements : armes de loadouts.json ; tenues de outfits.json (menu /eup, vérification de l'accès) ;
+      pièces de modifoutfits.json (celles des polices non envoyées si les tenues de police sont réservées).
     Aucune boucle.
 ]]
 
@@ -229,6 +230,32 @@ local POLICE_GROUPS = {
     kcso = 'KCSO', ['king county sheriff office'] = 'KCSO', ["king county sheriff's office"] = 'KCSO',
 }
 
+--- Pièces "modèle:texture" d'un objet (tenue ou pièce de "Modifier ma tenue") -> composants et accessoires,
+--- comptés à partir de 0 ; accessoire à -1 : retiré
+local function parseParts(o, oneBased)
+    local components, props = {}, {}
+    for part, target in pairs(OUTFIT_PARTS) do
+        local value = field(o, part)
+        local d, t = tostring(value or ''):match('^%s*(%-?%d+)%s*:%s*(%-?%d+)%s*$')
+        d, t = tonumber(d), tonumber(t)
+        if d then
+            if oneBased then d, t = d - 1, math.max((t or 1) - 1, 0) end
+            if target.prop then
+                props[#props + 1] = { target.prop, d, t or 0 }
+            else
+                components[#components + 1] = { target.component, math.max(d, 0), t or 0 }
+            end
+        end
+    end
+    return components, props
+end
+
+local function genderOf(o)
+    local gender = trim(field(o, 'Gender')):lower()
+    return (gender == 'female' or gender == 'femme' or gender == 'f') and 'female'
+        or ((gender == 'male' or gender == 'homme' or gender == 'm') and 'male' or nil)
+end
+
 local function loadOutfits()
     Outfits = {}
     local oneBased = not (Config.Eup and Config.Eup.OneBased == false)
@@ -237,27 +264,12 @@ local function loadOutfits()
         if name == '' then
             print(('^3[RP Interact] outfits.json : tenue n°%d ignorée (Name manquant).^0'):format(i))
         else
-            local gender = trim(field(o, 'Gender')):lower()
-            gender = (gender == 'female' or gender == 'femme' or gender == 'f') and 'female'
-                or ((gender == 'male' or gender == 'homme' or gender == 'm') and 'male' or nil)
+            local gender = genderOf(o)
             local cate = trim(field(o, 'Cate')):lower()
             local group = trim(field(o, 'Category2'))
             local isPolice = cate == 'police'
             if isPolice then group = POLICE_GROUPS[group:lower()] or (group ~= '' and group:upper() or 'Autres') end
-            local components, props = {}, {}
-            for part, target in pairs(OUTFIT_PARTS) do
-                local value = field(o, part)
-                local d, t = tostring(value or ''):match('^%s*(%-?%d+)%s*:%s*(%-?%d+)%s*$')
-                d, t = tonumber(d), tonumber(t)
-                if d then
-                    if oneBased then d, t = d - 1, math.max((t or 1) - 1, 0) end
-                    if target.prop then
-                        props[#props + 1] = { target.prop, d, t or 0 } -- -1 : accessoire retiré
-                    else
-                        components[#components + 1] = { target.component, math.max(d, 0), t or 0 }
-                    end
-                end
-            end
+            local components, props = parseParts(o, oneBased)
             Outfits[#Outfits + 1] = {
                 index = #Outfits + 1, name = name:sub(1, 80), gender = gender,
                 cate = isPolice and 'police' or 'civil', group = group ~= '' and group:sub(1, 40) or nil,
@@ -267,12 +279,57 @@ local function loadOutfits()
     end
 end
 
+-- =========================================================================
+-- MODIFIER MA TENUE (data/modifoutfits.json) : pièces proposées selon le service de la tenue mise
+--   { "WSP": [ { "Name": "Gilet de Haute Visibilité", "Category": "Gilets", "Gender": "Male", "Armor": "110:1" } ],
+--     "KCSO": [ ... ], "Civil": [ ... ], "Tous": [ ... ] }   ("Tous" : proposées pour tous les services)
+-- Une pièce = un nom + une ou plusieurs parties de tenue (mêmes noms que outfits.json : Hat, Armor, Top...).
+-- =========================================================================
+local ModOutfits = {}
+
+--- Clé de service : "Civil", "Tous", "WSP", "KCSO" (noms complets acceptés) ou autre police (en majuscules)
+local function serviceKey(text)
+    local t = trim(text)
+    local l = t:lower()
+    if l == '' then return nil end
+    if l == 'civil' or l == 'civils' then return 'Civil' end
+    if l == 'tous' or l == 'all' or l == 'commun' then return 'Tous' end
+    return POLICE_GROUPS[l] or t:upper():sub(1, 40)
+end
+
+local function loadModOutfits()
+    ModOutfits = {}
+    local oneBased = not (Config.Eup and Config.Eup.OneBased == false)
+    local data = readJsonList('data/modifoutfits.json') or {}
+    local keys = {}
+    for k in pairs(data) do if type(k) == 'string' then keys[#keys + 1] = k end end
+    table.sort(keys)
+    for _, k in ipairs(keys) do
+        local service = serviceKey(k)
+        for i, o in ipairs(type(data[k]) == 'table' and data[k] or {}) do
+            local name = trim(field(o, 'Name'))
+            local components, props = parseParts(o, oneBased)
+            if name == '' or (#components == 0 and #props == 0) then
+                print(('^3[RP Interact] modifoutfits.json : pièce n°%d de "%s" ignorée (%s).^0'):format(i, k,
+                    name == '' and 'Name manquant' or 'aucune partie "modèle:texture"'))
+            else
+                local category = trim(field(o, 'Category'))
+                ModOutfits[#ModOutfits + 1] = {
+                    id = #ModOutfits + 1, name = name:sub(1, 80), service = service, gender = genderOf(o),
+                    category = category ~= '' and category:sub(1, 40) or nil, components = components, props = props,
+                }
+            end
+        end
+    end
+end
+
 local function loadAll()
     loadVehicles()
     loadLoadouts()
     loadServices()
     loadOutfits()
-    print(('^5[RP Interact]^0 %d tenue(s) (data/outfits.json), %d lot(s) d\'armes (data/loadouts.json), %d équipement(s) de service (equipment_services.json)'):format(#Outfits, #Loadouts, #Services))
+    loadModOutfits()
+    print(('^5[RP Interact]^0 %d tenue(s) (data/outfits.json), %d pièce(s) à modifier (data/modifoutfits.json), %d lot(s) d\'armes (data/loadouts.json), %d équipement(s) de service (equipment_services.json)'):format(#Outfits, #ModOutfits, #Loadouts, #Services))
 end
 
 loadAll()
@@ -726,7 +783,18 @@ end)
 --- Menu /eup : toutes les tenues (le client garde celles de son personnage homme / femme)
 S.on('eupList', function(src)
     local policeOnly = Config.Eup and Config.Eup.PoliceOnly == true
-    return { ok = true, outfits = Outfits, policeLocked = policeOnly and not isPolice(src) or false }
+    local unit = S.policeUnit(src)
+    local locked = policeOnly and not unit or false
+    -- Pièces de "Modifier ma tenue" : celles des polices retirées si les tenues de police sont réservées
+    local mods = ModOutfits
+    if locked then
+        mods = {}
+        for _, m in ipairs(ModOutfits) do
+            if m.service == 'Civil' or m.service == 'Tous' then mods[#mods + 1] = m end
+        end
+    end
+    return { ok = true, outfits = Outfits, mods = mods, policeLocked = locked,
+        service = unit and serviceKey(unit.agencyShort or unit.agency) or nil }
 end)
 
 S.on('eupWear', function(src, p)

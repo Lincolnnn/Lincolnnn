@@ -161,6 +161,42 @@ console ou au redémarrage de la ressource) : une **liste** `[ ... ]`, un objet 
 - `Eup.PoliceOnly = true` réserve les tenues de police aux policiers en service (par défaut : tout le monde, pour
   pouvoir s'habiller avant de prendre son service). `Eup.Command` : nom de la commande.
 
+### Modifier ma tenue (`data/modifoutfits.json`)
+
+Bouton **Modifier ma tenue**, sous la liste (Police, Civil) : ajoute ou retire des **pièces** (gilet, casquette,
+lunettes…) à la tenue que vous portez, selon son **service** :
+- le service est celui de la **dernière tenue mise avec `/eup`** (WSP, KCSO, autre police du fichier, ou Civil) ;
+  sans tenue mise avec `/eup` : la police de votre unité du MDC, sinon Civil. La ligne **Service** (← →) permet d'en
+  choisir un autre ;
+- la tenue actuelle est **lue sur le personnage** : une pièce déjà portée est **cochée** ; **Entrée** la met, ou la
+  retire (la pièce de la tenue d'origine revient ; un accessoire de la tenue d'origine est enlevé) ;
+- **Remettre la tenue d'origine** : la tenue telle qu'elle était (mise avec `/eup`, ou à la première ouverture de
+  « Modifier ma tenue »).
+
+Les pièces se configurent dans **`[rp]/rp_interact/data/modifoutfits.json`** : une liste par service (`WSP`, `KCSO`,
+`Civil`, une autre police du fichier des tenues, ou **`Tous`** : proposée pour tous les services). Une pièce = un nom
+et **une ou plusieurs parties**, avec les mêmes noms et le même format que `outfits.json` (`Hat`, `Glasses`, `Ear`,
+`Watch`, `Bracelet`, `Mask`, `UpperSkin`, `Pants`, `Parachute`, `Shoes`, `Accessories`, `UnderCoat`, `Armor`,
+`Decal`, `Top`) :
+
+```json
+{
+    "WSP": [
+        { "Name": "Gilet de Haute Visibilité", "Category": "Gilets", "Gender": "Male", "Armor": "110:1" },
+        { "Name": "Chapeau de campagne", "Category": "Couvre-chefs", "Hat": "14:1" }
+    ],
+    "KCSO": [ { "Name": "Casquette KCSO", "Gender": "Female", "Hat": "46:1" } ],
+    "Civil": [ { "Name": "Veste en cuir", "Gender": "Male", "Top": "7:1", "UpperSkin": "1:1" } ],
+    "Tous": [ { "Name": "Sans couvre-chef", "Hat": "0:0" } ]
+}
+```
+
+- `Category` (facultatif) : les pièces d'une même catégorie sont regroupées dans un sous-menu ; `Gender` (facultatif) :
+  `Male` / `Female`, sinon pour les deux. Accessoire à `0:0` : l'enlever (ex. « Sans couvre-chef »).
+- Numéros comptés comme dans `outfits.json` (`Eup.OneBased`). Relu avec `rpi_vehicles` (console) ; une pièce sans
+  `Name` ou sans partie est ignorée (la console l'indique).
+- Avec `Eup.PoliceOnly = true`, les pièces des polices ne sont envoyées qu'aux policiers en service.
+
 ## Mode civil (case à cocher, gardée chez chaque joueur)
 
 Ajoute des options visuelles propres au rôle de civil. La première : les **tips d'arrestation**, un mini menu

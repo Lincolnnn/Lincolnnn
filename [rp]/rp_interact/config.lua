@@ -57,6 +57,7 @@ InteractConfig = {
     -- MENU DES TENUES (/eup, ou Menu Interaction > Équipements > "Accéder aux tenues") : tenues de
     -- data/outfits.json, uniquement dans ce fichier. Menu au clavier : flèches haut / bas, Entrée (ou
     -- flèche droite) pour ouvrir / mettre la tenue, Retour arrière (ou flèche gauche) pour revenir.
+    -- "Modifier ma tenue" : pièces de data/modifoutfits.json selon le service de la tenue mise.
     Eup = {
         Command = 'eup',
         PoliceOnly = false,         -- true : tenues de police réservées aux policiers en service (unité du MDC)

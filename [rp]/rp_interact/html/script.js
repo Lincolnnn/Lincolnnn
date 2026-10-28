@@ -1752,7 +1752,7 @@
         { code: 'KCSO', name: 'King County Sheriff Office', color: AGENCY_COLORS.kcso },
     ];
     const EUP_COLORS = { root: '#2f5ea8', civil: '#6a4fa0', other: '#4d5d80' };
-    const eup = { outfits: [], policeLocked: false, worn: null };
+    const eup = { outfits: [], policeLocked: false, worn: null, mods: [], service: 'Civil', wornName: null, modService: null, modWorn: new Set() };
 
     const eupMenu = new KbMenu($('#eup'), 'eup', { icon: KB_ICONS.eup, close: () => post('eupClose') });
 
@@ -1795,13 +1795,92 @@
         };
     }
 
+    // ---- Modifier ma tenue : pièces de data/modifoutfits.json du service de la tenue mise (+ "Tous") ----
+    const eupServiceName = (code) => (EUP_POLICES.find((p) => p.code === code) || {}).name || (code === 'Civil' ? 'Civil' : code);
+    const eupServiceColor = (code) => (code === 'Civil' ? EUP_COLORS.civil : agencyColor(code) || EUP_COLORS.other);
+
+    /** Services proposés : WSP, KCSO, autres polices du fichier, Civil (et celui de la tenue mise) */
+    function eupModServices() {
+        const found = new Set(eup.mods.map((m) => m.service).filter((s) => s && s !== 'Tous'));
+        found.add(eup.service || 'Civil');
+        const order = [...EUP_POLICES.map((p) => p.code), ...[...found].filter((s) => s !== 'Civil' && !EUP_POLICES.some((p) => p.code === s)).sort(), 'Civil'];
+        return order.filter((s) => found.has(s));
+    }
+
+    function eupModRefresh(res) {
+        if (!res || !res.ok) return;
+        eup.modWorn = new Set(toArray(res.worn).map(Number));
+        eupMenu.render();
+    }
+
+    function eupModButton(m) {
+        const worn = eup.modWorn.has(m.id);
+        return {
+            kind: 'button', label: m.name, mark: worn,
+            desc: worn ? 'Entrée : retirer cette pièce (la pièce de la tenue d\'origine revient).' : 'Entrée : mettre cette pièce.',
+            action: () => post('eupMod', { id: m.id }).then(eupModRefresh),
+        };
+    }
+
+    function eupModBanner(sub) {
+        const code = eup.modService;
+        return { title: 'Modifier ma tenue', sub: sub || eupServiceName(code), color: eupServiceColor(code), logo: agencyLogo(code) };
+    }
+
+    function eupModCategoryPage(category) {
+        return {
+            id: 'modcat', title: category,
+            banner: () => eupModBanner(`${eupServiceName(eup.modService)} · ${category}`),
+            onEnter: () => post('eupModState').then(eupModRefresh),
+            items: () => eupModPieces().filter((m) => m.category === category).map(eupModButton),
+        };
+    }
+
+    // Pièces du service, puis celles de "Tous"
+    const eupModPieces = () => [...eup.mods.filter((m) => m.service === eup.modService), ...eup.mods.filter((m) => m.service === 'Tous' && eup.modService !== 'Tous')];
+
+    function eupModPage() {
+        eup.modService = eup.service || 'Civil';
+        return {
+            id: 'mod', title: 'Modifier ma tenue',
+            banner: () => eupModBanner(eup.wornName ? `${eupServiceName(eup.modService)} · ${eup.wornName}` : ''),
+            onEnter: () => post('eupModState').then(eupModRefresh),
+            items: () => {
+                const services = eupModServices();
+                const pieces = eupModPieces();
+                const categories = [...new Set(pieces.map((m) => m.category).filter(Boolean))];
+                const items = [{
+                    kind: 'list', label: 'Service', options: services.map(eupServiceName),
+                    index: Math.max(0, services.indexOf(eup.modService)),
+                    desc: `Pièces proposées pour ce service${eup.wornName ? ` (tenue mise : ${eup.wornName})` : ''}. ← → pour en choisir un autre.`,
+                    onChange: (i) => { eup.modService = services[i]; },
+                }];
+                if (!pieces.length) {
+                    items.push({ kind: 'info', label: 'Aucune pièce pour ce service (data/modifoutfits.json).', tone: 'muted' });
+                } else {
+                    items.push({ kind: 'section', label: 'Pièces' });
+                    categories.forEach((c) => {
+                        const list = pieces.filter((m) => m.category === c);
+                        items.push({ kind: 'menu', label: c, right: `${list.length}`, mark: list.some((m) => eup.modWorn.has(m.id)),
+                            desc: plural(list.length, 'pièce'), open: () => eupModCategoryPage(c) });
+                    });
+                    pieces.filter((m) => !m.category).forEach((m) => items.push(eupModButton(m)));
+                }
+                items.push({ kind: 'section', label: 'Tenue' });
+                items.push({ kind: 'button', label: 'Remettre la tenue d\'origine', desc: 'La tenue telle qu\'elle était avant les modifications.',
+                    action: () => post('eupModReset').then(eupModRefresh) });
+                return items;
+            },
+        };
+    }
+
     function eupRootPage() {
         const civilCount = eup.outfits.filter((o) => o.cate !== 'police').length;
         const lockedText = eup.policeLocked ? ' — réservées aux policiers en service (unité du MDC)' : '';
         return {
             id: 'root', title: 'Tenues',
             banner: { title: 'Tenues', sub: 'Choisissez une tenue', color: EUP_COLORS.root },
-            items: [
+            items: () => [
                 { kind: 'section', label: 'Police' },
                 ...eupPoliceGroups().map((g) => ({
                     kind: 'menu', label: g.name, right: g.name !== g.code ? g.code : `${g.list.length}`, color: g.color,
@@ -1810,6 +1889,9 @@
                 })),
                 { kind: 'section', label: 'Civil' },
                 { kind: 'menu', label: 'Civil', right: `${civilCount}`, open: eupCivilPage, desc: plural(civilCount, 'tenue') },
+                { kind: 'section', label: 'Ma tenue' },
+                { kind: 'menu', label: 'Modifier ma tenue', right: eup.service || 'Civil', open: eupModPage,
+                    desc: `Ajouter ou retirer des pièces (gilet, casquette…) selon le service de la tenue mise : ${eupServiceName(eup.service || 'Civil')}.` },
             ],
         };
     }
@@ -1821,6 +1903,9 @@
         }
         eup.outfits = toArray(data.outfits);
         eup.policeLocked = !!data.policeLocked;
+        eup.mods = toArray(data.mods).map((m) => ({ ...m, id: Number(m.id) }));
+        eup.service = data.service || 'Civil';
+        eup.wornName = data.wornName || null;
         eupMenu.start([eupRootPage()]);
     }
 
@@ -1858,6 +1943,11 @@
             case 'radio': radioUpdate(data.data); break;
             case 'radioStop': radioStop(data.data && data.data.id); break;
             case 'eup': setEup(data.data || {}); break;
+            case 'eupWorn': // tenue mise : son service est celui de "Modifier ma tenue"
+                eup.service = (data.data && data.data.service) || 'Civil';
+                eup.wornName = (data.data && data.data.wornName) || null;
+                if (eupMenu.open) eupMenu.render();
+                break;
             case 'kbKey': if (data.data && kbMenus[data.data.menu]) kbMenus[data.data.menu].key(data.data.key); break;
         }
     });
