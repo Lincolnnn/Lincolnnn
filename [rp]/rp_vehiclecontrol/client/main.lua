@@ -82,7 +82,33 @@ function VC.toHud(action, data)
     TriggerEvent('mdc:carHud', action, data)
 end
 
---- Message PRIVÉ dans le chat (rp_chat), ex. "Portière ouverte."
+-- =========================================================================
+-- ŒIL de rp_interact (Config.TargetProviders) : options de plusieurs modules (nettoyage des débris, poussée)
+--   VC.addTarget({ options = function(info) -> { label, options = {...} } | nil, select = function(id, info) })
+-- =========================================================================
+local targets = {}
+function VC.addTarget(t) targets[#targets + 1] = t end
+
+exports('targetOptions', function(info)
+    local label, options = nil, {}
+    for _, t in ipairs(targets) do
+        local ok, res = pcall(t.options, info)
+        if ok and type(res) == 'table' and type(res.options) == 'table' then
+            label = label or res.label
+            for _, o in ipairs(res.options) do options[#options + 1] = o end
+        end
+    end
+    if #options == 0 then return nil end
+    return { label = label, options = options }
+end)
+
+exports('targetSelect', function(id, info)
+    for _, t in ipairs(targets) do
+        if t.select and t.select(id, info) then return end
+    end
+end)
+
+--- Message PRIVÉ dans le chat (rp_chat), ex. "Plein interrompu."
 function VC.chat(text)
     local chat = GlobalState.rpChatResource or Config.ChatResource
     if GetResourceState(chat) == 'started'

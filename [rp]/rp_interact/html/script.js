@@ -95,10 +95,10 @@
 
     function showEyeOptions(data) {
         eye.menu = true;
-        // Options principales (ce qui est visé précisément, police) en tête et mises en avant, puis un séparateur
+        // Options par groupes (inspections, fouilles, police, portière, le reste, en bas), un trait entre deux groupes ;
+        // les principales (inspections, ce qui est visé précisément, police) sont mises en avant
         const all = toArray(data.options);
-        const primary = all.filter((o) => o.primary);
-        const others = all.filter((o) => !o.primary);
+        const grouped = all.some((o) => o.group);
         const row = (o) => `
                 <li class="opt ${o.primary ? 'primary' : ''} ${o.disabled ? 'disabled' : ''}" data-index="${esc(o.index)}">
                     ${icon(o.icon)}
@@ -108,9 +108,9 @@
         $('#eyeLabel').classList.add('hidden');
         $('#eyeOptions').innerHTML = `
             ${data.label ? `<li class="opt-title">${esc(data.label)}</li>` : ''}
-            ${primary.map(row).join('')}
-            ${primary.length && others.length ? '<li class="opt-sep" aria-hidden="true"></li>' : ''}
-            ${others.map(row).join('')}`;
+            ${grouped
+                ? all.map((o, i) => (i > 0 && o.group !== all[i - 1].group ? '<li class="opt-sep" aria-hidden="true"></li>' : '') + row(o)).join('')
+                : all.map(row).join('')}`;
         $('#eyeOptions').classList.remove('hidden');
     }
 

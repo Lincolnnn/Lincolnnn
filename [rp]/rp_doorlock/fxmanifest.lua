@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_doorlock'
 author 'Lincolnnn'
 description 'Portes à verrouiller / déverrouiller, à frapper, à enfoncer (porte forcée) - standalone'
-version '1.5.2'
+version '1.5.3'
 
 ui_page 'html/index.html'
 

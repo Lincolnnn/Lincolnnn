@@ -117,7 +117,7 @@ local function providerOptions(ctx, options, onlyBridge)
                 for _, o in ipairs(res.options) do
                     local id = o.id
                     options[#options + 1] = { id = ('%s:%s'):format(resource, tostring(id)), label = o.label or '?',
-                        icon = o.icon or 'search', police = o.police, primary = o.primary,
+                        icon = o.icon or 'search', police = o.police, primary = o.primary, last = o.last,
                         run = function() exports[resource]:targetSelect(id, info) end }
                 end
                 if #res.options > 0 and res.label then ctx.providerLabel = res.label end
@@ -128,13 +128,39 @@ local function providerOptions(ctx, options, onlyBridge)
     return options
 end
 
---- Options PRINCIPALES (mises en avant dans la liste, en tête) : celles qui n'existent que pour ce qui est visé
---- précisément (portière visée, herse, porte, banc…) et les options de police (sauf faire s'asseoir au sol)
-local NOT_PRIMARY = { ['police:seat'] = true }
+--- Options PRINCIPALES (mises en avant) : inspections et détail notoire, ce qui est visé précisément (portière visée,
+--- herse, porte, banc…) et les options de police (sauf faire s'asseoir au sol) ; pas « Monter » (place visée).
+--- Liste rangée par GROUPES, séparés par un trait dans l'œil : inspections et détail notoire, fouilles, actions de
+--- police, portière visée, le reste, puis les options « en bas » (pousser le véhicule…).
+local NOT_PRIMARY = { ['police:seat'] = true, ['door:enter'] = true }
+local INSPECT = { visual = true, olfactory = true, visualInterior = true, visualExterior = true, notable = true }
+local SEARCH = { upper = true, lower = true, cabin = true, rear = true, trunk = true }
+local GROUP_ORDER = { inspect = 1, search = 2, police = 3, door = 4, other = 5, last = 6 }
+
+local function groupOf(option)
+    local id = tostring(option.id or '')
+    if option.last then return 'last' end
+    local kind, field = id:match('^(%w+):(%w+)$')
+    if kind == 'occupant' or (field and INSPECT[field] and kind ~= 'police') then return 'inspect' end
+    if (field and SEARCH[field]) or id == 'env:bin' then return 'search' end
+    if kind == 'police' then return 'police' end
+    if id == 'door:toggle' then return 'door' end
+    return 'other'
+end
+
 local function markPrimary(options)
-    for _, option in ipairs(options) do
-        option.primary = option.primary == true or (option.police == true and not NOT_PRIMARY[option.id]) or nil
+    for i, option in ipairs(options) do
+        option.group = groupOf(option)
+        option.primary = (option.primary == true and not NOT_PRIMARY[option.id]) or option.group == 'inspect'
+            or (option.police == true and not NOT_PRIMARY[option.id]) or nil
+        option.rank = i
     end
+    -- groupes dans l'ordre ; dans un groupe, l'ordre d'origine
+    table.sort(options, function(a, b)
+        local ga, gb = GROUP_ORDER[a.group] or 5, GROUP_ORDER[b.group] or 5
+        if ga ~= gb then return ga < gb end
+        return a.rank < b.rank
+    end)
     return options
 end
 RPI.markPrimary = markPrimary -- pour les tests
@@ -181,7 +207,7 @@ local function openOptions()
     local list = {}
     for i, option in ipairs(current.options) do
         list[i] = { index = i, label = option.label, icon = option.icon, police = option.police, primary = option.primary,
-            disabled = option.disabled }
+            disabled = option.disabled, group = option.group }
     end
     SendNUIMessage({ action = 'eyeOptions', data = { label = RPI.targetLabel(current.ctx), options = list } })
 end

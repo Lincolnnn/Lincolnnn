@@ -103,7 +103,7 @@ local function revive(where, corpse)
     DoScreenFadeIn(600)
     dead, busy = false, false
     TriggerServerEvent('rp_revive:revived', where == 'hospital' and 'hospital' or 'here')
-    notify(label and ('Réanimé : %s.'):format(label) or 'Réanimé sur place.')
+    -- (pas de message : l'écran de mort se ferme, le joueur voit où il est)
 end
 RPRevive = { revive = revive, leaveCorpse = leaveCorpse } -- pour les tests
 

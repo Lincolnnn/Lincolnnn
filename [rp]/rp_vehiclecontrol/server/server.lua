@@ -102,6 +102,19 @@ local function isDriver(src, vehicle)
     return ped ~= 0 and GetVehiclePedIsIn(ped, false) == vehicle
 end
 
+--- Ressource de Riven Impact Dynamics démarrée (dossier renommé : retrouvé par le nom de son fxmanifest), ou nil
+local function rivenResource()
+    if (Config.Riven or {}).Mode == false then return nil end
+    local name = (Config.Riven or {}).Resource or 'riven-impact-dynamics'
+    if GetResourceState(name) == 'missing' then
+        for i = 0, GetNumResources() - 1 do
+            local res = GetResourceByFindIndex(i)
+            if res and (GetResourceMetadata(res, 'name', 0) or ''):lower() == 'riven impact dynamics' then name = res break end
+        end
+    end
+    return GetResourceState(name) == 'started' and name or nil
+end
+
 RegisterNetEvent('rp_vehiclecontrol:state', function(netId, key, value)
     local src = source
     local vehicle = vehicleFromNet(netId)
@@ -115,6 +128,9 @@ RegisterNetEvent('rp_vehiclecontrol:state', function(netId, key, value)
             Entity(vehicle).state:set('vcPushed', false, true)
         elseif type(value) == 'table' and (value.dir == 1 or value.dir == -1) then
             Entity(vehicle).state:set('vcPushed', { by = src, dir = value.dir, active = value.active == true }, true)
+            -- poussé : le frein de parking de Riven est desserré (le conducteur suit la poussée)
+            local riven = value.active == true and rivenResource()
+            if riven then pcall(function() exports[riven]:SetParkingBrakeState(vehicle, false) end) end
         end
         return
     end

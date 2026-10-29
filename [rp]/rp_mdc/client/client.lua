@@ -143,9 +143,6 @@ end
 
 -- Commande + Key Mapping (aucune boucle nécessaire pour détecter la touche)
 RegisterCommand(Config.Command, function()
-    -- K sert aussi à pousser un véhicule (Vehicle Control) : pas d'ouverture pendant que le message
-    -- "Pousser le véhicule" est affiché ou pendant la poussée
-    if not isOpen and LocalPlayer.state.vcPushPrompt == true then return end
     if not isOpen and spikesBusy() then
         BeginTextCommandThefeedPost('STRING')
         AddTextComponentSubstringPlayerName('Herse en main : posez-la, lancez-la ou rangez-la d\'abord.')

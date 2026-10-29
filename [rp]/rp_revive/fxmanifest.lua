@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_revive'
 author 'Lincolnnn'
 description 'Réanimation sur place ou à l\'hôpital, corps laissé sur place (option) - standalone'
-version '1.0.1'
+version '1.0.2'
 
 ui_page 'html/index.html'
 

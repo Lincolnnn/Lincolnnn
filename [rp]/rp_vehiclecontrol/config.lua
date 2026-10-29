@@ -22,14 +22,15 @@ VCConfig = {
     --     le logo « moteur abîmé » du car HUD disparaît : les dégâts, ce sont ses voyants ;
     --   HideLamps : ses voyants déjà présents sur le car HUD (ceinture) ;
     --   Notify : ses notifications en français, en message privé du chat (titre « Véhicule ») comme les nôtres ;
-    --   MuteBelt / MutePark : true = sans « ceinture attachée / détachée », « frein de parking serré / desserré »
+    --   MuteBelt / MutePark : true (par défaut) = sans « ceinture attachée / détachée », « frein de parking serré / desserré »
+    --   (le car HUD les montre déjà) ; MuteTyres : sans « pneu crevé / qui se dégonfle / sur la jante » (voyant de Riven)
     --     (ces deux-là sont écrits par ce script, client/riven.lua, avec ou sans le pont).
     -- Frein de parking de Riven serré : « P » sur le car HUD du MDC (état du véhicule ParkStateKey, comme son config).
     -- HideGameFeed : notifications du jeu (celles de Riven, en anglais) supprimées à bord, même sans le pont.
     -- Pont absent (ligne oubliée) : Fallback = notifications de secours en français quand un voyant s'allume.
     -- Console F8 : « pont Riven actif ». Dossier de Riven renommé : retrouvé tout seul (nom dans son fxmanifest).
     Riven = { Mode = 'auto', Resource = 'riven-impact-dynamics',
-        Lamps = true, HideLamps = { 'belt' }, Notify = true, MuteBelt = false, MutePark = false,
+        Lamps = true, HideLamps = { 'belt' }, Notify = true, MuteBelt = true, MutePark = true, MuteTyres = true,
         ParkStateKey = 'rivenParkingBrake', Fallback = true, HideGameFeed = true },
 
     Keys = {
@@ -41,8 +42,6 @@ VCConfig = {
         indicatorRight = 'RIGHT', -- clignotant droit (flèche droite, conducteur)
         hazards = 'DOWN',         -- feux de détresse / warnings (flèche bas, conducteur)
         gear = 'UP',              -- marche avant (D) / marche arrière (R) (flèche haut, conducteur)
-        push = 'K',          -- à pied, devant / derrière un véhicule : pousser / arrêter de pousser
-                             -- (près d'un véhicule poussable, K n'ouvre pas le MDC)
     },
 
     -- ---------------------------------------------------------------------
@@ -558,8 +557,8 @@ VCConfig = {
 
     -- ---------------------------------------------------------------------
     -- POUSSER UN VÉHICULE (à pied, devant le capot ou derrière le coffre, avec ou sans conducteur) :
-    -- touche Keys.push, puis avancer (Z / W) : tout droit uniquement. Quelqu'un au volant : il peut
-    -- seulement tourner le volant.
+    -- œil (Alt) sur le véhicule > « Pousser le véhicule » (tout en bas), puis avancer (Z / W) : tout droit uniquement ;
+    -- reculer (S) ou X : arrêter. Quelqu'un au volant : il suit la poussée (seulement le volant).
     -- ---------------------------------------------------------------------
     Push = {
         Speed = 1.1,              -- m/s : vitesse du véhicule poussé

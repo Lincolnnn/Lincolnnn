@@ -22,7 +22,7 @@ exports('rivenSettings', function()
         Lamps = R.Lamps ~= false,
         HideLamps = type(R.HideLamps) == 'table' and R.HideLamps or { 'belt' },
         Notify = R.Notify ~= false,
-        MuteBelt = R.MuteBelt == true,
+        MuteBelt = R.MuteBelt ~= false, MuteTyres = R.MuteTyres ~= false,
         OwnBelt = true, OwnPark = true, -- ceinture et frein de parking : messages écrits par ce script
     }
 end)
@@ -73,7 +73,7 @@ end)
 -- CEINTURE (lue par seatbelt.lua) : attachée / détachée
 -- =========================================================================
 function VC.rivenBeltChanged(on)
-    if R.MuteBelt ~= true then notify(on and 'Ceinture attachée.' or 'Ceinture détachée.') end
+    if R.MuteBelt == false then notify(on and 'Ceinture attachée.' or 'Ceinture détachée.') end
 end
 
 -- =========================================================================
@@ -94,7 +94,7 @@ local function setPark(vehicle, on, announce)
     local changed = park.vehicle == vehicle and park.on ~= nil
     park.vehicle, park.on = vehicle, on
     VC.hud.park = on or nil
-    if changed and announce and R.MutePark ~= true and VC.seat == -1 then
+    if changed and announce and R.MutePark == false and VC.seat == -1 then
         notify(on and 'Frein de parking serré.' or 'Frein de parking desserré.')
     end
 end

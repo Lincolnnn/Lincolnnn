@@ -244,7 +244,7 @@ end)
 
 RegisterNetEvent('rp_vehiclecontrol:sweepDone', function(removed)
     if not sweeping then return end
-    stopSweep(false, 'Zone nettoyée.')
+    stopSweep(false) -- (pas de message : les débris disparaissent)
 end)
 
 RegisterNetEvent('rp_vehiclecontrol:sweepRefused', function(text)
@@ -265,17 +265,20 @@ local function nearbyCount()
     return cache.count
 end
 
-exports('targetOptions', function(info)
-    if sweeping or type(info) ~= 'table' or (info.type ~= 'world' and info.type ~= 'object') then return nil end
-    if IsPedInAnyVehicle(PlayerPedId(), true) or nearbyCount() == 0 then return nil end
-    return { label = 'Débris d\'accident', options = {
-        { id = 'sweep', icon = 'trash', label = ('Nettoyer les débris (zone de %d m)'):format(math.floor(RADIUS)), primary = true },
-    } }
-end)
-
-exports('targetSelect', function(id)
-    if id == 'sweep' then startSweep() end
-end)
+VC.addTarget({
+    options = function(info)
+        if sweeping or type(info) ~= 'table' or (info.type ~= 'world' and info.type ~= 'object') then return nil end
+        if IsPedInAnyVehicle(PlayerPedId(), true) or nearbyCount() == 0 then return nil end
+        return { label = 'Débris d\'accident', options = {
+            { id = 'sweep', icon = 'trash', label = ('Nettoyer les débris (zone de %d m)'):format(math.floor(RADIUS)), primary = true },
+        } }
+    end,
+    select = function(id)
+        if id ~= 'sweep' then return false end
+        startSweep()
+        return true
+    end,
+})
 
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() and sweeping then stopSweep(false) end

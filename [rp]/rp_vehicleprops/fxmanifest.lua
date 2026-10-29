@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_vehicleprops'
 author 'Lincolnnn'
 description 'Objets collés sur les véhicules, posés et réglés avec l\'œil de rp_interact - standalone, NUI Vanilla JS'
-version '1.0.1'
+version '1.0.2'
 
 ui_page 'html/index.html'
 

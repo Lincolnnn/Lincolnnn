@@ -15,8 +15,11 @@
         l'entend le signale au serveur, qui lance le suivant pour tout le monde.
       - Pause / reprise (même position pour tous), retour au début du morceau (deux appuis rapprochés :
         morceau précédent), suivant, arrêter : boutons à icônes de la page Radio.
-    Le son est joué par le NUI de ce script (html/script.js). Performance : boucle (150 ms) seulement
-    tant qu'une radio est allumée dans un véhicule à portée réseau ; aucune sinon.
+    MOTEUR DU SON (RadioEngine) : avec la ressource olisound démarrée (dépendance séparée, voir README), le son passe
+    par olisound (Web Audio : spatialisation 3D HRTF autour du véhicule, son étouffé dehors quand portières et vitres
+    sont fermées, meilleure qualité) ; sans elle, par le NUI de ce script (html/script.js), comme avant.
+    Performance : boucle (150 ms) seulement tant qu'une radio est allumée dans un véhicule à portée réseau ; aucune
+    sinon.
 ]]
 
 local Config = InteractConfig
@@ -62,19 +65,110 @@ function RPI.radioHearing(vehicle)
     return open and factor or factor * Config.RadioInsulation
 end
 
+--- Position dans le morceau (s) : la même pour tous (heure de lancement), ou figée pendant la pause
+local function offsetOf(radio)
+    return radio.paused or math.max(0, GetCloudTimeAsInt() - (tonumber(radio.start) or 0))
+end
+
 local function send(id, radio, volume)
-    -- Position dans le morceau : la même pour tous (heure de lancement), ou figée pendant la pause
-    local offset = radio.paused or math.max(0, GetCloudTimeAsInt() - (tonumber(radio.start) or 0))
+    local offset = offsetOf(radio)
     SendNUIMessage({ action = 'radio', data = {
         id = id, url = radio.url, volume = volume, seq = radio.seq, offset = offset, paused = radio.paused ~= nil,
     } })
 end
 
-local function stop(id)
+-- =========================================================================
+-- MOTEUR OLISOUND (si la ressource est démarrée) : un son par véhicule, accroché au véhicule
+-- =========================================================================
+local OLI = 'olisound'
+local oli = {}   -- [nom du state bag] = { name, url, seq, start, volume, distance, paused }
+local ended = {} -- [nom du state bag] = n° du morceau dont la fin a été entendue (pas relancé)
+
+local function useOli()
+    local engine = Config.RadioEngine or 'auto'
+    return engine ~= 'nui' and GetResourceState(OLI) == 'started'
+end
+
+local function oliCall(fn, ...)
+    local args = { ... }
+    local ok, res = pcall(function() return exports[OLI][fn](exports[OLI], table.unpack(args)) end)
+    return ok and res or nil
+end
+
+local function oliStop(id)
+    local s = oli[id]
+    if not s then return end
+    oli[id] = nil
+    s.closing = true -- (olisound appelle onPlayEnd sur un Destroy : ce n'est pas une fin de morceau)
+    oliCall('Destroy', s.name)
+end
+
+--- Fin du son : vraie fin du morceau (pas notre Destroy, pas le véhicule disparu) -> le serveur lance le suivant
+local function oliEnded(id, s, info)
+    if s.closing or s.done then return end
+    local radio = radios[id]
+    if not radio or radio.seq ~= s.seq or radio.paused then return end
+    local duration = type(info) == 'table' and tonumber(info.maxDuration) or 0
+    if not duration or duration <= 0 or offsetOf(radio) < duration - 5 then return end
+    s.done = true
+    ended[id] = s.seq
+    local netId = tonumber(id:match('^entity:(%d+)$'))
+    if netId then RPI.request('radio', { netId = netId, action = 'ended', seq = s.seq }, function() end) end
+end
+
+local function oliPlay(id, radio, vehicle)
+    local volume = math.floor((radio.volume or 0) / 100 * Config.RadioMaxVolume * 100 + 0.5) / 100
+    local distance = range(RPI.vehicleOpen(vehicle))
+    local paused = radio.paused ~= nil
+    local s = oli[id]
+    if s and (s.url ~= radio.url or s.seq ~= radio.seq) then oliStop(id); s = nil end
+    if s and not oliCall('soundExists', s.name) then oli[id], s = nil, nil end -- détruit par olisound : relancé
+    if not s then
+        if ended[id] == radio.seq then return end
+        s = { name = 'rpi_radio:' .. id, url = radio.url, seq = radio.seq, start = radio.start, volume = volume,
+            distance = distance, paused = paused }
+        oli[id] = s
+        oliCall('PlayUrlVehicle', s.name, radio.url, volume, vehicle, false, {
+            -- lecture lancée (chargement YouTube…) : recalée sur la position commune
+            onPlayStart = function()
+                local r = radios[id]
+                if oli[id] ~= s or not r then return end
+                oliCall('setTimeStamp', s.name, offsetOf(r))
+                if r.paused then oliCall('Pause', s.name) end
+            end,
+            onPlayEnd = function(info) oliEnded(id, s, info) end,
+        })
+        oliCall('Distance', s.name, distance)
+        oliCall('setTimeStamp', s.name, offsetOf(radio))
+        if paused then oliCall('Pause', s.name) end
+        return
+    end
+    if s.volume ~= volume then s.volume = volume; oliCall('setVolumeMax', s.name, volume) end
+    if s.distance ~= distance then s.distance = distance; oliCall('Distance', s.name, distance) end
+    if s.paused ~= paused then
+        s.paused = paused
+        if paused then
+            oliCall('Pause', s.name)
+        else
+            oliCall('setTimeStamp', s.name, offsetOf(radio))
+            oliCall('Resume', s.name)
+        end
+    elseif s.start ~= radio.start then
+        oliCall('setTimeStamp', s.name, offsetOf(radio)) -- retour au début du morceau
+    end
+    s.start = radio.start
+end
+
+local function stopNui(id)
     if playing[id] then
         playing[id] = nil
         SendNUIMessage({ action = 'radioStop', data = { id = id } })
     end
+end
+
+local function stop(id)
+    oliStop(id)
+    stopNui(id)
 end
 
 local function startLoop()
@@ -91,7 +185,11 @@ local function startLoop()
                     local distance = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(vehicle))
                     if factor <= 0.0 and distance > range(true) + 20.0 then
                         stop(id) -- loin : lecteur fermé (rouvert à l'approche, au bon moment)
+                    elseif useOli() then
+                        stopNui(id)
+                        oliPlay(id, radio, vehicle)
                     else
+                        oliStop(id)
                         local volume = math.floor((radio.volume or 0) / 100 * factor * Config.RadioMaxVolume * 100 + 0.5) / 100
                         local key = ('%s|%s|%s|%s|%.2f'):format(radio.url, radio.start, tostring(radio.seq), tostring(radio.paused), volume)
                         if playing[id] ~= key then
@@ -117,7 +215,7 @@ AddStateBagChangeHandler('rpiRadio', nil, function(bagName, _, value)
             paused = tonumber(value.paused) }
         startLoop()
     else
-        radios[bagName] = nil
+        radios[bagName], ended[bagName] = nil, nil
         stop(bagName)
     end
 end)
@@ -204,4 +302,5 @@ end
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     for id in pairs(playing) do SendNUIMessage({ action = 'radioStop', data = { id = id } }) end
+    for id in pairs(oli) do oliStop(id) end
 end)

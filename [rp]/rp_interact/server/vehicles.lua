@@ -50,6 +50,8 @@ local function readJsonList(path)
         print(('^3[RP Interact] %s introuvable.^0'):format(path))
         return nil
     end
+    -- virgule en trop avant ] ou } (oubli fréquent en éditant à la main) : tolérée
+    raw = raw:gsub(',(%s*[%]}])', '%1')
     local ok, data = pcall(json.decode, raw)
     if not ok or type(data) ~= 'table' then
         print(('^1[RP Interact] %s : JSON invalide (virgule en trop, guillemet manquant…). Fichier ignoré.^0'):format(path))
@@ -173,18 +175,23 @@ local function loadServices()
                 local weapon = trim(field(w, 'Weapon')):upper()
                 if weapon ~= '' and not seen[weapon] then
                     seen[weapon] = true
-                    local groups, allowed = {}, {}
-                    for g, group in ipairs(type(field(w, 'Options')) == 'table' and field(w, 'Options') or {}) do
-                        local choices = {}
+                    -- Options : groupes du même nom réunis (« Magazine » 17 balles + « Magazine » 25 balles = un seul choix)
+                    local groups, allowed, byLabel = {}, {}, {}
+                    for _, group in ipairs(type(field(w, 'Options')) == 'table' and field(w, 'Options') or {}) do
+                        local label = trim(field(group, 'Label')):sub(1, 60)
+                        local index = byLabel[label:lower()]
                         for _, c in ipairs(type(field(group, 'Choices')) == 'table' and field(group, 'Choices') or {}) do
                             local component = trim(field(c, 'Component')):upper()
                             if component ~= '' and not allowed[component] then
-                                allowed[component] = g
+                                if not index then
+                                    groups[#groups + 1] = { label = label, choices = {} }
+                                    index = #groups
+                                    byLabel[label:lower()] = index
+                                end
+                                allowed[component] = index
+                                local choices = groups[index].choices
                                 choices[#choices + 1] = { label = trim(field(c, 'Label')):sub(1, 60), component = component }
                             end
-                        end
-                        if #choices > 0 then
-                            groups[#groups + 1] = { label = trim(field(group, 'Label')):sub(1, 60), choices = choices }
                         end
                     end
                     -- Accessoires de base : seulement un par groupe d'options (les autres, hors options, toujours là)
@@ -207,7 +214,7 @@ local function loadServices()
                         ammo = math.max(0, math.floor(tonumber(field(w, 'Ammo')) or 0)),
                         required = required, default = required or field(w, 'Default') ~= false,
                         components = base, fixed = fixed, groups = groups, allowed = allowed,
-                        tints = field(w, 'Tints') == true,
+                        tints = field(w, 'Tints') == true or (tonumber(field(w, 'Tints')) or 0) > 0,
                     }
                 end
             end

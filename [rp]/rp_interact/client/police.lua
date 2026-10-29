@@ -137,20 +137,17 @@ function Police.closestVehicle(range)
 end
 
 -- =========================================================================
--- INDIVIDU TENU PAR LE BRAS : tenu DE FORCE, accroché au policier au même endroit qu'avant (DragOffset : à sa
--- droite, un peu devant ; accroche synchronisée par le jeu, sans à-coups chez tout le monde). Il est accroché au
--- CENTRE du policier (index d'os -1), jamais à un os : il garde son propre axe, toujours droit, et ne suit ni le
--- tronc ni les animations du policier (avant : accroché à l'os racine, il basculait dans le policier quand celui-ci
--- se penchait). Il suit ses déplacements : marcher, trottiner (le policier ne peut pas sprinter en le tenant),
--- aller à gauche, à droite, reculer ; ses jambes jouent l'animation qui correspond à SON déplacement réel
--- (DragMoves). Menotté : mains dans le dos (animation des menottes, haut du corps). Pas menotté : rien d'autre.
+-- INDIVIDU TENU PAR LE BRAS (comme la première version) : accroché au BASSIN du policier (os 11816), à DragOffset
+-- (à sa droite, devant), accroche synchronisée par le jeu ; il suit le policier, y compris quand il tourne, sans
+-- aucune animation imposée (ni marche, ni emote) : seulement les menottes s'il est menotté (mains dans le dos).
+-- Accroché UNE fois : raccroché seulement s'il a été décroché (policier au sol, ragdoll), jamais en boucle (avant :
+-- ré-accroche et animations des jambes qui changeaient quand le policier tournait -> téléportations).
 -- Le civil (joueur) ne peut pas se déplacer lui-même pendant ce temps (il peut se débattre, voir plus bas).
--- Policier au sol (ragdoll) : décroché le temps qu'il se relève, puis raccroché.
 -- Boucle UNIQUEMENT pendant qu'il est tenu (à chaque image pour le civil lui-même, 100 ms pour un PNJ).
 -- =========================================================================
 local DRAG_BLOCKED = { 21, 22, 23, 30, 31, 32, 33, 34, 35, 36, 44, 75 } -- sprint, saut, véhicule, déplacements, couvert
 local HOLDER_BLOCKED = { 21, 22, 44 } -- le policier qui tient quelqu'un : ni sprint, ni saut, ni couvert
-local ATTACH_CENTRE = -1 -- pas un os : le centre du policier (matrice toujours droite)
+local PELVIS = 11816
 
 --- Lâché : décroché, collisions et position rendues
 local function holdPed(ped, held)
@@ -160,44 +157,17 @@ local function holdPed(ped, held)
     SetEntityCollision(ped, true, true)
 end
 
---- Déplacement (m/s) dans le repère de l'individu -> allure ('walk' / 'trot') et sens, ou nil à l'arrêt.
---- Sens : avant, gauche, droite, arrière (le sens actuel est gardé près des limites : pas de clignotement).
-local function pickMove(lx, ly, current)
-    local M = Config.DragMove or {}
-    local speed = math.sqrt(lx * lx + ly * ly)
-    if speed < (M.Idle or 0.35) then return nil end
-    local angle = math.deg(math.atan(-lx, ly)) -- 0 : devant, positif : à gauche
-    local keep = current and 12 or 0
-    local dir
-    if current == 'forward' and math.abs(angle) <= 50 + keep then dir = 'forward'
-    elseif current == 'back' and math.abs(angle) >= 130 - keep then dir = 'back'
-    elseif current == 'left' and angle > 50 - keep and angle < 130 + keep then dir = 'left'
-    elseif current == 'right' and angle < -50 + keep and angle > -130 - keep then dir = 'right'
-    elseif math.abs(angle) <= 50 then dir = 'forward'
-    elseif math.abs(angle) >= 130 then dir = 'back'
-    elseif angle > 0 then dir = 'left'
-    else dir = 'right' end
-    return speed >= (M.Trot or 2.6) and 'trot' or 'walk', dir
+local function attachToPolice(ped, policePed)
+    local o = Config.DragOffset
+    AttachEntityToEntity(ped, policePed, GetPedBoneIndex(policePed, Config.DragBone or PELVIS), o.x, o.y, o.z,
+        0.0, 0.0, 0.0, false, false, false, false, 2, true)
 end
 
---- Animation des jambes pour une allure et un sens (menotté vers l'avant : la marche menottée du jeu)
-local function moveAnim(gait, dir, cuffedNow)
-    local moves = Config.DragMoves or {}
-    if cuffedNow and dir == 'forward' and moves.cuffed and moves.cuffed[gait] then return moves.cuffed[gait] end
-    return moves[gait] and moves[gait][dir]
-end
-
---- `ped` est accroché au policier et ses jambes suivent ses déplacements
+--- `ped` est accroché au policier tant que isActive()
 local function holdLoop(ped, getPolicePed, isActive, onEnd, isSelf, isCuffedFn)
     CreateThread(function()
-        local o = Config.DragOffset
         local cuffAnim = Config.CuffAnim
-        local attachedTo, playing, moveKey = nil, nil, nil
-        local lastPos, lastAt, nextMove = nil, 0, 0
-        local function stopMove()
-            if playing and DoesEntityExist(ped) then StopAnimTask(ped, playing[1], playing[2], 2.0) end
-            playing, moveKey = nil, nil
-        end
+        local attachedTo, first, nextPose = nil, true, 0
         while isActive() do
             local policePed = getPolicePed()
             if not policePed or policePed == 0 or not DoesEntityExist(ped) or IsEntityDead(policePed)
@@ -212,55 +182,31 @@ local function holdLoop(ped, getPolicePed, isActive, onEnd, isSelf, isCuffedFn)
             elseif IsPedRagdoll(policePed) or IsPedRagdoll(ped) then
                 -- policier (ou individu) au sol : décroché le temps de se relever, puis raccroché
                 if attachedTo then
-                    stopMove()
                     holdPed(ped, false)
                     attachedTo = nil
                 end
             else
+                local cuffedNow = isCuffedFn and isCuffedFn() or false
                 if attachedTo ~= policePed or not IsEntityAttachedToEntity(ped, policePed) then
-                    if IsEntityAttached(ped) then DetachEntity(ped, false, false) end
-                    FreezeEntityPosition(ped, false)
-                    ClearPedTasks(ped)
-                    AttachEntityToEntity(ped, policePed, ATTACH_CENTRE, o.x, o.y, o.z, 0.0, 0.0, 0.0,
-                        false, false, false, false, 2, true)
-                    attachedTo, lastPos = policePed, nil
-                    stopMove()
+                    -- PNJ pas menotté : il arrête ce qu'il faisait (une fois)
+                    if first and not isSelf and not cuffedNow then ClearPedTasks(ped) end
+                    first = false
+                    attachToPolice(ped, policePed)
+                    attachedTo = policePed
                 end
-                local now = GetGameTimer()
-                if now >= nextMove then
-                    nextMove = now + 100
-                    -- son déplacement réel (le policier avance, recule, va de côté ou tourne) dans son propre repère
-                    local pos = GetEntityCoords(ped)
-                    local gait, dir
-                    if lastPos and now > lastAt then
-                        local dt = (now - lastAt) / 1000.0
-                        local dx, dy = (pos.x - lastPos.x) / dt, (pos.y - lastPos.y) / dt
-                        local h = math.rad(GetEntityHeading(ped))
-                        local fx, fy = -math.sin(h), math.cos(h)
-                        gait, dir = pickMove(dx * fy - dy * fx, dx * fx + dy * fy, moveKey and moveKey.dir)
-                    end
-                    lastPos, lastAt = pos, now
-                    local cuffedNow = isCuffedFn and isCuffedFn() or false
-                    local anim = gait and moveAnim(gait, dir, cuffedNow)
-                    if not anim then
-                        stopMove()
-                    elseif not playing or playing[1] ~= anim[1] or playing[2] ~= anim[2]
-                        or not IsEntityPlayingAnim(ped, anim[1], anim[2], 3) then
-                        if RPI.loadAnim(anim[1]) then
-                            TaskPlayAnim(ped, anim[1], anim[2], 3.0, -3.0, -1, 1, 0.0, false, false, false)
-                            playing = anim
+                -- PNJ menotté : mains dans le dos (le joueur menotté : sa propre boucle des menottes)
+                if not isSelf and cuffedNow then
+                    local now = GetGameTimer()
+                    if now >= nextPose then
+                        nextPose = now + 1000
+                        if not IsEntityPlayingAnim(ped, cuffAnim.dict, cuffAnim.clip, 3) then
+                            RPI.playAnimNow(ped, cuffAnim.dict, cuffAnim.clip, -1, cuffAnim.flag or 49)
                         end
-                    end
-                    moveKey = gait and { gait = gait, dir = dir } or nil
-                    -- menotté : mains dans le dos (haut du corps) ; sinon rien d'imposé
-                    if cuffedNow and not IsEntityPlayingAnim(ped, cuffAnim.dict, cuffAnim.clip, 3) then
-                        RPI.playAnimNow(ped, cuffAnim.dict, cuffAnim.clip, -1, cuffAnim.flag or 49)
                     end
                 end
             end
             Wait(isSelf and 0 or 100)
         end
-        stopMove()
         holdPed(ped, false)
         if onEnd then onEnd() end
     end)

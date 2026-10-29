@@ -21,13 +21,13 @@ passent par le chat d'origine.
 | Touche | Qui | Action |
 |---|---|---|
 | **O** | conducteur | Allumer le moteur et le laisser **toujours allumé** / le couper |
-| **G** | tous | Attacher / détacher la ceinture (K ouvre le MDC) |
+| **G** | tous | Attacher / détacher la ceinture |
 | **U** | conducteur, passager avant | Ouvrir / refermer **sa** portière (avant gauche / avant droite) |
 | **I** | conducteur | Ouvrir / refermer les **deux portières avant** ensemble |
 | **←** / **→** | conducteur | **Clignotant** gauche / droit (même touche pour l'arrêter) |
 | **↓** | conducteur | **Warnings** (feux de détresse) |
 | **↑** | conducteur | **Marche avant (D) / marche arrière (R)** |
-| **K** | à pied | Devant le capot / derrière le coffre : **pousser** le véhicule / arrêter de pousser |
+| **Œil (Alt)** | à pied | Devant le capot / derrière le coffre : « **Pousser le véhicule** » ; S / X : arrêter |
 
 En voiture, aucun rappel des touches à l'écran (seule la notification du moteur, en montant côté conducteur).
 
@@ -412,19 +412,18 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 
 ## Pousser un véhicule
 
-- À pied, **devant le capot ou derrière le coffre** d'un véhicule (avec ou sans quelqu'un au volant), un petit message apparaît en bas de l'écran, sur un **fond noir légèrement transparent** :
-  « **K** Pousser le véhicule ».
-- **K** : le personnage se met en position contre le pare-chocs (animation de poussée). Il pousse en **avançant avec
+- À pied, **devant le capot ou derrière le coffre** d'un véhicule (avec ou sans quelqu'un au volant) : **œil (Alt) sur le
+  véhicule > « Pousser le véhicule »** (dernière option de la liste ; plus de touche K ni de message).
+- Le personnage se met en position contre le pare-chocs (animation de poussée). Il pousse en **avançant avec
   sa touche habituelle** (Z / W), **tout droit uniquement**. Derrière le coffre, le véhicule avance ; devant le capot,
   il recule.
-- **Quelqu'un au volant** : il ne peut plus accélérer ni reculer, **seulement tourner le volant** pendant qu'on le pousse.
+- **Quelqu'un au volant** : il **suit la poussée** : il ne peut plus accélérer ni reculer, **seulement tourner le volant** ;
+  le frein de parking de Riven est desserré par le serveur dès que la poussée commence.
   Le jeu freinait tout seul un véhicule arrêté avec un joueur au volant (on ne pouvait plus le pousser) : pendant la
   poussée, le script appuie à sa place, très légèrement, sur la pédale dans le sens de la poussée (`Push.Pedal`), sans
   frein à main ; la vitesse reste celle de la poussée.
-- Pendant la poussée, une notification rappelle « **K** Arrêter de pousser » ; **K** de nouveau pour arrêter. Arrêt
-  automatique si le personnage tombe.
-- **K ouvre aussi le MDC** : tant que le message est affiché (ou pendant la poussée), K n'ouvre pas le MDC (état du
-  joueur `vcPushPrompt`, lu par le MDC). Ailleurs, K ouvre le MDC normalement. Les deux touches restent modifiables.
+- Pendant la poussée, une notification rappelle « **S / X** Arrêter de pousser » : **reculer (S)** ou **X** pour arrêter.
+  Arrêt automatique si le personnage tombe. K reste la touche du MDC, partout.
 
 ## Marche avant / marche arrière (touche ↑)
 
@@ -449,7 +448,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 2. Remplacez ses `riven_settings.lua` et `riven_impact_config.lua` par les versions réglées pour ce serveur (fournies à
    part, lignes marquées `[rp]`) :
    - ceinture sur **G** (comme avant) ;
-   - **frein de parking** sur **B** (K = pousser / MDC ; Espace tapé à l'arrêt marche aussi, accélérer le desserre) ;
+   - **frein de parking** sur **B** (K = MDC ; Espace tapé à l'arrêt marche aussi, accélérer le desserre) ;
      ses notifications du jeu coupées (`Notify = false`) : c'est ce script qui écrit les siennes, en français ;
    - **warnings d'accident** laissés à ce script (synchronisés) ;
    - commandes de test (`/crashtest`) coupées pour les joueurs.

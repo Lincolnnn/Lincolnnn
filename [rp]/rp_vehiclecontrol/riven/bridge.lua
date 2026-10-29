@@ -142,6 +142,10 @@ local function translate(text)
     -- ceinture / frein de parking : écrits par rp_vehiclecontrol (OwnBelt / OwnPark), sinon traduits ici
     if BELT[p] and (settings.MuteBelt == true or (settingsLoaded and settings.OwnBelt)) then return p, true end
     if PARK[p] and settingsLoaded and settings.OwnPark then return p, true end
+    -- pneus (crevé, se dégonfle, sur la jante) : le voyant de Riven le montre déjà (Riven.MuteTyres)
+    if settings.MuteTyres ~= false and (p:find('^Tyre pressure dropping') or p:find('^Flat tyre') or p:find('^Tyre shredded')) then
+        return p, true
+    end
     if EXACT[p] then return EXACT[p], false end
     for _, entry in ipairs(PATTERNS) do
         local caps = { p:match(entry[1]) }

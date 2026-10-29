@@ -232,12 +232,7 @@ local function doorKey(mode)
         VC.setState(vehicle, 'vcDoors', owners)
         applyDoors(vehicle, actions)
     end
-    local open = actions[1].open
-    if #actions > 1 then
-        VC.chat(open and 'Portières ouvertes.' or 'Portières fermées.')
-    else
-        VC.chat(open and 'Portière ouverte.' or 'Portière fermée.')
-    end
+    -- (pas de message : la portière s'ouvre ou se ferme sous les yeux du joueur)
 end
 
 RegisterCommand('vc_door', function() doorKey('door') end, false)

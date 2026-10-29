@@ -260,8 +260,8 @@ RegisterNUICallback('close', function(_, cb)
     if editor and editor.list then editor = nil else stopEditor() end
 end)
 
-RegisterNetEvent('rp_vehicleprops:result', function(_, text)
-    if type(text) == 'string' then notify(text) end
+RegisterNetEvent('rp_vehicleprops:result', function(ok, text)
+    if not ok and type(text) == 'string' then notify(text) end -- seulement ce qui n'a pas marché
 end)
 
 -- =========================================================================

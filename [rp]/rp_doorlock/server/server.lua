@@ -173,7 +173,7 @@ RegisterNetEvent('rp_doorlock:lock', function(doors)
     kicks[group], needs[group] = nil, nil
     save()
     TriggerClientEvent('rp_doorlock:set', -1, out)
-    notify(src, #out > 1 and 'Portes verrouillées.' or 'Porte verrouillée.')
+    -- (pas de message : la porte se verrouille, son et animation)
 end)
 
 RegisterNetEvent('rp_doorlock:unlock', function(id)
@@ -186,7 +186,6 @@ RegisterNetEvent('rp_doorlock:unlock', function(id)
     kicks[l.group], needs[l.group] = nil, nil
     save()
     TriggerClientEvent('rp_doorlock:unset', -1, ids)
-    notify(src, #ids > 1 and 'Portes déverrouillées.' or 'Porte déverrouillée.')
 end)
 
 --- Porte réparée : elle se verrouille de nouveau, sa description disparaît
@@ -239,7 +238,6 @@ RegisterNetEvent('rp_doorlock:kick', function(id, hit)
     kicks[l.group], needs[l.group] = nil, nil
     save()
     TriggerClientEvent('rp_doorlock:breach', -1, doors, { x = from.x, y = from.y, z = from.z }, src)
-    notify(src, 'La porte cède !')
     local minutes = tonumber((Config.Broken or {}).Duration) or 0
     if minutes > 0 then SetTimeout(math.floor(minutes * 60000), function() repair(ids) end) end
 end)
@@ -252,7 +250,6 @@ RegisterNetEvent('rp_doorlock:repair', function(id)
     local ids = {}
     for otherId, other in pairs(broken) do if other.group == b.group then ids[#ids + 1] = otherId end end
     repair(ids)
-    notify(src, 'Porte réparée : elle se verrouille de nouveau.')
 end)
 
 RegisterNetEvent('rp_doorlock:knock', function(x, y, z)

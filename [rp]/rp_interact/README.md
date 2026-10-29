@@ -19,6 +19,13 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
    et l'écrit dans la console : `[RP Interact] Emotes lues dans "RPEMOTES" : menotté2 (…), tenirlebras (…)…`. Une emote
    introuvable est signalée en jaune : vérifiez son nom dans `config.lua` (`Emotes`, `Surrender`) ou ajoutez le
    fichier qui la définit à `EmoteFiles`. `rpi_emotes` (console) relit les fichiers.
+5. **Son de la radio (recommandé)** : la ressource **olisound** (dossier `olisound`, fourni dans OilPMMS.zip :
+   « DEPENDANCY (INSTALL AS A SEPRATE RESOURCE) / olisound-main.zip ») installée **à part**, dans `resources/`, avec
+   `ensure olisound` dans `server.cfg` (avant ou après `rp_interact`, peu importe). La radio des véhicules passe alors
+   par olisound (`RadioEngine = 'auto'`) : meilleure qualité, **son 3D (HRTF)** placé sur le véhicule, **étouffé
+   dehors** quand portières et vitres sont fermées. Sans olisound : le lecteur de ce script, comme avant. Le reste
+   d'OilPMMS (le lecteur « pmms ») n'est **pas** nécessaire. olisound a ses propres boucles (de 200 ms à 1 s), même
+   sans musique : elles comptent dans le resmon d'olisound, pas dans celui de `rp_interact`.
 
 **Mode nuit** (réglé dans le MDC : *Paramètres > MDC > Apparence*, appliqué à toutes les interfaces ou aux menus extérieurs) : **fond noir et couleur du mode nuit** (vert, jaune, rouge ou bleu) pour le Menu Interaction, le `/eup`, la fiche civile, l'œil, les résultats, barres, tips et notifications (`client/theme.lua` ; sans le MDC : thème jour).
 
@@ -121,8 +128,12 @@ Page **Voiture** :
   **Arrêter la radio** (vide la file) · **Volume du véhicule** (← →, par pas de 5 %).
   Réglable seulement par les **places avant**, ou avec l'**œil** en visant l'intérieur avant du véhicule, **portière
   avant ouverte** (option « Radio du véhicule » : le menu s'ouvre, ou va, sur la page Radio).
+  **Avec olisound** (voir Installation) : le son est spatialisé en 3D autour du véhicule (HRTF), étouffé (filtre
+  passe-bas) dehors tant que portières et vitres sont fermées, normal à bord ; distances 15 m / 25 m conservées ;
+  atténuation et étouffement réglables dans la config d'olisound (`outsideVehicleVolume`,
+  `outsideVehicleMuffleFrequency`, `otherVehicleVolume`). `RadioEngine = 'nui'` : toujours le lecteur de ce script.
   **pma-voice** : il ne transporte que la **voix des joueurs** (micro) ; il ne peut pas diffuser une musique depuis un
-  lien. La musique est donc jouée par le navigateur du jeu (NUI), avec les mêmes règles de distance.
+  lien. La musique est donc jouée par le navigateur du jeu (NUI : olisound ou ce script), avec les mêmes règles de distance.
 
 **En service** = dans une unité du MDC : dès que vous rejoignez une unité, les fouilles et détails notoires
 apparaissent dans l'œil (notification) ; dès que vous la quittez, ils sont retirés (et refusés par le serveur).
@@ -306,10 +317,13 @@ peut le modifier ou le supprimer.
 Un œil apparaît au centre de l'écran ; il s'allume (bleu) quand la cible propose des options, avec son nom.
 **Clic gauche** : liste des options, clic sur une option pour l'exécuter. **Échap**, clic droit ou clic à côté : fermer.
 
-Options **principales** mises en avant (surlignées dans la couleur du thème, en tête de liste, puis un séparateur
-avant les autres) : celles qui n'existent que pour **ce qui est visé précisément** (portière visée : l'ouvrir / monter,
-radio, banc, poubelle, objet d'un autre script, porte de `rp_doorlock`, herse au coffre ou au sol…) et **les options de
-police** (sauf « Faire s'asseoir / se relever »). Un script de l'œil peut en proposer avec `primary = true`. Les
+Options rangées par **groupes**, séparés par un trait : **inspections et détail notoire** (personne, véhicule,
+occupant) · **fouilles** · **actions de police** · **ouvrir / fermer la portière visée** · le reste · tout en bas,
+les options « en bas de liste » d'un script (`last = true` : **Pousser le véhicule** de Vehicle Control…).
+Options **principales** mises en avant (surlignées dans la couleur du thème) : les **inspections et le détail
+notoire**, ce qui est **visé précisément** (portière visée, radio, banc, poubelle, objet d'un autre script, porte de
+`rp_doorlock`, herse au coffre ou au sol…) et **les options de police** (sauf « Faire s'asseoir / se relever ») ;
+**« Monter (place visée) » n'est pas surlignée**. Un script de l'œil peut en proposer avec `primary = true`. Les
 options sont plus espacées.
 
 Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : visez votre personnage en vue à la
@@ -396,13 +410,13 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
   monté dans un véhicule…), elle est **relancée automatiquement** ; menotté, il ne peut plus courir, sauter, frapper,
   viser ni monter seul dans un véhicule (les menottes du jeu sont levées le temps d'être placé / sorti par un
   policier). **Retirer les menottes** : 3 s.
-- **Prendre par le bras** (individu le plus proche, 2 m) : le policier fait **`/e tenirlebras`**, l'individu est
-  **tenu de force** à sa droite, un peu devant (`DragOffset`, même place qu'avant) : il est **accroché au centre du
-  policier**, pas à un os, donc il **garde son propre axe** : il reste droit et ne bascule plus dans le policier
-  quand celui-ci se penche. Il suit ses déplacements : **marcher, trottiner** (le policier qui le tient **ne peut pas
-  sprinter**, ni sauter), aller **à gauche, à droite** ou reculer ; ses jambes jouent l'animation qui correspond à
-  son déplacement réel (`DragMove`, `DragMoves`). Il ne peut ni bouger seul, ni sauter, ni frapper, ni viser.
-  **Menotté** : mains dans le dos (marche menottée du jeu vers l'avant). **Pas menotté** : ni menottes, ni emote.
+- **Prendre par le bras** (individu le plus proche, 2 m ; joueur ou PNJ) : le policier fait **`/e tenirlebras`**,
+  l'individu est **tenu de force** à sa droite, devant (`DragOffset`) : comme dans la première version, il est
+  **accroché au bassin du policier** (`DragBone`) et le suit partout, y compris quand il tourne, **sans aucune
+  animation imposée** côté civil (ni marche, ni emote) : seulement les menottes s'il est menotté (mains dans le dos).
+  Il est accroché une seule fois (plus de ré-accrochage ni d'animations de jambes qui le faisaient « sauter » quand le
+  policier tournait). Le policier qui le tient **ne peut pas sprinter** ni sauter. L'individu ne peut ni bouger seul,
+  ni sauter, ni frapper, ni viser.
   Policier au sol : l'individu est décroché le temps qu'il se relève, puis raccroché. **Lâcher le bras** (œil,
   menu) ou touche **X** (`DragReleaseKey`, modifiable : Raccourcis clavier > FiveM > « Police : lâcher le bras »).
 - **Se débattre** (tenu par le bras **sans être menotté**) : une jauge apparaît, **ESPACE** à répétition (`Struggle.Key`)
@@ -460,13 +474,13 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `SpawnPoliceOnly`, `EquipmentPoliceOnly` | véhicules de police (Voiture > Spawn) et armes réservés aux policiers en service |
 | `MaxCustomEquipment` | équipements modifiés (nommés, enregistrés) par joueur (10) |
 | `Eup` | menu des tenues : commande (`eup`), `PoliceOnly` (tenues de police réservées aux policiers en service, `false` par défaut), `OneBased` (numéros des tenues comptés à partir de 1) |
-| `RadioRangeClosed`, `RadioRangeOpen`, `RadioInsulation`, `RadioMaxVolume` | radio du véhicule : portée dehors tout fermé (15 m) / ouvert (25 m), volume quand tout est fermé, volume maximal |
+| `RadioRangeClosed`, `RadioRangeOpen`, `RadioInsulation`, `RadioMaxVolume`, `RadioEngine` | radio du véhicule : portée dehors tout fermé (15 m) / ouvert (25 m), volume quand tout est fermé (lecteur de ce script), volume maximal, moteur du son (`'auto'` : olisound s'il est démarré ; `'nui'` : ce script) |
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
 | `CuffPropPlacement` | position / orientation des menottes |
-| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragMove`, `DragMoves`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position de l'individu tenu, allures et animations de ses jambes, touche pour lâcher le bras, distance du véhicule |
+| `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragBone`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position de l'individu tenu et os du policier où il est accroché, touche pour lâcher le bras, distance du véhicule |
 | `Struggle` | se débattre (tenu sans menottes) : activé, touche (ESPACE), gain par appui / baisse par seconde de la jauge, rayon des autres policiers (2 m), chance de perdre s'ils étaient déjà là (85 %), délai avant de pouvoir le reprendre (5 s), tremblement des écrans |
 | `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) : `'everyone'` (défaut) ou `'police'`, + permission ACE |
 | `AdminAce` | permission ACE des commandes d'administration (rechargement des emotes et des véhicules) |

@@ -755,8 +755,7 @@ RegisterNetEvent('rp_equipment:cone:carry', function(total, taken)
     playPickup()
     Wait(500)
     setCarried(total)
-    taken = tonumber(taken) or 1
-    if taken > 1 then notify(('%d plots ramassés (%d en main).'):format(taken, carried and carried.count or 0)) end
+    -- (pas de message : les plots ramassés sont dans les mains)
 end)
 
 RegisterNetEvent('rp_equipment:notify', notify)

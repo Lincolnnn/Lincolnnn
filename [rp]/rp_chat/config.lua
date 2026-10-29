@@ -90,7 +90,7 @@ ChatConfig = {
             } },
             { title = "Véhicule", items = {
                 { "O", "moteur" }, { "G", "ceinture" }, { "U / I", "sa portière / les deux avant" },
-                { "← →", "clignotants" }, { "↓", "warnings" }, { "K", "pousser (à pied)" },
+                { "← →", "clignotants" }, { "↓", "warnings" }, { "Alt", "œil : pousser un véhicule (à pied)" },
             } },
             { title = "Interpellations", items = {
                 { "H", "mains en l'air" }, { "J", "à genoux" }, { "L", "s'allonger" }, { "X", "arrêter l'emote / lâcher le bras" },

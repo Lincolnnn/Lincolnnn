@@ -5,22 +5,43 @@
         "Replace": true,
         "Weapons": [
             {
-                "Weapon": "WEAPON_PISTOL50",
-                "Label": "Arme de service (Pistol .50)",
-                "Ammo": 120,
+                "Weapon": "WEAPON_Glock19",
+                "Label": "Glock 19",
+                "Ammo":250,
                 "Required": true,
-                "Components": ["COMPONENT_AT_PI_FLSH"],
+                "Components": ["component_glock19_flsh_01"],
                 "Options": [
-                    { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "COMPONENT_AT_PI_FLSH" } ] },
-                    { "Label": "Chargeur", "Choices": [ { "Label": "Chargeur grande capacité", "Component": "COMPONENT_PISTOL50_CLIP_02" } ] }
+                    { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "component_glock19_flsh_04" } ] },
+                    { "Label": "Magazine", "Choices": [ { "Label": "Magazine 17 balles", "Component": "component_glock19_clip_01" } ] },
+                    { "Label": "Magazine", "Choices": [ { "Label": "Magazine 25 balles", "Component": "component_glock19_clip_02" } ] },
+					{ "Label": "Viseur", "Choices": [ { "Label": "Viseur point rouge", "Component": "component_glock19_scope_01" } ] },
+					{ "Label": "Viseur", "Choices": [ { "Label": "Viseur point rouge", "Component": "component_glock19_scope_03" } ] },
+					{ "Label": "Viseur", "Choices": [ { "Label": "Viseur point rouge", "Component": "component_glock19_scope_06" } ] },
+					{ "Label": "Viseur", "Choices": [ { "Label": "Viseur point rouge", "Component": "component_glock19_scope_08" } ] },
                 ],
                 "Tints": true
             },
+            { "Weapon": "WEAPON_PM4",
+			"Label": "Fusil AR-15",
+			"Ammo": 650,
+			"Options" : [
+                    { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "COMPONENT_MARKOMODS_SHARED_FLASH_07a" } ] },
+                    { "Label": "Viseur", "Choices": [ { "Label": "Viseur", "Component": "COMPONENT_MARKOMODS_SHARED_SCOPE_08" } ] },
+					{ "Label": "Viseur", "Choices": [ { "Label": "Viseur", "Component": "COMPONENT_MARKOMODS_SHARED_SCOPE_05" } ] },
+                    { "Label": "Magazine", "Choices": [ { "Label": "Magazine", "Component": "COMPONENT_MARKOMODS_SHARED_556MAG_01" } ] },
+                    { "Label": "Magazine", "Choices": [ { "Label": "Magazine", "Component": "COMPONENT_MARKOMODS_SHARED_556MAG_03" } ] },
+					{ "Label": "Magazine", "Choices": [ { "Label": "Magazine", "Component": "COMPONENT_MARKOMODS_SHARED_556MAG_04" } ] },
+                ],
+                "Tints": true
+            },
+            { "Weapon": "WEAPON_BEANBAG", "Label": "Beanbag", "Ammo": 50, "Tints": 2 },
             { "Weapon": "WEAPON_STUNGUN", "Label": "Taser", "Ammo": 1, "Required": true },
             { "Weapon": "WEAPON_FLASHLIGHT", "Label": "Lampe torche", "Ammo": 1 },
-            { "Weapon": "WEAPON_NIGHTSTICK", "Label": "Matraque", "Ammo": 1 },
-            { "Weapon": "WEAPON_FLARE", "Label": "Fusées de détresse (10)", "Ammo": 10 },
-            { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": false }
+            { "Weapon": "WEAPON_POCKETLIGHT", "Label": "Lampe de poche", "Ammo": 1 },
+            { "Weapon": "WEAPON_COLBATON", "Label": "Matraque telescopique", "Ammo": 1 },
+            { "Weapon": "WEAPON_FLARE", "Label": "Flares", "Ammo": 10 },
+            { "Weapon": "WEAPON_PEPPERSPRAY", "Label": "Spray au poivre" },
+            { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": true }
         ]
     },
     {
