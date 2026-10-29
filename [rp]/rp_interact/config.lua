@@ -53,6 +53,15 @@ InteractConfig = {
     SpawnPoliceOnly = true,         -- véhicules de police (WSP / KCSO) réservés aux policiers en service
     EquipmentPoliceOnly = true,     -- armes réservées aux policiers en service
     MaxCustomEquipment = 10,        -- "Équipements modifiés" (nommés, enregistrés) par joueur
+    -- Customiser équipement : onglet d'arme ouvert -> caméra rapprochée sur l'arme en main (à pied), changements
+    -- visibles en direct. Offset : position de la caméra par rapport au personnage (x : à sa droite, y : devant,
+    -- z : hauteur depuis le bassin) ; Fov : champ de vision (plus petit : plus de zoom).
+    EquipmentZoom = { Enabled = true, Offset = { x = 0.55, y = 0.95, z = 0.15 }, Fov = 34.0 },
+    -- /copyped : copie du personnage pour les photos (arme et accessoires, emote de RPEMOTES et ses props). Max : copies
+    -- par joueur (la plus ancienne est remplacée) ; Networked : visibles par tous ; FreezePose : pose figée à
+    -- l'instant de la copie ; ExtraComponents : accessoires d'armes à copier en plus de ceux de equipment_services.json.
+    -- /copyped suppr : supprime ses copies.
+    CopyPed = { Enabled = true, Command = 'copyped', Max = 5, Networked = true, FreezePose = true, ExtraComponents = {} },
 
     -- MENU DES TENUES (/eup, ou Menu Interaction > Équipements > "Accéder aux tenues") : tenues de
     -- data/outfits.json, uniquement dans ce fichier. Menu au clavier : flèches haut / bas, Entrée (ou

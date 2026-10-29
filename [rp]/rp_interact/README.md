@@ -81,12 +81,19 @@ Page **Équipements** : **Tenues** → **Accéder aux tenues** (ferme ce menu et
   (sa licence Rockstar) : **lui seul** y a accès. Ceux enregistrés avec les anciens services sont repris
   (GSP → WSP, FCSO → KCSO).
 - **Customiser équipement** : reconnaît l'**équipement sélectionné** (de base ou modifié) et propose **uniquement les
-  modifications de sa police** : pour chaque arme, **Prendre cette arme** (l'arme de service et le taser sont
-  **obligatoires**), ses accessoires (case, ou liste ‹ › : lampe, chargeur grande capacité…), sa **teinte** (liste).
-  Champ **Nom** (vide : « Équipement WSP modifié »…). **Équiper** (sans enregistrer) et **Enregistrer** : depuis un
-  équipement de base, il **s'ajoute** aux Équipements modifiés (l'équipement de base ne change pas) ; depuis un
-  équipement modifié, il le **met à jour**. **Supprimer cet équipement modifié** (Entrée deux fois). Le serveur
-  revérifie chaque choix (seulement ce que le fichier prévoit pour cette police).
+  modifications de sa police**. Champ **Nom** (vide : « Équipement WSP modifié »…), puis **un onglet par arme**, qui
+  s'ouvre avec un **crochet** comme les onglets du MDC (Entrée / → : ouvrir ; Entrée / ←, ou clic : refermer). Onglet
+  ouvert :
+  - ses réglages : **Prendre cette arme** (l'arme de service et le taser sont **obligatoires**), ses accessoires
+    (case, ou liste ‹ › : lampe, chargeur, viseur…), sa **teinte** ;
+  - la **souris apparaît** (seulement là) pour cocher / décocher et choisir (clic sur ‹ › ; molette : élément
+    précédent / suivant), les touches marchent toujours ;
+  - **zoom sur l'arme** en main (caméra rapprochée, `EquipmentZoom`), le personnage reste immobile ;
+  - chaque changement est **visible tout de suite** : l'arme est **équipée automatiquement** (accessoires mis /
+    retirés, teinte), plus besoin d'« Équiper ».
+  Reste **Enregistrer** : depuis un équipement de base, il **s'ajoute** aux Équipements modifiés (l'équipement de base
+  ne change pas) ; depuis un équipement modifié, il le **met à jour**. **Supprimer cet équipement modifié** (Entrée
+  deux fois). Le serveur revérifie chaque choix (seulement ce que le fichier prévoit pour cette police).
 - **Autres armes** : lots de **`data/loadouts.json`** (facultatif, affiché s'il en contient) ; **Retirer mes armes**.
 Page **Voiture** :
 - **Spawn** : en haut, deux cases gardées chez le joueur : **Supprimer l'ancien véhicule** (le dernier que vous avez
@@ -486,6 +493,8 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
 | `CuffPropPlacement` | position / orientation des menottes |
+| `EquipmentZoom` | Customiser équipement : caméra rapprochée sur l'arme de l'onglet ouvert (position `Offset`, champ de vision `Fov`) |
+| `CopyPed` | `/copyped` : copies par joueur (`Max`), visibles par tous (`Networked`), pose figée (`FreezePose`), accessoires en plus (`ExtraComponents`) |
 | `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragMove`, `DragMoves`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position de l'individu tenu, allures et animations de ses jambes, touche pour lâcher le bras, distance du véhicule |
 | `Struggle` | se débattre (tenu sans menottes) : activé, touche (ESPACE), gain par appui / baisse par seconde de la jauge, rayon des autres policiers (2 m), chance de perdre s'ils étaient déjà là (85 %), délai avant de pouvoir le reprendre (5 s), tremblement des écrans |
 | `DeleteAccess`, `DeleteAce` | qui peut supprimer (PNJ, véhicules sans joueur, objets) : `'everyone'` (défaut) ou `'police'`, + permission ACE |
@@ -560,6 +569,19 @@ Un objet par bouton « Équipement … », dans l'ordre d'affichage :
 Un équipement modifié ne garde que ce que le fichier prévoit encore : un accessoire retiré du fichier n'est
 plus donné, une arme ajoutée apparaît avec son réglage de base. Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`
 dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
+
+## `/copyped` : copier son personnage (photos)
+
+`/copyped` : un **double** de votre personnage apparaît **exactement à votre place** (position, orientation, tenue),
+puis vous pouvez vous déplacer pour prendre la photo. Il reprend :
+- l'**arme tenue en main**, avec ses **accessoires** (ceux de l'arme dans `equipment_services.json`, armes addon
+  comprises, + `CopyPed.ExtraComponents`) et sa **teinte** ; en train de **viser** : il vise dans la même direction ;
+- l'**animation en cours** : l'**emote** du mode d'emotes (**RPEMOTES** / rpemotes : le serveur lit toutes ses emotes,
+  une fois), **au même moment** de l'animation et **figée** (`FreezePose`), avec les **props** de l'emote (téléphone,
+  carnet…) ; un **scénario** (fumer, café…) ; ou une animation de ce script (menotté…) ;
+- les **objets accrochés** au personnage (menottes…).
+Le double ne bouge pas et ne prend pas de dégâts. **`/copyped suppr`** supprime vos doubles ; au-delà de
+`CopyPed.Max` (5), le plus ancien est remplacé. À pied seulement.
 
 ## Performance
 

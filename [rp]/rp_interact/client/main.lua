@@ -49,14 +49,30 @@ end)
 -- =========================================================================
 local ui = { menu = false, editor = false, options = false }
 
+local menuCursor = false -- souris dans un menu au clavier (Customiser équipement : onglet d'arme ouvert)
+
 function RPI.applyFocus()
     if ui.editor or ui.options then
         SetNuiFocus(true, true)
+        SetNuiFocusKeepInput(false)
     elseif RPI.kbTyping and RPI.kbTyping() then
         SetNuiFocus(true, false)
+        SetNuiFocusKeepInput(false)
+    elseif menuCursor then
+        -- souris affichée, touches toujours lues par le menu au clavier (client/kbmenu.lua)
+        SetNuiFocus(true, true)
+        SetNuiFocusKeepInput(true)
     else
         SetNuiFocus(false, false)
+        SetNuiFocusKeepInput(false)
     end
+end
+
+function RPI.setMenuCursor(on)
+    on = on == true
+    if on == menuCursor then return end
+    menuCursor = on
+    RPI.applyFocus()
 end
 
 function RPI.setUi(name, open)

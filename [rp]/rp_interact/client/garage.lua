@@ -173,15 +173,110 @@ RegisterNUICallback('equipmentCustom', function(data, cb)
     end)
 end)
 
--- "Équiper" (sans enregistrer), "Enregistrer" (équipement modifié nommé), "Supprimer"
+-- =========================================================================
+-- CUSTOMISER ÉQUIPEMENT : aperçu en direct, zoom sur l'arme, souris dans l'onglet ouvert
+-- =========================================================================
+--- Aperçu : les armes du service prises / retirées, accessoires et teinte exactement comme choisis ; l'arme de
+--- l'onglet ouvert (`focus`) en main. Les autres armes du joueur ne sont pas touchées.
+local function applyPreview(ped, loadout, focus)
+    for _, name in ipairs(loadout.off or {}) do
+        local hash = GetHashKey(name)
+        if HasPedGotWeapon(ped, hash, false) then RemoveWeaponFromPed(ped, hash) end
+    end
+    for _, w in ipairs(loadout.weapons or {}) do
+        local hash = GetHashKey(w.weapon)
+        if not HasPedGotWeapon(ped, hash, false) then GiveWeaponToPed(ped, hash, w.ammo or 0, false, false) end
+        local want = {}
+        for _, component in ipairs(w.components or {}) do want[GetHashKey(component)] = true end
+        -- d'abord retirés (un seul chargeur, un seul viseur…), puis ajoutés
+        for _, component in ipairs(w.all or {}) do
+            local c = GetHashKey(component)
+            if not want[c] and HasPedGotWeaponComponent(ped, hash, c) then RemoveWeaponComponentFromPed(ped, hash, c) end
+        end
+        for _, component in ipairs(w.components or {}) do
+            local c = GetHashKey(component)
+            if not HasPedGotWeaponComponent(ped, hash, c) then GiveWeaponComponentToPed(ped, hash, c) end
+        end
+        SetPedWeaponTintIndex(ped, hash, w.tint or 0)
+    end
+    if focus then
+        local hash = GetHashKey(focus)
+        SetCurrentPedWeapon(ped, HasPedGotWeapon(ped, hash, false) and hash or GetHashKey('WEAPON_UNARMED'), true)
+    end
+end
+
+local Z = Config.EquipmentZoom or {}
+local ZOOM_BLOCKED = { 1, 2, 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36, 37, 44, 45, 47, 58, 140, 141, 142, 143, 257, 263, 264 }
+local focus = { weapon = nil, cam = nil, running = false }
+
+local function stopCam()
+    if not focus.cam then return end
+    RenderScriptCams(false, true, 350, true, false)
+    DestroyCam(focus.cam, false)
+    focus.cam = nil
+end
+
+--- Caméra rapprochée sur l'arme en main (à pied) ; le joueur ne bouge pas tant qu'un onglet d'arme est ouvert
+local function focusLoop()
+    if focus.running then return end
+    focus.running = true
+    CreateThread(function()
+        while focus.weapon do
+            for _, control in ipairs(ZOOM_BLOCKED) do DisableControlAction(0, control, true) end
+            local ped = PlayerPedId()
+            if Z.Enabled ~= false and not IsPedInAnyVehicle(ped, false) and not IsEntityDead(ped) then
+                if not focus.cam then
+                    focus.cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+                    SetCamFov(focus.cam, Z.Fov or 34.0)
+                    RenderScriptCams(true, true, 450, true, false)
+                end
+                local o = Z.Offset or { x = 0.55, y = 0.95, z = 0.15 }
+                local entity = GetCurrentPedWeaponEntityIndex(ped)
+                local target = entity ~= 0 and DoesEntityExist(entity) and GetEntityCoords(entity)
+                    or GetPedBoneCoords(ped, 57005, 0.0, 0.0, 0.0) -- main droite
+                local pos = GetOffsetFromEntityInWorldCoords(ped, o.x, o.y, o.z)
+                SetCamCoord(focus.cam, pos.x, pos.y, pos.z)
+                PointCamAtCoord(focus.cam, target.x, target.y, target.z)
+            else
+                stopCam()
+            end
+            Wait(0)
+        end
+        stopCam()
+        focus.running = false
+    end)
+end
+
+--- Onglet d'arme ouvert (`weapon`) ou fermé (nil) : zoom sur l'arme et souris dans le menu
+function RPI.equipmentFocus(weapon)
+    weapon = type(weapon) == 'string' and weapon ~= '' and weapon or nil
+    focus.weapon = weapon
+    RPI.setMenuCursor(weapon ~= nil)
+    if weapon then
+        local ped, hash = PlayerPedId(), GetHashKey(weapon)
+        if HasPedGotWeapon(ped, hash, false) then SetCurrentPedWeapon(ped, hash, true) end
+        focusLoop()
+    end
+end
+
+RegisterNUICallback('equipmentFocus', function(data, cb)
+    cb({ ok = true })
+    RPI.equipmentFocus(type(data) == 'table' and data.weapon or nil)
+end)
+
+-- "preview" (aperçu en direct, à chaque changement), "Enregistrer" (équipement modifié nommé), "Supprimer"
 RegisterNUICallback('equipmentCustomSave', function(data, cb)
     data = type(data) == 'table' and data or {}
-    local action = (data.action == 'save' or data.action == 'delete') and data.action or 'apply'
+    local action = (data.action == 'save' or data.action == 'delete' or data.action == 'preview') and data.action or 'apply'
     RPI.request('equipmentCustomSave', { key = data.key, id = data.id, action = action, name = data.name, choices = data.choices },
         function(res)
             if not res or not res.ok then
                 cb(res or { ok = false })
                 return RPI.notify(res and res.error or 'Action impossible.', 'error')
+            end
+            if action == 'preview' then
+                if type(res.loadout) == 'table' then applyPreview(PlayerPedId(), res.loadout, data.focus) end
+                return cb({ ok = true })
             end
             if action == 'delete' then
                 RPI.notify('Équipement modifié supprimé.', 'success')

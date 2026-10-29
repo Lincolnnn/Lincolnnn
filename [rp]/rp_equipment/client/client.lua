@@ -197,18 +197,40 @@ local function slotFor(hash, where)
     return nil
 end
 
---- Arme tenue en main, telle quelle : modèle, accessoires, teintes
+--- Accessoires des armes de rp_interact (equipment_services.json, armes addon comprises : GlobalState publié par
+--- rp_interact) : { [hash de l'arme] = { name, label, components } }
+local function interactWeapons()
+    local list = GlobalState.rpiWeaponComponents
+    local out = {}
+    if type(list) ~= 'table' then return out end
+    for name, w in pairs(list) do
+        if type(name) == 'string' and type(w) == 'table' then
+            out[GetHashKey(name)] = { name = name, label = w.label, components = type(w.components) == 'table' and w.components or {} }
+        end
+    end
+    return out
+end
+
+--- Arme tenue en main, telle quelle : modèle, accessoires (ceux du jeu, ExtraComponents et ceux de l'arme dans
+--- equipment_services.json de rp_interact, armes addon comprises), teintes
 local function capture(ped, hash)
-    local components, tints = {}, {}
-    for _, name in ipairs(COMPONENTS) do
+    local components, tints, seen = {}, {}, {}
+    local addon = interactWeapons()[hash]
+    local function test(name, known)
+        if seen[name] then return end
+        seen[name] = true
         local c = GetHashKey(name)
-        if DoesWeaponTakeWeaponComponent(hash, c) and HasPedGotWeaponComponent(ped, hash, c) then
+        -- accessoire d'une arme addon : le jeu ne le connaît pas toujours pour DoesWeaponTakeWeaponComponent
+        if (known or DoesWeaponTakeWeaponComponent(hash, c)) and HasPedGotWeaponComponent(ped, hash, c) then
             components[#components + 1] = name
             local ok, tint = pcall(GetPedWeaponComponentTintIndex, ped, hash, c)
             if ok and type(tint) == 'number' and tint >= 0 then tints[name] = tint end
         end
     end
+    for _, name in ipairs(COMPONENTS) do test(name, false) end
+    for _, name in ipairs(addon and addon.components or {}) do test(name, true) end
     local label, name = weaponLabel(hash)
+    if addon and not name then label, name = addon.label or label, addon.name end
     return {
         hash = hash, name = name, label = label,
         tint = GetPedWeaponTintIndex(ped, hash),

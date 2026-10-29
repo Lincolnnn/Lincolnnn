@@ -97,7 +97,10 @@ avoir modifié le fichier de rp_interact : tapez `rpequip_reload` dans la consol
   vide pour tout le monde (deux policiers ne peuvent pas sortir la même arme).
 - Sauvegardé **par plaque** dans `data/racks.json` : gardé au redémarrage du serveur et quand le véhicule réapparaît
   avec la même plaque.
-- Armes addon : leurs accessoires se déclarent dans `LongGuns.ExtraComponents`, leur nom dans `LongGuns.Names`.
+- **Armes addon** : leurs accessoires sont repris **automatiquement** de `equipment_services.json` de **rp_interact**
+  (toutes les options et accessoires de chaque arme, publiés par rp_interact) : une arme longue addon rangée revient
+  **avec ses accessoires** (viseur, chargeur, lampe…) et son nom (`Label`). En plus : `LongGuns.ExtraComponents`
+  (accessoires), `LongGuns.Names` (noms).
 
 ## Coffre : plots de circulation, jerrican, pistolet radar et fusées (inventaire)
 

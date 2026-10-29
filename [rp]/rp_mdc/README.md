@@ -71,6 +71,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_RoleplayZone
    ensure rp_Ganghunt
    ensure rp_vmenukeys              # touches de vMenu imposées (plus de vMenu sur V), avant vMenu
+   ensure rp_overheadids            # numéros des joueurs au-dessus des têtes (touche maintenue)
    ```
    Le MDC publie son nom de ressource (`GlobalState.mdcResource`) : son dossier peut être renommé.
 3. En jeu : touche **K** (modifiable dans *Paramètres > Raccourcis clavier > FiveM*) ou `/mdc`. **Échap** pour fermer.

@@ -223,6 +223,22 @@ local function loadServices()
             serviceByKey[key] = service
         end
     end
+    -- Accessoires possibles de chaque arme (armes addon comprises), pour tous les scripts : coffre de rp_equipment
+    -- (une arme rangée garde ses accessoires), /copyped. GlobalState.rpiWeaponComponents[ARME] = { label, components }
+    local published = {}
+    for _, service in ipairs(Services) do
+        for _, w in ipairs(service.weapons) do
+            local entry = published[w.weapon] or { label = w.label, components = {} }
+            local seen = {}
+            for _, c in ipairs(entry.components) do seen[c] = true end
+            local function add(c) if not seen[c] then seen[c] = true; entry.components[#entry.components + 1] = c end end
+            for _, c in ipairs(w.fixed) do add(c) end
+            for c in pairs(w.allowed) do add(c) end
+            table.sort(entry.components)
+            published[w.weapon] = entry
+        end
+    end
+    GlobalState.rpiWeaponComponents = published
 end
 
 -- Pièces d'une tenue : nom dans le fichier -> composant (component) ou accessoire (prop) du personnage
@@ -639,19 +655,34 @@ local function fullChoices(service, saved)
     return { weapons = weapons }
 end
 
---- Armes à donner (lot final) selon les choix
-local function buildLoadout(service, choices, name)
-    local weapons = {}
+--- Tous les accessoires possibles d'une arme (fixes + ceux des choix) : l'aperçu retire ceux qui ne sont plus choisis
+local function allComponents(w)
+    local all = {}
+    for component in pairs(w.allowed) do all[#all + 1] = component end
+    for _, component in ipairs(w.fixed) do
+        if not w.allowed[component] then all[#all + 1] = component end
+    end
+    table.sort(all)
+    return all
+end
+
+--- Armes à donner (lot final) selon les choix ; `preview` : avec la liste de tous les accessoires possibles de
+--- chaque arme et les armes du service non prises (aperçu en direct de Customiser équipement)
+local function buildLoadout(service, choices, name, preview)
+    local weapons, off = {}, {}
     for _, w in ipairs(service.weapons) do
         local c = choices.weapons[w.weapon] or { on = w.default, components = w.components, tint = 0 }
         if w.required or c.on then
             local components = {}
             for _, component in ipairs(w.fixed) do components[#components + 1] = component end
             for _, component in ipairs(c.components or {}) do components[#components + 1] = component end
-            weapons[#weapons + 1] = { weapon = w.weapon, ammo = w.ammo, components = components, tint = w.tints and c.tint or nil }
+            weapons[#weapons + 1] = { weapon = w.weapon, ammo = w.ammo, components = components, tint = w.tints and c.tint or nil,
+                all = preview and allComponents(w) or nil }
+        elseif preview then
+            off[#off + 1] = w.weapon
         end
     end
-    return { name = name or service.name, replace = service.replace, weapons = weapons }
+    return { name = name or service.name, replace = service.replace, weapons = weapons, off = preview and off or nil }
 end
 
 local function policeOnlyError(src)
@@ -743,7 +774,7 @@ S.on('equipmentCustom', function(src, p)
         id = entry and entry.id or nil, name = entry and entry.name or '', suggested = ('%s modifié'):format(service.name) }
 end)
 
---- Customiser : "Équiper" (sans enregistrer), "Enregistrer" (nommé, gardé pour toujours, propre au joueur : nouvel
+--- Customiser : aperçu en direct ("preview" : les armes sont données à chaque changement), "Enregistrer" (nommé, gardé pour toujours, propre au joueur : nouvel
 --- équipement modifié, ou mise à jour de celui en cours de modification) ou "Supprimer"
 S.on('equipmentCustomSave', function(src, p)
     local denied = policeOnlyError(src)
@@ -784,7 +815,9 @@ S.on('equipmentCustomSave', function(src, p)
         return { ok = true, saved = true, id = entry.id, name = entry.name, customs = customList(src),
             loadout = buildLoadout(service, choices, entry.name) }
     end
-    return { ok = true, saved = false, id = entry and entry.id or nil, loadout = buildLoadout(service, choices, name) }
+    -- "preview" : aperçu en direct (chaque changement) ; "apply" : équiper sans enregistrer
+    return { ok = true, saved = false, id = entry and entry.id or nil,
+        loadout = buildLoadout(service, choices, name, p.action == 'preview') }
 end)
 
 --- Menu /eup : toutes les tenues (le client garde celles de son personnage homme / femme)

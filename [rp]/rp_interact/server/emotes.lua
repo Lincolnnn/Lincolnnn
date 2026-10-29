@@ -141,7 +141,87 @@ local function parseEmote(content, name)
     return nil
 end
 
+-- =========================================================================
+-- INDEX COMPLET des emotes (pour /copyped : reconnaître l'animation que joue le joueur et la recopier, avec les
+-- props de l'emote). Construit à la première demande, gardé jusqu'au prochain redémarrage du mode d'emotes.
+-- Envoyé au client qui le demande, une fois (événement "latent" : en arrière-plan, sans gêner le jeu).
+-- =========================================================================
+local fullIndex = nil -- { { n = nom, d = dict, c = clip, s = scénario, l = boucle, m = haut du corps, p = props } }
+
+local function numbers(text)
+    local list = {}
+    for n in (text or ''):gmatch('%-?%d*%.?%d+') do list[#list + 1] = tonumber(n) end
+    return list
+end
+
+--- Props d'une emote : AnimationOptions Prop / PropBone / PropPlacement (et SecondProp…)
+local function propsOf(block)
+    local props = {}
+    for _, prefix in ipairs({ '[%s,{]', 'Second' }) do
+        local model = block:match(prefix .. 'Prop%s*=%s*["\']([^"\']+)["\']')
+        if model then
+            local bone = tonumber(block:match(prefix .. 'PropBone%s*=%s*(%-?%d+)'))
+            local placement = block:match(prefix .. 'PropPlacement%s*=%s*(%b{})')
+            props[#props + 1] = { model, bone or 60309, numbers(placement) }
+        end
+    end
+    return #props > 0 and props or nil
+end
+
+local function emoteFiles(resource)
+    local contents = {}
+    for _, path in ipairs(filesOf(resource)) do
+        local content = LoadResourceFile(resource, path)
+        if content then contents[#contents + 1] = content end
+    end
+    return contents
+end
+
+local function buildIndex()
+    if fullIndex then return fullIndex end
+    fullIndex = {}
+    local resource = findEmoteResource()
+    if not resource then return fullIndex end
+    local seen = {}
+    local contents = emoteFiles(resource)
+    -- dernier fichier lu en premier : sa définition l'emporte (fichiers "custom" de rpemotes)
+    for i = #contents, 1, -1 do
+        local content = contents[i]
+        for name, start in content:gmatch('%[%s*["\']([^"\'%]]+)["\']%s*%]%s*=%s*(){') do
+            local key = name:lower()
+            if not seen[key] then
+                local block = blockAt(content, start)
+                local dict, clip
+                if block then dict, clip = block:match('^{%s*["\']([^"\']+)["\']%s*,%s*["\']([^"\']+)["\']') end
+                if dict and clip then
+                    seen[key] = true
+                    local scenario = dict == 'Scenario' or dict == 'MaleScenario' or dict == 'ScenarioObject'
+                    fullIndex[#fullIndex + 1] = {
+                        n = name, d = dict, c = clip, s = scenario or nil,
+                        l = block:find('EmoteLoop%s*=%s*true') ~= nil or nil,
+                        m = block:find('EmoteMoving%s*=%s*true') ~= nil or nil,
+                        p = propsOf(block),
+                    }
+                end
+            end
+        end
+    end
+    print(('^5[RP Interact]^0 /copyped : %d emote(s) indexée(s) dans "%s".'):format(#fullIndex, resource))
+    return fullIndex
+end
+
+local indexAsked = {}
+RegisterNetEvent('rp_interact:emoteIndex', function()
+    local src = source
+    local now = GetGameTimer()
+    if indexAsked[src] and now - indexAsked[src] < 10000 then return end
+    indexAsked[src] = now
+    TriggerLatentClientEvent('rp_interact:emoteIndex', src, 250000, buildIndex())
+end)
+AddEventHandler('playerDropped', function() indexAsked[source] = nil end)
+
 local function scan()
+    fullIndex = nil -- reconstruit à la prochaine demande
     local resource = findEmoteResource()
     if not resource then
         GlobalState.rpiEmotes = { list = {} }
@@ -189,4 +269,4 @@ RegisterCommand('rpi_emotes', function(src)
     if src == 0 or IsPlayerAceAllowed(src, Config.AdminAce) then scan() end
 end, false)
 
-RPIEmotes = { scan = scan, parse = parseEmote, name = emoteName }
+RPIEmotes = { scan = scan, parse = parseEmote, name = emoteName, index = buildIndex }

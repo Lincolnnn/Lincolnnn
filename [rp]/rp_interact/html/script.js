@@ -159,7 +159,7 @@
     // Éléments : menu (ouvre une page), button, check (case), list (valeurs ← →), input (texte), info, section
     // =====================================================================
     const KB_VISIBLE = 10;
-    const KB_SELECTABLE = new Set(['menu', 'button', 'check', 'list', 'input']);
+    const KB_SELECTABLE = new Set(['menu', 'button', 'check', 'list', 'input', 'fold']);
     const KB_ICONS = {
         menu: '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
         eup: '<svg viewBox="0 0 24 24"><path d="M12 6a2 2 0 1 1 2-2M12 6v2L3 15a1 1 0 0 0 .6 1.8h16.8A1 1 0 0 0 21 15l-9-7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -200,6 +200,27 @@
             el.addEventListener('focusout', (e) => {
                 if (e.target.classList.contains('kb-input') && this.editing) this.stopEditing(true);
             });
+            // Souris (seulement quand la page l'affiche : onglet d'arme ouvert de Customiser équipement) : clic sur un
+            // élément de l'onglet (cocher, choisir) ou sur un onglet ; molette : élément précédent / suivant
+            el.addEventListener('click', (e) => {
+                if (!this.cursor || this.editing) return;
+                const row = e.target.closest('[data-i]');
+                const items = this.items();
+                const it = row ? items[Number(row.dataset.i)] : null;
+                if (!it || !(it.sub || it.kind === 'fold')) return;
+                this.page.sel = Number(row.dataset.i);
+                if (it.kind === 'list') {
+                    if (it.disabled) { if (it.why) toast(it.why, 'error'); return this.render(); }
+                    this.cycle(it, e.target.closest('.prev') ? -1 : 1);
+                    return this.render();
+                }
+                this.activate(it);
+            });
+            el.addEventListener('wheel', (e) => {
+                if (!this.cursor || this.editing) return;
+                e.preventDefault();
+                this.key(e.deltaY > 0 ? 'down' : 'up');
+            }, { passive: false });
             kbMenus[name] = this;
         }
 
@@ -224,6 +245,17 @@
             this.open = false;
             this.stack = [];
             this.el.classList.add('hidden');
+            this.setFocus(null);
+        }
+
+        /** Onglet d'arme ouvert (Customiser équipement) : zoom sur l'arme et souris ; null : rien */
+        setFocus(weapon) {
+            weapon = weapon || null;
+            this.cursor = !!weapon;
+            this.el.classList.toggle('with-cursor', this.cursor);
+            if (weapon === (this.focusSent || null)) return;
+            this.focusSent = weapon;
+            post('equipmentFocus', { weapon });
         }
 
         /** Ouvre une page ; `quiet` : sans la charger (pages traversées pour arriver à la dernière) */
@@ -264,6 +296,7 @@
         render(force) {
             if (!this.open || !this.page || (this.editing && !force)) return;
             const p = this.page;
+            this.setFocus(p.focus ? p.focus() : null);
             const items = this.items();
             const ids = this.fixSel(items);
             const banner = (typeof p.banner === 'function' ? p.banner() : p.banner) || {};
@@ -287,7 +320,7 @@
             }
             p.top = Math.max(0, Math.min(p.top, items.length - KB_VISIBLE));
             $('.kb-list', this.el).innerHTML = items.slice(p.top, p.top + KB_VISIBLE)
-                .map((it, i) => this.rowHtml(it, p.top + i === p.sel)).join('')
+                .map((it, i) => this.rowHtml(it, p.top + i === p.sel, p.top + i)).join('')
                 || '<div class="kb-info">Chargement…</div>';
             this.el.classList.toggle('more-up', p.top > 0);
             this.el.classList.toggle('more-down', p.top + KB_VISIBLE < items.length);
@@ -297,7 +330,7 @@
             $('.kb-desc', this.el).classList.toggle('hidden', !desc);
         }
 
-        rowHtml(it, sel) {
+        rowHtml(it, sel, index) {
             if (it.kind === 'section') return `<div class="kb-section">${esc(it.label)}</div>`;
             if (it.kind === 'info') return `<div class="kb-info${it.tone ? ` tone-${it.tone}` : ''}">${esc(it.label)}</div>`;
             let right = '';
@@ -306,7 +339,7 @@
             } else if (it.kind === 'list') {
                 const option = toArray(it.options)[Number(it.index) || 0];
                 const label = option && typeof option === 'object' ? option.label : option;
-                right = `<span class="kb-choice"><i>&#8249;</i><span>${esc(label ?? '')}</span><i>&#8250;</i></span>`;
+                right = `<span class="kb-choice"><i class="prev">&#8249;</i><span>${esc(label ?? '')}</span><i class="next">&#8250;</i></span>`;
             } else if (it.kind === 'input') {
                 right = this.editing && this.editing.item.key === it.key
                     ? `<input class="kb-input" type="text" maxlength="${Number(it.max) || 80}" value="${esc(this.editing.value)}" placeholder="${esc(it.placeholder || '')}" spellcheck="false" autocomplete="off">`
@@ -316,9 +349,13 @@
             }
             if (it.mark) right += '<span class="kb-mark" aria-hidden="true">&#10003;</span>';
             if (it.kind === 'menu') right += '<span class="kb-arrow" aria-hidden="true">&#8250;</span>';
-            const cls = ['kb-item', sel && 'sel', it.disabled && 'disabled', it.danger && 'danger', it.kind === 'input' && 'is-input'].filter(Boolean).join(' ');
-            return `<div class="${cls}"${it.color ? ` style="--kb-tag:${esc(it.color)}"` : ''}>
-                ${it.color ? '<span class="kb-tag"></span>' : ''}<span class="kb-label">${esc(it.label)}</span>${right}</div>`;
+            // Onglet repliable (crochet, comme les onglets du MDC) et éléments de l'onglet ouvert (cliquables)
+            const fold = it.kind === 'fold' ? `<span class="kb-fold-mark${it.open ? ' open' : ''}" aria-hidden="true"></span>` : '';
+            const cls = ['kb-item', sel && 'sel', it.disabled && 'disabled', it.danger && 'danger', it.kind === 'input' && 'is-input',
+                it.kind === 'fold' && 'kb-fold', it.kind === 'fold' && it.open && 'open', it.sub && 'kb-sub-item',
+                (it.sub || it.kind === 'fold') && 'clickable'].filter(Boolean).join(' ');
+            return `<div class="${cls}" data-i="${index}"${it.color ? ` style="--kb-tag:${esc(it.color)}"` : ''}>
+                ${fold}${it.color ? '<span class="kb-tag"></span>' : ''}<span class="kb-label">${esc(it.label)}</span>${right}</div>`;
         }
 
         key(key) {
@@ -337,12 +374,15 @@
                 case 'down': move(1); break;
                 case 'left':
                     if (it && it.kind === 'list') { if (!it.disabled) this.cycle(it, -1); break; }
+                    if (it && it.kind === 'fold' && it.open) return this.activate(it); // referme l'onglet
+                    if (it && it.onLeft) { it.onLeft(); break; }
                     if (!this.pop()) return this.opts.close();
                     return;
                 case 'right':
                     if (!it || it.disabled) break;
                     if (it.kind === 'list') this.cycle(it, 1);
                     else if (it.kind === 'menu') return this.activate(it);
+                    else if (it.kind === 'fold') { if (!it.open) return this.activate(it); }
                     else if (it.onRight) it.onRight();
                     break;
                 case 'select': if (it) return this.activate(it); break;
@@ -659,37 +699,58 @@
             { kind: 'info', label: c.id ? `Modifié depuis ${c.service}` : `Équipement de base : ${c.service}`, tone: 'muted' },
             { kind: 'input', key: 'name', label: 'Nom', value: c.draftName, placeholder: c.suggested || 'Nom de l\'équipement', max: 40,
                 desc: 'Nom de l\'équipement modifié (Entrée pour écrire).', onChange: (v) => { c.draftName = v; rerender(); } },
+            { kind: 'section', label: 'Armes' },
         ];
+        // Un onglet par arme : Entrée / → l'ouvre (zoom sur l'arme, souris pour cocher / choisir), Entrée / ← le referme.
+        // Chaque changement est appliqué tout de suite (aperçu en direct : l'arme est équipée automatiquement).
+        // ← sur un élément de l'onglet : onglet refermé, sélection remise sur l'onglet
+        const closeFold = () => {
+            c.reselect = c.openWeapon;
+            c.openWeapon = null;
+            rerender();
+        };
         c.weapons.forEach((w) => {
-            items.push({ kind: 'section', label: w.label });
-            items.push({ kind: 'check', label: 'Prendre cette arme', checked: w.on, disabled: !!w.required,
+            const open = c.openWeapon === w.weapon;
+            if (c.reselect === w.weapon && interact.page) { interact.page.sel = items.length; c.reselect = null; }
+            items.push({ kind: 'fold', label: w.label, open, right: w.required ? 'Obligatoire' : (w.on ? 'Prise' : 'Non prise'),
+                desc: open ? 'Entrée / ← : refermer l\'onglet. Souris : cocher, choisir (molette : défiler).'
+                    : 'Entrée / → : ouvrir l\'onglet (zoom sur l\'arme, changements visibles en direct).',
+                action: () => {
+                    c.openWeapon = open ? null : w.weapon;
+                    if (!open) customPreview(true);
+                    rerender();
+                } });
+            if (!open) return;
+            const sub = (it) => items.push({ ...it, sub: true, onLeft: closeFold });
+            const changed = () => customPreview();
+            sub({ kind: 'check', label: 'Prendre cette arme', checked: w.on, disabled: !!w.required,
                 right: w.required ? 'Obligatoire' : '', why: 'Arme obligatoire.',
-                onChange: (on) => { w.on = on; } });
+                onChange: (on) => { w.on = on; changed(); } });
             w.groups.forEach((g) => {
                 const choices = toArray(g.choices);
                 const has = (comp) => w.components.includes(comp);
                 const without = () => { w.components = w.components.filter((x) => !choices.some((ch) => ch.component === x)); };
                 if (choices.length === 1) {
                     const ch = choices[0];
-                    items.push({ kind: 'check', label: ch.label || g.label, checked: has(ch.component), disabled: !w.on, why: 'Prenez d\'abord l\'arme.',
-                        onChange: (on) => { without(); if (on) w.components.push(ch.component); } });
+                    sub({ kind: 'check', label: ch.label || g.label, checked: has(ch.component), disabled: !w.on, why: 'Prenez d\'abord l\'arme.',
+                        onChange: (on) => { without(); if (on) w.components.push(ch.component); changed(); } });
                     return;
                 }
                 const options = [{ label: 'Aucun' }, ...choices];
                 const index = Math.max(0, options.findIndex((o) => o.component && has(o.component)));
-                items.push({ kind: 'list', label: g.label, options, index, disabled: !w.on, why: 'Prenez d\'abord l\'arme.',
-                    onChange: (i) => { without(); if (options[i].component) w.components.push(options[i].component); } });
+                sub({ kind: 'list', label: g.label, options, index, disabled: !w.on, why: 'Prenez d\'abord l\'arme.',
+                    onChange: (i) => { without(); if (options[i].component) w.components.push(options[i].component); changed(); } });
             });
             if (w.tints) {
-                items.push({ kind: 'list', label: 'Teinte', options: TINTS, index: w.tint, disabled: !w.on, why: 'Prenez d\'abord l\'arme.',
-                    onChange: (i) => { w.tint = i; } });
+                sub({ kind: 'list', label: 'Teinte', options: TINTS, index: w.tint, disabled: !w.on, why: 'Prenez d\'abord l\'arme.',
+                    onChange: (i) => { w.tint = i; changed(); } });
             }
         });
         items.push({ kind: 'section', label: 'Enregistrer' });
-        items.push({ kind: 'button', label: 'Équiper', desc: 'Prendre ces armes sans enregistrer.', action: () => customAction('apply') });
         items.push({ kind: 'button', label: c.id ? 'Enregistrer (mettre à jour)' : 'Enregistrer', desc: c.id
-            ? 'Met à jour cet équipement modifié.'
-            : 'Ajoute un équipement modifié à votre liste (l\'équipement de base ne change pas).', action: () => customAction('save') });
+            ? 'Met à jour cet équipement modifié (les armes sont déjà équipées).'
+            : 'Ajoute un équipement modifié à votre liste (l\'équipement de base ne change pas ; les armes sont déjà équipées).',
+            action: () => customAction('save') });
         if (c.id) {
             items.push({ kind: 'button', label: c.confirmDelete ? 'Confirmer la suppression' : 'Supprimer cet équipement modifié', danger: true,
                 desc: c.confirmDelete ? 'Entrée à nouveau : supprimer définitivement.' : 'Supprime cet équipement modifié.',
@@ -701,6 +762,13 @@
         return items;
     }
 
+    /** Aperçu en direct : les armes choisies sont équipées (sans enregistrer), l'arme de l'onglet ouvert en main */
+    let previewTimer = null;
+    function customPreview(now) {
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(() => customAction('preview'), now ? 0 : 180);
+    }
+
     function customPage() {
         return {
             id: 'equipment-custom', title: 'Customiser',
@@ -710,6 +778,7 @@
             },
             onEnter: (page) => { if (!page.loaded) { page.loaded = true; loadCustom(); } },
             items: customItems,
+            focus: () => (equip.custom && equip.custom.openWeapon) || null,
         };
     }
 
@@ -726,8 +795,9 @@
         if (!c) return;
         const payload = { key: c.key, id: c.id || null, action, name: c.draftName.trim() };
         if (action !== 'delete') payload.choices = customChoices();
+        if (action === 'preview') payload.focus = c.openWeapon || null;
         const res = await post('equipmentCustomSave', payload);
-        if (!res || !res.ok) return;
+        if (!res || !res.ok || action === 'preview') return;
         if (res.customs) equip.customs = toArray(res.customs);
         if (action === 'delete') {
             equip.custom = null;

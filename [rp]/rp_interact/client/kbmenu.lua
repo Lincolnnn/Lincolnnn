@@ -81,6 +81,7 @@ function RPI.kbClose(name)
     if not KB.name or (name and KB.name ~= name) then return end
     local onClose = KB.onClose
     KB.name, KB.onClose = nil, nil
+    if RPI.equipmentFocus then RPI.equipmentFocus(nil) end -- zoom sur l'arme et souris retirés
     if KB.typing then
         KB.typing = false
         RPI.applyFocus()

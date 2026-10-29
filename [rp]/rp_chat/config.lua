@@ -78,6 +78,8 @@ ChatConfig = {
                 { "/me", "action RP (50 m)" }, { "/info /qst /rep", "info, question, réponse" },
                 { "/dv", "supprimer un véhicule (5 m)" }, { "/eup", "tenues" },
                 { "/fichecivil", "vos profils civils" }, { "/repair", "réparer le moteur" },
+                { "/copyped", "copier son personnage (arme, emote) pour une photo ; /copyped suppr" },
+                { "Début", "maintenir : numéros des joueurs au-dessus des têtes" },
             } },
             { title = "MDC & menus", items = {
                 { "K", "MDC : unités, appels, recherches, BOLO, rapports" }, { "Y / N", "accepter / refuser un appel" },
