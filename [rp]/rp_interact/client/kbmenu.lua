@@ -28,6 +28,9 @@ local KEYS = {
 local DISABLED = { 18, 24, 25, 37, 44, 140, 141, 142, 257, 263, 172, 173, 174, 175, 176, 177, 187, 188, 189, 190,
     191, 194, 199, 200, 201, 322, 14, 15, 16, 17, 27 }
 local REPEAT_DELAY, REPEAT_RATE = 350, 80 -- ms : défilement en maintenant une flèche
+-- Contrôles que le jeu lie AUSSI à la souris (176 : clic gauche, 177 : clic droit) : ignorés quand la souris est
+-- affichée dans le menu (sinon un clic validait / refermait l'élément choisi au clavier : l'onglet ouvert se fermait)
+local MOUSE_ALIASED = { [176] = true, [177] = true }
 
 local function send(key)
     SendNUIMessage({ action = 'kbKey', data = { menu = KB.name, key = key } })
@@ -44,8 +47,10 @@ local function keyLoop()
             if not KB.typing and not RPI.uiOpen() and not (RPI.targetActive and RPI.targetActive()) and not IsPauseMenuActive() then
                 local now = GetGameTimer()
                 local pressedAny, sent = false, {}
+                local cursor = RPI.menuCursor and RPI.menuCursor()
                 for _, k in ipairs(KEYS) do
                     for _, control in ipairs(k.controls) do
+                        if cursor and MOUSE_ALIASED[control] then goto nextControl end
                         -- Une touche peut répondre à plusieurs contrôles (Entrée : 176 et 191) : une fois par image
                         if IsDisabledControlJustPressed(0, control) and not sent[k.key] then
                             sent[k.key] = true
@@ -53,6 +58,7 @@ local function keyLoop()
                             if k.repeats then held, nextRepeat = k, now + REPEAT_DELAY end
                         end
                         if k == held and IsDisabledControlPressed(0, control) then pressedAny = true end
+                        ::nextControl::
                     end
                 end
                 if held and not pressedAny then held = nil end

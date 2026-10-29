@@ -197,11 +197,13 @@ local function applyPreview(ped, loadout, focus)
             local c = GetHashKey(component)
             if not HasPedGotWeaponComponent(ped, hash, c) then GiveWeaponComponentToPed(ped, hash, c) end
         end
-        SetPedWeaponTintIndex(ped, hash, w.tint or 0)
+        if GetPedWeaponTintIndex(ped, hash) ~= (w.tint or 0) then SetPedWeaponTintIndex(ped, hash, w.tint or 0) end
     end
     if focus then
         local hash = GetHashKey(focus)
-        SetCurrentPedWeapon(ped, HasPedGotWeapon(ped, hash, false) and hash or GetHashKey('WEAPON_UNARMED'), true)
+        local want = HasPedGotWeapon(ped, hash, false) and hash or GetHashKey('WEAPON_UNARMED')
+        -- déjà en main : pas ressortie (sinon l'arme était rangée / ressortie à chaque changement : à-coups à l'écran)
+        if GetSelectedPedWeapon(ped) ~= want then SetCurrentPedWeapon(ped, want, true) end
     end
 end
 
@@ -216,7 +218,20 @@ local function stopCam()
     focus.cam = nil
 end
 
---- Caméra rapprochée sur l'arme en main (à pied) ; le joueur ne bouge pas tant qu'un onglet d'arme est ouvert
+--- Caméra rapprochée sur l'arme en main (à pied) ; le joueur ne bouge pas tant qu'un onglet d'arme est ouvert.
+--- La caméra est ACCROCHÉE au personnage et visée sur sa main droite par le jeu lui-même (une seule fois) : plus de
+--- recalage à chaque image sur l'objet de l'arme, recréé à chaque accessoire changé (c'était les petites coupures).
+local function startCam(ped)
+    local o = Z.Offset or { x = 0.55, y = 0.95, z = 0.15 }
+    local t = Z.Target or { x = 0.12, y = 0.0, z = 0.0 }
+    focus.cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    focus.ped = ped
+    SetCamFov(focus.cam, Z.Fov or 34.0)
+    AttachCamToEntity(focus.cam, ped, o.x, o.y, o.z, true)
+    PointCamAtPedBone(focus.cam, ped, 57005, t.x, t.y, t.z, true) -- main droite (SKEL_R_Hand)
+    RenderScriptCams(true, true, 450, true, false)
+end
+
 local function focusLoop()
     if focus.running then return end
     focus.running = true
@@ -225,18 +240,8 @@ local function focusLoop()
             for _, control in ipairs(ZOOM_BLOCKED) do DisableControlAction(0, control, true) end
             local ped = PlayerPedId()
             if Z.Enabled ~= false and not IsPedInAnyVehicle(ped, false) and not IsEntityDead(ped) then
-                if not focus.cam then
-                    focus.cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
-                    SetCamFov(focus.cam, Z.Fov or 34.0)
-                    RenderScriptCams(true, true, 450, true, false)
-                end
-                local o = Z.Offset or { x = 0.55, y = 0.95, z = 0.15 }
-                local entity = GetCurrentPedWeaponEntityIndex(ped)
-                local target = entity ~= 0 and DoesEntityExist(entity) and GetEntityCoords(entity)
-                    or GetPedBoneCoords(ped, 57005, 0.0, 0.0, 0.0) -- main droite
-                local pos = GetOffsetFromEntityInWorldCoords(ped, o.x, o.y, o.z)
-                SetCamCoord(focus.cam, pos.x, pos.y, pos.z)
-                PointCamAtCoord(focus.cam, target.x, target.y, target.z)
+                if focus.cam and focus.ped ~= ped then stopCam() end -- personnage changé (tenue /eup…)
+                if not focus.cam then startCam(ped) end
             else
                 stopCam()
             end
@@ -254,7 +259,7 @@ function RPI.equipmentFocus(weapon)
     RPI.setMenuCursor(weapon ~= nil)
     if weapon then
         local ped, hash = PlayerPedId(), GetHashKey(weapon)
-        if HasPedGotWeapon(ped, hash, false) then SetCurrentPedWeapon(ped, hash, true) end
+        if HasPedGotWeapon(ped, hash, false) and GetSelectedPedWeapon(ped) ~= hash then SetCurrentPedWeapon(ped, hash, true) end
         focusLoop()
     end
 end

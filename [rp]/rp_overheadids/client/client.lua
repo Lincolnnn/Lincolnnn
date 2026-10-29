@@ -1,8 +1,8 @@
 --[[
     RP Overhead IDs (client)
     ------------------------
-    Touche maintenue (OverheadConfig.Key, raccourci FiveM « +numeros ») : le numéro (ID serveur) et / ou le nom des
-    joueurs proches s'affichent au-dessus de leur tête ; relâchée : ils disparaissent.
+    Touche maintenue (OverheadConfig.Key, raccourci FiveM « +numeros ») : au-dessus de la tête des joueurs proches, leur
+    NOM RP (/nomrp) en gros et, en dessous, leur numéro sur le serveur (ID) ; relâchée : ils disparaissent.
     Performance : RIEN tant que la touche n'est pas maintenue (raccourci FiveM, aucune boucle) ; pendant l'appui, liste
     des joueurs proches revue toutes les 250 ms et textes dessinés à chaque image.
 ]]
@@ -11,12 +11,12 @@ local C = OverheadConfig
 local held = false
 local HEAD = 31086 -- os de la tête
 
+--- Nom RP (/nomrp : état du joueur, partagé par rp_chat et le MDC) et numéro serveur
 local function label(player)
     local id = GetPlayerServerId(player)
-    if C.Show == 'id' then return tostring(id), nil end
-    local name = (GetPlayerName(player) or ''):gsub('~', '')
-    if C.Show == 'name' then return name, nil end
-    return tostring(id), name
+    local name = Player(id).state[C.NameState or 'rpName']
+    name = type(name) == 'string' and name:gsub('~[%w_]-~', ''):gsub('~', ''):gsub('^%s+', ''):gsub('%s+$', '') or '' -- codes couleur retirés
+    return name, tostring(id)
 end
 
 --- Joueurs à afficher : proches, visibles (LineOfSight), avec leur texte
@@ -31,8 +31,8 @@ local function nearby()
             local d = #(GetEntityCoords(ped) - myPos)
             if d <= (C.Distance or 25.0)
                 and (isMe or C.LineOfSight == false or HasEntityClearLosToEntity(me, ped, 17)) then
-                local top, bottom = label(player)
-                list[#list + 1] = { ped = ped, player = player, top = top, bottom = bottom, distance = d }
+                local name, id = label(player)
+                list[#list + 1] = { ped = ped, player = player, name = name, id = id, distance = d }
             end
         end
     end
@@ -56,11 +56,14 @@ local function draw(entry)
     local z = p.z + (C.Height or 0.38)
     local onScreen, sx, sy = GetScreenCoordFromWorldCoord(p.x, p.y, z)
     if not onScreen then return end
-    local scale = math.max(0.32, 0.62 - entry.distance * 0.012)
+    local scale = math.max(0.34, 0.66 - entry.distance * 0.012)
     local talking = MumbleIsPlayerTalking(entry.player) or NetworkIsPlayerTalking(entry.player)
-    drawText(entry.top, sx, sy, scale, talking and C.TalkingColor or C.IdColor, 4)
-    if entry.bottom and entry.bottom ~= '' then
-        drawText(entry.bottom, sx, sy + scale * 0.055, scale * 0.62, C.NameColor, 4)
+    if entry.name ~= '' then
+        -- nom RP en gros, numéro en dessous, plus petit
+        drawText(entry.name, sx, sy, scale, talking and C.TalkingColor or C.NameColor, 4)
+        drawText(entry.id, sx, sy + scale * 0.06, scale * 0.66, C.IdColor, 4)
+    else
+        drawText(entry.id, sx, sy, scale * 0.8, talking and C.TalkingColor or C.IdColor, 4)
     end
 end
 
@@ -91,4 +94,4 @@ RegisterCommand('-' .. C.Command, function()
     held = false
 end, false)
 
-RegisterKeyMapping('+' .. C.Command, 'Afficher les numéros des joueurs (maintenir)', 'keyboard', C.Key or 'HOME')
+RegisterKeyMapping('+' .. C.Command, 'Afficher les noms RP et numéros des joueurs (maintenir)', 'keyboard', C.Key or 'HOME')

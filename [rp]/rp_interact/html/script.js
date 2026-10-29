@@ -202,13 +202,26 @@
             });
             // Souris (seulement quand la page l'affiche : onglet d'arme ouvert de Customiser équipement) : clic sur un
             // élément de l'onglet (cocher, choisir) ou sur un onglet ; molette : élément précédent / suivant
-            el.addEventListener('click', (e) => {
-                if (!this.cursor || this.editing) return;
+            // Souris : survol = élément choisi (sa description s'affiche) ; clic gauche (dès l'appui) = cocher, valeur
+            // suivante (‹ : précédente), ouvrir / refermer un onglet
+            const rowAt = (e) => {
                 const row = e.target.closest('[data-i]');
-                const items = this.items();
-                const it = row ? items[Number(row.dataset.i)] : null;
-                if (!it || !(it.sub || it.kind === 'fold')) return;
-                this.page.sel = Number(row.dataset.i);
+                const it = row ? this.items()[Number(row.dataset.i)] : null;
+                return it && (it.sub || it.kind === 'fold') ? { it, i: Number(row.dataset.i) } : null;
+            };
+            el.addEventListener('mousemove', (e) => {
+                if (!this.cursor || this.editing) return;
+                const hit = rowAt(e);
+                if (hit && this.page.sel !== hit.i) this.hoverSelect(hit);
+            });
+            el.addEventListener('mousedown', (e) => {
+                if (!this.cursor || this.editing || e.button !== 0) return;
+                e.preventDefault();
+                this.mouseAt = Date.now();
+                const hit = rowAt(e);
+                if (!hit) return;
+                const { it } = hit;
+                this.page.sel = hit.i;
                 if (it.kind === 'list') {
                     if (it.disabled) { if (it.why) toast(it.why, 'error'); return this.render(); }
                     this.cycle(it, e.target.closest('.prev') ? -1 : 1);
@@ -246,6 +259,21 @@
             this.stack = [];
             this.el.classList.add('hidden');
             this.setFocus(null);
+        }
+
+        /** Survol à la souris : seulement la ligne choisie, la description et le compteur changent (la liste n'est pas
+         *  reconstruite : pas de clignotement, le clic tombe toujours sur la ligne survolée) */
+        hoverSelect(hit) {
+            const p = this.page;
+            p.sel = hit.i;
+            $$('.kb-item.sel', this.el).forEach((x) => x.classList.remove('sel'));
+            const row = $(`.kb-item[data-i="${hit.i}"]`, this.el);
+            if (row) row.classList.add('sel');
+            const ids = this.selectable(this.items());
+            $('.kb-count', this.el).textContent = ids.length ? `${ids.indexOf(p.sel) + 1}/${ids.length}` : '';
+            const desc = hit.it.desc || p.desc || '';
+            $('.kb-desc', this.el).innerHTML = desc ? esc(desc).replace(/\n/g, '<br>') : '';
+            $('.kb-desc', this.el).classList.toggle('hidden', !desc);
         }
 
         /** Onglet d'arme ouvert (Customiser équipement) : zoom sur l'arme et souris ; null : rien */
@@ -360,6 +388,8 @@
 
         key(key) {
             if (!this.open || this.editing || !this.page) return;
+            // Entrée / retour envoyés par le jeu juste après un clic (le jeu lie aussi ces touches à la souris) : ignorés
+            if (this.cursor && (key === 'select' || key === 'back') && Date.now() - (this.mouseAt || 0) < 400) return;
             const p = this.page;
             const items = this.items();
             const ids = this.fixSel(items);

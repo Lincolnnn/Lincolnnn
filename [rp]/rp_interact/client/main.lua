@@ -68,6 +68,8 @@ function RPI.applyFocus()
     end
 end
 
+function RPI.menuCursor() return menuCursor end
+
 function RPI.setMenuCursor(on)
     on = on == true
     if on == menuCursor then return end

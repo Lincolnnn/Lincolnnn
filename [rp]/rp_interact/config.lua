@@ -55,8 +55,9 @@ InteractConfig = {
     MaxCustomEquipment = 10,        -- "Équipements modifiés" (nommés, enregistrés) par joueur
     -- Customiser équipement : onglet d'arme ouvert -> caméra rapprochée sur l'arme en main (à pied), changements
     -- visibles en direct. Offset : position de la caméra par rapport au personnage (x : à sa droite, y : devant,
-    -- z : hauteur depuis le bassin) ; Fov : champ de vision (plus petit : plus de zoom).
-    EquipmentZoom = { Enabled = true, Offset = { x = 0.55, y = 0.95, z = 0.15 }, Fov = 34.0 },
+    -- z : hauteur depuis le bassin) ; Target : point visé, par rapport à la main droite ; Fov : champ de vision (plus
+    -- petit : plus de zoom).
+    EquipmentZoom = { Enabled = true, Offset = { x = 0.55, y = 0.95, z = 0.15 }, Target = { x = 0.12, y = 0.0, z = 0.0 }, Fov = 34.0 },
     -- /copyped : copie du personnage pour les photos (arme et accessoires, emote de RPEMOTES et ses props). Max : copies
     -- par joueur (la plus ancienne est remplacée) ; Networked : visibles par tous ; FreezePose : pose figée à
     -- l'instant de la copie ; ExtraComponents : accessoires d'armes à copier en plus de ceux de equipment_services.json.

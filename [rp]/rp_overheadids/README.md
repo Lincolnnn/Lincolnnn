@@ -1,14 +1,15 @@
 # rp_overheadids
 
-En **maintenant une touche** (par défaut **Début / HOME**), le **numéro** de chaque joueur proche (son ID sur le
-serveur) et son **nom** s'affichent au-dessus de sa tête. On relâche : tout disparaît. Aucun framework.
+En **maintenant une touche** (par défaut **Début / HOME**), au-dessus de la tête de chaque joueur proche : son **nom
+RP** (`/nomrp`, en gros) et, **en dessous**, son **numéro sur le serveur** (ID). Jamais le nom Steam / FiveM. Pas encore
+de nom RP : son numéro seul. On relâche : tout disparaît. Aucun framework.
 
-- Touche modifiable par chaque joueur : Échap > Paramètres > Raccourcis clavier > FiveM > « Afficher les numéros des
-  joueurs (maintenir) ». Par défaut pour tous : `Key` dans `config.lua`.
-- `Show` : `'id'` (numéro seul), `'name'` (nom FiveM seul) ou `'both'` (numéro, et le nom en dessous).
+- Touche modifiable par chaque joueur : Échap > Paramètres > Raccourcis clavier > FiveM > « Afficher les noms RP et
+  numéros des joueurs (maintenir) ». Par défaut pour tous : `Key` dans `config.lua`.
+- Le nom RP est celui de `/nomrp` (rp_chat, partagé avec le MDC : état du joueur `rpName`, `NameState`).
 - Joueurs à moins de `Distance` m (25), visibles seulement (`LineOfSight` : pas à travers un mur) ; son propre
   numéro aussi (`ShowSelf`).
-- Un joueur qui **parle** (pma-voice ou micro du jeu) : numéro en bleu clair (`TalkingColor`).
+- Un joueur qui **parle** (pma-voice ou micro du jeu) : nom en bleu clair (`TalkingColor`).
 
 ## Installation
 

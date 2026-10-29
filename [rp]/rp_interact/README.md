@@ -86,9 +86,12 @@ Page **Équipements** : **Tenues** → **Accéder aux tenues** (ferme ce menu et
   ouvert :
   - ses réglages : **Prendre cette arme** (l'arme de service et le taser sont **obligatoires**), ses accessoires
     (case, ou liste ‹ › : lampe, chargeur, viseur…), sa **teinte** ;
-  - la **souris apparaît** (seulement là) pour cocher / décocher et choisir (clic sur ‹ › ; molette : élément
-    précédent / suivant), les touches marchent toujours ;
-  - **zoom sur l'arme** en main (caméra rapprochée, `EquipmentZoom`), le personnage reste immobile ;
+  - la **souris apparaît** (seulement là) : le **survol** choisit l'élément (sa description s'affiche), le **clic**
+    coche / décoche, passe à la valeur suivante (‹ : précédente) ; clic sur l'en-tête d'un onglet : l'ouvrir / le
+    refermer ; molette : élément précédent / suivant. Un clic n'est jamais pris pour « Entrée » (le jeu lie aussi
+    le clic gauche à Entrée : ignoré tant que la souris est affichée). Les touches marchent toujours ;
+  - **zoom sur l'arme** en main (`EquipmentZoom`) : caméra accrochée au personnage et visée sur sa main droite par
+    le jeu (pas de recalage à chaque image, pas d'à-coup quand un accessoire change) ; le personnage reste immobile ;
   - chaque changement est **visible tout de suite** : l'arme est **équipée automatiquement** (accessoires mis /
     retirés, teinte), plus besoin d'« Équiper ».
   Reste **Enregistrer** : depuis un équipement de base, il **s'ajoute** aux Équipements modifiés (l'équipement de base
@@ -493,7 +496,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
 | `CuffPropPlacement` | position / orientation des menottes |
-| `EquipmentZoom` | Customiser équipement : caméra rapprochée sur l'arme de l'onglet ouvert (position `Offset`, champ de vision `Fov`) |
+| `EquipmentZoom` | Customiser équipement : caméra rapprochée sur l'arme de l'onglet ouvert (position `Offset`, point visé par rapport à la main droite `Target`, champ de vision `Fov`) |
 | `CopyPed` | `/copyped` : copies par joueur (`Max`), visibles par tous (`Networked`), pose figée (`FreezePose`), accessoires en plus (`ExtraComponents`) |
 | `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragMove`, `DragMoves`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position de l'individu tenu, allures et animations de ses jambes, touche pour lâcher le bras, distance du véhicule |
 | `Struggle` | se débattre (tenu sans menottes) : activé, touche (ESPACE), gain par appui / baisse par seconde de la jauge, rayon des autres policiers (2 m), chance de perdre s'ils étaient déjà là (85 %), délai avant de pouvoir le reprendre (5 s), tremblement des écrans |
