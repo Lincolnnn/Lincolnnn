@@ -8,7 +8,7 @@
 
 ReviveConfig = {
     -- Secondes avant de pouvoir choisir (0 : tout de suite)
-    Delay = 5,
+    Delay = 0,
 
     -- Hôpitaux (x, y, z, cap) : un au hasard
     Hospitals = {

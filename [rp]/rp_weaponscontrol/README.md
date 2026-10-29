@@ -15,12 +15,12 @@ ensure rp_weaponscontrol
 
 | Pour qui | Effet |
 |---|---|
-| le tireur | **recul** (comme le script de Lyrad / Blumlaut) : la caméra remonte de 0,1° par image jusqu'à la valeur de l'arme (`Weapons` : pistolet 0,3°, pompe 0,4°, sniper 0,5 à 0,7°…), à la 3e personne, pas en drive-by ; **secousse** propre à l'arme (`shake`) |
+| le tireur | **recul** (comme le script de Lyrad / Blumlaut) : la caméra remonte de 0,1° par image jusqu'à la valeur de l'arme (`Weapons` : pistolet 0,5°, fusil d'assaut 0,5°, pompe 0,4°, sniper 0,5 à 0,7°…), à la 3e personne, pas en drive-by ; **secousse** propre à l'arme (`shake`) |
 | tout le monde à moins de 90 m | **flash jaune** au bout du canon qui éclaire les alentours, à chaque tir |
 | joueurs à moins de 15 m | petite **secousse** de la caméra (plus forte près du tireur) |
-| tout le monde à moins de 60 m | **fumée** : après **7 tirs rapides** (en 3 s), un filet de fumée sort du canon pendant 6 s |
+| tout le monde à moins de 60 m | **fumée** : après **15 tirs rapides** (en 3 s), un filet de fumée sort du canon pendant 6 s |
 
-**Acouphène** (léger) : seulement quand ça tire beaucoup tout près : **au moins 10 tirs en 10 s** par des tireurs à
+**Acouphène** (léger) : seulement quand ça tire beaucoup tout près : **au moins 15 tirs en 10 s** par des tireurs à
 **moins de 10 m** du joueur, que ce soit lui-même, un autre joueur ou un **PNJ**. Un sifflement discret monte puis
 redescend (plus long s'il y a encore plus de tirs), puis plus rien pendant 12 s.
 

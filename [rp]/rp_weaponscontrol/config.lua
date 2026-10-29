@@ -17,15 +17,15 @@ WeaponsConfig = {
     -- Valeurs du script de Lyrad / Blumlaut, à ajuster. Arme absente : valeurs de son type (Profiles).
     Weapons = {
         -- Pistolets
-        WEAPON_PISTOL = { recoil = 0.3, shake = 0.025 },       WEAPON_PISTOL_MK2 = { recoil = 0.3, shake = 0.03 },
-        WEAPON_COMBATPISTOL = { recoil = 0.2, shake = 0.03 },  WEAPON_APPISTOL = { recoil = 0.1, shake = 0.05 },
-        WEAPON_PISTOL50 = { recoil = 0.6, shake = 0.05 },      WEAPON_SNSPISTOL = { recoil = 0.2, shake = 0.02 },
-        WEAPON_SNSPISTOL_MK2 = { recoil = 0.25, shake = 0.025 }, WEAPON_HEAVYPISTOL = { recoil = 0.5, shake = 0.03 },
-        WEAPON_VINTAGEPISTOL = { recoil = 0.4, shake = 0.025 }, WEAPON_MARKSMANPISTOL = { recoil = 0.9, shake = 0.03 },
-        WEAPON_REVOLVER = { recoil = 0.6, shake = 0.045 },     WEAPON_REVOLVER_MK2 = { recoil = 0.65, shake = 0.055 },
-        WEAPON_DOUBLEACTION = { recoil = 0.4, shake = 0.025 }, WEAPON_MACHINEPISTOL = { recoil = 0.3, shake = 0.035 },
-        WEAPON_GLOCK19 = { recoil = 0.3, shake = 0.025 },      WEAPON_FM1_P226 = { recoil = 0.3, shake = 0.025 },
-        WEAPON_SWMP9 = { recoil = 0.3, shake = 0.025 },        WEAPON_P320 = { recoil = 0.3, shake = 0.025 },
+        WEAPON_PISTOL = { recoil = 0.5, shake = 0.045 },       WEAPON_PISTOL_MK2 = { recoil = 0.3, shake = 0.03 },
+        WEAPON_COMBATPISTOL = { recoil = 0.5, shake = 0.045},  WEAPON_APPISTOL = { recoil = 0.1, shake = 0.05 },
+        WEAPON_PISTOL50 = { recoil = 0.8, shake = 0.07 },      WEAPON_SNSPISTOL = { recoil = 0.2, shake = 0.02 },
+        WEAPON_SNSPISTOL_MK2 = { recoil = 0.5, shake = 0.045 }, WEAPON_HEAVYPISTOL = { recoil = 0.5, shake = 0.03 },
+        WEAPON_VINTAGEPISTOL = { recoil = 0.5, shake = 0.045 }, WEAPON_MARKSMANPISTOL = { recoil = 0.9, shake = 0.03 },
+        WEAPON_REVOLVER = { recoil = 0.5, shake = 0.045 },     WEAPON_REVOLVER_MK2 = { recoil = 0.65, shake = 0.055 },
+        WEAPON_DOUBLEACTION = { recoil = 0.5, shake = 0.045 }, WEAPON_MACHINEPISTOL = { recoil = 0.3, shake = 0.035 },
+        WEAPON_GLOCK19 = { recoil = 0.5, shake = 0.045 },      WEAPON_FM1_P226 = { recoil = 0.5, shake = 0.045 },
+        WEAPON_SWMP9 = { recoil = 0.5, shake = 0.045 },        WEAPON_P320 = { recoil = 0.5, shake = 0.045 },
         -- Pistolets-mitrailleurs, mitrailleuses
         WEAPON_MICROSMG = { recoil = 0.2, shake = 0.035 },     WEAPON_SMG = { recoil = 0.1, shake = 0.045 },
         WEAPON_SMG_MK2 = { recoil = 0.1, shake = 0.055 },      WEAPON_ASSAULTSMG = { recoil = 0.1, shake = 0.05 },
@@ -33,13 +33,13 @@ WeaponsConfig = {
         WEAPON_GUSENBERG = { recoil = 0.1, shake = 0.05 },     WEAPON_MG = { recoil = 0.1, shake = 0.07 },
         WEAPON_COMBATMG = { recoil = 0.1, shake = 0.08 },      WEAPON_COMBATMG_MK2 = { recoil = 0.1, shake = 0.085 },
         -- Fusils
-        WEAPON_ASSAULTRIFLE = { recoil = 0.2, shake = 0.07 },  WEAPON_ASSAULTRIFLE_MK2 = { recoil = 0.2, shake = 0.075 },
-        WEAPON_CARBINERIFLE = { recoil = 0.1, shake = 0.06 },  WEAPON_CARBINERIFLE_MK2 = { recoil = 0.1, shake = 0.065 },
+        WEAPON_ASSAULTRIFLE = { recoil = 0.5, shake = 0.09 },  WEAPON_ASSAULTRIFLE_MK2 = { recoil = 0.2, shake = 0.075 },
+        WEAPON_CARBINERIFLE = { recoil = 0.5, shake = 0.09 },  WEAPON_CARBINERIFLE_MK2 = { recoil = 0.1, shake = 0.065 },
         WEAPON_ADVANCEDRIFLE = { recoil = 0.1, shake = 0.06 }, WEAPON_SPECIALCARBINE = { recoil = 0.2, shake = 0.06 },
         WEAPON_SPECIALCARBINE_MK2 = { recoil = 0.25, shake = 0.075 }, WEAPON_BULLPUPRIFLE = { recoil = 0.2, shake = 0.05 },
         WEAPON_BULLPUPRIFLE_MK2 = { recoil = 0.25, shake = 0.065 }, WEAPON_COMPACTRIFLE = { recoil = 0.3, shake = 0.05 },
-        WEAPON_PM4 = { recoil = 0.1, shake = 0.06 },           WEAPON_FM1_M16A4 = { recoil = 0.1, shake = 0.06 },
-        WEAPON_M6IC = { recoil = 0.1, shake = 0.06 },
+        WEAPON_PM4 = { recoil = 0.5, shake = 0.09 },           WEAPON_FM1_M16A4 = { recoil = 0.5, shake = 0.09 },
+        WEAPON_M6IC = { recoil = 0.5, shake = 0.09 },
         -- Fusils à pompe
         WEAPON_PUMPSHOTGUN = { recoil = 0.4, shake = 0.07 },   WEAPON_PUMPSHOTGUN_MK2 = { recoil = 0.4, shake = 0.085 },
         WEAPON_BEANBAG = { recoil = 0.4, shake = 0.07 },       WEAPON_SAWNOFFSHOTGUN = { recoil = 0.7, shake = 0.06 },
@@ -81,12 +81,12 @@ WeaponsConfig = {
     Flash = { Enabled = true, Range = 90.0, Color = { 255, 186, 92 }, Radius = 7.0, Intensity = 7.0, Duration = 60 },
 
     -- Fumée du canon après des tirs rapides (filet de fumée)
-    Smoke = { Enabled = true, Shots = 7, Window = 3000, Duration = 6000, Cooldown = 4000, Range = 60.0,
+    Smoke = { Enabled = true, Shots = 15, Window = 3000, Duration = 6000, Cooldown = 4000, Range = 60.0,
         Asset = 'core', Name = 'ent_anim_cig_smoke', Scale = 1.6 },
 
     -- Acouphène : Shots tirs au moins en Window ms par des tireurs à moins de Range m (soi, joueurs, PNJ : Npc) ;
     -- sifflement léger (Volume), Duration ms (min / max selon le nombre de tirs) ; Cooldown ms avant un nouveau
-    Tinnitus = { Enabled = true, Range = 10.0, Shots = 10, Window = 10000, Npc = true,
+    Tinnitus = { Enabled = true, Range = 10.0, Shots = 15, Window = 10000, Npc = true,
         Volume = 0.05, MinDuration = 2500, MaxDuration = 6000, Cooldown = 12000 },
 
     -- Secousse chez les joueurs proches d'un tireur

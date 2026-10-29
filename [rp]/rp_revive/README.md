@@ -16,7 +16,7 @@ La réapparition automatique de `spawnmanager` (ressource de base de FiveM) est 
 
 ## En jeu
 
-À la mort, un écran s'affiche en bas au milieu (les choix s'activent au bout de `Delay` secondes, 5 par défaut) :
+À la mort, un écran s'affiche en bas au milieu (les choix s'activent au bout de `Delay` secondes, 0 par défaut : tout de suite) :
 
 | Choix | Touche | Effet |
 |---|---|---|
