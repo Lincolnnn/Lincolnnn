@@ -137,17 +137,20 @@ function Police.closestVehicle(range)
 end
 
 -- =========================================================================
--- INDIVIDU TENU PAR LE BRAS (comme la première version) : accroché au BASSIN du policier (os 11816), à DragOffset
--- (à sa droite, devant), accroche synchronisée par le jeu ; il suit le policier, y compris quand il tourne, sans
--- aucune animation imposée (ni marche, ni emote) : seulement les menottes s'il est menotté (mains dans le dos).
--- Accroché UNE fois : raccroché seulement s'il a été décroché (policier au sol, ragdoll), jamais en boucle (avant :
--- ré-accroche et animations des jambes qui changeaient quand le policier tournait -> téléportations).
+-- INDIVIDU TENU PAR LE BRAS : accroché au CENTRE du policier (pas à un os : l'os du bassin a ses propres axes, qui
+-- couchaient l'individu à 90°), à DragOffset (à sa droite, un peu devant) ; accroche synchronisée par le jeu. Il reste
+-- droit, sur son propre axe, et tourne avec le policier.
+-- Il MARCHE quand le policier marche (trottine s'il trottine, recule s'il recule) et s'arrête quand il s'arrête : ses
+-- jambes suivent la vitesse du policier, dans le repère du policier (seulement avant / arrière : pas de pas de côté
+-- qui changeaient à chaque virage). Menotté : mains dans le dos (menottes du jeu, marche menottée) ; pas menotté :
+-- démarche normale du personnage, rien d'autre.
+-- Accroché UNE fois (raccroché seulement s'il a été décroché : policier au sol, ragdoll).
 -- Le civil (joueur) ne peut pas se déplacer lui-même pendant ce temps (il peut se débattre, voir plus bas).
 -- Boucle UNIQUEMENT pendant qu'il est tenu (à chaque image pour le civil lui-même, 100 ms pour un PNJ).
 -- =========================================================================
 local DRAG_BLOCKED = { 21, 22, 23, 30, 31, 32, 33, 34, 35, 36, 44, 75 } -- sprint, saut, véhicule, déplacements, couvert
 local HOLDER_BLOCKED = { 21, 22, 44 } -- le policier qui tient quelqu'un : ni sprint, ni saut, ni couvert
-local PELVIS = 11816
+local ATTACH_CENTRE = -1 -- pas un os : le centre du policier (matrice toujours droite)
 
 --- Lâché : décroché, collisions et position rendues
 local function holdPed(ped, held)
@@ -159,15 +162,42 @@ end
 
 local function attachToPolice(ped, policePed)
     local o = Config.DragOffset
-    AttachEntityToEntity(ped, policePed, GetPedBoneIndex(policePed, Config.DragBone or PELVIS), o.x, o.y, o.z,
-        0.0, 0.0, 0.0, false, false, false, false, 2, true)
+    AttachEntityToEntity(ped, policePed, ATTACH_CENTRE, o.x, o.y, o.z, 0.0, 0.0, 0.0,
+        false, false, false, false, 2, true)
 end
 
---- `ped` est accroché au policier tant que isActive()
+--- Allure du policier dans SON repère (m/s : x à droite, y devant) -> 'walk' / 'run' et 'forward' / 'back', ou nil
+--- (arrêté). Près des limites, l'allure en cours est gardée (pas de clignotement).
+local function policeGait(vx, vy, current)
+    local M = Config.DragMove or {}
+    local speed = math.sqrt(vx * vx + vy * vy)
+    local idle = M.Idle or 0.35
+    if speed < (current and idle * 0.7 or idle) then return nil end
+    local dir = (vy < -0.3 and math.abs(vy) >= math.abs(vx)) and 'back' or 'forward'
+    local trot = M.Trot or 2.6
+    local run = speed >= (current and current.gait == 'run' and trot * 0.85 or trot)
+    return { gait = run and 'run' or 'walk', dir = dir }
+end
+
+--- Animation des jambes : menotté vers l'avant, la marche menottée du jeu ; sinon la démarche du personnage
+local function moveAnim(ped, move, cuffedNow)
+    local moves = Config.DragMoves or {}
+    if cuffedNow and move.dir == 'forward' and moves.cuffed then return moves.cuffed[move.gait] end
+    if move.dir == 'back' then return (moves.back or {})[move.gait] end
+    local set = IsPedMale(ped) and moves.male or moves.female or moves.male
+    return set and set[move.gait]
+end
+
+--- `ped` est accroché au policier tant que isActive() ; ses jambes suivent le policier
 local function holdLoop(ped, getPolicePed, isActive, onEnd, isSelf, isCuffedFn)
     CreateThread(function()
         local cuffAnim = Config.CuffAnim
-        local attachedTo, first, nextPose = nil, true, 0
+        local attachedTo, first, nextCheck = nil, true, 0
+        local move, playing = nil, nil
+        local function stopMove()
+            if playing and DoesEntityExist(ped) then StopAnimTask(ped, playing[1], playing[2], 2.0) end
+            playing = nil
+        end
         while isActive() do
             local policePed = getPolicePed()
             if not policePed or policePed == 0 or not DoesEntityExist(ped) or IsEntityDead(policePed)
@@ -182,8 +212,9 @@ local function holdLoop(ped, getPolicePed, isActive, onEnd, isSelf, isCuffedFn)
             elseif IsPedRagdoll(policePed) or IsPedRagdoll(ped) then
                 -- policier (ou individu) au sol : décroché le temps de se relever, puis raccroché
                 if attachedTo then
+                    stopMove()
                     holdPed(ped, false)
-                    attachedTo = nil
+                    attachedTo, move = nil, nil
                 end
             else
                 local cuffedNow = isCuffedFn and isCuffedFn() or false
@@ -194,19 +225,32 @@ local function holdLoop(ped, getPolicePed, isActive, onEnd, isSelf, isCuffedFn)
                     attachToPolice(ped, policePed)
                     attachedTo = policePed
                 end
-                -- PNJ menotté : mains dans le dos (le joueur menotté : sa propre boucle des menottes)
-                if not isSelf and cuffedNow then
-                    local now = GetGameTimer()
-                    if now >= nextPose then
-                        nextPose = now + 1000
-                        if not IsEntityPlayingAnim(ped, cuffAnim.dict, cuffAnim.clip, 3) then
-                            RPI.playAnimNow(ped, cuffAnim.dict, cuffAnim.clip, -1, cuffAnim.flag or 49)
+                local now = GetGameTimer()
+                if now >= nextCheck then
+                    nextCheck = now + 100
+                    local v = GetEntitySpeedVector(policePed, true)
+                    local nextMove = policeGait(v.x, v.y, move)
+                    local anim = nextMove and moveAnim(ped, nextMove, cuffedNow)
+                    if not anim then
+                        stopMove()
+                    elseif not playing or playing[1] ~= anim[1] or playing[2] ~= anim[2]
+                        or not IsEntityPlayingAnim(ped, anim[1], anim[2], 3) then
+                        if RPI.loadAnim(anim[1]) then
+                            if playing then StopAnimTask(ped, playing[1], playing[2], 2.0) end
+                            TaskPlayAnim(ped, anim[1], anim[2], 4.0, -4.0, -1, 1, 0.0, false, false, false)
+                            playing = anim
                         end
+                    end
+                    move = nextMove
+                    -- PNJ menotté : mains dans le dos (haut du corps ; le joueur menotté : sa boucle des menottes)
+                    if not isSelf and cuffedNow and not IsEntityPlayingAnim(ped, cuffAnim.dict, cuffAnim.clip, 3) then
+                        RPI.playAnimNow(ped, cuffAnim.dict, cuffAnim.clip, -1, cuffAnim.flag or 49)
                     end
                 end
             end
             Wait(isSelf and 0 or 100)
         end
+        stopMove()
         holdPed(ped, false)
         if onEnd then onEnd() end
     end)
@@ -465,16 +509,16 @@ local function officerOpenDoor(vehicle, seat, door)
     end
 end
 
---- Individu à placer à l'arrière : le policier NE le tient PAS (bras lâché) et vise le véhicule avec l'œil ; un joueur
---- civil (pas dans une unité du MDC, à pied) à moins de Config.PlaceDoorDistance m (4 m) d'une portière arrière dont la
---- place est libre (PNJ menotté par ce policier aussi, pour les essais en solo).
---- -> { ped, serverId, rear } (le plus proche de sa portière) ou nil
-function Police.placeCandidate(vehicle)
+--- Individu à placer à l'arrière : le policier NE le tient PAS (bras lâché) et vise une portière arrière avec l'œil
+--- (`seat` : place de cette portière ; nil : les deux) ; un joueur civil (pas dans une unité du MDC, à pied) à moins de
+--- Config.PlaceDoorDistance m (4 m) de cette portière, place libre (PNJ menotté par ce policier aussi, pour les essais
+--- en solo). -> { ped, serverId, rear } (le plus proche de sa portière) ou nil
+function Police.placeCandidate(vehicle, seat)
     if not vehicle or not DoesEntityExist(vehicle) or dragging or GetVehicleMaxNumberOfPassengers(vehicle) < 3 then return nil end
     local range = Config.PlaceDoorDistance or 4.0
     local doors = {}
     for _, rear in ipairs(REAR) do
-        if IsVehicleSeatFree(vehicle, rear.seat) then
+        if (not seat or rear.seat == seat) and IsVehicleSeatFree(vehicle, rear.seat) then
             local bone = GetEntityBoneIndexByName(vehicle, rear.bone)
             if bone ~= -1 then doors[#doors + 1] = { rear = rear, pos = GetWorldPositionOfEntityBone(vehicle, bone) } end
         end
@@ -499,14 +543,15 @@ function Police.placeCandidate(vehicle)
     return best
 end
 
---- Placer à l'arrière (œil sur le véhicule, bras lâché) : la portière arrière s'ouvre toute seule, le civil y monte
---- lui-même (sans téléportation) et la portière RESTE OUVERTE : le policier la referme avec l'œil. Assis à
---- l'arrière, le civil ne peut pas descendre seul tant que la portière est fermée.
-function Police.placeInVehicle(vehicle)
+--- Placer à l'arrière (œil sur une portière arrière, bras lâché) : la portière s'ouvre toute seule, le civil y monte
+--- lui-même (sans téléportation) et la portière RESTE OUVERTE : le civil ne la referme jamais (le jeu ne la referme
+--- pas et elle est gardée ouverte, voir plus bas) ; c'est le policier qui la referme avec l'œil. Assis à l'arrière,
+--- le civil ne peut pas descendre seul tant que la portière est fermée.
+function Police.placeInVehicle(vehicle, seat)
     if not RPI.isPolice() then return end
-    if dragging then return RPI.notify('Lâchez d\'abord le bras de l\'individu, puis visez le véhicule.', 'error') end
-    local c = Police.placeCandidate(vehicle)
-    if not c then return RPI.notify('Personne à moins de 4 m d\'une portière arrière libre.', 'error') end
+    if dragging then return RPI.notify('Lâchez d\'abord le bras de l\'individu, puis visez la portière arrière.', 'error') end
+    local c = Police.placeCandidate(vehicle, seat)
+    if not c then return RPI.notify('Personne à moins de 4 m de cette portière arrière (place libre).', 'error') end
     if c.serverId and not NetworkGetEntityIsNetworked(vehicle) then
         return RPI.notify('Ce véhicule n\'est pas synchronisé avec le serveur.', 'error')
     end
@@ -825,6 +870,64 @@ RegisterNetEvent('rp_interact:client:leaveVehicle', function()
         handcuffs(ped, false) -- remises une fois descendu
         TaskLeaveVehicle(ped, vehicle, LEAVE_FLAGS)
     end
+end)
+
+-- =========================================================================
+-- PORTIÈRE ARRIÈRE GARDÉE OUVERTE (individu placé à l'arrière) : state bag "rpiDoorHold" du véhicule, posé par le
+-- serveur. Le joueur qui contrôle le véhicule (le jeu n'accepte la portière que de lui) la rouvre si elle se ferme
+-- toute seule ou par le civil ; seul un policier la referme : œil (« Fermer la portière… ») ou au volant quand il
+-- démarre (Police.closeHeldDoor). Boucle de 250 ms seulement tant qu'une portière est gardée près du joueur.
+-- =========================================================================
+local holdWatch = {} -- [véhicule] = true
+
+local function heldDoors(vehicle)
+    local hold = DoesEntityExist(vehicle) and Entity(vehicle).state.rpiDoorHold or nil
+    if type(hold) ~= 'table' then return nil end
+    local list = {}
+    for _, door in ipairs({ 2, 3 }) do
+        if hold['d' .. door] then list[#list + 1] = door end
+    end
+    return #list > 0 and list or nil
+end
+Police.heldDoors = heldDoors
+
+--- Un policier referme une portière gardée ouverte : le serveur lève le maintien, puis la portière est fermée
+function Police.closeHeldDoor(vehicle, door, done)
+    if not NetworkGetEntityIsNetworked(vehicle) then return done and done() end
+    RPI.request('releaseDoor', { netId = VehToNet(vehicle), door = door }, function()
+        RPI.withControl(vehicle, function() SetVehicleDoorShut(vehicle, door, false) end)
+        if done then done() end
+    end)
+end
+
+local function watchHeld(vehicle)
+    if holdWatch[vehicle] then return end
+    holdWatch[vehicle] = true
+    CreateThread(function()
+        while true do
+            Wait(250)
+            local doors = heldDoors(vehicle)
+            if not doors then break end
+            local me = PlayerPedId()
+            if #(GetEntityCoords(me) - GetEntityCoords(vehicle)) > 60.0 then break end
+            if GetPedInVehicleSeat(vehicle, -1) == me and RPI.isPolice() and GetEntitySpeed(vehicle) > 1.0 then
+                -- le policier démarre au volant : c'est lui qui referme les portières gardées ouvertes
+                for _, door in ipairs(doors) do Police.closeHeldDoor(vehicle, door) end
+                Wait(1000)
+            elseif NetworkGetEntityOwner(vehicle) == PlayerId() then
+                for _, door in ipairs(doors) do
+                    if GetVehicleDoorAngleRatio(vehicle, door) < 0.5 then SetVehicleDoorOpen(vehicle, door, false, false) end
+                end
+            end
+        end
+        holdWatch[vehicle] = nil
+    end)
+end
+
+AddStateBagChangeHandler('rpiDoorHold', nil, function(bagName, _, value)
+    if type(value) ~= 'table' then return end
+    local vehicle = GetEntityFromStateBagName(bagName)
+    if vehicle and vehicle ~= 0 then SetTimeout(0, function() watchHeld(vehicle) end) end
 end)
 
 -- Ressource redémarrée alors que le joueur était menotté

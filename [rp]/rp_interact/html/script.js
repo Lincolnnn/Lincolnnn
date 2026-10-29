@@ -942,6 +942,8 @@
         const items = [
             { kind: 'info', label: `${info.vehicle ? `${info.vehicle} — ` : ''}${radio ? (radio.paused ? 'radio en pause' : 'radio allumée') : 'radio éteinte'}`, tone: radio ? 'ok' : 'muted' },
             radio && { kind: 'info', label: radio.url, tone: 'muted' },
+            radio && youtubeId(radio.url) && !info.ytAudio && { kind: 'info', tone: 'muted',
+                label: 'Lien YouTube : volume selon la distance seulement (le lecteur YouTube ne permet ni son 3D ni effet étouffé). Lien audio direct (mp3, radio en ligne) : son 3D complet.' },
             !can && { kind: 'info', label: front, tone: 'warn' },
             { kind: 'input', key: 'url', label: 'Lien', value: radioUi.url, placeholder: 'YouTube, musique, podcast, radio…', max: 400, ...ctl(),
                 desc: 'Entrée : coller / écrire le lien (Ctrl+V), puis Entrée.', onChange: (v) => { radioUi.url = v; rerender(); } },
@@ -1019,11 +1021,83 @@
     }
 
     // ---- Lecteurs de la radio des véhicules (client/radio.lua) ----
-    // Lecture telle quelle, sans effet : lecteur YouTube (lien YouTube) ou lecteur audio (lien direct).
+    // Lien audio direct : lecteur audio passé dans le Web Audio : son 3D (HRTF) placé d'après la caméra du joueur
+    // ("radioPos" : gauche, droite, derrière…) et filtre qui coupe les aigus (son étouffé portières / vitres fermées,
+    // un peu plus sourd derrière soi). Si le site du lien refuse le Web Audio (CORS), relu sans effet.
+    // Lien YouTube : lecteur YouTube, qui ne laisse passer aucun effet (volume seulement), sauf si le serveur a un
+    // service qui donne l'audio de la vidéo (RadioYouTubeAudio).
     // Le volume (distance, vitres / portières) est calculé par client/radio.lua. À la fin d'un morceau,
     // le serveur est prévenu ("radioEnded") et lance le suivant de la file pour tout le monde.
     const radios = {};
     let ytReady = null;
+    let radioCtx = null;
+
+    function audioContext() {
+        if (!radioCtx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return null;
+            radioCtx = new Ctx();
+        }
+        if (radioCtx.state === 'suspended') radioCtx.resume().catch(() => {});
+        return radioCtx;
+    }
+
+    /** Lecteur audio -> filtre (étouffé) -> volume -> position 3D (HRTF) -> sortie ; false si impossible */
+    function buildGraph(r) {
+        const ctx = audioContext();
+        if (!ctx || !r.audio) return false;
+        try {
+            const source = ctx.createMediaElementSource(r.audio);
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 20000;
+            filter.Q.value = 0.7;
+            const gain = ctx.createGain();
+            gain.gain.value = 0;
+            const panner = ctx.createPanner();
+            panner.panningModel = 'HRTF';
+            panner.distanceModel = 'linear';
+            panner.rolloffFactor = 0; // la distance est dans le volume ; ici seulement la direction
+            panner.refDistance = 1;
+            panner.maxDistance = 10000;
+            source.connect(filter).connect(gain).connect(panner).connect(ctx.destination);
+            r.graph = { filter, gain, panner };
+            r.audio.volume = 1;
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    function setParam(param, value, time) {
+        if (param.setTargetAtTime) param.setTargetAtTime(value, radioCtx.currentTime, time);
+        else param.value = value;
+    }
+
+    /** Position (repère de la caméra) et coupure des aigus envoyées par client/radio.lua */
+    function applyPos(r) {
+        const g = r.graph, d = r.pos;
+        if (!g || !d) return;
+        const p = g.panner;
+        const num = (v, def) => (Number.isFinite(Number(v)) ? Number(v) : def);
+        const x = num(d.x, 0), y = num(d.y, 0), z = num(d.z, -1);
+        if (p.positionX) {
+            setParam(p.positionX, x, 0.06);
+            setParam(p.positionY, y, 0.06);
+            setParam(p.positionZ, z, 0.06);
+        } else {
+            p.setPosition(x, y, z);
+        }
+        setParam(g.filter.frequency, Math.max(200, Math.min(20000, Number(d.cutoff) || 20000)), 0.12);
+        applyRadio(r);
+    }
+
+    function radioPos(d) {
+        const r = d && radios[d.id];
+        if (!r) return;
+        r.pos = d;
+        applyPos(r);
+    }
 
     function youtubeId(url) {
         const m = String(url).match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/|music\.youtube\.com\/watch\?(?:.*&)?v=)([\w-]{11})/);
@@ -1045,7 +1119,13 @@
     function applyRadio(r) {
         const v = Math.min(Math.max(r.volume, 0), 1);
         if (r.player && r.player.setVolume) r.player.setVolume(Math.round(v * 100));
-        if (r.audio) r.audio.volume = v;
+        if (r.graph) {
+            // étouffé : les aigus coupés font perdre du volume perçu, compensé (boost)
+            const boost = r.pos && r.pos.muffled ? Number(r.pos.boost) || 1 : 1;
+            setParam(r.graph.gain.gain, Math.min(1.5, v * boost), 0.08);
+        } else if (r.audio) {
+            r.audio.volume = v;
+        }
     }
 
     /** Fin du morceau : une seule fois par morceau (même "start") */
@@ -1076,15 +1156,31 @@
         });
     }
 
-    function playAudio(r, url) {
-        const audio = new Audio(url);
+    /** Lecteur audio ; cors : avec le Web Audio (son 3D, étouffé). Refusé par le site : relu sans effet, puis
+     *  onFail (lien YouTube via RadioYouTubeAudio : retour au lecteur YouTube). */
+    function playAudio(r, url, cors = true, onFail = null) {
+        const audio = new Audio();
+        if (cors) audio.crossOrigin = 'anonymous';
+        audio.src = url;
+        let started = false;
+        audio.addEventListener('playing', () => { started = true; }, { once: true });
+        audio.addEventListener('error', () => {
+            if (r.dead || r.audio !== audio || started) return;
+            audio.removeAttribute('src');
+            r.audio = null;
+            r.graph = null;
+            if (cors) playAudio(r, url, false, onFail);
+            else if (onFail) onFail();
+        }, { once: true });
         audio.addEventListener('loadedmetadata', () => {
             if (Number.isFinite(audio.duration) && r.offset < audio.duration) audio.currentTime = r.offset;
             else if (Number.isFinite(audio.duration) && r.offset >= audio.duration) radioEnded(r); // déjà fini
         }, { once: true });
         audio.addEventListener('ended', () => radioEnded(r));
         r.audio = audio;
+        if (cors) buildGraph(r);
         applyRadio(r);
+        applyPos(r);
         if (!r.paused) audio.play().catch(() => {});
     }
 
@@ -1094,7 +1190,9 @@
         r.holder.className = 'radio-player';
         $('#radioPlayers').appendChild(r.holder);
         const id = youtubeId(d.url);
-        if (id) playYouTube(r, id); else playAudio(r, d.url);
+        if (id && d.ytAudio) playAudio(r, String(d.ytAudio).replace('{id}', id), true, () => playYouTube(r, id));
+        else if (id) playYouTube(r, id);
+        else playAudio(r, d.url);
         return r;
     }
 
@@ -1942,6 +2040,7 @@
             case 'notify': if (data.data) toast(data.data.text, data.data.type); break;
             case 'radio': radioUpdate(data.data); break;
             case 'radioStop': radioStop(data.data && data.data.id); break;
+            case 'radioPos': radioPos(data.data); break;
             case 'eup': setEup(data.data || {}); break;
             case 'eupWorn': // tenue mise : son service est celui de "Modifier ma tenue"
                 eup.service = (data.data && data.data.service) || 'Civil';

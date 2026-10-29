@@ -921,6 +921,18 @@ on('struggleEscape', function(src)
 end)
 
 -- Placer à l'arrière : bras lâché, la portière vient de s'ouvrir ; le civil (à moins de 4 m) y monte lui-même
+--- Portière arrière gardée OUVERTE (individu placé à l'arrière) : seul un policier la referme (œil). State bag
+--- "rpiDoorHold" du véhicule : { d2 = true, d3 = true } (portières 2 / 3).
+local function setDoorHold(netId, door, on)
+    local entity = vehicleEntity(netId)
+    if not entity or (door ~= 2 and door ~= 3) then return end
+    local state = Entity(entity).state
+    local hold = {}
+    for k, v in pairs(type(state.rpiDoorHold) == 'table' and state.rpiDoorHold or {}) do hold[k] = v end
+    hold['d' .. door] = on and true or nil
+    state:set('rpiDoorHold', next(hold) and hold or false, true)
+end
+
 on('putInVehicle', function(src, p)
     local target, err = policeTarget(src, p, Config.PlaceVehicleDistance + 3.0)
     if not target then return { ok = false, error = err } end
@@ -940,7 +952,23 @@ on('putInVehicle', function(src, p)
     end
     stopDrag(target)
     clearSeated(target)
+    setDoorHold(netId, seat + 1, true) -- places 1 / 2 -> portières 2 / 3
     TriggerClientEvent('rp_interact:client:enterVehicle', target, netId, seat)
+    return { ok = true }
+end)
+
+-- Un policier referme une portière arrière gardée ouverte (œil, ou il démarre au volant)
+on('releaseDoor', function(src, p)
+    if not policeUnit(src) then return { ok = false, error = 'Réservé à la police.' } end
+    local netId, door = tonumber(p.netId), tonumber(p.door)
+    if not netId or not door then return { ok = false } end
+    if ONESYNC then
+        local entity = vehicleEntity(netId)
+        if not entity or tooFar(playerCoords(src), coordsOfEntity(entity), Config.PlaceVehicleDistance + 3.0) then
+            return { ok = false, error = 'Rapprochez-vous du véhicule.' }
+        end
+    end
+    setDoorHold(netId, door, false)
     return { ok = true }
 end)
 

@@ -300,10 +300,13 @@ local function vehicleOptions(ctx)
 
     -- Police : placer un civil à l'arrière / faire sortir les passagers arrière
     if ctx.police then
-        -- (bras lâché, un civil à moins de 4 m d'une portière arrière libre)
-        if not Police.dragging() and within(ctx, Config.PlaceVehicleDistance) and Police.placeCandidate(vehicle) then
-            out[#out + 1] = { id = 'police:place', label = 'Placer l\'individu à l\'arrière', icon = 'car', police = true,
-                run = function(c) Police.placeInVehicle(c.entity) end }
+        -- (bras lâché, portière ARRIÈRE visée, un civil à moins de 4 m de cette portière, place libre)
+        local aimed = within(ctx, Config.PlaceVehicleDistance) and nearestDoor(vehicle, ctx.hit) or nil
+        if aimed and (aimed.index == 2 or aimed.index == 3) and not Police.dragging()
+            and Police.placeCandidate(vehicle, aimed.seat) then
+            local seat = aimed.seat
+            out[#out + 1] = { id = 'police:place', label = 'Placer l\'individu à l\'arrière du véhicule', icon = 'car',
+                police = true, run = function(c) Police.placeInVehicle(c.entity, seat) end }
         end
         if within(ctx, Config.DoorDistance) and #Police.rearOccupants(vehicle) > 0 then
             out[#out + 1] = { id = 'police:takeout', label = 'Faire sortir l\'individu (arrière)', icon = 'car', police = true,
@@ -333,6 +336,13 @@ local function vehicleOptions(ctx)
         id = 'door:toggle', icon = 'door', primary = true, disabled = locked and not isOpen or nil, -- portière visée
         label = ('%s %s%s'):format(isOpen and 'Fermer' or 'Ouvrir', door.name, locked and not isOpen and ' (verrouillé)' or ''),
         run = function(c)
+            -- portière arrière gardée ouverte (individu placé) : seul un policier la referme
+            local held = false
+            for _, d in ipairs(Police.heldDoors(c.entity) or {}) do held = held or d == door.index end
+            if held and GetVehicleDoorAngleRatio(c.entity, door.index) > 0.05 then
+                if not RPI.isPolice() then return RPI.notify('Seul un policier peut refermer cette portière.', 'error') end
+                return Police.closeHeldDoor(c.entity, door.index)
+            end
             withControl(c.entity, function()
                 local opening = GetVehicleDoorAngleRatio(c.entity, door.index) <= 0.05
                 if opening then

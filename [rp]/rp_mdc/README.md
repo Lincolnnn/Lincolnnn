@@ -54,7 +54,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    # ensure riven-impact-dynamics   (facultatif, script payant : AVANT rp_vehiclecontrol)
    ensure rp_vehiclecontrol
    ensure rp_interact
-   # ensure olisound              (facultatif : son 3D de la radio des véhicules, ressource séparée)
+   # ensure olisound              (facultatif, plus nécessaire : rp_interact fait le son 3D de la radio)
    ensure ox_target                 # le pont vers l'œil (PAS le vrai ox_target), après rp_interact
    # ensure ox_lib                  (facultatif : seulement pour riven_spikes)
    # ensure riven_spikes            (facultatif, script payant : après ox_lib et ox_target)

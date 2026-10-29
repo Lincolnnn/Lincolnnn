@@ -15,9 +15,11 @@
         l'entend le signale au serveur, qui lance le suivant pour tout le monde.
       - Pause / reprise (même position pour tous), retour au début du morceau (deux appuis rapprochés :
         morceau précédent), suivant, arrêter : boutons à icônes de la page Radio.
-    MOTEUR DU SON (RadioEngine) : avec la ressource olisound démarrée (dépendance séparée, voir README), le son passe
-    par olisound (Web Audio : spatialisation 3D HRTF autour du véhicule, son étouffé dehors quand portières et vitres
-    sont fermées, meilleure qualité) ; sans elle, par le NUI de ce script (html/script.js), comme avant.
+    MOTEUR DU SON (RadioEngine) : par défaut le NUI de ce script (html/script.js) : son 3D (HRTF) placé selon la
+    caméra (on entend de quel côté est le véhicule : gauche, droite, derrière), étouffé dehors portières et vitres
+    fermées. Pour un lien audio direct (mp3, radio en ligne…) ; un lien YouTube passe par le lecteur YouTube, qui
+    ne laisse aucun effet s'appliquer : volume selon la distance seulement (sauf RadioYouTubeAudio). 'olisound' :
+    la ressource olisound à la place (même limite pour YouTube).
     Performance : boucle (150 ms) seulement tant qu'une radio est allumée dans un véhicule à portée réseau ; aucune
     sinon.
 ]]
@@ -74,7 +76,47 @@ local function send(id, radio, volume)
     local offset = offsetOf(radio)
     SendNUIMessage({ action = 'radio', data = {
         id = id, url = radio.url, volume = volume, seq = radio.seq, offset = offset, paused = radio.paused ~= nil,
+        ytAudio = Config.RadioYouTubeAudio ~= '' and Config.RadioYouTubeAudio or nil,
     } })
+end
+
+-- =========================================================================
+-- SON 3D (lecteur de ce script) : d'où vient la musique, vu de la CAMÉRA du joueur (devant, derrière, à gauche, à
+-- droite, au-dessus), et son ÉTOUFFÉ dehors quand portières et vitres sont fermées. Envoyé au NUI seulement quand
+-- ça change : position dans le repère de la caméra (x : droite, y : haut, z : vers l'arrière, comme le Web Audio),
+-- coupure des aigus (Hz) : étouffé (RadioMuffleHz), derrière soi (RadioBehindHz, un peu plus sourd), sinon aucune.
+-- =========================================================================
+local lastPos = {} -- [nom du state bag] = clé du dernier envoi
+
+--- Position du véhicule vue de la caméra, normalisée (seule la DIRECTION compte : la distance est dans le volume)
+local function cameraRelative(vehicle)
+    local cam = GetFinalRenderedCamCoord()
+    local rot = GetFinalRenderedCamRot(2)
+    local pitch, yaw = math.rad(rot.x), math.rad(rot.z)
+    local f = vector3(-math.sin(yaw) * math.cos(pitch), math.cos(yaw) * math.cos(pitch), math.sin(pitch))
+    local r = vector3(math.cos(yaw), math.sin(yaw), 0.0)
+    local u = vector3(r.y * f.z - r.z * f.y, r.z * f.x - r.x * f.z, r.x * f.y - r.y * f.x)
+    local d = GetEntityCoords(vehicle) - cam
+    local x, y, z = d.x * r.x + d.y * r.y + d.z * r.z, d.x * u.x + d.y * u.y + d.z * u.z, d.x * f.x + d.y * f.y + d.z * f.z
+    local len = math.sqrt(x * x + y * y + z * z)
+    if len < 0.5 then return 0.0, 0.0, -1.0, false end
+    return x / len, y / len, -z / len, z < 0
+end
+
+local function sendPos(id, vehicle)
+    local inside = GetVehiclePedIsIn(PlayerPedId(), false) == vehicle
+    local x, y, z, behind = 0.0, 0.0, -1.0, false -- à bord : les haut-parleurs tout autour (devant)
+    local cutoff = 20000
+    if not inside then
+        x, y, z, behind = cameraRelative(vehicle)
+        if not RPI.vehicleOpen(vehicle) then cutoff = Config.RadioMuffleHz or 550
+        elseif behind then cutoff = Config.RadioBehindHz or 5000 end
+    end
+    local key = ('%.2f|%.2f|%.2f|%d'):format(x, y, z, cutoff)
+    if lastPos[id] == key then return end
+    lastPos[id] = key
+    SendNUIMessage({ action = 'radioPos', data = { id = id, x = x, y = y, z = z, cutoff = cutoff,
+        muffled = cutoff < 1000, boost = Config.RadioMuffleBoost or 1.8 } })
 end
 
 -- =========================================================================
@@ -85,8 +127,8 @@ local oli = {}   -- [nom du state bag] = { name, url, seq, start, volume, distan
 local ended = {} -- [nom du state bag] = n° du morceau dont la fin a été entendue (pas relancé)
 
 local function useOli()
-    local engine = Config.RadioEngine or 'auto'
-    return engine ~= 'nui' and GetResourceState(OLI) == 'started'
+    local engine = Config.RadioEngine or 'nui'
+    return (engine == 'olisound' or engine == 'auto') and GetResourceState(OLI) == 'started'
 end
 
 local function oliCall(fn, ...)
@@ -160,6 +202,7 @@ local function oliPlay(id, radio, vehicle)
 end
 
 local function stopNui(id)
+    lastPos[id] = nil
     if playing[id] then
         playing[id] = nil
         SendNUIMessage({ action = 'radioStop', data = { id = id } })
@@ -196,6 +239,7 @@ local function startLoop()
                             playing[id] = key
                             send(id, radio, volume)
                         end
+                        sendPos(id, vehicle)
                     end
                 end
             end
@@ -248,7 +292,8 @@ local function radioInfo()
     end
     local radio = Entity(vehicle).state.rpiRadio
     return {
-        ok = true, available = true, canControl = canControl(vehicle, mode),
+        ok = true, available = true, canControl = canControl(vehicle, mode), ytAudio = (Config.RadioYouTubeAudio or '') ~= '',
+        engine = useOli() and 'olisound' or 'nui',
         vehicle = RPI.vehicleLabel and RPI.vehicleLabel(vehicle) or nil,
         radio = type(radio) == 'table' and { url = radio.url, volume = radio.volume, queue = radio.queue or {},
             paused = radio.paused ~= nil, history = #(radio.history or {}) } or false,

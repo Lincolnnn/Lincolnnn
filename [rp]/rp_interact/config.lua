@@ -66,13 +66,23 @@ InteractConfig = {
     -- Radio du véhicule (lien YouTube ou lien direct vers un son / une radio en ligne)
     RadioRangeClosed = 15.0,        -- m : entendue dehors jusqu'à 15 m, vitres et portières fermées
     RadioRangeOpen = 25.0,          -- m : jusqu'à 25 m avec une portière (coffre, capot) ouverte ou une vitre baissée
-    RadioInsulation = 0.18,         -- volume entendu dehors quand tout est fermé (pas d'autre effet sur le son)
+    RadioInsulation = 0.18,         -- volume entendu dehors quand tout est fermé (en plus de l'effet étouffé)
     RadioMaxVolume = 0.8,           -- volume maximal (radio à 100 %) pour tous les joueurs
-    -- Moteur du son : 'auto' = olisound s'il est démarré (son 3D HRTF, étouffé dehors portières / vitres fermées,
-    -- meilleure qualité ; ressource séparée, voir README), sinon le lecteur de ce script ; 'nui' = toujours ce
-    -- lecteur. Avec olisound, la distance d'écoute reste RadioRangeClosed / RadioRangeOpen ; l'atténuation dehors
-    -- et l'étouffement sont réglés dans la config d'olisound (outsideVehicleVolume, outsideVehicleMuffleFrequency).
-    RadioEngine = 'auto',
+    -- Son 3D (lecteur de ce script) : on entend de quel côté est le véhicule (gauche, droite, derrière), selon la
+    -- caméra ; dehors, portières et vitres fermées, le son est ÉTOUFFÉ (aigus coupés au-dessus de RadioMuffleHz, volume
+    -- remonté de RadioMuffleBoost pour compenser) ; un véhicule derrière soi sonne un peu plus sourd (RadioBehindHz).
+    -- Pour les liens audio directs (mp3, ogg, radio en ligne…). Lien YouTube : le lecteur YouTube ne laisse passer
+    -- aucun effet ; volume selon la distance seulement.
+    RadioMuffleHz = 550,
+    RadioMuffleBoost = 1.8,
+    RadioBehindHz = 5000,
+    -- Facultatif : adresse d'un service à vous qui renvoie l'AUDIO d'une vidéo YouTube (avec l'en-tête CORS
+    -- Access-Control-Allow-Origin), {id} = identifiant de la vidéo, ex. 'https://audio.mon-serveur.fr/yt/{id}'.
+    -- Les liens YouTube ont alors le son 3D et l'effet étouffé. Vide : lecteur YouTube.
+    RadioYouTubeAudio = '',
+    -- Moteur du son : 'nui' = le lecteur de ce script (son 3D ci-dessus) ; 'olisound' = la ressource olisound
+    -- (séparée) ; 'auto' = olisound s'il est démarré, sinon ce script.
+    RadioEngine = 'nui',
 
     -- Ressources liées (nom des dossiers)
     MdcResource = 'rp_mdc', -- "policier" = joueur dans une unité du MDC
@@ -157,10 +167,20 @@ InteractConfig = {
     -- Position (m) et orientation (°) des menottes sur l'os du poignet gauche (60309), réglées pour
     -- l'animation "mains dans le dos" du jeu (CuffAnim).
     CuffPropPlacement = { bone = 60309, x = -0.055, y = 0.06, z = 0.04, rx = 265.0, ry = 155.0, rz = 80.0 },
-    -- Individu tenu par le bras : accroché au bassin du policier (os DragBone) à ce point (x : à sa droite,
-    -- y : devant), sans aucune animation imposée (menotté : mains dans le dos).
-    DragOffset = { x = 0.45, y = 0.55, z = 0.0 },
-    DragBone = 11816,
+    -- Individu tenu par le bras : accroché au CENTRE du policier à ce point (x : à sa droite, y : devant), droit, sur
+    -- son propre axe ; il tourne avec le policier.
+    DragOffset = { x = 0.4, y = 0.25, z = 0.0 },
+    -- Ses jambes suivent le policier : arrêté sous Idle m/s, trottine à partir de Trot m/s (le policier qui le tient ne
+    -- peut pas sprinter) ; seulement vers l'avant ou en arrière.
+    DragMove = { Idle = 0.35, Trot = 2.6 },
+    -- Animations des jambes (dictionnaire, clip) : démarche normale (homme / femme), en arrière, et menotté vers
+    -- l'avant : la marche menottée du jeu (mains dans le dos).
+    DragMoves = {
+        male = { walk = { 'move_m@generic', 'walk' }, run = { 'move_m@generic', 'run' } },
+        female = { walk = { 'move_f@generic', 'walk' }, run = { 'move_f@generic', 'run' } },
+        back = { walk = { 'move_strafe@generic', 'walk_bwd_180_loop' }, run = { 'move_strafe@generic', 'run_bwd_180_loop' } },
+        cuffed = { walk = { 'mp_arresting', 'walk' }, run = { 'mp_arresting', 'run' } },
+    },
     -- Se débattre (tenu SANS menottes) : touche Key à marteler ; chaque appui +Gain à la jauge (sur 100), qui
     -- redescend de Decay par seconde ; écrans du civil et du policier qui tremblent (Shake). Jauge pleine : un
     -- autre policier était déjà à moins de Radius m -> LoseChance (85 %) de perdre ; un autre policier qui
