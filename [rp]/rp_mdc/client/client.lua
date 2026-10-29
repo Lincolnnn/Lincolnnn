@@ -132,11 +132,25 @@ local function closeMDC()
     TriggerServerEvent('mdc:server:viewer', false)
 end
 
+--- Herse de Riven (riven_spikes) en main ou son cordon tenu : ses touches (E, G, X, Q, molette) ont la priorité
+local SPIKE_MODES = { holding = true, cord = true, throwing = true, busy = true }
+local function spikesBusy()
+    if LocalPlayer.state.rivenSpikeHand ~= nil then return true end
+    if GetResourceState('riven_spikes') ~= 'started' then return false end
+    local ok, mode = pcall(function() return exports.riven_spikes:getMode() end)
+    return ok and SPIKE_MODES[mode] == true
+end
+
 -- Commande + Key Mapping (aucune boucle nécessaire pour détecter la touche)
 RegisterCommand(Config.Command, function()
     -- K sert aussi à pousser un véhicule (Vehicle Control) : pas d'ouverture pendant que le message
     -- "Pousser le véhicule" est affiché ou pendant la poussée
     if not isOpen and LocalPlayer.state.vcPushPrompt == true then return end
+    if not isOpen and spikesBusy() then
+        BeginTextCommandThefeedPost('STRING')
+        AddTextComponentSubstringPlayerName('Herse en main : posez-la, lancez-la ou rangez-la d\'abord.')
+        return EndTextCommandThefeedPostTicker(false, false)
+    end
     if isOpen then closeMDC() else openMDC() end
 end, false)
 

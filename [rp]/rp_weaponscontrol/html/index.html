@@ -3,9 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <title>RP Weapons Control</title>
-    <style>html, body { margin: 0; background: transparent; }</style>
+    <style>
+        html, body { margin: 0; background: transparent; overflow: hidden; }
+        /* Sélecteur de tir : petit logo en bas au milieu de l'écran */
+        #firemode {
+            position: fixed; left: 50%; bottom: 2.2vh; transform: translate(-50%, 6px);
+            display: flex; align-items: center; gap: 7px; padding: 4px 10px 4px 8px;
+            font: 600 11px/1 'Segoe UI', Roboto, Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+            color: #f2f2f2; background: rgba(12, 14, 18, .55); border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .45); opacity: 0; transition: opacity .2s, transform .2s;
+            pointer-events: none; user-select: none;
+        }
+        #firemode.show { opacity: .9; transform: translate(-50%, 0); }
+        #firemode.flash { opacity: 1; box-shadow: 0 0 0 1px rgba(255, 255, 255, .55), 0 1px 3px rgba(0, 0, 0, .45); }
+        #firemode .bullets { display: flex; gap: 2px; align-items: flex-end; height: 13px; }
+        #firemode .bullets i { width: 3px; height: 12px; border-radius: 1.5px 1.5px 0 0; background: currentColor; }
+        #firemode .bullets i.off { opacity: .22; }
+        #firemode[data-mode="auto"] { color: #ffb347; }
+    </style>
 </head>
 <body>
+    <div id="firemode" data-mode="auto" aria-hidden="true">
+        <span class="bullets"><i></i><i></i><i></i></span><span class="label">Auto</span>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>

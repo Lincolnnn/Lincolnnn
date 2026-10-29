@@ -352,11 +352,18 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     (« Arme au sol ») : **Ramasser l'arme** (à 2 m, avec ses munitions, tout le monde). Un objet peut avoir plusieurs
     actions (`Options`). Ces objets sont aussi trouvés quand le rayon touche le **sol juste à côté** (`ExternalSnap`,
     0,7 m) : une arme couchée est très fine à viser.
-  - **Options d'autres scripts** (`TargetProviders`, par défaut `rp_RoleplayZone`, `rp_doorlock`, `rp_vehicleprops` et `rp_taser10`) : ajoutées à l'œil,
+  - **Herse de Riven en main** (`riven_spikes` : herse tenue, cordon tenu, lancer) : **priorité à Riven** (ses touches
+    E, G, X, Q, molette). L'œil ne propose que les options passées par `ox_target` (ranger la herse au coffre…) ; le Menu
+    Interaction (F1), `/eup` et les touches des tips d'arrestation ne s'ouvrent pas (« Herse en main : posez-la,
+    lancez-la ou rangez-la d'abord. »). Pareil dans les autres scripts : MDC (K), menu Équipement (E) et pose d'un plot
+    (G) de `rp_equipment`, `/trafic`, `/scene`, œil d'aigle et lâcher son arme (G) de `rp_RoleplayZone`, pose d'une
+    fusée (G) de `rp_flares`, pousser un véhicule (K) de `rp_vehiclecontrol`.
+  - **Options d'autres scripts** (`TargetProviders`, par défaut `rp_RoleplayZone`, `rp_doorlock`, `rp_vehicleprops`, `rp_taser10`, `rp_vehiclecontrol` et `ox_target`) : ajoutées à l'œil,
     y compris sur un **point du sol ou d'un mur** (aucune entité : « Lieu ») ; ex. **Fouiller les lieux / l'objet / le
     véhicule** et **Modifier la description** des scènes de `rp_RoleplayZone`, **Verrouiller / Déverrouiller /
     Frapper à / Enfoncer la porte** de `rp_doorlock`, **Ajouter / Déplacer / Retirer un objet** sur un véhicule de
-    `rp_vehicleprops`, **Retirer les sondes du Taser** / **Recharger le Taser** de `rp_taser10`. Le script fournit les exports client
+    `rp_vehicleprops`, **Retirer les sondes du Taser** / **Recharger le Taser** de `rp_taser10`, **Nettoyer les débris** d'un accident de
+    `rp_vehiclecontrol`. Le script fournit les exports client
     `targetOptions(info)` -> `{ label, options = { { id, label, icon } } }` et `targetSelect(id, info)`.
   - **Secteur d'une scène de roleplay** (`SceneResource`, `rp_RoleplayZone` : zone / lieu / objet + 70 m) : **ni
     « Supprimer » ni « Supprimer le props »** à l'œil, et le serveur refuse la suppression (rien ne doit disparaître).

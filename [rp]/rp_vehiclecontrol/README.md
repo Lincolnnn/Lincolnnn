@@ -494,7 +494,7 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 |---|---|
 | chocs, déformation, carrosserie, portières / capot / coffre, roues | essence, plein, jerrican |
 | verre (pare-brise feuilleté, vitres trempées) | moteur (O), démarrage |
-| débris, `/cleardebrisall`, flaques, airbags | portières (U / I), clignotants, warnings (aussi après un accident) |
+| débris, flaques, airbags | portières (U / I), clignotants, warnings (aussi après un accident), **nettoyage des débris à l'œil** |
 | pneus (crevaison, perte d'air, `/tyregauge`, `/plugtyre`) | marche avant / arrière (↑), poussée (K), feux stop |
 | tonneaux, terrain, neige, chaînes, pluie | éjection des **motos** |
 | organes mécaniques (moteur, radiateur, boîte, freins…) : puissance, calages | tirs dans le moteur / le réservoir |
@@ -511,6 +511,37 @@ Sans la ligne du pont dans son `fxmanifest.lua` (**secours**, `Riven.Fallback`) 
 choisie dans son config ; ce script fait ses propres notifications en français dans le chat à partir de ce que Riven
 publie (voyants qui s'allument : moteur, surchauffe, boîte, freins, huile, fuite d'essence, direction, pneu, feu). Les
 messages précis (moteur calé, portière coincée…) demandent le pont.
+
+### Nettoyer les débris d'un accident (à l'œil, `DebrisCleanup`)
+
+Avec ou sans Riven : **œil (Alt) sur le sol près des débris > « Nettoyer les débris (zone de 6 m) »**. Le personnage
+**balaie** (RPEMOTES **`/e broom2`** ; sans mode d'emotes : le balayeur du jeu), une barre d'avancement s'affiche, puis
+**les débris à moins de 6 m disparaissent chez tout le monde**. Une scène se nettoie **zone par zone**.
+- **À plusieurs, c'est plus rapide** : les joueurs qui balaient la même zone (à moins de 6 m) s'additionnent : **10 s
+  seul, 6 s à deux, 4 s à trois ou plus** par zone (`Seconds`), soit pour une scène d'environ 5 zones à peu près
+  50 s seul, 30 s à deux, 20 s à trois.
+- S'éloigner, monter en voiture ou arrêter l'emote (X) interrompt le nettoyage.
+- Une zone nettoyée l'est aussi **chez les joueurs qui arrivent ensuite** (Riven leur renverrait l'accident) pendant
+  15 min (`RememberSeconds`).
+- **Aucune notification générale** (le « débris retirés par … » de Riven est supprimé par le pont).
+- Débris reconnus : les modèles de la **config de Riven** (lue dans sa ressource : pièces peintes de toutes les
+  couleurs, verre, tapis de débris, morceaux de pneu…), ceux de ce script sans Riven et `ExtraModels`. Jamais un objet
+  de la carte, jamais un objet accroché à un véhicule (**airbags**, pneu sur la jante).
+
+**La touche de Riven (F9) / `/cleardebrisall`** effaçait **tous les débris de tous les accidents du serveur, chez tout
+le monde** (pas seulement l'accident le plus proche). Dans la config Riven fournie, elle est **coupée**
+(`Config.Debris.ClearAll.Enabled = false`) : le nettoyage se fait à l'œil. `/cleardebris` (chez soi seulement) reste.
+
+### Réglages Riven de ce serveur (config fournie à part, lignes `[RP]`)
+- **Pneus crevés** : jusqu'à **70 MPH** avec 1 ou 2 pneus crevés, **45 MPH** avec 3 ou 4 (`Config.Flats.MaxKmh` 113 /
+  113 / 72 / 72). Ce n'était pas seulement le plafond : Riven freinait aussi la voiture **en continu** (`Drag` 22 % de la
+  vitesse par seconde et par pneu, plus `PowerLoss`), d'où ~30 MPH avec un pneu et ~5 MPH avec quatre ; baissés à
+  2 % / 5 %.
+- **Airbags** : ils ne se déclenchaient qu'à partir d'un choc **« sévère »** (au moins 60 km/h, ~37 MPH, de vitesse
+  perdue d'un coup), rare en RP ; maintenant dès un choc **« moyen »** (35 km/h, ~22 MPH), de face (conducteur +
+  passager) ou de côté (rideau). Il faut aussi les **modèles** `riven_crash_airbag_*` (dossier `stream/` de Riven) et,
+  sur les véhicules ajoutés, les os `steeringwheel` / `seat_pside_f` / `door_*side_f` ; essai dans un véhicule (place
+  conducteur) : `/crashpropstest airbags`.
 
 ## Configuration (`config.lua`)
 

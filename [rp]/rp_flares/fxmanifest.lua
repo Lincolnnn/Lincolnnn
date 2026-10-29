@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_flares'
 author 'Lincolnnn'
 description 'Fusées de détresse posées au sol, retirées avec l\'œil, lumière renforcée la nuit - standalone'
-version '1.2.0'
+version '1.2.1'
 
 shared_scripts {
     'config.lua',

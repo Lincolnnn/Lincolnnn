@@ -76,7 +76,9 @@ end
 TC.onChange = function() if open then refresh() end end
 
 RegisterCommand(Config.Command or 'trafic', function()
-    if open then closeMenu() else openMenu() end
+    if open then return closeMenu() end
+    if TC.spikesBusy() then return TC.notify('Herse en main : posez-la, lancez-la ou rangez-la d\'abord.') end
+    openMenu()
 end, false)
 if Config.Key and Config.Key ~= '' then
     RegisterKeyMapping(Config.Command or 'trafic', 'Gestion du trafic (fermetures, ralentissements)', 'keyboard', Config.Key)

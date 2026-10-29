@@ -216,8 +216,15 @@ local function evaluate(option, entity, hit, distance, zone)
     return { entity = entity, coords = hit, distance = distance, zone = zone, bone = bone }
 end
 
---- Option cachée dans l'œil (Config.HiddenPrefixes) : seulement par nos menus (runOption)
+--- Libellé sans majuscules ni espaces en trop (comparaison avec Config.HiddenLabels)
+local function plainLabel(text) return (tostring(text or ''):lower():gsub('%s+', ' '):gsub('^ ', ''):gsub(' $', '')) end
+local HIDDEN_LABELS = {}
+for _, label in ipairs(Config.HiddenLabels or {}) do HIDDEN_LABELS[plainLabel(label)] = true end
+
+--- Option cachée dans l'œil : nom qui commence par Config.HiddenPrefixes (encore utilisable par nos menus, export
+--- runOption) ou libellé de Config.HiddenLabels (option d'un autre script retirée de l'œil)
 local function hidden(option)
+    if option.label and HIDDEN_LABELS[plainLabel(option.label)] then return true end
     if type(option.name) ~= 'string' then return false end
     for _, prefix in ipairs(Config.HiddenPrefixes or {}) do
         if option.name:sub(1, #prefix) == prefix then return true end

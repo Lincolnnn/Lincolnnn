@@ -106,12 +106,12 @@ local function sendEye(data)
 end
 
 --- Options des autres scripts (Config.TargetProviders) pour ce qui est visé
-local function providerOptions(ctx, options)
+local function providerOptions(ctx, options, onlyBridge)
     local info = { entity = ctx.entity, netId = ctx.netId, type = ctx.type, model = ctx.model,
         hit = { x = ctx.hit.x, y = ctx.hit.y, z = ctx.hit.z }, distance = ctx.distance, police = ctx.police }
     local base = #options
     for _, resource in ipairs(Config.TargetProviders or {}) do
-        if GetResourceState(resource) == 'started' then
+        if GetResourceState(resource) == 'started' and (not onlyBridge or resource == 'ox_target') then
             local ok, res = pcall(function() return exports[resource]:targetOptions(info) end)
             if ok and type(res) == 'table' and type(res.options) == 'table' then
                 for _, o in ipairs(res.options) do
@@ -149,8 +149,10 @@ local function update()
         if near then entity, coords = near, GetEntityCoords(near) end
     end
     local ctx = coords and buildContext(coords, entity, canDelete) or nil
-    local options = ctx and RPI.getOptions(ctx) or {}
-    if ctx then options = markPrimary(providerOptions(ctx, options)) end
+    -- Herse de Riven en main : seulement les options des scripts passés par ox_target (ranger la herse au coffre…)
+    local spikes = ctx and RPI.spikesBusy()
+    local options = ctx and not spikes and RPI.getOptions(ctx) or {}
+    if ctx then options = markPrimary(providerOptions(ctx, options, spikes)) end
     if #options == 0 then ctx = nil end
 
     -- Envoi au NUI seulement quand la cible ou ses options changent

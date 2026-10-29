@@ -24,6 +24,8 @@
         { name: 'tuto', usage: '/tuto', desc: 'Affiche / retire la page des touches et fonctionnalités' },
         { name: 'fichecivil', usage: '/fichecivil', desc: 'Fiche civile : créer / gérer vos profils' },
         { name: 'repair', usage: '/repair', desc: 'Répare le moteur du véhicule (pas la carrosserie)' },
+        // grisée : existe, mais n'est pas mise en avant
+        { name: 'hrp', usage: '/hrp [message]', desc: 'Message hors RP (à limiter)', muted: true },
     ];
 
     const $ = (sel) => document.querySelector(sel);
@@ -153,6 +155,9 @@
             case 'rep': // nom RP en gras souligné, "Réponse :" en gras
                 el.append(span('name name-underline', m.name || ''), ' ', span('label', 'Réponse :'), ` ${m.text}`);
                 break;
+            case 'hrp': // hors RP : gris discret
+                el.append(span('hrp-tag', 'HRP'), ' ', span('name', m.name || ''), ` : ${m.text}`);
+                break;
             case 'private': // résultat visible uniquement par ce joueur (rp_interact)
                 el.append(span('private-tag', 'PRIVÉ'), ' ', span('label', m.title || ''),
                     m.name ? span('private-subject', ` (${m.name})`) : '', ` : ${m.text}`);
@@ -235,7 +240,7 @@
         state.suggestIndex = Math.min(state.suggestIndex, Math.max(matches.length - 1, 0));
         suggest.replaceChildren(...matches.map((c, i) => {
             const li = document.createElement('li');
-            li.className = i === state.suggestIndex ? 'active' : '';
+            li.className = [i === state.suggestIndex ? 'active' : '', c.muted ? 'muted' : ''].filter(Boolean).join(' ');
             li.append(span('usage', c.usage), span('desc', c.desc));
             return li;
         }));

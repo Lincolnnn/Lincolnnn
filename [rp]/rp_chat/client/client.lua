@@ -22,7 +22,7 @@ local KVP_KEY = 'rpchat_settings'
 
 -- Commandes gérées par ce chat (envoyées au serveur). Les autres commandes tapées dans le
 -- chat (/mdc, commandes d'autres ressources…) sont exécutées normalement.
-local RP_COMMANDS = { nomrp = true, me = true, info = true, qst = true, rep = true }
+local RP_COMMANDS = { nomrp = true, me = true, info = true, qst = true, rep = true, hrp = true }
 -- Commandes possibles même sans nom RP (/nomrp) : /tuto, /dv (supprimer un véhicule), /fichecivil (profils,
 -- rp_interact), /eup (tenues, rp_interact), /repair (moteur, rp_vehiclecontrol)
 local NO_NAME_COMMANDS = {
@@ -182,7 +182,7 @@ RegisterNUICallback('ready', function(_, cb)
     cb({ ok = true })
 end)
 
-local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup, /tuto, /fichecivil, /repair.'
+local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup, /tuto, /fichecivil, /repair, /hrp [message].'
 
 -- =========================================================================
 -- /dv : supprime UN véhicule (celui où l'on se trouve, sinon celui qu'on regarde, sinon le plus proche,

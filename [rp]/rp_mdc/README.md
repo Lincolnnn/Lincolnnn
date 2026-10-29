@@ -288,8 +288,8 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   - à gauche, la **vitesse** en gros chiffres, **MPH** dessous ;
   - au centre, en haut, les **voyants** : **ceinture** (blanche attachée ; **rouge** détachée, clignote en roulant),
     **frein de parking** de Riven (**(P) rouge** tant qu'il est serré), **moteur** (sans Riven : **orange** très abîmé
-    — il roule lentement, cale, fume — **rouge** détruit) ; dessous, le **compte-tours en 16 segments inclinés**
-    (les 3 derniers : **zone rouge**), puis la **jauge d'essence graduée en quarts** avec sa pompe (orange : réserve
+    — il roule lentement, cale, fume — **rouge** détruit) ; dessous, le **compte-tours** : **une seule barre, fine**,
+    blanche, puis la **zone rouge** au bout (le dernier cinquième environ), séparées par un simple trait, puis la **jauge d'essence graduée en quarts** avec sa pompe (orange : réserve
     sous 15 %, rouge : sous 5 %) ;
   - à droite, le **rapport** dans un cadre : **D**, ou **R** sur fond ambre en marche arrière (touche **↑**).
   Véhicule hors d'usage (moteur détruit) : vitesse, compte-tours et essence **clignotent en rouge**, voyant moteur

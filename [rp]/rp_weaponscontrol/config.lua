@@ -8,7 +8,11 @@
         des tireurs à moins de Tinnitus.Range m (soi-même, un autre joueur ou un PNJ) ; sifflement léger ;
       - FLASH : un éclair jaune éclaire les alentours du canon à chaque tir, vu par tout le monde autour (Flash) ;
       - FUMÉE : après Smoke.Shots tirs rapides (dans Smoke.Window ms), un filet de fumée sort du canon (vu par tous) ;
-      - PAS DE RECHARGEMENT AUTOMATIQUE : chargeur vide, il faut recharger soi-même (touche R).
+      - PAS DE RECHARGEMENT AUTOMATIQUE : chargeur vide, il faut recharger soi-même (touche R) ;
+      - LAMPE TOUJOURS ALLUMÉE : une lampe allumée (arme équipée d'une lampe, lampe de poche) le reste, même en courant
+        et même si l'arme est rangée puis ressortie (Flashlight) ;
+      - SÉLECTEUR DE TIR : coup par coup / automatique sur les armes qui en ont un (FireMode), touche B : petit clic et
+        logo en bas au milieu de l'écran.
     Une arme avec silencieux : ni flash, ni acouphène, secousse réduite.
 ]]
 
@@ -76,6 +80,23 @@ WeaponsConfig = {
 
     -- Pas de rechargement automatique (chargeur vide : touche R)
     NoAutoReload = true,
+
+    -- Lampe toujours allumée : allumée par le joueur (touche du jeu), elle reste allumée (aussi en courant, sans viser)
+    -- et se rallume quand l'arme revient en main (rangée puis ressortie, reprise dans l'équipement…). Lampes de poche
+    -- simples (WEAPON_FLASHLIGHT, WEAPON_POCKETLIGHT…) : pareil. Toutes les armes sont concernées (une arme sans lampe
+    -- n'a rien à rallumer). Éteinte par le joueur : elle reste éteinte.
+    Flashlight = { Enabled = true, KeepOnWhileMoving = true },
+
+    -- Sélecteur de tir (coup par coup / automatique) : armes automatiques des groupes Groups et armes Weapons (sauf
+    -- Excluded). Touche Key (Raccourcis clavier > FiveM) : petit clic (Volume) et logo en bas au milieu de l'écran,
+    -- affiché tant que l'arme est en main (Badge = false : seulement quelques secondes après un changement).
+    -- Mode gardé pour chaque arme ; Default : mode d'une arme jamais réglée ('auto' ou 'semi').
+    FireMode = {
+        Enabled = true, Key = 'B', Default = 'auto', Volume = 0.35, Badge = true,
+        Groups = { 'GROUP_SMG', 'GROUP_MG', 'GROUP_RIFLE' },
+        Weapons = { 'WEAPON_APPISTOL', 'WEAPON_MACHINEPISTOL', 'WEAPON_ASSAULTSHOTGUN', 'WEAPON_AUTOSHOTGUN' },
+        Excluded = {},  -- ex. { 'WEAPON_GUSENBERG' } : arme automatique sans sélecteur
+    },
 
     -- Flash de bouche : lumière jaune autour du canon (vue par les joueurs à moins de Range m)
     Flash = { Enabled = true, Range = 90.0, Color = { 255, 186, 92 }, Radius = 7.0, Intensity = 7.0, Duration = 60 },

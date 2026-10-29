@@ -298,7 +298,7 @@ local function eagleEye()
     end)
 end
 
-RegisterCommand(E.Command or 'oeildaigle', eagleEye, false)
+RegisterCommand(E.Command or 'oeildaigle', function(...) if not RZ.spikesBusy() then eagleEye(...) end end, false)
 RegisterKeyMapping(E.Command or 'oeildaigle', 'Œil d\'aigle (policiers) : faire ressortir ce qui est à fouiller', 'keyboard', E.Key or 'CAPITAL')
 TriggerEvent('chat:addSuggestion', '/' .. (E.Command or 'oeildaigle'), 'Œil d\'aigle : fait ressortir ce qui est à fouiller autour (15 m) et pointe la zone de recherche proche')
 

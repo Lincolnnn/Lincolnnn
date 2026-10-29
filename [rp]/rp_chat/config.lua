@@ -44,6 +44,7 @@ ChatConfig = {
         info = false,
         qst = false,
         rep = false,
+        hrp = false,
     },
 
     -- /dv : supprime UN véhicule : celui où se trouve le joueur, sinon celui qu'il regarde, sinon le plus

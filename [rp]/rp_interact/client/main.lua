@@ -74,6 +74,22 @@ function RPI.notify(text, kind)
     SendNUIMessage({ action = 'notify', data = { text = text, type = kind or 'info' } })
 end
 
+--- Herse de Riven (riven_spikes) en main ou son cordon tenu : ses touches (E, G, X, Q, molette) ont la priorité
+local SPIKE_MODES = { holding = true, cord = true, throwing = true, busy = true }
+function RPI.spikesBusy()
+    if LocalPlayer.state.rivenSpikeHand ~= nil then return true end
+    if GetResourceState('riven_spikes') ~= 'started' then return false end
+    local ok, mode = pcall(function() return exports.riven_spikes:getMode() end)
+    return ok and SPIKE_MODES[mode] == true
+end
+
+--- Herse en main : prévient et renvoie true (le menu ne s'ouvre pas)
+function RPI.spikesGuard()
+    if not RPI.spikesBusy() then return false end
+    RPI.notify('Herse en main : posez-la, lancez-la ou rangez-la d\'abord.', 'error')
+    return true
+end
+
 -- Notification envoyée par le serveur
 RegisterNetEvent('rp_interact:client:notify', function(text, kind)
     if type(text) == 'string' then RPI.notify(text, kind) end
@@ -375,6 +391,7 @@ local function openMenu(view)
     end
     if ui.menu or RPI.uiOpen() or IsPauseMenuActive() then return end
     if not view and RPI.targetActive and RPI.targetActive() then return end
+    if RPI.spikesGuard() then return end
     RPI.request('getMenuState', {}, function(res)
         if ui.menu or RPI.uiOpen() then return end
         ui.menu = true

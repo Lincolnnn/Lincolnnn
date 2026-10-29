@@ -39,6 +39,8 @@ coffre…) et celles des scripts `PoliceOnly` (herses).
 Options **cachées** dans l'œil (`HiddenPrefixes` : nom qui commence par…) : aucune par défaut. Elles restent utilisables par nos menus
 avec l'export client **`runOption(nom, entité)`** (point visé = la partie demandée par l'option ; `canInteract`
 respecté) → `true, 'ok'` ou `false, 'missing' | 'unavailable' | 'disabled'`.
+Options d'autres scripts **retirées de l'œil par leur libellé** (`HiddenLabels`, majuscules et espaces ignorés) :
+« Manage props » (script de props du serveur) par défaut.
 
 Performance : rien ne tourne ; le travail se fait seulement pendant que l'œil vise.
 

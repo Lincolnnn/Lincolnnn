@@ -29,6 +29,19 @@ redescend (plus long s'il y a encore plus de tirs), puis plus rien pendant 12 s.
 Avec **`rp_camshake`** : avant chaque secousse de tir, il est mis en pause (`TriggerEvent('rp_camshake:pause', 800)`)
 pour que son tremblement de marche ne modifie plus l'amplitude de la secousse du tir (premiers tirs 20 fois trop brusques).
 
+### Lampe toujours allumée (`Flashlight`)
+Une lampe **allumée par le joueur** (lampe sur l'arme, ou lampe de poche simple `WEAPON_FLASHLIGHT` /
+`WEAPON_POCKETLIGHT`) **reste allumée** : en courant, sans viser, et **quand l'arme est rangée puis ressortie** (ou
+reprise dans l'équipement), elle se rallume toute seule. Éteinte par le joueur : elle reste éteinte.
+
+### Sélecteur de tir (`FireMode`)
+Sur les armes **automatiques** (pistolets-mitrailleurs, mitrailleuses, fusils d'assaut, AP Pistol, Machine Pistol,
+fusils à pompe automatiques ; `Groups` / `Weapons` / `Excluded`) : touche **B** (Raccourcis clavier > FiveM > « Arme :
+coup par coup / automatique ») -> **petit clic** et **logo en bas au milieu de l'écran** : **AUTO** (orange, 3 balles)
+ou **COUP PAR COUP** (blanc, 1 balle). Le logo reste affiché tant que l'arme est en main (`Badge = false` : seulement
+quelques secondes après un changement). Coup par coup : **un tir par pression de la détente**. Le mode est gardé pour
+chaque arme. B sert aussi au Taser 10 (sécurité) : chacun ne réagit qu'à sa propre arme.
+
 Arme avec **silencieux** : ni flash, ni acouphène, secousse réduite. Le Taser, le pistolet de détresse, le pistolet radar,
 l'extincteur et le jerrican ne sont jamais concernés (`Excluded`). Les armes sont reconnues quel que soit le signe de
 leur empreinte (le problème des « negative hashes » du script d'origine est réglé).

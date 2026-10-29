@@ -3492,22 +3492,15 @@
         renderCar();
     }
 
-    // Compte-tours : CAR_RPM_SEGMENTS segments créés une fois, les CAR_RPM_RED derniers en zone rouge
-    const CAR_RPM_SEGMENTS = 16;
-    const CAR_RPM_RED = 3;
-    let carRpmSegs = null;
-    function carRpmSegments() {
-        if (carRpmSegs) return carRpmSegs;
+    // Compte-tours : une barre blanche puis la zone rouge (dernière part CAR_RPM_RED du régime), créées une fois
+    const CAR_RPM_RED = 0.1875;
+    let carRpmFills = null;
+    function carRpmBar() {
+        if (carRpmFills) return carRpmFills;
         const box = $('#carRpm');
-        box.innerHTML = '';
-        carRpmSegs = [];
-        for (let i = 0; i < CAR_RPM_SEGMENTS; i++) {
-            const seg = document.createElement('i');
-            if (i >= CAR_RPM_SEGMENTS - CAR_RPM_RED) seg.className = 'red';
-            box.appendChild(seg);
-            carRpmSegs.push(seg);
-        }
-        return carRpmSegs;
+        box.innerHTML = '<span class="rpm-zone rpm-white"><i></i></span><span class="rpm-zone rpm-red"><i></i></span>';
+        carRpmFills = [...box.querySelectorAll('i')];
+        return carRpmFills;
     }
 
     // ---- Car HUD : vitesse (MPH), compte-tours (segments), essence (jauge graduée), voyants, rapport ----
@@ -3532,11 +3525,12 @@
         $('#carBroken').classList.toggle('car-damaged', !car.broken && !!car.damaged);
         $('#carBroken').title = car.broken ? 'Moteur détruit : véhicule hors d\'usage' : 'Moteur très abîmé';
         el.classList.toggle('car-is-broken', !!car.broken && car.mode !== 'passenger');
-        // Compte-tours : segments allumés selon le régime ; les derniers forment la zone rouge
+        // Compte-tours : la barre blanche se remplit, puis la zone rouge au bout
         const rpm = Math.min(Math.max(Number(car.rpm) || 0, 0), 1);
-        const segs = carRpmSegments();
-        const lit = Math.round(rpm * segs.length);
-        segs.forEach((seg, i) => seg.classList.toggle('on', i < lit));
+        const [white, red] = carRpmBar();
+        const redStart = 1 - CAR_RPM_RED;
+        white.style.transform = `scaleX(${Math.min(rpm / redStart, 1).toFixed(3)})`;
+        red.style.transform = `scaleX(${Math.max((rpm - redStart) / CAR_RPM_RED, 0).toFixed(3)})`;
         // Pas de réservoir (vélo, électrique) : jauge masquée
         const hasFuel = typeof car.fuel === 'number';
         el.querySelector('[data-part="fuel"]').classList.toggle('part-empty', !hasFuel);

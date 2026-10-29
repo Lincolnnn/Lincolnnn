@@ -238,7 +238,7 @@ local function onKey()
     display()
 end
 
-RegisterCommand(COMMAND, onKey, false)
+RegisterCommand(COMMAND, function() if not RZ.spikesBusy() then onKey() end end, false) -- G : touche de la herse de Riven
 RegisterKeyMapping(COMMAND, 'Mode civil : lâcher son arme (jeter / poser au sol)', 'keyboard', W.Key or 'G')
 
 -- Arme sortie (mode civil) : rappel pendant 10 s

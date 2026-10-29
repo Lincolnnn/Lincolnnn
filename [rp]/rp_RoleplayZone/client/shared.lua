@@ -28,6 +28,15 @@ RegisterNetEvent('rp_scene:response', function(id, result)
     if cb then cb(result or {}) end
 end)
 
+--- Herse de Riven (riven_spikes) en main ou son cordon tenu : ses touches (E, G, X, Q, molette) ont la priorité
+local SPIKE_MODES = { holding = true, cord = true, throwing = true, busy = true }
+function RZ.spikesBusy()
+    if LocalPlayer.state.rivenSpikeHand ~= nil then return true end
+    if GetResourceState('riven_spikes') ~= 'started' then return false end
+    local ok, mode = pcall(function() return exports.riven_spikes:getMode() end)
+    return ok and SPIKE_MODES[mode] == true
+end
+
 function RZ.notify(text)
     local chat = GlobalState.rpChatResource or 'rp_chat'
     if GetResourceState(chat) == 'started'

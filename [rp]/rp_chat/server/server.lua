@@ -7,6 +7,7 @@
       /info <texte> rouge Torino sur fond rouge pâle, sans nom RP, visible par tous
       /qst <texte>  orange pâle : "<nom RP> Question : <texte>", visible par tous
       /rep <texte>  violet pâle : "<nom RP> Réponse : <texte>", visible par tous
+      /hrp <texte>  gris discret : "HRP <nom RP> : <texte>" (hors RP), visible par tous
 
     NOM RP PARTAGÉ AVEC LE MDC :
       Le nom RP est gardé dans l'état du joueur (state bag) : Player(src).state.rpName.
@@ -159,11 +160,17 @@ Commands.rep = function(_, text, name)
     send(-1, message)
 end
 
+-- Hors RP : gris, discret (à éviter : pas mis en avant)
+Commands.hrp = function(_, text, name)
+    send(-1, { type = 'hrp', name = name, text = text })
+end
+
 local USAGE = {
     me = '/me [action]',
     info = '/info [texte]',
     qst = '/qst [question]',
     rep = '/rep [réponse]',
+    hrp = '/hrp [message]',
 }
 
 RegisterNetEvent('rp_chat:server:command', function(command, rawText)

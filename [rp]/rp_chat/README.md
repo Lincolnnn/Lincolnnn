@@ -62,6 +62,7 @@ Conçu pour fonctionner avec le MDC du même dépôt (`rp_mdc`), mais utilisable
 | `/info Route fermée` | Route fermée — rouge Torino surligné de rouge pâle, **sans nom RP** | tout le monde |
 | `/qst Qui est dispo ?` | <ins>**John Carter**</ins> **Question :** Qui est dispo ? — orange pâle | tout le monde |
 | `/rep Adam-12 dispo` | <ins>**John Carter**</ins> **Réponse :** Adam-12 dispo — violet pâle | tout le monde |
+| `/hrp je reviens` | HRP **John Carter** : je reviens — **gris discret** (hors RP ; grisée dans la liste des commandes pour ne pas la mettre en avant) | tout le monde |
 | `/dv` | « Véhicule supprimé. » | le joueur |
 | `/eup` | ouvre le menu des tenues (ressource `rp_interact`) | le joueur |
 | `/tuto` | affiche les touches et fonctionnalités en haut de l'écran, au milieu ; `/tuto` à nouveau la retire | le joueur |

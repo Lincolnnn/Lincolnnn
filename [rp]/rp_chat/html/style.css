@@ -85,6 +85,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .msg .label { font-weight: bold; }
 .msg-me { color: var(--c-me); }
 .msg-qst { color: var(--c-qst); }
+/* /hrp : hors RP, gris discret */
+.msg-hrp { color: rgba(225, 228, 232, .55); }
+.msg-hrp .name { font-weight: 600; }
+.msg-hrp .hrp-tag { font-size: .82em; font-weight: 700; letter-spacing: .04em; opacity: .8; }
 .msg-rep { color: var(--c-rep); }
 .msg-info {
     color: var(--c-info);
@@ -143,6 +147,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .suggest li.active::before { content: ""; position: absolute; left: 0; top: 50%; width: 3px; height: 14px; margin-top: -7px; background: var(--accent); border-radius: 2px; }
 .suggest .usage { color: #fff; font-weight: 600; white-space: nowrap; }
 .suggest .desc { color: var(--muted); }
+/* Commande grisée (/hrp) : proposée, mais pas mise en avant */
+.suggest li.muted .usage, .suggest li.muted .desc { color: rgba(255, 255, 255, .38); font-weight: 400; }
 /* /tuto et rappel à la connexion : privé, titre en gras puis le texte */
 .msg-tuto { color: #e8dcae; }
 .msg-tuto .tuto-tag { color: #2b230b; background: #e8c86b; }

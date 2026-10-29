@@ -135,8 +135,18 @@ local function startPush(vehicle, side)
     end)
 end
 
+--- Herse de Riven (riven_spikes) en main ou son cordon tenu : ses touches (E, G, X, Q, molette) ont la priorité
+local SPIKE_MODES = { holding = true, cord = true, throwing = true, busy = true }
+local function spikesBusy()
+    if LocalPlayer.state.rivenSpikeHand ~= nil then return true end
+    if GetResourceState('riven_spikes') ~= 'started' then return false end
+    local ok, mode = pcall(function() return exports.riven_spikes:getMode() end)
+    return ok and SPIKE_MODES[mode] == true
+end
+
 RegisterCommand('vc_push', function()
     if pushing then return stopPush() end
+    if spikesBusy() then return end
     if IsPauseMenuActive() or not candidate or not VC.pushable(candidate.vehicle) then return end
     startPush(candidate.vehicle, candidate.side)
 end, false)

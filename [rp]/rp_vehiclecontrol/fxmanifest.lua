@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_vehiclecontrol'
 author 'Lincolnnn'
 description 'Vehicle Control : essence, dégâts, accidents réalistes, terrain, ceinture, motos (projection), moteur, portières, clignotants et poussée - standalone'
-version '1.41.1'
+version '1.42.0'
 
 ui_page 'html/index.html' -- message "pousser le véhicule", sons du véhicule, fiche /inspectvehicle, réparation de fortune (le car HUD est dessiné par le MDC)
 
@@ -44,6 +44,7 @@ client_scripts {
     'client/occupants.lua', -- occupants : blessures, vue troublée, sonnés, tête qui part (1re personne)
     'client/inspect.lua',   -- /inspectvehicle (état du véhicule), /fieldrepair (réparation de fortune)
     'client/riven.lua',     -- Riven Impact Dynamics : réglages et notifications du pont (riven/bridge.lua)
+    'client/sweep.lua',     -- nettoyage des débris d'accident à l'œil (balai, par zones, à plusieurs plus vite)
     'client/controls.lua',  -- moteur (O), portières (U / I)
     'client/signals.lua',   -- clignotants et warnings (flèches gauche / droite / bas)
     'client/gear.lua',      -- marche avant / marche arrière (flèche haut)
@@ -52,4 +53,7 @@ client_scripts {
     'client/hud.lua',       -- car HUD (en dernier)
 }
 
-server_script 'server/server.lua'
+server_scripts {
+    'server/server.lua',
+    'server/sweep.lua',     -- nettoyage des débris à l'œil : zones, joueurs qui balaient ensemble
+}

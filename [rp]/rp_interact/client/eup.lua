@@ -46,7 +46,7 @@ local function close()
 end
 
 function RPI.openEup()
-    if open or loading then return end
+    if open or loading or RPI.spikesGuard() then return end
     local sex = gender()
     if not sex then
         return RPI.notify('Tenues disponibles uniquement avec un personnage multijoueur (homme / femme).', 'error')

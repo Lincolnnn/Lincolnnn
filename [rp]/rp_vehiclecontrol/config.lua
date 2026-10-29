@@ -247,6 +247,26 @@ VCConfig = {
         SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
     },
 
+    -- NETTOYAGE DES DÉBRIS À L'ŒIL (débris de Riven Impact Dynamics, ou ceux de ce script sans Riven) : œil (Alt) sur
+    -- le sol près des débris > « Nettoyer les débris » : le personnage balaie (RPEMOTES « /e broom2 », sinon le
+    -- balayeur du jeu) et les débris d'une zone de Radius m autour de lui disparaissent chez tout le monde. Une scène
+    -- se nettoie zone par zone. À plusieurs dans la même zone (à moins de JoinDistance m), c'est plus rapide :
+    -- Seconds = durée d'une zone pour 1, 2, 3 joueurs et plus. S'éloigner (plus de Leave m), monter en voiture ou
+    -- arrêter l'emote (X) interrompt. Une zone nettoyée l'est aussi chez les joueurs qui arrivent ensuite (Riven leur
+    -- renverrait l'accident) pendant RememberSeconds s. Modèles reconnus : ceux de la config de Riven (lue dans sa
+    -- ressource : RivenConfigFile), ceux de Debris / Glass ci-dessus et ExtraModels ; seulement des objets posés par
+    -- un script (jamais un objet de la carte), jamais un objet accroché à un véhicule (airbags…).
+    DebrisCleanup = {
+        Enabled = true,
+        Radius = 6.0, JoinDistance = 6.0, Leave = 2.5,
+        Seconds = { 10, 6, 4 },
+        Emote = 'e broom2', Scenario = 'WORLD_HUMAN_JANITOR',
+        RememberSeconds = 900,
+        RivenConfigFile = 'riven_impact_config.lua',
+        RivenPrefixes = { 'k3_', 'riven_crash_', 'prop_rub_carpart_' },
+        ExtraModels = {},
+    },
+
     -- TERRAIN : sol sous le véhicule (lu toutes les Interval ms en roulant). Sur l'herbe, la terre, le gravier, le
     -- sable, la boue, la neige : moins de puissance (Power : 1 = normal), vitesse freinée au-dessus de MaxSpeed MPH et
     -- adhérence réduite (Grip = true : le véhicule glisse). Sol détrempé (pluie d'au moins RainLevel) : effet x Rain.

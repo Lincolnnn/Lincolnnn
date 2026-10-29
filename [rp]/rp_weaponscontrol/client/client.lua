@@ -8,8 +8,13 @@
     JOUEURS AUTOUR : flash au canon du tireur, fumée, petite secousse s'ils sont proches (Shake.Range).
     ACOUPHÈNE (léger) : seulement quand ça tire beaucoup tout près : Tinnitus.Shots tirs en Tinnitus.Window ms par des
     tireurs à moins de Tinnitus.Range m (soi-même, un autre joueur ou un PNJ). Silencieux : ni flash, ni acouphène.
+    LAMPE TOUJOURS ALLUMÉE (Flashlight) : allumée par le joueur, elle le reste (même en courant) et se rallume quand
+    l'arme revient en main ; éteinte par le joueur, elle reste éteinte.
+    SÉLECTEUR DE TIR (FireMode) : touche B sur une arme automatique : coup par coup <-> automatique (petit clic, logo
+    en bas au milieu de l'écran). Coup par coup : un tir par pression de la détente.
     Performance : sans arme à feu en main, une vérification toutes les 250 ms ; arme en main : lecture du tir à chaque
-    image (comme le jeu) ; PNJ armés à moins de 10 m : lecture de leurs tirs à chaque image tant qu'il y en a.
+    image (comme le jeu) ; PNJ armés à moins de 10 m : lecture de leurs tirs à chaque image tant qu'il y en a ; lampe :
+    une lecture toutes les 200 ms arme en main (500 ms sinon).
 ]]
 
 local W = WeaponsConfig
@@ -193,26 +198,135 @@ end
 RPWeapons.onShot = onShot
 RPWeapons.flush = flush
 
+-- =========================================================================
+-- SÉLECTEUR DE TIR : coup par coup / automatique (armes automatiques)
+-- =========================================================================
+local FM = W.FireMode or {}
+local SELECT_GROUPS, SELECT_WEAPONS, SELECT_EXCLUDED = {}, {}, {}
+for _, g in ipairs(FM.Groups or {}) do SELECT_GROUPS[u32(GetHashKey(g))] = true end
+for _, n in ipairs(FM.Weapons or {}) do SELECT_WEAPONS[u32(GetHashKey(n))] = true end
+for _, n in ipairs(FM.Excluded or {}) do SELECT_EXCLUDED[u32(GetHashKey(n))] = true end
+local modes = {}       -- [arme] = 'semi' | 'auto' (réglé par le joueur)
+local semiLock = false -- coup par coup : tir parti, la détente doit être relâchée
+local badgeFor = nil   -- arme dont le logo est affiché
+
+--- L'arme a-t-elle un sélecteur (arme automatique) ?
+local function hasSelector(weapon)
+    if FM.Enabled == false or not weapon or weapon == 0 then return false end
+    local h = u32(weapon)
+    if SELECT_EXCLUDED[h] or EXCLUDED[h] then return false end
+    return SELECT_WEAPONS[h] == true or SELECT_GROUPS[u32(GetWeapontypeGroup(weapon))] == true
+end
+
+local function modeOf(weapon) return modes[u32(weapon)] or (FM.Default == 'semi' and 'semi' or 'auto') end
+RPWeapons.hasSelector, RPWeapons.modeOf = hasSelector, modeOf
+
+--- Logo en bas au milieu de l'écran : arme à sélecteur en main (Badge), sinon quelques secondes après un changement
+local function badge(weapon, changed)
+    local show = weapon and hasSelector(weapon) or false
+    local key = show and u32(weapon) or nil
+    if key == badgeFor and not changed then return end
+    badgeFor = key
+    SendNUIMessage({ action = 'firemode', data = { show = show, mode = show and modeOf(weapon) or nil,
+        changed = changed == true, persistent = FM.Badge ~= false, volume = FM.Volume or 0.35 } })
+end
+
+if FM.Enabled ~= false then
+    RegisterCommand('rp_firemode', function()
+        local ped = PlayerPedId()
+        if IsPauseMenuActive() or not IsPedArmed(ped, 4) then return end
+        local _, weapon = GetCurrentPedWeapon(ped, true)
+        if not hasSelector(weapon) then return end
+        modes[u32(weapon)] = modeOf(weapon) == 'auto' and 'semi' or 'auto'
+        semiLock = false
+        badge(weapon, true)
+    end, false)
+    RegisterKeyMapping('rp_firemode', 'Arme : coup par coup / automatique', 'keyboard', FM.Key or 'B')
+end
+
 CreateThread(function()
     if W.NoAutoReload ~= false then SetWeaponsNoAutoreload(true) end -- chargeur vide : recharger soi-même (R)
     while true do
         local ped = PlayerPedId()
-        local entry = nil
+        local entry, weapon = nil, nil
         if IsPedArmed(ped, 4) then
-            local _, weapon = GetCurrentPedWeapon(ped, true)
+            local _, current = GetCurrentPedWeapon(ped, true)
+            weapon = current
             entry = profileOf(weapon)
             if entry then
-                if IsPedShooting(ped) then onShot(ped, weapon, entry) end
+                -- coup par coup : après un tir, la détente est bloquée jusqu'à ce qu'elle soit relâchée
+                local semi = hasSelector(weapon) and modeOf(weapon) == 'semi'
+                if semiLock then
+                    if semi then
+                        DisableControlAction(0, 24, true)  -- tirer
+                        DisableControlAction(0, 257, true) -- tirer (attaque 2)
+                    end
+                    if not semi or (not IsDisabledControlPressed(0, 24) and not IsDisabledControlPressed(0, 257)) then
+                        semiLock = false
+                    end
+                end
+                if IsPedShooting(ped) then
+                    onShot(ped, weapon, entry)
+                    if semi then semiLock = true end
+                end
                 flush(false)
             end
         end
+        badge(entry and weapon or nil, false)
         if not entry then
             flush(true)
             recent = {}
+            semiLock = false
         end
         Wait(entry and 0 or 250)
     end
 end)
+
+-- =========================================================================
+-- LAMPE TOUJOURS ALLUMÉE (arme équipée d'une lampe, lampe de poche)
+-- =========================================================================
+local FL = W.Flashlight or {}
+if FL.Enabled ~= false then
+    if FL.KeepOnWhileMoving ~= false then SetFlashLightKeepOnWhileMoving(true) end -- pas seulement en visant
+    local UNARMED = u32(GetHashKey('WEAPON_UNARMED'))
+    local lit = {}        -- [arme] = lampe allumée par le joueur
+    local current, since, restoring = nil, 0, false
+
+    --- Moments où le jeu éteint la lampe tout seul : ce n'est pas le joueur
+    local function unusual(ped)
+        return IsPedInAnyVehicle(ped, true) or IsPedRagdoll(ped) or IsEntityDead(ped) or IsPedSwimming(ped)
+            or IsPedClimbing(ped) or IsPedReloading(ped)
+    end
+
+    CreateThread(function()
+        while true do
+            local ped = PlayerPedId()
+            local weapon = u32(GetSelectedPedWeapon(ped))
+            local armed = weapon ~= 0 and weapon ~= UNARMED
+            local now = GetGameTimer()
+            if weapon ~= current then
+                current, since, restoring = weapon, now, armed and lit[weapon] == true
+            end
+            if armed then
+                local on = IsFlashLightOn(ped)
+                if unusual(ped) then
+                    since, restoring = now, lit[weapon] == true -- à la sortie : elle revient si elle était allumée
+                elseif restoring then
+                    if on then
+                        restoring = false
+                    elseif now - since > 300 then
+                        SetFlashLightEnabled(ped, true)
+                        if now - since > 3000 then restoring = false end -- arme sans lampe (accessoire retiré)
+                    end
+                elseif now - since > 800 then
+                    lit[weapon] = on -- allumée ou éteinte par le joueur
+                end
+            end
+            Wait(armed and 200 or 500)
+        end
+    end)
+    RPWeapons.flashlights = lit -- pour les tests
+end
 
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() and W.NoAutoReload ~= false then SetWeaponsNoAutoreload(false) end

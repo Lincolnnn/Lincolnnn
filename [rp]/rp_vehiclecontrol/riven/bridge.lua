@@ -124,7 +124,8 @@ local PATTERNS = {
     { '^Plugging tyre %- (.+)$', function(t) return ('Réparation du pneu %s'):format(tyre(t)) end },
     { '^Test: (.-) tyre picked up a nail%.$', function(t) return ('Test : le pneu %s a pris un clou.'):format(tyre(t)) end },
     { '^Snow chains fitted%. Keep it under (%d+) km/h%.$', function(k) return ('Chaînes posées : ne dépassez pas %s km/h.'):format(k) end },
-    { '^Crash debris cleared by (.-) %((%d+) pieces here%)%.$', function(who, n) return ('Débris d\'accident retirés par %s (%s morceaux ici).'):format(who, n) end },
+    -- « débris retirés par … » (touche / commande de Riven) : notification générale supprimée (rien d'affiché)
+    { '^Crash debris cleared by (.-) %((%d+) pieces here%)%.$', function() return nil end },
     { '^Impact sound volume set to (%d+)%.$', function(v) return ('Volume des sons des chocs : %s.'):format(v) end },
     { '^Impact sound volume is (%d+)%. Use /impactvolume 0%-100%.$', function(v) return ('Volume des sons des chocs : %s (/impactvolume 0-100).'):format(v) end },
     { '^Riven Impact Dynamics: (.+)$', function(f) return ('Dégâts réalistes : %s'):format(f) end },
@@ -144,7 +145,11 @@ local function translate(text)
     if EXACT[p] then return EXACT[p], false end
     for _, entry in ipairs(PATTERNS) do
         local caps = { p:match(entry[1]) }
-        if caps[1] then return entry[2](table.unpack(caps)), false end
+        if caps[1] then
+            local fr = entry[2](table.unpack(caps))
+            if fr == nil then return p, true end -- muet
+            return fr, false
+        end
     end
     return p, false
 end

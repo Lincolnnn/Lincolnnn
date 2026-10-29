@@ -21,6 +21,15 @@ local WEAPON = GetHashKey(Config.Weapon)
 local PLACE_ANIM = { 'pickup_object', 'pickup_low' }
 local placing = false
 
+--- Herse de Riven (riven_spikes) en main ou son cordon tenu : ses touches (E, G, X, Q, molette) ont la priorité
+local SPIKE_MODES = { holding = true, cord = true, throwing = true, busy = true }
+local function spikesBusy()
+    if LocalPlayer.state.rivenSpikeHand ~= nil then return true end
+    if GetResourceState('riven_spikes') ~= 'started' then return false end
+    local ok, mode = pcall(function() return exports.riven_spikes:getMode() end)
+    return ok and SPIKE_MODES[mode] == true
+end
+
 local function notify(text)
     local chat = GlobalState.rpChatResource or 'rp_chat'
     if GetResourceState(chat) == 'started'
@@ -110,7 +119,7 @@ local function place()
     end)
 end
 
-RegisterCommand('rp_flare_place', place, false)
+RegisterCommand('rp_flare_place', function() if not spikesBusy() then place() end end, false) -- G : touche de la herse de Riven
 
 -- Fusée posée (confirmé par le serveur) : une fusée de moins ; la dernière posée, l'arme disparaît
 RegisterNetEvent('rp_flares:placed', function()

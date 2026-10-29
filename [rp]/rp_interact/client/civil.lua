@@ -147,7 +147,7 @@ end)
 -- ---- Touches des emotes (actives seulement quand les tips sont affichés) ----
 for _, s in ipairs(Config.Surrender) do
     RegisterCommand(s.command, function()
-        if tipsVisible() and not RPI.uiOpen() then RPI.playEmote(s.emote) end -- = taper "/e …"
+        if tipsVisible() and not RPI.uiOpen() and not RPI.spikesBusy() then RPI.playEmote(s.emote) end -- = taper "/e …"
     end, false)
     RegisterKeyMapping(s.command, ('Civil : %s (tips d\'arrestation)'):format(s.label), 'keyboard', s.key)
 end

@@ -37,6 +37,15 @@ local running = false
 -- =========================================================================
 -- OUTILS PARTAGÉS (editor.lua, menu.lua)
 -- =========================================================================
+--- Herse de Riven (riven_spikes) en main ou son cordon tenu : ses touches (E, G, X, Q, molette) ont la priorité
+local SPIKE_MODES = { holding = true, cord = true, throwing = true, busy = true }
+function TC.spikesBusy()
+    if LocalPlayer.state.rivenSpikeHand ~= nil then return true end
+    if GetResourceState('riven_spikes') ~= 'started' then return false end
+    local ok, mode = pcall(function() return exports.riven_spikes:getMode() end)
+    return ok and SPIKE_MODES[mode] == true
+end
+
 function TC.notify(text)
     if GetResourceState('rp_chat') == 'started'
         and pcall(function() exports.rp_chat:addPrivate({ title = 'Trafic', text = text }) end) then

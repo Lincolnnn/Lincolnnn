@@ -987,12 +987,15 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .car-park { color: var(--hud-danger); animation: hud-light-in .2s ease-out; }
 .car-broken { color: var(--hud-danger); }
 .car-broken.car-damaged { color: var(--hud-warn); }
-/* Compte-tours : segments inclinés (JS : CAR_RPM_SEGMENTS), les derniers en zone rouge */
-.car-rpm { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; height: 9px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .75)); }
-.car-rpm i { border-radius: 1px; background: var(--hud-track); transform: skewX(-20deg); transition: background-color .08s, opacity .08s; }
-.car-rpm i.on { background: var(--hud-fill); }
-.car-rpm i.red { background: var(--hud-danger); opacity: .35; }
-.car-rpm i.red.on { opacity: 1; }
+/* Compte-tours : une seule barre (blanche, puis zone rouge au bout : JS CAR_RPM_RED), séparées par un trait fin */
+.car-rpm { display: flex; gap: 2px; height: 6px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .75)); }
+.car-rpm .rpm-zone { position: relative; overflow: hidden; background: var(--hud-track); }
+.car-rpm .rpm-white { flex: 81.25; border-radius: 2px 0 0 2px; }
+.car-rpm .rpm-red { flex: 18.75; border-radius: 0 2px 2px 0; }
+.car-rpm .rpm-red::before { content: ''; position: absolute; inset: 0; background: var(--hud-danger); opacity: .35; }
+.car-rpm .rpm-zone i { position: absolute; inset: 0; transform-origin: left center; transform: scaleX(0); transition: transform .08s linear; }
+.car-rpm .rpm-white i { background: var(--hud-fill); }
+.car-rpm .rpm-red i { background: var(--hud-danger); }
 /* Essence : jauge graduée en quarts */
 .car-fuel { display: flex; align-items: center; gap: 6px; }
 .car-fuel-icon { width: 12px; height: 12px; flex-shrink: 0; color: var(--hud-dim); filter: var(--hud-drop); }
@@ -1023,8 +1026,7 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .hud-car.car-is-broken.car-off .car-gear, .hud-car.car-is-broken.car-off .car-belt, .hud-car.car-is-broken.car-off .car-broken { filter: none; opacity: 1; }
 .hud-car.car-is-broken .car-speed, .hud-car.car-is-broken .car-rpm, .hud-car.car-is-broken .car-fuel { animation: hud-blink .9s steps(1, end) infinite; }
 .hud-car.car-is-broken .car-speed-value, .hud-car.car-is-broken .car-unit, .hud-car.car-is-broken .car-fuel-icon { color: var(--hud-danger); }
-.hud-car.car-is-broken .car-rpm i, .hud-car.car-is-broken .car-fuel-fill { background: var(--hud-danger); opacity: .35; }
-.hud-car.car-is-broken .car-rpm i.on, .hud-car.car-is-broken .car-fuel-fill { opacity: 1; }
+.hud-car.car-is-broken .car-rpm .rpm-zone i, .hud-car.car-is-broken .car-fuel-fill { background: var(--hud-danger); opacity: 1; }
 .hud-car.car-is-broken .car-broken { color: var(--hud-danger); animation: none; opacity: 1; }
 
 /* Notification du moteur : juste au-dessus du car HUD, entre par la gauche */
