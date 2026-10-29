@@ -267,6 +267,27 @@ VCConfig = {
         ExtraModels = {},
     },
 
+    -- AIRBAGS DE RIVEN (avec Riven seulement) : /airbagtest (Command) fait le point (modèles chargés, points
+    -- d'attache du véhicule, état de Riven). Fallback : airbags déclenchés par Riven mais rien d'accroché au bout de
+    -- Delay ms (véhicule sans os « steeringwheel »…) -> ce script accroche les mêmes modèles au premier point
+    -- d'attache trouvé (Specs : os dans l'ordre, décalage x / y / z en m, rotation en degrés ; follow : suit l'os).
+    Airbags = {
+        Enabled = true, Command = 'airbagtest', Fallback = true, Delay = 2500, Range = 100.0, Passenger = true,
+        Specs = {
+            driver = { model = 'riven_crash_airbag_driver', bones = {
+                { name = 'steeringwheel', offset = { 0.0, 0.0, 0.0 }, follow = true },
+                { name = 'seat_dside_f', offset = { 0.0, 0.55, 0.52 } } } },
+            passenger = { model = 'riven_crash_airbag_passenger', bones = {
+                { name = 'seat_pside_f', offset = { 0.0, 0.62, 0.50 } } } },
+            curtainL = { model = 'riven_crash_airbag_curtain', bones = {
+                { name = 'door_dside_f', offset = { 0.05, -0.30, 0.55 }, rot = { 0.0, 0.0, 90.0 } },
+                { name = 'seat_dside_f', offset = { -0.45, -0.30, 0.55 }, rot = { 0.0, 0.0, 90.0 } } } },
+            curtainR = { model = 'riven_crash_airbag_curtain', bones = {
+                { name = 'door_pside_f', offset = { -0.05, -0.30, 0.55 }, rot = { 0.0, 0.0, -90.0 } },
+                { name = 'seat_pside_f', offset = { 0.45, -0.30, 0.55 }, rot = { 0.0, 0.0, -90.0 } } } },
+        },
+    },
+
     -- TERRAIN : sol sous le véhicule (lu toutes les Interval ms en roulant). Sur l'herbe, la terre, le gravier, le
     -- sable, la boue, la neige : moins de puissance (Power : 1 = normal), vitesse freinée au-dessus de MaxSpeed MPH et
     -- adhérence réduite (Grip = true : le véhicule glisse). Sol détrempé (pluie d'au moins RainLevel) : effet x Rain.

@@ -88,11 +88,11 @@ WeaponsConfig = {
     Flashlight = { Enabled = true, KeepOnWhileMoving = true },
 
     -- Sélecteur de tir (coup par coup / automatique) : armes automatiques des groupes Groups et armes Weapons (sauf
-    -- Excluded). Touche Key (Raccourcis clavier > FiveM) : petit clic (Volume) et logo en bas au milieu de l'écran,
-    -- affiché tant que l'arme est en main (Badge = false : seulement quelques secondes après un changement).
+    -- Excluded). Touche Key (Raccourcis clavier > FiveM) : petit clic (Volume) et logo en bas au milieu de l'écran
+    -- pendant BadgeSeconds s, seulement après un appui (Badge = true : affiché tant que l'arme est en main).
     -- Mode gardé pour chaque arme ; Default : mode d'une arme jamais réglée ('auto' ou 'semi').
     FireMode = {
-        Enabled = true, Key = 'B', Default = 'auto', Volume = 0.35, Badge = true,
+        Enabled = true, Key = 'B', Default = 'auto', Volume = 0.35, Badge = false, BadgeSeconds = 3,
         Groups = { 'GROUP_SMG', 'GROUP_MG', 'GROUP_RIFLE' },
         Weapons = { 'WEAPON_APPISTOL', 'WEAPON_MACHINEPISTOL', 'WEAPON_ASSAULTSHOTGUN', 'WEAPON_AUTOSHOTGUN' },
         Excluded = {},  -- ex. { 'WEAPON_GUSENBERG' } : arme automatique sans sélecteur

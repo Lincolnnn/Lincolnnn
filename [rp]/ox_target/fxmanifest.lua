@@ -13,7 +13,7 @@ lua54 'yes'
 name 'ox_target'
 author 'Lincolnnn'
 description 'Pont ox_target -> œil de rp_interact (options des scripts qui exigent ox_target) - standalone'
-version '1.2.2-rp'
+version '1.2.3-rp'
 
 shared_script 'config.lua'
 client_script 'client/client.lua'

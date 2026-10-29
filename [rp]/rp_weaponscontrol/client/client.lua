@@ -221,14 +221,16 @@ end
 local function modeOf(weapon) return modes[u32(weapon)] or (FM.Default == 'semi' and 'semi' or 'auto') end
 RPWeapons.hasSelector, RPWeapons.modeOf = hasSelector, modeOf
 
---- Logo en bas au milieu de l'écran : arme à sélecteur en main (Badge), sinon quelques secondes après un changement
+--- Logo en bas au milieu de l'écran : BadgeSeconds s après un appui sur la touche (Badge = true : tant que l'arme
+--- à sélecteur est en main) ; arme rangée ou changée : retiré
 local function badge(weapon, changed)
     local show = weapon and hasSelector(weapon) or false
     local key = show and u32(weapon) or nil
     if key == badgeFor and not changed then return end
     badgeFor = key
     SendNUIMessage({ action = 'firemode', data = { show = show, mode = show and modeOf(weapon) or nil,
-        changed = changed == true, persistent = FM.Badge ~= false, volume = FM.Volume or 0.35 } })
+        changed = changed == true, persistent = FM.Badge == true, seconds = FM.BadgeSeconds or 3,
+        volume = FM.Volume or 0.35 } })
 end
 
 if FM.Enabled ~= false then

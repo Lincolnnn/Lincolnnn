@@ -38,8 +38,8 @@ reprise dans l'équipement), elle se rallume toute seule. Éteinte par le joueur
 Sur les armes **automatiques** (pistolets-mitrailleurs, mitrailleuses, fusils d'assaut, AP Pistol, Machine Pistol,
 fusils à pompe automatiques ; `Groups` / `Weapons` / `Excluded`) : touche **B** (Raccourcis clavier > FiveM > « Arme :
 coup par coup / automatique ») -> **petit clic** et **logo en bas au milieu de l'écran** : **AUTO** (orange, 3 balles)
-ou **COUP PAR COUP** (blanc, 1 balle). Le logo reste affiché tant que l'arme est en main (`Badge = false` : seulement
-quelques secondes après un changement). Coup par coup : **un tir par pression de la détente**. Le mode est gardé pour
+ou **COUP PAR COUP** (blanc, 1 balle), affiché **3 s après l'appui** puis retiré (`BadgeSeconds` ; `Badge = true` :
+affiché tant que l'arme est en main). Coup par coup : **un tir par pression de la détente**. Le mode est gardé pour
 chaque arme. B sert aussi au Taser 10 (sécurité) : chacun ne réagit qu'à sa propre arme.
 
 Arme avec **silencieux** : ni flash, ni acouphène, secousse réduite. Le Taser, le pistolet de détresse, le pistolet radar,

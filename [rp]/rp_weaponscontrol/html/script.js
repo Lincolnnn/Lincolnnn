@@ -68,7 +68,8 @@
     let hideTimer = null; let flashTimer = null;
     function fireMode(d) {
         clearTimeout(hideTimer);
-        if (!d.show) { badge.classList.remove('show', 'flash'); return; }
+        // Logo non permanent : seulement `seconds` s après un appui sur la touche (arme sortie ou changée : rien)
+        if (!d.show || (d.persistent !== true && !d.changed)) { badge.classList.remove('show', 'flash'); return; }
         const auto = d.mode !== 'semi';
         badge.dataset.mode = auto ? 'auto' : 'semi';
         badge.querySelectorAll('.bullets i').forEach((b, i) => b.classList.toggle('off', !auto && i > 0));
@@ -80,8 +81,7 @@
             clearTimeout(flashTimer);
             flashTimer = setTimeout(() => badge.classList.remove('flash'), 600);
         }
-        // Logo non permanent : seulement quelques secondes après un changement
-        if (d.persistent === false) hideTimer = setTimeout(() => badge.classList.remove('show'), d.changed ? 2500 : 0);
+        if (d.persistent !== true) hideTimer = setTimeout(() => badge.classList.remove('show'), (Number(d.seconds) || 3) * 1000);
     }
 
     window.addEventListener('message', ({ data }) => {

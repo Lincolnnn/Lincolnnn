@@ -155,8 +155,9 @@ menu** (jamais ceux du décor).
   seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi. **`/restock`** le remet.
 
 **Herse** (script payant **riven_spikes**, facultatif ; `Stock.Spikes`)
-- Prise et rangée avec **l'œil** (Alt) sur le coffre de tout véhicule d'urgence : **« Prendre la herse dans le
-  coffre »** / **« Ranger la herse dans le coffre »** (options de Riven ; voir [`ox_target/`](../ox_target/README.md)).
+- Seulement le **Stop Stick** (ni herse, ni Terminator : config de riven_spikes, `Trunk.types`). Pris et rangé avec
+  **l'œil** (Alt) sur le coffre de tout véhicule d'urgence : **« Prendre le Stop Stick dans le coffre »** / **« Ranger
+  le Stop Stick dans le coffre »** (options de Riven ; voir [`ox_target/`](../ox_target/README.md)).
   `Stock.Spikes.Menu = true` ajoute en plus une ligne « Herse » à ce menu (désactivée par défaut).
 - Herse en main : la touche **X** de Riven (« ranger dans la poche ») ne la fait plus disparaître : elle revient
   aussitôt dans les mains. On doit la **lancer / poser au sol** ou la **ranger dans le coffre** (œil). Mort, à bord d'un

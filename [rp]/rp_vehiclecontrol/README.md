@@ -539,9 +539,25 @@ le monde** (pas seulement l'accident le plus proche). Dans la config Riven fourn
   2 % / 5 %.
 - **Airbags** : ils ne se déclenchaient qu'à partir d'un choc **« sévère »** (au moins 60 km/h, ~37 MPH, de vitesse
   perdue d'un coup), rare en RP ; maintenant dès un choc **« moyen »** (35 km/h, ~22 MPH), de face (conducteur +
-  passager) ou de côté (rideau). Il faut aussi les **modèles** `riven_crash_airbag_*` (dossier `stream/` de Riven) et,
-  sur les véhicules ajoutés, les os `steeringwheel` / `seat_pside_f` / `door_*side_f` ; essai dans un véhicule (place
-  conducteur) : `/crashpropstest airbags`.
+  passager) ou de côté (rideau).
+
+### Airbags qui n'apparaissent pas (`Airbags`)
+Ce script **ne bloque pas** les airbags de Riven (avec Riven, il ne touche ni à la santé du véhicule ni aux objets qui
+y sont accrochés). Riven a besoin de :
+1. **l'archétype des modèles** : les `.ydr` (`riven_crash_airbag_driver` / `_passenger` / `_curtain`) et la texture
+   (`riven_crash_airbag_txd`) ne suffisent pas : il faut aussi **`stream/riven_crash_props.ytyp`** dans le dossier de
+   Riven et la ligne `data_file 'DLC_ITYP_REQUEST' 'stream/riven_crash_props.ytyp'` dans son `fxmanifest.lua` (déjà
+   dans la version fournie). Sans lui, la console F8 affiche « crash prop model … is not streamed » et rien
+   n'apparaît, même avec `/crashpropstest airbags` ;
+2. **les points d'attache du véhicule** : os `steeringwheel` (conducteur), `seat_pside_f` (passager),
+   `door_dside_f` / `door_pside_f` (rideaux). Un véhicule ajouté sans `steeringwheel` n'a pas d'airbag conducteur
+   chez Riven.
+
+**`/airbagtest`** (à bord) fait le point dans le chat : modèles chargés ou non (avec la correction), points d'attache
+du véhicule, airbags déclenchés par Riven, nombre d'airbags accrochés. **Secours** (`Airbags.Fallback`) : airbags
+déclenchés par Riven mais rien d'accroché au bout de 2,5 s (point d'attache manquant) -> ce script accroche les mêmes
+modèles au premier point trouvé (`Specs` : volant, sinon siège conducteur ; portière, sinon siège), chez tous les
+joueurs proches ; retirés quand Riven retire les siens (véhicule réparé). Les modèles doivent être chargés (point 1).
 
 ## Configuration (`config.lua`)
 

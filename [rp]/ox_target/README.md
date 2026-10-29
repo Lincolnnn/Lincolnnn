@@ -55,8 +55,9 @@ Script de **Riven Systems** (licence, clé `riven_auth.token` liée au serveur) 
    `fr.json` **et** `en.json` fournis à part (tous deux en français : le texte reste français même sans
    `setr ox:locale fr`) : aides à l'écran (« [E] Maintenir pour lancer »…), barres de progression, notifications :
    - **sans inventaire** (`Config.Inventory = false`) : pas besoin d'ox_inventory ;
-   - **une herse dans le coffre de chaque véhicule d'urgence** (classe 18) : œil sur le coffre, **« Prendre la herse
-     dans le coffre »**, et une fois en main **« Ranger la herse dans le coffre »** ;
+   - **un Stop Stick dans le coffre de chaque véhicule d'urgence** (classe 18 ; ni herse, ni Terminator) : œil sur
+     le coffre, **« Prendre le Stop Stick dans le coffre »**, et une fois en main **« Ranger le Stop Stick dans le
+     coffre »** ;
    - pas de commande `/spikestrip` (la herse se prend au coffre), outils de réglage coupés ;
    - textes en français (« Herse », « Glisser » / « Arracher »…).
 4. `server.cfg` :

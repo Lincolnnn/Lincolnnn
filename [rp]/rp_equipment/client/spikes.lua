@@ -13,7 +13,7 @@
 
 local C = (Config.Stock or {}).Spikes or {}
 local RES = C.Resource or 'riven_spikes'
-local TYPE = C.Type or 'spikestrip'
+local TYPE = C.Type or 'stopstick'
 
 RPSpikes = {}
 

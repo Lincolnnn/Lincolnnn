@@ -23,9 +23,10 @@ BridgeConfig = {
         riven_spikes = {
             Labels = {
                 ['Grab cord'] = 'Saisir le cordon',
-                ['Put strip back in trunk'] = 'Ranger la herse dans le coffre',
+                -- seul le Stop Stick est au coffre (config de riven_spikes : Trunk.types)
+                ['Put strip back in trunk'] = 'Ranger le Stop Stick dans le coffre',
                 ['Saisir le cordon'] = 'Saisir le cordon',
-                ['Ranger la herse dans le coffre'] = 'Ranger la herse dans le coffre',
+                ['Ranger la herse dans le coffre'] = 'Ranger le Stop Stick dans le coffre',
             },
             Patterns = {
                 { '^Take (.+)$', 'Prendre %s dans le coffre' },

@@ -123,8 +123,8 @@ EquipConfig = {
         -- Herse de riven_spikes (script payant, s'il est installé) : prise et rangée avec l'ŒIL sur le coffre (options de
         -- Riven). Menu = true : ligne « Herse » en plus dans ce menu (désactivée). KeepInHands : en main, la touche X de
         -- Riven ne la fait plus disparaître (elle revient en main) : la poser au sol ou la ranger dans le coffre (œil).
-        -- Type : modèle de Riven pris au coffre (spikestrip, stopstick…).
-        Spikes = { Enabled = true, Menu = false, KeepInHands = true, Resource = 'riven_spikes', Type = 'spikestrip' },
+        -- Type : modèle de Riven pris au coffre (stopstick : le seul proposé au coffre, voir la config de riven_spikes).
+        Spikes = { Enabled = true, Menu = false, KeepInHands = true, Resource = 'riven_spikes', Type = 'stopstick' },
         PlaceKey = 'G',
         RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots, fusées, jerrican, pistolet radar), sauf armes longues
         RestockDistance = 6.0,      -- m : véhicule de police le plus proche (ou celui où l'on est assis)
