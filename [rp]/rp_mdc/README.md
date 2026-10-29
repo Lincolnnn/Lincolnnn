@@ -54,6 +54,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    # ensure riven-impact-dynamics   (facultatif, script payant : AVANT rp_vehiclecontrol)
    ensure rp_vehiclecontrol
    ensure rp_interact
+   # ensure olisound              (facultatif : son 3D de la radio des véhicules, ressource séparée)
    ensure ox_target                 # le pont vers l'œil (PAS le vrai ox_target), après rp_interact
    # ensure ox_lib                  (facultatif : seulement pour riven_spikes)
    # ensure riven_spikes            (facultatif, script payant : après ox_lib et ox_target)
@@ -69,6 +70,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_TrafficControl
    ensure rp_RoleplayZone
    ensure rp_Ganghunt
+   ensure rp_vmenukeys              # touches de vMenu imposées (plus de vMenu sur V), avant vMenu
    ```
    Le MDC publie son nom de ressource (`GlobalState.mdcResource`) : son dossier peut être renommé.
 3. En jeu : touche **K** (modifiable dans *Paramètres > Raccourcis clavier > FiveM*) ou `/mdc`. **Échap** pour fermer.
