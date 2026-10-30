@@ -329,7 +329,7 @@ peut le modifier ou le supprimer.
 ## Eye Target (maintenir Alt)
 
 Un œil apparaît au centre de l'écran ; il s'allume (bleu) quand la cible propose des options, avec son nom.
-**Clic gauche** : liste des options, clic sur une option pour l'exécuter. **Échap**, clic droit ou clic à côté : fermer.
+**Clic gauche** : liste des options, à droite de l'œil et **centrée verticalement sur lui** (défile si elle est plus haute que l'écran) ; clic sur une option pour l'exécuter. **Échap**, clic droit ou clic à côté : fermer.
 
 Options rangées par **groupes**, séparés par un trait : **inspections et détail notoire** (personne, véhicule,
 occupant) · **fouilles** · **actions de police** · **ouvrir / fermer la portière visée** · le reste · tout en bas,

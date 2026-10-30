@@ -95,9 +95,10 @@ kbd {
     position: absolute; top: 18px; left: 0; transform: translateX(-50%);
     padding: 3px 10px; white-space: nowrap; color: var(--text); font-size: 12px;
 }
+/* Liste des options : à droite de l'œil, centrée verticalement sur lui (son milieu à hauteur de l'œil) */
 .eye-options {
-    position: absolute; left: 28px; top: -14px; min-width: 290px; max-width: 420px;
-    list-style: none; padding: 4px; pointer-events: auto;
+    position: absolute; left: 28px; top: 0; transform: translateY(-50%); min-width: 290px; max-width: 420px;
+    max-height: calc(100vh - 32px); overflow-y: auto; list-style: none; padding: 4px; pointer-events: auto;
 }
 .eye-options .opt-title {
     padding: 5px 10px 6px; color: var(--muted); font-size: 11px; font-weight: 600;
