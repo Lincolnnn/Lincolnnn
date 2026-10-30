@@ -79,10 +79,10 @@ ChatConfig = {
                 { "/dv", "supprimer un véhicule (5 m)" }, { "/eup", "tenues" },
                 { "/fichecivil", "vos profils civils" }, { "/repair", "réparer le moteur" },
                 { "/copyped", "copier son personnage (arme, emote) pour une photo ; /copyped suppr" },
-                { "Début", "maintenir : noms RP et numéros des joueurs au-dessus des têtes" },
+                { "Début", "noms RP et numéros des joueurs au-dessus des têtes (maintenir ou appuyer : /configtetes)" },
             } },
             { title = "MDC & menus", items = {
-                { "K", "MDC : unités, appels, recherches, BOLO, rapports" }, { "Y / N", "accepter / refuser un appel" },
+                { "K", "MDC : unités, appels, recherches, BOLO, rapports, messages entre unités" }, { "Y / N", "accepter / refuser un appel" },
                 { "F1", "Menu Interaction : civil, police, équipements, voiture" },
                 { "/trafic", "police : fermer une voie / un sens, ralentir, arrêter le trafic" },
                 { "Verr. Maj", "police : œil d'aigle (ce qui est à fouiller, zone proche)" },

@@ -3,7 +3,9 @@
     const $ = (id) => document.getElementById(id);
     const box = $('equip');
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_equipment';
-    let state = { slots: [], rack: {}, held: false, stock: false, inv: { carrying: 0, maxCarry: 5, flares: 0, maxHeld: 25, jerrycan: false, radar: false }, coneQty: 1 };
+    let state = { slots: [], rack: {}, held: false, stock: false, where: 'trunk', inv: { carrying: 0, maxCarry: 5, flares: 0, maxHeld: 25, jerrycan: false, radar: false }, coneQty: 1 };
+    // Onglets ouverts (gardés pendant la session, d'un véhicule à l'autre) : Arme longue ouvert par défaut
+    const openFolds = { rack: true };
     let messageTimer = null;
 
     function post(name, data) {
@@ -18,9 +20,17 @@
         return String(text == null ? '' : text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
-    // Pièces EUP de la catégorie du véhicule : "Mettre" / "Retirer" selon ce que le joueur porte
+    function renderFolds() {
+        box.querySelectorAll('.eq-fold').forEach((f) => f.classList.toggle('open', !!openFolds[f.dataset.fold]));
+    }
+
+    // Pièces EUP de la catégorie du véhicule : "Mettre" / "Retirer" selon ce que le joueur porte ; onglet seulement
+    // s'il y en a
     function renderAssets(assets) {
         const list = $('eqItems');
+        $('eqAssetsSection').classList.toggle('hidden', !state.freemode || !assets.length);
+        const worn = assets.filter((a) => a.worn).length;
+        $('eqAssetsSum').textContent = assets.length ? `${worn} / ${assets.length} porté${worn > 1 ? 's' : ''}` : '';
         if (!state.freemode) {
             list.innerHTML = '<div class="eq-empty">Équipement disponible uniquement avec un personnage multijoueur.</div>';
             return;
@@ -56,6 +66,8 @@
                     <button class="eq-btn eq-primary" data-retrieve="${esc(slot.id)}">Sortir l'arme</button>
                 </div>`;
         }).join('');
+        const full = state.slots.filter((slot) => state.rack[slot.id]);
+        $('eqRackSum').textContent = !state.slots.length ? '' : full.length ? full.map((slot) => state.rack[slot.id].label).join(', ') : 'Vide';
         const held = state.held;
         const free = held && !state.rack[held.slot];
         $('eqStore').disabled = !free;
@@ -64,12 +76,23 @@
             : free ? `En main : ${held.label}` : `En main : ${held.label} (emplacement déjà occupé)`;
     }
 
-    // Coffre : plots (portés / rangés) et fusées (sur soi / dans le coffre)
+    // Avant : fusées de l'avant ; coffre : Affaires (Matériel : plots, fusées, pistolet radar, herse ; Jerrycan)
     function renderStock() {
         const st = state.stock;
         const inv = state.inv;
-        $('eqStockSection').classList.toggle('hidden', !st);
+        const front = state.where !== 'trunk';
+        $('eqStockSection').classList.toggle('hidden', !st || front);
+        $('eqFrontFlaresSection').classList.toggle('hidden', !st || !front || !(st.maxFrontFlares > 0));
+        box.querySelectorAll('[data-flares-held]').forEach((el) => { el.textContent = `Sur vous : ${inv.flares}`; });
         if (!st) return;
+        if (front) {
+            const n = Number(st.frontFlares) || 0, max = Number(st.maxFrontFlares) || 0;
+            $('eqFrontFlares').textContent = `${n} / ${max} à l'avant`;
+            $('eqFrontFlaresSum').textContent = `${n} / ${max}`;
+            $('eqFrontFlaresSection').querySelectorAll('[data-flares="take"]').forEach((b) => { b.disabled = n <= 0 || inv.flares >= inv.maxHeld; });
+            $('eqFrontFlaresSection').querySelectorAll('[data-flares="store"]').forEach((b) => { b.disabled = inv.flares <= 0 || n >= max; });
+            return;
+        }
         $('eqCones').textContent = `${st.cones} / ${st.maxCones} dans le coffre`;
         $('eqConesBar').style.width = `${st.maxCones ? Math.round(st.cones / st.maxCones * 100) : 0}%`;
         // Prendre : le nombre choisi (1 → ce que le coffre a et ce que le policier peut encore porter)
@@ -107,9 +130,10 @@
             $('eqSpikeStore').disabled = !inv.spikeHeld;
         }
         $('eqFlares').textContent = `${st.flares} / ${st.maxFlares} dans le coffre`;
-        $('eqFlaresHeld').textContent = `Sur vous : ${inv.flares}`;
-        box.querySelectorAll('[data-flares="take"]').forEach((b) => { b.disabled = st.flares <= 0 || inv.flares >= inv.maxHeld; });
-        box.querySelectorAll('[data-flares="store"]').forEach((b) => { b.disabled = inv.flares <= 0 || st.flares >= st.maxFlares; });
+        $('eqStockSection').querySelectorAll('[data-flares="take"]').forEach((b) => { b.disabled = st.flares <= 0 || inv.flares >= inv.maxHeld; });
+        $('eqStockSection').querySelectorAll('[data-flares="store"]').forEach((b) => { b.disabled = inv.flares <= 0 || st.flares >= st.maxFlares; });
+        $('eqGearSum').textContent = `${st.cones} plots · ${st.flares} fusées`;
+        $('eqCansSum').textContent = cans ? (st.jerrycanFill >= 100 ? 'Plein' : `${st.jerrycanFill} %`) : 'Vide';
         $('eqCarry').textContent = carrying
             ? `Vous portez ${carrying > 1 ? `${carrying} plots` : 'un plot'} : G pour en poser un au sol, ou les ranger ici.`
             : 'Plots posés : les reprendre avec le target (« Ramasser le plot » ou « Ramasser les plots autour »). Un plot pris et pas remis n\'est plus dans le coffre.';
@@ -134,7 +158,8 @@
         $('eqRackLegend').textContent = data.where === 'trunk' ? 'Arme longue · coffre' : 'Arme longue · avant';
         $('eqFoot').textContent = `Se ferme à plus de ${data.closeDistance || 4} m du véhicule · Échap pour fermer`;
         state = { slots: Array.isArray(data.slots) ? data.slots : [], rack: data.rack || {}, held: false, freemode: data.freemode !== false,
-            stock: data.stock || false, inv: state.inv, coneQty: 1 };
+            stock: data.stock || false, where: data.where === 'trunk' ? 'trunk' : 'front', inv: state.inv, coneQty: 1 };
+        renderFolds();
         renderAssets(Array.isArray(data.assets) ? data.assets : []);
         renderRack();
         renderStock();
@@ -147,6 +172,13 @@
     }
 
     box.addEventListener('click', (e) => {
+        const head = e.target.closest('.eq-fold-head');
+        if (head) {
+            const name = head.parentElement.dataset.fold;
+            openFolds[name] = !openFolds[name];
+            renderFolds();
+            return null;
+        }
         const wear = e.target.closest('[data-wear]');
         if (wear) return post('wear', { id: wear.dataset.wear });
         const retrieve = e.target.closest('[data-retrieve]');

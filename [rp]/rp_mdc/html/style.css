@@ -317,6 +317,53 @@ body.dragging, body.dragging * { user-select: none !important; }
 .title-action.active { background: rgba(var(--accent-rgb), .1); border-color: rgba(var(--accent-rgb), .45); color: var(--accent); font-weight: 600; }
 .memo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 
+/* Deuxième bouton (Messages) : collé au premier */
+.title-action-next { margin-left: 0; }
+.msg-badge {
+    min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px; font: 700 10.5px/17px var(--font); text-align: center;
+    color: #fff; background: #d13438;
+}
+
+/* ---------- Messages entre unités : panneau à droite ---------- */
+.msgpane {
+    width: 300px; flex-shrink: 0; min-height: 0;
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 14px 14px 12px;
+    background: rgba(var(--mica-2), var(--glass-a));
+    border-top: 1px solid var(--stroke); border-left: 1px solid var(--stroke);
+}
+.msg-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.msg-me { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
+.msg-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.msg-conv {
+    display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; cursor: pointer; text-align: left;
+    background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); font: inherit; color: var(--text);
+}
+.msg-conv:hover { background: rgba(0, 0, 0, .04); border-color: var(--stroke); }
+.msg-conv-top { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.msg-conv-top .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-conv-agency { font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.msg-conv-last { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-conv.unread .msg-conv-last { color: var(--text); font-weight: 600; }
+.msg-thread-head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.msg-thread-head .grow { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; }
+.grow-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-thread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 4px 2px; }
+.msg-bubble { max-width: 86%; padding: 6px 10px 7px; border-radius: 8px; background: rgba(0, 0, 0, .055); align-self: flex-start; }
+.msg-bubble.mine { align-self: flex-end; background: rgba(var(--accent-rgb), .14); }
+.msg-bubble-meta { display: flex; gap: 8px; justify-content: space-between; font-size: 10.5px; color: var(--muted); }
+.msg-bubble-text { margin-top: 2px; white-space: pre-wrap; word-break: break-word; line-height: 1.4; }
+.msg-compose { display: flex; gap: 6px; align-items: flex-end; }
+.msg-compose textarea { flex: 1; min-height: 38px; max-height: 110px; resize: none; line-height: 1.4; }
+.msg-empty { padding: 10px 4px; font-size: 12px; color: var(--muted); }
+.msg-toast { --prio: var(--accent-rgb); width: 320px; }
+.msg-toast-text { margin-top: 3px; font-size: 12.5px; color: rgba(255, 255, 255, .88); white-space: pre-wrap; word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+[data-theme="night"] .msgpane .legend { color: var(--title); }
+[data-theme="night"] .msg-conv:hover { background: rgba(var(--n-rgb), .08); }
+[data-theme="night"] .msg-bubble { background: rgba(var(--n-rgb), .08); }
+[data-theme="night"] .msg-bubble.mine { background: rgba(var(--n-rgb), .18); }
+
 /* ---------- Note de l'unité : panneau à droite ---------- */
 .memopane {
     width: 270px; flex-shrink: 0;
@@ -350,7 +397,8 @@ body.dragging, body.dragging * { user-select: none !important; }
     padding: 24px;
     background: rgba(var(--mica), .98);
 }
-.window.choosing .frame-body, .window.choosing .statusbar, .window.choosing #btnMemo, .window.choosing .memopane { visibility: hidden; }
+.window.choosing .frame-body, .window.choosing .statusbar, .window.choosing #btnMemo, .window.choosing .memopane,
+.window.choosing #btnMessages, .window.choosing .msgpane { visibility: hidden; }
 .chooser-box { display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(760px, 100%); text-align: center; }
 .chooser-logos { display: flex; align-items: center; gap: 16px; }
 .chooser-logos img { height: 64px; width: auto; object-fit: contain; }

@@ -114,7 +114,9 @@ EquipConfig = {
                 DrivingStyle = 820,   -- éviter véhicules (4), piétons (16), objets (32), clignotants (256), voie d'en face (512)
             },
         },
-        Flares = { Default = 0, Max = 20, Weapon = 'WEAPON_FLARE' },
+        -- Fusées de détresse : dans le coffre (Default au départ, Max au plus) et à l'avant, prises / rangées par les
+        -- portières avant (FrontDefault, FrontMax ; 0 : aucune à l'avant)
+        Flares = { Default = 10, Max = 15, FrontDefault = 5, FrontMax = 5, Weapon = 'WEAPON_FLARE' },
         -- Jerrican d'essence : PLEIN dans le coffre de chaque véhicule de police (Default), à prendre et ranger ; il garde
         -- l'essence qui lui reste (plein = Ammo = 2/5 d'un réservoir avec rp_vehiclecontrol). /restock le remet plein.
         Jerrycans = { Default = 1, Max = 1, Weapon = 'WEAPON_PETROLCAN', Ammo = 4500 },

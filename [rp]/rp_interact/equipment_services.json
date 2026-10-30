@@ -34,12 +34,11 @@
                 ],
                 "Tints": true
             },
-            { "Weapon": "WEAPON_BEANBAG", "Label": "Beanbag", "Ammo": 50, "Tints": 2 },
+            { "Weapon": "WEAPON_BEANBAG", "Label": "Beanbag", "Ammo": 50, "Tints": 2, "Tint": "orange" },
             { "Weapon": "WEAPON_STUNGUN", "Label": "Taser", "Ammo": 1, "Required": true },
             { "Weapon": "WEAPON_FLASHLIGHT", "Label": "Lampe torche", "Ammo": 1 },
             { "Weapon": "WEAPON_POCKETLIGHT", "Label": "Lampe de poche", "Ammo": 1 },
             { "Weapon": "WEAPON_COLBATON", "Label": "Matraque telescopique", "Ammo": 1 },
-            { "Weapon": "WEAPON_FLARE", "Label": "Flares", "Ammo": 10 },
             { "Weapon": "WEAPON_PEPPERSPRAY", "Label": "Spray au poivre" },
             { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": true }
         ]

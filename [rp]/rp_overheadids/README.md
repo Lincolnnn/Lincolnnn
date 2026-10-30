@@ -11,11 +11,19 @@ de nom RP : son numéro seul. On relâche : tout disparaît. Aucun framework.
   numéro aussi (`ShowSelf`).
 - Un joueur qui **parle** (pma-voice ou micro du jeu) : nom en bleu clair (`TalkingColor`).
 
+## `/configtetes` : maintenir ou appuyer
+
+`/configtetes` ouvre un petit choix (souris, ou flèches + Entrée ; Échap : fermer), gardé chez chaque joueur :
+- **Maintenir touche** : les noms s'affichent **tant que la touche est maintenue** ;
+- **Appuyer pour activer** : **un appui** affiche les noms, **un autre appui** les retire.
+
+Par défaut pour tous : `DefaultMode` (`'hold'` ou `'toggle'`). Commande : `ConfigCommand`.
+
 ## Installation
 
 Copiez `rp_overheadids` dans `resources/`, puis `ensure rp_overheadids` dans `server.cfg`.
 
 ## Performance
 
-Rien tant que la touche n'est pas maintenue (raccourci FiveM, aucune boucle : 0.00 ms). Pendant l'appui : liste des
-joueurs proches revue toutes les 250 ms, textes dessinés à chaque image.
+Rien tant que les noms ne sont pas affichés (raccourci FiveM, aucune boucle : 0.00 ms). Pendant l'affichage : liste
+des joueurs proches revue toutes les 250 ms, textes dessinés à chaque image.

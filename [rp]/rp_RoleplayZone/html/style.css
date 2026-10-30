@@ -171,6 +171,15 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .zone-title:empty { display: none; }
 .zone-text { margin-top: 4px; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 
+/* ===================== SESSION (/sessionon, /sessionoff) : même style que la zone ===================== */
+.zbanner.session { z-index: 41; }
+.zbanner.session.below { top: calc(2.6vh + var(--zone-h, 64px) + 10px); } /* une zone est déjà affichée : en dessous */
+.zbanner.session.on .zone-head { color: #7fd69a; }
+.zbanner.session.on .zone-dot { background: #7fd69a; box-shadow: 0 0 8px #7fd69a; }
+.zbanner.session.off .zone-head { color: #f0a36b; }
+.zbanner.session.off .zone-dot { background: #f0a36b; box-shadow: 0 0 8px #f0a36b; }
+.zbanner.session .zone-text { font-size: 14px; }
+
 /* ===================== ŒIL D'AIGLE : flèche ===================== */
 .arrow {
     position: fixed; left: 50%; top: 30vh; transform: translateX(-50%); z-index: 42; pointer-events: none;

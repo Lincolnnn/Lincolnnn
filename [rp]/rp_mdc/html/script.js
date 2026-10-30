@@ -426,8 +426,11 @@
         $('#profileAgency').textContent = info ? (police ? info.short : 'Générique') : '';
         $$('.tab').forEach((t) => t.classList.toggle('hidden', !allowedPages().includes(t.dataset.page)));
         $$('.police-only').forEach((el) => el.classList.toggle('hidden', !police));
-        if (!police) $('#memoPane').classList.add('hidden'); // MDC générique : pas d'unité, pas de note
-        else $('#memoPane').classList.toggle('hidden', !$('#btnMemo').classList.contains('active'));
+        if (!police) { $('#memoPane').classList.add('hidden'); $('#msgPane').classList.add('hidden'); } // MDC générique : pas d'unité
+        else {
+            $('#memoPane').classList.toggle('hidden', !$('#btnMemo').classList.contains('active'));
+            $('#msgPane').classList.toggle('hidden', !$('#btnMessages').classList.contains('active'));
+        }
         $('#unitsTitle').textContent = police ? `Unités ${info.short}` : 'Unités';
         $('#settingsAgencyCards').innerHTML = agencyCardsHtml(state.agency);
         $$('[data-agency-checks]').forEach((el) => { el.innerHTML = agencyChecksHtml(null); });
@@ -591,6 +594,7 @@
 
     // Bouton en haut à droite : ouvre / ferme le panneau de la note (gardé ouvert ou fermé d'une ouverture à l'autre)
     function setMemoPane(open) {
+        if (open && typeof setMsgPane === 'function') setMsgPane(false); // un seul panneau à droite à la fois
         $('#memoPane').classList.toggle('hidden', !open);
         $('#btnMemo').classList.toggle('active', open);
         try { localStorage.setItem('mdc_memo_open', open ? '1' : '0'); } catch (err) { /* stockage indisponible */ }
@@ -659,6 +663,7 @@
     function setUnits(units) {
         state.units = toArray(units);
         renderUnits();
+        messagesUnitChanged(); // messagerie : unité du joueur changée -> boîte de réception de la nouvelle
         checkUnitChange(); // espace partagé d'unité
         if (state.callPanel.mode === 'view') renderInterventionDetail(); // boutons "Rejoindre l'appel"
         renderInterventionList(); // nouvelle unité : boutons des appels à jour
@@ -3300,6 +3305,7 @@
     // [fréquence, début, durée, forme d'onde (sine par défaut)]
     const SOUNDS = {
         call: [[880, 0, 0.16], [1320, 0.18, 0.26]],                         // intervention : deux tons montants
+        message: [[988, 0, 0.11], [1319, 0.12, 0.2], [1760, 0.12, 0.12]],    // message d'une autre unité : petit carillon
         incident: [[660, 0, 0.12], [880, 0.14, 0.12], [1175, 0.28, 0.24]],  // incident : trois tons
     };
     const SOUND_GAIN = 0.35; // volume à 100 % (évite la saturation)
@@ -3361,6 +3367,151 @@
     }
 
     // =====================================================================
+    // MESSAGERIE ENTRE UNITÉS (bouton « Messages » à côté de la note) : uniquement d'une unité à une autre.
+    // Boîte de réception (toutes les autres unités de police, non-lus), puis la conversation ; Entrée envoie
+    // (Maj + Entrée : nouvelle ligne). Un message reçu : notification en haut à droite et son (même MDC fermé).
+    // =====================================================================
+    const msg = { with: null, unit: null, unitId: null, inbox: [], thread: null, unread: 0, draft: {} };
+    const msgOpen = () => !$('#msgPane').classList.contains('hidden');
+
+    function setMsgBadge(n) {
+        msg.unread = n;
+        $('#msgBadge').textContent = n > 99 ? '99+' : String(n);
+        $('#msgBadge').classList.toggle('hidden', !(n > 0));
+    }
+
+    function setMsgPane(open) {
+        if (open) setMemoPane(false);
+        $('#msgPane').classList.toggle('hidden', !open);
+        $('#btnMessages').classList.toggle('active', open);
+        if (open) loadMessages(msg.with);
+    }
+
+    async function loadMessages(withId) {
+        const res = await post('getMessages', withId ? { with: withId } : {});
+        if (!res || !res.ok) return;
+        msg.unit = res.unit || null;
+        msg.inbox = toArray(res.inbox);
+        msg.thread = res.thread ? { unit: res.thread.unit, messages: toArray(res.thread.messages) } : null;
+        msg.with = msg.thread ? msg.thread.unit.id : null;
+        setMsgBadge(Number(res.unread) || 0);
+        renderMessages();
+    }
+
+    function messagesUnitChanged() {
+        const u = myUnit();
+        const id = u ? u.id : null;
+        if (id === msg.unitId) return;
+        msg.unitId = id;
+        msg.with = null;
+        msg.thread = null;
+        if (isPolice()) loadMessages(null); else setMsgBadge(0);
+    }
+
+    const msgUnitLine = (u) => `${unitTag(u)}<span class="grow-name">${esc(u.name)}</span>${u.agencyShort ? `<span class="msg-conv-agency">${esc(u.agencyShort)}</span>` : ''}`;
+
+    function renderMessages() {
+        if (!msgOpen()) return;
+        const body = $('#msgBody');
+        if (!msg.unit) {
+            $('#msgTitle').textContent = 'Messages';
+            body.innerHTML = '<div class="msg-empty">Rejoignez une unité (onglet Unités) pour écrire aux autres unités.</div>';
+            return;
+        }
+        if (msg.thread) {
+            const t = msg.thread;
+            $('#msgTitle').textContent = 'Conversation';
+            body.innerHTML = `
+                <div class="msg-thread-head">
+                    <button class="btn btn-icon btn-ghost" id="msgBack" title="Toutes les unités"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+                    <span class="grow">${msgUnitLine(t.unit)}</span>
+                </div>
+                <div class="msg-thread" id="msgThread">${t.messages.length ? t.messages.map((m) => `
+                    <div class="msg-bubble${m.from === msg.unit.id ? ' mine' : ''}">
+                        <div class="msg-bubble-meta"><span>${esc(m.author || '')}</span><span>${esc(formatTime(m.at))}</span></div>
+                        <div class="msg-bubble-text">${esc(m.text)}</div>
+                    </div>`).join('') : '<div class="msg-empty">Aucun message : écrivez le premier.</div>'}</div>
+                <div class="msg-compose">
+                    <textarea id="msgInput" maxlength="300" rows="2" spellcheck="false" placeholder="Message à ${esc(t.unit.name)} (Entrée : envoyer)"></textarea>
+                    <button class="btn btn-default" id="msgSend">Envoyer</button>
+                </div>`;
+            const list = $('#msgThread');
+            list.scrollTop = list.scrollHeight;
+            const input = $('#msgInput');
+            input.value = msg.draft[t.unit.id] || '';
+            input.addEventListener('input', () => { msg.draft[t.unit.id] = input.value; });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+            });
+            $('#msgSend').addEventListener('click', sendMessage);
+            $('#msgBack').addEventListener('click', () => { msg.with = null; msg.thread = null; loadMessages(null); });
+            input.focus();
+            return;
+        }
+        $('#msgTitle').textContent = 'Messages';
+        body.innerHTML = `
+            <div class="msg-me">Votre unité : ${unitTag(msg.unit)}<b>${esc(msg.unit.name)}</b></div>
+            <div class="msg-list">${msg.inbox.length ? msg.inbox.map((c) => `
+                <button class="msg-conv${c.unread ? ' unread' : ''}" data-msg-unit="${esc(c.unit.id)}">
+                    <span class="msg-conv-top"><span class="grow">${unitTag(c.unit)} ${esc(c.unit.name)}</span>
+                        ${c.unit.agencyShort ? `<span class="msg-conv-agency">${esc(c.unit.agencyShort)}</span>` : ''}
+                        ${c.unread ? `<span class="msg-badge">${c.unread}</span>` : ''}</span>
+                    <span class="msg-conv-last">${c.last ? `${c.last.from === msg.unit.id ? 'Vous : ' : ''}${esc(c.last.text)}` : 'Aucun message'}</span>
+                </button>`).join('') : '<div class="msg-empty">Aucune autre unité en service.</div>'}</div>`;
+        $$('[data-msg-unit]', body).forEach((b) => b.addEventListener('click', () => loadMessages(Number(b.dataset.msgUnit))));
+    }
+
+    async function sendMessage() {
+        const t = msg.thread;
+        const input = $('#msgInput');
+        if (!t || !input) return;
+        const text = input.value.trim();
+        if (!text) return;
+        const res = await post('sendMessage', { to: t.unit.id, text });
+        if (!res || !res.ok) return toast((res && res.error) || 'Message non envoyé.', 'error');
+        msg.draft[t.unit.id] = '';
+        input.value = '';
+        // le message revient aussi par « unitMessage » (pour les autres membres de l'unité) : pas de doublon
+        if (res.message && !t.messages.some((m) => m.id === res.message.id)) t.messages.push(res.message);
+        renderMessages();
+    }
+
+    function messageNotification(d) {
+        const el = document.createElement('div');
+        el.className = 'call-toast msg-toast';
+        el.innerHTML = `
+            <div class="ct-head"><span>MESSAGE D'UNITÉ</span>${d.unit.agencyShort ? `<span class="ct-number">${esc(d.unit.agencyShort)}</span>` : ''}</div>
+            <div class="ct-title">${d.unit.tag ? `[${esc(d.unit.tag)}] ` : ''}${esc(d.unit.name)}</div>
+            <div class="msg-toast-text">${esc(d.message.author || '')} : ${esc(d.message.text)}</div>`;
+        el.addEventListener('click', () => {
+            el.remove();
+            if ($('#mdc').classList.contains('hidden')) return;
+            msg.with = d.with;
+            setMsgPane(true);
+        });
+        pushNotification(el, 9000);
+        if (hud.settings.notify.sound !== false) playSound('message');
+    }
+
+    function onUnitMessage(d) {
+        if (typeof d.unread === 'number') setMsgBadge(d.unread);
+        const viewing = msgOpen() && !$('#mdc').classList.contains('hidden') && msg.with === d.with;
+        if (viewing) {
+            if (d.incoming) loadMessages(d.with); // lu tout de suite
+            else if (msg.thread && !msg.thread.messages.some((m) => m.id === d.message.id)) {
+                msg.thread.messages.push(d.message);
+                renderMessages();
+            }
+        } else if (msgOpen()) {
+            loadMessages(msg.with);
+        }
+        if (d.incoming && d.notify && !viewing) messageNotification(d);
+    }
+
+    $('#btnMessages').addEventListener('click', () => setMsgPane(!msgOpen()));
+    $('#msgClose').addEventListener('click', () => setMsgPane(false));
+
+    // =====================================================================
     // HUD : PLD (localisation) et display MDC (unité), séparés et déplaçables.
     // Les données viennent de client/hud.lua ; les réglages (onglet "Paramètres")
     // sont gardés chez le joueur (KVP) via le callback "saveSettings".
@@ -3374,7 +3525,7 @@
         // 'all' (MDC et tous les menus), 'mdc' (MDC seulement), 'menus' (menus des autres ressources, pas le MDC) ;
         // couleur du mode nuit (textes, boutons, contour du chat) : 'green', 'yellow', 'red', 'blue'
         mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97, theme: 'day', themeScope: 'all', nightColor: 'green' },
-        notify: { calls: true, sound: true, status: true, volume: 0.8 },
+        notify: { calls: true, sound: true, status: true, messages: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { x: 0.016, y: 0.715, scale: 1, volume: 0.7 },
     };
@@ -4779,6 +4930,12 @@
                 break;
             case 'statusNotify': // nouveau statut de l'unité du joueur
                 if (data.data) statusNotification(data.data);
+                break;
+            case 'unitMessage': // messagerie : nouveau message (reçu ou envoyé par un membre de son unité)
+                if (data.data) onUnitMessage(data.data);
+                break;
+            case 'unitMessages': // messagerie : nombre de non-lus de son unité
+                if (data.data) setMsgBadge(Number(data.data.unread) || 0);
                 break;
         }
     });

@@ -333,6 +333,11 @@ end
 local SJ = S.Jerrycans or {}
 local CAN_AMMO = SJ.Ammo or 4500
 local SR = S.RadarGuns or {}
+-- Fusées : dans le coffre (Default au départ, Max au plus) et à l'AVANT (FrontDefault, FrontMax : prises / rangées par
+-- les portières avant)
+local SF = S.Flares or {}
+local TRUNK_FLARES, FRONT_FLARES = SF.Max or 15, SF.FrontMax or 5
+local STOCK_VERSION = 2 -- v2 : fusées à l'avant, 10 / 15 au coffre
 
 --- Jerricans d'un coffre neuf (ou après /restock) : pleins
 local function fullCans(n)
@@ -344,9 +349,19 @@ end
 local function stockOf(plate)
     local st = Stock[plate]
     if not st then
-        st = { cones = S.Cones and S.Cones.Default or 0, flares = S.Flares and S.Flares.Default or 0 }
+        st = { cones = S.Cones and S.Cones.Default or 0, flares = SF.Default or 10, frontFlares = SF.FrontDefault or 5,
+            v = STOCK_VERSION }
         Stock[plate] = st
     end
+    -- Coffre enregistré avant les fusées à l'avant : remis au contenu de départ des fusées (une seule fois)
+    if st.v ~= STOCK_VERSION then
+        st.flares = math.max(tonumber(st.flares) or 0, SF.Default or 10)
+        st.frontFlares = SF.FrontDefault or 5
+        st.v = STOCK_VERSION
+    end
+    if type(st.frontFlares) ~= 'number' then st.frontFlares = SF.FrontDefault or 5 end
+    st.flares = math.min(tonumber(st.flares) or 0, TRUNK_FLARES)
+    st.frontFlares = math.min(st.frontFlares, FRONT_FLARES)
     -- Jerricans : essence restante de chacun ; coffre enregistré avant leur arrivée : le jerrican plein d'origine
     if type(st.jerrycans) ~= 'table' then st.jerrycans = fullCans(SJ.Default or 1) end
     -- Pistolet radar : coffre enregistré avant son arrivée : celui d'origine
@@ -357,13 +372,21 @@ end
 local function stockView(plate)
     local st = stockOf(plate)
     local last = st.jerrycans[#st.jerrycans]
-    return { cones = st.cones, flares = st.flares, maxCones = S.Cones and S.Cones.Max or 0, maxFlares = S.Flares and S.Flares.Max or 0,
+    return { cones = st.cones, flares = st.flares, maxCones = S.Cones and S.Cones.Max or 0, maxFlares = TRUNK_FLARES,
+        frontFlares = st.frontFlares, maxFrontFlares = FRONT_FLARES,
         jerrycans = #st.jerrycans, maxJerrycans = SJ.Max or 1, jerrycanFill = last and math.floor(last / CAN_AMMO * 100 + 0.5) or 0,
         radars = st.radars, maxRadars = SR.Max or 1 }
 end
 
 local function stockAllowed(ctx)
     return S.Enabled ~= false and ctx.plate ~= nil and allowedWhere(S.Where or 'trunk', ctx.where)
+end
+
+--- Fusées accessibles d'ici : celles de l'avant par les portières avant, celles du coffre au coffre
+local function flaresAllowed(ctx)
+    if S.Enabled == false or ctx.plate == nil then return false end
+    if ctx.where == 'front' then return FRONT_FLARES > 0 end
+    return stockAllowed(ctx)
 end
 
 --- Coffre changé : tous les menus ouverts sur cette plaque mis à jour
@@ -378,7 +401,7 @@ function Handlers.open(src, data)
     return {
         ok = true, type = ctx.kind, plate = ctx.plate, assets = Assets[ctx.kind] or {},
         rack = rackAllowed(ctx) and ctx.plate and rackSummary(ctx.plate) or false,
-        stock = stockAllowed(ctx) and stockView(ctx.plate) or false, carrying = carried(src), maxCarry = MAX_CARRY,
+        stock = (stockAllowed(ctx) or flaresAllowed(ctx)) and stockView(ctx.plate) or false, carrying = carried(src), maxCarry = MAX_CARRY,
     }
 end
 
@@ -389,7 +412,8 @@ function Handlers.restock(src, data)
     if S.Enabled == false or not ctx.plate then return { ok = false, error = 'Ce véhicule n\'a pas de coffre.' } end
     local st = stockOf(ctx.plate)
     st.cones = S.Cones and S.Cones.Max or 10
-    st.flares = S.Flares and S.Flares.Max or 20
+    st.flares = TRUNK_FLARES
+    st.frontFlares = FRONT_FLARES
     st.jerrycans = fullCans(SJ.Max or 1)
     st.radars = SR.Max or 1
     stockChanged(ctx.plate)
@@ -469,22 +493,28 @@ function Handlers.coneStore(src, data)
     return { ok = true, count = count, carrying = carried(src), stock = stockView(ctx.plate) }
 end
 
---- Fusées : prendre `count` du coffre / ranger `count` (celles que le joueur a sur lui)
+--- Fusées : prendre `count` / ranger `count` (celles que le joueur a sur lui) : à l'avant (portières avant, FrontMax)
+--- ou dans le coffre (Max)
 function Handlers.flares(src, data)
     local ctx, err = context(src, data)
     if not ctx then return { ok = false, error = err } end
-    if not stockAllowed(ctx) then return { ok = false, error = 'Pas de coffre ici.' } end
+    if not flaresAllowed(ctx) then return { ok = false, error = 'Pas de fusées ici.' } end
     local st = stockOf(ctx.plate)
+    local front = ctx.where == 'front'
+    local key, max = front and 'frontFlares' or 'flares', front and FRONT_FLARES or TRUNK_FLARES
+    local place = front and 'à l\'avant' or 'dans ce coffre'
     local count = math.floor(math.max(0, math.min(tonumber(data.count) or 0, 25)))
     if count <= 0 then return { ok = false, error = 'Rien à faire.' } end
     if data.mode == 'take' then
-        count = math.min(count, st.flares)
-        if count <= 0 then return { ok = false, error = 'Plus de fusée dans ce coffre.' } end
-        st.flares = st.flares - count
+        count = math.min(count, st[key])
+        if count <= 0 then return { ok = false, error = ('Plus de fusée %s.'):format(place) } end
+        st[key] = st[key] - count
     else
-        count = math.min(count, (S.Flares.Max or 20) - st.flares)
-        if count <= 0 then return { ok = false, error = ('Coffre plein : %d fusées au maximum.'):format(S.Flares.Max or 20) } end
-        st.flares = st.flares + count
+        count = math.min(count, max - st[key])
+        if count <= 0 then
+            return { ok = false, error = ('%s plein : %d fusées au maximum.'):format(front and 'Avant' or 'Coffre', max) }
+        end
+        st[key] = st[key] + count
     end
     stockChanged(ctx.plate)
     return { ok = true, mode = data.mode == 'take' and 'take' or 'store', count = count, stock = stockView(ctx.plate) }
@@ -685,3 +715,5 @@ RegisterNetEvent('rp_equipment:request', function(id, action, data)
     end
     TriggerClientEvent('rp_equipment:response', src, id, result)
 end)
+
+RPEquipStock = { view = stockView } -- pour les tests

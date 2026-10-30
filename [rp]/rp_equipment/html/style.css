@@ -55,6 +55,30 @@ html, body {
 }
 .eq-close:hover { background: #c42b1c; color: #fff; }
 
+/* Onglets ouvrables / refermables (comme Customiser équipement : crochet qui pivote) */
+.eq-fold { margin: 10px 12px 0; background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius); overflow: hidden; }
+.eq-fold-head {
+    display: flex; align-items: center; gap: 10px; width: 100%; height: 40px; padding: 0 12px; cursor: pointer;
+    font: 600 13px var(--font-display); color: var(--text); text-align: left; background: transparent; border: 0;
+}
+.eq-fold-head:hover { background: var(--card-2); }
+.eq-fold-mark {
+    flex: none; width: 8px; height: 8px; margin: 0 2px 0 1px; opacity: .75;
+    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg); transition: transform .15s ease;
+}
+.eq-fold.open .eq-fold-mark { transform: rotate(45deg) translate(-2px, -2px); }
+.eq-fold-title { flex: 1; }
+.eq-fold-sum { flex: none; font: 500 11.5px var(--font); color: var(--muted); }
+.eq-fold-body { display: none; padding: 2px 12px 12px; }
+.eq-fold.open .eq-fold-body { display: block; }
+.eq-fold.open .eq-fold-head { border-bottom: 1px solid var(--stroke); margin-bottom: 8px; }
+/* « Affaires » : un titre, pas un onglet ; ses onglets Matériel et Jerrycan dessous */
+.eq-group { margin-top: 14px; }
+.eq-group-title { margin: 0 14px; font: 700 11px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.eq-group .eq-fold { margin-top: 6px; }
+.equip > .eq-message { margin-top: 10px; }
+
 /* Cartes */
 .eq-section { margin: 12px 12px 0; padding: 12px; background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius); }
 .eq-legend { margin-bottom: 8px; font: 600 13px var(--font-display); color: var(--text); }
@@ -283,3 +307,9 @@ html, body {
 [data-theme="night"] .eq-slot.full { border-color: rgba(var(--n-rgb), .45); background: rgba(var(--n-rgb), .07); }
 [data-theme="night"] .eq-stock-bar span { background: var(--n-accent); }
 [data-theme="night"] .eq-head { border-bottom-color: rgba(var(--n-rgb), .25); }
+
+[data-theme="night"] .eq-fold { background: rgba(var(--n-card-rgb), .92); border-color: rgba(var(--n-rgb), .18); }
+[data-theme="night"] .eq-fold-head { color: var(--n-title); }
+[data-theme="night"] .eq-fold-head:hover { background: rgba(var(--n-rgb), .08); }
+[data-theme="night"] .eq-fold.open .eq-fold-head { border-bottom-color: rgba(var(--n-rgb), .18); }
+[data-theme="night"] .eq-group-title { color: rgba(var(--n-muted-rgb), .7); }

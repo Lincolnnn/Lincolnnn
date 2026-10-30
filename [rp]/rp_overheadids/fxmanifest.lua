@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_overheadids'
 author 'Lincolnnn'
 description 'Numéros et noms des joueurs au-dessus des têtes en maintenant une touche - standalone'
-version '1.1.0'
+version '1.2.0'
 
 shared_scripts {
     'config.lua',
@@ -18,4 +18,10 @@ shared_scripts {
 
 client_scripts {
     'client/client.lua',
+}
+
+ui_page 'html/index.html'
+
+files {
+    'html/index.html',
 }

@@ -813,8 +813,9 @@ RegisterCommand(S.RestockCommand or 'restock', function()
     if not vehicle then return notify('Aucun véhicule de police à côté de vous.') end
     request('restock', { net = VehToNet(vehicle), type = kind, where = 'trunk' }, function(res)
         if not res.ok then return notify(res.error or 'Action impossible.') end
-        notify(('Véhicule %s réapprovisionné : %d / %d plots, %d / %d fusées, jerrican et pistolet radar (armes longues : à ranger vous-même).'):format(
-            res.plate or '', res.stock.cones, res.stock.maxCones, res.stock.flares, res.stock.maxFlares))
+        notify(('Véhicule %s réapprovisionné : %d / %d plots, %d / %d fusées au coffre, %d / %d à l\'avant, jerrican et pistolet radar (armes longues : à ranger vous-même).'):format(
+            res.plate or '', res.stock.cones, res.stock.maxCones, res.stock.flares, res.stock.maxFlares,
+            res.stock.frontFlares or 0, res.stock.maxFrontFlares or 0))
     end)
 end, false)
 

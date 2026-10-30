@@ -151,10 +151,21 @@ end
 -- ÉQUIPEMENTS PAR POLICE (equipment_services.json, fourni avec le script) : "Équipement WSP" / "Équipement KCSO"
 -- du menu Équipements, et ce que chaque joueur peut personnaliser ("Customiser équipement")
 --   [ { "Service", "Name", "Replace", "Weapons": [ { "Weapon", "Label", "Ammo", "Required", "Default",
---       "Components", "Options": [ { "Label", "Choices": [ { "Label", "Component" } ] } ], "Tints" } ] } ]
+--       "Components", "Options": [ { "Label", "Choices": [ { "Label", "Component" } ] } ], "Tints", "Tint" } ] } ]
+--   "Tint" : teinte de départ de l'arme (numéro 0 à 7, ou nom : "noir", "vert", "or", "rose", "kaki", "bleu",
+--   "orange", "platine") ; ex. le beanbag orange.
 -- =========================================================================
 local Services, serviceByKey = {}, {}
 local TINT_COUNT = 8 -- teintes des armes classiques (0 à 7)
+local TINT_NAMES = { noir = 0, black = 0, vert = 1, green = 1, ['or'] = 2, gold = 2, rose = 3, pink = 3, kaki = 4,
+    army = 4, bleu = 5, police = 5, lspd = 5, orange = 6, platine = 7, platinum = 7 }
+
+--- Teinte de départ ("Tint") : numéro 0 à 7 ou nom ; nil si absente / invalide
+local function tintOf(value)
+    local n = tonumber(value) or (type(value) == 'string' and TINT_NAMES[value:lower():gsub('%s', '')])
+    n = n and math.floor(n)
+    return n and n >= 0 and n < TINT_COUNT and n or nil
+end
 
 local function slug(text)
     return (text:lower():gsub('[^%w]+', '_'):gsub('^_+', ''):gsub('_+$', ''))
@@ -215,6 +226,7 @@ local function loadServices()
                         required = required, default = required or field(w, 'Default') ~= false,
                         components = base, fixed = fixed, groups = groups, allowed = allowed,
                         tints = field(w, 'Tints') == true or (tonumber(field(w, 'Tints')) or 0) > 0,
+                        tint = tintOf(field(w, 'Tint')),
                     }
                 end
             end
@@ -636,8 +648,8 @@ local function cleanChoices(service, choices)
                     components[#components + 1] = component
                 end
             end
-            local tint = math.floor(tonumber(c.tint) or 0)
-            if not w.tints or tint < 0 or tint >= TINT_COUNT then tint = 0 end
+            local tint = math.floor(tonumber(c.tint) or (w.tint or 0))
+            if not w.tints or tint < 0 or tint >= TINT_COUNT then tint = w.tint or 0 end
             out[w.weapon] = { on = w.required or c.on == true, components = components, tint = tint }
         end
     end
@@ -650,7 +662,7 @@ local function fullChoices(service, saved)
     local cleaned = saved and cleanChoices(service, saved) or { weapons = {} }
     local weapons = {}
     for _, w in ipairs(service.weapons) do
-        weapons[w.weapon] = cleaned.weapons[w.weapon] or { on = w.default, components = w.components, tint = 0 }
+        weapons[w.weapon] = cleaned.weapons[w.weapon] or { on = w.default, components = w.components, tint = w.tint or 0 }
     end
     return { weapons = weapons }
 end
@@ -671,12 +683,12 @@ end
 local function buildLoadout(service, choices, name, preview)
     local weapons, off = {}, {}
     for _, w in ipairs(service.weapons) do
-        local c = choices.weapons[w.weapon] or { on = w.default, components = w.components, tint = 0 }
+        local c = choices.weapons[w.weapon] or { on = w.default, components = w.components, tint = w.tint or 0 }
         if w.required or c.on then
             local components = {}
             for _, component in ipairs(w.fixed) do components[#components + 1] = component end
             for _, component in ipairs(c.components or {}) do components[#components + 1] = component end
-            weapons[#weapons + 1] = { weapon = w.weapon, ammo = w.ammo, components = components, tint = w.tints and c.tint or nil,
+            weapons[#weapons + 1] = { weapon = w.weapon, ammo = w.ammo, components = components, tint = (w.tints and c.tint) or w.tint,
                 all = preview and allComponents(w) or nil }
         elseif preview then
             off[#off + 1] = w.weapon

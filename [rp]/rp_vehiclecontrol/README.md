@@ -417,8 +417,10 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 - Le personnage se met en position contre le pare-chocs (animation de poussée). Il pousse en **avançant avec
   sa touche habituelle** (Z / W), **tout droit uniquement**. Derrière le coffre, le véhicule avance ; devant le capot,
   il recule.
-- **Quelqu'un au volant** : il **suit la poussée** : il ne peut plus accélérer ni reculer, **seulement tourner le volant** ;
-  le frein de parking de Riven est desserré par le serveur dès que la poussée commence.
+- **Quelqu'un au volant** : il **suit la poussée** : il ne peut plus accélérer ni reculer, **seulement tourner le volant**.
+- **Frein de parking de Riven serré** : « Pousser le véhicule » reste proposé et utilisable (position, animation),
+  mais le véhicule **ne bouge pas** tant que le frein est serré (avec ou sans conducteur) ; il n'est jamais desserré
+  par ce script.
   Le jeu freinait tout seul un véhicule arrêté avec un joueur au volant (on ne pouvait plus le pousser) : pendant la
   poussée, le script appuie à sa place, très légèrement, sur la pédale dans le sens de la poussée (`Push.Pedal`), sans
   frein à main ; la vitesse reste celle de la poussée.

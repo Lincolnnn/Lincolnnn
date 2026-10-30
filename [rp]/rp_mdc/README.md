@@ -171,6 +171,16 @@ dans `server/server.lua`.
   note existe) : il ouvre / ferme un **panneau à droite** avec la note propre à l'unité (500 caractères, plusieurs
   lignes, partagée par ses membres, enregistrée pendant la frappe ; gardée dans l'unité côté serveur). Panneau ouvert
   ou fermé : gardé chez le joueur.
+- **Messagerie entre unités** (polices) : bouton **Messages** juste à côté de la note de l'unité (pastille rouge : nombre
+  de messages non lus). Il ouvre un **panneau à droite** : la liste des **autres unités** de police (WSP et KCSO ; les
+  conversations récentes d'abord, avec le dernier message et ses non-lus), puis la **conversation** avec l'unité
+  choisie. Messages **uniquement d'unité à unité** (il faut être dans une unité ; jamais à sa propre unité ; pas de
+  messages privés entre joueurs) : chaque membre des deux unités voit la conversation (auteur = nom RP), « lu » pour
+  toute l'unité dès qu'un membre l'ouvre. **Entrée** envoie, **Maj + Entrée** va à la ligne (300 caractères,
+  `UnitMessageLength`). Nouveau message reçu, MDC ouvert ou non : **notification avec un son** (se désactive :
+  *Paramètres > MDC > Notifications et sons*, « Messages entre unités »). Gardés en mémoire côté serveur
+  (`MaxUnitMessages` = 60 derniers par conversation ; supprimés avec l'unité, perdus au redémarrage). Anti-spam :
+  `UnitMessageCooldown` (800 ms). Ces trois réglages sont en haut de `server/server.lua`.
 - **En bas** : la disponibilité et l'heure du jeu.
 
 La fenêtre est **légèrement transparente** (opacité **97 %** par défaut, de 50 à 100 %, *Paramètres > MDC*). Il n'y a

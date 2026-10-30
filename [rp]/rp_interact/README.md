@@ -92,6 +92,8 @@ Page **Équipements** : **Tenues** → **Accéder aux tenues** (ferme ce menu et
     le clic gauche à Entrée : ignoré tant que la souris est affichée). Les touches marchent toujours ;
   - **zoom sur l'arme** en main (`EquipmentZoom`) : caméra accrochée au personnage et visée sur sa main droite par
     le jeu (pas de recalage à chaque image, pas d'à-coup quand un accessoire change) ; le personnage reste immobile ;
+    le cadrage dépend de la **taille de l'arme** : proche pour les armes de poing et les petits objets, **plus loin
+    et plus large** pour les armes longues (fusils, fusils à pompe, précision, mitrailleuses : `EquipmentZoom.Long`) ;
   - chaque changement est **visible tout de suite** : l'arme est **équipée automatiquement** (accessoires mis /
     retirés, teinte), plus besoin d'« Équiper ».
   Reste **Enregistrer** : depuis un équipement de base, il **s'ajoute** aux Équipements modifiés (l'équipement de base
@@ -496,7 +498,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |
 | `EmotesResource`, `EmoteFiles` | mode d'emotes (RPEMOTES, `'auto'` = détecté) et fichiers supplémentaires où lire les emotes |
 | `CuffPropPlacement` | position / orientation des menottes |
-| `EquipmentZoom` | Customiser équipement : caméra rapprochée sur l'arme de l'onglet ouvert (position `Offset`, point visé par rapport à la main droite `Target`, champ de vision `Fov`) |
+| `EquipmentZoom` | Customiser équipement : caméra rapprochée sur l'arme de l'onglet ouvert (position `Offset`, point visé par rapport à la main droite `Target`, champ de vision `Fov`) ; armes longues (groupes `LongGroups`) : cadrage `Long` (plus loin, plus large) |
 | `CopyPed` | `/copyped` : copies par joueur (`Max`), visibles par tous (`Networked`), pose figée (`FreezePose`), accessoires en plus (`ExtraComponents`) |
 | `CuffDuration`, `UncuffDuration`, `Emotes`, `CuffAnim`, `SeatedAnim`, `CuffProp`, `DragOffset`, `DragMove`, `DragMoves`, `DragReleaseKey`, `PlaceVehicleDistance` | police : durées, emotes (`/e menotté2`, `/e tenirlebras`, `/e c`), animation menotté debout du jeu (`CuffAnim`) et animation assise de secours (si l'emote est introuvable dans RPEMOTES), menottes, position de l'individu tenu, allures et animations de ses jambes, touche pour lâcher le bras, distance du véhicule |
 | `Struggle` | se débattre (tenu sans menottes) : activé, touche (ESPACE), gain par appui / baisse par seconde de la jauge, rayon des autres policiers (2 m), chance de perdre s'ils étaient déjà là (85 %), délai avant de pouvoir le reprendre (5 s), tremblement des écrans |
@@ -567,7 +569,8 @@ Un objet par bouton « Équipement … », dans l'ordre d'affichage :
 | `Default` | `false` : pas dans l'équipement de base, le joueur peut l'**ajouter** en personnalisant |
 | `Components` | accessoires de l'équipement de base |
 | `Options` | ce que le joueur peut choisir : un groupe = un emplacement (une case à cocher s'il n'a qu'un choix, sinon une liste « Aucun / … ») ; un seul accessoire par groupe |
-| `Tints` | `true` : teinte de l'arme au choix (8 teintes des armes classiques ; pas pour les armes Mk II) |
+| `Tints` | `true` : teinte de l'arme au choix (8 teintes des armes classiques ; pas pour les armes Mk II) (un nombre > 0 vaut `true`) |
+| `Tint` | teinte **par défaut** (équipement de base et réinitialisation) : n° 0 à 7 ou nom (`noir`, `vert`, `or`, `rose`, `kaki`, `bleu`, `orange`, `platine`) ; ex. le beanbag : `"Tint": "orange"` |
 
 Un équipement modifié ne garde que ce que le fichier prévoit encore : un accessoire retiré du fichier n'est
 plus donné, une arme ajoutée apparaît avec son réglage de base. Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`

@@ -62,6 +62,12 @@ local Config = {
     MaxUnitMembers = 4,     -- nombre max de joueurs dans une unité
     MaxSharedHistory = 100, -- historique de recherches partagé par une unité
     MaxBolos = 200,         -- nombre max de BOLOs actifs
+    -- Messagerie entre unités (bouton « Messages » à côté de la note de l'unité) : messages gardés par conversation
+    -- (les plus anciens retirés au-delà), longueur d'un message, délai mini entre deux envois (ms). En mémoire :
+    -- effacée au redémarrage du serveur et quand une unité est supprimée.
+    MaxUnitMessages = 60,
+    UnitMessageLength = 300,
+    UnitMessageCooldown = 800,
 
     -- MDC disponibles : chaque joueur choisit le sien à la première ouverture du MDC (à chaque connexion et
     -- après chaque redémarrage), et peut en changer dans Paramètres. Le look est le même pour tous ; seuls le
@@ -334,6 +340,7 @@ local reportsOfIdentity     -- défini dans la section RAPPORTS
 local shareUnitSearch       -- défini dans la section ESPACE PARTAGÉ D'UNITÉ
 local pushHud               -- défini dans la section HUD
 local bolosFor              -- défini dans la section BOLOs
+local dropConversations     -- défini dans la section MESSAGERIE ENTRE UNITÉS
 
 -- Identifiant de cette session du serveur : un rapport n'est relié "en direct" à une
 -- intervention que si le lien date de la session en cours (les interventions sont
@@ -1176,6 +1183,7 @@ RegisterMDCCallback('deleteUnit', function(src, payload)
     for key in pairs(unit.members) do PlayerUnit[tonumber(key)] = nil end
     for _, intervention in ipairs(Interventions) do intervention.units[tostring(unit.id)] = nil end
     table.remove(Units, index)
+    dropConversations(unit.id)
 
     print(('^5[MDC]^0 Unité supprimée : %s par %s'):format(unitLabel(unit), agentName(src)))
     pushUnits()
@@ -1214,6 +1222,127 @@ RegisterMDCCallback('setStatus', function(src, payload)
     notifyUnitStatus(unit)
     return { ok = true }
 end)
+
+-- =========================================================================
+-- MESSAGERIE ENTRE UNITÉS : uniquement d'une unité à une autre (toutes les polices). Une conversation par paire
+-- d'unités ; chaque membre des deux unités la voit ; « non lu » compté par unité (lu dès qu'un membre l'ouvre).
+-- Nouveau message : chaque membre de l'unité qui le reçoit est notifié (MDC ouvert ou non), avec un son.
+-- =========================================================================
+local Conversations = {} -- [clé "a:b"] = { a, b, messages = { { id, from, author, text, at } }, read = { [unitId] = n } }
+local lastMessage = {}
+local messageSeq = 0
+
+local function convKey(a, b)
+    if a > b then a, b = b, a end
+    return ('%d:%d'):format(a, b), a, b
+end
+
+local function unitCard(unit)
+    local a = AGENCIES[unit.agency] or {}
+    return { id = unit.id, name = unit.name, tag = unit.tag, color = unit.color, agency = unit.agency, agencyShort = a.short,
+        status = unit.status }
+end
+
+--- Boîte de réception d'une unité : toutes les autres unités de police (celles avec une conversation en premier,
+--- la plus récente d'abord), avec le dernier message et le nombre de non-lus
+local function inboxOf(unit)
+    local list, total = {}, 0
+    for _, other in ipairs(Units) do
+        if other.id ~= unit.id and isPoliceAgency(other.agency) then
+            local conv = Conversations[(convKey(unit.id, other.id))]
+            local last = conv and conv.messages[#conv.messages] or nil
+            local unread = conv and math.max(0, #conv.messages - (conv.read[unit.id] or 0)) or 0
+            total = total + unread
+            list[#list + 1] = { unit = unitCard(other), last = last, unread = unread }
+        end
+    end
+    table.sort(list, function(x, y)
+        local ax, ay = x.last and x.last.at or 0, y.last and y.last.at or 0
+        if ax ~= ay then return ax > ay end
+        return x.unit.name < y.unit.name
+    end)
+    return list, total
+end
+
+local function unreadTotal(unit)
+    local _, total = inboxOf(unit)
+    return total
+end
+
+--- Chaque membre de l'unité : son total de non-lus (badge du bouton Messages)
+local function pushUnread(unit)
+    local total = unreadTotal(unit)
+    for key in pairs(unit.members) do TriggerClientEvent('mdc:client:unitMessages', tonumber(key), { unread = total }) end
+end
+
+RegisterMDCCallback('getMessages', function(src, payload)
+    local unit = findUnit(PlayerUnit[src])
+    if not unit then return { ok = true, unit = false, inbox = {}, unread = 0 } end
+    local other = payload and payload.with and findUnit(payload.with) or nil
+    local thread = nil
+    if other and other.id ~= unit.id and isPoliceAgency(other.agency) then
+        local conv = Conversations[(convKey(unit.id, other.id))]
+        thread = { unit = unitCard(other), messages = conv and conv.messages or {} }
+        if conv and (conv.read[unit.id] or 0) < #conv.messages then
+            conv.read[unit.id] = #conv.messages -- lu par l'unité (dès qu'un membre l'ouvre)
+            pushUnread(unit)
+        end
+    end
+    local inbox, total = inboxOf(unit)
+    return { ok = true, unit = unitCard(unit), inbox = inbox, unread = total, thread = thread }
+end)
+
+RegisterMDCCallback('sendMessage', function(src, payload)
+    local unit = findUnit(PlayerUnit[src])
+    if not unit then return { ok = false, error = 'Rejoignez une unité pour envoyer un message.' } end
+    local other = findUnit(payload.to)
+    if not other or other.id == unit.id or not isPoliceAgency(other.agency) then
+        return { ok = false, error = 'Unité introuvable.' }
+    end
+    local text = cleanMultiline(payload.text, Config.UnitMessageLength or 300)
+    if text == '' then return { ok = false, error = 'Message vide.' } end
+    local now = GetGameTimer()
+    if lastMessage[src] and now - lastMessage[src] < (Config.UnitMessageCooldown or 800) then
+        return { ok = false, error = 'Patientez un instant.' }
+    end
+    lastMessage[src] = now
+    local key, a, b = convKey(unit.id, other.id)
+    local conv = Conversations[key]
+    if not conv then
+        conv = { a = a, b = b, messages = {}, read = {} }
+        Conversations[key] = conv
+    end
+    messageSeq = messageSeq + 1
+    local message = { id = messageSeq, from = unit.id, author = agentName(src), text = text, at = os.time() }
+    conv.messages[#conv.messages + 1] = message
+    local max = Config.MaxUnitMessages or 60
+    while #conv.messages > max do
+        table.remove(conv.messages, 1)
+        for id, n in pairs(conv.read) do conv.read[id] = math.max(0, n - 1) end
+    end
+    conv.read[unit.id] = #conv.messages -- l'expéditeur l'a lu
+    -- Les membres des deux unités : conversation à jour ; ceux qui le reçoivent : notification + son
+    local fromCard, toCard = unitCard(unit), unitCard(other)
+    local toUnread = unreadTotal(other)
+    for k in pairs(other.members) do
+        TriggerClientEvent('mdc:client:unitMessage', tonumber(k), { with = unit.id, unit = fromCard, message = message,
+            incoming = true, unread = toUnread })
+    end
+    local fromUnread = unreadTotal(unit)
+    for k in pairs(unit.members) do
+        TriggerClientEvent('mdc:client:unitMessage', tonumber(k), { with = other.id, unit = toCard, message = message,
+            incoming = false, unread = fromUnread })
+    end
+    print(('^5[MDC]^0 Message %s -> %s (%s) : %s'):format(unitLabel(unit), unitLabel(other), agentName(src), text))
+    return { ok = true, message = message }
+end)
+
+--- Unité supprimée : ses conversations aussi
+function dropConversations(unitId)
+    for key, conv in pairs(Conversations) do
+        if conv.a == unitId or conv.b == unitId then Conversations[key] = nil end
+    end
+end
 
 -- Note de l'unité (barre du bas du MDC) : rappels, observations… modifiable par ses membres
 RegisterMDCCallback('setUnitMemo', function(src, payload)
@@ -2900,6 +3029,7 @@ AddEventHandler('playerDropped', function()
     local hadUnit = PlayerUnit[src] ~= nil
     leaveCurrentUnit(src)
     Viewers[src], lastStatusChange[src], lastWrite[src], HudCache[src] = nil, nil, nil, nil
+    lastMessage[src] = nil
     PlayerAgency[src] = nil
     if hadUnit then pushUnits() end
 end)

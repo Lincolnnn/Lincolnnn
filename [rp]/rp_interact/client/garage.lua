@@ -221,14 +221,31 @@ end
 --- Caméra rapprochée sur l'arme en main (à pied) ; le joueur ne bouge pas tant qu'un onglet d'arme est ouvert.
 --- La caméra est ACCROCHÉE au personnage et visée sur sa main droite par le jeu lui-même (une seule fois) : plus de
 --- recalage à chaque image sur l'objet de l'arme, recréé à chaque accessoire changé (c'était les petites coupures).
-local function startCam(ped)
-    local o = Z.Offset or { x = 0.55, y = 0.95, z = 0.15 }
-    local t = Z.Target or { x = 0.12, y = 0.0, z = 0.0 }
-    focus.cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
-    focus.ped = ped
-    SetCamFov(focus.cam, Z.Fov or 34.0)
+-- Armes longues (groupes du jeu) : caméra plus loin (EquipmentZoom.Long), sinon réglage de base (armes de poing…)
+local LONG_GROUPS = {}
+for _, g in ipairs(Z.LongGroups or { 'GROUP_RIFLE', 'GROUP_SHOTGUN', 'GROUP_SNIPER', 'GROUP_MG' }) do LONG_GROUPS[GetHashKey(g)] = true end
+
+local function zoomFor(weapon)
+    local long = weapon and LONG_GROUPS[GetWeapontypeGroup(GetHashKey(weapon))]
+    local L = long and (Z.Long or {}) or {}
+    return L.Offset or Z.Offset or { x = 0.55, y = 0.95, z = 0.15 },
+        L.Target or Z.Target or { x = 0.12, y = 0.0, z = 0.0 },
+        L.Fov or Z.Fov or 34.0
+end
+
+--- Cadrage selon l'arme de l'onglet ouvert (changé sans recréer la caméra quand on passe d'une arme à l'autre)
+local function frameCam(ped)
+    local o, t, fov = zoomFor(focus.weapon)
+    focus.camWeapon = focus.weapon
+    SetCamFov(focus.cam, fov)
     AttachCamToEntity(focus.cam, ped, o.x, o.y, o.z, true)
     PointCamAtPedBone(focus.cam, ped, 57005, t.x, t.y, t.z, true) -- main droite (SKEL_R_Hand)
+end
+
+local function startCam(ped)
+    focus.cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    focus.ped = ped
+    frameCam(ped)
     RenderScriptCams(true, true, 450, true, false)
 end
 
@@ -241,7 +258,8 @@ local function focusLoop()
             local ped = PlayerPedId()
             if Z.Enabled ~= false and not IsPedInAnyVehicle(ped, false) and not IsEntityDead(ped) then
                 if focus.cam and focus.ped ~= ped then stopCam() end -- personnage changé (tenue /eup…)
-                if not focus.cam then startCam(ped) end
+                if not focus.cam then startCam(ped)
+                elseif focus.camWeapon ~= focus.weapon then frameCam(ped) end
             else
                 stopCam()
             end

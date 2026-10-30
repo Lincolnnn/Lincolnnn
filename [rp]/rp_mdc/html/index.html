@@ -23,6 +23,11 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 12h8M8 16h5"/></svg>
                 <span>Note de l'unité</span><span class="memo-dot hidden" id="memoDot"></span>
             </button>
+            <!-- Messagerie entre unités : panneau à droite (MDC de police) -->
+            <button class="title-action title-action-next police-only" id="btnMessages" title="Messages entre unités">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
+                <span>Messages</span><span class="msg-badge hidden" id="msgBadge">0</span>
+            </button>
             <div class="win-buttons">
                 <button class="win-btn" id="btnReset" title="Réinitialiser la position et la taille"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8a4.8 4.8 0 1 0 1.4-3.4M3 2.5v2.6h2.6"/></svg></button>
                 <button class="win-btn" id="btnMax" title="Agrandir"></button>
@@ -725,6 +730,7 @@
                                     <button type="button" class="btn btn-small" id="soundTest">Tester</button>
                                 </div>
                                 <label class="check"><input type="checkbox" data-setting="notify.status"> Notifier les changements de statut de mon unité</label>
+                                <label class="check"><input type="checkbox" data-setting="notify.messages"> Notifier les messages des autres unités (avec un son)</label>
                             </div>
                         </div>
                     </details>
@@ -878,6 +884,15 @@
                     </details>
                 </section>
             </main>
+
+            <!-- ================= MESSAGES ENTRE UNITÉS (ouverts par le bouton en haut à droite) ================= -->
+            <aside class="msgpane hidden" id="msgPane">
+                <div class="memo-head">
+                    <span class="legend" id="msgTitle">Messages</span>
+                    <button class="btn btn-icon btn-ghost" id="msgClose" title="Fermer les messages"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button>
+                </div>
+                <div class="msg-body" id="msgBody"></div>
+            </aside>
 
             <!-- ================= NOTE DE L'UNITÉ (ouverte par le bouton en haut à droite) ================= -->
             <aside class="memopane hidden" id="memoPane">

@@ -258,6 +258,26 @@
     }
 
     // =====================================================================
+    // SESSION (/sessionon, /sessionoff) : quelques secondes, sous la zone de recherche si elle est affichée
+    // =====================================================================
+    const session = $('session');
+    let sessionTimer = null, sessionHideTimer = null;
+    function setSession(data) {
+        clearTimeout(sessionTimer); clearTimeout(sessionHideTimer);
+        $('sessionTitle').textContent = data.title || 'SESSION';
+        $('sessionText').textContent = data.text || '';
+        session.classList.remove('on', 'off', 'out', 'hidden');
+        if (data.kind === 'on' || data.kind === 'off') session.classList.add(data.kind);
+        const zoneShown = !zone.classList.contains('hidden');
+        session.classList.toggle('below', zoneShown);
+        if (zoneShown) session.style.setProperty('--zone-h', `${zone.offsetHeight}px`);
+        sessionTimer = setTimeout(() => {
+            session.classList.add('out');
+            sessionHideTimer = setTimeout(() => session.classList.add('hidden'), 360);
+        }, Math.max(3000, Number(data.duration) || 12000));
+    }
+
+    // =====================================================================
     // ŒIL D'AIGLE : flèche
     // =====================================================================
     function setArrow(data) {
@@ -379,6 +399,14 @@
             note(ac, out, 440.00, t + 0.42, 1.1, 0.12);           // la : ré majeur, apaisé
             note(ac, out, 146.83, t + 0.42, 1.2, 0.08, 'sine');
         },
+        // Message reçu (session) : double carillon clair, comme une notification de téléphone
+        message(ac, v) {
+            const out = chain(ac, v, { time: 0.16, feedback: 0.22, wet: 0.3 });
+            const t = ac.currentTime + 0.02;
+            note(ac, out, 1046.5, t, 0.35, 0.26, 'sine', 0.006);         // do
+            note(ac, out, 1567.98, t + 0.13, 0.55, 0.24, 'sine', 0.006); // sol
+            note(ac, out, 2093.0, t + 0.13, 0.4, 0.05, 'sine', 0.006);   // reflet
+        },
         // Œil d'aigle : « ping » de sonar très court, avec un souffle qui monte
         eagle(ac, v) {
             const out = chain(ac, v, { time: 0.13, feedback: 0.32, wet: 0.5 });
@@ -447,6 +475,7 @@
         case 'progress': setProgress(data); break;
         case 'result': addResult(data); break;
         case 'sound': play(data); break;
+        case 'session': setSession(data); break;
         case 'weaponHint': setWeaponHint(data); break;
         default: break;
         }

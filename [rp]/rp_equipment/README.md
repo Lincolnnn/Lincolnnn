@@ -29,6 +29,12 @@ serveur à chaque action. `PoliceOnly = false` pour l'ouvrir à tout le monde.
   plus de **4 m** du véhicule (`CloseDistance`), en montant dans un véhicule, en mourant ou en quittant le service.
   **Échap** ou ✕ le ferme aussi ; **Échap n'ouvre pas le menu pause du jeu** (bloqué jusqu'au relâchement de la
   touche, comme pour les tips civils).
+- **Onglets** ouvrables / refermables (crochet, comme Customiser équipement ; clic sur l'en-tête), avec un résumé à
+  droite (arme rangée, nombre de plots / fusées, jerrican plein…). **Arme longue** est ouvert par défaut ; les onglets
+  ouverts restent ouverts pendant la session. Ordre :
+  - **coffre** : **Arme longue** ; **Équipement** (seulement s'il y en a pour ce véhicule) ; puis **Affaires** (un
+    titre, pas un onglet) avec deux onglets : **Matériel** (plots, fusées, pistolet radar, herse) et **Jerrycan** ;
+  - **portières avant** : **Arme longue** ; **Équipement** (s'il y en a) ; **Fusées de détresse** (celles de l'avant).
 - **Équipement** : les pièces EUP de la **catégorie du véhicule** (voir ci-dessous), à **mettre** et **retirer** de sa
   tenue. Une pièce portée est cochée (bouton « Retirer »). En la retirant, ce que le policier portait avant revient.
   Seules les pièces de son personnage (homme / femme) sont proposées.
@@ -168,8 +174,12 @@ menu** (jamais ceux du décor).
 
 **Fusées de détresse** (`WEAPON_FLARE`, posées au sol avec `rp_flares`)
 - Rangeables **comme les armes longues** : **« Ranger 1 »** / **« Tout ranger »** (celles que le policier a sur lui) et
-  **« Prendre 1 »** / **« Prendre tout »**. **20 au maximum** par coffre (`Stock.Flares.Max`), aucune d'origine (les
-  10 de départ viennent de l'équipement de service de `rp_interact`), 25 au maximum sur soi.
+  **« Prendre 1 »** / **« Prendre tout »**, 25 au maximum sur soi.
+- **Coffre** (onglet Matériel) : **10 au départ**, **15 au maximum** (`Stock.Flares.Default`, `Max`).
+- **À l'avant** (portières avant, onglet Fusées de détresse) : **5 au départ**, **5 au maximum** (`FrontDefault`,
+  `FrontMax` ; 0 : aucune à l'avant). Séparées de celles du coffre.
+- Coffres déjà enregistrés avant ce changement : remis une fois à 10 au coffre (ou gardés s'il y en avait plus, 15 au
+  plus) et 5 à l'avant. `/restock` remet 15 au coffre et 5 à l'avant.
 - Le menu affiche le nombre dans le coffre et sur le policier, mis à jour pour tous ceux qui ont ce coffre ouvert.
 
 ## Configuration (`config.lua`)

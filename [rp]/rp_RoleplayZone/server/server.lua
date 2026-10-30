@@ -543,3 +543,21 @@ RegisterCommand('sceneclear', function(src)
 end, true)
 
 GlobalState.rpScenes = {} -- démarrage : aucune scène
+
+-- =========================================================================
+-- SESSIONS : /sessionon, /sessionoff -> message pour TOUS les joueurs (en haut au milieu, son de message reçu)
+-- =========================================================================
+local SESSION = Config.Session or {}
+local function sessionCommand(def, kind)
+    if not def or not def.Command or def.Command == '' then return end
+    RegisterCommand(def.Command, function(src)
+        if src ~= 0 and not IsPlayerAceAllowed(src, SESSION.Ace or 'rpsession') and not isAdmin(src) then
+            return TriggerClientEvent('rp_scene:session', src, { denied = true })
+        end
+        TriggerClientEvent('rp_scene:session', -1, { kind = kind, title = def.Title, text = def.Text,
+            duration = SESSION.Duration or 12000 })
+        print(('[RoleplayZone] %s : %s'):format(def.Command, def.Text or ''))
+    end, false)
+end
+sessionCommand(SESSION.On, 'on')
+sessionCommand(SESSION.Off, 'off')

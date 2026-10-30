@@ -55,6 +55,18 @@ SceneConfig = {
     ZoneBlip = { Color = 0, Alpha = 90 }, -- 0 : blanc
     Sounds = { Volume = 0.45 },    -- 0 à 1 : sons d'entrée / sortie de zone et de l'œil d'aigle (générés par l'interface)
 
+    -- SESSIONS : /sessionon et /sessionoff affichent à TOUS les joueurs un message en haut au milieu (comme l'entrée dans
+    -- une zone de recherche), avec un son de message reçu, pendant Duration ms. Réservé à la permission ACE Ace (ex.
+    -- add_ace group.admin rpsession allow) ou AdminAce ; la console du serveur peut aussi.
+    Session = {
+        Ace = 'rpsession',
+        Duration = 12000,
+        On = { Command = 'sessionon', Title = 'DÉBUT DE SESSION',
+            Text = 'Début de la session : départ des patrouilles et début des interventions.' },
+        Off = { Command = 'sessionoff', Title = 'FIN DE SESSION',
+            Text = 'Fin de session : terminez vos interactions dans le calme, les patrouilles rentrent aux stations.' },
+    },
+
     -- DESCRIPTION VISUELLE (périmètre / objet) : affichée au-dessus aux policiers à moins de Distance m qui la voient
     -- (rien entre leur caméra et le lieu / l'objet : derrière un mur, elle n'apparaît pas)
     Look = { Distance = 10.0, CheckInterval = 250, Scale = 0.34, Color = { 245, 238, 215 } },

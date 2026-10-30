@@ -7,7 +7,9 @@
         tout droit uniquement. Devant le capot, le véhicule recule ; derrière le coffre, il avance.
       - Quelqu'un au volant : il SUIT la poussée, ses pédales sont coupées (seulement le volant) et le véhicule avance au
         pas chez lui (état du véhicule "vcPushed" : sens et poussée en cours ; une petite pression de pédale est
-        simulée pour que le jeu ne freine pas ; frein de parking de Riven desserré par le serveur).
+        simulée pour que le jeu ne freine pas).
+      - FREIN DE PARKING de Riven serré : l'option reste proposée et le joueur pousse (position, animation), mais le
+        véhicule NE BOUGE PAS (ni sans conducteur, ni au volant) tant que le frein est serré.
       - Pendant la poussée, une notification rappelle « S / X : arrêter de pousser » ; reculer (S) ou X : arrêt.
       - Arrêt automatique : personnage tombé, véhicule disparu ou parti trop vite.
     Performance : aucune boucle hors de la poussée ; à chaque image seulement pendant la poussée (et, au volant,
@@ -56,6 +58,12 @@ function VC.pushInfo(vehicle)
     return p
 end
 
+--- Frein de parking de Riven serré sur ce véhicule : poussée sans effet
+local function parked(vehicle)
+    return VC.riven and VC.rivenPark ~= nil and VC.rivenPark(vehicle) == true
+end
+VC.pushBlocked = parked -- pour les tests
+
 local function loadDict(dict)
     RequestAnimDict(dict)
     local timeout = GetGameTimer() + 2000
@@ -87,7 +95,8 @@ local function startPush(vehicle, side)
             if hasAnim and not IsEntityPlayingAnim(ped, anim.dict, anim.clip, 3) then
                 TaskPlayAnim(ped, anim.dict, anim.clip, 2.0, -8.0, -1, 35, 0, false, false, false)
             end
-            local forward = IsControlPressed(0, 32) -- avancer (sa touche habituelle) ; pas de direction
+            -- avancer (sa touche habituelle) ; pas de direction ; frein de parking serré : il pousse, rien ne bouge
+            local forward = IsControlPressed(0, 32) and not parked(vehicle)
             if forward ~= push.info.active then
                 push.info.active = forward
                 VC.setState(vehicle, 'vcPushed', { dir = push.info.dir, active = forward })
@@ -159,7 +168,7 @@ VC.on('frame', function(_, vehicle)
     DisableControlAction(0, 71, true) -- accélérer
     DisableControlAction(0, 72, true) -- freiner / reculer
     local dir = (tonumber(p.dir) or 1.0) >= 0 and 1.0 or -1.0
-    if not p.active then
+    if not p.active or parked(vehicle) then
         SetControlNormal(0, 71, 0.0) -- accélérer
         SetControlNormal(0, 72, 0.0) -- freiner / reculer
         return

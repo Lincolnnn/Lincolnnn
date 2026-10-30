@@ -351,6 +351,18 @@ RegisterCommand('mdc_offer_no', function() answerOffer(false) end, false)
 RegisterKeyMapping('mdc_offer_yes', 'MDC : accepter l\'appel (unité la plus proche)', 'keyboard', 'Y')
 RegisterKeyMapping('mdc_offer_no', 'MDC : refuser l\'appel (unité la plus proche)', 'keyboard', 'N')
 
+-- Messagerie entre unités : nouveau message (MDC ouvert ou non : notification en haut à droite et son si reçu, réglage
+-- « Notifier les messages des autres unités ») et nombre de non-lus (badge du bouton Messages)
+RegisterNetEvent('mdc:client:unitMessage', function(data)
+    if type(data) ~= 'table' then return end
+    data.notify = data.incoming == true and setting('notify', 'messages')
+    SendNUIMessage({ action = 'unitMessage', data = data })
+end)
+
+RegisterNetEvent('mdc:client:unitMessages', function(data)
+    if type(data) == 'table' then SendNUIMessage({ action = 'unitMessages', data = data }) end
+end)
+
 -- Changement de statut de l'unité du joueur : notification en haut à droite
 RegisterNetEvent('mdc:client:statusNotify', function(unit)
     if type(unit) ~= 'table' or not setting('notify', 'status') then return end

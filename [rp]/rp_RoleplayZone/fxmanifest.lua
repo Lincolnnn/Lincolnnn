@@ -17,7 +17,7 @@ lua54 'yes'
 name 'rp_RoleplayZone'
 author 'Lincolnnn'
 description 'Zones de recherche, périmètres et objets à fouiller, armes lâchées, œil d\'aigle - standalone, NUI Vanilla JS'
-version '1.6.4'
+version '1.7.0'
 
 ui_page 'html/index.html'
 
@@ -37,6 +37,7 @@ client_scripts {
     'client/eagle.lua',    -- œil d'aigle (onde radar, contours, caméra et flèche vers la zone)
     'client/weapon.lua',   -- mode civil : lâcher son arme (rappel, jeter / poser à la molette)
     'client/menu.lua',     -- menu (NUI), commande /scene
+    'client/session.lua',  -- messages de session (/sessionon, /sessionoff)
 }
 
 server_script 'server/server.lua'

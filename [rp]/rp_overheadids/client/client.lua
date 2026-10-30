@@ -3,8 +3,10 @@
     ------------------------
     Touche maintenue (OverheadConfig.Key, raccourci FiveM « +numeros ») : au-dessus de la tête des joueurs proches, leur
     NOM RP (/nomrp) en gros et, en dessous, leur numéro sur le serveur (ID) ; relâchée : ils disparaissent.
-    Performance : RIEN tant que la touche n'est pas maintenue (raccourci FiveM, aucune boucle) ; pendant l'appui, liste
-    des joueurs proches revue toutes les 250 ms et textes dessinés à chaque image.
+    /configtetes : « Maintenir touche » (affichés tant que la touche est maintenue) ou « Appuyer pour activer » (un
+    appui les affiche, un autre les retire) ; choix gardé chez chaque joueur.
+    Performance : RIEN tant que les noms ne sont pas affichés (raccourci FiveM, aucune boucle) ; pendant l'affichage,
+    liste des joueurs proches revue toutes les 250 ms et textes dessinés à chaque image.
 ]]
 
 local C = OverheadConfig
@@ -84,14 +86,63 @@ local function showLoop()
     end)
 end
 
+-- =========================================================================
+-- MODE (gardé chez chaque joueur) : 'hold' = maintenir la touche ; 'toggle' = un appui affiche, un autre retire.
+-- /configtetes ouvre le choix (petite fenêtre, souris ou flèches + Entrée).
+-- =========================================================================
+local KVP = 'rp_overheadids_mode'
+local function validMode(m) return m == 'hold' or m == 'toggle' end
+local mode = GetResourceKvpString(KVP)
+if not validMode(mode) then mode = validMode(C.DefaultMode) and C.DefaultMode or 'hold' end
+
 RegisterCommand('+' .. C.Command, function()
-    if held then return end
+    if mode == 'toggle' then
+        if held then held = false return end
+    elseif held then
+        return
+    end
     held = true
     showLoop()
 end, false)
 
 RegisterCommand('-' .. C.Command, function()
-    held = false
+    if mode == 'hold' then held = false end
 end, false)
 
-RegisterKeyMapping('+' .. C.Command, 'Afficher les noms RP et numéros des joueurs (maintenir)', 'keyboard', C.Key or 'HOME')
+RegisterKeyMapping('+' .. C.Command, 'Afficher les noms RP et numéros des joueurs', 'keyboard', C.Key or 'HOME')
+
+local function sendTheme(theme, color)
+    SendNUIMessage({ action = 'uiTheme', theme = theme == 'night' and 'night' or 'day', color = color or 'green' })
+end
+AddEventHandler('mdc:uiTheme', sendTheme)
+
+RegisterCommand(C.ConfigCommand or 'configtetes', function()
+    local mdc = GlobalState.mdcResource or 'rp_mdc'
+    if GetResourceState(mdc) == 'started' then
+        local ok, theme = pcall(function() return exports[mdc]:uiTheme() end)
+        local okColor, color = pcall(function() return exports[mdc]:uiNightColor() end)
+        if ok then sendTheme(theme, okColor and color or 'green') end
+    end
+    SendNUIMessage({ action = 'open', mode = mode, key = C.KeyLabel or C.Key or 'HOME', command = C.ConfigCommand or 'configtetes' })
+    SetNuiFocus(true, true)
+end, false)
+
+RegisterNUICallback('setMode', function(data, cb)
+    cb({ ok = true })
+    SetNuiFocus(false, false)
+    local m = type(data) == 'table' and data.mode or nil
+    if not validMode(m) then return end
+    mode = m
+    SetResourceKvp(KVP, m)
+    held = false -- changement de mode : affichage remis à zéro
+    TriggerEvent('chat:addMessage', { args = { 'Noms au-dessus des têtes', m == 'toggle'
+        and 'Appuyer pour activer : un appui affiche les noms, un autre les retire.'
+        or 'Maintenir touche : les noms s\'affichent tant que la touche est maintenue.' } })
+end)
+
+RegisterNUICallback('close', function(_, cb)
+    cb({ ok = true })
+    SetNuiFocus(false, false)
+end)
+
+OverheadMode = function() return mode end -- pour les tests

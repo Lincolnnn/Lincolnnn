@@ -105,6 +105,18 @@ Dans le **secteur** d'une scène (zone / lieu / objet + **70 m**), l'œil de `rp
 **« Supprimer »** (véhicules, objets) ni **« Supprimer le props »**, et son serveur les refuse (export
 `isProtectedArea(coords)`, client et serveur).
 
+## Sessions : `/sessionon`, `/sessionoff`
+
+Un message pour **tous les joueurs**, en haut au milieu de l'écran (même style que l'entrée dans une zone de
+recherche, en dessous si une zone est déjà affichée), avec un **son de message reçu**, pendant 12 s
+(`Session.Duration`) :
+- **`/sessionon`** : « Début de la session : départ des patrouilles et début des interventions. »
+- **`/sessionoff`** : « Fin de session : terminez vos interactions dans le calme, les patrouilles rentrent aux
+  stations. »
+
+Réservé à la permission ACE **`rpsession`** (ex. `add_ace group.admin rpsession allow`) ou à `AdminAce` ; la console du
+serveur peut aussi. Textes, titres et commandes : `Session` dans `config.lua`.
+
 ## Configuration (`config.lua`)
 
 | Clé | Rôle |
