@@ -326,8 +326,19 @@
         const res = await post('getAgencies');
         if (!res || !res.ok) return false;
         state.agencies = toArray(res.agencies);
+        state.perms = res.perms || {};
+        applyPerms();
         if (res.current && agencyInfo(res.current)) state.agency = res.current; // NUI rechargée, choix déjà fait
         return true;
+    }
+
+    // Permissions du joueur (rôle Discord, serveur) : tag SUP. réservé aux admins
+    function applyPerms() {
+        const sup = unitForm && unitForm.querySelector('select[name="tagType"] option[value="sup"]');
+        if (!sup) return;
+        const allowed = !!(state.perms && state.perms.supervisor);
+        sup.hidden = !allowed;
+        sup.disabled = !allowed;
     }
 
     const shieldIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6 4.6 5.5v5.8c0 4.6 3.1 8.7 7.4 10.1 4.3-1.4 7.4-5.5 7.4-10.1V5.5L12 2.6Z"/></svg>';
@@ -339,12 +350,12 @@
 
     function agencyCardsHtml(current) {
         return state.agencies.map((a) => `
-            <button type="button" class="agency-card ${a.key === current ? 'active' : ''}" data-agency="${esc(a.key)}">
+            <button type="button" class="agency-card ${a.key === current ? 'active' : ''} ${a.locked ? 'locked' : ''}" data-agency="${esc(a.key)}"${a.locked ? ' data-locked="1"' : ''}>
                 <span class="agency-card-icon ${AGENCY_LOGOS[a.key] ? 'has-logo' : ''}">${agencyIconHtml(a)}</span>
                 <span class="agency-card-text">
                     <b>${esc(a.key === 'generic' ? 'Mobile Data Computer' : a.label)}</b>
                     <small>${esc(a.key === 'generic' ? 'Générique' : a.short)}</small>
-                    <span>${esc(AGENCY_DESC[a.police ? 'police' : 'generic'])}</span>
+                    <span>${esc(a.locked ? 'Réservé aux membres recrutés.' : AGENCY_DESC[a.police ? 'police' : 'generic'])}</span>
                 </span>
                 ${a.key === current ? '<span class="agency-card-check">Actuel</span>' : ''}
             </button>`).join('');
@@ -392,6 +403,7 @@
 
     $('#agencyCards').addEventListener('click', (e) => {
         const card = e.target.closest('[data-agency]');
+        if (card && card.dataset.locked) return toast('Ce MDC est réservé aux membres recrutés.', 'error');
         if (card) chooseAgency(card.dataset.agency, false);
     });
 
@@ -399,6 +411,7 @@
     $('#settingsAgencyCards').addEventListener('click', (e) => {
         const card = e.target.closest('[data-agency]');
         if (!card || card.dataset.agency === state.agency) return;
+        if (card.dataset.locked) return toast('Ce MDC est réservé aux membres recrutés.', 'error');
         if (!card.dataset.confirm) {
             $$('#settingsAgencyCards [data-confirm]').forEach((c) => { delete c.dataset.confirm; c.classList.remove('confirm'); });
             card.dataset.confirm = '1';
@@ -1305,6 +1318,12 @@
                 </div>`;
         }
 
+        // Admins : supprimer l'appel de la liste (en cours ou terminé)
+        if (state.perms && state.perms.deleteCalls) {
+            actions += `<div class="toolbar call-actions"><span class="grow"></span>
+                <button type="button" class="btn btn-danger" data-call-action="delete">Supprimer de la liste</button></div>`;
+        }
+
         return `
             <div class="sheet-title"><span>${esc(c.number)} — ${esc(c.title)}</span>${callFlag(CALL_STATUS, c.status)}</div>
             ${actions}
@@ -1581,6 +1600,25 @@
                     state.noteDraft = '';
                     refreshInterventions();
                 }
+                return;
+            }
+
+            // "Supprimer de la liste" (admins) : deuxième clic pour confirmer
+            if (action === 'delete' && !actionBtn.dataset.confirm) {
+                actionBtn.dataset.confirm = '1';
+                actionBtn.textContent = 'Confirmer la suppression ?';
+                setTimeout(() => {
+                    if (!actionBtn.isConnected) return;
+                    delete actionBtn.dataset.confirm;
+                    actionBtn.textContent = 'Supprimer de la liste';
+                }, 3000);
+                return;
+            }
+            if (action === 'delete') {
+                actionBtn.disabled = true;
+                const res = await callRequest('interventionAction', { id: call.id, action }, 'Intervention supprimée de la liste.');
+                actionBtn.disabled = false;
+                if (res) { deselectCall(); refreshInterventions(); }
                 return;
             }
 

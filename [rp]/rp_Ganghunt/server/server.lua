@@ -6,11 +6,25 @@
     pour qu'aucun ennemi ne reste sur la carte.
 ]]
 
+local Config = GanghuntConfig
+
+--- Accès à /ganghunt : permission ACE Config.AdminAce (admins), ou tout le monde si AdminAce = false
+local function allowed(src)
+    return not Config.AdminAce or IsPlayerAceAllowed(src, Config.AdminAce)
+end
+
+-- Le client demande avant d'ouvrir le menu / de lancer une chasse
+RegisterNetEvent('rp_ganghunt:access', function()
+    local src = source
+    TriggerClientEvent('rp_ganghunt:access', src, allowed(src) == true)
+end)
+
 local tracked = {} -- [source] = { [netId] = true }
 local MAX_TRACKED = 200 -- par joueur (10 vagues de 10 + véhicules : largement assez)
 
 RegisterNetEvent('rp_ganghunt:track', function(netId)
     local src = source
+    if not allowed(src) then return end
     netId = tonumber(netId)
     if not netId then return end
     local list = tracked[src] or {}

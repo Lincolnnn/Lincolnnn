@@ -343,23 +343,18 @@ local lastWrite, lastInspect = {}, {}
 
 local function on(name, fn) Handlers[name] = fn end
 
--- ---- Permissions (Config.Permissions : identifiants Steam hex) ----
-local allowed = {}
-for _, id in ipairs(Config.Permissions and Config.Permissions.Players or {}) do
-    id = tostring(id):lower():gsub('%s', '')
-    if not id:find(':', 1, true) then id = 'steam:' .. id end -- "11000013ca597a9" accepté aussi
-    allowed[id] = true
+-- ---- Permissions (Config.Permissions : catégories réservées à une ACE, d'après le rôle Discord) ----
+--- Le joueur a-t-il accès à cette catégorie du menu ('equipment', 'car', 'weather') ?
+local function hasPermission(src, section)
+    local ace = (Config.Permissions and Config.Permissions.Sections or {})[section]
+    if not ace then return true end -- false / absente : ouverte à tous
+    if ace == true then ace = 'rp.admin' end -- ancien format (true = réservée) : admins
+    return IsPlayerAceAllowed(src, ace) == true
 end
 
---- Le joueur a-t-il accès à cette catégorie du menu ('equipment', 'car') ?
-local function hasPermission(src, section)
-    if not (Config.Permissions and Config.Permissions.Enabled) then return true end -- désactivées : accès pour tous
-    local sections = Config.Permissions.Sections or {}
-    if not sections[section] then return true end
-    for _, id in ipairs(GetPlayerIdentifiers(src) or {}) do
-        if allowed[id:lower()] then return true end
-    end
-    return false
+--- Peut choisir le secteur de jeu (display du MDC) : permission ACE Config.SectorAce (admins), false = tout le monde
+local function sectorAllowed(src)
+    return not Config.SectorAce or IsPlayerAceAllowed(src, Config.SectorAce) == true
 end
 
 --- Catégories verrouillées pour ce joueur : { equipment = true, … }
@@ -456,7 +451,22 @@ on('getMenuState', function(src)
     local unit = policeUnit(src)
     return { ok = true, activeName = active and active.name or nil, police = unit and unit.name or nil,
         agency = unit and unit.agencyShort or nil, agencyLabel = unit and unit.agencyLabel or nil,
-        locked = lockedSections(src) }
+        locked = lockedSections(src), sectorAllowed = sectorAllowed(src) }
+end)
+
+-- ---- Secteur de jeu (menu > Police > Display MDC) : choisi par les admins (Config.SectorAce), affiché sur le
+-- display du MDC (état du joueur « policeSector », posé ici par le serveur) ----
+on('setSector', function(src, p)
+    local text = type(p.sector) == 'string' and p.sector or ''
+    text = text:gsub('%c', ' '):gsub('%s+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+    if utf8.len(text) and utf8.len(text) > 40 then text = text:sub(1, utf8.offset(text, 41) - 1) end
+    if not sectorAllowed(src) then
+        Player(src).state:set('policeSector', '', true) -- ancien secteur gardé chez le joueur : retiré
+        if p.silent then return { ok = true, sector = '' } end
+        return { ok = false, error = 'Seuls les admins peuvent choisir le secteur de jeu.' }
+    end
+    Player(src).state:set('policeSector', text, true)
+    return { ok = true, sector = text }
 end)
 
 -- ---- Profils civils (uniquement ceux du joueur) ----

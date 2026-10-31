@@ -165,8 +165,24 @@ VC.on('seat', function(_, vehicle, seat)
     if seat == -1 then updateState(vehicle, GetVehicleEngineHealth(vehicle)) end
 end)
 
+--- Réparation complète par un autre script (vMenu « Repair », mécanicien, SetVehicleFixed…) : Riven Impact Dynamics ne
+--- s'en aperçoit qu'au choc suivant (direction, suspension… encore abîmées) ; le serveur lui demande une réparation
+--- complète tout de suite. Une fois toutes les 5 s au plus par véhicule (sa propre réparation remet aussi la santé à 1000).
+local fullRepairAt = {}
+local function fullRepaired(vehicle)
+    local now = GetGameTimer()
+    if (fullRepairAt[vehicle] or 0) > now or not NetworkGetEntityIsNetworked(vehicle) then return end
+    fullRepairAt[vehicle] = now + 5000
+    TriggerServerEvent('rp_vehiclecontrol:fullRepair', VehToNet(vehicle))
+end
+
 VC.on('tick', function(_, vehicle, dt)
     local engine, body = GetVehicleEngineHealth(vehicle), GetVehicleBodyHealth(vehicle)
+    -- moteur ET carrosserie remis à neuf d'un coup, alors que l'un des deux était abîmé : réparation complète
+    if VC.riven and last.vehicle == vehicle and engine >= 999.0 and body >= 999.0
+        and (last.engine < 990.0 or last.body < 990.0) then
+        fullRepaired(vehicle)
+    end
     if VC.seat ~= -1 then
         last.engine, last.body = engine, body
         return

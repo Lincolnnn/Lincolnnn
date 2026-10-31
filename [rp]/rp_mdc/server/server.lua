@@ -91,6 +91,14 @@ local Config = {
     OfferTimeout = 30000,   -- ms pour répondre ; refus / sans réponse : l'unité suivante est proposée
     SupervisorTag = 'SUP.', -- tag des superviseurs (jamais proposés comme unité la plus proche)
 
+    -- PERMISSIONS (rôles Discord -> ACE par rp_permissions, voir permissions.cfg ; false = tout le monde) :
+    --   AgencyAce : MDC réservés (WSP : membres recrutés et admins ; les joueurs non-officiels ont le KCSO et le civil)
+    --   SupervisorAce : mettre le tag « SUP. » (superviseur) à une unité
+    --   DeleteCallAce : supprimer une intervention / un incident de la liste
+    AgencyAce = { wsp = 'rp.membre' },
+    SupervisorAce = 'rp.admin',
+    DeleteCallAce = 'rp.admin',
+
     -- Débit (octets/s) des réponses "latentes" (modèles et contenu des rapports,
     -- qui peuvent dépasser la taille d'un événement classique)
     LatentBps = 200000,
@@ -113,6 +121,11 @@ end
 local PlayerAgency = {} -- [source] = clé du MDC choisi (nil : pas encore choisi)
 
 local function agencyOf(src) return PlayerAgency[src] end
+
+--- Permission ACE (false / nil dans le config : tout le monde)
+local function aceAllowed(src, ace) return not ace or IsPlayerAceAllowed(src, ace) == true end
+--- Ce joueur peut-il utiliser ce MDC (Config.AgencyAce) ?
+local function agencyAllowed(src, key) return aceAllowed(src, (Config.AgencyAce or {})[key]) end
 local function isPoliceAgency(key) return AGENCIES[key] ~= nil and AGENCIES[key].police == true end
 
 --- Polices d'un appel : texte "wsp", "kcso" ou "wsp+kcso" (appel commun) -> { wsp = true, … }
@@ -1098,10 +1111,16 @@ local function isSupervisor(unit)
     return tag == Config.SupervisorTag:upper():gsub('[%.%s]', '')
 end
 
-local function buildUnit(p)
+--- `src` : auteur ; `current` : tag actuel de l'unité (modification : un tag SUP. déjà là peut rester)
+local function buildUnit(p, src, current)
     local name = clean(p.name, 30)
     local tag, tagErr = buildTag(p)
     if not tag then return nil, tagErr end
+    local sup = Config.SupervisorTag:upper():gsub('[%.%s]', '')
+    local function isSup(t) return (t or ''):upper():gsub('[%.%s]', '') == sup end
+    if isSup(tag) and not isSup(current) and not aceAllowed(src, Config.SupervisorAce) then
+        return nil, 'Le tag SUP. (superviseur) est réservé aux admins.'
+    end
     if name == '' then return nil, 'Le nom de l\'unité est obligatoire.' end
     if not TAG_COLORS[p.color] then return nil, 'Choisissez la couleur du tag.' end
     return { name = name, tag = tag, color = p.color }
@@ -1116,7 +1135,8 @@ end)
 RegisterMDCCallback('createUnit', function(src, payload)
     local agency = agencyOf(src)
     if not isPoliceAgency(agency) then return { ok = false, error = NOT_POLICE } end
-    local unit, err = buildUnit(payload)
+    if not agencyAllowed(src, agency) then return { ok = false, error = 'MDC réservé aux membres recrutés.' } end
+    local unit, err = buildUnit(payload, src, nil)
     if not unit then return { ok = false, error = err } end
     unit.agency = agency -- l'unité appartient à la police du MDC de son créateur
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
@@ -1141,7 +1161,7 @@ RegisterMDCCallback('updateUnit', function(src, payload)
     local unit = findUnit(payload.id)
     if not unit or unit.agency ~= agencyOf(src) then return { ok = false, error = 'Unité introuvable.' } end
     if PlayerUnit[src] ~= unit.id then return { ok = false, error = NOT_MEMBER } end
-    local data, err = buildUnit(payload)
+    local data, err = buildUnit(payload, src, unit.tag)
     if not data then return { ok = false, error = err } end
 
     unit.name, unit.tag, unit.color = data.name, data.tag, data.color
@@ -1154,6 +1174,7 @@ end)
 RegisterMDCCallback('joinUnit', function(src, payload)
     local unit = findUnit(payload.id)
     if not unit or unit.agency ~= agencyOf(src) then return { ok = false, error = 'Unité introuvable.' } end
+    if not agencyAllowed(src, unit.agency) then return { ok = false, error = 'MDC réservé aux membres recrutés.' } end
     if rpNameOf(src) == '' then
         return { ok = false, error = 'Définissez d\'abord votre nom RP (en haut à gauche, ou /nomrp dans le chat) pour rejoindre une unité.' }
     end
@@ -1390,14 +1411,21 @@ end)
 RegisterMDCCallback('getAgencies', function(src)
     local list = {}
     for _, a in ipairs(Config.Agencies) do
-        list[#list + 1] = { key = a.key, label = a.label, short = a.short, police = a.police == true }
+        list[#list + 1] = { key = a.key, label = a.label, short = a.short, police = a.police == true,
+            locked = not agencyAllowed(src, a.key) or nil }
     end
-    return { ok = true, agencies = list, current = agencyOf(src) }
+    -- MDC actuel plus permis (rang changé) : à rechoisir
+    if agencyOf(src) and not agencyAllowed(src, agencyOf(src)) then PlayerAgency[src] = nil end
+    return { ok = true, agencies = list, current = agencyOf(src),
+        perms = { supervisor = aceAllowed(src, Config.SupervisorAce), deleteCalls = aceAllowed(src, Config.DeleteCallAce) } }
 end)
 
 RegisterMDCCallback('setAgency', function(src, payload)
     local key = payload.agency
     if not AGENCIES[key] then return { ok = false, error = 'MDC inconnu.' } end
+    if not agencyAllowed(src, key) then
+        return { ok = false, error = ('Le MDC %s est réservé aux membres recrutés.'):format(AGENCIES[key].short or AGENCIES[key].label) }
+    end
     if PlayerAgency[src] == key then return { ok = true, agency = key } end
     PlayerAgency[src] = key
     -- Unité d'une autre police (ou MDC générique) : quittée
@@ -1777,6 +1805,24 @@ end)
 RegisterMDCCallback('interventionAction', function(src, payload)
     local call = findIntervention(payload.id)
     if not call then return { ok = false, error = 'Intervention introuvable.' } end
+    -- Supprimer de la liste (en cours ou terminée) : admins seulement (Config.DeleteCallAce)
+    if payload.action == 'delete' then
+        if not aceAllowed(src, Config.DeleteCallAce) then
+            return { ok = false, error = 'Seuls les admins peuvent supprimer une intervention.' }
+        end
+        for unitId in pairs(Offers[call.id] and Offers[call.id].pending or {}) do
+            local pendingUnit = findUnit(unitId)
+            if pendingUnit then closeOffer(call, pendingUnit, 'closed') end
+        end
+        Offers[call.id] = nil
+        for i, c in ipairs(Interventions) do
+            if c == call then table.remove(Interventions, i) break end
+        end
+        print(('^5[MDC]^0 %s supprimé(e) de la liste par %s [%s]'):format(call.number or ('#' .. call.id), agentName(src),
+            GetPlayerName(src) or '?'))
+        pushInterventions()
+        return { ok = true, deleted = true }
+    end
     if call.closed then return { ok = false, error = 'Cette intervention est terminée.' } end
 
     local unit = findUnit(PlayerUnit[src])

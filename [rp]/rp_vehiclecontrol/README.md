@@ -489,6 +489,12 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
    serveur n'utilise pas ces bulles (nos messages passent par le chat).
 4. `server.cfg` : `ensure riven-impact-dynamics` (de préférence avant `ensure rp_vehiclecontrol`).
 
+**Réparations avec Riven** : Riven ne voit une réparation faite par un autre script (vMenu « Repair », mécanicien,
+`SetVehicleFixed`) qu'au **choc suivant** (direction, suspension… restaient abîmées). Ce script la repère (moteur et
+carrosserie remis à neuf d'un coup alors que l'un était abîmé, véhicule où l'on est) et demande aussitôt au serveur une
+**réparation complète de Riven** (son export `RepairVehicle`) : tous ses dégâts sont effacés. Joueur à 10 m au plus, une
+fois toutes les 5 s par véhicule. `/repair` (moteur seul) répare aussi le **moteur** chez Riven (`RepairComponents`).
+
 **Qui fait quoi** (`config.lua` : `Riven = { Mode = 'auto' }`, détecté tout seul) :
 
 | Riven | Ce script |

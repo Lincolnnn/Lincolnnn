@@ -557,10 +557,12 @@
                     { kind: 'section', label: 'Display MDC' },
                     { kind: 'input', key: 'sector', label: 'Secteur', value: (d.policeProfile || {}).sector || '', max: 40,
                         placeholder: 'ex : Downtown, I-5 Nord…',
+                        ...(d.sectorAllowed ? {} : { disabled: true, why: 'Réservé aux admins : ce sont eux qui choisissent le secteur de jeu.', right: 'Admins' }),
                         desc: 'Entrée : écrire le secteur (zone de jeu), affiché sur le display du MDC. Entrée pour valider, Échap pour annuler.',
                         onChange: async (value) => {
                             const res = await post('setPoliceProfile', { sector: value });
                             if (res && res.ok) menu.data.policeProfile = res.profile;
+                            else toast(res?.error || 'Action impossible.', 'error');
                             rerender();
                         } },
                     { kind: 'info', label: d.police ? `Œil (${targetKey}) : inspections, fouilles, détails notoires.`

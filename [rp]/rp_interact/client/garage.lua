@@ -160,6 +160,14 @@ local function spawn(entry)
         SetTimeout(2000, function() applyTintAndPlate(vehicle, entry, plate) end)
     end
     lastVehicle = vehicle
+    -- véhicule du menu : signalé au serveur (protégé du « Clear Area » de vMenu, gardé si son joueur se déconnecte)
+    CreateThread(function()
+        local untilTime = GetGameTimer() + 3000
+        while DoesEntityExist(vehicle) and not NetworkGetEntityIsNetworked(vehicle) and GetGameTimer() < untilTime do Wait(50) end
+        if DoesEntityExist(vehicle) and NetworkGetEntityIsNetworked(vehicle) then
+            TriggerServerEvent('rp_interact:vehicleSpawned', VehToNet(vehicle))
+        end
+    end)
     if options.warpInto then TaskWarpPedIntoVehicle(ped, vehicle, -1) end
     RPI.notify(('Véhicule : %s'):format(entry.label), 'success')
 end
@@ -378,4 +386,31 @@ RegisterNUICallback('openEup', function(_, cb)
     cb({ ok = true })
     if RPI.closeMenu then RPI.closeMenu() end
     if RPI.openEup then RPI.openEup() end
+end)
+
+
+-- =========================================================================
+-- VÉHICULES DU MENU PROTÉGÉS DU « CLEAR AREA » DE vMenu
+--   vMenu (Divers > Nettoyer la zone) fait un ClearAreaOfEverything de 100 m chez TOUS les joueurs : chaque joueur
+--   supprime les véhicules qu'il contrôle et qui ne sont pas « de mission ». Un véhicule passe d'un joueur à l'autre
+--   (le plus proche le contrôle) et n'est « de mission » que chez celui qui l'a créé : il pouvait disparaître.
+--   Ici, chaque joueur marque « de mission » les véhicules du menu qu'il contrôle (état rpiSpawned), toutes les 2 s,
+--   et tout de suite quand un « Clear Area » est lancé. Coût : un passage sur les véhicules proches toutes les 2 s.
+-- =========================================================================
+local function protectSpawned()
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        if NetworkGetEntityIsNetworked(vehicle) and NetworkHasControlOfEntity(vehicle)
+            and not IsEntityAMissionEntity(vehicle) and Entity(vehicle).state.rpiSpawned then
+            SetEntityAsMissionEntity(vehicle, true, true)
+        end
+    end
+end
+
+RegisterNetEvent('vMenu:ClearArea', function() protectSpawned() end)
+
+CreateThread(function()
+    while true do
+        Wait(2000)
+        protectSpawned()
+    end
 end)

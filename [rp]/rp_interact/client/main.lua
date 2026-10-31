@@ -387,17 +387,20 @@ local function policeProfile()
     return { sector = cleanSector(GetResourceKvpString(KVP_SECTOR)) }
 end
 
-local function publishPoliceProfile(profile)
-    LocalPlayer.state:set('policeSector', profile.sector, true)
-end
-publishPoliceProfile(policeProfile()) -- à la connexion / au redémarrage de la ressource
+-- Secteur publié par le SERVEUR (seulement pour les admins : Config.SectorAce) : à la connexion, le dernier choisi
+CreateThread(function()
+    Wait(3000)
+    RPI.request('setSector', { sector = policeProfile().sector, silent = true }, function() end)
+end)
 
 RegisterNUICallback('setPoliceProfile', function(data, cb)
     data = type(data) == 'table' and data or {}
-    local profile = { sector = cleanSector(data.sector) }
-    SetResourceKvp(KVP_SECTOR, profile.sector)
-    publishPoliceProfile(profile)
-    cb({ ok = true, profile = profile })
+    local sector = cleanSector(data.sector)
+    RPI.request('setSector', { sector = sector }, function(res)
+        if not res or not res.ok then return cb({ ok = false, error = res and res.error or 'Action impossible.' }) end
+        SetResourceKvp(KVP_SECTOR, res.sector or sector)
+        cb({ ok = true, profile = { sector = res.sector or sector } })
+    end)
 end)
 
 local closeMenu
@@ -423,6 +426,7 @@ local function openMenu(view)
             civilMode = RPI.civilMode and RPI.civilMode() or false,
             tipsManual = RPI.tipsManual and RPI.tipsManual() or false,
             policeProfile = policeProfile(),
+            sectorAllowed = res and res.sectorAllowed or false, -- secteur de jeu : admins (Config.SectorAce)
             locked = res and res.locked or {},  -- catégories réservées (config.lua : Permissions)
         } })
     end)

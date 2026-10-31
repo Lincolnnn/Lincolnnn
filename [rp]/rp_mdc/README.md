@@ -47,8 +47,12 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
 
 1. Copiez le dossier **`[rp]`** tel quel dans `resources/` (FiveM trouve les ressources dans les dossiers entre
    crochets).
-2. Dans `server.cfg`, démarrez celles que vous voulez, le MDC en premier :
+2. Dans `server.cfg`, démarrez celles que vous voulez, **rp_permissions** (rôles Discord, voir
+   [son README](../rp_permissions/README.md) : token du bot en convar, permissions.cfg) puis le MDC en premier :
    ```
+   set rp_discord_token "TOKEN_DU_BOT"   # jamais dans un fichier du dépôt
+   exec @vMenu/config/permissions.cfg
+   ensure rp_permissions
    ensure rp_chat
    ensure rp_mdc
    # ensure riven-impact-dynamics   (facultatif, script payant : AVANT rp_vehiclecontrol)
@@ -135,7 +139,7 @@ jeu, HUD en haut de l'écran. Volontairement absent du MDC et du `/tuto`.
 | MDC | Pages | Pour qui |
 |---|---|---|
 | **Générique** | Interventions, Créations, Rapports, Paramètres | rôleplay civil : voir **tous** les appels (sans les rejoindre), **modifier directement** les appels (interventions) depuis la page Interventions, créer identités, véhicules et appels |
-| **Washington State Patrol** | Unités, Interventions, Recherches, Rapports, Paramètres | policiers WSP |
+| **Washington State Patrol** | Unités, Interventions, Recherches, Rapports, Paramètres | policiers WSP : **membres recrutés et admins** seulement (carte grisée pour les autres) |
 | **King County Sheriff Office** | Unités, Interventions, Recherches, Rapports, Paramètres | policiers KCSO |
 
 Les deux MDC de police sont **séparés mais liés** : chacun a **ses unités, ses appels et ses recherches** ; les **BOLOs sont communs** ;
@@ -408,7 +412,18 @@ Voir `data/LISEZMOI.txt`. ⚠ Ne remplacez pas le dossier `data/` lors d'une mis
 
 Cherchez `>>> BASE DE DONNÉES` dans `server/server.lua` : seules les fonctions `loadStore()` / `saveStore()` sont à remplacer.
 
-## Permissions (optionnel)
+## Permissions (rôles Discord)
+
+Les rôles Discord (**Admin**, **Membre**, **Joueur non-officiel**) donnent un groupe ACE à chaque joueur (ressource
+`rp_permissions`, repères `rp.admin` / `rp.membre` dans `permissions.cfg`). Dans `Config` (`server/server.lua`) :
+
+| Réglage | Par défaut | Effet |
+|---|---|---|
+| `AgencyAce` | `{ wsp = 'rp.membre' }` | MDC réservés : la **WSP** aux membres recrutés et aux admins ; les joueurs non-officiels ont le **KCSO** et le MDC **civil** (carte de la WSP grisée, serveur qui refuse) |
+| `SupervisorAce` | `'rp.admin'` | tag **SUP.** (superviseur) d'une unité : admins seulement (option masquée pour les autres ; une unité déjà SUP. le garde) |
+| `DeleteCallAce` | `'rp.admin'` | bouton **Supprimer de la liste** dans le détail d'une intervention / d'un incident (en cours ou terminé, deux clics) : admins seulement |
+
+`false` : tout le monde. Optionnel, en plus : accès au MDC lui-même par ACE :
 
 Dans `server/server.lua`, passez `UseAcePermission = true` puis dans `server.cfg` :
 

@@ -520,6 +520,20 @@ S.on('spawnVehicle', function(src, p)
     return { ok = true, vehicle = entry }
 end)
 
+-- Véhicule apparu par le menu (client/garage.lua) : état rpiSpawned (protégé du « Clear Area » de vMenu par les
+-- joueurs qui le contrôlent) et gardé par le serveur si son joueur se déconnecte. Seulement un véhicule que ce joueur
+-- contrôle, apparu à moins de 30 m de lui.
+RegisterNetEvent('rp_interact:vehicleSpawned', function(netId)
+    local src = source
+    local entity = type(netId) == 'number' and NetworkGetEntityFromNetworkId(netId) or 0
+    if not entity or entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 2 then return end
+    if NetworkGetEntityOwner(entity) ~= src then return end
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(entity)) > 30.0 then return end
+    Entity(entity).state:set('rpiSpawned', true, true)
+    SetEntityOrphanMode(entity, 2) -- gardé quand son joueur part (supprimé par /dv, l'œil, un nouveau spawn…)
+end)
+
 -- =========================================================================
 -- RADIO DU VÉHICULE
 -- =========================================================================

@@ -417,6 +417,8 @@ body.dragging, body.dragging * { user-select: none !important; }
 }
 .agency-card:hover { background: var(--card-2); border-color: var(--stroke-2); }
 .agency-card.active { border-color: rgba(var(--accent-rgb), .7); background: rgba(var(--accent-rgb), .08); cursor: default; }
+.agency-card.locked { opacity: .5; cursor: not-allowed; filter: grayscale(.6); }
+.agency-card.locked:hover { background: var(--card); border-color: var(--stroke); }
 .agency-card.confirm { border-color: rgba(var(--warn-rgb), .7); background: rgba(var(--warn-rgb), .07); }
 .agency-card-icon { width: 30px; height: 30px; color: var(--accent); }
 .agency-card-icon.has-logo { width: 46px; height: 46px; }

@@ -4,6 +4,9 @@
 ]]
 GanghuntConfig = {
     Command = 'ganghunt',          -- /ganghunt : menu ; /ganghunt stop : arrêter la chasse en cours
+    -- Réservé aux joueurs qui ont cette permission ACE (admins : rp.admin, donnée au groupe admin dans
+    -- permissions.cfg, d'après leur rôle Discord via rp_permissions) ; false : tout le monde
+    AdminAce = 'rp.admin',
     MaxWaves = 10,                 -- vagues au plus
     MaxWaveSize = 30,              -- ennemis par vague au plus (choisi dans le menu)
     WaveSize = 10,                 -- ennemis par vague proposés par défaut

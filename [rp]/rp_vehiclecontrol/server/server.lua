@@ -275,11 +275,53 @@ RegisterNetEvent('rp_vehiclecontrol:fieldRepair', function(netId)
     TriggerClientEvent('rp_vehiclecontrol:fieldRepair', src, netId, true, done + 1)
 end)
 
--- Vraie réparation (/repair, mécanicien) : compte des réparations de fortune remis à zéro
+--- Riven Impact Dynamics démarré (dossier renommé : retrouvé par le nom de son fxmanifest), sinon nil
+local function rivenResource()
+    local name = (Config.Riven and Config.Riven.Resource) or 'riven-impact-dynamics'
+    if (Config.Riven and Config.Riven.Mode) == false then return nil end
+    if GetResourceState(name) == 'started' then return name end
+    for i = 0, GetNumResources() - 1 do
+        local res = GetResourceByFindIndex(i)
+        if res and (GetResourceMetadata(res, 'name', 0) or ''):lower() == 'riven impact dynamics'
+            and GetResourceState(res) == 'started' then
+            return res
+        end
+    end
+    return nil
+end
+
+--- Appel d'un export serveur de Riven (sans erreur s'il est absent ou s'il change)
+local function rivenCall(fn, ...)
+    local res = rivenResource()
+    if not res then return false end
+    local args = { ... }
+    return pcall(function() return exports[res][fn](exports[res], table.unpack(args)) end)
+end
+
+-- Vraie réparation (/repair, mécanicien) : compte des réparations de fortune remis à zéro ; Riven : son moteur aussi
 RegisterNetEvent('rp_vehiclecontrol:engineRepaired', function(netId)
     local vehicle = vehicleFromNet(netId)
-    if vehicle and near(source, vehicle, 10.0) then Entity(vehicle).state:set('vcFieldRepairs', 0, true) end
+    if vehicle and near(source, vehicle, 10.0) then
+        Entity(vehicle).state:set('vcFieldRepairs', 0, true)
+        rivenCall('RepairComponents', netId, { 'engine' })
+    end
 end)
+
+-- Réparation complète vue par le client (vMenu « Repair », mécanicien, SetVehicleFixed…) : Riven remet aussi à zéro
+-- tous ses dégâts (direction, suspension, freins, radiateur, réservoir, carrosserie déformée, airbags…) tout de suite.
+-- Joueur à 10 m au plus ; une fois toutes les 5 s au plus par véhicule (sa propre réparation remet la santé à 1000).
+local fullRepairAt = {}
+RegisterNetEvent('rp_vehiclecontrol:fullRepair', function(netId)
+    local src = source
+    local vehicle = vehicleFromNet(netId)
+    if not vehicle or not near(src, vehicle, 10.0) then return end
+    local now = GetGameTimer()
+    if (fullRepairAt[vehicle] or 0) > now then return end
+    fullRepairAt[vehicle] = now + 5000
+    Entity(vehicle).state:set('vcFieldRepairs', 0, true)
+    rivenCall('RepairVehicle', netId)
+end)
+AddEventHandler('entityRemoved', function(entity) fullRepairAt[entity] = nil end)
 
 -- Véhicule percuté sans conducteur joueur (garé, PNJ) : signalé par celui qui l'a percuté, relayé à celui qui le
 -- contrôle (ou au signaleur si le serveur le garde), qui y applique les dégâts visuels (coffre, capot, portières…).

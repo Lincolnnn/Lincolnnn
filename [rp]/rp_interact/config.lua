@@ -8,20 +8,13 @@ InteractConfig = {
     TargetKey = 'LMENU',          -- Alt gauche
     EditorCommand = 'fichecivil', -- commande qui ouvre la fiche civile (création de profils) ; false = aucune
 
-    -- PERMISSIONS (identifiant Steam hex, "steam:1100001..." : visible dans la console du serveur, commande
-    -- "status", ou sur un site de conversion SteamID). Les catégories de la partie "Configuration" du
-    -- Menu Interaction listées dans Sections sont réservées à ces joueurs (les autres les voient grisées,
-    -- le serveur refuse leurs demandes). Sections = {} : ouvertes à tous.
+    -- PERMISSIONS : par RÔLE DISCORD (rp_permissions donne à chaque joueur le groupe de son rôle : admin, membre,
+    -- joueur non-officiel ; les ACE « rp.admin » / « rp.membre » de ces groupes sont dans permissions.cfg). Plus
+    -- d'identifiants Steam. Catégories de la partie "Configuration" du Menu Interaction : réservées aux joueurs qui ont
+    -- l'ACE indiquée (les autres les voient grisées, le serveur refuse leurs demandes) ; false = ouvertes à tous.
+    -- (La météo a sa propre règle : Weather.Ace, plus « Accès public » ; le secteur de jeu : SectorAce.)
     Permissions = {
-        -- TEMPORAIREMENT DÉSACTIVÉES : tout le monde a accès à toutes les catégories. Remettre true pour
-        -- réserver les catégories de Sections aux joueurs de Players.
-        Enabled = false,
-        Players = {
-            'steam:11000013ca597a9',
-            'steam:11000011977aecd',
-            'steam:110000114f6ac4d',
-        },
-        Sections = { equipment = true, car = true, weather = true }, -- Équipements, Voiture (spawn, radio), Météo
+        Sections = { equipment = false, car = false, weather = false }, -- Équipements, Voiture (spawn, radio), Météo
     },
 
     -- MENU > CONFIGURATION > MÉTÉO : météo et heure du serveur, les mêmes pour tout le monde (server/weather.lua).
@@ -30,7 +23,7 @@ InteractConfig = {
     -- qb-weathersync…) : ils se contrediraient.
     Weather = {
         Enabled = true,
-        Ace = 'rp_interact.weather',     -- add_ace group.admin rp_interact.weather allow
+        Ace = 'rp.admin',                -- admins (rôle Discord via rp_permissions, ACE donnée dans permissions.cfg)
         AceOnly = true,                  -- seuls les joueurs avec l'ACE règlent (+ tout le monde si « Accès public ») ;
                                          -- false : aussi les joueurs de Permissions (ou tous si elles sont coupées)
         TakeOverVMenu = true,            -- coupe la synchro météo / heure de vMenu (et ses menus Météo / Heure) : une
@@ -225,6 +218,10 @@ InteractConfig = {
 
     -- Permission ACE des commandes d'administration (rechargement des fichiers : emotes, véhicules)
     AdminAce = 'rpinteract.admin',
+
+    -- Secteur de jeu (Police > Display MDC, affiché sur le display du MDC) : choisi par les joueurs qui ont cette ACE
+    -- (admins : rp.admin, rôle Discord via rp_permissions) ; false = tout le monde
+    SectorAce = 'rp.admin',
 
     -- ARME À FEU EN MAIN (client/combat.lua)
     NoFirearmMelee = true,          -- plus de coup de crosse ni de coup donné dans le vide (corps à corps léger / lourd)

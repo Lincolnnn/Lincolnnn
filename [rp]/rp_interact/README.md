@@ -53,19 +53,20 @@ couleur en haut, comme le `/eup` : le **logo de la police** (WSP, KCSO) y est af
 sombres. Ouvrir `/eup` ferme ce
 menu (un seul menu au clavier à la fois). L'œil (Alt) reste utilisable menu ouvert (les touches du menu attendent).
 
-**Permissions** (`Permissions` dans `config.lua`) — **temporairement désactivées** (`Enabled = false` : tout le
-monde a accès à toutes les catégories ; remettre `true` pour les réactiver) : les catégories listées dans `Sections` (par défaut **Équipements**
-et **Voiture** : spawn, radio) sont réservées aux joueurs dont l'**identifiant Steam hex** est dans `Players`
-(`steam:11000013ca597a9`, `steam:11000011977aecd`, `steam:110000114f6ac4d`). Les autres les voient **grisées**
-(« Réservé ») et le serveur refuse leurs demandes. `Sections = {}` : ouvert à tous. Les règles « police en
-service » (`SpawnPoliceOnly`, `EquipmentPoliceOnly`) s'appliquent en plus.
+**Permissions** : par **rôle Discord** (ressource `rp_permissions` : Admin, Membre, Joueur non-officiel -> groupes ACE ;
+repères `rp.admin` / `rp.membre` dans `permissions.cfg`), plus aucun identifiant Steam. `Permissions.Sections` : une
+catégorie de « Configuration » réservée à une ACE (ex. `equipment = 'rp.membre'`) est **grisée** (« Réservé ») pour les
+autres et le serveur refuse leurs demandes ; `false` : ouverte à tous (par défaut). La **météo** a sa règle
+(`Weather.Ace` = admins, sauf « Accès public ») ; le **secteur de jeu** aussi (`SectorAce` = admins). Les règles
+« police en service » (`SpawnPoliceOnly`, `EquipmentPoliceOnly`) s'appliquent en plus.
 
 Page **Police** : en service ou non (unité et police du MDC choisi : **Washington State Patrol** ou **King County
 Sheriff Office**), puis les actions **Menotter**, **Prendre par le bras**, **Placer l'individu à l'arrière du
 véhicule** et **Faire s'asseoir l'individu** : toujours affichées, **grisées** tant que personne (joueur ou PNJ) n'est
 assez près (2 m ; véhicule à 6 m pour placer), mises à jour en direct. Elles agissent sur l'individu le plus proche (le
-menu se ferme). En bas, **Display MDC > Secteur** (zone de jeu, saisi à la main), enregistré aussitôt, gardé chez le
-joueur et affiché sur le display du MDC. Il n'y a plus de « service principal » : la police est celle du MDC choisi.
+menu se ferme). En bas, **Display MDC > Secteur** (zone de jeu, saisi à la main) : choisi par les **admins**
+seulement (`SectorAce`, grisé pour les autres), publié par le serveur, gardé chez l'admin et affiché sur le display du
+MDC. Il n'y a plus de « service principal » : la police est celle du MDC choisi.
 Page **Civil** : rappel du **profil actif**, la case **Mode civil**, puis **Créer un profil** et **Créer un véhicule**
 (ouvrent la **fiche civile** et ferment le menu) et, en mode civil, **Tips arrestation**.
 Page **Équipements** : **Tenues** → **Accéder aux tenues** (ferme ce menu et ouvre le menu `/eup`, ci-dessous) ;
@@ -129,6 +130,10 @@ Page **Voiture** :
   pas de virgule après le dernier élément, guillemets fermés. L'ancien `data/vehicles.json` n'est lu qu'en l'absence de
   `vehicle.json`.
   `rpi_vehicles` (console) relit les fichiers JSON. Le véhicule apparaît moteur coupé, plein fait (Vehicle Control).
+  **Protégé du « Clear Area » de vMenu** (Divers > Nettoyer la zone, qui supprime les véhicules non « de mission » de
+  chaque joueur) : le véhicule est marqué `rpiSpawned` par le serveur et chaque joueur qui le contrôle le garde « de
+  mission » (vérifié toutes les 2 s et au moment du nettoyage) ; il reste aussi si son joueur se déconnecte (supprimé
+  par `/dv`, l'œil ou un nouveau spawn).
 - **Radio** : **Lien** (Entrée, collez le lien d'une vidéo / musique YouTube, ou un lien direct vers un fichier audio,
   un podcast, une radio en ligne, Entrée) puis **Lancer ce lien** : le son est joué **dans le véhicule**, tel quel
   (lecteur YouTube, ou lecteur audio pour un lien direct ; aucun effet ajouté). Tout le monde l'entend **au même moment

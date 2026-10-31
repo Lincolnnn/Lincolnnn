@@ -21,7 +21,10 @@ Volontairement **absent du MDC et du `/tuto`** : seule la commande l'ouvre.
 | `/ganghunt` | ouvre / ferme le menu (Échap le ferme) |
 | `/ganghunt stop` | arrête la chasse en cours (tous les ennemis et leurs véhicules sont retirés) |
 
-N'importe quel joueur peut lancer **sa** chasse ; une seule à la fois par joueur.
+**Réservé aux admins** (`AdminAce = 'rp.admin'` dans `config.lua` : rôle Discord Admin, via `rp_permissions` et
+`permissions.cfg`) : le serveur vérifie l'accès avant d'ouvrir le menu et de lancer une chasse, et refuse d'enregistrer
+les ennemis d'un autre joueur ; `AdminAce = false` : tout le monde. `/ganghunt stop` reste permis (arrêter sa chasse).
+Un admin lance **sa** chasse ; une seule à la fois par joueur.
 
 Dans le menu :
 

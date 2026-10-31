@@ -78,13 +78,32 @@ local function openMenu()
         current = s and { faction = s.faction.label, wave = s.wave, waves = s.waves } or nil } })
 end
 
-RegisterCommand(Config.Command or 'ganghunt', function(_, args)
+-- Accès vérifié par le serveur (permission ACE Config.AdminAce : admins) : réponse gardée, redemandée à chaque commande
+local access, pendingArgs = false, nil
+
+local function runCommand(args)
     if (args[1] or ''):lower() == 'stop' then
         if not GH.active() then return GH.notify('Aucune chasse en cours.') end
         closeMenu()
         return GH.stop('Chasse arrêtée.')
     end
     if open then closeMenu() else openMenu() end
+end
+
+RegisterNetEvent('rp_ganghunt:access', function(ok)
+    access = ok == true
+    local args = pendingArgs
+    pendingArgs = nil
+    if not args then return end
+    if not access then return GH.notify('Réservé aux admins.') end
+    runCommand(args)
+end)
+
+RegisterCommand(Config.Command or 'ganghunt', function(_, args)
+    -- « stop » : toujours permis (arrêter sa propre chasse)
+    if (args[1] or ''):lower() == 'stop' then return runCommand(args) end
+    pendingArgs = args
+    TriggerServerEvent('rp_ganghunt:access')
 end, false)
 TriggerEvent('chat:addSuggestion', '/' .. (Config.Command or 'ganghunt'), 'Vagues d\'ennemis qui vous traquent', {
     { name = 'stop', help = 'facultatif : « stop » arrête la chasse en cours' },
@@ -99,6 +118,7 @@ RegisterNUICallback('close', function(_, cb)
 end)
 
 RegisterNUICallback('start', function(data, cb)
+    if not access then return cb({ ok = false, error = 'Réservé aux admins.' }) end
     data = type(data) == 'table' and data or {}
     local weapons = nil
     if not data.random then
