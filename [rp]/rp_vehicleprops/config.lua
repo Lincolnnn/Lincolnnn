@@ -35,6 +35,8 @@ VPConfig = {
         Lift = 0.004,           -- m au-dessus de la surface (au ras sans la traverser)
         -- Lampes : modèle posé (celui de CartoonFlashlight, la lampe tenue en main), lumière du modèle
         Torches = { WEAPON_FLASHLIGHT = 'prop_cs_police_torch' },
+        -- Lampe posée AU SOL : toujours ce modèle (lampe de poche au sol)
+        GroundTorches = { WEAPON_FLASHLIGHT = 'prop_cs_police_torch_02' },
         TorchBeamAxis = nil,    -- faisceau dessiné : axe du modèle ('x', '-x', 'y', '-y', 'z', '-z') ; nil : le plus long
         -- Jamais posées
         Excluded = { 'WEAPON_PETROLCAN', 'WEAPON_HAZARDCAN', 'WEAPON_FERTILIZERCAN', 'WEAPON_FIREEXTINGUISHER', 'WEAPON_PARACHUTE' },

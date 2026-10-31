@@ -48,7 +48,8 @@ Liée à `rp_interact` (œil, accessoires des armes), `rp_weaponscontrol` (lampe
   qui, à 2,5 m). 3 au plus par joueur (`GroundMax`). **La jeter** reste possible avec `rp_RoleplayZone` (touche G).
 - **Taser** : au sol avec `rp_taser10` (sondes gardées) ; relié à un suspect, il ne va pas sur un véhicule.
 
-Lampes torches posées allumées : **lumière du modèle** (celle de CartoonFlashlight), réappliquée régulièrement ;
+Lampe posée **au sol** : toujours le modèle **`prop_cs_police_torch_02`** (`GroundTorches`) ; sur un véhicule :
+`prop_cs_police_torch`, celui de la lampe tenue (`Torches`). Lampes torches posées allumées : **lumière du modèle** (celle de CartoonFlashlight), réappliquée régulièrement ;
 `Beam.Drawn = true` : faisceau dessiné en plus (`TorchBeamAxis` pour son axe). Le serveur vérifie : arme en main (ou
 mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est rendue.
 

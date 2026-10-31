@@ -30,6 +30,14 @@ local UNARMED = u32(GetHashKey('WEAPON_UNARMED'))
 local STUNGUN = u32(GetHashKey('GROUP_STUNGUN'))
 local TORCHES = {}
 for name, model in pairs(H.Torches or {}) do TORCHES[u32(GetHashKey(name))] = model end
+local GROUND_TORCHES = {} -- lampe posée au sol : son propre modèle (prop_cs_police_torch_02)
+for name, model in pairs(H.GroundTorches or {}) do GROUND_TORCHES[u32(GetHashKey(name))] = model end
+
+--- Modèle d'une lampe : au sol, celui de GroundTorches ; sinon (véhicule) celui de la lampe tenue
+local function torchModel(hash, ground)
+    hash = u32(hash)
+    return ground and GROUND_TORCHES[hash] or TORCHES[hash]
+end
 local EXCLUDED, EXCLUDED_GROUPS = {}, {}
 for _, n in ipairs(H.Excluded or {}) do EXCLUDED[u32(GetHashKey(n))] = true end
 for _, g in ipairs(H.ExcludedGroups or {}) do EXCLUDED_GROUPS[u32(GetHashKey(g))] = true end
@@ -102,9 +110,9 @@ local function loadModel(name)
     return HasModelLoaded(hash) and hash or nil
 end
 
---- Modèle de l'objet posé : lampe (modèle de la lampe tenue) ou modèle de l'arme
-local function modelOf(w)
-    if TORCHES[u32(w.hash)] then return GetHashKey(TORCHES[u32(w.hash)]) end
+--- Modèle de l'objet posé : lampe (au sol : prop_cs_police_torch_02 ; véhicule : modèle de la lampe tenue) ou arme
+local function modelOf(w, ground)
+    if TORCHES[u32(w.hash)] then return GetHashKey(torchModel(w.hash, ground)) end
     return GetWeapontypeModel(signed(w.hash))
 end
 
@@ -319,7 +327,7 @@ local function placeOnGround(info)
     end
     local hit, normal = surfaceAt(point, 1 | 16, nil)
     if not hit then return notify('Impossible de poser l\'arme ici.') end
-    local model = modelOf(w)
+    local model = modelOf(w, true)
     if not loadModel(model) then return notify('Modèle introuvable.') end
     busy = true
     CreateThread(function()
@@ -359,10 +367,10 @@ end)
 -- =========================================================================
 -- OBJETS (chez tous les joueurs) : arme (accessoires, teinte) ou lampe, sans collision
 -- =========================================================================
-local function spawnObject(w, x, y, z)
+local function spawnObject(w, x, y, z, ground)
     local obj
     if TORCHES[u32(w.hash)] then
-        local model = loadModel(TORCHES[u32(w.hash)])
+        local model = loadModel(torchModel(w.hash, ground))
         if not model then return nil end
         obj = CreateObjectNoOffset(model, x, y, z, false, false, false)
         SetModelAsNoLongerNeeded(model)
@@ -475,7 +483,7 @@ local function refreshGround()
                 local g = ground[item.id]
                 if not g or not DoesEntityExist(g.obj) then
                     item.hash = u32(item.hash)
-                    local obj = spawnObject(item, pos.x, pos.y, pos.z)
+                    local obj = spawnObject(item, pos.x, pos.y, pos.z, true)
                     if obj then
                         FreezeEntityPosition(obj, true)
                         SetEntityCoordsNoOffset(obj, pos.x, pos.y, pos.z, false, false, false)
