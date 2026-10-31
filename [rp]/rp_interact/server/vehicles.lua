@@ -93,14 +93,16 @@ end
 -- VÉHICULES (data/vehicle.json ; à défaut, l'ancien data/vehicles.json)
 --   { "vehicles": [ { "spawnName": "wspcharger", "Principale": "Police",
 --       "subCategory": "Washington State Patrol", "menuName": "Dodge Charger 2020",
---       "extras": { "1": true }, "livery": 0, "windowTint": 1, "plateType": "NORTH_YANKTON" } ] }
+--       "extras": { "1": true }, "livery": 0, "windowTint": 1, "plateType": "NORTH_YANKTON", "plate": "WSP ####" } ] }
 --   Principale : catégorie du menu (ex. Police, Civil) ; subCategory : groupe dans cette catégorie ;
 --   extras : n° d'extra -> true (activé) / false (désactivé) ; s'il y en a, ceux qui ne sont pas listés sont
 --   désactivés ; {} : extras d'origine du véhicule. Un même spawnName peut apparaître plusieurs fois (extras
 --   différents). windowTint (facultatif) : teinte des vitres imposée, 0 aucune, 1 noir pur, 2 fumé foncé,
 --   3 fumé clair, 4 d'origine, 5 limousine, 6 verte. plateType (facultatif) : style de plaque, par nom
 --   (BLUE_ON_WHITE_1, BLUE_ON_WHITE_2, BLUE_ON_WHITE_3, YELLOW_ON_BLACK, YELLOW_ON_BLUE, NORTH_YANKTON) ou par
---   numéro du jeu (0 à 12 selon la version du jeu). Ancien format accepté : [ { "Code", "Service", "Name", "Livery", "Extras": [1, 2] } ].
+--   numéro du jeu (0 à 12 selon la version du jeu). plate (facultatif) : texte de la plaque, 8 caractères au plus
+--   (lettres, chiffres, espaces) ; « # » = un chiffre au hasard, « ? » = une lettre au hasard (ex. "WSP ####" :
+--   WSP 4821) ; sans plate : plaque du jeu. Ancien format accepté : [ { "Code", "Service", "Name", "Livery", "Extras": [1, 2] } ].
 --   Catégorie "Police" : réservée aux policiers en service si SpawnPoliceOnly.
 -- =========================================================================
 local Vehicles, byId = {}, {}
@@ -135,6 +137,15 @@ local function plateType(raw)
     return math.floor(n)
 end
 
+--- Texte de plaque : 8 caractères au plus, lettres / chiffres / espaces, « # » et « ? » (tirés au hasard au spawn)
+local function plateText(raw)
+    if type(raw) ~= 'string' and type(raw) ~= 'number' then return nil end
+    local text = tostring(raw):upper():gsub('[^A-Z0-9 #%?]', '')
+    text = text:sub(1, 8)
+    if text:gsub(' ', '') == '' then return nil end
+    return text
+end
+
 --- Teinte des vitres : 0 à 6, sinon rien (teinte du véhicule)
 local function windowTint(raw)
     local n = tonumber(raw)
@@ -164,14 +175,23 @@ local function loadVehicles()
                 police = category:lower() == 'police',
                 livery = tonumber(field(v, 'livery') or field(v, 'Livery')),
                 windowTint = windowTint(field(v, 'windowTint') or field(v, 'WindowTint')),
-                plate = plateType(field(v, 'plateType') or field(v, 'PlateType')),
+                plateIndex = plateType(field(v, 'plateType') or field(v, 'PlateType')),
+                plateText = plateText(field(v, 'plate') or field(v, 'Plate') or field(v, 'plateText')),
                 extras = readExtras(field(v, 'extras') or field(v, 'Extras')),
             }
             local tintRaw, plateRaw = field(v, 'windowTint') or field(v, 'WindowTint'), field(v, 'plateType') or field(v, 'PlateType')
             if tintRaw ~= nil and not entry.windowTint then
                 print(('^3[RP Interact] vehicle.json : %s : windowTint "%s" ignoré (0 à 6).^0'):format(label, tostring(tintRaw)))
             end
-            if plateRaw ~= nil and not entry.plate then
+            local textRaw = field(v, 'plate') or field(v, 'Plate') or field(v, 'plateText')
+            if textRaw ~= nil and not entry.plateText then
+                print(('^3[RP Interact] vehicle.json : %s : plate "%s" ignoré (lettres, chiffres, espaces, # et ?).^0')
+                    :format(label, tostring(textRaw)))
+            elseif type(textRaw) == 'string' and #textRaw:gsub('^%s+', ''):gsub('%s+$', '') > 8 then
+                print(('^3[RP Interact] vehicle.json : %s : plate "%s" coupé à 8 caractères ("%s").^0')
+                    :format(label, textRaw, entry.plateText))
+            end
+            if plateRaw ~= nil and not entry.plateIndex then
                 print(('^3[RP Interact] vehicle.json : %s : plateType "%s" inconnu (BLUE_ON_WHITE_1, NORTH_YANKTON… ou 0 à 12).^0')
                     :format(label, tostring(plateRaw)))
             end
@@ -182,9 +202,9 @@ local function loadVehicles()
     local tints, plates = 0, 0
     for _, e in ipairs(Vehicles) do
         if e.windowTint then tints = tints + 1 end
-        if e.plate then plates = plates + 1 end
+        if e.plateIndex or e.plateText then plates = plates + 1 end
     end
-    print(('^5[RP Interact]^0 %d véhicule(s) lu(s) dans %s (%d avec vitres teintées, %d avec style de plaque)')
+    print(('^5[RP Interact]^0 %d véhicule(s) lu(s) dans %s (%d avec vitres teintées, %d avec plaque réglée)')
         :format(#Vehicles, file, tints, plates))
 end
 

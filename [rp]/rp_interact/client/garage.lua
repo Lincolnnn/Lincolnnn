@@ -80,22 +80,33 @@ local function loadVehicleModel(model)
     return HasModelLoaded(model)
 end
 
---- Teinte des vitres et style de plaque (ré-appliqués un peu après l'apparition : un autre script peut les écraser)
-local function applyTintAndPlate(vehicle, entry)
+--- Texte de plaque de la liste : « # » = chiffre au hasard, « ? » = lettre au hasard (tiré une fois par véhicule)
+local function rollPlate(text)
+    if not text then return nil end
+    return (text:gsub('[#%?]', function(c)
+        if c == '#' then return tostring(math.random(0, 9)) end
+        return string.char(math.random(65, 90))
+    end))
+end
+
+--- Teinte des vitres, style et texte de plaque (ré-appliqués un peu après l'apparition : un autre script peut les
+--- écraser) ; `plate` : texte déjà tiré pour ce véhicule
+local function applyTintAndPlate(vehicle, entry, plate)
     if not DoesEntityExist(vehicle) then return end
     if entry.windowTint then
         SetVehicleModKit(vehicle, 0)
         SetVehicleWindowTint(vehicle, entry.windowTint)
     end
-    if entry.plate and entry.plate < GetNumberOfVehicleNumberPlates() then
-        SetVehicleNumberPlateTextIndex(vehicle, entry.plate)
+    if entry.plateIndex and entry.plateIndex < GetNumberOfVehicleNumberPlates() then
+        SetVehicleNumberPlateTextIndex(vehicle, entry.plateIndex)
     end
+    if plate then SetVehicleNumberPlateText(vehicle, plate) end
 end
 
 --- Livery (index de livery, ou mod de livery n° 48 pour les véhicules qui l'utilisent), extras, teinte des vitres et
 --- style de plaque
-local function applyVehicleLook(vehicle, entry)
-    applyTintAndPlate(vehicle, entry)
+local function applyVehicleLook(vehicle, entry, plate)
+    applyTintAndPlate(vehicle, entry, plate)
     if entry.livery then
         if GetVehicleLiveryCount(vehicle) > 0 then
             SetVehicleLivery(vehicle, entry.livery)
@@ -142,10 +153,11 @@ local function spawn(entry)
     SetVehicleHasBeenOwnedByPlayer(vehicle, true)
     SetVehicleNeedsToBeHotwired(vehicle, false)
     SetVehRadioStation(vehicle, 'OFF')
-    applyVehicleLook(vehicle, entry)
-    if entry.windowTint or entry.plate then
-        SetTimeout(600, function() applyTintAndPlate(vehicle, entry) end)
-        SetTimeout(2000, function() applyTintAndPlate(vehicle, entry) end)
+    local plate = rollPlate(entry.plateText)
+    applyVehicleLook(vehicle, entry, plate)
+    if entry.windowTint or entry.plateIndex or plate then
+        SetTimeout(600, function() applyTintAndPlate(vehicle, entry, plate) end)
+        SetTimeout(2000, function() applyTintAndPlate(vehicle, entry, plate) end)
     end
     lastVehicle = vehicle
     if options.warpInto then TaskWarpPedIntoVehicle(ped, vehicle, -1) end
@@ -157,9 +169,9 @@ RegisterCommand('rpi_vehinfo', function()
     local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
     if vehicle == 0 then vehicle = lastVehicle or 0 end
     if vehicle == 0 or not DoesEntityExist(vehicle) then return print('[RP Interact] rpi_vehinfo : aucun véhicule.') end
-    print(('[RP Interact] véhicule %s : teinte des vitres %d, style de plaque %d (%d styles dans ce jeu)'):format(
+    print(('[RP Interact] véhicule %s : teinte des vitres %d, plaque "%s", style de plaque %d (%d styles dans ce jeu)'):format(
         GetDisplayNameFromVehicleModel(GetEntityModel(vehicle)), GetVehicleWindowTint(vehicle),
-        GetVehicleNumberPlateTextIndex(vehicle), GetNumberOfVehicleNumberPlates()))
+        GetVehicleNumberPlateText(vehicle), GetVehicleNumberPlateTextIndex(vehicle), GetNumberOfVehicleNumberPlates()))
 end, false)
 
 RegisterNUICallback('spawnVehicle', function(data, cb)
