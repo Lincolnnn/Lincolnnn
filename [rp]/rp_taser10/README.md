@@ -31,6 +31,9 @@ d'habitude : SÉCURITÉ puis ARMÉ). Le Taser posé est gardé localement dès l
 plus coupée (« changement d'arme ») dans l'instant où il n'est ni en main ni encore marqué posé. `Config.Target.Drop = false` pour retirer
 l'option. Objet réseau marqué `rpTaserDropped`, état du joueur `taserDropped` ; supprimé si le joueur se déconnecte.
 
+**Écran (CID)** : l'icône de la batterie a la même taille que les emplacements des cartouches (ses images ont la
+taille de tout l'écran, batterie à droite : elles étaient réduites dans un petit cadre, d'où une batterie minuscule).
+
 La commande `/removeprongs [id serveur]` fonctionne toujours. Le serveur vérifie la distance et la permission dans
 les deux cas.
 

@@ -72,7 +72,10 @@ de flou trouvées ; ajustez `Suppression.GameBlur` (`Intensity`, `RadiusMin` / `
 ### Lampe toujours allumée (`Flashlight`)
 Une lampe **allumée par le joueur** (lampe sur l'arme, ou lampe de poche simple `WEAPON_FLASHLIGHT` /
 `WEAPON_POCKETLIGHT`) **reste allumée** : en courant, sans viser, et **quand l'arme est rangée puis ressortie** (ou
-reprise dans l'équipement), elle se rallume toute seule. Éteinte par le joueur : elle reste éteinte.
+reprise dans l'équipement), elle se rallume toute seule. Éteinte par le joueur : elle reste éteinte. **Arme baissée**
+(sans viser) : elle reste allumée ; ce réglage du jeu est global et d'autres scripts le remettent à « seulement en
+visant » (CartoonFlashlight à chaque fois que sa lampe démarre ou s'arrête) : il est réappliqué en permanence tant
+qu'une arme est en main.
 
 **CartoonFlashlight** (ressource à part, lampe tenue en main avec ses animations, inchangée ; `Flashlight.Cartoon`) :
 ses armes (`WEAPON_FLASHLIGHT`) sont gérées par elle ; ce script ne rallume plus la lampe du jeu sur ces armes (elle

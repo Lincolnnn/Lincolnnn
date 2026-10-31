@@ -53,7 +53,17 @@ function drawBattery(shotsSpent, display) {
     }
 
     batteryDisplay.classList.remove('hidden')
-    batteryDisplay.style.backgroundImage = `url('${image}')`
+    if (batteryDisplay.dataset.image !== image) {
+        batteryDisplay.dataset.image = image
+        batteryDisplay.style.backgroundImage = `url('${image}')`
+        // image au format de l'écran (calque, ~3,1 : 1) : sur tout l'écran ; batterie seule (animation) : à droite
+        const probe = new Image()
+        probe.onload = () => {
+            if (batteryDisplay.dataset.image !== image) return
+            batteryDisplay.classList.toggle('box', probe.naturalWidth / Math.max(1, probe.naturalHeight) < 2)
+        }
+        probe.src = image
+    }
 }
 
 function drawLiveDisplay(data) {

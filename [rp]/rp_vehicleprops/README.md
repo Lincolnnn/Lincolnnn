@@ -33,8 +33,9 @@ joueur qui arrive près du véhicule les voit aussi.
 Liée à `rp_interact` (œil, accessoires des armes), `rp_weaponscontrol` (lampe toujours allumée), CartoonFlashlight
 (lampe tenue) et `rp_taser10` :
 
-- **Sur un véhicule** (œil, à 3 m) : **« Poser l'arme ici »** (point visé), **« … sur le toit »**, **« … sur le
-  coffre »** (seulement les véhicules à **coffre plat**, berlines… : surface nettement plus basse que le toit et
+- **Sur un véhicule** (œil, à 3 m) : **« Poser l'arme ici »** (point visé), **« … sur le toit »** (4 endroits,
+  au-dessus des portières : celui de la **portière la plus proche** du joueur, avant / arrière, gauche / droite ;
+  véhicule sans ces portières : milieu du toit), **« … sur le coffre »** (seulement les véhicules à **coffre plat**, berlines… : surface nettement plus basse que le toit et
   presque horizontale, vérifiée sur le véhicule). L'arme est posée **directement** (sans physique : elle ne glisse
   plus) : des rayons vers le bas trouvent la carrosserie (la **collision** du véhicule, comme les impacts de balles)
   et son **inclinaison** (moyenne de 5 points : les courbes du capot, du toit) ; l'arme est **couchée, inclinée comme

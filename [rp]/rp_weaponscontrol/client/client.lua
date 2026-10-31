@@ -8,7 +8,8 @@
     JOUEURS AUTOUR : flash au canon du tireur, fumée, petite secousse s'ils sont proches (Shake.Range).
     ACOUPHÈNE (léger) : seulement quand ça tire beaucoup tout près : Tinnitus.Shots tirs en Tinnitus.Window ms par des
     tireurs à moins de Tinnitus.Range m (soi-même, un autre joueur ou un PNJ). Silencieux : ni flash, ni acouphène.
-    LAMPE TOUJOURS ALLUMÉE (Flashlight) : allumée par le joueur, elle le reste (même en courant) et se rallume quand
+    LAMPE TOUJOURS ALLUMÉE (Flashlight) : allumée par le joueur, elle le reste (même arme baissée, en courant ; réglage
+    du jeu réappliqué en permanence, d'autres scripts le remettant à false) et se rallume quand
     l'arme revient en main ; éteinte par le joueur, elle reste éteinte. Lampes de CartoonFlashlight : gérées par elle,
     leur état est gardé ici (exports flashlightWanted / setFlashlight).
     SÉLECTEUR DE TIR (FireMode) : touche B sur une arme automatique : coup par coup <-> automatique (petit clic, logo
@@ -477,6 +478,9 @@ if FL.Enabled ~= false then
             if armed and cartoon(weapon) then
                 -- lampe de CartoonFlashlight : sa propre lumière (jamais celle du jeu, qui doublerait)
             elseif armed then
+                -- lampe allumée même arme baissée : réglage GLOBAL du jeu, remis à false par d'autres scripts
+                -- (CartoonFlashlight le fait à chaque fois que sa lampe démarre / s'arrête) -> réappliqué ici
+                if FL.KeepOnWhileMoving ~= false then SetFlashLightKeepOnWhileMoving(true) end
                 local on = IsFlashLightOn(ped)
                 if unusual(ped) then
                     since, restoring = now, lit[weapon] == true -- à la sortie : elle revient si elle était allumée

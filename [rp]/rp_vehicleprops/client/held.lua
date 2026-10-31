@@ -2,8 +2,8 @@
     RP VehicleProps - arme / lampe tenue en main (client)
     -----------------------------------------------------
     ŒIL (rp_interact), arme ou lampe en main :
-      - sur un véhicule : « Poser l'arme ici » (au point visé), « … sur le toit », « … sur le coffre » (véhicules à
-        coffre plat : berlines…). L'arme est posée DIRECTEMENT sur la carrosserie, sans physique (elle ne glisse plus) :
+      - sur un véhicule : « Poser l'arme ici » (au point visé), « … sur le toit » (au-dessus de la portière la plus
+        proche : 4 endroits), « … sur le coffre » (véhicules à coffre plat : berlines…). L'arme est posée DIRECTEMENT sur la carrosserie, sans physique (elle ne glisse plus) :
         des rayons vers le bas trouvent la surface (collision du véhicule, comme les impacts de balles) et son
         inclinaison ; l'arme est couchée, inclinée comme la surface et posée au ras (son point le plus bas la touche).
         Collée au véhicule chez tous les joueurs, avec ses accessoires (rp_interact : captureWeapon), sa teinte, ses
@@ -216,6 +216,40 @@ local function spotPoint(vehicle, spot)
     return GetOffsetFromEntityInWorldCoords(vehicle, 0.0, y, max.z + 0.2)
 end
 
+--- Toit : 4 endroits, au-dessus des portières (avant / arrière, gauche / droite) ; celui de la portière la plus
+--- proche du joueur. La charnière (os de la portière) est à l'avant de la portière : on recule vers son milieu, puis
+--- on garde le premier point où la surface est le toit (presque plat, tout en haut du véhicule)
+local DOORS = { { bone = 'door_dside_f', front = true }, { bone = 'door_pside_f', front = true },
+    { bone = 'door_dside_r' }, { bone = 'door_pside_r' } }
+
+local function roofPoint(vehicle)
+    local me = GetEntityCoords(PlayerPedId())
+    local best
+    for _, d in ipairs(DOORS) do
+        local bone = GetEntityBoneIndexByName(vehicle, d.bone)
+        if bone ~= -1 then
+            local world = GetWorldPositionOfEntityBone(vehicle, bone)
+            local dist = #(world - me)
+            if not best or dist < best.dist then best = { dist = dist, world = world, front = d.front } end
+        end
+    end
+    if not best then return spotPoint(vehicle, 'roof') end
+    local _, max = GetModelDimensions(GetEntityModel(vehicle))
+    local door = GetOffsetFromEntityGivenWorldCoords(vehicle, best.world.x, best.world.y, best.world.z)
+    local x = (door.x >= 0 and 1 or -1) * math.min(math.abs(door.x) * 0.4, 0.35)
+    for _, back in ipairs(best.front and { 0.45, 0.6, 0.75, 0.3 } or { 0.35, 0.5, 0.2, 0.65 }) do
+        local p = GetOffsetFromEntityInWorldCoords(vehicle, x, door.y - back, max.z + 0.2)
+        local hit, n = rayDown(p, 2, vehicle)
+        if hit then
+            local hl = GetOffsetFromEntityGivenWorldCoords(vehicle, hit.x, hit.y, hit.z)
+            local up = normalize(GetOffsetFromEntityGivenWorldCoords(vehicle, hit.x + n.x, hit.y + n.y, hit.z + n.z) - hl)
+            if up.z > 0.9 and hl.z > max.z - 0.45 then return p end
+        end
+    end
+    return spotPoint(vehicle, 'roof')
+end
+VPHeld.roofPoint = roofPoint
+
 --- Toit (tous les véhicules à toit) et coffre plat (nettement plus bas que le toit, presque horizontal)
 local function vehicleSpots(vehicle)
     local model = GetEntityModel(vehicle)
@@ -245,7 +279,10 @@ local function placeOnVehicle(info, vehicle, spot)
     local w = capture()
     if not w or heldHash(ped) ~= w.hash then return end
     if taserConnected(w.hash) then return notify('Taser relié au suspect : posez-le au sol.') end
-    local point = spot == 'here' and info.hit and vector3(info.hit.x, info.hit.y, info.hit.z) or spotPoint(vehicle, spot)
+    local point
+    if spot == 'here' and info.hit then point = vector3(info.hit.x, info.hit.y, info.hit.z)
+    elseif spot == 'roof' then point = roofPoint(vehicle)
+    else point = spotPoint(vehicle, spot) end
     local hit, normal = surfaceAt(point, 2, vehicle)
     if not hit then return notify('Impossible de poser l\'arme à cet endroit.') end
     local model = modelOf(w)
