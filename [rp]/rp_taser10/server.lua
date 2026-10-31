@@ -628,8 +628,9 @@ RegisterNetEvent('axon_taser10:dropTaser', function(data)
     FreezeEntityPosition(object, true)
     droppedTasers[src] = { object = object, weapon = math.floor(tonumber(data.weapon)), ammo = math.max(0, math.floor(tonumber(data.ammo) or 0)) }
     Entity(object).state:set('rpTaserDropped', { owner = src }, true)
-    Player(src).state:set('taserDropped', NetworkGetNetworkIdFromEntity(object), true)
-    TriggerClientEvent('axon_taser10:dropResult', src, true)
+    local netId = NetworkGetNetworkIdFromEntity(object)
+    Player(src).state:set('taserDropped', netId, true)
+    TriggerClientEvent('axon_taser10:dropResult', src, true, nil, netId)
 end)
 
 -- Repris avec l'œil : seulement par son propriétaire (ses sondes, sa connexion)

@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_taser10'
 author 'Cartoon (adapté : Lincolnnn)'
 description 'TASER 10 : cartouches, sondes, fils, laser, lampe, CID - standalone, œil de rp_interact'
-version '1.7.0-rp.2'
+version '1.7.0-rp.3'
 -- 1.0.0 Pacific Valley Version
 -- 1.5.0 Pre Release + Patches
 -- 1.6.0 Pre Lighting & Client Sync Patch

@@ -151,9 +151,22 @@
         if (!sp.running) { sp.running = true; requestAnimationFrame(spFrame); }
     }
 
+    // ---- Aide d'une autre ressource (exports showHint : CartoonFlashlight…) ----
+    const hintEl = document.getElementById('hint');
+    const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    function hint(d) {
+        if (!d || !d.show) { hintEl.classList.remove('show'); return; }
+        document.getElementById('hintTitle').textContent = d.title || '';
+        document.getElementById('hintRows').innerHTML = (Array.isArray(d.lines) ? d.lines : []).map((l) => (Array.isArray(l)
+            ? `<div class="hint-row"><kbd>${esc(l[0])}</kbd><span>${esc(l[1])}</span></div>`
+            : `<div class="hint-sub">${esc(l)}</div>`)).join('');
+        hintEl.classList.add('show');
+    }
+
     window.addEventListener('message', ({ data }) => {
         if (data && data.action === 'tinnitus') ring(data.data || {});
         if (data && data.action === 'firemode') fireMode(data.data || {});
         if (data && data.action === 'suppress') suppress(data.data || {});
+        if (data && data.action === 'hint') hint(data.data || {});
     });
 })();

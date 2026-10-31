@@ -74,12 +74,16 @@ Une lampe **allumée par le joueur** (lampe sur l'arme, ou lampe de poche simple
 `WEAPON_POCKETLIGHT`) **reste allumée** : en courant, sans viser, et **quand l'arme est rangée puis ressortie** (ou
 reprise dans l'équipement), elle se rallume toute seule. Éteinte par le joueur : elle reste éteinte.
 
-**CartoonFlashlight** (ressource à part, lampe tenue en main avec ses animations ; `Flashlight.Cartoon`) : ses
-armes (`WEAPON_FLASHLIGHT`) sont gérées par elle. Ce script ne rallume plus la lampe du jeu sur ces armes (elle
-doublait la sienne et la faisait parfois rester éteinte) mais garde leur état d'un usage à l'autre :
-`exports.rp_weaponscontrol:flashlightWanted(arme)` (jamais réglée : allumée) et
-`exports.rp_weaponscontrol:setFlashlight(arme, allumée)` / événement client `rp_weaponscontrol:flashlight` (utilisé
-par CartoonFlashlight corrigée et par `rp_vehicleprops` quand on reprend une arme posée avec sa lampe allumée).
+**CartoonFlashlight** (ressource à part, lampe tenue en main avec ses animations, inchangée ; `Flashlight.Cartoon`) :
+ses armes (`WEAPON_FLASHLIGHT`) sont gérées par elle ; ce script ne rallume plus la lampe du jeu sur ces armes (elle
+doublait la lumière du modèle). États gardés : `exports.rp_weaponscontrol:flashlightWanted(arme)` /
+`setFlashlight(arme, allumée)` / événement client `rp_weaponscontrol:flashlight` (utilisé par `rp_vehicleprops` quand
+on reprend une arme posée avec sa lampe allumée).
+
+**Aide au style du serveur** pour une autre ressource : `exports.rp_weaponscontrol:showHint(id, { title, lines })`
+(lignes `{ touche, texte }` ou texte simple), à rappeler au moins toutes les 300 ms ; plus rappelée : retirée. Carte
+noire, bandeau rouge, touches en gros, en haut à gauche. Utilisée par CartoonFlashlight (seule modification de ce
+script : son aide, en français : « E Allumer / Éteindre la lampe », « O Changer de position »).
 
 ### Sélecteur de tir (`FireMode`)
 Sur les armes **automatiques** (pistolets-mitrailleurs, mitrailleuses, fusils d'assaut, AP Pistol, Machine Pistol,

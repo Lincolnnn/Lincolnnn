@@ -497,6 +497,29 @@ if FL.Enabled ~= false then
     RPWeapons.flashlights = lit -- pour les tests
 end
 
+-- =========================================================================
+-- AIDE AU STYLE DU SERVEUR pour une autre ressource (CartoonFlashlight : aide de la lampe en haut à gauche) :
+-- exports.rp_weaponscontrol:showHint(id, { title, lines = { { touche, texte } | 'texte' } }) à rappeler au moins
+-- toutes les 300 ms tant qu'elle doit rester ; plus rappelée : retirée. Envoyée au NUI seulement si elle change.
+-- =========================================================================
+local hintShown, hintKey, hintUntil = false, nil, 0
+exports('showHint', function(id, data)
+    if type(data) ~= 'table' then return end
+    hintUntil = GetGameTimer() + 350
+    local key = tostring(id) .. '|' .. json.encode(data)
+    if key ~= hintKey then
+        hintKey = key
+        SendNUIMessage({ action = 'hint', data = { show = true, title = data.title, lines = data.lines } })
+    end
+    if hintShown then return end
+    hintShown = true
+    CreateThread(function()
+        while GetGameTimer() < hintUntil do Wait(100) end
+        hintShown, hintKey = false, nil
+        SendNUIMessage({ action = 'hint', data = { show = false } })
+    end)
+end)
+
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     if W.NoAutoReload ~= false then SetWeaponsNoAutoreload(false) end

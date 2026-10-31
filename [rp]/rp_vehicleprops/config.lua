@@ -19,27 +19,30 @@ VPConfig = {
     },
 
     -- ARME OU LAMPE TENUE EN MAIN (œil de rp_interact) :
-    --   sur un véhicule : « Poser l'arme / la lampe sur le véhicule » : elle tombe sur la surface visée (capot, toit…)
-    --     et s'y pose (collision du véhicule), puis reste collée au véhicule, avec ses accessoires (rp_interact),
-    --     sa teinte, ses munitions et sa lampe allumée si elle l'était ; « Reprendre : … » la rend telle quelle ;
-    --   n'importe où (sol, mur, personne…), une lampe en main : « Poser la lampe au sol » (allumée si elle l'était) ;
-    --     « Ramasser la lampe » avec l'œil.
+    --   sur un véhicule : « Poser l'arme ici » (point visé), « … sur le toit », « … sur le coffre » (coffre plat :
+    --     berlines…) : posée directement sur la carrosserie (sans glisser), inclinée comme elle, au ras ; collée au
+    --     véhicule avec ses accessoires (rp_interact), sa teinte, ses munitions, sa lampe allumée ; « Reprendre : … » ;
+    --   ailleurs (sol, mur, personne…) : « Poser l'arme / la lampe au sol », de la même façon ; « Ramasser : … ».
+    --   Le Taser : au sol avec rp_taser10 (sondes gardées). La jeter : rp_RoleplayZone (touche G), inchangé.
     Held = {
         Enabled = true,
         MaxWeaponsPerVehicle = 4,
-        GroundDistance = 3.0,   -- lampe au sol : au point visé s'il est à moins de … m, sinon devant soi
-        GroundMax = 3,          -- lampes au sol en même temps, par joueur
-        SettleTime = 2500,      -- ms : l'objet tombe et se pose (surface dure du véhicule / sol) avant d'être fixé
-        -- Lampes : modèle posé (celui de CartoonFlashlight, la lampe tenue en main) ; faisceau dessiné par le script
+        GroundDistance = 3.0,   -- au sol : au point visé s'il est à moins de … m, sinon devant soi
+        GroundMax = 3,          -- objets posés au sol en même temps, par joueur
+        GroundTotal = 100,      -- au sol, en tout (au-delà : le plus ancien disparaît)
+        PickupDistance = 2.5,   -- ramasser : à moins de … m de l'objet
+        PickupSnap = 0.8,       -- œil : objet au sol à moins de … m du point visé
+        Lift = 0.004,           -- m au-dessus de la surface (au ras sans la traverser)
+        -- Lampes : modèle posé (celui de CartoonFlashlight, la lampe tenue en main), lumière du modèle
         Torches = { WEAPON_FLASHLIGHT = 'prop_cs_police_torch' },
-        TorchBeamAxis = nil,    -- axe du faisceau dans le modèle de lampe : 'x', '-x', 'y', '-y', 'z', '-z' ; nil : le plus long
+        TorchBeamAxis = nil,    -- faisceau dessiné : axe du modèle ('x', '-x', 'y', '-y', 'z', '-z') ; nil : le plus long
         -- Jamais posées
         Excluded = { 'WEAPON_PETROLCAN', 'WEAPON_HAZARDCAN', 'WEAPON_FERTILIZERCAN', 'WEAPON_FIREEXTINGUISHER', 'WEAPON_PARACHUTE' },
         ExcludedGroups = { 'GROUP_THROWN', 'GROUP_PETROLCAN', 'GROUP_FIREEXTINGUISHER', 'GROUP_DIGISCANNER' },
-        -- Faisceau des lampes posées (vu par tous à moins de Range m) ; arme avec une lampe allumée : vraie lampe du
-        -- jeu sur l'arme posée (Weapons = true : faisceau dessiné en plus)
-        Beam = { Range = 60.0, Color = { 255, 246, 228 }, Distance = 22.0, Brightness = 5.0, Hardness = 2.0,
-            Radius = 13.0, Falloff = 30.0, Weapons = false },
+        -- Lampes torches posées allumées : lumière du modèle ; Drawn = true : faisceau dessiné en plus (vu par tous
+        -- à moins de Range m). Arme avec une lampe allumée : vraie lampe du jeu sur l'arme posée.
+        Beam = { Drawn = false, Range = 60.0, Color = { 255, 246, 228 }, Distance = 22.0, Brightness = 5.0,
+            Hardness = 2.0, Radius = 13.0, Falloff = 30.0 },
     },
 
     Props = {

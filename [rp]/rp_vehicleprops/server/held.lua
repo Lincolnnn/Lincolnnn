@@ -1,10 +1,9 @@
 --[[
-    RP VehicleProps - serveur : arme / lampe tenue posée sur un véhicule ou une lampe au sol
-    ---------------------------------------------------------------------------------------
+    RP VehicleProps - serveur : arme / lampe tenue posée sur un véhicule ou au sol
+    ------------------------------------------------------------------------------
     Véhicule : liste dans l'état du véhicule "rpWeapons" (chaque joueur pose ses objets, collés au véhicule) ; elle
-    vit et disparaît avec lui. Lampe au sol : objet réseau créé ici, figé, marqué "rpPlacedTorch" (ramassé avec l'œil
-    de rp_interact, ExternalObjects). Vérifié : arme en main (ou mains déjà vides), distance, nombre, valeurs bornées.
-    Aucune boucle.
+    vit et disparaît avec lui. Sol : liste GlobalState "rpGroundItems" (objets posés par chaque joueur, avec les
+    accessoires). Vérifié : arme en main (ou mains déjà vides), distance, nombres, valeurs bornées. Aucune boucle.
 ]]
 
 local Config = VPConfig
@@ -17,7 +16,6 @@ local TORCHES = {}
 for name, model in pairs(H.Torches or {}) do TORCHES[u32(GetHashKey(name))] = model end
 
 local lastAt, counter = {}, 0
-local Torches = {} -- [objet] = { owner, w }
 
 local function throttled(src)
     local now = GetGameTimer()
@@ -110,43 +108,54 @@ RegisterNetEvent('rp_vehicleprops:takeWeapon', function(netId, id)
     TriggerClientEvent('rp_vehicleprops:heldGive', src, taken)
 end)
 
--- Lampe posée au sol : objet réseau figé là où elle s'est posée
-RegisterNetEvent('rp_vehicleprops:placeTorch', function(data)
+-- =========================================================================
+-- AU SOL : liste GlobalState "rpGroundItems" (chaque joueur pose ses objets, avec les accessoires) ; ramassée avec
+-- l'œil (le premier à côté la prend)
+-- =========================================================================
+local nextGround = 0
+
+local function groundList()
+    local list, out = GlobalState.rpGroundItems, {}
+    if type(list) == 'table' then for _, item in ipairs(list) do out[#out + 1] = item end end
+    return out
+end
+
+RegisterNetEvent('rp_vehicleprops:placeGround', function(data)
     local src = source
     if H.Enabled == false or type(data) ~= 'table' or throttled(src) then return reply(src, false) end
     local w = cleanWeapon(src, data)
-    if not w or not w.torch then return reply(src, false, 'Action impossible.') end
+    if not w then return reply(src, false, 'Action impossible.') end
     local pos = vector3(num(data.x, -20000, 20000), num(data.y, -20000, 20000), num(data.z, -500, 3000))
     if not near(src, pos, (H.GroundDistance or 3.0) + 2.0) then return reply(src, false, 'Trop loin.') end
-    local count = 0
-    for _, t in pairs(Torches) do if t.owner == src then count = count + 1 end end
-    if count >= (H.GroundMax or 3) then return reply(src, false, ('Pas plus de %d lampes au sol.'):format(H.GroundMax or 3)) end
-    local object = CreateObjectNoOffset(GetHashKey(TORCHES[w.hash]), pos.x, pos.y, pos.z, true, true, false)
-    local timeout = GetGameTimer() + 2000
-    while not DoesEntityExist(object) and GetGameTimer() < timeout do Wait(0) end
-    if not DoesEntityExist(object) then return reply(src, false, 'Impossible de poser la lampe ici.') end
-    SetEntityRotation(object, num(data.rx, -360, 360), num(data.ry, -360, 360), num(data.rz, -360, 360), 2, true)
-    FreezeEntityPosition(object, true)
-    Torches[object] = { owner = src, w = w }
-    Entity(object).state:set('rpPlacedTorch', { light = w.light, label = w.label }, true)
+    local list, mine = groundList(), 0
+    for _, item in ipairs(list) do if item.owner == src then mine = mine + 1 end end
+    if mine >= (H.GroundMax or 3) then return reply(src, false, ('Pas plus de %d objets posés au sol.'):format(H.GroundMax or 3)) end
+    if #list >= (H.GroundTotal or 100) then table.remove(list, 1) end -- le plus ancien disparaît
+    nextGround = nextGround + 1
+    w.id = ('g%d_%d'):format(os.time() % 100000, nextGround)
+    w.owner = src
+    w.x, w.y, w.z = pos.x, pos.y, pos.z
+    w.rx, w.ry, w.rz = num(data.rx, -360, 360), num(data.ry, -360, 360), num(data.rz, -360, 360)
+    list[#list + 1] = w
+    GlobalState.rpGroundItems = list
     reply(src, true)
 end)
 
--- Ramassée avec l'œil (rp_interact, ExternalObjects) : le premier à côté la prend
-RegisterNetEvent('rp_vehicleprops:pickupTorch', function(netId)
+RegisterNetEvent('rp_vehicleprops:pickupGround', function(id)
     local src = source
-    local object = NetworkGetEntityFromNetworkId(tonumber(netId) or -1)
-    if not object or object == 0 or not DoesEntityExist(object) then return end
-    local t = Torches[object]
-    if not t or not near(src, GetEntityCoords(object), 3.5) then return end
-    Torches[object] = nil
-    DeleteEntity(object)
-    TriggerClientEvent('rp_vehicleprops:heldGive', src, t.w)
+    if type(id) ~= 'string' or throttled(src) then return end
+    local list, kept, taken = groundList(), {}, nil
+    for _, item in ipairs(list) do
+        if item.id == id and not taken and near(src, vector3(item.x, item.y, item.z), (H.PickupDistance or 2.5) + 1.5) then
+            taken = item
+        else
+            kept[#kept + 1] = item
+        end
+    end
+    if not taken then return end
+    GlobalState.rpGroundItems = kept
+    taken.owner = nil
+    TriggerClientEvent('rp_vehicleprops:heldGive', src, taken)
 end)
 
-AddEventHandler('entityRemoved', function(entity) Torches[entity] = nil end)
 AddEventHandler('playerDropped', function() lastAt[source] = nil end)
-AddEventHandler('onResourceStop', function(resource)
-    if resource ~= GetCurrentResourceName() then return end
-    for object in pairs(Torches) do if DoesEntityExist(object) then DeleteEntity(object) end end
-end)

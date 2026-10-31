@@ -583,9 +583,8 @@ dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
   jeu ; `light` : lampe allumée, celle de l'arme ou de CartoonFlashlight) ;
 - `exports.rp_interact:giveWeapon(data, equip)` : la rend à l'identique et rallume sa lampe (via `rp_weaponscontrol`).
 
-Utilisés par `rp_vehicleprops` (arme posée sur un véhicule). L'œil reconnaît aussi la **lampe posée au sol**
-(`rpPlacedTorch` : « Ramasser la lampe ») et le **Taser posé au sol** (`rpTaserDropped` : « Reprendre le Taser »),
-`ExternalObjects` dans `config.lua`.
+Utilisés par `rp_vehicleprops` (arme posée sur un véhicule ou au sol). L'œil reconnaît aussi le **Taser posé au sol**
+(`rpTaserDropped` : « Reprendre le Taser », `ExternalObjects` dans `config.lua`).
 
 ## `/copyped` : copier son personnage (photos)
 

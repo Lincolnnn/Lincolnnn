@@ -33,23 +33,23 @@ joueur qui arrive près du véhicule les voit aussi.
 Liée à `rp_interact` (œil, accessoires des armes), `rp_weaponscontrol` (lampe toujours allumée), CartoonFlashlight
 (lampe tenue) et `rp_taser10` :
 
-- **Sur un véhicule** (œil, à 3 m) : **« Poser l'arme sur le véhicule »** / **« Poser la lampe sur le véhicule »**.
-  L'objet **tombe sur la surface visée** (capot, toit, coffre…) et **s'y pose grâce à la collision du véhicule**
-  (la surface dure, pas la boîte du véhicule), puis il est **collé au véhicule** chez tous les joueurs (il le suit,
-  disparaît avec lui). Gardés : les **accessoires** de l'arme (lus par `rp_interact` : ceux de `equipment_services.json`,
-  armes addon comprises, et ceux du jeu), leurs teintes, la **teinte** de l'arme, les **munitions** et la **lampe
-  allumée** (arme avec lampe : vraie lampe du jeu sur l'arme posée ; lampe de poche : faisceau). Tombé à côté : posé
-  au point visé, couché. 4 armes au plus par véhicule (`MaxWeaponsPerVehicle`).
+- **Sur un véhicule** (œil, à 3 m) : **« Poser l'arme ici »** (point visé), **« … sur le toit »**, **« … sur le
+  coffre »** (seulement les véhicules à **coffre plat**, berlines… : surface nettement plus basse que le toit et
+  presque horizontale, vérifiée sur le véhicule). L'arme est posée **directement** (sans physique : elle ne glisse
+  plus) : des rayons vers le bas trouvent la carrosserie (la **collision** du véhicule, comme les impacts de balles)
+  et son **inclinaison** (moyenne de 5 points : les courbes du capot, du toit) ; l'arme est **couchée, inclinée comme
+  la surface, au ras** (son point le plus bas posé dessus, 4 mm, `Lift`). Elle reste **collée au véhicule** chez tous
+  les joueurs, avec ses **accessoires** (lus par `rp_interact`), leurs teintes, sa **teinte**, ses **munitions** et sa
+  **lampe allumée** (arme avec lampe : vraie lampe du jeu ; lampe torche : lumière du modèle). 4 au plus par véhicule.
 - **« Reprendre : <arme> »** (œil sur le véhicule) : rendue **telle quelle**, lampe rallumée si elle l'était.
-- **Lampe en main, en visant n'importe où** (sol, mur, personne…) : **« Poser la lampe au sol »** (au point visé à moins
-  de 3 m, sinon devant soi), **allumée si elle l'était** ; **« Ramasser la lampe »** avec l'œil (n'importe qui). 3 au
-  plus par joueur (`GroundMax`).
-- **Taser relié à un suspect** (sondes tirées) : il ne se pose pas sur un véhicule ; `rp_taser10` le pose **au sol**
-  sans couper les sondes.
+- **Ailleurs** (sol, mur, personne…), arme ou lampe en main : **« Poser l'arme au sol »** / **« … la lampe au sol »**,
+  de la même façon (au point visé à moins de 3 m, sinon devant soi) ; **« Ramasser : <arme> »** avec l'œil (n'importe
+  qui, à 2,5 m). 3 au plus par joueur (`GroundMax`). **La jeter** reste possible avec `rp_RoleplayZone` (touche G).
+- **Taser** : au sol avec `rp_taser10` (sondes gardées) ; relié à un suspect, il ne va pas sur un véhicule.
 
-Les lampes posées ont un **faisceau dessiné** (vu par tous à moins de 60 m, `Beam`) dans l'axe le plus long du modèle
-(`TorchBeamAxis` pour le changer : `'y'`, `'-y'`…, si le faisceau sort du mauvais bout). Le serveur vérifie : arme en main
-(ou mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est rendue.
+Lampes torches posées allumées : **lumière du modèle** (celle de CartoonFlashlight), réappliquée régulièrement ;
+`Beam.Drawn = true` : faisceau dessiné en plus (`TorchBeamAxis` pour son axe). Le serveur vérifie : arme en main (ou
+mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est rendue.
 
 ## Configuration (`config.lua`)
 
@@ -60,7 +60,7 @@ Les lampes posées ont un **faisceau dessiné** (vu par tous à moins de 60 m, `
 | `MaxPerVehicle` | objets au plus par véhicule (12) |
 | `Restricted` | `true` : réservé à la permission ACE `rp_vehicleprops.use` |
 | `Editor` | portée de la position (±3 m), pas des curseurs, sensibilité |
-| `Held` | arme / lampe tenue : armes par véhicule, lampes au sol, temps pour se poser, modèles des lampes, axe du faisceau, armes exclues, faisceau |
+| `Held` | arme / lampe tenue : armes par véhicule, objets au sol (par joueur, en tout), distances, hauteur au-dessus de la surface, modèles des lampes, armes exclues, faisceau dessiné |
 | `Props` | objets proposés : `id` unique, `label`, `category`, `model` (modèle du jeu). **Le serveur n'accepte que ces modèles.** |
 
 ## Fonctionnement
