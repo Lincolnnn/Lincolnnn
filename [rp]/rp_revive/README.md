@@ -12,7 +12,9 @@ ensure rp_revive
 ```
 
 La réapparition automatique de `spawnmanager` (ressource de base de FiveM) est coupée par ce script
-(`DisableAutoSpawn`) : c'est son écran qui réanime. Désactivez toute autre ressource de réanimation / respawn.
+(`DisableAutoSpawn`) : c'est son écran qui réanime. Le gamemode de base (`basic-gamemode`…) la **réactive** à chaque
+chargement de la carte : elle est donc re-coupée à ce moment-là, quand une ressource (re)démarre, à la mort et toutes
+les 5 s (plus de réapparition au hasard ~2 s après la mort). Désactivez toute autre ressource de réanimation / respawn.
 
 ## En jeu
 

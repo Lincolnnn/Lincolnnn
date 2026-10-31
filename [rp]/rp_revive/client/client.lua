@@ -8,7 +8,8 @@
         allongée là où il est mort, pour tout le monde ; l'œil de rp_interact y trouve la description du profil civil
         actif (inspection, fouille, détail notoire), sauf l'odeur détectée automatiquement.
     Souris ou clavier (E : sur place, H : hôpital, C : laisser le corps). Réanimé par un autre script (secours…) :
-    l'écran se ferme tout seul. La réapparition automatique de spawnmanager est coupée (DisableAutoSpawn).
+    l'écran se ferme tout seul. La réapparition automatique de spawnmanager est coupée (DisableAutoSpawn), et re-coupée
+    quand le gamemode la réactive (chargement de la carte, redémarrage, toutes les 5 s, à la mort).
     Performance : une vérification « suis-je mort ? » toutes les 500 ms (une native), rien d'autre.
 ]]
 
@@ -118,13 +119,34 @@ end)
 -- =========================================================================
 -- MORT ? (500 ms) ; réanimé par un autre script : l'écran se ferme
 -- =========================================================================
+-- Réapparition automatique de spawnmanager (point au hasard ~2 s après la mort) : coupée, et RE-coupée, car le gamemode
+-- (basic-gamemode…) la réactive à chaque chargement de la carte (onClientMapStart : setAutoSpawn(true)) ou en redémarrant
+local function noAutoSpawn()
+    if R.DisableAutoSpawn == false or GetResourceState('spawnmanager') ~= 'started' then return end
+    pcall(function() exports.spawnmanager:setAutoSpawn(false) end)
+end
+RPRevive.noAutoSpawn = noAutoSpawn
+
+AddEventHandler('onClientMapStart', function()
+    noAutoSpawn()
+    SetTimeout(1000, noAutoSpawn) -- après le gamemode, qui la réactive au même moment
+    SetTimeout(5000, noAutoSpawn)
+end)
+AddEventHandler('onClientResourceStart', function(resource)
+    if resource ~= GetCurrentResourceName() then SetTimeout(500, noAutoSpawn) end -- spawnmanager / gamemode (re)démarré
+end)
+AddEventHandler('playerSpawned', function() SetTimeout(500, noAutoSpawn) end)
+
 CreateThread(function()
-    if R.DisableAutoSpawn ~= false and GetResourceState('spawnmanager') == 'started' then
-        pcall(function() exports.spawnmanager:setAutoSpawn(false) end)
-    end
+    noAutoSpawn()
+    local nextCheck = 0
     while true do
         local isDead = IsEntityDead(PlayerPedId())
+        local now = GetGameTimer()
+        -- sécurité : re-coupée toutes les 5 s (un autre script a pu la réactiver)
+        if now >= nextCheck then nextCheck = now + 5000; noAutoSpawn() end
         if isDead and not dead then
+            noAutoSpawn() -- tout de suite (spawnmanager attend ~2 s après la mort)
             onDeath()
         elseif dead and not isDead and not busy then
             dead = false
