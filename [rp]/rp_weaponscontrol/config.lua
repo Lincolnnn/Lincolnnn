@@ -153,7 +153,7 @@ WeaponsConfig = {
         Tint = { 70, 74, 80 }, -- couleur du voile (gris clair fumée)
         -- Touché : le voile vire à cette couleur (dosée par HitOpacity) et les bords se teintent ; « wc_hittest » (F8)
         -- pour voir le rendu, « wc_hitdebug » pour vérifier la détection quand on est blessé
-        HitColor = { 255, 31, 0 },
+        HitColor = { 177, 22, 0 },
         HitOpacity = 0.8,   -- légèrement rouge
         HitFade = 4500,     -- ms : le rouge disparaît
         -- Disparition : l'effet a disparu FadeOut ms après le dernier tir

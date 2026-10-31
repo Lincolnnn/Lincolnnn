@@ -1,66 +1,75 @@
 {
     "vehicles": [
         {
-            "spawnName": "kcsocharger",
-            "Principale": "Police",
-            "subCategory": "King County Sheriff Office",
-            "menuName": "Dodge Charger 2020",
-            "extras": {
-                "1": true
-            }
-        },
-        {
-            "spawnName": "wspcharger2",
+            "spawnName": "wsp19fpiu",
             "Principale": "Police",
             "subCategory": "Washington State Patrol",
-            "menuName": "Charger 20 #1",
+            "menuName": "Base Ford Police Interceptor Utility - 2019",
+		    "windowTint": 1,
             "extras": {}
         },
         {
-            "spawnName": "kcsocharger",
-            "Principale": "Police",
-            "subCategory": "King County Sheriff Office",
-            "menuName": "Dodge Charger 2020",
-            "extras": {}
-        },
-        {
-            "spawnName": "police3",
-            "Principale": "Police",
-            "subCategory": "King County Sheriff Office",
-            "menuName": "Interceptor",
-            "livery": 0,
-            "extras": {}
-        },
-        {
-            "spawnName": "police4",
+            "spawnName": "wsp20fpiu",
             "Principale": "Police",
             "subCategory": "Washington State Patrol",
-            "menuName": "Unmarked",
+            "menuName": "Base Ford Police Interceptor Utility - 2020",
             "extras": {}
         },
         {
-            "spawnName": "sheriff2",
+            "spawnName": "wsp25fpiu",
             "Principale": "Police",
             "subCategory": "Washington State Patrol",
-            "menuName": "Granger",
-            "livery": 0,
-            "extras": {
-                "1": true,
-                "2": true
-            }
-        },
-        {
-            "spawnName": "sultan",
-            "Principale": "Civil",
-            "subCategory": "Berlines",
-            "menuName": "Karin Sultan",
+            "menuName": "Base Ford Police Interceptor Utility - 2025",
             "extras": {}
         },
         {
-            "spawnName": "baller2",
-            "Principale": "Civil",
-            "subCategory": "SUV",
-            "menuName": "Gallivanter Baller",
+            "spawnName": "wsp20fpiuun",
+            "Principale": "Police",
+            "subCategory": "Washington State Patrol",
+            "menuName": "Base Ford Police Interceptor Utility Unmarked - 2020",
+            "extras": {}
+        },
+        {
+            "spawnName": "wsp23tah",
+            "Principale": "Police",
+            "subCategory": "Washington State Patrol",
+            "menuName": "Base Chevrolet Tahoe Police Pursuit Vehicle - 2023",
+            "extras": {}
+        },
+        {
+            "spawnName": "wsp18chgradat1",
+            "Principale": "Police",
+            "subCategory": "Washington State Patrol",
+            "menuName": "Base Dodge Charger Police Pursuit Vehicle - 2018",
+            "extras": {}
+        },
+        {
+            "spawnName": "wsp18chgradat2",
+            "Principale": "Police",
+            "subCategory": "Washington State Patrol",
+            "menuName": "Base Dodge Charger Police Pursuit Vehicle - 2018",
+            "extras": {}
+        },
+        {
+            "spawnName": "kcso19fpiu",
+            "Principale": "Police",
+            "subCategory": "King County Sheriff Office",
+            "menuName": "Ford Police Interceptor Utility - 2019",
+		    "windowTint": 1,
+            "extras": {}
+        },
+        {
+            "spawnName": "kcso20fpiu",
+            "Principale": "Police",
+            "subCategory": "King County Sheriff Office",
+            "menuName": "Ford Police Interceptor Utility - 2020",
+            "extras": {}
+        },
+        {
+            "spawnName": "kcso19tah",
+            "Principale": "Police",
+            "subCategory": "King County Sheriff Office",
+            "menuName": "Chevrolet Tahoe Police Pursuit Vehicle - 2019",
             "extras": {}
         }
     ]
