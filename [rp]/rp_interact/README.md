@@ -279,9 +279,10 @@ Thème : celui du HUD (contour gris fin, angles légèrement arrondis), fond noi
 | **Accès public** | (administrateurs seulement) ouvre le réglage à tout le monde ; décoché : réservé aux administrateurs |
 
 On règle tout, puis **« Appliquer à tout le serveur »**. La ligne du haut rappelle l'état actuel. Réglages gardés après un
-redémarrage (`data/weather.json`). Administrateurs : joueurs de `Permissions` (section **weather**) — tant que les
-permissions sont désactivées, **tout le monde** — ou ceux qui ont la permission ACE `rp_interact.weather`
-(`add_ace group.admin rp_interact.weather allow`).
+redémarrage (`data/weather.json`). Administrateurs : ceux qui ont la permission ACE `rp_interact.weather`
+(`add_ace group.admin rp_interact.weather allow`, déjà dans le `permissions.cfg` du serveur) ; les membres et les
+joueurs non-officiels ne règlent la météo / l'heure que si un admin a coché **Accès public**. `Weather.AceOnly = false` :
+aussi les joueurs de `Permissions` (section **weather**, ou tout le monde tant que les permissions sont désactivées).
 
 **Une seule autorité.** vMenu a sa propre synchro de la météo et de l'heure (`vmenu_enable_weather_sync`,
 `vmenu_enable_time_sync`, plus sa météo dynamique) : avec les deux, l'heure et le temps « sautent » d'un script à l'autre.

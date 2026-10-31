@@ -18,7 +18,8 @@
     Publiées dans GlobalState (rpWeather, rpClock) : le serveur tient l'heure (minute exacte, avec ses fractions) et la
     republie toutes les SyncSeconds secondes ; chaque client avance à partir de la dernière valeur reçue avec sa propre
     horloge (aucune dépendance à l'heure de la machine du serveur ou du joueur) : même heure pour tout le monde.
-    Qui peut régler : Config.Permissions (section « weather ») ou la permission ACE Config.Weather.Ace.
+    Qui peut régler : la permission ACE Config.Weather.Ace (admins, permissions.cfg) ; tout le monde quand un admin a
+    coché « Accès public » ; avec AceOnly = false, aussi Config.Permissions (section « weather »).
     Performance : une minuterie seulement pour le défilement de la météo (rien sinon).
 ]]
 
@@ -131,9 +132,11 @@ CreateThread(function()
     end
 end)
 
---- Administrateur de la météo : permission ACE ou Permissions (section weather)
+--- Administrateur de la météo : permission ACE (W.Ace, donnée aux admins dans permissions.cfg) ; avec
+--- AceOnly = false, aussi les joueurs de Config.Permissions (section weather, ou tout le monde si elles sont coupées)
 local function admin(src)
     if W.Ace and IsPlayerAceAllowed(src, W.Ace) then return true end
+    if W.AceOnly ~= false then return false end
     return RPIServer.hasPermission(src, 'weather') == true
 end
 --- Peut régler : administrateur, ou tout le monde quand l'accès public est ouvert
