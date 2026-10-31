@@ -8,7 +8,10 @@ lua54 'yes'
 
 name 'rp_permissions'
 description 'Rôles Discord (Admin, Membre, Joueur non-officiel) -> groupes ACE, liste blanche à la connexion'
-version '1.0.0'
+version '1.0.1'
 
-shared_script 'config.lua'
-server_script 'server/server.lua'
+-- config.lua côté SERVEUR seulement (il contient le token du bot : jamais envoyé aux joueurs)
+server_scripts {
+    'config.lua',
+    'server/server.lua',
+}

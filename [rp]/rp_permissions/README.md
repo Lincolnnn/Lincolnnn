@@ -26,10 +26,13 @@ base seulement), `'deny'` refuse.
 
 ## Installation
 
-`server.cfg` (**le token ne va jamais dans un fichier du dépôt**) :
+**Token du bot** : dans `config.lua`, ligne `BotToken = "",` (entre les guillemets). Ce fichier n'est lu que par le
+serveur (jamais envoyé aux joueurs) ; ne le remettez **jamais** rempli sur GitHub. Ou, à la place, dans `server.cfg` :
+`set rp_discord_token "TOKEN_DU_BOT"` (« set », pas « setr » ; passe avant `BotToken`).
+
+`server.cfg` :
 
 ```
-set rp_discord_token "TOKEN_DU_BOT"
 exec @vMenu/config/permissions.cfg
 ensure rp_permissions
 ensure vMenu

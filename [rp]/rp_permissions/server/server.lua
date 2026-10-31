@@ -7,12 +7,13 @@
     d'accès, connexion refusée (PermsConfig.Whitelist).
     En jeu : rang revérifié toutes les RefreshMinutes (rôle donné / retiré sur Discord) ; état du joueur « rpRank »
     (visible par son client) ; exports getRank / isAdmin / isMember / hasRank / refresh.
-    Le token du bot vient de la convar « rp_discord_token » (server.cfg, jamais dans un fichier du dépôt) et n'est
-    jamais affiché.
+    Le token du bot vient de la convar « rp_discord_token » (server.cfg) ou de BotToken (config.lua, lu seulement par
+    le serveur) et n'est jamais affiché.
 ]]
 
 local C = PermsConfig
 local TOKEN = GetConvar('rp_discord_token', '')
+if TOKEN == '' then TOKEN = tostring(C.BotToken or '') end
 local GUILD = GetConvar('rp_discord_guild', '')
 if GUILD == '' then GUILD = tostring(C.GuildId or '') end
 local API = 'https://discord.com/api/v10'
@@ -183,7 +184,8 @@ AddEventHandler('playerDropped', function() ranks[source] = nil end)
 -- Démarrage (ou redémarrage du script) : vérification du bot, rang des joueurs déjà connectés
 CreateThread(function()
     if TOKEN == '' then
-        log('^1convar « rp_discord_token » absente du server.cfg : rôles Discord désactivés (permissions de base pour tous).^0')
+        log('^1token du bot absent (BotToken dans config.lua, ou convar rp_discord_token) : rôles Discord désactivés '
+            .. '(permissions de base pour tous).^0')
     elseif GUILD == '' then
         log('^1ID du serveur Discord absent (config.lua GuildId ou convar rp_discord_guild).^0')
     else

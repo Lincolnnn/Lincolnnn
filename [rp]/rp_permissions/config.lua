@@ -8,8 +8,10 @@
     Les permissions de chaque groupe (vMenu et scripts du serveur) sont dans permissions.cfg ; les scripts du serveur
     vérifient les ACE « rp.admin » / « rp.membre » (données à ces groupes dans permissions.cfg) ou les exports d'ici.
 
-    À METTRE DANS server.cfg (jamais dans ce fichier, jamais sur GitHub) :
-        set rp_discord_token "TOKEN_DU_BOT"            # « set », pas « setr » : jamais envoyé aux joueurs
+    TOKEN DU BOT : dans BotToken ci-dessous (ce fichier n'est lu que par le serveur, jamais envoyé aux joueurs), ou dans
+    server.cfg avec  set rp_discord_token "TOKEN_DU_BOT"  (« set », pas « setr » ; la convar passe avant BotToken).
+    Ne remettez JAMAIS ce fichier rempli sur GitHub ni ailleurs.
+    À METTRE DANS server.cfg :
         add_ace resource.rp_permissions command.add_principal allow
         add_ace resource.rp_permissions command.remove_principal allow
         ensure rp_permissions                          # tôt : avant vMenu et les scripts rp_
@@ -18,6 +20,9 @@
 ]]
 
 PermsConfig = {
+    -- Token du bot Discord (Discord Developer Portal > votre application > Bot > Reset Token), entre les guillemets
+    BotToken = "",
+
     -- Serveur Discord (ID du serveur : clic droit sur le serveur > Copier l'identifiant) ; la convar
     -- « rp_discord_guild » du server.cfg le remplace si elle est donnée
     GuildId = '1376650496403701832',
