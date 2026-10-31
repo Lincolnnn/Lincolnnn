@@ -19,6 +19,16 @@ d'origine (en anglais, détaillé) est dans [`README_original.md`](README_origin
 | `dependency 'ox_target'` | aucune dépendance ; police d'icônes externe (CDN) retirée du NUI, inutilisée |
 | Touches en anglais | Touches en français dans *Paramètres > Raccourcis clavier > FiveM* |
 
+### Poser le Taser au sol (sondes gardées)
+
+Taser en main, **œil (Alt) en visant n'importe où** (sol, mur, véhicule, personne) : **« Poser le Taser au sol »**
+(« … (sondes gardées) » quand des sondes sont reliées). Le policier le pose devant lui : **les sondes restent dans le
+suspect et reliées**, le fil part désormais **du Taser posé** (vu par tous), la distance maximale du fil est comptée
+**depuis lui** (côté client et serveur) ; on peut donc s'en éloigner. Pas de mise en veille tant qu'il est au sol.
+**« Reprendre le Taser »** (œil sur le Taser, son propriétaire seulement) : il revient en main et **marche comme
+avant** (SÉCURITÉ puis ARMÉ : nouvelle décharge sur les sondes déjà tirées). `Config.Target.Drop = false` pour retirer
+l'option. Objet réseau marqué `rpTaserDropped`, état du joueur `taserDropped` ; supprimé si le joueur se déconnecte.
+
 La commande `/removeprongs [id serveur]` fonctionne toujours. Le serveur vérifie la distance et la permission dans
 les deux cas.
 

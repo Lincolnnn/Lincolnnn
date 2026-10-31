@@ -18,6 +18,30 @@ VPConfig = {
         Sensitivity = { default = 1.0, min = 0.05, max = 3.0, step = 0.05 },
     },
 
+    -- ARME OU LAMPE TENUE EN MAIN (œil de rp_interact) :
+    --   sur un véhicule : « Poser l'arme / la lampe sur le véhicule » : elle tombe sur la surface visée (capot, toit…)
+    --     et s'y pose (collision du véhicule), puis reste collée au véhicule, avec ses accessoires (rp_interact),
+    --     sa teinte, ses munitions et sa lampe allumée si elle l'était ; « Reprendre : … » la rend telle quelle ;
+    --   n'importe où (sol, mur, personne…), une lampe en main : « Poser la lampe au sol » (allumée si elle l'était) ;
+    --     « Ramasser la lampe » avec l'œil.
+    Held = {
+        Enabled = true,
+        MaxWeaponsPerVehicle = 4,
+        GroundDistance = 3.0,   -- lampe au sol : au point visé s'il est à moins de … m, sinon devant soi
+        GroundMax = 3,          -- lampes au sol en même temps, par joueur
+        SettleTime = 2500,      -- ms : l'objet tombe et se pose (surface dure du véhicule / sol) avant d'être fixé
+        -- Lampes : modèle posé (celui de CartoonFlashlight, la lampe tenue en main) ; faisceau dessiné par le script
+        Torches = { WEAPON_FLASHLIGHT = 'prop_cs_police_torch' },
+        TorchBeamAxis = nil,    -- axe du faisceau dans le modèle de lampe : 'x', '-x', 'y', '-y', 'z', '-z' ; nil : le plus long
+        -- Jamais posées
+        Excluded = { 'WEAPON_PETROLCAN', 'WEAPON_HAZARDCAN', 'WEAPON_FERTILIZERCAN', 'WEAPON_FIREEXTINGUISHER', 'WEAPON_PARACHUTE' },
+        ExcludedGroups = { 'GROUP_THROWN', 'GROUP_PETROLCAN', 'GROUP_FIREEXTINGUISHER', 'GROUP_DIGISCANNER' },
+        -- Faisceau des lampes posées (vu par tous à moins de Range m) ; arme avec une lampe allumée : vraie lampe du
+        -- jeu sur l'arme posée (Weapons = true : faisceau dessiné en plus)
+        Beam = { Range = 60.0, Color = { 255, 246, 228 }, Distance = 22.0, Brightness = 5.0, Hardness = 2.0,
+            Radius = 13.0, Falloff = 30.0, Weapons = false },
+    },
+
     Props = {
         { id = 'pistol',     label = 'Pistolet',                category = 'Armes',      model = 'w_pi_combatpistol' },
         { id = 'shotgun',    label = 'Fusil à pompe',           category = 'Armes',      model = 'w_sg_pumpshotgun' },

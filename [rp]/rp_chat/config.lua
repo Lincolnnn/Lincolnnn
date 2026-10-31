@@ -89,6 +89,7 @@ ChatConfig = {
                 { "/scene", "civil : zone de recherche, lieu ou objet à fouiller" },
                 { "G", "civil, arme en main : jeter / poser son arme (molette)" },
                 { "Alt", "œil (maintenir) : inspecter, fouiller, portières, s'asseoir, objets sur un véhicule…" },
+                { "Alt + arme", "œil, arme / lampe / Taser en main : la poser sur un véhicule ou au sol, la reprendre" },
             } },
             { title = "Véhicule", items = {
                 { "O", "moteur" }, { "G", "ceinture" }, { "U / I", "sa portière / les deux avant" },

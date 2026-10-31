@@ -179,17 +179,18 @@ local function subtractVectors(a, b)
     )
 end
 
-local function getWeaponLightBasis(ped)
-    ped = ped or PlayerPedId()
-    local weaponEntity = GetCurrentPedWeaponEntityIndex(ped)
-
+--- Bout du canon et axes (avant, droite, haut) d'un objet d'arme : arme en main, ou Taser posé au sol (pas d'os
+--- du canon sur ce modèle : son centre et ses axes)
+local function entityBasis(weaponEntity, fallback)
     if weaponEntity == 0 or not DoesEntityExist(weaponEntity) then
         return nil, nil, nil, nil
     end
 
     local muzzleBone = GetEntityBoneIndexByName(weaponEntity, Config.Laser.MuzzleBone)
     if muzzleBone == -1 then
-        return nil, nil, nil, nil
+        if not fallback then return nil, nil, nil, nil end
+        local f, r, u, origin = GetEntityMatrix(weaponEntity)
+        return origin, f, r, u
     end
 
     local muzzle = GetWorldPositionOfEntityBone(weaponEntity, muzzleBone)
@@ -244,6 +245,37 @@ local function getWeaponLightBasis(ped)
     end
 
     return muzzle, barrelDirection, barrelRight, barrelUp
+end
+
+local function getWeaponLightBasis(ped)
+    ped = ped or PlayerPedId()
+    return entityBasis(GetCurrentPedWeaponEntityIndex(ped), false)
+end
+
+-- =========================================================================
+-- TASER POSÉ AU SOL (œil de rp_interact) : les sondes restent dans le suspect, le fil part du Taser posé ; repris,
+-- il marche comme avant (réactivation des sondes déjà tirées). État du joueur "taserDropped" (réseau de l'objet).
+-- =========================================================================
+local dropping = false -- posé, en attente du serveur
+local function droppedObject(serverId)
+    local netId = serverId and Player(serverId).state.taserDropped or LocalPlayer.state.taserDropped
+    if not netId or not NetworkDoesNetworkIdExist(netId) then return nil end
+    local obj = NetworkGetEntityFromNetworkId(netId)
+    if obj == 0 or not DoesEntityExist(obj) then return nil end
+    return obj
+end
+
+local function taserOnGround()
+    return dropping or LocalPlayer.state.taserDropped ~= nil
+end
+
+--- Origine du fil d'un tireur : son Taser posé au sol, sinon l'arme dans sa main
+local function shooterBasis(serverId)
+    local obj = droppedObject(serverId)
+    if obj then return entityBasis(obj, true) end
+    local player = GetPlayerFromServerId(serverId)
+    if player == -1 then return nil, nil, nil, nil end
+    return getWeaponLightBasis(GetPlayerPed(player))
 end
 
 local function correctedWeaponDirection(baseDirection, right, up, rightCorrection, upCorrection)
@@ -675,11 +707,7 @@ local function drawWire(start, finish)
 end
 
 local function connectionWireDistance(active)
-    local shooterPlayer = GetPlayerFromServerId(active.shooter)
-    if shooterPlayer == -1 then return nil end
-
-    local shooterPed = GetPlayerPed(shooterPlayer)
-    local muzzle, forward, right, up = getWeaponLightBasis(shooterPed)
+    local muzzle, forward, right, up = shooterBasis(active.shooter)
     if not muzzle then return nil end
 
     local wireStart = addVectors(muzzle, scaleVector(forward, Config.Wire.WeaponForwardOffset))
@@ -718,10 +746,8 @@ CreateThread(function()
         end
 
         for _, active in pairs(activeConnections) do
-            local shooterPlayer = GetPlayerFromServerId(active.shooter)
-            if shooterPlayer ~= -1 then
-                local shooterPed = GetPlayerPed(shooterPlayer)
-                local muzzle, forward, right, up = getWeaponLightBasis(shooterPed)
+            local muzzle, forward, right, up = shooterBasis(active.shooter)
+            if muzzle then
                 local currentDistance = connectionWireDistance(active)
 
                 if muzzle and currentDistance and currentDistance < active.maxDistance then
@@ -1191,7 +1217,8 @@ end
 
 local function connectionBreakReason()
     if connection.state ~= 'PARTIAL' and connection.state ~= 'CONNECTED' then return nil end
-    if Config.Prongs.BreakOnWeaponSwitch and not usingTaser() then return 'weapon_switch' end
+    local onGround = taserOnGround()
+    if Config.Prongs.BreakOnWeaponSwitch and not usingTaser() and not onGround then return 'weapon_switch' end
 
     local shooter = PlayerPedId()
     local target = connectionTargetPed()
@@ -1207,11 +1234,11 @@ local function connectionBreakReason()
         if wireDistance and wireDistance >= Config.Prongs.MaxWireDistance then
             return 'distance'
         end
-    elseif #(GetEntityCoords(shooter) - GetEntityCoords(target)) > Config.Prongs.MaxWireDistance then
+    elseif #(GetEntityCoords(droppedObject() or shooter) - GetEntityCoords(target)) > Config.Prongs.MaxWireDistance then
         return 'distance'
     end
 
-    if Config.Prongs.BreakOnLineOfSight and not HasEntityClearLosToEntity(shooter, target, 17) then
+    if Config.Prongs.BreakOnLineOfSight and not onGround and not HasEntityClearLosToEntity(shooter, target, 17) then
         return 'line_of_sight'
     end
 
@@ -1224,10 +1251,102 @@ end
 -- =========================================================================
 local TargetConfig = Config.Target or {}
 
+--- Rotation « couchée » (le plus petit côté vers le haut) et hauteur pour poser l'objet à plat sur le sol
+local function lyingPlacement(model, x, y, ground, heading)
+    local min, max = GetModelDimensions(model)
+    local size = max - min
+    local rx, ry = 0.0, 0.0
+    if size.x <= size.y and size.x <= size.z then ry = 90.0 elseif size.y <= size.z then rx = 90.0 end
+    local probe = CreateObjectNoOffset(model, x, y, ground + 1.0, false, false, false)
+    SetEntityVisible(probe, false, false)
+    SetEntityCollision(probe, false, false)
+    FreezeEntityPosition(probe, true)
+    SetEntityRotation(probe, rx, ry, heading, 2, true)
+    local lowest = math.huge
+    for _, cx in ipairs({ min.x, max.x }) do
+        for _, cy in ipairs({ min.y, max.y }) do
+            for _, cz in ipairs({ min.z, max.z }) do
+                local w = GetOffsetFromEntityInWorldCoords(probe, cx, cy, cz)
+                if w.z < lowest then lowest = w.z end
+            end
+        end
+    end
+    local origin = GetEntityCoords(probe)
+    DeleteEntity(probe)
+    return vector3(origin.x, origin.y, origin.z + (ground + 0.01 - lowest)), rx, ry
+end
+
+local droppedWeapon = nil -- { weapon, ammo } : rendu si le serveur refuse
+
+--- Poser le Taser au sol devant soi : il quitte la main, les sondes restent reliées (fil depuis le Taser posé)
+local function dropTaser()
+    local ped = PlayerPedId()
+    if taserOnGround() or not usingTaser(ped) or IsPedInAnyVehicle(ped, false) then return end
+    local weapon = GetSelectedPedWeapon(ped)
+    local model = GetWeapontypeModel(weapon)
+    if not model or model == 0 or not IsModelInCdimage(model) then return end
+    dropping = true
+    CreateThread(function()
+        RequestModel(model)
+        RequestAnimDict('pickup_object')
+        local untilTime = GetGameTimer() + 2000
+        while (not HasModelLoaded(model) or not HasAnimDictLoaded('pickup_object')) and GetGameTimer() < untilTime do Wait(0) end
+        if HasAnimDictLoaded('pickup_object') then
+            TaskPlayAnim(ped, 'pickup_object', 'putdown_low', 8.0, -8.0, 900, 0, 0.0, false, false, false)
+        end
+        Wait(450)
+        local spot = GetOffsetFromEntityInWorldCoords(ped, 0.15, 0.55, 0.0)
+        local found, ground = GetGroundZFor_3dCoord(spot.x, spot.y, spot.z + 1.0, false)
+        if not found then ground = spot.z - 0.98 end
+        local heading = (GetEntityHeading(ped) + 90.0) % 360.0
+        local pos, rx, ry = lyingPlacement(model, spot.x, spot.y, ground, heading)
+        SetModelAsNoLongerNeeded(model)
+        droppedWeapon = { weapon = weapon, ammo = GetAmmoInPedWeapon(ped, weapon) }
+        SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
+        RemoveWeaponFromPed(ped, weapon)
+        TriggerServerEvent('axon_taser10:dropTaser', { weapon = weapon, model = model, ammo = droppedWeapon.ammo,
+            x = pos.x, y = pos.y, z = pos.z, rx = rx, ry = ry, rz = heading })
+    end)
+end
+
+-- Posé (le serveur a créé l'objet) ou refusé (le Taser est rendu)
+RegisterNetEvent('axon_taser10:dropResult', function(ok, message)
+    dropping = false
+    if not ok and droppedWeapon then
+        GiveWeaponToPed(PlayerPedId(), droppedWeapon.weapon, droppedWeapon.ammo or 0, false, true)
+        droppedWeapon = nil
+    end
+    if message then TriggerEvent('chat:addMessage', { args = { 'TASER 10', message } }) end
+end)
+
+-- Repris (œil de rp_interact, ExternalObjects) : en main, les sondes toujours reliées
+RegisterNetEvent('axon_taser10:pickedUp', function(weapon, ammo)
+    local ped = PlayerPedId()
+    RequestAnimDict('pickup_object')
+    local untilTime = GetGameTimer() + 1000
+    while not HasAnimDictLoaded('pickup_object') and GetGameTimer() < untilTime do Wait(0) end
+    if HasAnimDictLoaded('pickup_object') then
+        TaskPlayAnim(ped, 'pickup_object', 'pickup_low', 8.0, -8.0, 900, 48, 0.0, false, false, false)
+    end
+    GiveWeaponToPed(ped, weapon, tonumber(ammo) or 0, false, true)
+    SetCurrentPedWeapon(ped, weapon, true)
+    droppedWeapon = nil
+    if safeAt then safeAt = GetGameTimer() end
+end)
+
 exports('targetOptions', function(info)
-    if type(info) ~= 'table' or info.type ~= 'ped' or not info.entity or not DoesEntityExist(info.entity) then return nil end
+    if type(info) ~= 'table' then return nil end
     local options = {}
     local ped = PlayerPedId()
+    -- Taser en main, n'importe où (sol, mur, véhicule, personne) : le poser au sol, sondes gardées
+    if TargetConfig.Drop ~= false and usingTaser(ped) and not taserOnGround() and not IsPedInAnyVehicle(ped, false) then
+        options[#options + 1] = { id = 'drop', icon = 'hand',
+            label = hasConnection() and 'Poser le Taser au sol (sondes gardées)' or 'Poser le Taser au sol' }
+    end
+    if info.type ~= 'ped' or not info.entity or not DoesEntityExist(info.entity) then
+        if #options == 0 then return nil end
+        return { label = 'TASER 10', options = options }
+    end
     if info.entity == ped then
         -- sur soi-même, Taser en main : recharger (comme /reloadtaser)
         if TargetConfig.Reload ~= false and usingTaser(ped) then
@@ -1245,7 +1364,9 @@ exports('targetOptions', function(info)
 end)
 
 exports('targetSelect', function(id, info)
-    if id == 'reload' then
+    if id == 'drop' then
+        dropTaser()
+    elseif id == 'reload' then
         ExecuteCommand(Config.ReloadCommand)
     elseif id == 'removeProngs' and type(info) == 'table' and info.entity and DoesEntityExist(info.entity) then
         requestProngRemoval(info.entity, 'target')
@@ -1322,6 +1443,7 @@ CreateThread(function()
             clearOwnedConnection(breakReason, true)
         end
 
+        if safeAt and taserOnGround() then safeAt = GetGameTimer() end -- posé : pas de mise en veille
         if safeAt and GetGameTimer() - safeAt >= 180000 then
             safeAt = nil
             clearOwnedConnection('sleep', false)

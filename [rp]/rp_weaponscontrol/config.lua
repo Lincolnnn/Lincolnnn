@@ -86,7 +86,11 @@ WeaponsConfig = {
     -- et se rallume quand l'arme revient en main (rangée puis ressortie, reprise dans l'équipement…). Lampes de poche
     -- simples (WEAPON_FLASHLIGHT, WEAPON_POCKETLIGHT…) : pareil. Toutes les armes sont concernées (une arme sans lampe
     -- n'a rien à rallumer). Éteinte par le joueur : elle reste éteinte.
-    Flashlight = { Enabled = true, KeepOnWhileMoving = true },
+    -- Lampe de CartoonFlashlight (ressource à part : lampe tenue en main, animations) : ses armes (Weapons) sont
+    -- gérées par elle ; ce script ne les rallume pas lui-même mais garde leur état (allumée / éteinte) d'un usage à
+    -- l'autre et le lui donne (exports flashlightWanted / setFlashlight, événement rp_weaponscontrol:flashlight).
+    Flashlight = { Enabled = true, KeepOnWhileMoving = true,
+        Cartoon = { Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } } },
 
     -- Sélecteur de tir (coup par coup / automatique) : armes automatiques des groupes Groups et armes Weapons (sauf
     -- Excluded). Touche Key (Raccourcis clavier > FiveM) : petit clic (Volume) et logo en bas au milieu de l'écran
@@ -128,18 +132,21 @@ WeaponsConfig = {
     Suppression = {
         Enabled = true,
         -- Ce qui fait monter l'effet (0 = rien, 1 = effet maximal d'un coup), par tir :
-        Own = 0.05,         -- on tire soi-même (arme avec silencieux : moitié)
-        Near = 0.035,       -- quelqu'un tire près de nous (au plus près ; diminue avec la distance, 0 à Range m)
-        Incoming = 0.12,    -- quelqu'un tire DANS NOTRE DIRECTION (balle passée à moins de IncomingRadius m de nous)
-        Hit = 0.22,         -- on est touché par une balle
+        Own = 0.09,         -- on tire soi-même (arme avec silencieux : moitié)
+        Near = 0.06,        -- quelqu'un tire près de nous (au plus près ; diminue avec la distance, 0 à Range m)
+        Incoming = 0.18,    -- quelqu'un tire DANS NOTRE DIRECTION (balle passée à moins de IncomingRadius m de nous)
+        Hit = 0.3,          -- on est touché par une balle
+        -- Montée : l'effet devient bien visible dès les premiers tirs (Curve < 1 : plus vite ; 1 : proportionnel),
+        -- alors que sa TAILLE grandit petit à petit, tir après tir (de MinCoverage à MaxCoverage)
+        Curve = 0.5,
         Range = 25.0,       -- portée des « tirs proches » (m)
         IncomingRadius = 2.5, -- balle passée à moins de ... m de nous : tir dans notre direction (touché ou non)
         -- Taille : part de l'écran couverte depuis chaque bord (0.10 = 10 % de la largeur / hauteur)
-        MinCoverage = 0.05, -- au premier tir
-        MaxCoverage = 0.20, -- au maximum (le centre reste toujours net)
+        MinCoverage = 0.10, -- au premier tir
+        MaxCoverage = 0.32, -- au maximum, après une longue rafale (le centre reste toujours net)
         -- Aspect
         -- Voile dessiné PAR-DESSUS (il couvre aussi les interfaces : HUD, PLD, minimap, menus) :
-        Opacity = 0.85,     -- densité du voile au bord de l'écran à pleine intensité (0 transparent, 1 opaque)
+        Opacity = 0.9,      -- densité du voile au bord de l'écran à pleine intensité (0 transparent, 1 opaque)
         Blur = 12,          -- flou du voile et des traînées (px) : plus grand = plus « fondu »
         Streaks = 0.6,      -- force des traînées « zoom » rayonnantes (0 = voile seul)
         Grain = 0.25,       -- grain qui brouille ce qu'on voit à travers (0 = aucun)
@@ -162,9 +169,6 @@ WeaponsConfig = {
             RadiusMin = 0.35, RadiusMax = 0.9, -- étendue du flou (blur_vignetting_radius) : premier tir -> maximum
             MotionBlur = 0.5,             -- flou de mouvement (recul, secousses) à pleine intensité ; 0 = aucun
         },
-        -- Effet « zoom » du jeu (flou radial depuis le centre, comme un coup de boost) : sur une rafale (effet au-dessus
-        -- de MinLevel), un tir dans notre direction ou une balle reçue ; au plus une fois toutes les Cooldown ms
-        ZoomFx = { Enabled = true, Name = 'RaceTurbo', MinLevel = 0.35, Cooldown = 2500 },
         -- Secousses de la caméra
         IncomingShake = 0.12, -- quelqu'un tire dans notre direction (touché ou non)
         HitShake = 0.2,       -- touché

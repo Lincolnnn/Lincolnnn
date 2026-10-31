@@ -9,7 +9,8 @@
     ACOUPHÈNE (léger) : seulement quand ça tire beaucoup tout près : Tinnitus.Shots tirs en Tinnitus.Window ms par des
     tireurs à moins de Tinnitus.Range m (soi-même, un autre joueur ou un PNJ). Silencieux : ni flash, ni acouphène.
     LAMPE TOUJOURS ALLUMÉE (Flashlight) : allumée par le joueur, elle le reste (même en courant) et se rallume quand
-    l'arme revient en main ; éteinte par le joueur, elle reste éteinte.
+    l'arme revient en main ; éteinte par le joueur, elle reste éteinte. Lampes de CartoonFlashlight : gérées par elle,
+    leur état est gardé ici (exports flashlightWanted / setFlashlight).
     SÉLECTEUR DE TIR (FireMode) : touche B sur une arme automatique : coup par coup <-> automatique (petit clic, logo
     en bas au milieu de l'écran). Coup par coup : un tir par pression de la détente.
     EFFET DE TIR SUR LES BORDS (Suppression) : voile style « motion blur » sur les bords de l'écran (jamais au centre),
@@ -139,7 +140,7 @@ local SP_CFG = { -- réglages envoyés au NUI (aspect, tailles, durées)
     minCoverage = SP.MinCoverage or 0.05, maxCoverage = SP.MaxCoverage or 0.2, opacity = SP.Opacity or 0.9,
     blur = SP.Blur or 7, streaks = SP.Streaks or 0.55, grain = SP.Grain or 0.35, tint = SP.Tint or { 26, 28, 32 },
     hitColor = SP.HitColor or { 150, 8, 12 }, hitOpacity = SP.HitOpacity or 0.4, hitFade = SP.HitFade or 4500,
-    fadeOut = SP.FadeOut or 5500,
+    fadeOut = SP.FadeOut or 5500, curve = SP.Curve or 0.5,
 }
 local spUntil, spOnTop = 0, false
 
@@ -147,7 +148,7 @@ local spUntil, spOnTop = 0, false
 local GB = SP.GameBlur or {}
 local TC_NAME = 'rp_wc_suppression'
 local tcVars = nil  -- noms des variables du jeu : { intensity, radius, motion } ; false : introuvables
-local gb = { peak = 0.0, last = 0, running = false, zoomAt = -math.huge }
+local gb = { peak = 0.0, last = 0, running = false }
 
 --- Variables de flou du jeu, cherchées par leur nom (le préfixe peut changer selon les versions du jeu)
 local function findTcVars()
@@ -177,7 +178,7 @@ end
 
 local function setGameBlur(level)
     local v = tcVars
-    local intensity = (GB.Intensity or 1.0) * level
+    local intensity = (GB.Intensity or 1.0) * (level > 0 and level ^ SP_CFG.curve or 0.0) -- vite visible
     SetTimecycleModifierVar(TC_NAME, v.intensity, intensity, intensity)
     if v.radius then
         local r = (GB.RadiusMin or 0.35) + ((GB.RadiusMax or 0.9) - (GB.RadiusMin or 0.35)) * level
@@ -214,26 +215,15 @@ local function gameBlur(add)
 end
 RPWeapons.gameBlur = gameBlur
 
---- Effet « zoom » du jeu (flou radial) : rafale, tir dans notre direction, balle reçue
-local function zoomFx(strong)
-    local Z = SP.ZoomFx or {}
-    if Z.Enabled == false or not Z.Name or Z.Name == '' then return end
-    local now = GetGameTimer()
-    if now - gb.zoomAt < (Z.Cooldown or 2500) then return end
-    if not strong and gameBlurLevel(now) < (Z.MinLevel or 0.35) then return end
-    gb.zoomAt = now
-    AnimpostfxPlay(Z.Name, 0, false)
-end
-
---- L'effet monte de `add` (0-1) ; hit : bords rouges ; strong : tir dans notre direction ou balle reçue (zoom)
-local function suppress(add, hit, strong)
+--- L'effet monte de `add` (0-1) ; hit : bords rouges. Pas d'effet de post-traitement coloré du jeu (l'ancien « zoom »
+--- RaceTurbo teintait l'image d'orange grisâtre) : seulement le flou et le voile.
+local function suppress(add, hit)
     if SP.Enabled == false then return end
     add = math.max(0.0, math.min(1.0, add or 0.0))
     if add <= 0.0 and not hit then return end
     spUntil = GetGameTimer() + math.max(SP_CFG.fadeOut, hit and SP_CFG.hitFade or 0) + 300
     SendNUIMessage({ action = 'suppress', data = { add = add, hit = hit == true, cfg = SP_CFG } })
     gameBlur(add)
-    zoomFx(strong == true or hit == true)
     if spOnTop or not SP.ZIndex then return end
     spOnTop = true
     SetNuiZindex(SP.ZIndex) -- au-dessus de tout (HUD, PLD, menus, MDC ; la minimap du jeu est sous le NUI)
@@ -442,6 +432,33 @@ if FL.Enabled ~= false then
     local lit = {}        -- [arme] = lampe allumée par le joueur
     local current, since, restoring = nil, 0, false
 
+    -- Lampes de CartoonFlashlight (ressource à part) : elle les gère (lampe tenue, lumière), on garde leur état
+    local CARTOON = FL.Cartoon or {}
+    local cartoonWeapons = {}
+    for _, name in ipairs(CARTOON.Weapons or {}) do cartoonWeapons[u32(GetHashKey(name))] = true end
+    local function cartoon(weapon)
+        return cartoonWeapons[u32(weapon)] == true and CARTOON.Resource and GetResourceState(CARTOON.Resource) == 'started'
+    end
+    RPWeapons.cartoon = cartoon
+
+    --- État voulu de la lampe d'une arme (jamais réglée : allumée pour une lampe de CartoonFlashlight, éteinte sinon)
+    exports('flashlightWanted', function(weapon)
+        local h = u32(weapon or 0)
+        if lit[h] == nil then return cartoonWeapons[h] == true end
+        return lit[h]
+    end)
+    --- Une autre ressource allume / éteint la lampe d'une arme (CartoonFlashlight, arme reprise sur un véhicule…) :
+    --- gardé, et rallumée tout de suite si c'est l'arme en main
+    local function setFlashlight(weapon, on)
+        local h = u32(weapon or 0)
+        if h == 0 then return end
+        lit[h] = on == true
+        if h == current and not cartoon(h) then since, restoring = GetGameTimer() - 300, on == true end
+    end
+    exports('setFlashlight', setFlashlight)
+    AddEventHandler('rp_weaponscontrol:flashlight', setFlashlight)
+    RPWeapons.setFlashlight = setFlashlight
+
     --- Moments où le jeu éteint la lampe tout seul : ce n'est pas le joueur
     local function unusual(ped)
         return IsPedInAnyVehicle(ped, true) or IsPedRagdoll(ped) or IsEntityDead(ped) or IsPedSwimming(ped)
@@ -457,7 +474,9 @@ if FL.Enabled ~= false then
             if weapon ~= current then
                 current, since, restoring = weapon, now, armed and lit[weapon] == true
             end
-            if armed then
+            if armed and cartoon(weapon) then
+                -- lampe de CartoonFlashlight : sa propre lumière (jamais celle du jeu, qui doublerait)
+            elseif armed then
                 local on = IsFlashLightOn(ped)
                 if unusual(ped) then
                     since, restoring = now, lit[weapon] == true -- à la sortie : elle revient si elle était allumée
@@ -490,7 +509,7 @@ RegisterCommand('wc_blurtest', function(_, args)
     local level = math.max(0.05, math.min(1.0, tonumber(args[1]) or 1.0))
     local v = findTcVars()
     print(('[rp_weaponscontrol] Flou du jeu : %s'):format(v and ('%s / %s / %s'):format(v.intensity, v.radius or '-', v.motion or '-') or 'indisponible'))
-    suppress(level, false, true)
+    suppress(level, false)
 end, false)
 
 -- =========================================================================
@@ -508,7 +527,7 @@ local function shotAround(n, d, towardMe, suppressed)
         add = add + (SP.Incoming or 0.12) * n
         if (SP.IncomingShake or 0) > 0 then camShake(SP.ShakeName or 'SMALL_EXPLOSION_SHAKE', SP.IncomingShake) end
     end
-    suppress(add, false, towardMe)
+    suppress(add, false)
 end
 RPWeapons.shotAround = shotAround
 

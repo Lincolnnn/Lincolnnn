@@ -576,6 +576,17 @@ Un équipement modifié ne garde que ce que le fichier prévoit encore : un acce
 plus donné, une arme ajoutée apparaît avec son réglage de base. Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`
 dans `server/server.lua`. Console serveur : `rpi_reload` recharge le fichier.
 
+## Arme tenue : exports pour les autres scripts
+
+- `exports.rp_interact:captureWeapon()` : arme en main telle quelle : `{ hash, label, ammo, tint, components,
+  componentTints, light, torch }` (accessoires de `equipment_services.json`, armes addon comprises, et accessoires du
+  jeu ; `light` : lampe allumée, celle de l'arme ou de CartoonFlashlight) ;
+- `exports.rp_interact:giveWeapon(data, equip)` : la rend à l'identique et rallume sa lampe (via `rp_weaponscontrol`).
+
+Utilisés par `rp_vehicleprops` (arme posée sur un véhicule). L'œil reconnaît aussi la **lampe posée au sol**
+(`rpPlacedTorch` : « Ramasser la lampe ») et le **Taser posé au sol** (`rpTaserDropped` : « Reprendre le Taser »),
+`ExternalObjects` dans `config.lua`.
+
 ## `/copyped` : copier son personnage (photos)
 
 `/copyped` : un **double** de votre personnage apparaît **exactement à votre place** (position, orientation, tenue),

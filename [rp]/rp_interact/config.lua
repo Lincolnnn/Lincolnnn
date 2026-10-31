@@ -138,6 +138,8 @@ InteractConfig = {
             { Label = 'Ramasser les plots autour', Icon = 'hand', Event = 'rp_equipment:cone:pickupAll' },
         } },
         rpDroppedWeapon = { Name = 'Arme au sol', Label = 'Ramasser l\'arme', Icon = 'hand', Event = 'rp_scene:weapon:pickup', Distance = 2.0 }, -- rp_RoleplayZone
+        rpPlacedTorch = { Name = 'Lampe torche', Label = 'Ramasser la lampe', Icon = 'hand', Event = 'rp_vehicleprops:pickupTorch', Distance = 2.5 }, -- rp_vehicleprops
+        rpTaserDropped = { Name = 'Taser', Label = 'Reprendre le Taser', Icon = 'hand', Event = 'axon_taser10:pickupDropped', Distance = 2.5 }, -- rp_taser10
     },
 
     Props = {

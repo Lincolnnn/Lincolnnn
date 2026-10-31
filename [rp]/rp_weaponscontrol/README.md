@@ -36,13 +36,14 @@ Un **voile style « motion blur »** sur les **bords de l'écran seulement** (ja
 
 | Situation | Montée de l'effet (par tir) | En plus |
 |---|---|---|
-| on tire soi-même | `Own` (0,05 ; silencieux : moitié) | |
-| quelqu'un tire **près de nous** (joueur ou PNJ, moins de `Range` = 25 m) | `Near` (0,035 au plus près, moins en s'éloignant) | |
-| quelqu'un tire **dans notre direction**, touché ou non (balle passée à moins de `IncomingRadius` = 2,5 m ; PNJ : en combat contre nous) | `Incoming` (0,12), quelle que soit la distance | **secousse** de la caméra (`IncomingShake`) |
-| on est **touché** par une balle | `Hit` (0,22) | **bords légèrement rouges** (`HitColor`, `HitOpacity`) + secousse (`HitShake`) |
+| on tire soi-même | `Own` (0,09 ; silencieux : moitié) | |
+| quelqu'un tire **près de nous** (joueur ou PNJ, moins de `Range` = 25 m) | `Near` (0,06 au plus près, moins en s'éloignant) | |
+| quelqu'un tire **dans notre direction**, touché ou non (balle passée à moins de `IncomingRadius` = 2,5 m ; PNJ : en combat contre nous) | `Incoming` (0,18), quelle que soit la distance | **secousse** de la caméra (`IncomingShake`) |
+| on est **touché** par une balle | `Hit` (0,3) | **bords légèrement rouges** (`HitColor`, `HitOpacity`) + secousse (`HitShake`) |
 
-**Plus ça tire, plus l'effet s'étend** vers le centre : de `MinCoverage` (5 % de l'écran depuis chaque bord) jusqu'à
-`MaxCoverage` (20 %) au plus. Sans nouveau tir, il **disparaît en `FadeOut` ms** (5,5 s ; le rouge : `HitFade`).
+L'effet est **bien visible dès les premiers tirs** (`Curve` = 0,5 : densité et flou montent vite), et **plus ça tire,
+plus il prend de place**, petit à petit : de `MinCoverage` (10 % de l'écran depuis chaque bord) jusqu'à `MaxCoverage`
+(32 %) au plus, après une longue rafale ; le centre reste toujours net. Sans nouveau tir, il **disparaît en `FadeOut` ms** (5,5 s ; le rouge : `HitFade`).
 Il passe **au-dessus de tout** : HUD, PLD, car HUD, minimap, menus, MDC (pendant l'effet, l'interface de ce script
 passe au premier plan, `SetNuiZindex(ZIndex)`, puis revient à 0). Tout se règle à la main dans **`config.lua` >
 `Suppression`** (tailles, densité `Opacity`, flou `Blur`, traînées `Streaks`, grain `Grain`, couleur `Tint`, montées,
@@ -59,10 +60,10 @@ La direction de chaque tir (du canon vers le point visé) est envoyée avec le p
   dans le jeu (`blur_vignetting_intensity`, `blur_vignetting_radius`, `motionblur…`) : introuvables, message dans la
   console F8 et seul le voile reste. Le modificateur est posé dans l'emplacement « extra » du jeu (aussi utilisé par
   Vehicle Control après un choc : chacun ne retire que le sien) ;
-- **effet « zoom »** du jeu (`ZoomFx`, `RaceTurbo` : flou radial depuis le centre) sur une rafale, un tir dans notre
-  direction ou une balle reçue (au plus toutes les 2,5 s) ;
 - **voile par-dessus** (NUI, au-dessus de tout) : léger voile laiteux, traînées rayonnantes fondues et grain ; c'est
   lui qui couvre les interfaces (HUD, PLD, minimap, menus), qu'aucun script ne peut flouter réellement.
+
+Aucun effet de couleur du jeu : l'ancien effet « zoom » (`RaceTurbo`, teinte orange grisâtre) est retiré.
 
 Réglage en jeu : **`wc_blurtest`** (F8) joue l'effet au maximum (`wc_blurtest 0.4` : à 40 %) et affiche les variables
 de flou trouvées ; ajustez `Suppression.GameBlur` (`Intensity`, `RadiusMin` / `RadiusMax`, `MotionBlur`) et le voile
@@ -72,6 +73,13 @@ de flou trouvées ; ajustez `Suppression.GameBlur` (`Intensity`, `RadiusMin` / `
 Une lampe **allumée par le joueur** (lampe sur l'arme, ou lampe de poche simple `WEAPON_FLASHLIGHT` /
 `WEAPON_POCKETLIGHT`) **reste allumée** : en courant, sans viser, et **quand l'arme est rangée puis ressortie** (ou
 reprise dans l'équipement), elle se rallume toute seule. Éteinte par le joueur : elle reste éteinte.
+
+**CartoonFlashlight** (ressource à part, lampe tenue en main avec ses animations ; `Flashlight.Cartoon`) : ses
+armes (`WEAPON_FLASHLIGHT`) sont gérées par elle. Ce script ne rallume plus la lampe du jeu sur ces armes (elle
+doublait la sienne et la faisait parfois rester éteinte) mais garde leur état d'un usage à l'autre :
+`exports.rp_weaponscontrol:flashlightWanted(arme)` (jamais réglée : allumée) et
+`exports.rp_weaponscontrol:setFlashlight(arme, allumée)` / événement client `rp_weaponscontrol:flashlight` (utilisé
+par CartoonFlashlight corrigée et par `rp_vehicleprops` quand on reprend une arme posée avec sa lampe allumée).
 
 ### Sélecteur de tir (`FireMode`)
 Sur les armes **automatiques** (pistolets-mitrailleurs, mitrailleuses, fusils d'assaut, AP Pistol, Machine Pistol,
@@ -103,7 +111,7 @@ tireur qu'il voit. Le sifflement est généré par le script (aucun fichier son)
 | `Tinnitus` | activé, portée (10 m), tirs (10) et fenêtre (10 s), PNJ compris, volume, durées, délai entre deux |
 | `Shake` | secousse des voisins : activée, portée, force, type |
 | `Sync` | portée du relais, paquets (ms), limite par seconde |
-| `Suppression` | effet de tir sur les bords : montées (`Own`, `Near`, `Incoming`, `Hit`), portées, tailles (`MinCoverage`, `MaxCoverage`), voile (`Opacity`, `Blur`, `Streaks`, `Grain`, `Tint`), vrai flou du jeu (`GameBlur`), effet zoom (`ZoomFx`), rouge si touché, durée (`FadeOut`), premier plan (`ZIndex`), secousses |
+| `Suppression` | effet de tir sur les bords : montées (`Own`, `Near`, `Incoming`, `Hit`, `Curve`), portées, tailles (`MinCoverage`, `MaxCoverage`), voile (`Opacity`, `Blur`, `Streaks`, `Grain`, `Tint`), vrai flou du jeu (`GameBlur`), rouge si touché, durée (`FadeOut`), premier plan (`ZIndex`), secousses |
 
 ## Performance
 

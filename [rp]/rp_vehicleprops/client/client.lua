@@ -94,7 +94,7 @@ local function propsOf(vehicle)
     end
     return out
 end
-VPClient = { propsOf = propsOf, signature = signature } -- pour les tests
+VPClient = { propsOf = propsOf, signature = signature, notify = notify } -- tests ; client/held.lua
 
 --- Objets du véhicule remis à jour d'après son état (posés, déplacés, retirés)
 local function refresh(vehicle)
@@ -275,20 +275,26 @@ local function vehicleFromInfo(info)
 end
 
 exports('targetOptions', function(info)
-    if editor then return nil end
+    if editor or type(info) ~= 'table' then return nil end
     local vehicle = vehicleFromInfo(info)
-    if not vehicle then return nil end
-    local count = #propsOf(vehicle)
-    local options = { { id = 'add', icon = 'hand', label = 'Ajouter un objet' } }
-    if count > 0 then
-        options[#options + 1] = { id = 'edit', icon = 'move', label = ('Déplacer un objet (%d)'):format(count) }
-        options[#options + 1] = { id = 'remove', icon = 'trash', label = 'Retirer un objet' }
+    local options = {}
+    if vehicle then
+        local count = #propsOf(vehicle)
+        options[1] = { id = 'add', icon = 'hand', label = 'Ajouter un objet' }
+        if count > 0 then
+            options[#options + 1] = { id = 'edit', icon = 'move', label = ('Déplacer un objet (%d)'):format(count) }
+            options[#options + 1] = { id = 'remove', icon = 'trash', label = 'Retirer un objet' }
+        end
     end
-    return { label = 'Véhicule', options = options }
+    -- arme / lampe tenue en main (client/held.lua) : la poser sur le véhicule, la lampe au sol ; reprendre
+    if VPHeld and VPHeld.options then VPHeld.options(info, vehicle, options) end
+    if #options == 0 then return nil end
+    return { label = vehicle and 'Véhicule' or 'Lampe', options = options }
 end)
 
 exports('targetSelect', function(id, info)
     local vehicle = vehicleFromInfo(info)
+    if VPHeld and VPHeld.select and VPHeld.select(id, info, vehicle) then return end
     if not vehicle then return notify('Rapprochez-vous du véhicule.') end
     if id == 'add' or id == 'edit' or id == 'remove' then openList(vehicle, id, info.hit) end
 end)

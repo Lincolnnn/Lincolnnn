@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '3.10.1'
+version '3.11.0'
 
 ui_page 'html/index.html'
 
@@ -44,6 +44,7 @@ client_scripts {
     'client/smell.lua',    -- policier en service : odeurs détectées à côté d'un civil / d'un véhicule
     'client/weather.lua',  -- météo et heure du serveur (Menu > Configuration > Météo)
     'client/copyped.lua',  -- /copyped : copie du personnage (arme, accessoires, emote) pour les photos
+    'client/heldweapon.lua', -- arme tenue : capture / restitution (exports, rp_vehicleprops)
 }
 
 server_scripts {

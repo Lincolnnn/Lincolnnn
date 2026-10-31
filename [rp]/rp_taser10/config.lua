@@ -158,6 +158,10 @@ Config.Target = {
     RemoveLabel = 'Retirer les sondes du Taser', -- sur un joueur ou un PNJ qui a des sondes plantées (+ nombre)
     Reload = true,                               -- sur soi-même, Taser en main : « Recharger le Taser »
     ReloadLabel = 'Recharger le Taser',
+    -- Taser en main, en visant n'importe où : « Poser le Taser au sol ». Les sondes déjà tirées restent dans le
+    -- suspect et reliées (le fil part du Taser posé, distance comptée depuis lui) ; « Reprendre le Taser » (œil,
+    -- son propriétaire seulement) : il marche comme avant (réactivation des sondes). Pas de mise en veille au sol.
+    Drop = true,
 }
 
 Config.Keys = {

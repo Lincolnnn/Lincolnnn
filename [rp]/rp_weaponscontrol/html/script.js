@@ -111,8 +111,9 @@
         const hit = levelAt(sp.hitPeak, sp.hitLast, c.hitFade, now);
         const lo = clamp01(c.minCoverage); const hi = Math.max(lo, clamp01(c.maxCoverage));
         if (level > 0) {
-            const k = Math.pow(level, 0.8);
-            spEl.style.setProperty('--mask', edgeMask(lo + (hi - lo) * k));
+            // densité : vite visible (curve < 1) ; taille : grandit tir après tir (proportionnelle)
+            const k = Math.pow(level, Number(c.curve) > 0 ? Number(c.curve) : 0.5);
+            spEl.style.setProperty('--mask', edgeMask(lo + (hi - lo) * level));
             spEl.style.opacity = (clamp01(c.opacity) * k).toFixed(3);
         } else spEl.style.opacity = 0;
         if (hit > 0) {

@@ -96,6 +96,15 @@ local function victimEntity(targetType, targetId)
     return 0
 end
 
+-- Taser posé au sol par un tireur (œil de rp_interact) : [joueur] = { object, weapon, ammo } ; le fil part de lui
+local droppedTasers = {}
+
+local function droppedTaserObject(shooter)
+    local d = droppedTasers[shooter]
+    if d and DoesEntityExist(d.object) then return d.object end
+    return nil
+end
+
 local function validPair(shooter, targetType, targetId, maxDistance)
     if not GetPlayerName(shooter) then return false end
 
@@ -110,7 +119,9 @@ local function validPair(shooter, targetType, targetId, maxDistance)
         return false
     end
 
-    return distance(GetEntityCoords(shooterPed), GetEntityCoords(targetPed)) <= maxDistance
+    -- Taser posé : distance depuis lui (le policier peut s'en éloigner, le fil reste branché)
+    local origin = droppedTaserObject(shooter) or shooterPed
+    return distance(GetEntityCoords(origin), GetEntityCoords(targetPed)) <= maxDistance
 end
 
 local function validRemovalTarget(requester, targetType, targetId)
@@ -581,8 +592,76 @@ CreateThread(function()
     end
 end)
 
+-- =========================================================================
+-- TASER POSÉ AU SOL : objet réseau figé, marqué "rpTaserDropped" (repris avec l'œil, ExternalObjects de rp_interact)
+-- =========================================================================
+local function isTaser(weapon)
+    weapon = (tonumber(weapon) or 0) & 0xFFFFFFFF
+    for _, w in ipairs(Config.Weapons) do if (w & 0xFFFFFFFF) == weapon then return true end end
+    return false
+end
+
+local function clearDropped(player, deleteObject)
+    local d = droppedTasers[player]
+    droppedTasers[player] = nil
+    pcall(function() Player(player).state:set('taserDropped', nil, true) end)
+    if d and deleteObject and DoesEntityExist(d.object) then DeleteEntity(d.object) end
+    return d
+end
+
+RegisterNetEvent('axon_taser10:dropTaser', function(data)
+    local src = source
+    local function refuse(message) TriggerClientEvent('axon_taser10:dropResult', src, false, message) end
+    if type(data) ~= 'table' or droppedTasers[src] or not isTaser(data.weapon) then return refuse() end
+    local ped = GetPlayerPed(src)
+    local current = (GetSelectedPedWeapon(ped) or 0) & 0xFFFFFFFF
+    if current ~= 0 and not isTaser(current) and current ~= (`WEAPON_UNARMED` & 0xFFFFFFFF) then return refuse() end
+    local x, y, z = tonumber(data.x), tonumber(data.y), tonumber(data.z)
+    if not x or not y or not z or distance(GetEntityCoords(ped), vector3(x, y, z)) > 4.0 then return refuse() end
+    local model = math.floor(tonumber(data.model) or 0)
+    if model == 0 then return refuse() end
+    local object = CreateObjectNoOffset(model, x, y, z, true, true, false)
+    local timeout = GetGameTimer() + 2000
+    while not DoesEntityExist(object) and GetGameTimer() < timeout do Wait(0) end
+    if not DoesEntityExist(object) then return refuse('Impossible de poser le Taser ici.') end
+    SetEntityRotation(object, tonumber(data.rx) or 0.0, tonumber(data.ry) or 0.0, tonumber(data.rz) or 0.0, 2, true)
+    FreezeEntityPosition(object, true)
+    droppedTasers[src] = { object = object, weapon = math.floor(tonumber(data.weapon)), ammo = math.max(0, math.floor(tonumber(data.ammo) or 0)) }
+    Entity(object).state:set('rpTaserDropped', { owner = src }, true)
+    Player(src).state:set('taserDropped', NetworkGetNetworkIdFromEntity(object), true)
+    TriggerClientEvent('axon_taser10:dropResult', src, true)
+end)
+
+-- Repris avec l'œil : seulement par son propriétaire (ses sondes, sa connexion)
+RegisterNetEvent('axon_taser10:pickupDropped', function(netId)
+    local src = source
+    local object = NetworkGetEntityFromNetworkId(tonumber(netId) or -1)
+    if not object or object == 0 or not DoesEntityExist(object) then return end
+    local owner
+    for player, d in pairs(droppedTasers) do if d.object == object then owner = player end end
+    if not owner then return end
+    if owner ~= src then
+        return TriggerClientEvent('chat:addMessage', src, { args = { 'TASER 10', 'Ce Taser n\'est pas le vôtre.' } })
+    end
+    if distance(GetEntityCoords(GetPlayerPed(src)), GetEntityCoords(object)) > 3.5 then return end
+    local d = clearDropped(src, true)
+    TriggerClientEvent('axon_taser10:pickedUp', src, d.weapon, d.ammo)
+end)
+
+AddEventHandler('entityRemoved', function(entity)
+    for player, d in pairs(droppedTasers) do
+        if d.object == entity then clearDropped(player, false) end
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource ~= GetCurrentResourceName() then return end
+    for player in pairs(droppedTasers) do clearDropped(player, true) end
+end)
+
 AddEventHandler('playerDropped', function()
     local player = source
+    if droppedTasers[player] then clearDropped(player, true) end
     breakConnection(player, 'shooter_left')
     lastShots[player] = nil
     armedPlayers[player] = nil
