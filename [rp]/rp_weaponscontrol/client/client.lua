@@ -12,6 +12,9 @@
     l'arme revient en main ; éteinte par le joueur, elle reste éteinte.
     SÉLECTEUR DE TIR (FireMode) : touche B sur une arme automatique : coup par coup <-> automatique (petit clic, logo
     en bas au milieu de l'écran). Coup par coup : un tir par pression de la détente.
+    EFFET DE TIR SUR LES BORDS (Suppression) : voile style « motion blur » sur les bords de l'écran (jamais au centre),
+    au-dessus de toutes les interfaces : on tire, quelqu'un tire près de nous, on nous tire dessus (+ secousse, touché
+    ou non), on est touché (+ bords légèrement rouges). Chaque tir l'étend ; il disparaît FadeOut ms après le dernier.
     Performance : sans arme à feu en main, une vérification toutes les 250 ms ; arme en main : lecture du tir à chaque
     image (comme le jeu) ; PNJ armés à moins de 10 m : lecture de leurs tirs à chaque image tant qu'il y en a ; lampe :
     une lecture toutes les 200 ms arme en main (500 ms sinon).
@@ -128,6 +131,63 @@ end
 RPWeapons.heard = heard
 
 -- =========================================================================
+-- EFFET DE TIR SUR LES BORDS DE L'ÉCRAN (Suppression) : dessiné par le NUI (html/script.js), au-dessus de toutes les
+-- interfaces pendant l'effet (z-index du NUI de ce script), remis à 0 quand il a disparu
+-- =========================================================================
+local SP = W.Suppression or {}
+local SP_CFG = { -- réglages envoyés au NUI (aspect, tailles, durées)
+    minCoverage = SP.MinCoverage or 0.05, maxCoverage = SP.MaxCoverage or 0.2, opacity = SP.Opacity or 0.9,
+    blur = SP.Blur or 7, streaks = SP.Streaks or 0.55, grain = SP.Grain or 0.35, tint = SP.Tint or { 26, 28, 32 },
+    hitColor = SP.HitColor or { 150, 8, 12 }, hitOpacity = SP.HitOpacity or 0.4, hitFade = SP.HitFade or 4500,
+    fadeOut = SP.FadeOut or 5500,
+}
+local spUntil, spOnTop = 0, false
+
+--- L'effet monte de `add` (0-1) ; hit : bords rouges
+local function suppress(add, hit)
+    if SP.Enabled == false then return end
+    add = math.max(0.0, math.min(1.0, add or 0.0))
+    if add <= 0.0 and not hit then return end
+    spUntil = GetGameTimer() + math.max(SP_CFG.fadeOut, hit and SP_CFG.hitFade or 0) + 300
+    SendNUIMessage({ action = 'suppress', data = { add = add, hit = hit == true, cfg = SP_CFG } })
+    if spOnTop or not SP.ZIndex then return end
+    spOnTop = true
+    SetNuiZindex(SP.ZIndex) -- au-dessus de tout (HUD, PLD, menus, MDC ; la minimap du jeu est sous le NUI)
+    CreateThread(function()
+        while GetGameTimer() < spUntil do Wait(500) end
+        SetNuiZindex(0)
+        spOnTop = false
+    end)
+end
+RPWeapons.suppress = suppress
+
+--- Direction d'un tir : du canon vers le point visé (rayon de la caméra, 150 m) ; { fx, fy, fz, tx, ty, tz }
+local function aimOf(ped)
+    local from = muzzleOf(ped)
+    local cam, rot = GetGameplayCamCoord(), GetGameplayCamRot(2)
+    local rx, rz = math.rad(rot.x), math.rad(rot.z)
+    local c = math.abs(math.cos(rx))
+    local dx, dy, dz = -math.sin(rz) * c, math.cos(rz) * c, math.sin(rx)
+    return { from.x, from.y, from.z, cam.x + dx * 150.0, cam.y + dy * 150.0, cam.z + dz * 150.0 }
+end
+RPWeapons.aimOf = aimOf
+
+--- Le tir (aim) passe-t-il à moins de `radius` m de pos (devant le tireur) ?
+local function passesNear(aim, pos, radius)
+    if type(aim) ~= 'table' or #aim < 6 then return false end
+    local fx, fy, fz, tx, ty, tz = aim[1], aim[2], aim[3], aim[4], aim[5], aim[6]
+    local dx, dy, dz = tx - fx, ty - fy, tz - fz
+    local len2 = dx * dx + dy * dy + dz * dz
+    if len2 < 0.01 then return false end
+    local t = ((pos.x - fx) * dx + (pos.y - fy) * dy + (pos.z - fz) * dz) / len2
+    if t <= 0.0 then return false end -- derrière le tireur
+    t = math.min(t, 1.0)
+    local cx, cy, cz = fx + dx * t - pos.x, fy + dy * t - pos.y, fz + dz * t - pos.z
+    return cx * cx + cy * cy + cz * cz <= radius * radius
+end
+RPWeapons.passesNear = passesNear
+
+-- =========================================================================
 -- TIREUR : recul, effets, tirs rapides, envoi par paquets
 -- =========================================================================
 local pending = nil -- { count, key, suppressed, smoke, since }
@@ -160,7 +220,7 @@ local function flush(force)
     if not pending then return end
     if not force and GetGameTimer() - pending.since < ((W.Sync or {}).Batch or 100) then return end
     TriggerServerEvent('rp_weaponscontrol:shots', { count = pending.count, key = pending.key,
-        suppressed = pending.suppressed, smoke = pending.smoke })
+        suppressed = pending.suppressed, smoke = pending.smoke, aim = pending.aim })
     pending = nil
 end
 
@@ -194,6 +254,10 @@ local function onShot(ped, weapon, entry)
     pending = pending or { count = 0, key = entry.key, suppressed = suppressed, smoke = false, since = now }
     pending.count = pending.count + 1
     pending.smoke = pending.smoke or smokeNow
+    if SP.Enabled ~= false then
+        pending.aim = aimOf(ped) -- direction du dernier tir : les joueurs visés le sentent
+        suppress((SP.Own or 0.05) * (suppressed and 0.5 or 1.0))
+    end
 end
 RPWeapons.onShot = onShot
 RPWeapons.flush = flush
@@ -335,18 +399,36 @@ AddEventHandler('onResourceStop', function(resource)
 end)
 
 -- =========================================================================
--- PNJ ARMÉS TOUT PRÈS (acouphène) : liste toutes les 250 ms, leurs tirs lus à chaque image tant qu'il y en a
+-- PNJ ARMÉS PROCHES (acouphène, effet de tir sur les bords) : liste toutes les 250 ms, leurs tirs lus à chaque image
+-- tant qu'il y en a. Un PNJ en combat contre le joueur qui tire : tir dans sa direction.
 -- =========================================================================
+
+--- Effet d'un tir d'un autre (joueur ou PNJ) à d m : tir proche, et tir dans notre direction (secousse)
+local function shotAround(n, d, towardMe, suppressed)
+    if SP.Enabled == false then return end
+    local range = SP.Range or 25.0
+    local add = 0.0
+    if d <= range then add = (SP.Near or 0.035) * n * (1.0 - 0.7 * d / range) * (suppressed and 0.5 or 1.0) end
+    if towardMe then
+        add = add + (SP.Incoming or 0.12) * n
+        if (SP.IncomingShake or 0) > 0 then camShake(SP.ShakeName or 'SMALL_EXPLOSION_SHAKE', SP.IncomingShake) end
+    end
+    suppress(add)
+end
+RPWeapons.shotAround = shotAround
+
 CreateThread(function()
     local T = W.Tinnitus or {}
-    if T.Enabled == false or T.Npc == false then return end
+    local tinnitus = T.Enabled ~= false and T.Npc ~= false
+    if not tinnitus and SP.Enabled == false then return end
+    local range = math.max(tinnitus and (T.Range or 10.0) or 0.0, SP.Enabled ~= false and (SP.Range or 25.0) or 0.0)
     while true do
         local me = PlayerPedId()
         local origin = GetEntityCoords(me)
         local near = {}
         for _, ped in ipairs(GetGamePool('CPed')) do
             if ped ~= me and not IsPedAPlayer(ped) and not IsEntityDead(ped) and IsPedArmed(ped, 4)
-                and #(GetEntityCoords(ped) - origin) <= (T.Range or 10.0) then
+                and #(GetEntityCoords(ped) - origin) <= range then
                 near[#near + 1] = ped
             end
         end
@@ -356,8 +438,12 @@ CreateThread(function()
             local untilTime = GetGameTimer() + 250
             repeat
                 for _, ped in ipairs(near) do
-                    if DoesEntityExist(ped) and IsPedShooting(ped) and not IsPedCurrentWeaponSilenced(ped) then
-                        heard(1, #(GetEntityCoords(ped) - GetEntityCoords(PlayerPedId())))
+                    if DoesEntityExist(ped) and IsPedShooting(ped) then
+                        local mine = PlayerPedId()
+                        local d = #(GetEntityCoords(ped) - GetEntityCoords(mine))
+                        local silenced = IsPedCurrentWeaponSilenced(ped)
+                        if tinnitus and not silenced then heard(1, d) end
+                        shotAround(1, d, IsPedInCombat(ped, mine), silenced)
                     end
                 end
                 Wait(0)
@@ -366,10 +452,25 @@ CreateThread(function()
     end
 end)
 
+-- Touché par une balle (joueur ou PNJ) : effet, bords rouges, secousse. L'arme est cherchée parmi les arguments de
+-- l'événement (leur ordre change selon les versions du jeu) : seulement une arme à feu concernée (pas le Taser, etc.)
+AddEventHandler('gameEventTriggered', function(name, args)
+    if name ~= 'CEventNetworkEntityDamage' or SP.Enabled == false or type(args) ~= 'table' then return end
+    if args[1] ~= PlayerPedId() then return end
+    local gun = false
+    for i = 3, #args do
+        local v = args[i]
+        if type(v) == 'number' and v ~= 0 and v ~= 1 and profileOf(v) then gun = true break end
+    end
+    if not gun then return end
+    if (SP.HitShake or 0) > 0 then camShake(SP.ShakeName or 'SMALL_EXPLOSION_SHAKE', SP.HitShake) end
+    suppress(SP.Hit or 0.22, true)
+end)
+
 -- =========================================================================
 -- TIRS DES AUTRES JOUEURS (relayés par le serveur, seulement ceux à portée)
 -- =========================================================================
-RegisterNetEvent('rp_weaponscontrol:shots', function(src, count, key, suppressed, withSmoke)
+RegisterNetEvent('rp_weaponscontrol:shots', function(src, count, key, suppressed, withSmoke, aim)
     local player = GetPlayerFromServerId(src)
     if player == -1 then return end
     local ped = GetPlayerPed(player)
@@ -393,4 +494,7 @@ RegisterNetEvent('rp_weaponscontrol:shots', function(src, count, key, suppressed
         if amount > 0.01 then camShake(Sh.Name or 'SMALL_EXPLOSION_SHAKE', amount) end
     end
     if not suppressed then heard(count, d) end
+    -- effet sur les bords : tir proche ; tir dans notre direction (balle passée tout près, touché ou non) : + secousse
+    local towardMe = passesNear(aim, GetEntityCoords(PlayerPedId()), SP.IncomingRadius or 2.5)
+    shotAround(count, d, towardMe, suppressed)
 end)

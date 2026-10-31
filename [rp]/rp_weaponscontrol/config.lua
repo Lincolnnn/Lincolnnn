@@ -12,7 +12,8 @@
       - LAMPE TOUJOURS ALLUMÉE : une lampe allumée (arme équipée d'une lampe, lampe de poche) le reste, même en courant
         et même si l'arme est rangée puis ressortie (Flashlight) ;
       - SÉLECTEUR DE TIR : coup par coup / automatique sur les armes qui en ont un (FireMode), touche B : petit clic et
-        logo en bas au milieu de l'écran.
+        logo en bas au milieu de l'écran ;
+      - EFFET DE TIR SUR LES BORDS DE L'ÉCRAN : voile style « motion blur » (Suppression, en bas de ce fichier).
     Une arme avec silencieux : ni flash, ni acouphène, secousse réduite.
 ]]
 
@@ -115,4 +116,44 @@ WeaponsConfig = {
 
     -- Synchronisation : tirs envoyés par paquets (Batch ms), aux joueurs à moins de Range m
     Sync = { Range = 120.0, Batch = 100, MaxPerSecond = 25 },
+
+    -- =====================================================================
+    -- EFFET DE TIR SUR LES BORDS DE L'ÉCRAN (style « motion blur ») : un voile transparent mais dense (on voit à travers,
+    -- mal) sur les BORDS de l'écran seulement, jamais au centre. Il apparaît quand on tire, quand quelqu'un tire près de
+    -- nous (joueur ou PNJ) et quand on nous tire dessus ; chaque tir l'étend un peu plus vers le centre, jusqu'à
+    -- MaxCoverage au plus. Il passe AU-DESSUS de tout (HUD, PLD, minimap, menus, MDC). Sans nouveau tir, il disparaît
+    -- en FadeOut ms. Touché par une balle : les bords deviennent légèrement rouges.
+    -- Toutes les valeurs se règlent ici à la main (puis « restart rp_weaponscontrol »).
+    -- =====================================================================
+    Suppression = {
+        Enabled = true,
+        -- Ce qui fait monter l'effet (0 = rien, 1 = effet maximal d'un coup), par tir :
+        Own = 0.05,         -- on tire soi-même (arme avec silencieux : moitié)
+        Near = 0.035,       -- quelqu'un tire près de nous (au plus près ; diminue avec la distance, 0 à Range m)
+        Incoming = 0.12,    -- quelqu'un tire DANS NOTRE DIRECTION (balle passée à moins de IncomingRadius m de nous)
+        Hit = 0.22,         -- on est touché par une balle
+        Range = 25.0,       -- portée des « tirs proches » (m)
+        IncomingRadius = 2.5, -- balle passée à moins de ... m de nous : tir dans notre direction (touché ou non)
+        -- Taille : part de l'écran couverte depuis chaque bord (0.10 = 10 % de la largeur / hauteur)
+        MinCoverage = 0.05, -- au premier tir
+        MaxCoverage = 0.20, -- au maximum (le centre reste toujours net)
+        -- Aspect
+        Opacity = 0.9,      -- densité du voile au bord de l'écran à pleine intensité (0 transparent, 1 opaque)
+        Blur = 7,           -- flou des traînées (px) : plus grand = plus « fondu »
+        Streaks = 0.55,     -- force des traînées « motion blur » (0 = voile seul)
+        Grain = 0.35,       -- grain qui brouille ce qu'on voit à travers (0 = aucun)
+        Tint = { 26, 28, 32 }, -- couleur du voile (gris fumée)
+        -- Touché : bords rouges
+        HitColor = { 150, 8, 12 },
+        HitOpacity = 0.4,   -- légèrement rouge
+        HitFade = 4500,     -- ms : le rouge disparaît
+        -- Disparition : l'effet a disparu FadeOut ms après le dernier tir
+        FadeOut = 5500,
+        -- Au-dessus de toutes les interfaces : z-index du NUI de ce script pendant l'effet (remis à 0 ensuite)
+        ZIndex = 99999,
+        -- Secousses de la caméra
+        IncomingShake = 0.12, -- quelqu'un tire dans notre direction (touché ou non)
+        HitShake = 0.2,       -- touché
+        ShakeName = 'SMALL_EXPLOSION_SHAKE',
+    },
 }

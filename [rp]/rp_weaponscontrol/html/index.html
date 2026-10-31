@@ -20,12 +20,39 @@
         #firemode .bullets i { width: 3px; height: 12px; border-radius: 1.5px 1.5px 0 0; background: currentColor; }
         #firemode .bullets i.off { opacity: .22; }
         #firemode[data-mode="auto"] { color: #ffb347; }
+
+        /* Effet de tir sur les bords de l'écran (style « motion blur ») : voile transparent mais dense, traînées
+           rayonnantes floutées, grain ; masqué au centre (masque posé par script.js selon l'intensité). */
+        #suppress, #suppressHit {
+            position: fixed; inset: 0; pointer-events: none; opacity: 0; display: none; z-index: 10;
+            -webkit-mask-image: var(--mask); mask-image: var(--mask);
+        }
+        #suppress .sp { position: absolute; inset: -6%; }
+        #suppress .sp-haze { background: rgb(var(--tint)); opacity: .62; filter: blur(var(--blur)); }
+        #suppress .sp-streaks {
+            opacity: var(--streaks);
+            background: repeating-conic-gradient(from 0deg at 50% 50%,
+                rgba(255, 255, 255, .16) 0deg .7deg, rgba(0, 0, 0, .28) .7deg 1.9deg,
+                rgba(255, 255, 255, .08) 1.9deg 2.6deg, rgba(0, 0, 0, .18) 2.6deg 3.4deg);
+            filter: blur(var(--blur));
+        }
+        #suppress .sp-grain {
+            opacity: var(--grain); mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+        #suppressHit { inset: -24px; background: rgb(var(--hit)); filter: blur(10px); }
     </style>
 </head>
 <body>
     <div id="firemode" data-mode="auto" aria-hidden="true">
         <span class="bullets"><i></i><i></i><i></i></span><span class="label">Auto</span>
     </div>
+    <div id="suppress" aria-hidden="true">
+        <div class="sp sp-haze"></div>
+        <div class="sp sp-streaks" id="spStreaks"></div>
+        <div class="sp sp-grain"></div>
+    </div>
+    <div id="suppressHit" aria-hidden="true"></div>
     <script src="script.js"></script>
 </body>
 </html>

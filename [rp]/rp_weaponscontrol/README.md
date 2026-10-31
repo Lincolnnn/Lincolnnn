@@ -1,7 +1,8 @@
 # RP Weapons Control
 
 Gestion des armes à feu : **recul**, **effets au tir**, **acouphènes**, **flash de bouche** et **fumée du canon**,
-synchronisés avec les joueurs autour. 100 % standalone, Lua 5.4.
+synchronisés avec les joueurs autour, et **effet de tir sur les bords de l'écran** (voile style motion blur, secousse
+quand on nous tire dessus, bords rouges si on est touché). 100 % standalone, Lua 5.4.
 
 ## Installation
 
@@ -28,6 +29,31 @@ redescend (plus long s'il y a encore plus de tirs), puis plus rien pendant 12 s.
 
 Avec **`rp_camshake`** : avant chaque secousse de tir, il est mis en pause (`TriggerEvent('rp_camshake:pause', 800)`)
 pour que son tremblement de marche ne modifie plus l'amplitude de la secousse du tir (premiers tirs 20 fois trop brusques).
+
+### Effet de tir sur les bords de l'écran (`Suppression`)
+Un **voile style « motion blur »** sur les **bords de l'écran seulement** (jamais au centre) : transparent mais dense
+(on voit à travers, mal), avec des traînées rayonnantes floutées et un léger grain. Il apparaît quand :
+
+| Situation | Montée de l'effet (par tir) | En plus |
+|---|---|---|
+| on tire soi-même | `Own` (0,05 ; silencieux : moitié) | |
+| quelqu'un tire **près de nous** (joueur ou PNJ, moins de `Range` = 25 m) | `Near` (0,035 au plus près, moins en s'éloignant) | |
+| quelqu'un tire **dans notre direction**, touché ou non (balle passée à moins de `IncomingRadius` = 2,5 m ; PNJ : en combat contre nous) | `Incoming` (0,12), quelle que soit la distance | **secousse** de la caméra (`IncomingShake`) |
+| on est **touché** par une balle | `Hit` (0,22) | **bords légèrement rouges** (`HitColor`, `HitOpacity`) + secousse (`HitShake`) |
+
+**Plus ça tire, plus l'effet s'étend** vers le centre : de `MinCoverage` (5 % de l'écran depuis chaque bord) jusqu'à
+`MaxCoverage` (20 %) au plus. Sans nouveau tir, il **disparaît en `FadeOut` ms** (5,5 s ; le rouge : `HitFade`).
+Il passe **au-dessus de tout** : HUD, PLD, car HUD, minimap, menus, MDC (pendant l'effet, l'interface de ce script
+passe au premier plan, `SetNuiZindex(ZIndex)`, puis revient à 0). Tout se règle à la main dans **`config.lua` >
+`Suppression`** (tailles, densité `Opacity`, flou `Blur`, traînées `Streaks`, grain `Grain`, couleur `Tint`, montées,
+durées, secousses), puis `restart rp_weaponscontrol`.
+
+La direction de chaque tir (du canon vers le point visé) est envoyée avec le paquet de tirs ; le serveur la vérifie
+(départ près du tireur, longueur raisonnable) avant de la relayer. « Touché » vient de l'événement de dégâts du jeu
+(seulement une arme à feu : pas le Taser, ni un coup de poing).
+
+Note : une interface (NUI) ne peut pas flouter réellement l'image du jeu ni les autres interfaces ; le voile imite un
+flou de mouvement (dense, traînées, grain), dessiné par-dessus.
 
 ### Lampe toujours allumée (`Flashlight`)
 Une lampe **allumée par le joueur** (lampe sur l'arme, ou lampe de poche simple `WEAPON_FLASHLIGHT` /
@@ -64,9 +90,11 @@ tireur qu'il voit. Le sifflement est généré par le script (aucun fichier son)
 | `Tinnitus` | activé, portée (10 m), tirs (10) et fenêtre (10 s), PNJ compris, volume, durées, délai entre deux |
 | `Shake` | secousse des voisins : activée, portée, force, type |
 | `Sync` | portée du relais, paquets (ms), limite par seconde |
+| `Suppression` | effet de tir sur les bords : montées (`Own`, `Near`, `Incoming`, `Hit`), portées, tailles (`MinCoverage`, `MaxCoverage`), aspect (`Opacity`, `Blur`, `Streaks`, `Grain`, `Tint`), rouge si touché, durée (`FadeOut`), premier plan (`ZIndex`), secousses |
 
 ## Performance
 
 Sans arme à feu en main : une vérification toutes les 250 ms (**0.00 ms**). Arme à feu en main : lecture du tir à
 chaque image (comme le jeu) ; PNJ armés à moins de 10 m : leurs tirs lus à chaque image tant qu'il y en a (liste
-refaite toutes les 250 ms) ; les effets ne tournent que quand quelqu'un tire.
+refaite toutes les 250 ms ; jusqu'à 25 m pour l'effet de tir) ; les effets ne tournent que quand quelqu'un tire.
+L'effet sur les bords est dessiné par l'interface (aucune boucle Lua) et s'arrête complètement quand il a disparu.
