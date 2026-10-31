@@ -117,7 +117,11 @@ Page **Voiture** :
   `menuName` : nom affiché ; `extras` : `true` activé / `false` désactivé (s'il y en a, ceux qui ne sont pas listés
   sont désactivés ; `{}` : extras d'origine) ; `livery` facultatif ; `windowTint` facultatif : teinte des vitres
   imposée (`0` aucune, `1` noir pur, `2` fumé foncé, `3` fumé clair, `4` d'origine, `5` limousine, `6` verte ; sans
-  cette ligne : teinte du véhicule). Le même `spawnName` peut être listé plusieurs fois
+  cette ligne : teinte du véhicule) ; `plateType` facultatif : style de plaque, par nom (`BLUE_ON_WHITE_1`,
+  `BLUE_ON_WHITE_2`, `BLUE_ON_WHITE_3`, `YELLOW_ON_BLACK`, `YELLOW_ON_BLUE`, `NORTH_YANKTON`) ou par numéro du jeu.
+  Teinte et plaque sont ré-appliquées un peu après l'apparition (si un autre script les écrase) ; `rpi_vehinfo` (F8)
+  affiche celles du véhicule où l'on est. La console du serveur indique, au chargement, combien de véhicules ont des
+  vitres teintées / un style de plaque, et signale une valeur inconnue. Le même `spawnName` peut être listé plusieurs fois
   (extras différents). Catégorie **Police** : réservée aux policiers en service (`SpawnPoliceOnly`). Attention au JSON :
   pas de virgule après le dernier élément, guillemets fermés. L'ancien `data/vehicles.json` n'est lu qu'en l'absence de
   `vehicle.json`.

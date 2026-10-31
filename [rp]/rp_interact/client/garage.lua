@@ -4,7 +4,8 @@
     SPAWN : véhicules de data/vehicle.json uniquement (liste envoyée par le serveur), classés par catégorie
       principale ("Principale" : Police, Civil…) puis par sous-catégorie ("subCategory"). Deux options en haut, gardées chez
       le joueur : "Supprimer l'ancien véhicule" (le dernier qu'il a fait apparaître, s'il n'y a pas
-      d'autre joueur dedans) et "Apparaître dans le véhicule". Livery, extras et teinte des vitres de la liste appliqués.
+      d'autre joueur dedans) et "Apparaître dans le véhicule". Livery, extras, teinte des vitres et style de plaque
+      de la liste appliqués.
       Le véhicule est créé par ce script : Vehicle Control le considère comme neuf (plein, moteur coupé).
     ÉQUIPEMENTS : "Équipement WSP" / "Équipement KCSO" (equipment_services.json : tout l'équipement de départ
       de la police, toujours la version de base), "Équipements modifiés" (ceux que le joueur a nommés et enregistrés,
@@ -79,12 +80,22 @@ local function loadVehicleModel(model)
     return HasModelLoaded(model)
 end
 
---- Livery (index de livery, ou mod de livery n° 48 pour les véhicules qui l'utilisent), extras et teinte des vitres
-local function applyVehicleLook(vehicle, entry)
+--- Teinte des vitres et style de plaque (ré-appliqués un peu après l'apparition : un autre script peut les écraser)
+local function applyTintAndPlate(vehicle, entry)
+    if not DoesEntityExist(vehicle) then return end
     if entry.windowTint then
         SetVehicleModKit(vehicle, 0)
         SetVehicleWindowTint(vehicle, entry.windowTint)
     end
+    if entry.plate and entry.plate < GetNumberOfVehicleNumberPlates() then
+        SetVehicleNumberPlateTextIndex(vehicle, entry.plate)
+    end
+end
+
+--- Livery (index de livery, ou mod de livery n° 48 pour les véhicules qui l'utilisent), extras, teinte des vitres et
+--- style de plaque
+local function applyVehicleLook(vehicle, entry)
+    applyTintAndPlate(vehicle, entry)
     if entry.livery then
         if GetVehicleLiveryCount(vehicle) > 0 then
             SetVehicleLivery(vehicle, entry.livery)
@@ -132,10 +143,24 @@ local function spawn(entry)
     SetVehicleNeedsToBeHotwired(vehicle, false)
     SetVehRadioStation(vehicle, 'OFF')
     applyVehicleLook(vehicle, entry)
+    if entry.windowTint or entry.plate then
+        SetTimeout(600, function() applyTintAndPlate(vehicle, entry) end)
+        SetTimeout(2000, function() applyTintAndPlate(vehicle, entry) end)
+    end
     lastVehicle = vehicle
     if options.warpInto then TaskWarpPedIntoVehicle(ped, vehicle, -1) end
     RPI.notify(('Véhicule : %s'):format(entry.label), 'success')
 end
+
+--- Vérification (F8) : teinte des vitres et style de plaque du véhicule où l'on est (ou du dernier apparu)
+RegisterCommand('rpi_vehinfo', function()
+    local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+    if vehicle == 0 then vehicle = lastVehicle or 0 end
+    if vehicle == 0 or not DoesEntityExist(vehicle) then return print('[RP Interact] rpi_vehinfo : aucun véhicule.') end
+    print(('[RP Interact] véhicule %s : teinte des vitres %d, style de plaque %d (%d styles dans ce jeu)'):format(
+        GetDisplayNameFromVehicleModel(GetEntityModel(vehicle)), GetVehicleWindowTint(vehicle),
+        GetVehicleNumberPlateTextIndex(vehicle), GetNumberOfVehicleNumberPlates()))
+end, false)
 
 RegisterNUICallback('spawnVehicle', function(data, cb)
     cb({ ok = true })

@@ -64,12 +64,14 @@ end
 -- VÉHICULES (data/vehicle.json ; à défaut, l'ancien data/vehicles.json)
 --   { "vehicles": [ { "spawnName": "wspcharger", "Principale": "Police",
 --       "subCategory": "Washington State Patrol", "menuName": "Dodge Charger 2020",
---       "extras": { "1": true }, "livery": 0, "windowTint": 1 } ] }
+--       "extras": { "1": true }, "livery": 0, "windowTint": 1, "plateType": "NORTH_YANKTON" } ] }
 --   Principale : catégorie du menu (ex. Police, Civil) ; subCategory : groupe dans cette catégorie ;
 --   extras : n° d'extra -> true (activé) / false (désactivé) ; s'il y en a, ceux qui ne sont pas listés sont
 --   désactivés ; {} : extras d'origine du véhicule. Un même spawnName peut apparaître plusieurs fois (extras
 --   différents). windowTint (facultatif) : teinte des vitres imposée, 0 aucune, 1 noir pur, 2 fumé foncé,
---   3 fumé clair, 4 d'origine, 5 limousine, 6 verte. Ancien format accepté : [ { "Code", "Service", "Name", "Livery", "Extras": [1, 2] } ].
+--   3 fumé clair, 4 d'origine, 5 limousine, 6 verte. plateType (facultatif) : style de plaque, par nom
+--   (BLUE_ON_WHITE_1, BLUE_ON_WHITE_2, BLUE_ON_WHITE_3, YELLOW_ON_BLACK, YELLOW_ON_BLUE, NORTH_YANKTON) ou par
+--   numéro du jeu (0 à 12 selon la version du jeu). Ancien format accepté : [ { "Code", "Service", "Name", "Livery", "Extras": [1, 2] } ].
 --   Catégorie "Police" : réservée aux policiers en service si SpawnPoliceOnly.
 -- =========================================================================
 local Vehicles, byId = {}, {}
@@ -90,6 +92,18 @@ local function readExtras(raw)
     end
     if count == 0 then return nil end
     return extras
+end
+
+--- Style de plaque : nom (comme vMenu / FiveM) ou numéro du jeu -> numéro (SetVehicleNumberPlateTextIndex)
+local PLATES = {
+    BLUE_ON_WHITE_1 = 3, BLUE_ON_WHITE_2 = 0, BLUE_ON_WHITE_3 = 4, YELLOW_ON_BLACK = 1, YELLOW_ON_BLUE = 2,
+    NORTH_YANKTON = 5, YANKTON = 5,
+}
+local function plateType(raw)
+    local n = tonumber(raw)
+    if not n and type(raw) == 'string' then n = PLATES[raw:upper():gsub('[%s%-]', '_')] end
+    if not n or n < 0 or n > 12 then return nil end
+    return math.floor(n)
 end
 
 --- Teinte des vitres : 0 à 6, sinon rien (teinte du véhicule)
@@ -121,13 +135,28 @@ local function loadVehicles()
                 police = category:lower() == 'police',
                 livery = tonumber(field(v, 'livery') or field(v, 'Livery')),
                 windowTint = windowTint(field(v, 'windowTint') or field(v, 'WindowTint')),
+                plate = plateType(field(v, 'plateType') or field(v, 'PlateType')),
                 extras = readExtras(field(v, 'extras') or field(v, 'Extras')),
             }
+            local tintRaw, plateRaw = field(v, 'windowTint') or field(v, 'WindowTint'), field(v, 'plateType') or field(v, 'PlateType')
+            if tintRaw ~= nil and not entry.windowTint then
+                print(('^3[RP Interact] vehicle.json : %s : windowTint "%s" ignoré (0 à 6).^0'):format(label, tostring(tintRaw)))
+            end
+            if plateRaw ~= nil and not entry.plate then
+                print(('^3[RP Interact] vehicle.json : %s : plateType "%s" inconnu (BLUE_ON_WHITE_1, NORTH_YANKTON… ou 0 à 12).^0')
+                    :format(label, tostring(plateRaw)))
+            end
             Vehicles[#Vehicles + 1] = entry
             byId[entry.id] = entry
         end
     end
-    print(('^5[RP Interact]^0 %d véhicule(s) lu(s) dans %s'):format(#Vehicles, file))
+    local tints, plates = 0, 0
+    for _, e in ipairs(Vehicles) do
+        if e.windowTint then tints = tints + 1 end
+        if e.plate then plates = plates + 1 end
+    end
+    print(('^5[RP Interact]^0 %d véhicule(s) lu(s) dans %s (%d avec vitres teintées, %d avec style de plaque)')
+        :format(#Vehicles, file, tints, plates))
 end
 
 -- =========================================================================
