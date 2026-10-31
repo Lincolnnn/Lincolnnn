@@ -946,6 +946,17 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 /* =========================================================================
    HUD (PLD, display MDC, car HUD) : hors du MDC, sobres (fond sombre translucide, coins arrondis)
    ========================================================================= */
+/* Contour de la minimap (en véhicule) : trait noir autour de la minimap, fondu vers un rouge très discret ; posé à
+   sa place exacte (client/hud.lua), jamais par-dessus la carte (le trait est à l'extérieur) */
+.minimap-frame {
+    position: fixed; z-index: 1; box-sizing: border-box; pointer-events: none;
+    border: 2px solid #000;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, .55),
+        0 0 5px 2px rgba(0, 0, 0, .45),
+        0 0 12px 4px rgba(150, 16, 16, .2);
+}
+
 .hud {
     position: fixed;
     z-index: 30;

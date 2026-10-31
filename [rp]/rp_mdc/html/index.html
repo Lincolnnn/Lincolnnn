@@ -736,7 +736,7 @@
                     </details>
 
                     <details class="settings-cat" data-cat="hud">
-                        <summary>HUD &amp; Display <span class="settings-cat-hint">PLD, display MDC de l'unité, car HUD, position à l'écran</span></summary>
+                        <summary>HUD &amp; Display <span class="settings-cat-hint">PLD, display MDC de l'unité, car HUD, minimap, position à l'écran</span></summary>
                         <div class="settings-grid">
                             <div class="group">
                                 <span class="legend">HUD — Localisation (PLD)</span>
@@ -779,6 +779,35 @@
                                     Ceinture détachée : carillon dès 5 MPH jusqu'à l'arrêt. Clignotants : flèches gauche / droite, warnings : flèche bas.</p>
                                 <div class="toolbar setting-actions">
                                     <button type="button" class="btn" data-hud-reset="car">Réinitialiser position et taille</button>
+                                </div>
+                            </div>
+                            <div class="group">
+                                <span class="legend">Minimap — contour</span>
+                                <p class="hint-text setting-text">La minimap (et le GPS) est masquée à pied et s'affiche dès que vous montez dans un véhicule.
+                                    Son contour se place tout seul sur elle, d'après la zone de sécurité, le format et la résolution de votre écran.
+                                    S'il est décalé de quelques pixels chez vous, ajustez-le ici, assis dans un véhicule (gardé sur votre PC).</p>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Décalage horizontal</span>
+                                    <input type="range" min="-30" max="30" step="1" data-setting="minimap.dx">
+                                    <span class="setting-value" data-setting-px="minimap.dx"></span>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Décalage vertical</span>
+                                    <input type="range" min="-30" max="30" step="1" data-setting="minimap.dy">
+                                    <span class="setting-value" data-setting-px="minimap.dy"></span>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Largeur</span>
+                                    <input type="range" min="-30" max="30" step="1" data-setting="minimap.dw">
+                                    <span class="setting-value" data-setting-px="minimap.dw"></span>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="lbl-inline">Hauteur</span>
+                                    <input type="range" min="-30" max="30" step="1" data-setting="minimap.dh">
+                                    <span class="setting-value" data-setting-px="minimap.dh"></span>
+                                </div>
+                                <div class="toolbar setting-actions">
+                                    <button type="button" class="btn" id="minimapReset">Réinitialiser l'ajustement</button>
                                 </div>
                             </div>
                             <div class="group">
@@ -982,6 +1011,8 @@
          "Seulement le MDC" ne change que la fenêtre ; HUD, PLD et notifications suivent "Toutes les interfaces" et
          "Seulement les menus extérieurs" -->
     <div id="hudLayer" class="theme-layer" data-theme="night" data-night-color="logo">
+    <!-- Contour de la minimap (en véhicule) : posé à la place exacte de la minimap, calculée par client/hud.lua -->
+    <div class="minimap-frame hidden" id="minimapFrame" aria-hidden="true"></div>
     <!-- PLD : Player Localisation Display -->
     <!-- PLD : sans fond ni contour (lisible par l'ombre du texte). À gauche le cap (flèche + lettre), un trait, puis la
          rue, la zone, et une ligne « croisement · bloc · heure ». Tous les éléments sont toujours affichés. -->

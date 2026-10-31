@@ -312,6 +312,14 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   Les données (essence, dégâts, ceinture, moteur) viennent de **Vehicle Control**
   ([`rp_vehiclecontrol/`](../rp_vehiclecontrol/README.md)) : sans cette ressource, le car HUD n'apparaît pas
   (`client/carhud.lua` ne fait que relayer ses données au NUI, sans boucle).
+- **Minimap** (non réglable) : **masquée à pied** (le GPS avec) et **affichée dès que le joueur monte dans un
+  véhicule** ; à pied, elle reste masquée même si un autre script la réaffiche (en véhicule, un script qui la masque un
+  moment, photo ou cinématique, est respecté). En véhicule, un **contour noir fondu d'un rouge très discret** l'entoure
+  (trait à l'extérieur, jamais sur la carte). Il n'est pas posé « au hasard » : sa place est **calculée comme le jeu
+  place la minimap** (zone de sécurité de l'affichage du joueur, format et résolution de l'écran, écran du milieu en
+  triple écran) et recalculée dès que l'un d'eux change ; masqué dans le menu pause et avec la grande carte. Si chez un
+  joueur il est décalé de quelques pixels, *Paramètres > HUD & Display > Minimap — contour* : décalage horizontal /
+  vertical, largeur, hauteur (± 30 px, gardés sur son PC). Une boucle lente (250 ms, ~0.00ms) dans `client/hud.lua`.
 - **Notifications** (en haut à droite) : toutes les notifications du MDC, et, même MDC fermé : nouvel appel
   (titre, police, priorité, adresse, croisement, bloc) et nouvel incident (titre, unité créatrice, adresse,
   croisement, bloc) pour **les membres des unités de la police de l'appel uniquement** ; changement de statut pour les

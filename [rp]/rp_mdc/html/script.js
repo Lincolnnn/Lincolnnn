@@ -3528,6 +3528,8 @@
         notify: { calls: true, sound: true, status: true, messages: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { x: 0.016, y: 0.715, scale: 1, volume: 0.7 },
+        // Contour de la minimap : ajustement fin (pixels) de la place calculée par client/hud.lua
+        minimap: { dx: 0, dy: 0, dw: 0, dh: 0 },
     };
     const NIGHT_COLORS = ['green', 'yellow', 'red', 'blue'];
     const START_TABS = ['last', 'units', 'interventions', 'search', 'reports', 'create'];
@@ -3540,6 +3542,7 @@
         profile: { sector: '' }, // secteur (menu d'interactions)
         pld: null,          // { street, crossing, dir, block, time, paused }
         car: null,          // car HUD : { show, mode, engine, speed, rpm, fuel, belt, alarm, broken, paused } (rp_vehiclecontrol)
+        minimap: null,      // place de la minimap (fractions de l'écran) : { show, x, y, w, h } (client/hud.lua)
         placing: false,
         drag: null,
         saveTimer: null,
@@ -3566,6 +3569,7 @@
         out.mdc.opacity = Math.min(Math.max(out.mdc.opacity, 0.5), 1);
         out.notify.volume = Math.min(Math.max(out.notify.volume, 0), 1);
         out.car.volume = Math.min(Math.max(out.car.volume, 0), 1);
+        Object.keys(out.minimap).forEach((k) => { out.minimap[k] = Math.round(Math.min(Math.max(out.minimap[k], -30), 30)) || 0; });
         if (!START_TABS.includes(out.mdc.startTab)) out.mdc.startTab = 'last';
         if (!['day', 'night'].includes(out.mdc.theme)) out.mdc.theme = 'day';
         if (!['all', 'mdc', 'menus'].includes(out.mdc.themeScope)) out.mdc.themeScope = 'all';
@@ -3587,6 +3591,21 @@
         el.style.left = `${Math.round(cfg.x * innerWidth)}px`;
         el.style.top = `${Math.round(cfg.y * innerHeight)}px`;
         el.style.transform = `scale(${cfg.scale})`;
+    }
+
+    // Contour de la minimap : à la place calculée par le jeu (fractions de l'écran) + ajustement fin du joueur
+    function renderMinimap() {
+        const m = hud.minimap;
+        const el = $('#minimapFrame');
+        const show = !!(m && m.show);
+        el.classList.toggle('hidden', !show);
+        if (!show) return;
+        const adj = hud.settings.minimap;
+        const B = 2; // épaisseur du trait noir, posé autour de la minimap (jamais dessus)
+        el.style.left = `calc(${m.x * 100}% + ${adj.dx - B}px)`;
+        el.style.top = `calc(${m.y * 100}% + ${adj.dy - B}px)`;
+        el.style.width = `calc(${m.w * 100}% + ${adj.dw + 2 * B}px)`;
+        el.style.height = `calc(${m.h * 100}% + ${adj.dh + 2 * B}px)`;
     }
 
     function renderHud() {
@@ -3817,6 +3836,10 @@
         $$('[data-setting-value]').forEach((el) => {
             el.textContent = `${Math.round(settingGet(el.dataset.settingValue) * 100)} %`;
         });
+        $$('[data-setting-px]').forEach((el) => {
+            const v = settingGet(el.dataset.settingPx);
+            el.textContent = `${v > 0 ? '+' : ''}${v} px`;
+        });
     }
 
     function applyMdcSettings() {
@@ -3847,9 +3870,11 @@
         let value = input.value;
         if (input.type === 'checkbox') value = input.checked;
         else if (PERCENT_SETTINGS.includes(path)) value = Number(input.value) / 100;
+        else if (input.type === 'range') value = Number(input.value);
         hud.settings[group][key] = value;
         renderSettings();
         renderHud();
+        renderMinimap();
         applyMdcSettings();
         saveSettings();
     });
@@ -3862,6 +3887,14 @@
         saveSettings();
         toast('Position et taille réinitialisées.', 'success');
     }));
+
+    $('#minimapReset').addEventListener('click', () => {
+        hud.settings.minimap = clone(HUD_DEFAULTS.minimap);
+        renderSettings();
+        renderMinimap();
+        saveSettings();
+        toast('Contour de la minimap réinitialisé.', 'success');
+    });
 
     $('#mdcResetWindow').addEventListener('click', () => $('#btnReset').click());
 
@@ -3889,6 +3922,7 @@
         hud.settings = clone(HUD_DEFAULTS);
         renderSettings();
         renderHud();
+        renderMinimap();
         applyMdcSettings();
         saveSettings();
         toast('Réglages par défaut rétablis.', 'success');
@@ -4001,6 +4035,7 @@
         renderSettings();
         applyMdcSettings();
         renderHud();
+        renderMinimap();
     }
 
     // =====================================================================
@@ -4901,6 +4936,10 @@
             case 'pld': // client/hud.lua : localisation (uniquement quand elle change)
                 hud.pld = data.data || null;
                 renderHud();
+                break;
+            case 'minimap': // client/hud.lua : place de la minimap (en véhicule), seulement quand elle change
+                hud.minimap = data.data || null;
+                renderMinimap();
                 break;
             case 'carHud': // client/carhud.lua : vitesse, régime, essence, ceinture (uniquement quand ça change)
                 hud.car = data.data || null;

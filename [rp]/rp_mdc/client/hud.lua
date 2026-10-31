@@ -9,6 +9,7 @@
       - Display MDC : nom de l'unité, tag, statut, n° d'incident de l'appel en cours
         -> affiché uniquement quand le joueur fait partie d'une unité
       (+ le car HUD : client/carhud.lua, données de Vehicle Control / rp_vehiclecontrol)
+      (+ la minimap : masquée à pied, affichée en véhicule avec un contour posé à sa place exacte)
     + les notifications (en haut à droite de l'écran) : nouvel appel, nouvel incident (unités du
       police de l'appel), proposition "unité la plus proche" (Y / N), changement de statut de l'unité.
 
@@ -387,8 +388,53 @@ end)
 -- CALLBACKS NUI
 -- =========================================================================
 
+-- =========================================================================
+-- MINIMAP (non réglable) : masquée à pied, GPS compris ; affichée dès que le joueur monte dans un véhicule.
+-- Son contour (noir fondu de rouge) est dessiné par le NUI à la place EXACTE de la minimap, calculée comme le jeu
+-- la place : zone de sécurité de l'affichage (Paramètres > Affichage), format et résolution de l'écran ; recalculée
+-- dès qu'un de ces réglages change. Ajustement fin propre à chaque joueur : Paramètres > HUD & Display.
+-- Une boucle lente (MINIMAP_INTERVAL) : ~0.00ms.
+-- =========================================================================
+local MINIMAP_INTERVAL = 250
+local minimapSent = nil -- dernier état envoyé au NUI (nil : à renvoyer)
+
+--- Place de la minimap en fractions de l'écran (x, y = coin haut gauche ; w, h) : même calcul que le jeu
+local function minimapRect()
+    local aspect = GetAspectRatio(false)
+    local margin = math.abs(1.0 - GetSafeZoneSize()) * 0.5 -- marge de la zone de sécurité (bords gauche et bas)
+    local w, h = 1.0 / (4.0 * aspect), 1.0 / 5.674
+    local x = margin
+    if aspect > 3.5 then x = 1.0 / 3.0 + margin / 3.0 end -- trois écrans : le HUD est sur celui du milieu
+    return x, 1.0 - margin - h, w, h
+end
+
+CreateThread(function()
+    while not NetworkIsPlayerActive(PlayerId()) do Wait(500) end
+    local wasInVehicle = nil
+    while true do
+        local inVehicle = IsPedInAnyVehicle(PlayerPedId(), true) -- true : dès qu'il monte (portière, siège)
+        if inVehicle ~= wasInVehicle then
+            wasInVehicle = inVehicle
+            DisplayRadar(inVehicle) -- (un autre script peut la masquer un moment en véhicule : respecté)
+        elseif not inVehicle and not IsRadarHidden() then
+            DisplayRadar(false) -- à pied : jamais de minimap, même si un autre script la réaffiche
+        end
+        -- Contour : seulement quand la minimap est vraiment dessinée (ni menu pause, ni grande carte, ni HUD masqué)
+        local show = inVehicle and not IsRadarHidden() and IsMinimapRendering() and not IsPauseMenuActive()
+            and not IsBigmapActive()
+        local x, y, w, h = minimapRect()
+        local key = show and ('%.4f|%.4f|%.4f|%.4f'):format(x, y, w, h) or 'off'
+        if key ~= minimapSent then
+            minimapSent = key
+            SendNUIMessage({ action = 'minimap', data = { show = show, x = x, y = y, w = w, h = h } })
+        end
+        Wait(MINIMAP_INTERVAL)
+    end
+end)
+
 -- Le NUI (re)chargé demande les réglages et l'état du HUD
 RegisterNUICallback('hudReady', function(_, cb)
+    minimapSent = nil -- contour de la minimap renvoyé
     cb({ ok = true, settings = settings, pld = pldAllowed(), unit = unitInfo })
     TriggerEvent('mdc:hudReady') -- Vehicle Control (rp_vehiclecontrol) renvoie le car HUD
     if pldActive() then
