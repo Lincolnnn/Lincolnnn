@@ -4,7 +4,7 @@
     SPAWN : véhicules de data/vehicle.json uniquement (liste envoyée par le serveur), classés par catégorie
       principale ("Principale" : Police, Civil…) puis par sous-catégorie ("subCategory"). Deux options en haut, gardées chez
       le joueur : "Supprimer l'ancien véhicule" (le dernier qu'il a fait apparaître, s'il n'y a pas
-      d'autre joueur dedans) et "Apparaître dans le véhicule". Livery et extras de la liste appliqués.
+      d'autre joueur dedans) et "Apparaître dans le véhicule". Livery, extras et teinte des vitres de la liste appliqués.
       Le véhicule est créé par ce script : Vehicle Control le considère comme neuf (plein, moteur coupé).
     ÉQUIPEMENTS : "Équipement WSP" / "Équipement KCSO" (equipment_services.json : tout l'équipement de départ
       de la police, toujours la version de base), "Équipements modifiés" (ceux que le joueur a nommés et enregistrés,
@@ -79,8 +79,12 @@ local function loadVehicleModel(model)
     return HasModelLoaded(model)
 end
 
---- Livery (index de livery, ou mod de livery n° 48 pour les véhicules qui l'utilisent) et extras
+--- Livery (index de livery, ou mod de livery n° 48 pour les véhicules qui l'utilisent), extras et teinte des vitres
 local function applyVehicleLook(vehicle, entry)
+    if entry.windowTint then
+        SetVehicleModKit(vehicle, 0)
+        SetVehicleWindowTint(vehicle, entry.windowTint)
+    end
     if entry.livery then
         if GetVehicleLiveryCount(vehicle) > 0 then
             SetVehicleLivery(vehicle, entry.livery)

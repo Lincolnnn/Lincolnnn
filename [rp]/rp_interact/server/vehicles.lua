@@ -64,11 +64,12 @@ end
 -- VÉHICULES (data/vehicle.json ; à défaut, l'ancien data/vehicles.json)
 --   { "vehicles": [ { "spawnName": "wspcharger", "Principale": "Police",
 --       "subCategory": "Washington State Patrol", "menuName": "Dodge Charger 2020",
---       "extras": { "1": true }, "livery": 0 } ] }
+--       "extras": { "1": true }, "livery": 0, "windowTint": 1 } ] }
 --   Principale : catégorie du menu (ex. Police, Civil) ; subCategory : groupe dans cette catégorie ;
 --   extras : n° d'extra -> true (activé) / false (désactivé) ; s'il y en a, ceux qui ne sont pas listés sont
 --   désactivés ; {} : extras d'origine du véhicule. Un même spawnName peut apparaître plusieurs fois (extras
---   différents). Ancien format accepté : [ { "Code", "Service", "Name", "Livery", "Extras": [1, 2] } ].
+--   différents). windowTint (facultatif) : teinte des vitres imposée, 0 aucune, 1 noir pur, 2 fumé foncé,
+--   3 fumé clair, 4 d'origine, 5 limousine, 6 verte. Ancien format accepté : [ { "Code", "Service", "Name", "Livery", "Extras": [1, 2] } ].
 --   Catégorie "Police" : réservée aux policiers en service si SpawnPoliceOnly.
 -- =========================================================================
 local Vehicles, byId = {}, {}
@@ -89,6 +90,13 @@ local function readExtras(raw)
     end
     if count == 0 then return nil end
     return extras
+end
+
+--- Teinte des vitres : 0 à 6, sinon rien (teinte du véhicule)
+local function windowTint(raw)
+    local n = tonumber(raw)
+    if not n or n < 0 or n > 6 then return nil end
+    return math.floor(n)
 end
 
 local function loadVehicles()
@@ -112,6 +120,7 @@ local function loadVehicles()
                 service = SERVICES[sub:lower()] or (category:lower() == 'police' and 'police' or 'other'),
                 police = category:lower() == 'police',
                 livery = tonumber(field(v, 'livery') or field(v, 'Livery')),
+                windowTint = windowTint(field(v, 'windowTint') or field(v, 'WindowTint')),
                 extras = readExtras(field(v, 'extras') or field(v, 'Extras')),
             }
             Vehicles[#Vehicles + 1] = entry

@@ -115,7 +115,9 @@ Page **Voiture** :
   ] }
   ```
   `menuName` : nom affiché ; `extras` : `true` activé / `false` désactivé (s'il y en a, ceux qui ne sont pas listés
-  sont désactivés ; `{}` : extras d'origine) ; `livery` facultatif. Le même `spawnName` peut être listé plusieurs fois
+  sont désactivés ; `{}` : extras d'origine) ; `livery` facultatif ; `windowTint` facultatif : teinte des vitres
+  imposée (`0` aucune, `1` noir pur, `2` fumé foncé, `3` fumé clair, `4` d'origine, `5` limousine, `6` verte ; sans
+  cette ligne : teinte du véhicule). Le même `spawnName` peut être listé plusieurs fois
   (extras différents). Catégorie **Police** : réservée aux policiers en service (`SpawnPoliceOnly`). Attention au JSON :
   pas de virgule après le dernier élément, guillemets fermés. L'ancien `data/vehicles.json` n'est lu qu'en l'absence de
   `vehicle.json`.
