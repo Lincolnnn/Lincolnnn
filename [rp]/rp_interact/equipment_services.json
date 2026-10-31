@@ -40,6 +40,7 @@
             {
                 "Weapon": "WEAPON_Glock19",
                 "Label": "Glock 19",
+                "Group": "Arme principale",
                 "Ammo":250,
                 "Required": true,
                 "Options": [
@@ -54,6 +55,7 @@
             {
                 "Weapon": "WEAPON_FM1_P226",
                 "Label": "Sig Sauer P226",
+                "Group": "Arme principale",
                 "Ammo":250,
                 "Options": [
                     { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "component_fmflsh_01" } ] },
@@ -70,6 +72,7 @@
             {
                 "Weapon": "WEAPON_MP92",
                 "Label": "Smith & Wesson MP9",
+                "Group": "Arme principale",
                 "Ammo":250,
                 "Options": [
                     { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "COMPONENT_AT_MP92_FLSH" } ] },

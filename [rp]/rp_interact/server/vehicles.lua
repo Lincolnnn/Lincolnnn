@@ -43,6 +43,24 @@ local function field(object, name)
     return nil
 end
 
+--- Clé qui commence chaque élément d'une liste ("Weapon" d'une arme, "spawnName" d'un véhicule…), sans tenir
+--- compte des majuscules : motif Lua (« Weapon » -> "[Ww][Ee]…")
+local ELEMENT_KEYS = { 'Weapon', 'spawnName', 'Service' }
+local function anyCase(word) return (word:gsub('%a', function(c) return '[' .. c:upper() .. c:lower() .. ']' end)) end
+
+--- Accolade ouvrante oubliée au début d'un élément (oubli fréquent en éditant à la main) :
+---   }, "Weapon": "..."   ->   }, { "Weapon": "..."
+--- Seulement quand le fichier ne se lit pas tel quel ; renvoie le texte réparé et le nombre d'accolades ajoutées
+local function repairMissingBraces(raw)
+    local added = 0
+    for _, key in ipairs(ELEMENT_KEYS) do
+        local n
+        raw, n = raw:gsub('(}%s*,%s*)("' .. anyCase(key) .. '"%s*:)', '%1{ %2')
+        added = added + n
+    end
+    return raw, added
+end
+
 --- Liste lue dans un fichier JSON (nil + message dans la console si absent / invalide)
 local function readJsonList(path)
     local raw = LoadResourceFile(GetCurrentResourceName(), path)
@@ -54,7 +72,18 @@ local function readJsonList(path)
     raw = raw:gsub(',(%s*[%]}])', '%1')
     local ok, data = pcall(json.decode, raw)
     if not ok or type(data) ~= 'table' then
-        print(('^1[RP Interact] %s : JSON invalide (virgule en trop, guillemet manquant…). Fichier ignoré.^0'):format(path))
+        -- accolade « { » oubliée au début d'une arme / d'un véhicule : ajoutée, puis nouvel essai
+        local fixed, added = repairMissingBraces(raw)
+        if added > 0 then
+            local ok2, data2 = pcall(json.decode, fixed)
+            if ok2 and type(data2) == 'table' then
+                print(('^3[RP Interact] %s : %d accolade(s) « { » oubliée(s) au début d\'un élément, ajoutée(s) pour la '
+                    .. 'lecture (fichier lu). Corrigez le fichier : chaque élément commence par { et finit par },^0'):format(path, added))
+                return data2
+            end
+        end
+        print(('^1[RP Interact] %s : JSON invalide (accolade ou guillemet manquant…). Fichier ignoré. Détail : %s^0')
+            :format(path, tostring(data):gsub('^.-:%d+: ', '')))
         return nil
     end
     return data
@@ -188,8 +217,11 @@ end
 -- =========================================================================
 -- ÉQUIPEMENTS PAR POLICE (equipment_services.json, fourni avec le script) : "Équipement WSP" / "Équipement KCSO"
 -- du menu Équipements, et ce que chaque joueur peut personnaliser ("Customiser équipement")
---   [ { "Service", "Name", "Replace", "Weapons": [ { "Weapon", "Label", "Ammo", "Required", "Default",
+--   [ { "Service", "Name", "Replace", "Weapons": [ { "Weapon", "Label", "Ammo", "Required", "Default", "Group",
 --       "Components", "Options": [ { "Label", "Choices": [ { "Label", "Component" } ] } ], "Tints", "Tint" } ] } ]
+--   "Group" : armes INTERCHANGEABLES (même nom de groupe, ex. "Arme principale") : le joueur en prend UNE SEULE ;
+--   celle marquée "Required" est l'arme de dotation (donnée par défaut) et le groupe est obligatoire (une arme du groupe
+--   toujours prise) ; sans "Required" dans le groupe : la première arme par défaut, et le joueur peut n'en prendre aucune.
 --   "Tint" : teinte de départ de l'arme (numéro 0 à 7, ou nom : "noir", "vert", "or", "rose", "kaki", "bleu",
 --   "orange", "platine") ; ex. le beanbag orange.
 -- =========================================================================
@@ -258,7 +290,9 @@ local function loadServices()
                         end
                     end
                     local required = field(w, 'Required') == true
+                    local setLabel = trim(field(w, 'Group')):sub(1, 40)
                     weapons[#weapons + 1] = {
+                        setLabel = setLabel ~= '' and setLabel or nil, explicitDefault = field(w, 'Default') == true,
                         weapon = weapon, label = trim(field(w, 'Label')) ~= '' and trim(field(w, 'Label')):sub(1, 60) or weapon,
                         ammo = math.max(0, math.floor(tonumber(field(w, 'Ammo')) or 0)),
                         required = required, default = required or field(w, 'Default') ~= false,
@@ -268,7 +302,39 @@ local function loadServices()
                     }
                 end
             end
-            local service = { key = key, code = code, name = name:sub(1, 80), replace = field(entry, 'Replace') ~= false, weapons = weapons }
+            -- Groupes d'armes interchangeables ("Group") : une seule arme prise ; l'arme "Required" est celle par défaut
+            local sets, setOrder = {}, {}
+            for _, w in ipairs(weapons) do
+                if w.setLabel then
+                    local k = w.setLabel:lower()
+                    if not sets[k] then
+                        sets[k] = { key = k, label = w.setLabel, members = {}, required = false }
+                        setOrder[#setOrder + 1] = k
+                    end
+                    local set = sets[k]
+                    set.members[#set.members + 1] = w.weapon
+                    if w.required and not set.default then set.default = w.weapon end
+                    set.required = set.required or w.required
+                    w.set = k
+                end
+            end
+            for _, k in ipairs(setOrder) do
+                local set = sets[k]
+                if not set.default then
+                    for _, w in ipairs(weapons) do
+                        if w.set == k and w.explicitDefault then set.default = w.weapon break end
+                    end
+                end
+                set.default = set.default or set.members[1]
+                for _, w in ipairs(weapons) do
+                    if w.set == k then
+                        w.required = false -- obligatoire : le groupe (une de ses armes), pas chaque arme
+                        w.default = w.weapon == set.default
+                    end
+                end
+            end
+            local service = { key = key, code = code, name = name:sub(1, 80), replace = field(entry, 'Replace') ~= false,
+                weapons = weapons, sets = sets }
             Services[#Services + 1] = service
             serviceByKey[key] = service
         end
@@ -702,6 +768,16 @@ local function fullChoices(service, saved)
     for _, w in ipairs(service.weapons) do
         weapons[w.weapon] = cleaned.weapons[w.weapon] or { on = w.default, components = w.components, tint = w.tint or 0 }
     end
+    -- Groupes "Group" : une seule arme prise (celle de dotation si plusieurs le sont, ex. ancien enregistrement) ;
+    -- groupe obligatoire sans arme prise : l'arme de dotation
+    for _, set in pairs(service.sets or {}) do
+        local chosen = nil
+        for _, name in ipairs(set.members) do
+            if weapons[name].on and (not chosen or name == set.default) then chosen = name end
+        end
+        if not chosen and set.required then chosen = set.default end
+        for _, name in ipairs(set.members) do weapons[name].on = name == chosen end
+    end
     return { weapons = weapons }
 end
 
@@ -817,8 +893,11 @@ S.on('equipmentCustom', function(src, p)
     local choices = fullChoices(service, entry)
     local weapons = {}
     for _, w in ipairs(service.weapons) do
+        local set = w.set and service.sets[w.set] or nil
         weapons[#weapons + 1] = { weapon = w.weapon, label = w.label, required = w.required, groups = w.groups,
-            tints = w.tints, choice = choices.weapons[w.weapon] }
+            tints = w.tints, choice = choices.weapons[w.weapon],
+            set = set and set.key or nil, setLabel = set and set.label or nil, setRequired = set and set.required or nil,
+            setDefault = set and set.default == w.weapon or nil }
     end
     return { ok = true, key = service.key, code = service.code, service = service.name, weapons = weapons,
         id = entry and entry.id or nil, name = entry and entry.name or '', suggested = ('%s modifié'):format(service.name) }

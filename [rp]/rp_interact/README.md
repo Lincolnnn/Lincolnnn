@@ -583,10 +583,15 @@ Un objet par bouton « Équipement … », dans l'ordre d'affichage :
 | `Weapon`, `Label`, `Ammo` | arme, nom affiché, munitions |
 | `Required` | `true` : toujours donnée, impossible à retirer en personnalisant |
 | `Default` | `false` : pas dans l'équipement de base, le joueur peut l'**ajouter** en personnalisant |
+| `Group` | armes **interchangeables** (même nom, ex. `"Arme principale"`) : le joueur n'en prend **qu'une** ; celle marquée `Required` est l'arme de **dotation** (donnée par défaut) et il en faut toujours une ; en personnalisant, cocher une autre arme du groupe **remplace** la précédente. Sans `Required` dans le groupe : la première par défaut, aucune possible. Ex. KCSO : Glock 19 (`Required`), Sig Sauer P226 et MP9, tous `"Group": "Arme principale"` |
 | `Components` | accessoires de l'équipement de base |
 | `Options` | ce que le joueur peut choisir : un groupe = un emplacement (une case à cocher s'il n'a qu'un choix, sinon une liste « Aucun / … ») ; un seul accessoire par groupe |
 | `Tints` | `true` : teinte de l'arme au choix (8 teintes des armes classiques ; pas pour les armes Mk II) (un nombre > 0 vaut `true`) |
 | `Tint` | teinte **par défaut** (équipement de base et réinitialisation) : n° 0 à 7 ou nom (`noir`, `vert`, `or`, `rose`, `kaki`, `bleu`, `orange`, `platine`) ; ex. le beanbag : `"Tint": "orange"` |
+
+Accolade **`{` oubliée** au début d'une arme (`},` suivi directement de `"Weapon": …`) : le fichier est quand même
+lu (accolade ajoutée à la lecture) et la console le signale en jaune ; toute autre erreur : fichier ignoré, la console
+indique l'erreur (ligne / colonne). Même tolérance pour `data/vehicle.json` (`"spawnName"`).
 
 Un équipement modifié ne garde que ce que le fichier prévoit encore : un accessoire retiré du fichier n'est
 plus donné, une arme ajoutée apparaît avec son réglage de base. Pour une base de données : remplacez `loadProfiles()` / `saveProfiles()`

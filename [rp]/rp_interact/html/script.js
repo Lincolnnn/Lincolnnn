@@ -742,7 +742,9 @@
         c.weapons.forEach((w) => {
             const open = c.openWeapon === w.weapon;
             if (c.reselect === w.weapon && interact.page) { interact.page.sel = items.length; c.reselect = null; }
-            items.push({ kind: 'fold', label: w.label, open, right: w.required ? 'Obligatoire' : (w.on ? 'Prise' : 'Non prise'),
+            const mates = w.set ? c.weapons.filter((x) => x.set === w.set) : [];
+            const state = w.required ? 'Obligatoire' : (w.on ? (w.set ? `${w.setLabel} ✓` : 'Prise') : 'Non prise');
+            items.push({ kind: 'fold', label: w.label, open, right: state,
                 desc: open ? 'Entrée / ← : refermer l\'onglet. Souris : cocher, choisir (molette : défiler).'
                     : 'Entrée / → : ouvrir l\'onglet (zoom sur l\'arme, changements visibles en direct).',
                 action: () => {
@@ -753,9 +755,28 @@
             if (!open) return;
             const sub = (it) => items.push({ ...it, sub: true, onLeft: closeFold });
             const changed = () => customPreview();
-            sub({ kind: 'check', label: 'Prendre cette arme', checked: w.on, disabled: !!w.required,
-                right: w.required ? 'Obligatoire' : '', why: 'Arme obligatoire.',
-                onChange: (on) => { w.on = on; changed(); } });
+            if (w.set) {
+                // Groupe d'armes interchangeables ("Group") : une seule prise ; cocher celle-ci retire l'autre
+                const names = mates.map((x) => x.label).join(', ');
+                sub({ kind: 'check', label: `Prendre cette arme (${w.setLabel})`, checked: w.on,
+                    right: w.setDefault ? 'Dotation' : '',
+                    desc: `${w.setLabel} : une seule arme parmi ${names}. Cocher celle-ci remplace l'autre`
+                        + (w.setRequired ? ' (il en faut toujours une).' : '.'),
+                    onChange: (on) => {
+                        if (!on && w.setRequired) {
+                            toast(`${w.setLabel} : il en faut une. Cochez une autre arme du groupe pour remplacer celle-ci.`, 'error');
+                            rerender();
+                            return;
+                        }
+                        mates.forEach((x) => { x.on = false; });
+                        w.on = on;
+                        changed();
+                    } });
+            } else {
+                sub({ kind: 'check', label: 'Prendre cette arme', checked: w.on, disabled: !!w.required,
+                    right: w.required ? 'Obligatoire' : '', why: 'Arme obligatoire.',
+                    onChange: (on) => { w.on = on; changed(); } });
+            }
             w.groups.forEach((g) => {
                 const choices = toArray(g.choices);
                 const has = (comp) => w.components.includes(comp);
