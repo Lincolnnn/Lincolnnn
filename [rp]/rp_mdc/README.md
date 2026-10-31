@@ -314,7 +314,7 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   (`client/carhud.lua` ne fait que relayer ses données au NUI, sans boucle).
 - **Minimap** (non réglable) : **masquée à pied** (le GPS avec) et **affichée dès que le joueur monte dans un
   véhicule** ; à pied, elle reste masquée même si un autre script la réaffiche (en véhicule, un script qui la masque un
-  moment, photo ou cinématique, est respecté). En véhicule, un **contour noir fondu d'un rouge très discret** l'entoure
+  moment, photo ou cinématique, est respecté). En véhicule, un **contour noir** l'entoure, avec une **ombre noir nacré rouge** (reflet rouge discret mais visible)
   (trait à l'extérieur, jamais sur la carte). Il n'est pas posé « au hasard » : sa place est **calculée comme le jeu
   place la minimap** (zone de sécurité de l'affichage du joueur, format et résolution de l'écran, écran du milieu en
   triple écran) et recalculée dès que l'un d'eux change ; masqué dans le menu pause et avec la grande carte. Si chez un
