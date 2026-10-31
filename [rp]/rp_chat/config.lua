@@ -80,6 +80,8 @@ ChatConfig = {
                 { "/fichecivil", "vos profils civils" }, { "/repair", "réparer le moteur" },
                 { "/copyped", "copier son personnage (arme, emote) pour une photo ; /copyped suppr" },
                 { "Début", "noms RP et numéros des joueurs au-dessus des têtes (maintenir ou appuyer : /configtetes)" },
+                { "/goto ID · /back", "aller à un joueur, sur toute la carte / revenir" },
+                { "/blip ID · /players", "suivre un joueur sur la carte (/blip off) / liste des joueurs" },
             } },
             { title = "MDC & menus", items = {
                 { "K", "MDC : unités, appels, recherches, BOLO, rapports, messages entre unités" }, { "Y / N", "accepter / refuser un appel" },

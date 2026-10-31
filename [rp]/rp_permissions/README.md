@@ -77,6 +77,14 @@ il ne touche que ce joueur. Devenu Membre (rôle Discord), le refus est retiré 
 Installation) ; sans ces droits, un avertissement dans la console et seul `permissions.cfg` les réserve.
 Limite : un joueur à qui un `.cfg` donne `vMenu.Everything` garde tout (ne le donnez qu'aux admins).
 
+## Statut du serveur sur Discord (`StatusConfig`)
+
+Fichier `server/discord_status.lua` (fait par un membre de l'équipe, **pas dans ce dépôt** : à poser dans
+`rp_permissions/server/`) : embed de statut, embed des joueurs connectés et alertes de connexion / déconnexion dans
+les salons de `StatusConfig.Channels`. Le manifeste charge `server/discord_*.lua` **s'il est là** (rien ne casse
+sinon). Il réutilise le bot des rôles (`BotToken`) ; il retient les IDs de ses messages dans `discord_messages.json`
+(ignoré par git).
+
 ## Pour les scripts
 
 - Le plus simple : `IsPlayerAceAllowed(src, 'rp.admin')` / `'rp.membre'` (repères donnés aux groupes).

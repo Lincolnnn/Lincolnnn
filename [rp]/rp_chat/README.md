@@ -144,3 +144,17 @@ avec l'étiquette `PRIVÉ` (résultats d'inspection / de fouille de `rp_interact
 
 Le chat publie son nom de ressource (`GlobalState.rpChatResource`) : le MDC et `rp_interact` le retrouvent même si le
 dossier a été renommé.
+
+## Commandes des autres ressources
+
+Une ressource peut faire proposer ses commandes en tapant « / » (ex. `rp_teleport` : `/goto`, `/back`, `/blip`,
+`/players`, `/bring` selon le rang du joueur) :
+
+```lua
+TriggerEvent('rp_chat:client:addCommands', GetCurrentResourceName(), {
+    { name = 'goto', usage = '/goto [ID]', desc = 'Se téléporter à un joueur', noName = true },
+})
+```
+
+La liste remplace la précédente de cette ressource ; `noName = true` : utilisable sans nom RP ; retirée quand la
+ressource s'arrête. Les commandes du chat lui-même (`/me`, `/nomrp`…) ne peuvent pas être remplacées.

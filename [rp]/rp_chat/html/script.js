@@ -38,6 +38,7 @@
         open: false,
         key: null,          // touche d'ouverture (pour refermer avec la même touche)
         openedAt: 0,
+        extraCommands: [], // commandes d'autres ressources (rp_teleport…)
         settings: null,
         typed: [],          // lignes déjà envoyées
         typedIndex: -1,
@@ -231,7 +232,9 @@
         const m = /^\/(\S*)$/.exec(input.value);
         if (!state.open || !m) return [];
         const typed = m[1].toLowerCase();
-        return COMMANDS.filter((c) => c.name.startsWith(typed));
+        const known = new Set(COMMANDS.map((c) => c.name));
+        const all = COMMANDS.concat(state.extraCommands.filter((c) => !known.has(c.name)));
+        return all.filter((c) => c.name.startsWith(typed));
     }
 
     function renderSuggest() {
@@ -367,6 +370,12 @@
                 break;
             case 'tuto':
                 setTuto(data.data || {});
+                break;
+            case 'commands': // commandes d'autres ressources (rp_teleport…), selon les droits du joueur
+                state.extraCommands = (Array.isArray(data.data) ? data.data : Object.values(data.data || {}))
+                    .filter((c) => c && typeof c.name === 'string')
+                    .map((c) => ({ name: c.name, usage: String(c.usage || '/' + c.name), desc: String(c.desc || ''), muted: !!c.muted }));
+                renderSuggest();
                 break;
             case 'settings':
                 if (data.data) applySettings(data.data);

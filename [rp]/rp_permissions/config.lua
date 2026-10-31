@@ -27,7 +27,7 @@ PermsConfig = {
 
     -- Serveur Discord (ID du serveur : clic droit sur le serveur > Copier l'identifiant) ; la convar
     -- « rp_discord_guild » du server.cfg le remplace si elle est donnée
-    GuildId = '1376650496403701832',
+    GuildId = '1562199084276781157',
 
     -- Rôles, du plus haut au plus bas : le premier trouvé chez le joueur est le sien. CHAQUE rôle sert à la fois :
     --   - de LISTE BLANCHE : il faut au moins un de ces trois rôles pour se connecter (sinon : refusé) ;
@@ -63,7 +63,44 @@ PermsConfig = {
         'vMenu.WeaponLoadouts.Menu', 'vMenu.WeaponLoadouts.All',
         'vMenu.WeaponLoadouts.Equip', 'vMenu.WeaponLoadouts.EquipOnRespawn',
     },
+
     CacheMinutes = 10,    -- rôles d'un joueur gardés 10 min (reconnexion rapide sans nouvelle demande à Discord)
     RefreshMinutes = 15,  -- rôles des joueurs connectés revérifiés toutes les 15 min (rôle donné / retiré en jeu)
     Debug = false,        -- détails dans la console du serveur
+}
+
+--[[
+    ========================================================================================================
+    STATUT DU SERVEUR SUR DISCORD (server/discord_status.lua)
+    ========================================================================================================
+    3 fonctions : embed de statut, embed « joueurs connectés », alertes de connexion / déconnexion.
+    Par défaut le script réutilise le MÊME bot que les rôles (PermsConfig.BotToken ci-dessus) : rien d'autre à héberger.
+    Le bot doit avoir, dans CHAQUE salon ci-dessous : Voir le salon, Envoyer des messages, Intégrer des liens,
+    Lire l'historique des messages. (Pas besoin que le bot apparaisse « en ligne » : il écrit via l'API.)
+]]
+StatusConfig = {
+    Enabled = true,
+
+    -- Laisser vide pour réutiliser le bot des rôles. Pour un AUTRE bot : son token ici, ou dans server.cfg
+    -- avec  set rp_status_token "TOKEN"  (la convar passe avant cette ligne).
+    BotToken = '',
+
+    Channels = {
+        status  = '1563586399955980400',  -- embed « statut du serveur » (un seul message, modifié en continu)
+        players = '1564966729753563196',  -- embed « joueurs connectés » (un seul message, modifié en continu)
+        logs    = '1566181232750887142',  -- alertes connexion / déconnexion (avec @discord et IP) : salon PRIVÉ staff
+    },
+
+    -- Facultatif : reprendre un message déjà posté par le bot (ID du message : clic droit > Copier l'identifiant).
+    -- Vide = le script crée le message tout seul et retient son ID dans discord_messages.json.
+    MessageIds = { status = '', players = '' },
+
+    UpdateSeconds = 60,   -- mise à jour régulière (minimum 30) ; une arrivée / un départ met à jour en ~10 s
+    ServerName = '',      -- vide = sv_projectName (ou sv_hostname) du server.cfg
+    ConnectInfo = '',     -- ex. 'cfx.re/join/xxxxxx' ou 'connect monserveur.fr' : affiché dans l'embed de statut
+    MaxPlayers = 0,       -- 0 = valeur de sv_maxclients
+    ShowIp = true,        -- false = alertes sans adresse IP
+
+    RankEmoji = { admin = '🛡️', membre = '⭐', nonofficiel = '👤' },
+    Colors = { online = 0x57F287, offline = 0xED4245, players = 0x5865F2, join = 0x57F287, leave = 0xED4245 },
 }

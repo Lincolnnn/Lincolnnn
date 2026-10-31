@@ -175,9 +175,11 @@ RegisterNUICallback('close', function(_, cb)
 end)
 
 -- Le NUI est chargé : réglages, puis derniers messages /info, /qst, /rep du serveur
+local sendExtraCommands
 RegisterNUICallback('ready', function(_, cb)
     nuiReady = true
     sendSettings()
+    if sendExtraCommands then sendExtraCommands() end
     TriggerServerEvent('rp_chat:server:ready')
     cb({ ok = true })
 end)
@@ -392,8 +394,47 @@ exports('addPrivate', function(data)
 end)
 
 -- =========================================================================
+-- COMMANDES D'AUTRES RESSOURCES proposées en tapant « / » (ex. rp_teleport : /goto, /blip…, selon les droits) :
+--   TriggerEvent('rp_chat:client:addCommands', GetCurrentResourceName(), { { name, usage, desc, noName, muted } })
+--   (liste complète de cette ressource, remplacée à chaque appel) ; noName = utilisable sans nom RP.
+-- Retirées quand la ressource s'arrête.
+-- =========================================================================
+local extraCommands = {} -- [ressource] = liste
+local extraNoName = {}   -- [commande] = ressource qui l'a rendue utilisable sans nom RP
+
+sendExtraCommands = function()
+    if not nuiReady then return end
+    local all = {}
+    for _, list in pairs(extraCommands) do
+        for _, c in ipairs(list) do all[#all + 1] = c end
+    end
+    SendNUIMessage({ action = 'commands', data = all })
+end
+
+local function setExtraCommands(resource, list)
+    for command, owner in pairs(extraNoName) do
+        if owner == resource then NO_NAME_COMMANDS[command], extraNoName[command] = nil, nil end
+    end
+    local clean = {}
+    for _, c in ipairs(type(list) == 'table' and list or {}) do
+        local name = type(c) == 'table' and type(c.name) == 'string' and c.name:lower():match('^[%w_%-]+$')
+        if name and not RP_COMMANDS[name] then
+            clean[#clean + 1] = { name = name, usage = tostring(c.usage or ('/' .. name)):sub(1, 60),
+                desc = tostring(c.desc or ''):sub(1, 120), muted = c.muted == true or nil }
+            if c.noName and not NO_NAME_COMMANDS[name] then NO_NAME_COMMANDS[name], extraNoName[name] = true, resource end
+        end
+    end
+    extraCommands[resource] = #clean > 0 and clean or nil
+    sendExtraCommands()
+end
+AddEventHandler('rp_chat:client:addCommands', function(resource, list)
+    if type(resource) == 'string' and resource ~= '' then setExtraCommands(resource, list) end
+end)
+
+-- =========================================================================
 -- SÉCURITÉ : relâche le focus si la ressource est arrêtée
 -- =========================================================================
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() and isOpen then SetNuiFocus(false, false) end
+    if extraCommands[resource] or next(extraNoName) then setExtraCommands(resource, nil) end
 end)
