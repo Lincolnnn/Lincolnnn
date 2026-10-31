@@ -882,6 +882,21 @@
 
     // ---- Configuration > Météo : météo et heure du serveur (server/weather.lua) ----
     const WEATHER_MODES = [{ id: 'fixed', label: 'Fixe' }, { id: 'fair', label: 'Beau temps' }, { id: 'rainy', label: 'Pluvieux' }];
+    /** Heure écrite librement -> { hour, minute } (null si invalide) : « 22 » = 22h00, « 7 » = 07h00, « 1203 » = 12h03,
+     *  « 730 » = 07h30, « 0730 » = 07h30 ; aussi « 21:45 », « 21h45 », « 21h », « 21.45 » */
+    function parseClock(value) {
+        const v = String(value ?? '').trim().toLowerCase();
+        let h, m;
+        let r = /^(\d{1,2})\s*[:h.]\s*(\d{0,2})$/.exec(v);
+        if (r) { h = Number(r[1]); m = r[2] === '' ? 0 : Number(r[2]); }
+        else if ((r = /^\d{1,4}$/.exec(v))) {
+            if (v.length <= 2) { h = Number(v); m = 0; }
+            else { h = Number(v.slice(0, v.length - 2)); m = Number(v.slice(-2)); }
+        } else return null;
+        if (!Number.isInteger(h) || !Number.isInteger(m) || h > 23 || m > 59) return null;
+        return { hour: h, minute: m };
+    }
+
     const TIME_MODES = [{ id: 'fixed', label: 'Fixe (ne bouge plus)' }, { id: 'base', label: 'De base (rapide)' }, { id: 'realistic', label: 'Réaliste' },
         { id: 'custom', label: 'Personnalisé' }];
     const wx = { loaded: false, allowed: false, types: [], current: null, draft: null };
@@ -931,12 +946,12 @@
                         desc: 'Sol enneigé et traces des véhicules / des pas, avec n\'importe quel temps (automatique avec Noël et les temps de neige).',
                         onChange: (v) => { d.snow = v; rerender(); } },
                     { kind: 'section', label: 'Heure' },
-                    { kind: 'input', key: 'time', label: 'Heure', value: `${two(d.hour)}:${two(d.minute)}`, max: 5, placeholder: 'HH:MM', ...lock,
-                        desc: 'Entrée : écrire l\'heure à la minute près (ex : 21:45), Entrée pour valider.',
+                    { kind: 'input', key: 'time', label: 'Heure', value: `${two(d.hour)}:${two(d.minute)}`, max: 5, placeholder: 'ex : 22 ou 1203', ...lock,
+                        desc: 'Entrée : écrire l\'heure, sans « : » si on veut (22 = 22h00, 7 = 07h00, 1203 = 12h03, 730 = 07h30 ; 21:45 et 21h45 marchent aussi), Entrée pour valider.',
                         onChange: (value) => {
-                            const m = /^\s*(\d{1,2})\s*[:h.]\s*(\d{1,2})\s*$/.exec(value || '');
-                            if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) { toast('Heure invalide : 00:00 à 23:59.', 'error'); rerender(); return; }
-                            d.hour = Number(m[1]); d.minute = Number(m[2]); rerender();
+                            const t = parseClock(value);
+                            if (!t) { toast('Heure invalide : 0 à 23 (heures) ou 0000 à 2359 (heures + minutes).', 'error'); rerender(); return; }
+                            d.hour = t.hour; d.minute = t.minute; rerender();
                         } },
                     { kind: 'list', label: 'Défilement du temps', options: TIME_MODES.map((m) => m.label), index: index(TIME_MODES, d.timeMode), ...lock,
                         desc: 'Fixe : l\'heure ne bouge plus. De base : 2 s par minute du jeu (GTA). Réaliste : 40 s par minute du jeu. Personnalisé : à choisir ci-dessous.',

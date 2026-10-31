@@ -82,7 +82,9 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
 
 Le dépôt contient aussi le **menu d'interactions (au clavier) / fiches civiles / Eye Target** dans [`rp_interact/`](../rp_interact/README.md)
 (ressource séparée : un joueur y est « policier » quand il est dans une unité du MDC, voir l'export serveur
-`getPlayerUnit(source)` et l'état `Player(source).state.mdcUnit`). Le MDC publie son nom de ressource
+`getPlayerUnit(source)` et l'état `Player(source).state.mdcUnit`). Le MDC choisi est publié aussi : états
+`mdcAgency` (`wsp`, `kcso`, …) et `mdcPolice` (`true` pour un MDC de police) ; rp_interact s'en sert pour retirer le
+mode civil quand on rejoint le MDC WSP ou KCSO. Le MDC publie son nom de ressource
 (`GlobalState.mdcResource`) : le nom de son dossier n'a pas d'importance.
 
 Le dépôt contient aussi **Vehicle Control** dans [`rp_vehiclecontrol/`](../rp_vehiclecontrol/README.md) : essence (plein à

@@ -98,6 +98,7 @@ Config.Prongs = {
     CordBreakTolerance = 0.15,
     ReactivationCooldown = 2000,
     SelectorReactivationWindow = 1500,
+    ReactivationRetry = 1500, -- ms : réactivation réessayée tant que le Taser repris / les sondes ne sont pas prêts
     BreakOnWeaponSwitch = true,
     BreakOnDeath = true,
     BreakOnLineOfSight = false,

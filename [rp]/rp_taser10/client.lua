@@ -260,7 +260,7 @@ local dropping = false -- posé, en attente du serveur
 -- Réseau de son propre Taser posé : gardé ici dès la réponse du serveur (l'état du joueur "taserDropped" peut arriver
 -- quelques images APRÈS la réponse : entre les deux, le Taser n'était ni en main ni « posé » -> sondes coupées)
 local droppedNet = nil
-local rearmAfterPickup = false -- repris du sol, sondes reliées : le prochain passage en ARMÉ relance la décharge
+local stateAtDrop = nil -- { armed, stealth } au moment de la pose : rendu à la reprise (double appui comme avant)
 local pickupGrace = 0 -- repris : le Taser met une image ou deux à revenir en main (sans couper les sondes entre-temps)
 local myServerId = GetPlayerServerId(PlayerId())
 local function droppedObject(serverId)
@@ -853,22 +853,47 @@ local function attachedProngs()
     return true
 end
 
-local function reactivateConnection()
-    if not usingTaser() or not armed or battery <= 0 then return end
-    if connection.state ~= 'CONNECTED' or not attachedProngs() then return end
+--- Une tentative de réactivation : 'sent' (envoyée), 'fail' (impossible) ou 'wait' (pas encore prêt : Taser repris
+--- pas encore en main / son modèle pas encore là, sondes en cours de création sur le suspect)
+local function tryReactivate()
+    if not armed or battery <= 0 or connection.state ~= 'CONNECTED' then return 'fail' end
+    if not usingTaser() or not attachedProngs() then return 'wait' end
 
     local active = activeConnections[connection.connectionId]
-    local wireDistance = active and connectionWireDistance(active)
-    if not wireDistance or wireDistance >= Config.Prongs.MaxWireDistance then
+    if not active then return 'wait' end
+    local wireDistance = connectionWireDistance(active)
+    -- distance pas mesurable (arme pas encore dans la main) : on attend, on ne coupe PAS le fil (avant : coupé ici,
+    -- d'où des appuis à répéter après avoir repris le Taser posé au sol)
+    if not wireDistance then return 'wait' end
+    if wireDistance >= Config.Prongs.MaxWireDistance then
         clearOwnedConnection('distance', true)
-        return
+        return 'fail'
     end
 
     local now = GetGameTimer()
-    if now - lastReactivation < Config.Prongs.ReactivationCooldown then return end
+    if now - lastReactivation < Config.Prongs.ReactivationCooldown then return 'fail' end
     lastReactivation = now
     TriggerServerEvent('axon_taser10:reactivate')
+    return 'sent'
 end
+
+local reactivating = false
+--- Réactivation des sondes (double appui SÉCURITÉ -> ARMÉ) : réessayée quelques instants (ReactivationRetry ms) tant
+--- que le Taser ou les sondes ne sont pas encore prêts, au lieu d'être perdue
+local function reactivateConnection()
+    if reactivating then return end
+    if tryReactivate() ~= 'wait' then return end
+    reactivating = true
+    CreateThread(function()
+        local untilTime = GetGameTimer() + (Config.Prongs.ReactivationRetry or 1500)
+        while GetGameTimer() < untilTime do
+            Wait(100)
+            if tryReactivate() ~= 'wait' then break end
+        end
+        reactivating = false
+    end)
+end
+RPTaserReactivate = reactivateConnection -- pour les tests
 
 local function setSafe()
     reactivationSafeAt = nil
@@ -887,7 +912,8 @@ RegisterCommand('+axonSafety', function()
     if not usingTaser() then return end
 
     if armed then
-        local canReactivate = connection.state == 'CONNECTED' and attachedProngs()
+        -- sondes vérifiées au moment de la réactivation (réessayée si elles se recréent) : ici, la connexion suffit
+        local canReactivate = connection.state == 'CONNECTED'
         setSafe()
         if canReactivate then
             reactivationSafeAt = GetGameTimer()
@@ -899,10 +925,9 @@ RegisterCommand('+axonSafety', function()
             updateCid()
             return
         end
-        local reactivate = (reactivationSafeAt
-            and GetGameTimer() - reactivationSafeAt <= Config.Prongs.SelectorReactivationWindow) or rearmAfterPickup
+        local reactivate = reactivationSafeAt
+            and GetGameTimer() - reactivationSafeAt <= Config.Prongs.SelectorReactivationWindow
         reactivationSafeAt = nil
-        rearmAfterPickup = false
         playTaserSound('switch')
         armed = true
         stealth = stealthReady
@@ -1254,7 +1279,8 @@ local function connectionBreakReason()
     return nil
 end
 
-RPTaser = { breakReason = connectionBreakReason, onGround = taserOnGround } -- pour les tests
+RPTaser = { breakReason = connectionBreakReason, onGround = taserOnGround, prongs = persistentProngs,
+    isArmed = function() return armed end } -- pour les tests
 
 -- =========================================================================
 -- ŒIL de rp_interact (rp_interact/config.lua : TargetProviders) : remplace ox_target
@@ -1313,10 +1339,29 @@ local function dropTaser()
         local pos, rx, ry = lyingPlacement(model, spot.x, spot.y, ground, heading)
         SetModelAsNoLongerNeeded(model)
         droppedWeapon = { weapon = weapon, ammo = GetAmmoInPedWeapon(ped, weapon) }
+        stateAtDrop = { armed = armed, stealth = stealth }
+        if armed then setSafe() end -- au sol : en SÉCURITÉ (la décharge s'arrête), rendu ARMÉ à la reprise
         SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
         RemoveWeaponFromPed(ped, weapon)
         TriggerServerEvent('axon_taser10:dropTaser', { weapon = weapon, model = model, ammo = droppedWeapon.ammo,
             x = pos.x, y = pos.y, z = pos.z, rx = rx, ry = ry, rz = heading })
+    end)
+end
+
+--- Taser rendu en main (repris, ou pose refusée) : il revient dans l'état d'avant la pose (ARMÉ : le double appui
+--- SÉCURITÉ -> ARMÉ réactive les sondes comme avant), dès qu'il est vraiment en main
+local function restoreStateAtDrop()
+    local was = stateAtDrop
+    stateAtDrop = nil
+    if not was or not was.armed then return end
+    CreateThread(function()
+        local untilTime = GetGameTimer() + 2000
+        while not usingTaser() and GetGameTimer() < untilTime do Wait(50) end
+        if not usingTaser() or armed or battery <= 0 then return end
+        armed, stealth, safeAt, reactivationSafeAt = true, was.stealth == true, nil, nil
+        playTaserSound('arming')
+        TriggerServerEvent('axon_taser10:armed', not stealth)
+        updateCid()
     end)
 end
 
@@ -1327,6 +1372,7 @@ RegisterNetEvent('axon_taser10:dropResult', function(ok, message, netId)
     if not ok and droppedWeapon then
         GiveWeaponToPed(PlayerPedId(), droppedWeapon.weapon, droppedWeapon.ammo or 0, false, true)
         droppedWeapon = nil
+        restoreStateAtDrop()
     end
     if message then TriggerEvent('chat:addMessage', { args = { 'TASER 10', message } }) end
 end)
@@ -1345,8 +1391,8 @@ RegisterNetEvent('axon_taser10:pickedUp', function(weapon, ammo)
     droppedWeapon = nil
     droppedNet = nil
     pickupGrace = GetGameTimer() + 1500
-    rearmAfterPickup = connection.state == 'CONNECTED'
     if safeAt then safeAt = GetGameTimer() end
+    restoreStateAtDrop()
 end)
 
 exports('targetOptions', function(info)

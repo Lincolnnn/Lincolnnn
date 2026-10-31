@@ -87,6 +87,7 @@ local function lookup(discordId, fresh)
     return entry
 end
 
+local applyMembersOnly -- plus bas (refus « réservé aux membres »)
 --- Groupe ACE de l'identifiant Discord : celui du rang (les autres groupes de rang retirés)
 local function applyPrincipal(discordId, rank)
     local wanted = rank and ROLES[rank] and ROLES[rank].group or nil
@@ -100,8 +101,41 @@ local function applyPrincipal(discordId, rank)
     end
     if wanted then ExecuteCommand(('add_principal %s %s'):format(principal, wanted)) end
     applied[discordId] = wanted or false
+    if applyMembersOnly then applyMembersOnly(discordId, rank) end
     debug('%s -> %s', principal, wanted or 'aucun groupe')
 end
+
+-- =========================================================================
+-- RÉSERVÉ AUX MEMBRES (C.MembersOnly : loadouts d'armes enregistrés de vMenu…) : refus posé sur l'identifiant Discord
+-- de chaque joueur qui n'est ni Membre ni Admin. Un refus l'emporte sur un « allow » donné ailleurs (autre .cfg,
+-- builtin.everyone) ; posé sur l'identifiant (pas sur group.nonofficiel, dont héritent les membres), il ne touche
+-- que ce joueur, et il est retiré dès qu'il devient Membre / Admin. Posé AVANT l'arrivée en jeu (vMenu lit les
+-- permissions à l'arrivée). Demande : add_ace resource.rp_permissions command.add_ace / command.remove_ace allow.
+-- =========================================================================
+local denied = {}      -- [discordId] = true : refus posés
+local denyWarned = false
+local MEMBER_LEVEL = { admin = true, membre = true }
+applyMembersOnly = function(discordId, rank)
+    local list = C.MembersOnly or {}
+    if #list == 0 then return end
+    local want = not MEMBER_LEVEL[rank or '']
+    -- première fois pour cet identifiant (ou script redémarré) : toujours appliqué (un ancien refus est retiré)
+    if denied[discordId] ~= nil and denied[discordId] == want then return end
+    local command = want and 'add_ace' or 'remove_ace'
+    if not IsPrincipalAceAllowed('resource.' .. RES, 'command.' .. command) then
+        if not denyWarned then
+            denyWarned = true
+            log('^3MembersOnly (loadouts vMenu…) : ajoutez dans server.cfg  add_ace resource.%s command.add_ace allow  et'
+                .. '  add_ace resource.%s command.remove_ace allow  (sinon seul permissions.cfg les réserve aux membres).^0', RES, RES)
+        end
+        return
+    end
+    local principal = 'identifier.discord:' .. discordId
+    for _, ace in ipairs(list) do ExecuteCommand(('%s %s %s deny'):format(command, principal, ace)) end
+    denied[discordId] = want
+    debug('%s : %s refusé(s) %s', principal, #list, want and 'posé(s)' or 'retiré(s)')
+end
+RPPerms = { applyMembersOnly = applyMembersOnly } -- pour les tests
 
 --- Rang d'un joueur connecté mis à jour (groupe ACE, état « rpRank »)
 local function setRank(src, rank)

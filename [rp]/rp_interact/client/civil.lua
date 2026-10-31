@@ -25,7 +25,21 @@
 local Config = InteractConfig
 local KVP_KEY = 'rpi_civil_mode'
 
-local civilMode = GetResourceKvpString(KVP_KEY) == '1'
+-- MODE CIVIL AUTOMATIQUE (CivilMode.AutoOnJoin) : activé à chaque connexion ; retiré tout seul quand le joueur
+-- rejoint un MDC de police (WSP, KCSO : état "mdcPolice" publié par le MDC) ou entre dans une unité. Recoché à la
+-- main ensuite si on veut. Redémarrage du script en cours de partie : pas réactivé si le joueur est déjà policier.
+local AUTO = (Config.CivilMode or {}).AutoOnJoin ~= false
+local function policeMDC()
+    local st = LocalPlayer.state
+    return st.mdcPolice == true or (type(st.mdcUnit) == 'string' and st.mdcUnit ~= '')
+end
+local civilMode
+if AUTO then
+    civilMode = not policeMDC()
+    SetResourceKvp(KVP_KEY, civilMode and '1' or '0')
+else
+    civilMode = GetResourceKvpString(KVP_KEY) == '1'
+end
 -- shown : tips affichés (ouverts par une mise en joue ou par le menu) ; ils ne se ferment QU'AVEC
 -- la touche Échap (jamais d'eux-mêmes, même quand le policier arrête de viser).
 -- aimed : un policier vise le joueur en ce moment (titre rouge).
@@ -128,6 +142,22 @@ local function toggleManualTips()
     if not tips.shown then tips.aimed = false end
     renderTips()
     return tips.shown
+end
+
+-- Rejoint un MDC de police (WSP, KCSO) ou une unité : mode civil retiré (une seule fois par changement)
+if AUTO then
+    local me = ('player:%d'):format(GetPlayerServerId(PlayerId()))
+    local function leaveCivil(reason)
+        if not civilMode then return end
+        setCivilMode(false)
+        RPI.notify(reason, 'info')
+    end
+    AddStateBagChangeHandler('mdcPolice', me, function(_, _, value)
+        if value == true then leaveCivil('MDC de police rejoint : mode civil désactivé.') end
+    end)
+    AddStateBagChangeHandler('mdcUnit', me, function(_, _, value)
+        if type(value) == 'string' and value ~= '' then leaveCivil('En service : mode civil désactivé.') end
+    end)
 end
 
 -- ---- Menu d'interactions ----

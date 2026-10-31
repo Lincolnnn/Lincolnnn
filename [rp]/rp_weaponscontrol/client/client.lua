@@ -499,6 +499,106 @@ if FL.Enabled ~= false then
         end
     end)
     RPWeapons.flashlights = lit -- pour les tests
+
+    -- ---------------------------------------------------------------------
+    -- LAMPE RENFORCÉE (Flashlight.Boost) : un faisceau en plus, plus puissant et qui porte plus loin, part de la lampe
+    -- de l'arme dans l'axe du canon, pour soi et pour les joueurs autour (lampe du jeu allumée, vue par tous). Liste
+    -- des lampes allumées relue toutes les Boost.CheckMs ms ; dessin à chaque image SEULEMENT tant qu'il y en a une.
+    -- ---------------------------------------------------------------------
+    local B = FL.Boost or {}
+    if B.Enabled ~= false then
+        local beams = {}
+        local BONES = { 'WAPFlshLasr', 'WAPFlshLasr_2', 'Gun_FLMuzzle', 'gun_muzzle', 'Gun_Muzzle' }
+        local function dot(a, b) return a.x * b.x + a.y * b.y + a.z * b.z end
+        local function norm(v)
+            local l = math.sqrt(dot(v, v))
+            if l < 0.0001 then return nil end
+            return vector3(v.x / l, v.y / l, v.z / l)
+        end
+        --- Position et direction de la lampe : axe de l'arme le plus proche de « crosse -> canon » (quel que soit le
+        --- sens du modèle), départ un peu devant la lampe ; sans repère, devant le personnage
+        local function beamOf(ped)
+            local weapon = GetCurrentPedWeaponEntityIndex(ped)
+            if weapon and weapon ~= 0 and DoesEntityExist(weapon) then
+                local origin, light = GetEntityCoords(weapon), nil
+                for _, name in ipairs(BONES) do
+                    local bone = GetEntityBoneIndexByName(weapon, name)
+                    if bone and bone ~= -1 then light = GetWorldPositionOfEntityBone(weapon, bone) break end
+                end
+                local muzzle = GetEntityBoneIndexByName(weapon, 'gun_muzzle')
+                local tip = (muzzle and muzzle ~= -1) and GetWorldPositionOfEntityBone(weapon, muzzle) or light
+                local along = tip and norm(tip - origin)
+                if along then
+                    local a, b2, c = GetEntityMatrix(weapon)
+                    local best, score = nil, 0.0
+                    for _, axis in ipairs({ a, b2, c }) do
+                        local d = dot(axis, along)
+                        if math.abs(d) > math.abs(score) then best, score = axis, d end
+                    end
+                    local dir = best and norm(score < 0 and vector3(-best.x, -best.y, -best.z) or best) or along
+                    local from = light or tip
+                    local ahead = B.Ahead or 0.12
+                    return vector3(from.x + dir.x * ahead, from.y + dir.y * ahead, from.z + dir.z * ahead), dir
+                end
+            end
+            local p, f = GetEntityCoords(ped), GetEntityForwardVector(ped)
+            return vector3(p.x + f.x * 0.4, p.y + f.y * 0.4, p.z + 0.4), f
+        end
+        RPWeapons.beamOf = beamOf
+
+        local function litPed(ped)
+            if not ped or ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then return false end
+            local weapon = u32(GetSelectedPedWeapon(ped))
+            if weapon == 0 or weapon == UNARMED or cartoon(weapon) then return false end
+            return IsFlashLightOn(ped) == true
+        end
+
+        local drawing = false
+        local function draw()
+            if drawing then return end
+            drawing = true
+            CreateThread(function()
+                local c = B.Color or { 255, 247, 235 }
+                local shadows = B.Shadows or 2
+                while #beams > 0 do
+                    for i = 1, #beams do
+                        local pos, dir = beamOf(beams[i])
+                        if i <= shadows then
+                            DrawSpotLightWithShadow(pos.x, pos.y, pos.z, dir.x, dir.y, dir.z, c[1], c[2], c[3],
+                                (B.Range or 45.0) + 0.0, (B.Intensity or 6.0) + 0.0, (B.Roundness or 4.0) + 0.0,
+                                (B.Radius or 16.0) + 0.0, (B.Falloff or 18.0) + 0.0, 240 + i)
+                        else
+                            DrawSpotLight(pos.x, pos.y, pos.z, dir.x, dir.y, dir.z, c[1], c[2], c[3],
+                                (B.Range or 45.0) + 0.0, (B.Intensity or 6.0) + 0.0, (B.Roundness or 4.0) + 0.0,
+                                (B.Radius or 16.0) + 0.0, (B.Falloff or 18.0) + 0.0)
+                        end
+                    end
+                    Wait(0)
+                end
+                drawing = false
+            end)
+        end
+
+        CreateThread(function()
+            while true do
+                local list, me = {}, PlayerPedId()
+                if litPed(me) then list[1] = me end
+                if B.Others ~= false then
+                    local myPos, range = GetEntityCoords(me), B.OthersRange or 80.0
+                    for _, player in ipairs(GetActivePlayers()) do
+                        local ped = GetPlayerPed(player)
+                        if ped ~= me and ped ~= 0 and #(GetEntityCoords(ped) - myPos) < range and litPed(ped) then
+                            list[#list + 1] = ped
+                        end
+                    end
+                end
+                beams = list
+                RPWeapons.beams = list -- pour les tests
+                if #list > 0 then draw() end
+                Wait(B.CheckMs or 300)
+            end
+        end)
+    end
 end
 
 -- =========================================================================

@@ -14,6 +14,8 @@
     À METTRE DANS server.cfg :
         add_ace resource.rp_permissions command.add_principal allow
         add_ace resource.rp_permissions command.remove_principal allow
+        add_ace resource.rp_permissions command.add_ace allow       # repères rp.* et MembersOnly
+        add_ace resource.rp_permissions command.remove_ace allow    # MembersOnly (refus retiré quand on devient Membre)
         ensure rp_permissions                          # tôt : avant vMenu et les scripts rp_
     Le bot doit être sur le serveur Discord (permission « Voir les salons » suffit) avec l'intent « Server Members »
     activé (Discord Developer Portal > Bot > Privileged Gateway Intents).
@@ -54,6 +56,13 @@ PermsConfig = {
         },
     },
 
+    -- RÉSERVÉ AUX MEMBRES ET ADMINS : refusé à chaque joueur non-officiel (refus posé sur son identifiant Discord, qui
+    -- l'emporte sur un « allow » donné ailleurs ; retiré dès qu'il devient Membre). Ici : les LOADOUTS D'ARMES
+    -- ENREGISTRÉS de vMenu (créer, équiper, équiper au respawn). {} = rien de réservé ici (seulement permissions.cfg).
+    MembersOnly = {
+        'vMenu.WeaponLoadouts.Menu', 'vMenu.WeaponLoadouts.All',
+        'vMenu.WeaponLoadouts.Equip', 'vMenu.WeaponLoadouts.EquipOnRespawn',
+    },
     CacheMinutes = 10,    -- rôles d'un joueur gardés 10 min (reconnexion rapide sans nouvelle demande à Discord)
     RefreshMinutes = 15,  -- rôles des joueurs connectés revérifiés toutes les 15 min (rôle donné / retiré en jeu)
     Debug = false,        -- détails dans la console du serveur

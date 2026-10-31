@@ -1428,7 +1428,11 @@ RegisterMDCCallback('getAgencies', function(src)
             locked = not agencyAllowed(src, a.key) or nil }
     end
     -- MDC actuel plus permis (rang changé) : à rechoisir
-    if agencyOf(src) and not agencyAllowed(src, agencyOf(src)) then PlayerAgency[src] = nil end
+    if agencyOf(src) and not agencyAllowed(src, agencyOf(src)) then
+        PlayerAgency[src] = nil
+        Player(src).state:set('mdcAgency', false, true)
+        Player(src).state:set('mdcPolice', false, true)
+    end
     return { ok = true, agencies = list, current = agencyOf(src),
         perms = { supervisor = aceAllowed(src, Config.SupervisorAce), deleteCalls = aceAllowed(src, Config.DeleteCallAce) } }
 end)
@@ -1441,6 +1445,9 @@ RegisterMDCCallback('setAgency', function(src, payload)
     end
     if PlayerAgency[src] == key then return { ok = true, agency = key } end
     PlayerAgency[src] = key
+    -- Publié (répliqué) : rp_interact retire le mode civil quand on rejoint un MDC de police (WSP, KCSO)
+    Player(src).state:set('mdcAgency', key, true)
+    Player(src).state:set('mdcPolice', isPoliceAgency(key), true)
     -- Unité d'une autre police (ou MDC générique) : quittée
     local unit = findUnit(PlayerUnit[src])
     if unit and unit.agency ~= key then

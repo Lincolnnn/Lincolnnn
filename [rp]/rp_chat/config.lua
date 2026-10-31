@@ -95,6 +95,13 @@ ChatConfig = {
                 { "O", "moteur" }, { "G", "ceinture" }, { "U / I", "sa portière / les deux avant" },
                 { "← →", "clignotants" }, { "↓", "warnings" }, { "Alt", "œil : pousser un véhicule (à pied)" },
             } },
+            { title = "Bodycam", items = {
+                { "/bwc", "choisir sa caméra (menu) : /bwc axon2, axon3, axon4, motorola, focusx2" },
+                { "O", "allumer / éteindre la bodycam choisie (« Toggle bodycam » dans les raccourcis)" },
+                { "/bwc off", "couper la bodycam" }, { "/bwcsize", "taille de l'affichage : 50 à 200, ou reset" },
+                { "/bwcedit", "bodycam allumée : déplacer / agrandir le texte (molette), enregistrer en haut à droite" },
+                { "/bwcanim", "geste vers la caméra : center, high, left, low, right" },
+            } },
             { title = "Interpellations", items = {
                 { "H", "mains en l'air" }, { "J", "à genoux" }, { "L", "s'allonger" }, { "X", "arrêter l'emote / lâcher le bras" },
             } },

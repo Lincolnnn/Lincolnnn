@@ -238,6 +238,12 @@ et **une ou plusieurs parties**, avec les mêmes noms et le même format que `ou
 
 ## Mode civil (case à cocher, gardée chez chaque joueur)
 
+**Automatique** (`CivilMode.AutoOnJoin`, par défaut) : la case est **cochée à chaque connexion** ; elle se **décoche
+toute seule** quand le joueur **rejoint un MDC de police** (WSP ou KCSO : état `mdcPolice` publié par le MDC) ou une
+unité, avec une notification (« MDC de police rejoint : mode civil désactivé. »). Le MDC générique ne la retire pas. Le
+joueur peut la recocher à la main ensuite. Script redémarré en cours de partie : pas recochée si le joueur est déjà
+policier. `AutoOnJoin = false` : la case reste comme le joueur l'a laissée.
+
 Ajoute des options visuelles propres au rôle de civil. La première : les **tips d'arrestation**, un mini menu
 **non interactif** en haut au milieu de l'écran :
 
@@ -279,7 +285,7 @@ Thème : celui du HUD (contour gris fin, angles légèrement arrondis), fond noi
 | **Défilement de la météo** | **Fixe** (ne change plus) ; **Beau temps** (passe d'un temps clair à un autre : grand soleil, dégagé, nuageux) ; **Pluvieux** (pluie, orage, brumeux, brouillard) ; un nouveau temps toutes les 20 min (`CycleMinutes`), en douceur |
 | **Coupure de courant** | éclairage de la ville éteint (lampadaires, bâtiments) ; les phares des véhicules restent allumés |
 | **Neige au sol** | sol enneigé + traces des véhicules et des pas, avec n'importe quel temps (automatique avec Noël et les temps de neige) |
-| **Heure** | à la minute près (champ « HH:MM », ex. 21:45) |
+| **Heure** | à la minute près, **sans « : » si on veut** : `22` = 22h00, `7` = 07h00, `1203` = 12h03, `730` = 07h30 (aussi `21:45`, `21h45`, `21h`) |
 | **Défilement du temps** | **Fixe** (l'heure ne bouge plus) ; **De base** (rapide : 2 s par minute du jeu, comme GTA) ; **Réaliste** (40 000 ms par minute du jeu : une journée en 16 h, `RealisticMs`) ; **Personnalisé** (secondes réelles par minute du jeu, de 0,1 à 600 : 60 = temps réel) |
 | **Accès public** | (administrateurs seulement) ouvre le réglage à tout le monde ; décoché : réservé aux administrateurs |
 

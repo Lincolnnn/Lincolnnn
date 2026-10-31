@@ -89,8 +89,16 @@ WeaponsConfig = {
     -- Lampe de CartoonFlashlight (ressource à part : lampe tenue en main, animations) : ses armes (Weapons) sont
     -- gérées par elle ; ce script ne les rallume pas lui-même mais garde leur état (allumée / éteinte) d'un usage à
     -- l'autre et le lui donne (exports flashlightWanted / setFlashlight, événement rp_weaponscontrol:flashlight).
+    -- Boost : lampe RENFORCÉE (plus puissante, porte plus loin) : un faisceau en plus part de la lampe de l'arme, dans
+    -- l'axe du canon, tant que la lampe du jeu est allumée ; vu sur soi et sur les joueurs à moins de OthersRange m.
+    --   Range : portée (m) | Intensity : puissance | Radius : largeur du faisceau (degrés) | Falloff : atténuation
+    --   (plus petit = porte plus loin, plus doux) | Roundness : netteté du bord | Shadows : nb de faisceaux avec ombres
+    --   (les plus proches ; les autres sans ombre, plus légers) | Color : blanc légèrement chaud.
+    -- Texture plus réaliste (Realistic_Flashlight) : voir le README (fichier graphics.ytd, non fourni dans le dépôt).
     Flashlight = { Enabled = true, KeepOnWhileMoving = true,
-        Cartoon = { Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } } },
+        Cartoon = { Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },
+        Boost = { Enabled = true, Range = 45.0, Intensity = 6.0, Radius = 16.0, Falloff = 18.0, Roundness = 4.0,
+            Color = { 255, 247, 235 }, Ahead = 0.12, Shadows = 2, Others = true, OthersRange = 80.0, CheckMs = 300 } },
 
     -- Sélecteur de tir (coup par coup / automatique) : armes automatiques des groupes Groups et armes Weapons (sauf
     -- Excluded). Touche Key (Raccourcis clavier > FiveM) : petit clic (Volume) et logo en bas au milieu de l'écran

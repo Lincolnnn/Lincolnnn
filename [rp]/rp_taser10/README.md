@@ -26,8 +26,13 @@ Taser en main, **œil (Alt) en visant n'importe où** (sol, mur, véhicule, pers
 suspect et reliées**, le fil part désormais **du Taser posé** (vu par tous), la distance maximale du fil est comptée
 **depuis lui** (côté client et serveur) ; on peut donc s'en éloigner. Pas de mise en veille tant qu'il est au sol.
 **« Reprendre le Taser »** (œil sur le Taser, son propriétaire seulement) : il revient en main et **marche comme
-avant** : sondes toujours reliées, le **premier passage en ARMÉ** (`B`) relance la décharge sur elles (ensuite, comme
-d'habitude : SÉCURITÉ puis ARMÉ). Le Taser posé est gardé localement dès la réponse du serveur : la connexion n'est
+avant** : sondes toujours reliées, et il revient **dans l'état d'avant la pose** (posé ARMÉ : il repasse ARMÉ tout
+seul, sans décharge ; au sol il est en SÉCURITÉ). Le **double appui** habituel (`B` : SÉCURITÉ puis ARMÉ) relance la
+décharge sur les sondes, joueur ou PNJ. Corrigé : juste après la reprise, l'arme n'est pas encore dans la main (le
+modèle met un instant à revenir) ; la distance du fil n'était pas mesurable et la réactivation était perdue (voire la
+connexion coupée), d'où des appuis à répéter. Maintenant la réactivation est **réessayée** pendant
+`Prongs.ReactivationRetry` ms (1,5 s) tant que le Taser ou les sondes ne sont pas prêts, et la connexion n'est plus
+coupée quand la distance n'est pas mesurable. Le Taser posé est gardé localement dès la réponse du serveur : la connexion n'est
 plus coupée (« changement d'arme ») dans l'instant où il n'est ni en main ni encore marqué posé. `Config.Target.Drop = false` pour retirer
 l'option. Objet réseau marqué `rpTaserDropped`, état du joueur `taserDropped` ; supprimé si le joueur se déconnecte.
 

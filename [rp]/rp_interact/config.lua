@@ -237,6 +237,9 @@ InteractConfig = {
     ResultDuration = 20000,         -- ms d'affichage d'un résultat à l'écran (+ selon la longueur)
 
     -- MODE CIVIL (case à cocher du menu d'interactions, propre à chaque joueur)
+    -- AutoOnJoin : coché automatiquement à chaque connexion, décoché tout seul quand le joueur rejoint un MDC de
+    -- police (WSP, KCSO) ou une unité (false : la case reste comme le joueur l'a laissée).
+    CivilMode = { AutoOnJoin = true },
     -- Tips d'arrestation : mini menu en haut de l'écran (non interactif) quand un policier (joueur dans
     -- une unité du MDC) vous met en joue, ou via Menu > Civil > Tips arrestation. Les touches ne
     -- déclenchent l'emote QUE pendant que ce mini menu est affiché. Touches modifiables par chaque

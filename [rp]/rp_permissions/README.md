@@ -53,6 +53,7 @@ ensure vMenu
 add_ace resource.rp_permissions command.add_principal allow
 add_ace resource.rp_permissions command.remove_principal allow
 add_ace resource.rp_permissions command.add_ace allow
+add_ace resource.rp_permissions command.remove_ace allow
 add_principal group.admin group.membre
 add_principal group.membre group.nonofficiel
 add_ace group.membre "rp.membre" allow
@@ -63,6 +64,18 @@ Bot Discord : sur le serveur Discord (ID dans `config.lua`, `GuildId`, ou convar
 **Server Members** activé (Discord Developer Portal > Bot > Privileged Gateway Intents). Au démarrage, la console
 affiche « connecté au serveur Discord » ou l'erreur (token refusé, bot absent…). **Ne lancez plus DiscordWhitelist** en
 même temps (double vérification).
+
+## Réservé aux membres (`MembersOnly`)
+
+Les **loadouts d'armes enregistrés de vMenu** (menu *Weapon Loadouts* : créer, équiper, équiper au respawn) sont
+réservés aux **Membres et Admins**. `permissions.cfg` ne les donne qu'à `group.membre` ; en plus, rp_permissions pose
+à la connexion un **refus** (`add_ace identifier.discord:<id> vMenu.WeaponLoadouts.… deny`) sur l'identifiant de
+chaque joueur **non-officiel** : un refus l'emporte sur un « allow » donné ailleurs (un autre `.cfg`,
+`builtin.everyone`), et comme il est posé sur l'identifiant (pas sur `group.nonofficiel`, dont héritent les membres),
+il ne touche que ce joueur. Devenu Membre (rôle Discord), le refus est retiré (`remove_ace`). Liste dans
+`config.lua` > `MembersOnly` (`{}` = rien de réservé ici). Demande `command.add_ace` et `command.remove_ace` (voir
+Installation) ; sans ces droits, un avertissement dans la console et seul `permissions.cfg` les réserve.
+Limite : un joueur à qui un `.cfg` donne `vMenu.Everything` garde tout (ne le donnez qu'aux admins).
 
 ## Pour les scripts
 
