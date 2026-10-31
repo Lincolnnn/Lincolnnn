@@ -181,6 +181,23 @@ end)
 
 AddEventHandler('playerDropped', function() ranks[source] = nil end)
 
+local ensureHierarchy
+--- Hiérarchie des rangs, posée ici (même si permissions.cfg l'oublie) : chaque groupe hérite du groupe du rang en
+--- dessous (admin > membre > joueur non-officiel : un admin a tout ce qu'a un membre, qui a tout ce qu'a un joueur
+--- non-officiel), et chaque groupe a son repère « rp.<rang> » (lu par les scripts du serveur)
+ensureHierarchy = function()
+    local roles = C.Roles or {}
+    for i = 1, #roles - 1 do
+        ExecuteCommand(('add_principal %s %s'):format(roles[i].group, roles[i + 1].group))
+    end
+    if IsPrincipalAceAllowed('resource.' .. RES, 'command.add_ace') then
+        for _, r in ipairs(roles) do ExecuteCommand(('add_ace %s rp.%s allow'):format(r.group, r.key)) end
+    else
+        log('^3repères rp.admin / rp.membre posés par permissions.cfg seulement (pour les poser ici aussi : '
+            .. 'add_ace resource.%s command.add_ace allow). Les scripts lisent de toute façon le rang du joueur.^0', RES)
+    end
+end
+
 -- Démarrage (ou redémarrage du script) : vérification du bot, rang des joueurs déjà connectés
 CreateThread(function()
     if TOKEN == '' then
@@ -207,6 +224,7 @@ CreateThread(function()
         log('^1il manque dans server.cfg : add_ace resource.%s command.add_principal allow ET '
             .. 'add_ace resource.%s command.remove_principal allow (sans elles, aucun groupe ne peut être donné).^0', RES, RES)
     end
+    ensureHierarchy()
     for _, id in ipairs(GetPlayers()) do refreshPlayer(tonumber(id), false) end
     -- Revérification régulière (rôle donné / retiré sur Discord pendant que le joueur joue)
     while true do

@@ -12,6 +12,12 @@ Inspiré de **DiscordWhitelist** (FAXES, licence CC0 1.0), réécrit en Lua : pa
 
 ## Fonctionnement
 
+**Hiérarchie** : un joueur qui a plusieurs de ces rôles reçoit **le plus haut** (admin > membre > joueur non-officiel).
+Chaque rang a **toutes les permissions des rangs en dessous** + les siennes : rp_permissions pose lui-même cet héritage
+(`add_principal group.admin group.membre`, `group.membre group.nonofficiel`) et les repères `rp.admin` / `rp.membre` /
+`rp.nonofficiel` au démarrage (en plus de `permissions.cfg`), et nos scripts lisent aussi directement le rang du joueur
+(état `rpRank`) : un admin a toujours accès à ce qui est réservé aux membres.
+
 1. **Connexion** : le serveur demande à Discord (bot) les rôles du joueur. **Liste blanche** : sans aucun des trois
    rôles (ou pas sur le serveur Discord, ou Discord fermé), connexion refusée avec un message en français.
 2. Le rôle **le plus haut** donne son groupe à l'identifiant Discord du joueur
@@ -46,6 +52,7 @@ ensure vMenu
 ```
 add_ace resource.rp_permissions command.add_principal allow
 add_ace resource.rp_permissions command.remove_principal allow
+add_ace resource.rp_permissions command.add_ace allow
 add_principal group.admin group.membre
 add_principal group.membre group.nonofficiel
 add_ace group.membre "rp.membre" allow

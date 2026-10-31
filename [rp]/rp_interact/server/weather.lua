@@ -135,7 +135,7 @@ end)
 --- Administrateur de la météo : permission ACE (W.Ace, donnée aux admins dans permissions.cfg) ; avec
 --- AceOnly = false, aussi les joueurs de Config.Permissions (section weather, ou tout le monde si elles sont coupées)
 local function admin(src)
-    if W.Ace and IsPlayerAceAllowed(src, W.Ace) then return true end
+    if W.Ace and (RPIServer.rankAllowed or IsPlayerAceAllowed)(src, W.Ace) then return true end
     if W.AceOnly ~= false then return false end
     return RPIServer.hasPermission(src, 'weather') == true
 end

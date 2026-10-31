@@ -343,18 +343,32 @@ local lastWrite, lastInspect = {}, {}
 
 local function on(name, fn) Handlers[name] = fn end
 
+-- Repères de rang « rp.admin / rp.membre / rp.nonofficiel » : permis par l'ACE (permissions.cfg) OU d'après le rang
+-- donné par rp_permissions (état « rpRank » du joueur, rôle Discord le plus haut) ; un rang plus haut a toujours les
+-- permissions des rangs en dessous (admin > membre > joueur non-officiel)
+local RANK_LEVEL = { nonofficiel = 1, membre = 2, admin = 3 }
+local function rankAllowed(src, ace)
+    if not ace then return true end
+    if IsPlayerAceAllowed(src, ace) then return true end
+    local need = RANK_LEVEL[type(ace) == 'string' and ace:match('^rp%.(%w+)$') or '']
+    if not need or type(Player) ~= 'function' then return false end
+    local p = Player(src)
+    local rank = p and p.state and p.state.rpRank
+    return (RANK_LEVEL[rank] or 0) >= need
+end
+
 -- ---- Permissions (Config.Permissions : catégories réservées à une ACE, d'après le rôle Discord) ----
 --- Le joueur a-t-il accès à cette catégorie du menu ('equipment', 'car', 'weather') ?
 local function hasPermission(src, section)
     local ace = (Config.Permissions and Config.Permissions.Sections or {})[section]
     if not ace then return true end -- false / absente : ouverte à tous
     if ace == true then ace = 'rp.admin' end -- ancien format (true = réservée) : admins
-    return IsPlayerAceAllowed(src, ace) == true
+    return rankAllowed(src, ace) == true
 end
 
 --- Peut choisir le secteur de jeu (display du MDC) : permission ACE Config.SectorAce (admins), false = tout le monde
 local function sectorAllowed(src)
-    return not Config.SectorAce or IsPlayerAceAllowed(src, Config.SectorAce) == true
+    return not Config.SectorAce or rankAllowed(src, Config.SectorAce) == true
 end
 
 --- Catégories verrouillées pour ce joueur : { equipment = true, … }
@@ -368,6 +382,7 @@ end
 
 -- Partagé avec les autres fichiers serveur (server/vehicles.lua : spawn, radio, équipements)
 RPIServer = { on = on, policeUnit = function(src) return policeUnit(src) end, hasPermission = hasPermission,
+    rankAllowed = rankAllowed,
     identifier = getIdentifier }
 
 RegisterNetEvent('rp_interact:server:request', function(name, id, payload)

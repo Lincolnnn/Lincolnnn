@@ -10,7 +10,10 @@ local Config = GanghuntConfig
 
 --- Accès à /ganghunt : permission ACE Config.AdminAce (admins), ou tout le monde si AdminAce = false
 local function allowed(src)
-    return not Config.AdminAce or IsPlayerAceAllowed(src, Config.AdminAce)
+    if not Config.AdminAce or IsPlayerAceAllowed(src, Config.AdminAce) then return true end
+    -- rang donné par rp_permissions (état « rpRank ») : admins
+    local p = Player and Player(src)
+    return Config.AdminAce == 'rp.admin' and p ~= nil and p.state ~= nil and p.state.rpRank == 'admin'
 end
 
 -- Le client demande avant d'ouvrir le menu / de lancer une chasse

@@ -123,7 +123,20 @@ local PlayerAgency = {} -- [source] = clé du MDC choisi (nil : pas encore chois
 local function agencyOf(src) return PlayerAgency[src] end
 
 --- Permission ACE (false / nil dans le config : tout le monde)
-local function aceAllowed(src, ace) return not ace or IsPlayerAceAllowed(src, ace) == true end
+-- Repères de rang « rp.admin / rp.membre / rp.nonofficiel » : permis par l'ACE (permissions.cfg) OU d'après le rang
+-- donné par rp_permissions (état « rpRank » du joueur, rôle Discord le plus haut) ; un rang plus haut a toujours les
+-- permissions des rangs en dessous (admin > membre > joueur non-officiel)
+local RANK_LEVEL = { nonofficiel = 1, membre = 2, admin = 3 }
+local function rankAllowed(src, ace)
+    if not ace then return true end
+    if IsPlayerAceAllowed(src, ace) then return true end
+    local need = RANK_LEVEL[type(ace) == 'string' and ace:match('^rp%.(%w+)$') or '']
+    if not need or type(Player) ~= 'function' then return false end
+    local p = Player(src)
+    local rank = p and p.state and p.state.rpRank
+    return (RANK_LEVEL[rank] or 0) >= need
+end
+local function aceAllowed(src, ace) return rankAllowed(src, ace) == true end
 --- Ce joueur peut-il utiliser ce MDC (Config.AgencyAce) ?
 local function agencyAllowed(src, key) return aceAllowed(src, (Config.AgencyAce or {})[key]) end
 local function isPoliceAgency(key) return AGENCIES[key] ~= nil and AGENCIES[key].police == true end
