@@ -120,10 +120,19 @@
             spHit.style.setProperty('--mask', edgeMask(lo + (hi - lo) * Math.max(0.35, hit) * 0.85));
             spHit.style.opacity = (clamp01(c.hitOpacity) * hit).toFixed(3);
         } else spHit.style.opacity = 0;
+        // touché : le voile lui-même vire à la couleur HitColor (dosée par HitOpacity), puis redevient Tint
+        const mix = clamp01(c.hitOpacity) * hit;
+        if (mix > 0 || sp.tinted) {
+            const t = rgbArr(c.tint, [26, 28, 32]); const h = rgbArr(c.hitColor, [150, 8, 12]);
+            spEl.style.setProperty('--tint', t.map((v, i) => Math.round(v + (h[i] - v) * mix)).join(', '));
+            sp.tinted = mix > 0;
+        }
         if (level > 0 || hit > 0) { requestAnimationFrame(spFrame); return; }
         sp.running = false;
         spEl.style.display = 'none'; spHit.style.display = 'none';
     }
+
+    const rgbArr = (a, def) => (Array.isArray(a) && a.length >= 3 ? a.slice(0, 3).map((v) => Math.max(0, Math.min(255, Number(v) || 0))) : def);
 
     function suppress(d) {
         const c = d.cfg || sp.cfg;

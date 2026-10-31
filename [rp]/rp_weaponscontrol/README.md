@@ -39,7 +39,7 @@ Un **voile style « motion blur »** sur les **bords de l'écran seulement** (ja
 | on tire soi-même | `Own` (0,09 ; silencieux : moitié) | |
 | quelqu'un tire **près de nous** (joueur ou PNJ, moins de `Range` = 25 m) | `Near` (0,06 au plus près, moins en s'éloignant) | |
 | quelqu'un tire **dans notre direction**, touché ou non (balle passée à moins de `IncomingRadius` = 2,5 m ; PNJ : en combat contre nous) | `Incoming` (0,18), quelle que soit la distance | **secousse** de la caméra (`IncomingShake`) |
-| on est **touché** par une balle | `Hit` (0,3) | **bords légèrement rouges** (`HitColor`, `HitOpacity`) + secousse (`HitShake`) |
+| on est **touché** par une balle | `Hit` | le **voile vire à la couleur `HitColor`** (dosée par `HitOpacity`) et les bords se teintent, puis il redevient gris (`HitFade`) + secousse (`HitShake`) |
 
 L'effet est **bien visible dès les premiers tirs** (`Curve` = 0,5 : densité et flou montent vite), et **plus ça tire,
 plus il prend de place**, petit à petit : de `MinCoverage` (10 % de l'écran depuis chaque bord) jusqu'à `MaxCoverage`
@@ -64,6 +64,11 @@ La direction de chaque tir (du canon vers le point visé) est envoyée avec le p
   lui qui couvre les interfaces (HUD, PLD, minimap, menus), qu'aucun script ne peut flouter réellement.
 
 Aucun effet de couleur du jeu : l'ancien effet « zoom » (`RaceTurbo`, teinte orange grisâtre) est retiré.
+
+« Touché » : l'arme est cherchée dans l'événement de dégâts du jeu (son empreinte y arrive non signée, à côté de
+nombres à virgule : convertie avant d'être reconnue ; avant, elle ne l'était pas et le voile restait gris), sinon le
+jeu indique « blessé par une arme tenue par quelqu'un » (ni corps à corps, ni véhicule). **`wc_hittest`** (F8) joue
+l'effet « touché » pour régler la couleur ; **`wc_hitdebug`** affiche dans F8 ce que le jeu envoie quand on est blessé.
 
 Réglage en jeu : **`wc_blurtest`** (F8) joue l'effet au maximum (`wc_blurtest 0.4` : à 40 %) et affiche les variables
 de flou trouvées ; ajustez `Suppression.GameBlur` (`Intensity`, `RadiusMin` / `RadiusMax`, `MotionBlur`) et le voile

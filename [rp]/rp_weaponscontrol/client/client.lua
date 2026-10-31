@@ -593,20 +593,55 @@ CreateThread(function()
     end
 end)
 
--- Touché par une balle (joueur ou PNJ) : effet, bords rouges, secousse. L'arme est cherchée parmi les arguments de
--- l'événement (leur ordre change selon les versions du jeu) : seulement une arme à feu concernée (pas le Taser, etc.)
+-- Touché par une balle (joueur ou PNJ) : effet, voile qui vire au rouge, secousse.
+-- 1) l'arme est cherchée parmi les arguments de l'événement (leur ordre change selon les versions du jeu ; l'empreinte
+--    y arrive NON signée, au-delà de 2^31, et à côté de nombres à virgule : convertie en empreinte signée, testée
+--    sans erreur possible) ;
+-- 2) sinon : blessé par une arme (pas de corps à corps, pas un véhicule) tenue par quelqu'un (natives du jeu).
+local function firearmHash(v)
+    if type(v) ~= 'number' then return false end
+    local h = math.tointeger(v)
+    if not h or h == 0 or h == 1 then return false end
+    h = h & 0xFFFFFFFF
+    if h > 0x7FFFFFFF then h = h - 0x100000000 end
+    local ok, entry = pcall(profileOf, h)
+    return ok and entry ~= nil
+end
+
+local hitDebug = false
+local function hitByFirearm(ped, args)
+    for i = 3, #args do if firearmHash(args[i]) then return true end end
+    local ok, gun = pcall(function()
+        return HasPedBeenDamagedByWeapon(ped, 0, 2) and not HasPedBeenDamagedByWeapon(ped, 0, 1)
+            and HasEntityBeenDamagedByAnyPed(ped) and not HasEntityBeenDamagedByAnyVehicle(ped)
+    end)
+    return ok and gun == true
+end
+RPWeapons.hitByFirearm = hitByFirearm
+
 AddEventHandler('gameEventTriggered', function(name, args)
     if name ~= 'CEventNetworkEntityDamage' or SP.Enabled == false or type(args) ~= 'table' then return end
-    if args[1] ~= PlayerPedId() then return end
-    local gun = false
-    for i = 3, #args do
-        local v = args[i]
-        if type(v) == 'number' and v ~= 0 and v ~= 1 and profileOf(v) then gun = true break end
-    end
+    local ped = PlayerPedId()
+    if args[1] ~= ped then return end
+    local gun = hitByFirearm(ped, args)
+    if hitDebug then print(('[rp_weaponscontrol] dégâts reçus : arme à feu = %s ; arguments = %s'):format(tostring(gun), json.encode(args))) end
+    ClearPedLastWeaponDamage(ped)
+    ClearEntityLastDamageEntity(ped)
     if not gun then return end
     if (SP.HitShake or 0) > 0 then camShake(SP.ShakeName or 'SMALL_EXPLOSION_SHAKE', SP.HitShake) end
     suppress(SP.Hit or 0.22, true)
 end)
+
+-- Réglage en jeu (F8) : « wc_hittest » joue l'effet « touché » (voile rouge, secousse) ; « wc_hitdebug » affiche dans
+-- F8 ce que le jeu envoie quand on est blessé (pour vérifier la détection)
+RegisterCommand('wc_hittest', function()
+    if (SP.HitShake or 0) > 0 then camShake(SP.ShakeName or 'SMALL_EXPLOSION_SHAKE', SP.HitShake) end
+    suppress(SP.Hit or 0.22, true)
+end, false)
+RegisterCommand('wc_hitdebug', function()
+    hitDebug = not hitDebug
+    print(('[rp_weaponscontrol] détail des dégâts reçus : %s'):format(hitDebug and 'affiché' or 'masqué'))
+end, false)
 
 -- =========================================================================
 -- TIRS DES AUTRES JOUEURS (relayés par le serveur, seulement ceux à portée)

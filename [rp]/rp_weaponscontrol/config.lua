@@ -132,28 +132,29 @@ WeaponsConfig = {
     Suppression = {
         Enabled = true,
         -- Ce qui fait monter l'effet (0 = rien, 1 = effet maximal d'un coup), par tir :
-        Own = 0.09,         -- on tire soi-même (arme avec silencieux : moitié)
-        Near = 0.06,        -- quelqu'un tire près de nous (au plus près ; diminue avec la distance, 0 à Range m)
-        Incoming = 0.18,    -- quelqu'un tire DANS NOTRE DIRECTION (balle passée à moins de IncomingRadius m de nous)
-        Hit = 0.3,          -- on est touché par une balle
+        Own = 0.20,         -- on tire soi-même (arme avec silencieux : moitié)
+        Near = 0.10,        -- quelqu'un tire près de nous (au plus près ; diminue avec la distance, 0 à Range m)
+        Incoming = 0.50,    -- quelqu'un tire DANS NOTRE DIRECTION (balle passée à moins de IncomingRadius m de nous)
+        Hit = 0.6,          -- on est touché par une balle
         -- Montée : l'effet devient bien visible dès les premiers tirs (Curve < 1 : plus vite ; 1 : proportionnel),
         -- alors que sa TAILLE grandit petit à petit, tir après tir (de MinCoverage à MaxCoverage)
-        Curve = 0.5,
-        Range = 25.0,       -- portée des « tirs proches » (m)
-        IncomingRadius = 2.5, -- balle passée à moins de ... m de nous : tir dans notre direction (touché ou non)
+        Curve = 2.3,
+        Range = 30.0,       -- portée des « tirs proches » (m)
+        IncomingRadius = 9.0, -- balle passée à moins de ... m de nous : tir dans notre direction (touché ou non)
         -- Taille : part de l'écran couverte depuis chaque bord (0.10 = 10 % de la largeur / hauteur)
-        MinCoverage = 0.10, -- au premier tir
-        MaxCoverage = 0.32, -- au maximum, après une longue rafale (le centre reste toujours net)
+        MinCoverage = 0.25, -- au premier tir
+        MaxCoverage = 0.65, -- au maximum, après une longue rafale (le centre reste toujours net)
         -- Aspect
         -- Voile dessiné PAR-DESSUS (il couvre aussi les interfaces : HUD, PLD, minimap, menus) :
         Opacity = 0.9,      -- densité du voile au bord de l'écran à pleine intensité (0 transparent, 1 opaque)
-        Blur = 12,          -- flou du voile et des traînées (px) : plus grand = plus « fondu »
-        Streaks = 0.6,      -- force des traînées « zoom » rayonnantes (0 = voile seul)
-        Grain = 0.25,       -- grain qui brouille ce qu'on voit à travers (0 = aucun)
+        Blur = 18,          -- flou du voile et des traînées (px) : plus grand = plus « fondu »
+        Streaks = 0.9,      -- force des traînées « zoom » rayonnantes (0 = voile seul)
+        Grain = 0.35,       -- grain qui brouille ce qu'on voit à travers (0 = aucun)
         Tint = { 70, 74, 80 }, -- couleur du voile (gris clair fumée)
-        -- Touché : bords rouges
-        HitColor = { 150, 8, 12 },
-        HitOpacity = 0.4,   -- légèrement rouge
+        -- Touché : le voile vire à cette couleur (dosée par HitOpacity) et les bords se teintent ; « wc_hittest » (F8)
+        -- pour voir le rendu, « wc_hitdebug » pour vérifier la détection quand on est blessé
+        HitColor = { 255, 31, 0 },
+        HitOpacity = 0.8,   -- légèrement rouge
         HitFade = 4500,     -- ms : le rouge disparaît
         -- Disparition : l'effet a disparu FadeOut ms après le dernier tir
         FadeOut = 5500,
@@ -165,12 +166,12 @@ WeaponsConfig = {
         -- ci-dessus passe sur elles. Les valeurs dépendent du jeu : à ajuster en jeu (commande F8 : wc_blurtest).
         GameBlur = {
             Enabled = true,
-            Intensity = 1.0,              -- force du flou des bords à pleine intensité (blur_vignetting_intensity)
+            Intensity = 1.4,              -- force du flou des bords à pleine intensité (blur_vignetting_intensity)
             RadiusMin = 0.35, RadiusMax = 0.9, -- étendue du flou (blur_vignetting_radius) : premier tir -> maximum
-            MotionBlur = 0.5,             -- flou de mouvement (recul, secousses) à pleine intensité ; 0 = aucun
+            MotionBlur = 1.2,             -- flou de mouvement (recul, secousses) à pleine intensité ; 0 = aucun
         },
         -- Secousses de la caméra
-        IncomingShake = 0.12, -- quelqu'un tire dans notre direction (touché ou non)
+        IncomingShake = 0.09, -- quelqu'un tire dans notre direction (touché ou non)
         HitShake = 0.2,       -- touché
         ShakeName = 'SMALL_EXPLOSION_SHAKE',
     },
