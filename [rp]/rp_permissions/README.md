@@ -21,8 +21,10 @@ Inspiré de **DiscordWhitelist** (FAXES, licence CC0 1.0), réécrit en Lua : pa
    admin) pour le faire tout de suite. vMenu relit ses permissions à la reconnexion du joueur.
 4. État du joueur `rpRank` (`admin`, `membre`, `nonofficiel`, `aucun`), visible par son client.
 
-Discord injoignable (panne) : `Whitelist.OnApiError = 'allow'` (par défaut) laisse entrer sans rôle (permissions de
-base seulement), `'deny'` refuse.
+**Chaque rôle sert à la fois de liste blanche et de permissions** : il faut **au moins un des trois** pour se
+connecter, et chacun donne ses propres permissions en jeu. Rôles impossibles à vérifier (Discord en panne, token absent
+ou refusé) : **connexion refusée** (`Whitelist.OnApiError = 'deny'`, par défaut) ; `'allow'` laisserait entrer sans
+rôle (déconseillé).
 
 ## Installation
 

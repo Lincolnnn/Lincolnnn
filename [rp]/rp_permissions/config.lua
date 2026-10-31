@@ -27,27 +27,30 @@ PermsConfig = {
     -- « rp_discord_guild » du server.cfg le remplace si elle est donnée
     GuildId = '1376650496403701832',
 
-    -- Rôles, du plus haut au plus bas : le premier trouvé chez le joueur est le sien
+    -- Rôles, du plus haut au plus bas : le premier trouvé chez le joueur est le sien. CHAQUE rôle sert à la fois :
+    --   - de LISTE BLANCHE : il faut au moins un de ces trois rôles pour se connecter (sinon : refusé) ;
+    --   - de PERMISSIONS en jeu, différentes pour chacun (groupe ACE donné au joueur, permissions.cfg).
     Roles = {
         { key = 'admin',       label = 'Admin',               role = '1562210128667611216', group = 'group.admin' },
         { key = 'membre',      label = 'Membre',              role = '1562214435886465055', group = 'group.membre' },
         { key = 'nonofficiel', label = 'Joueur non-officiel', role = '1562213048163242004', group = 'group.nonofficiel' },
     },
 
-    -- LISTE BLANCHE (serveur semi-whitelist) : il faut au moins un de ces rôles pour se connecter
+    -- LISTE BLANCHE : sans aucun des trois rôles ci-dessus, connexion REFUSÉE (pas de Discord, pas sur le serveur
+    -- Discord, aucun rôle)
     Whitelist = {
         Enabled = true,
         BlacklistRoles = {},          -- rôles interdits (ex. { '123…' }) : refusé même avec un rôle ci-dessus
-        -- Discord injoignable (panne, mauvais token…) : 'allow' = connexion acceptée sans rôle (joueur non-officiel :
-        -- permissions de base seulement), 'deny' = refusée
-        OnApiError = 'allow',
+        -- Rôles impossibles à vérifier (Discord en panne, token absent ou refusé) : 'deny' = connexion refusée (personne
+        -- n'entre sans rôle vérifié) ; 'allow' = acceptée sans rôle (permissions de base), à éviter
+        OnApiError = 'deny',
         Messages = {
             checking = 'Bonjour %s, vérification de tes rôles Discord…',
             noDiscord = 'Discord introuvable : ouvre Discord (application) avant FiveM, puis reconnecte-toi.',
             notInGuild = "Tu n'es pas sur notre serveur Discord : rejoins-le, puis reconnecte-toi.",
             notWhitelisted = "Tu n'as pas de rôle d'accès sur notre Discord (Joueur non-officiel, Membre ou Admin).",
             blacklisted = 'Accès refusé.',
-            apiError = 'Vérification Discord impossible pour le moment : réessaie dans quelques minutes.',
+            apiError = 'Vérification de tes rôles Discord impossible pour le moment : réessaie dans quelques minutes.',
         },
     },
 
