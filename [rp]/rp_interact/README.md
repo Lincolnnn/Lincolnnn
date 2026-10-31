@@ -263,17 +263,27 @@ Thème : celui du HUD (contour gris fin, angles légèrement arrondis), fond noi
 |---|---|
 | **Temps** | grand soleil, dégagé, nuageux, couvert, éclaircies, brumeux, brouillard, pluie, orage, neige légère, neige, blizzard, Noël, Halloween (`Weather.Types`) |
 | **Défilement de la météo** | **Fixe** (ne change plus) ; **Beau temps** (passe d'un temps clair à un autre : grand soleil, dégagé, nuageux) ; **Pluvieux** (pluie, orage, brumeux, brouillard) ; un nouveau temps toutes les 20 min (`CycleMinutes`), en douceur |
+| **Coupure de courant** | éclairage de la ville éteint (lampadaires, bâtiments) ; les phares des véhicules restent allumés |
+| **Neige au sol** | sol enneigé + traces des véhicules et des pas, avec n'importe quel temps (automatique avec Noël et les temps de neige) |
 | **Heure** | à la minute près (champ « HH:MM », ex. 21:45) |
-| **Défilement du temps** | **Fixe** (l'heure ne bouge plus) ; **De base** (rapide : 2 s par minute du jeu, comme GTA) ; **Réaliste** (40 000 ms par minute du jeu : une journée en 16 h, `RealisticMs`) |
+| **Défilement du temps** | **Fixe** (l'heure ne bouge plus) ; **De base** (rapide : 2 s par minute du jeu, comme GTA) ; **Réaliste** (40 000 ms par minute du jeu : une journée en 16 h, `RealisticMs`) ; **Personnalisé** (secondes réelles par minute du jeu, de 0,1 à 600 : 60 = temps réel) |
+| **Accès public** | (administrateurs seulement) ouvre le réglage à tout le monde ; décoché : réservé aux administrateurs |
 
 On règle tout, puis **« Appliquer à tout le serveur »**. La ligne du haut rappelle l'état actuel. Réglages gardés après un
-redémarrage (`data/weather.json`). Réservé aux joueurs de `Permissions` (section **weather**) — tant que les permissions
-sont désactivées, **tout le monde** peut la régler — ou à ceux qui ont la permission ACE `rp_interact.weather`
-(`add_ace group.admin rp_interact.weather allow`). **Un seul script de météo** : désactivez vSync / qb-weathersync…
-(ou mettez `Weather.Enabled = false` ici), y compris la météo / l'heure de **vMenu** ou de txAdmin : sinon l'heure et le
-temps « sautent ». Le serveur tient l'heure et la republie toutes les 15 s (`SyncSeconds`) ; chaque joueur avance avec
-sa propre horloge à partir de là (petits écarts rattrapés en douceur, jamais de saut). La météo, une fois la transition
-finie, est fixée (comme vSync) et vérifiée toutes les 5 s.
+redémarrage (`data/weather.json`). Administrateurs : joueurs de `Permissions` (section **weather**) — tant que les
+permissions sont désactivées, **tout le monde** — ou ceux qui ont la permission ACE `rp_interact.weather`
+(`add_ace group.admin rp_interact.weather allow`).
+
+**Une seule autorité.** vMenu a sa propre synchro de la météo et de l'heure (`vmenu_enable_weather_sync`,
+`vmenu_enable_time_sync`, plus sa météo dynamique) : avec les deux, l'heure et le temps « sautent » d'un script à l'autre.
+Avec `Weather.TakeOverVMenu = true` (par défaut), rp_interact coupe la synchro de vMenu au démarrage (convars répliqués) :
+ses menus Météo / Heure disparaissent aussi. Vaut pour les joueurs qui se connectent ensuite (ceux déjà connectés avant
+le démarrage de rp_interact se reconnectent une fois). Pour le faire aussi dans la config de vMenu (`permissions.cfg`) :
+`setr vmenu_enable_weather_sync false`, `setr vmenu_enable_dynamic_weather false`, `setr vmenu_enable_time_sync false`.
+Désactivez aussi vSync / qb-weathersync / la météo de txAdmin s'ils sont lancés (ou mettez `Weather.Enabled = false` ici).
+Le serveur tient l'heure et la republie toutes les 15 s (`SyncSeconds`) ; chaque joueur avance avec sa propre horloge à
+partir de là (petits écarts rattrapés en douceur, jamais de saut). La météo, une fois la transition finie, est fixée
+(comme vSync) et vérifiée toutes les 5 s, ainsi que la coupure de courant et la neige.
 
 ## Fiche civile (style MDC, en dehors du MDC)
 
@@ -512,7 +522,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `Surrender` | tips d'arrestation : commande, touche par défaut, libellé et emote de chaque action |
 | `AimRadius`, `AimRange`, `AimRefresh` | mise en joue : rayon autour du civil, portée, confirmation |
 | `PlaceDoorDistance` | placer à l'arrière : le civil doit être à moins de 4 m d'une portière arrière libre |
-| `Weather` | page Météo : activée, permission ACE, temps par défaut, vitesses du temps (de base / réaliste), défilement de la météo (minutes, transition, listes beau temps / pluvieux), temps proposés |
+| `Weather` | page Météo : activée, permission ACE, prise de main sur vMenu (`TakeOverVMenu`), temps par défaut, vitesses du temps (de base / réaliste / personnalisée par défaut), défilement de la météo (minutes, transition, listes beau temps / pluvieux), temps proposés |
 | `Smell`, `Smells` | odeurs détectées automatiquement : activées, distance (6 m), 2 au plus, durée de la notification, délai avant d'être prévenu de nouveau, volume du son ; liste des odeurs (`id` à ne pas changer, nom dans la fiche, ce que sent le policier) |
 
 ## Liens avec le MDC et le chat

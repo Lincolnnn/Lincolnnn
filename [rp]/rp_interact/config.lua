@@ -25,11 +25,15 @@ InteractConfig = {
     },
 
     -- MENU > CONFIGURATION > MÉTÉO : météo et heure du serveur, les mêmes pour tout le monde (server/weather.lua).
-    -- Réglables par les joueurs de Permissions (section weather) ou ceux qui ont la permission ACE Ace. Enabled = false
-    -- si un autre script gère déjà la météo (vSync, qb-weathersync…) : ils se contrediraient.
+    -- Réglables par les joueurs de Permissions (section weather) ou ceux qui ont la permission ACE Ace (ils peuvent aussi
+    -- ouvrir l'accès à tout le monde depuis le menu). Enabled = false si un autre script gère déjà la météo (vSync,
+    -- qb-weathersync…) : ils se contrediraient.
     Weather = {
         Enabled = true,
         Ace = 'rp_interact.weather',     -- add_ace group.admin rp_interact.weather allow
+        TakeOverVMenu = true,            -- coupe la synchro météo / heure de vMenu (et ses menus Météo / Heure) : une
+                                         -- seule autorité, sinon les deux se contredisent (temps / heure qui sautent)
+        CustomMs = 10000,                -- défilement « personnalisé » par défaut : ms par minute du jeu (réglable en jeu)
         Default = 'CLEAR',
         BaseMs = 2000,                   -- défilement « de base » (rapide, comme GTA) : ms par minute du jeu
         RealisticMs = 40000,             -- défilement « réaliste » : ms par minute du jeu (40 s : une journée en 16 h)

@@ -6,6 +6,8 @@
     pour tout le monde. Un petit écart à la mise à jour suivante est rattrapé en douceur (jamais de saut en arrière).
     MÉTÉO : changement en douceur (TransitionSeconds), puis le temps est fixé (comme vSync) ; vérifié toutes les
     5 s : s'il a été changé par le jeu ou un autre script, il revient. Jamais ré-appliqué pendant une transition.
+    COUPURE DE COURANT : éclairage de la ville éteint (phares des véhicules gardés). NEIGE AU SOL : sol enneigé, traces
+    des véhicules et des pas (cochée dans le menu, ou automatique avec Noël et les temps de neige).
     Performance : une mise à jour de l'heure par seconde (une native), une vérification de la météo toutes les 5 s.
 ]]
 
@@ -19,6 +21,27 @@ local clock = nil    -- { base = minute reçue, at = GetGameTimer() à la récep
 local weather = nil  -- météo voulue (nom)
 local applied = nil  -- météo appliquée
 local transitionUntil = 0
+local extras = { blackout = false, snow = false } -- voulus (serveur)
+local appliedExtras = { blackout = nil, snow = nil }
+local SNOWY = { XMAS = true, SNOW = true, BLIZZARD = true, SNOWLIGHT = true }
+
+--- Coupure de courant et neige au sol : appliquées seulement quand elles changent (et ré-imposées toutes les 5 s)
+local function applyExtras(force)
+    local blackout = extras.blackout == true
+    if force or appliedExtras.blackout ~= blackout then
+        appliedExtras.blackout = blackout
+        SetArtificialLightsState(blackout)
+        SetArtificialLightsStateAffectsVehicles(false) -- les phares restent allumés
+    end
+    local snow = extras.snow == true or (weather and SNOWY[weather]) or false
+    if force or appliedExtras.snow ~= snow then
+        appliedExtras.snow = snow
+        ForceSnowPass(snow)
+        SetForceVehicleTrails(snow)
+        SetForcePedFootstepsTracks(snow)
+        if snow then RequestNamedPtfxAsset('core_snow') else RemoveNamedPtfxAsset('core_snow') end
+    end
+end
 
 --- Minute (avec fraction) du jeu actuelle
 local function minutesNow()
@@ -70,7 +93,15 @@ local function applyWeather(instant)
     applied = w
 end
 
-RPIWeather = { minutesNow = minutesNow, setClock = setClock, u32 = u32 } -- pour les tests
+--- Météo publiée par le serveur : temps, coupure de courant, neige au sol
+local function readWeather(value)
+    weather = type(value) == 'table' and value.weather or nil
+    extras.blackout = type(value) == 'table' and value.blackout == true
+    extras.snow = type(value) == 'table' and value.snow == true
+end
+
+RPIWeather = { minutesNow = minutesNow, setClock = setClock, u32 = u32, readWeather = readWeather, -- pour les tests
+    applyExtras = applyExtras }
 
 -- Menu Interaction > Configuration > Météo
 RegisterNUICallback('weatherGet', function(_, cb)
@@ -84,16 +115,17 @@ RegisterNUICallback('weatherSet', function(data, cb)
 end)
 
 AddStateBagChangeHandler('rpWeather', 'global', function(_, _, value)
-    weather = type(value) == 'table' and value.weather or nil
+    readWeather(value)
     applyWeather(false)
+    applyExtras(false)
 end)
 AddStateBagChangeHandler('rpClock', 'global', function(_, _, value) setClock(value) end)
 
 CreateThread(function()
     setClock(GlobalState.rpClock)
-    local w = GlobalState.rpWeather
-    weather = type(w) == 'table' and w.weather or nil
+    readWeather(GlobalState.rpWeather)
     applyWeather(true)
+    applyExtras(true)
     local nextCheck = 0
     while true do
         local m = minutesNow()
@@ -110,6 +142,7 @@ CreateThread(function()
             if u32(GetPrevWeatherTypeHashName()) ~= want or u32(GetNextWeatherTypeHashName()) ~= want then
                 fixWeather(weather)
             end
+            applyExtras(true) -- un autre script (ou le jeu) a pu les changer
         end
         Wait(1000)
     end

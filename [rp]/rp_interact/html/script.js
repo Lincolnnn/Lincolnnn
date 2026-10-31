@@ -859,7 +859,8 @@
 
     // ---- Configuration > Météo : météo et heure du serveur (server/weather.lua) ----
     const WEATHER_MODES = [{ id: 'fixed', label: 'Fixe' }, { id: 'fair', label: 'Beau temps' }, { id: 'rainy', label: 'Pluvieux' }];
-    const TIME_MODES = [{ id: 'fixed', label: 'Fixe (ne bouge plus)' }, { id: 'base', label: 'De base (rapide)' }, { id: 'realistic', label: 'Réaliste' }];
+    const TIME_MODES = [{ id: 'fixed', label: 'Fixe (ne bouge plus)' }, { id: 'base', label: 'De base (rapide)' }, { id: 'realistic', label: 'Réaliste' },
+        { id: 'custom', label: 'Personnalisé' }];
     const wx = { loaded: false, allowed: false, types: [], current: null, draft: null };
     const two = (n) => String(n).padStart(2, '0');
     const labelOf = (list, id) => (list.find((x) => x.id === id) || {}).label || id;
@@ -869,9 +870,11 @@
         if (!res || !res.ok) return;
         wx.loaded = true;
         wx.allowed = !!res.allowed;
+        wx.admin = !!res.admin;
         wx.types = toArray(res.types);
         wx.current = res;
-        wx.draft = { weather: res.weather, weatherMode: res.weatherMode, timeMode: res.timeMode, hour: res.hour, minute: res.minute };
+        wx.draft = { weather: res.weather, weatherMode: res.weatherMode, timeMode: res.timeMode, hour: res.hour, minute: res.minute,
+            customSeconds: res.customSeconds, blackout: !!res.blackout, snow: !!res.snow, public: !!res.public };
         rerender();
     }
 
@@ -887,7 +890,9 @@
                 const index = (list, id) => Math.max(0, list.findIndex((x) => x.id === id));
                 return [
                     { kind: 'info', label: `Actuellement : ${labelOf(wx.types, c.weather)} · ${two(c.hour)}:${two(c.minute)}`
-                        + ` · météo ${labelOf(WEATHER_MODES, c.weatherMode).toLowerCase()} · heure ${labelOf(TIME_MODES, c.timeMode).toLowerCase()}`, tone: 'muted' },
+                        + ` · météo ${labelOf(WEATHER_MODES, c.weatherMode).toLowerCase()} · heure ${labelOf(TIME_MODES, c.timeMode).toLowerCase()}`
+                        + (c.blackout ? ' · coupure de courant' : '') + (c.snow ? ' · neige au sol' : '')
+                        + (c.public ? ' · accès public' : ''), tone: 'muted' },
                     !wx.allowed && { kind: 'info', label: 'Réservé : vous ne pouvez pas régler la météo.', tone: 'warn' },
                     { kind: 'section', label: 'Météo' },
                     { kind: 'list', label: 'Temps', options: wx.types.map((t) => t.label), index: index(wx.types, d.weather), ...lock,
@@ -896,6 +901,12 @@
                     { kind: 'list', label: 'Défilement de la météo', options: WEATHER_MODES.map((m) => m.label), index: index(WEATHER_MODES, d.weatherMode), ...lock,
                         desc: 'Fixe : le temps ne change plus. Beau temps : passe d\'un temps clair à un autre. Pluvieux : pluie, orage, brumeux, brouillard.',
                         onChange: (i) => { d.weatherMode = WEATHER_MODES[i].id; rerender(); } },
+                    { kind: 'check', label: 'Coupure de courant', checked: !!d.blackout, ...lock,
+                        desc: 'Éclairage de la ville éteint (lampadaires, bâtiments) ; les phares des véhicules restent allumés.',
+                        onChange: (v) => { d.blackout = v; rerender(); } },
+                    { kind: 'check', label: 'Neige au sol', checked: !!d.snow, ...lock,
+                        desc: 'Sol enneigé et traces des véhicules / des pas, avec n\'importe quel temps (automatique avec Noël et les temps de neige).',
+                        onChange: (v) => { d.snow = v; rerender(); } },
                     { kind: 'section', label: 'Heure' },
                     { kind: 'input', key: 'time', label: 'Heure', value: `${two(d.hour)}:${two(d.minute)}`, max: 5, placeholder: 'HH:MM', ...lock,
                         desc: 'Entrée : écrire l\'heure à la minute près (ex : 21:45), Entrée pour valider.',
@@ -905,14 +916,27 @@
                             d.hour = Number(m[1]); d.minute = Number(m[2]); rerender();
                         } },
                     { kind: 'list', label: 'Défilement du temps', options: TIME_MODES.map((m) => m.label), index: index(TIME_MODES, d.timeMode), ...lock,
-                        desc: 'Fixe : l\'heure ne bouge plus. De base : 2 s par minute du jeu (GTA). Réaliste : 40 s par minute du jeu.',
+                        desc: 'Fixe : l\'heure ne bouge plus. De base : 2 s par minute du jeu (GTA). Réaliste : 40 s par minute du jeu. Personnalisé : à choisir ci-dessous.',
                         onChange: (i) => { d.timeMode = TIME_MODES[i].id; rerender(); } },
+                    d.timeMode === 'custom' && { kind: 'input', key: 'speed', label: 'Secondes par minute du jeu', value: String(d.customSeconds ?? 10), max: 6,
+                        placeholder: 'ex : 10', ...lock,
+                        desc: 'Durée réelle d\'une minute du jeu, de 0.1 à 600 s (2 = GTA, 40 = réaliste, 60 = temps réel).',
+                        onChange: (value) => {
+                            const n = Number(String(value || '').replace(',', '.'));
+                            if (!Number.isFinite(n) || n < 0.1 || n > 600) { toast('Vitesse : de 0.1 à 600 secondes.', 'error'); rerender(); return; }
+                            d.customSeconds = n; rerender();
+                        } },
+                    wx.admin && { kind: 'section', label: 'Accès' },
+                    wx.admin && { kind: 'check', label: 'Accès public', checked: !!d.public,
+                        desc: 'Coché : tout le monde peut régler la météo et l\'heure. Décoché : réservé aux administrateurs.',
+                        onChange: (v) => { d.public = v; rerender(); } },
                     { kind: 'section', label: 'Appliquer' },
                     { kind: 'button', label: 'Appliquer à tout le serveur', ...lock,
                         action: async () => {
                             const res = await post('weatherSet', d);
                             if (!res || !res.ok) { toast(res?.error || 'Réglage impossible.', 'error'); return; }
                             wx.current = res;
+                            wx.allowed = !!res.allowed; wx.admin = !!res.admin;
                             toast(`Météo : ${labelOf(wx.types, res.weather)}, ${two(res.hour)}:${two(res.minute)}.`, 'success');
                             rerender();
                         } },
