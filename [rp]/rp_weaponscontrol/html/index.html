@@ -28,13 +28,17 @@
             -webkit-mask-image: var(--mask); mask-image: var(--mask);
         }
         #suppress .sp { position: absolute; inset: -6%; }
-        #suppress .sp-haze { background: rgb(var(--tint)); opacity: .62; filter: blur(var(--blur)); }
+        /* voile laiteux (comme une image floutée qui « bave ») + traînées fines rayonnantes très fondues (flou « zoom ») */
+        #suppress .sp-haze {
+            background: radial-gradient(ellipse at 50% 50%, rgba(var(--tint), .25) 40%, rgba(var(--tint), .55) 75%, rgba(var(--tint), .7) 100%);
+            filter: blur(var(--blur));
+        }
         #suppress .sp-streaks {
             opacity: var(--streaks);
             background: repeating-conic-gradient(from 0deg at 50% 50%,
-                rgba(255, 255, 255, .16) 0deg .7deg, rgba(0, 0, 0, .28) .7deg 1.9deg,
-                rgba(255, 255, 255, .08) 1.9deg 2.6deg, rgba(0, 0, 0, .18) 2.6deg 3.4deg);
-            filter: blur(var(--blur));
+                rgba(255, 255, 255, .13) 0deg .5deg, rgba(0, 0, 0, .12) .5deg 1.4deg,
+                rgba(255, 255, 255, .07) 1.4deg 2deg, rgba(0, 0, 0, .09) 2deg 2.9deg);
+            filter: blur(calc(var(--blur) * .6));
         }
         #suppress .sp-grain {
             opacity: var(--grain); mix-blend-mode: overlay;

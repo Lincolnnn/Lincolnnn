@@ -138,11 +138,12 @@ WeaponsConfig = {
         MinCoverage = 0.05, -- au premier tir
         MaxCoverage = 0.20, -- au maximum (le centre reste toujours net)
         -- Aspect
-        Opacity = 0.9,      -- densité du voile au bord de l'écran à pleine intensité (0 transparent, 1 opaque)
-        Blur = 7,           -- flou des traînées (px) : plus grand = plus « fondu »
-        Streaks = 0.55,     -- force des traînées « motion blur » (0 = voile seul)
-        Grain = 0.35,       -- grain qui brouille ce qu'on voit à travers (0 = aucun)
-        Tint = { 26, 28, 32 }, -- couleur du voile (gris fumée)
+        -- Voile dessiné PAR-DESSUS (il couvre aussi les interfaces : HUD, PLD, minimap, menus) :
+        Opacity = 0.85,     -- densité du voile au bord de l'écran à pleine intensité (0 transparent, 1 opaque)
+        Blur = 12,          -- flou du voile et des traînées (px) : plus grand = plus « fondu »
+        Streaks = 0.6,      -- force des traînées « zoom » rayonnantes (0 = voile seul)
+        Grain = 0.25,       -- grain qui brouille ce qu'on voit à travers (0 = aucun)
+        Tint = { 70, 74, 80 }, -- couleur du voile (gris clair fumée)
         -- Touché : bords rouges
         HitColor = { 150, 8, 12 },
         HitOpacity = 0.4,   -- légèrement rouge
@@ -151,6 +152,19 @@ WeaponsConfig = {
         FadeOut = 5500,
         -- Au-dessus de toutes les interfaces : z-index du NUI de ce script pendant l'effet (remis à 0 ensuite)
         ZIndex = 99999,
+        -- VRAI FLOU DE L'IMAGE DU JEU sur les bords (comme une photo floutée) : modificateur « timecycle » créé par le
+        -- script (variables de flou en vignette du jeu), dosé selon l'intensité de l'effet, retiré à la fin. Il floute
+        -- l'image du jeu (monde, personnages, véhicules) ; les interfaces ne peuvent pas être floutées, le voile
+        -- ci-dessus passe sur elles. Les valeurs dépendent du jeu : à ajuster en jeu (commande F8 : wc_blurtest).
+        GameBlur = {
+            Enabled = true,
+            Intensity = 1.0,              -- force du flou des bords à pleine intensité (blur_vignetting_intensity)
+            RadiusMin = 0.35, RadiusMax = 0.9, -- étendue du flou (blur_vignetting_radius) : premier tir -> maximum
+            MotionBlur = 0.5,             -- flou de mouvement (recul, secousses) à pleine intensité ; 0 = aucun
+        },
+        -- Effet « zoom » du jeu (flou radial depuis le centre, comme un coup de boost) : sur une rafale (effet au-dessus
+        -- de MinLevel), un tir dans notre direction ou une balle reçue ; au plus une fois toutes les Cooldown ms
+        ZoomFx = { Enabled = true, Name = 'RaceTurbo', MinLevel = 0.35, Cooldown = 2500 },
         -- Secousses de la caméra
         IncomingShake = 0.12, -- quelqu'un tire dans notre direction (touché ou non)
         HitShake = 0.2,       -- touché

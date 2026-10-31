@@ -143,13 +143,97 @@ local SP_CFG = { -- réglages envoyés au NUI (aspect, tailles, durées)
 }
 local spUntil, spOnTop = 0, false
 
---- L'effet monte de `add` (0-1) ; hit : bords rouges
-local function suppress(add, hit)
+-- ---- Vrai flou de l'image du jeu (GameBlur) : modificateur timecycle créé ici, posé dans l'emplacement « extra » ----
+local GB = SP.GameBlur or {}
+local TC_NAME = 'rp_wc_suppression'
+local tcVars = nil  -- noms des variables du jeu : { intensity, radius, motion } ; false : introuvables
+local gb = { peak = 0.0, last = 0, running = false, zoomAt = -math.huge }
+
+--- Variables de flou du jeu, cherchées par leur nom (le préfixe peut changer selon les versions du jeu)
+local function findTcVars()
+    if tcVars ~= nil then return tcVars end
+    local found = {}
+    for i = 0, (GetTimecycleVarCount() or 0) - 1 do
+        local name = GetTimecycleVarNameByIndex(i)
+        if type(name) == 'string' then
+            if name:find('blur_vignetting_intensity', 1, true) then found.intensity = name
+            elseif name:find('blur_vignetting_radius', 1, true) then found.radius = name
+            elseif name:find('motionblur', 1, true) then found.motion = name end
+        end
+    end
+    if not found.intensity then
+        print('^3[rp_weaponscontrol] Flou du jeu (GameBlur) : variable « blur_vignetting_intensity » introuvable, seul le voile est utilisé.^0')
+        tcVars = false
+        return tcVars
+    end
+    if GetTimecycleModifierIndexByName(TC_NAME) == -1 then CreateTimecycleModifier(TC_NAME) end
+    tcVars = found
+    return tcVars
+end
+
+local function gameBlurLevel(now)
+    return gb.peak * math.max(0.0, 1.0 - (now - gb.last) / SP_CFG.fadeOut)
+end
+
+local function setGameBlur(level)
+    local v = tcVars
+    local intensity = (GB.Intensity or 1.0) * level
+    SetTimecycleModifierVar(TC_NAME, v.intensity, intensity, intensity)
+    if v.radius then
+        local r = (GB.RadiusMin or 0.35) + ((GB.RadiusMax or 0.9) - (GB.RadiusMin or 0.35)) * level
+        SetTimecycleModifierVar(TC_NAME, v.radius, r, r)
+    end
+    if v.motion and (GB.MotionBlur or 0) > 0 then
+        SetTimecycleModifierVar(TC_NAME, v.motion, GB.MotionBlur * level, GB.MotionBlur * level)
+    end
+    SetExtraTimecycleModifier(TC_NAME)
+end
+
+--- Le flou du jeu monte de `add` ; il redescend jusqu'à 0 en FadeOut ms (mise à jour ~30 fois par seconde, seulement
+--- pendant l'effet), puis le modificateur est retiré (s'il est toujours le nôtre : rp_vehiclecontrol utilise aussi
+--- l'emplacement « extra »)
+local function gameBlur(add)
+    if GB.Enabled == false or not findTcVars() then return end
+    local now = GetGameTimer()
+    gb.peak = math.min(1.0, gameBlurLevel(now) + add)
+    gb.last = now
+    if gb.running then return end
+    gb.running = true
+    CreateThread(function()
+        local sent = -1.0
+        while true do
+            local level = gameBlurLevel(GetGameTimer())
+            if level <= 0.0 then break end
+            if math.abs(level - sent) > 0.01 then setGameBlur(level) sent = level end
+            Wait(33)
+        end
+        setGameBlur(0.0)
+        if GetExtraTimecycleModifierIndex() == GetTimecycleModifierIndexByName(TC_NAME) then ClearExtraTimecycleModifier() end
+        gb.running = false
+    end)
+end
+RPWeapons.gameBlur = gameBlur
+
+--- Effet « zoom » du jeu (flou radial) : rafale, tir dans notre direction, balle reçue
+local function zoomFx(strong)
+    local Z = SP.ZoomFx or {}
+    if Z.Enabled == false or not Z.Name or Z.Name == '' then return end
+    local now = GetGameTimer()
+    if now - gb.zoomAt < (Z.Cooldown or 2500) then return end
+    if not strong and gameBlurLevel(now) < (Z.MinLevel or 0.35) then return end
+    gb.zoomAt = now
+    AnimpostfxPlay(Z.Name, 0, false)
+end
+
+--- L'effet monte de `add` (0-1) ; hit : bords rouges ; strong : tir dans notre direction ou balle reçue (zoom)
+local function suppress(add, hit, strong)
     if SP.Enabled == false then return end
     add = math.max(0.0, math.min(1.0, add or 0.0))
     if add <= 0.0 and not hit then return end
     spUntil = GetGameTimer() + math.max(SP_CFG.fadeOut, hit and SP_CFG.hitFade or 0) + 300
     SendNUIMessage({ action = 'suppress', data = { add = add, hit = hit == true, cfg = SP_CFG } })
+    gameBlur(add)
+    zoomFx(strong == true or hit == true)
     if spOnTop or not SP.ZIndex then return end
     spOnTop = true
     SetNuiZindex(SP.ZIndex) -- au-dessus de tout (HUD, PLD, menus, MDC ; la minimap du jeu est sous le NUI)
@@ -395,8 +479,19 @@ if FL.Enabled ~= false then
 end
 
 AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() and W.NoAutoReload ~= false then SetWeaponsNoAutoreload(false) end
+    if resource ~= GetCurrentResourceName() then return end
+    if W.NoAutoReload ~= false then SetWeaponsNoAutoreload(false) end
+    -- flou du jeu en cours : retiré
+    if tcVars and GetExtraTimecycleModifierIndex() == GetTimecycleModifierIndexByName(TC_NAME) then ClearExtraTimecycleModifier() end
 end)
+
+-- Réglage du flou en jeu (F8) : « wc_blurtest » joue l'effet au maximum ; « wc_blurtest 0.4 » à 40 %
+RegisterCommand('wc_blurtest', function(_, args)
+    local level = math.max(0.05, math.min(1.0, tonumber(args[1]) or 1.0))
+    local v = findTcVars()
+    print(('[rp_weaponscontrol] Flou du jeu : %s'):format(v and ('%s / %s / %s'):format(v.intensity, v.radius or '-', v.motion or '-') or 'indisponible'))
+    suppress(level, false, true)
+end, false)
 
 -- =========================================================================
 -- PNJ ARMÉS PROCHES (acouphène, effet de tir sur les bords) : liste toutes les 250 ms, leurs tirs lus à chaque image
@@ -413,7 +508,7 @@ local function shotAround(n, d, towardMe, suppressed)
         add = add + (SP.Incoming or 0.12) * n
         if (SP.IncomingShake or 0) > 0 then camShake(SP.ShakeName or 'SMALL_EXPLOSION_SHAKE', SP.IncomingShake) end
     end
-    suppress(add)
+    suppress(add, false, towardMe)
 end
 RPWeapons.shotAround = shotAround
 

@@ -52,8 +52,21 @@ La direction de chaque tir (du canon vers le point visé) est envoyée avec le p
 (départ près du tireur, longueur raisonnable) avant de la relayer. « Touché » vient de l'événement de dégâts du jeu
 (seulement une arme à feu : pas le Taser, ni un coup de poing).
 
-Note : une interface (NUI) ne peut pas flouter réellement l'image du jeu ni les autres interfaces ; le voile imite un
-flou de mouvement (dense, traînées, grain), dessiné par-dessus.
+**Deux couches** :
+- **vrai flou de l'image du jeu** (`GameBlur`) : le script crée un modificateur « timecycle » du jeu et règle ses
+  variables de **flou en vignette** (bords flous, centre net, comme une photo floutée) et de **flou de mouvement**
+  (recul, secousses), dosées selon l'intensité de l'effet, puis le retire. Les variables sont cherchées par leur nom
+  dans le jeu (`blur_vignetting_intensity`, `blur_vignetting_radius`, `motionblur…`) : introuvables, message dans la
+  console F8 et seul le voile reste. Le modificateur est posé dans l'emplacement « extra » du jeu (aussi utilisé par
+  Vehicle Control après un choc : chacun ne retire que le sien) ;
+- **effet « zoom »** du jeu (`ZoomFx`, `RaceTurbo` : flou radial depuis le centre) sur une rafale, un tir dans notre
+  direction ou une balle reçue (au plus toutes les 2,5 s) ;
+- **voile par-dessus** (NUI, au-dessus de tout) : léger voile laiteux, traînées rayonnantes fondues et grain ; c'est
+  lui qui couvre les interfaces (HUD, PLD, minimap, menus), qu'aucun script ne peut flouter réellement.
+
+Réglage en jeu : **`wc_blurtest`** (F8) joue l'effet au maximum (`wc_blurtest 0.4` : à 40 %) et affiche les variables
+de flou trouvées ; ajustez `Suppression.GameBlur` (`Intensity`, `RadiusMin` / `RadiusMax`, `MotionBlur`) et le voile
+(`Opacity`, `Blur`, `Streaks`, `Grain`, `Tint`), puis `restart rp_weaponscontrol`.
 
 ### Lampe toujours allumée (`Flashlight`)
 Une lampe **allumée par le joueur** (lampe sur l'arme, ou lampe de poche simple `WEAPON_FLASHLIGHT` /
@@ -90,11 +103,12 @@ tireur qu'il voit. Le sifflement est généré par le script (aucun fichier son)
 | `Tinnitus` | activé, portée (10 m), tirs (10) et fenêtre (10 s), PNJ compris, volume, durées, délai entre deux |
 | `Shake` | secousse des voisins : activée, portée, force, type |
 | `Sync` | portée du relais, paquets (ms), limite par seconde |
-| `Suppression` | effet de tir sur les bords : montées (`Own`, `Near`, `Incoming`, `Hit`), portées, tailles (`MinCoverage`, `MaxCoverage`), aspect (`Opacity`, `Blur`, `Streaks`, `Grain`, `Tint`), rouge si touché, durée (`FadeOut`), premier plan (`ZIndex`), secousses |
+| `Suppression` | effet de tir sur les bords : montées (`Own`, `Near`, `Incoming`, `Hit`), portées, tailles (`MinCoverage`, `MaxCoverage`), voile (`Opacity`, `Blur`, `Streaks`, `Grain`, `Tint`), vrai flou du jeu (`GameBlur`), effet zoom (`ZoomFx`), rouge si touché, durée (`FadeOut`), premier plan (`ZIndex`), secousses |
 
 ## Performance
 
 Sans arme à feu en main : une vérification toutes les 250 ms (**0.00 ms**). Arme à feu en main : lecture du tir à
 chaque image (comme le jeu) ; PNJ armés à moins de 10 m : leurs tirs lus à chaque image tant qu'il y en a (liste
 refaite toutes les 250 ms ; jusqu'à 25 m pour l'effet de tir) ; les effets ne tournent que quand quelqu'un tire.
-L'effet sur les bords est dessiné par l'interface (aucune boucle Lua) et s'arrête complètement quand il a disparu.
+L'effet sur les bords : voile dessiné par l'interface (aucune boucle Lua) ; flou du jeu mis à jour ~30 fois par seconde
+seulement pendant l'effet ; tout s'arrête quand il a disparu.
