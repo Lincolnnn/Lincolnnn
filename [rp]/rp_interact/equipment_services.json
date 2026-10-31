@@ -83,6 +83,7 @@
             },
             { "Weapon": "WEAPON_PM4",
 			"Label": "Fusil AR-15",
+			"Group": "Fusil d'assaut",
 			"Ammo": 650,
 			"Options" : [
                     { "Label": "Lampe tactique", "Choices": [ { "Label": "Lampe sur le canon", "Component": "COMPONENT_MARKOMODS_SHARED_FLASH_07a" } ] },
@@ -112,6 +113,7 @@
             },
             { "Weapon": "WEAPON_FM1_M16A4",
 			"Label": "Fusil M16A4",
+			"Group": "Fusil d'assaut",
 			"Ammo": 650,
 			"Options" : [
                     { "Label": "Viseur", "Choices": [ { "Label": "Viseur 1", "Component": "COMPONENT_FMLITESCOPE_01" } ] },

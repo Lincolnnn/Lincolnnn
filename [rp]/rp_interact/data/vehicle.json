@@ -6,6 +6,8 @@
             "subCategory": "Washington State Patrol",
             "menuName": "Base Ford Police Interceptor Utility - 2019",
 		    "windowTint": 1,
+            "plate": "3##  WSP",
+            "plateType": "NORTH_YANKTON",
             "extras": {}
         },
         {
@@ -13,6 +15,8 @@
             "Principale": "Police",
             "subCategory": "Washington State Patrol",
             "menuName": "Base Ford Police Interceptor Utility - 2020",
+            "plate": "3##  WSP",
+            "plateType": "NORTH_YANKTON",
             "extras": {}
         },
         {
@@ -20,6 +24,8 @@
             "Principale": "Police",
             "subCategory": "Washington State Patrol",
             "menuName": "Base Ford Police Interceptor Utility - 2025",
+            "plate": "3##  WSP",
+            "plateType": "NORTH_YANKTON",
             "extras": {}
         },
         {
@@ -27,6 +33,8 @@
             "Principale": "Police",
             "subCategory": "Washington State Patrol",
             "menuName": "Base Ford Police Interceptor Utility Unmarked - 2020",
+            "plate": "3##  WSP",
+            "plateType": "NORTH_YANKTON",
             "extras": {}
         },
         {
@@ -34,6 +42,8 @@
             "Principale": "Police",
             "subCategory": "Washington State Patrol",
             "menuName": "Base Chevrolet Tahoe Police Pursuit Vehicle - 2023",
+            "plate": "3##  WSP",
+            "plateType": "NORTH_YANKTON",
             "extras": {}
         },
         {
@@ -41,6 +51,8 @@
             "Principale": "Police",
             "subCategory": "Washington State Patrol",
             "menuName": "Base Dodge Charger Police Pursuit Vehicle - 2018",
+            "plate": "???#####",
+            "plateType": "BLUE_ON_WHITE_2",
             "extras": {}
         },
         {
@@ -48,6 +60,8 @@
             "Principale": "Police",
             "subCategory": "Washington State Patrol",
             "menuName": "Base Dodge Charger Police Pursuit Vehicle - 2018",
+            "plate": "???#####",
+            "plateType": "BLUE_ON_WHITE_2",
             "extras": {}
         },
         {
@@ -56,6 +70,7 @@
             "subCategory": "King County Sheriff Office",
             "menuName": "Ford Police Interceptor Utility - 2019",
 		    "windowTint": 1,
+            "plate": " ?#####?",
             "extras": {}
         },
         {
@@ -63,6 +78,7 @@
             "Principale": "Police",
             "subCategory": "King County Sheriff Office",
             "menuName": "Ford Police Interceptor Utility - 2020",
+            "plate": " ?#####?",
             "extras": {}
         },
         {
@@ -70,6 +86,7 @@
             "Principale": "Police",
             "subCategory": "King County Sheriff Office",
             "menuName": "Chevrolet Tahoe Police Pursuit Vehicle - 2019",
+            "plate": " ?#####?",
             "extras": {}
         }
     ]
