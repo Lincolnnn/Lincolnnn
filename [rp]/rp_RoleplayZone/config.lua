@@ -139,4 +139,28 @@ SceneConfig = {
         PickupDistance = 2.0,
         Blacklist = { 'WEAPON_UNARMED', 'WEAPON_FLARE', 'WEAPON_PETROLCAN', 'WEAPON_FIREEXTINGUISHER' },
     },
+
+    -- SCÈNES AUTOMATIQUES : créées toutes seules sur certains événements, à fouiller par la police comme les autres
+    -- (périmètre : description visuelle au-dessus + ce qu'on trouve à la fouille ; zone : message en y entrant).
+    --   Weapon   : arme lâchée / jetée / posée (au sol, sur un véhicule) par un CIVIL (pas dans une unité du MDC) ;
+    --   Accident : accident de la route important (rp_vehiclecontrol : celui qui allume les warnings tout seuls) ;
+    --   Injury   : joueur blessé (à pied) : au moins MinDamage points de vie perdus d'un coup, ou à terre.
+    -- Un même événement au même endroit (MergeDistance m) ne fait pas une nouvelle scène : la sienne est prolongée.
+    -- Visibles des admins dans leur menu /scene (créées par « Automatique ») ; supprimées au bout de Duration min.
+    Auto = {
+        Enabled = true,
+        Duration = 45,             -- minutes
+        MergeDistance = 8.0,
+        MaxActive = 40,            -- au-delà, la plus ancienne scène automatique est retirée
+        Weapon = { Enabled = true, Radius = 1.5, Title = 'Arme abandonnée', Look = 'Odeur de poudre',
+            Text = 'Forte odeur de poudre à cet endroit : une arme à feu a été manipulée et abandonnée ici récemment.' },
+        Accident = { Enabled = true,
+            Zone = { Radius = 20.0, Title = 'Accident de la route',
+                Text = 'Accident de la route : débris de carrosserie, éclats de verre, traces de freinage. Odeur d\'essence et de matériaux abîmés.' },
+            Perimeter = { Radius = 3.0, Title = 'Point de choc', Look = 'Odeur d\'essence et de matériaux abîmés',
+                Text = 'Morceaux de carrosserie, éclats de phares et de vitres, flaque d\'essence et de liquide de refroidissement : un véhicule a violemment percuté quelque chose ici.' } },
+        Injury = { Enabled = true, MinDamage = 20, Cooldown = 60, Radius = 1.5, Title = 'Traces de sang',
+            Look = 'Odeur de sang',
+            Text = 'Traces de sang frais au sol et quelques gouttes autour : une personne a été blessée ici.' },
+    },
 }

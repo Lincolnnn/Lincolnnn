@@ -54,6 +54,7 @@ add_ace resource.rp_permissions command.add_principal allow
 add_ace resource.rp_permissions command.remove_principal allow
 add_ace resource.rp_permissions command.add_ace allow
 add_ace resource.rp_permissions command.remove_ace allow
+add_ace resource.rp_permissions command.quit allow
 add_principal group.admin group.membre
 add_principal group.membre group.nonofficiel
 add_ace group.membre "rp.membre" allow
@@ -84,6 +85,24 @@ Fichier `server/discord_status.lua` (fait par un membre de l'équipe, **pas dans
 les salons de `StatusConfig.Channels`. Le manifeste charge `server/discord_*.lua` **s'il est là** (rien ne casse
 sinon). Il réutilise le bot des rôles (`BotToken`) ; il retient les IDs de ses messages dans `discord_messages.json`
 (ignoré par git).
+
+## Session whitelist (`/whiteliston`, `/whitelistoff`)
+
+Réservées aux **admins** (rang Discord Admin, ACE `rp.admin`) et à la console du serveur.
+
+- **`/whiteliston`** : l'accès devient **réservé aux membres recrutés** (Membre, Admin) : les **Joueurs non-officiels
+  ne peuvent plus se connecter** (message clair). Annoncé à tous (bannière des sessions de rp_RoleplayZone + chat),
+  rappels à 20, 10 et 5 s, puis **redémarrage du serveur 30 s après** (`RestartSeconds`) : joueurs prévenus et
+  déconnectés, puis `quit` (`RestartCommand`) : **txAdmin relance le serveur** tout seul. Au retour, le mode est
+  toujours actif (gardé dans la mémoire du serveur). Pendant les 30 s, les non-officiels sont déjà refusés.
+- **`/whitelistoff`** : accès **rétabli tout de suite** pour tous les membres du Discord (à partir de Joueur
+  non-officiel), annoncé, **sans redémarrage** ; annule un redémarrage en cours.
+
+À ajouter dans `server.cfg` pour le redémarrage : `add_ace resource.rp_permissions command.quit allow` (sans ce droit,
+le mode est activé quand même et la console demande de redémarrer depuis txAdmin). Sans txAdmin, `quit` arrête le
+serveur : relancez-le vous-même (ou `RestartCommand = ''` : déconnexion des joueurs seulement). Textes et rang minimal :
+`config.lua` > `Whitelist.Session`. Autres scripts : `exports.rp_permissions:isMembersOnly()`,
+`GlobalState.rpWhitelistMembersOnly`.
 
 ## Pour les scripts
 

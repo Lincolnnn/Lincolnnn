@@ -196,7 +196,10 @@ Un son coupé (clignotant désactivé, ceinture attachée…) s'arrête net, mê
 - **Accident important** (pas un simple accrochage) : choc **fort** (mur, voiture, poteau… pas un piéton, un plot ou
   une barrière) avec une **perte de vitesse d'au moins 25 MPH**, ou au moins **150 de dégâts** (moteur + carrosserie)
   pendant le choc (`AccidentHazards`) : **les warnings s'allument tout seuls**. Ils restent allumés (même moteur coupé
-  ou détruit) jusqu'à ce que le conducteur les éteigne (flèche bas).
+  ou détruit) jusqu'à ce que le conducteur les éteigne (flèche bas). Il est aussi **signalé au serveur**
+  (`rp_vehiclecontrol:accident`, vérifié : près du conducteur, une fois par 10 s) : **scène de recherche automatique**
+  de `rp_RoleplayZone` (zone « accident de la route » et point de choc : odeur d'essence et de matériaux abîmés), et
+  événement serveur `rp_vehiclecontrol:accidentHappened` (source, position) pour d'autres scripts. Aussi en mode Riven.
 - **Palier 2 — moteur DÉTRUIT** (< 100, `Broken`) : véhicule **éteint, moteur coupé, impossible à rallumer** ; le
   **car HUD reste allumé**, tout en **rouge vif clignotant**, avec le **logo du moteur** en rouge plus foncé, fixe ; le
   logo de la ceinture ne clignote plus : attachée, rempli de **rouge fixe** ; détachée, seulement son **contour en

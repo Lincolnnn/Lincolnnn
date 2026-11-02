@@ -16,6 +16,7 @@
         add_ace resource.rp_permissions command.remove_principal allow
         add_ace resource.rp_permissions command.add_ace allow       # repères rp.* et MembersOnly
         add_ace resource.rp_permissions command.remove_ace allow    # MembersOnly (refus retiré quand on devient Membre)
+        add_ace resource.rp_permissions command.quit allow          # /whiteliston : redémarrage du serveur (txAdmin)
         ensure rp_permissions                          # tôt : avant vMenu et les scripts rp_
     Le bot doit être sur le serveur Discord (permission « Voir les salons » suffit) avec l'intent « Server Members »
     activé (Discord Developer Portal > Bot > Privileged Gateway Intents).
@@ -53,6 +54,27 @@ PermsConfig = {
             notWhitelisted = "Tu n'as pas de rôle d'accès sur notre Discord (Joueur non-officiel, Membre ou Admin).",
             blacklisted = 'Accès refusé.',
             apiError = 'Vérification de tes rôles Discord impossible pour le moment : réessaie dans quelques minutes.',
+        },
+
+        -- SESSION WHITELIST (admins, ou console du serveur) :
+        --   /whiteliston  : connexion réservée aux Membres et Admins (les Joueurs non-officiels sont refusés), annoncée à
+        --                   tous, puis REDÉMARRAGE du serveur RestartSeconds s après (joueurs prévenus puis déconnectés).
+        --                   Gardé au redémarrage (mémoire du serveur) jusqu'à /whitelistoff.
+        --   /whitelistoff : accès rétabli tout de suite pour tous (à partir de Joueur non-officiel), sans redémarrage ;
+        --                   annule un redémarrage en cours.
+        -- Redémarrage : commande RestartCommand ('quit' : le serveur s'arrête et txAdmin le relance tout seul ; '' : pas
+        -- de redémarrage automatique). Demande dans server.cfg :  add_ace resource.rp_permissions command.quit allow
+        Session = {
+            CommandOn = 'whiteliston', CommandOff = 'whitelistoff',
+            MinRank = 'membre',         -- rang minimal pendant une session whitelist
+            RestartSeconds = 30,
+            RestartCommand = 'quit',
+            OnTitle = 'SESSION WHITELIST',
+            OnText = 'Accès réservé aux membres recrutés : redémarrage du serveur dans %d secondes.',
+            OffTitle = 'SESSION OUVERTE',
+            OffText = 'Accès rétabli pour tous les membres du Discord (à partir du rôle Joueur non-officiel).',
+            DeniedMessage = 'Session whitelist en cours : le serveur est réservé aux membres recrutés. Reviens plus tard !',
+            RestartKickMessage = 'Redémarrage du serveur : session whitelist (membres recrutés). Reconnecte-toi dans une minute.',
         },
     },
 

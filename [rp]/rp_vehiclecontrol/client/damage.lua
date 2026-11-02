@@ -93,11 +93,26 @@ local lastAccident = 0 -- un même accident n'est compté qu'une fois (dégâts 
 
 --- Accident important : warnings allumés. `fromDamage` : reconnu aux dégâts reçus (une seule fois par accident :
 --- les dégâts qui arrivent juste après ne le recomptent pas, même si le conducteur a déjà éteint les warnings)
+local lastReported = { vehicle = 0, at = -60000 }
+--- Accident signalé au serveur (scène de recherche automatique de rp_RoleplayZone : débris, odeur d'essence…) ; une
+--- fois par véhicule et par 20 s (les chocs d'un même accident ne font pas plusieurs scènes)
+local function reportAccident(vehicle)
+    local now = GetGameTimer()
+    if lastReported.vehicle == vehicle and now - lastReported.at < 20000 then return end
+    lastReported = { vehicle = vehicle, at = now }
+    local c = GetEntityCoords(vehicle)
+    local found, z = GetGroundZFor_3dCoord(c.x, c.y, c.z + 1.0, false)
+    if not found or z < c.z - 4.0 then z = c.z - 0.5 end
+    TriggerServerEvent('rp_vehiclecontrol:accident', { x = c.x, y = c.y, z = z })
+end
+
 local function accident(vehicle, fromDamage)
     local now = GetGameTimer()
     crashDamage = { vehicle = 0, amount = 0.0, at = 0 }
-    if (fromDamage and now - lastAccident < 1500) or not VC.setSignal then return end
+    if fromDamage and now - lastAccident < 1500 then return end
     lastAccident = now
+    reportAccident(vehicle)
+    if not VC.setSignal then return end
     accidentHazards = vehicle
     if VC.state(vehicle, 'vcSignal') ~= 'hazard' then VC.setSignal(vehicle, 'hazard') end
 end

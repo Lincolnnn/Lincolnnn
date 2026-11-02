@@ -30,6 +30,18 @@ local applied = {}    -- [discordId] = groupe ACE donné par ce script
 local ranks = {}      -- [joueur] = clé du rang (nil : aucun)
 local working = TOKEN ~= '' and GUILD ~= ''
 
+-- SESSION WHITELIST (/whiteliston, /whitelistoff) : connexion réservée aux Membres et Admins ; gardée au redémarrage
+local WS = (C.Whitelist or {}).Session or {}
+local KVP_MEMBERS = 'rp_whitelist_members_only'
+local membersOnly = GetResourceKvpString(KVP_MEMBERS) == '1'
+GlobalState.rpWhitelistMembersOnly = membersOnly
+--- Ce rang peut-il se connecter pendant une session whitelist ? (Membre ou au-dessus)
+local function sessionAllows(rank)
+    if not membersOnly then return true end
+    local need = LEVEL[WS.MinRank or 'membre'] or 2
+    return rank ~= nil and LEVEL[rank] ~= nil and LEVEL[rank] <= need
+end
+
 local function log(text, ...) print(('^5[rp_permissions]^0 ' .. text):format(...)) end
 local function debug(text, ...) if C.Debug then log(text, ...) end end
 
@@ -180,6 +192,7 @@ AddEventHandler('playerConnecting', function(name, _, deferrals)
         log('Discord injoignable pour %s (code %s) : %s', name, tostring(entry.code),
             W.OnApiError == 'deny' and 'connexion refusée' or 'connexion acceptée sans rôle')
         if W.Enabled and W.OnApiError == 'deny' then return deferrals.done(M.apiError) end
+        if membersOnly then return deferrals.done(M.apiError) end -- session whitelist : jamais sans rang vérifié
         applyPrincipal(discordId, nil)
         return deferrals.done()
     end
@@ -195,6 +208,11 @@ AddEventHandler('playerConnecting', function(name, _, deferrals)
     if W.Enabled and not entry.rank then
         applyPrincipal(discordId, nil)
         return deferrals.done(M.notWhitelisted)
+    end
+    if not sessionAllows(entry.rank) then
+        applyPrincipal(discordId, entry.rank)
+        log('%s refusé : session whitelist (rang %s)', name, entry.rank and ROLES[entry.rank].label or 'aucun')
+        return deferrals.done(WS.DeniedMessage or 'Session whitelist en cours : le serveur est réservé aux membres recrutés.')
     end
     applyPrincipal(discordId, entry.rank)
     debug('%s : %s', name, entry.rank or 'aucun rang')
@@ -314,3 +332,82 @@ RegisterCommand('rpperms_refresh', function(src, args)
         reply(src, 'Rangs revérifiés auprès de Discord.')
     end)
 end, false)
+
+-- =========================================================================
+-- SESSION WHITELIST : /whiteliston (admins) -> accès réservé aux membres recrutés, annoncé à tous, puis REDÉMARRAGE du
+-- serveur RestartSeconds s après (joueurs prévenus puis déconnectés, commande RestartCommand : « quit » -> txAdmin
+-- relance le serveur). Au retour, les joueurs non-officiels ne peuvent plus se connecter (refusé dès la commande).
+-- /whitelistoff -> accès rétabli tout de suite pour tous les membres du Discord (Joueur non-officiel et plus),
+-- sans redémarrage ; annule un redémarrage en cours.
+-- =========================================================================
+local restartToken = 0
+local function announce(kind, title, text)
+    if GetResourceState('rp_RoleplayZone') == 'started' then
+        -- bannière des sessions (en haut au milieu, son), comme /sessionon et /sessionoff
+        TriggerClientEvent('rp_scene:session', -1, { kind = kind, title = title, text = text, duration = 12000 })
+    end
+    TriggerClientEvent('chat:addMessage', -1, { args = { title, text }, color = { 230, 120, 90 } })
+    log('%s : %s', title, text)
+end
+
+local function setMembersOnly(on)
+    membersOnly = on == true
+    SetResourceKvp(KVP_MEMBERS, membersOnly and '1' or '0')
+    GlobalState.rpWhitelistMembersOnly = membersOnly
+end
+exports('isMembersOnly', function() return membersOnly end)
+
+local function restartServer()
+    for _, id in ipairs(GetPlayers()) do
+        DropPlayer(id, WS.RestartKickMessage or 'Redémarrage du serveur : session whitelist (membres recrutés). Reconnectez-vous dans une minute.')
+    end
+    local command = WS.RestartCommand == nil and 'quit' or WS.RestartCommand
+    if command == '' then return log('session whitelist active : redémarrez le serveur vous-même (RestartCommand vide).') end
+    if not IsPrincipalAceAllowed('resource.' .. RES, 'command.' .. command:match('^(%S+)')) then
+        return log('^1redémarrage impossible : ajoutez  add_ace resource.%s command.%s allow  dans server.cfg '
+            .. '(session whitelist active quand même : redémarrez depuis txAdmin).^0', RES, command:match('^(%S+)'))
+    end
+    SetTimeout(1500, function() ExecuteCommand(command) end)
+end
+
+local function sessionAdmin(src) return src == 0 or hasRank(src, 'admin') or IsPlayerAceAllowed(src, 'rp.admin') end
+
+RegisterCommand(WS.CommandOn or 'whiteliston', function(src)
+    if not sessionAdmin(src) then return reply(src, 'Commande réservée aux administrateurs.') end
+    if restartToken > 0 and membersOnly then return reply(src, 'Redémarrage déjà prévu (session whitelist).') end
+    setMembersOnly(true)
+    local seconds = math.max(5, math.floor(tonumber(WS.RestartSeconds) or 30))
+    restartToken = restartToken + 1
+    local token = restartToken
+    announce('off', WS.OnTitle or 'SESSION WHITELIST', (WS.OnText or 'Accès réservé aux membres recrutés : redémarrage du serveur dans %d secondes.'):format(seconds))
+    log('session whitelist demandée par %s', src == 0 and 'la console' or (GetPlayerName(src) or tostring(src)))
+    CreateThread(function()
+        local left = seconds
+        while left > 0 do
+            Wait(1000)
+            if restartToken ~= token then return end -- annulé (/whitelistoff)
+            left = left - 1
+            if left == 20 or left == 10 or left == 5 then
+                TriggerClientEvent('chat:addMessage', -1, { args = { WS.OnTitle or 'SESSION WHITELIST',
+                    ('Redémarrage du serveur dans %d secondes.'):format(left) }, color = { 230, 120, 90 } })
+            end
+        end
+        if restartToken ~= token then return end
+        restartToken = 0
+        restartServer()
+    end)
+end, false)
+
+RegisterCommand(WS.CommandOff or 'whitelistoff', function(src)
+    if not sessionAdmin(src) then return reply(src, 'Commande réservée aux administrateurs.') end
+    local cancelled = restartToken > 0
+    restartToken = 0
+    if not membersOnly and not cancelled then return reply(src, 'Le serveur est déjà ouvert à tous les membres du Discord.') end
+    setMembersOnly(false)
+    announce('on', WS.OffTitle or 'SESSION OUVERTE', (WS.OffText
+        or 'Accès rétabli pour tous les membres du Discord (à partir du rôle Joueur non-officiel).')
+        .. (cancelled and ' Redémarrage annulé.' or ''))
+end, false)
+
+if membersOnly then log('^3session whitelist active : connexion réservée aux membres recrutés (/whitelistoff pour rouvrir).^0') end
+RPPermsSession = { allows = sessionAllows, isOn = function() return membersOnly end } -- pour les tests

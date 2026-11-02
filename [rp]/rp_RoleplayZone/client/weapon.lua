@@ -99,16 +99,31 @@ end
 -- =========================================================================
 --- L'arme quitte les mains TOUT DE SUITE, avec le hash lu ici (jamais celui renvoyé par le serveur) ; rendue si le
 --- serveur refuse (rp_scene:weapon:refused)
-local pending = nil -- { weapon, ammo } : arme lâchée, en attente de la réponse du serveur
-local function releaseWeapon(ped, weapon)
-    local ammo = GetAmmoInPedWeapon(ped, weapon)
-    pending = { weapon = weapon, ammo = ammo, at = GetGameTimer() }
-    SetCurrentPedWeapon(ped, UNARMED, true)
-    SetPedAmmo(ped, weapon, 0)
-    RemoveWeaponFromPed(ped, weapon)
-    lastWeapon = UNARMED
-    return ammo
+local pending = nil -- { weapon, ammo, reserve, ammoType } : arme lâchée, en attente de la réponse du serveur
+--- MUNITIONS : l'arme posée / jetée n'emporte que son CHARGEUR ; la RÉSERVE (munitions du même calibre, partagées par
+--- toutes les armes de ce calibre dans GTA) reste au joueur. Avant : SetPedAmmo(arme, 0) vidait tout le calibre.
+local function splitAmmo(ped, weapon)
+    local total = math.max(0, math.floor(tonumber(GetAmmoInPedWeapon(ped, weapon)) or 0))
+    local ok, clip = GetAmmoInClip(ped, weapon)
+    clip = ok and math.floor(tonumber(clip) or 0) or 0
+    clip = math.max(0, math.min(clip, total))
+    return clip, total - clip, GetPedAmmoTypeFromWeapon(ped, weapon)
 end
+--- Après RemoveWeaponFromPed : stock du calibre = la réserve (ni perdu, ni dupliqué à la reprise du chargeur)
+local function keepReserve(ped, ammoType, reserve)
+    if ammoType and ammoType ~= 0 then SetPedAmmoByType(ped, ammoType, math.max(0, reserve or 0)) end
+end
+
+local function releaseWeapon(ped, weapon)
+    local clip, reserve, ammoType = splitAmmo(ped, weapon)
+    pending = { weapon = weapon, ammo = clip, reserve = reserve, ammoType = ammoType, at = GetGameTimer() }
+    SetCurrentPedWeapon(ped, UNARMED, true)
+    RemoveWeaponFromPed(ped, weapon)
+    keepReserve(ped, ammoType, reserve)
+    lastWeapon = UNARMED
+    return clip
+end
+RZ.splitAmmo = splitAmmo -- pour les tests
 
 local function place(ped, weapon, model)
     loadAnim('pickup_object')
@@ -308,8 +323,8 @@ end
 RegisterNetEvent('rp_scene:weapon:dropped', function(_, netId, mode, velocity)
     local ped = PlayerPedId()
     if pending and HasPedGotWeapon(ped, pending.weapon, false) then
-        SetPedAmmo(ped, pending.weapon, 0)
         RemoveWeaponFromPed(ped, pending.weapon)
+        keepReserve(ped, pending.ammoType, pending.reserve)
         SetCurrentPedWeapon(ped, UNARMED, true)
     end
     pending = nil

@@ -40,7 +40,8 @@ Liée à `rp_interact` (œil, accessoires des armes), `rp_weaponscontrol` (lampe
   plus) : des rayons vers le bas trouvent la carrosserie (la **collision** du véhicule, comme les impacts de balles)
   et son **inclinaison** (moyenne de 5 points : les courbes du capot, du toit) ; l'arme est **couchée, inclinée comme
   la surface, au ras** (son point le plus bas posé dessus, 4 mm, `Lift`). Elle reste **collée au véhicule** chez tous
-  les joueurs, avec ses **accessoires** (lus par `rp_interact`), leurs teintes, sa **teinte**, ses **munitions** et sa
+  les joueurs, avec ses **accessoires** (lus par `rp_interact`), leurs teintes, sa **teinte**, son **chargeur** (la
+  réserve du même calibre reste au joueur) et sa
   **lampe allumée** (arme avec lampe : vraie lampe du jeu ; lampe torche : lumière du modèle). 4 au plus par véhicule.
 - **« Reprendre : <arme> »** (œil sur le véhicule) : rendue **telle quelle**, lampe rallumée si elle l'était.
 - **Ailleurs** (sol, mur, personne…), arme ou lampe en main : **« Poser l'arme au sol »** / **« … la lampe au sol »**,
@@ -74,3 +75,8 @@ mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est re
   refaits quand l'état change.
 - Performance : une vérification toutes les 2,5 s (véhicules proches qui portent des objets, véhicules disparus) ;
   rien d'autre. Éditeur : seulement pendant le réglage.
+
+## Scène automatique
+
+Une **arme à feu** posée (sur un véhicule ou au sol) par un **civil** (pas dans une unité du MDC) crée une scène de
+recherche « Arme abandonnée » (odeur de poudre) de `rp_RoleplayZone` (pas pour une lampe ni un Taser).

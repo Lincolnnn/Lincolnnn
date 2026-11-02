@@ -86,12 +86,28 @@ local function give(w)
     GiveWeaponToPed(PlayerPedId(), signed(w.hash), tonumber(w.ammo) or 0, false, true)
 end
 
---- L'arme quitte les mains (rendue si le serveur refuse)
+--- MUNITIONS : l'arme posée / jetée n'emporte que son CHARGEUR ; la RÉSERVE (munitions du même calibre, partagées par
+--- toutes les armes de ce calibre dans GTA) reste au joueur. Avant : SetPedAmmo(arme, 0) vidait tout le calibre.
+local function splitAmmo(ped, weapon)
+    local total = math.max(0, math.floor(tonumber(GetAmmoInPedWeapon(ped, weapon)) or 0))
+    local ok, clip = GetAmmoInClip(ped, weapon)
+    clip = ok and math.floor(tonumber(clip) or 0) or 0
+    clip = math.max(0, math.min(clip, total))
+    return clip, total - clip, GetPedAmmoTypeFromWeapon(ped, weapon)
+end
+--- Après RemoveWeaponFromPed : stock du calibre = la réserve (ni perdu, ni dupliqué à la reprise du chargeur)
+local function keepReserve(ped, ammoType, reserve)
+    if ammoType and ammoType ~= 0 then SetPedAmmoByType(ped, ammoType, math.max(0, reserve or 0)) end
+end
+
+--- L'arme quitte les mains (rendue si le serveur refuse) avec son seul chargeur (w.ammo) ; la réserve reste au joueur
 local function release(ped, w)
+    local clip, reserve, ammoType = splitAmmo(ped, signed(w.hash))
+    w.ammo = clip
     pending = w
     SetCurrentPedWeapon(ped, UNARMED, true)
-    SetPedAmmo(ped, signed(w.hash), 0)
     RemoveWeaponFromPed(ped, signed(w.hash))
+    keepReserve(ped, ammoType, reserve)
 end
 
 local function loadAnim(dict)
