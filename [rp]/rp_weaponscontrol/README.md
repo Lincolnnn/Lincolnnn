@@ -1,6 +1,6 @@
 # RP Weapons Control
 
-Gestion des armes à feu : **recul**, **effets au tir**, **acouphènes**, **flash de bouche** et **fumée du canon**,
+Gestion des armes à feu : **recul**, **effets au tir**, **flash de bouche** et **fumée du canon**,
 synchronisés avec les joueurs autour, et **effet de tir sur les bords de l'écran** (voile style motion blur, secousse
 quand on nous tire dessus, bords rouges si on est touché). 100 % standalone, Lua 5.4.
 
@@ -21,9 +21,16 @@ ensure rp_weaponscontrol
 | joueurs à moins de 15 m | petite **secousse** de la caméra (plus forte près du tireur) |
 | tout le monde à moins de 60 m | **fumée** : après **15 tirs rapides** (en 3 s), un filet de fumée sort du canon pendant 6 s |
 
-**Acouphène** (léger) : seulement quand ça tire beaucoup tout près : **au moins 15 tirs en 10 s** par des tireurs à
-**moins de 10 m** du joueur, que ce soit lui-même, un autre joueur ou un **PNJ**. Un sifflement discret monte puis
-redescend (plus long s'il y a encore plus de tirs), puis plus rien pendant 12 s.
+**Acouphène : retiré** (plus aucun sifflement).
+
+**Posture à la 1re personne** (`FirstPerson`) : en vue à la 1re personne avec une arme, le jeu met le personnage en
+« mode action » (posture de combat **courbée**, démarche tactique), visible par le joueur ET par les joueurs autour.
+Elle est **coupée à chaque image** tant que le joueur est à la 1re personne à pied (reset flag 200
+`PRF_DisableActionMode` + `SetPedUsingActionMode(false)`) : posture normale. Le personnage de chaque joueur est animé
+par son propre jeu puis **synchronisé** chez les autres : la correction faite par son client se voit aussi depuis les
+joueurs autour (aucun serveur ne peut changer l'animation d'un autre joueur). `ThirdPerson = true` : aussi à la 3e
+personne. **`/fpsposture`** (F8 ou chat) : coupe / remet la correction pour comparer en jeu. Limite : la position des
+mains et de l'arme propre à la vue 1re personne (arme levée devant soi) n'est pas réglable par le jeu.
 
 **Pas de rechargement automatique** : chargeur vide, il faut recharger soi-même (touche **R**).
 
@@ -115,7 +122,7 @@ ou **COUP PAR COUP** (blanc, 1 balle), affiché **3 s après l'appui** puis reti
 affiché tant que l'arme est en main). Coup par coup : **un tir par pression de la détente**. Le mode est gardé pour
 chaque arme. B sert aussi au Taser 10 (sécurité) : chacun ne réagit qu'à sa propre arme.
 
-Arme avec **silencieux** : ni flash, ni acouphène, secousse réduite. Le Taser, le pistolet de détresse, le pistolet radar,
+Arme avec **silencieux** : pas de flash, secousse réduite. Le Taser, le pistolet de détresse, le pistolet radar,
 l'extincteur et le jerrican ne sont jamais concernés (`Excluded`). Les armes sont reconnues quel que soit le signe de
 leur empreinte (le problème des « negative hashes » du script d'origine est réglé).
 
@@ -134,7 +141,7 @@ tireur qu'il voit. Le sifflement est généré par le script (aucun fichier son)
 | `NoAutoReload` | pas de rechargement automatique |
 | `Flash` | activé, portée, couleur, rayon, intensité, durée (ms) |
 | `Smoke` | activé, tirs et fenêtre (ms) pour la fumée, durée, délai entre deux, portée, effet de particules |
-| `Tinnitus` | activé, portée (10 m), tirs (10) et fenêtre (10 s), PNJ compris, volume, durées, délai entre deux |
+| `FirstPerson` | posture normale à la 1re personne (mode action coupé) : activée, aussi à la 3e personne, commande de test |
 | `Shake` | secousse des voisins : activée, portée, force, type |
 | `Sync` | portée du relais, paquets (ms), limite par seconde |
 | `Suppression` | effet de tir sur les bords : montées (`Own`, `Near`, `Incoming`, `Hit`, `Curve`), portées, tailles (`MinCoverage`, `MaxCoverage`), voile (`Opacity`, `Blur`, `Streaks`, `Grain`, `Tint`), vrai flou du jeu (`GameBlur`), rouge si touché, durée (`FadeOut`), premier plan (`ZIndex`), secousses |

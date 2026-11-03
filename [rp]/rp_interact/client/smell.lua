@@ -3,8 +3,9 @@
     --------------------------------------------------------------
     Dans la fiche civile (/fichecivil), le joueur civil choisit jusqu'à Smell.Max odeurs (drogues, alcool, autres :
     config.lua, Smells) pour son profil et / ou son véhicule. Le serveur envoie aux SEULS policiers en service (unité
-    du MDC) les joueurs (profil actif) et les véhicules (profil) qui en ont. Un policier qui passe à moins de
-    Smell.Distance m (6 m) de l'un d'eux reçoit une notification en haut de l'écran, comme l'entrée dans une zone de
+    du MDC) les joueurs (profil actif) et les véhicules (profil) qui en ont. Un policier qui passe à PORTÉE de l'un
+    d'eux (celle de l'odeur, config.lua > Smells > range : 1,5 m pour une haleine alcoolisée, 6 m pour du cannabis
+    fumé… ; véhicule fermé : x Smell.ClosedVehicle) reçoit une notification en haut de l'écran, comme l'entrée dans une zone de
     recherche de /scene (bandeau + court son) : « ODEUR DÉTECTÉE · Individu à proximité / Véhicule à proximité ».
     Une fois par source tant qu'il reste à côté ; de nouveau après s'être éloigné et Smell.Cooldown ms.
     Performance : aucune boucle hors service ou sans odeur autour ; sinon une distance par source toutes les 500 ms.
@@ -12,8 +13,7 @@
 
 local Config = InteractConfig
 local S = Config.Smell or {}
-local DISTANCE = S.Distance or 6.0
-local LEAVE = DISTANCE + 1.5 -- s'éloigner un peu plus pour être prévenu de nouveau
+local DISTANCE = S.Distance or 3.0 -- portée d'une odeur sans portée propre (config.lua : Smells, range)
 
 local sources = { players = {}, vehicles = {} }
 local state = {}   -- [clé] = { near, at }
@@ -44,6 +44,18 @@ local function vehicleOf(netId)
     return vehicle ~= 0 and DoesEntityExist(vehicle) and vehicle or nil
 end
 
+--- Portières fermées et vitres intactes / remontées
+local function closedVehicle(vehicle)
+    for door = 0, 5 do
+        if GetVehicleDoorAngleRatio(vehicle, door) > 0.05 then return false end
+    end
+    for window = 0, 3 do
+        if not IsVehicleWindowIntact(vehicle, window) then return false end
+    end
+    return true
+end
+RPISmell.closedVehicle = closedVehicle
+
 local function show(found)
     local lines, labels = {}, {}
     for _, f in ipairs(found) do
@@ -56,28 +68,33 @@ local function show(found)
     } })
 end
 
---- Une vérification : nouvelles odeurs à moins de DISTANCE m -> notification (regroupées)
+--- Une vérification : nouvelles odeurs à portée (la leur ; véhicule fermé : réduite) -> notification (regroupées)
 local function check()
     local me = GetEntityCoords(PlayerPedId())
     local now = GetGameTimer()
     local found, alive = {}, {}
-    local function test(key, entity, text, label)
+    local function test(key, entity, text, label, range)
         alive[key] = true
         local s = state[key] or {}
         state[key] = s
         local d = entity and #(me - GetEntityCoords(entity)) or math.huge
-        if d <= DISTANCE then
+        if d <= range then
             if not s.near and (not s.at or now - s.at >= (S.Cooldown or 60000)) then
                 s.at = now
                 found[#found + 1] = { text = text, label = label }
             end
             s.near = true
-        elseif d > LEAVE then
+        elseif d > range + 1.5 then
             s.near = false
         end
     end
-    for _, p in ipairs(sources.players) do test('p' .. p.id, playerPed(p.id), p.text, 'Individu à proximité') end
-    for _, v in ipairs(sources.vehicles) do test('v' .. v.netId, vehicleOf(v.netId), v.text, 'Véhicule à proximité') end
+    for _, p in ipairs(sources.players) do test('p' .. p.id, playerPed(p.id), p.text, 'Individu à proximité', p.range) end
+    for _, v in ipairs(sources.vehicles) do
+        local vehicle = vehicleOf(v.netId)
+        -- véhicule fermé (portières et vitres) : l'odeur reste dedans, il faut être plus près
+        local range = v.range * ((vehicle and closedVehicle(vehicle)) and (S.ClosedVehicle or 0.5) or 1.0)
+        test('v' .. v.netId, vehicle, v.text, 'Véhicule à proximité', range)
+    end
     for key in pairs(state) do if not alive[key] then state[key] = nil end end
     if #found > 0 then show(found) end
 end
@@ -99,10 +116,14 @@ local function setSources(list)
     list = type(list) == 'table' and list or {}
     sources = { players = {}, vehicles = {} }
     for _, p in ipairs(type(list.players) == 'table' and list.players or {}) do
-        if tonumber(p.id) and type(p.text) == 'string' then sources.players[#sources.players + 1] = { id = tonumber(p.id), text = p.text } end
+        if tonumber(p.id) and type(p.text) == 'string' then
+            sources.players[#sources.players + 1] = { id = tonumber(p.id), text = p.text, range = tonumber(p.range) or DISTANCE }
+        end
     end
     for _, v in ipairs(type(list.vehicles) == 'table' and list.vehicles or {}) do
-        if tonumber(v.netId) and type(v.text) == 'string' then sources.vehicles[#sources.vehicles + 1] = { netId = tonumber(v.netId), text = v.text } end
+        if tonumber(v.netId) and type(v.text) == 'string' then
+            sources.vehicles[#sources.vehicles + 1] = { netId = tonumber(v.netId), text = v.text, range = tonumber(v.range) or DISTANCE }
+        end
     end
     start()
 end

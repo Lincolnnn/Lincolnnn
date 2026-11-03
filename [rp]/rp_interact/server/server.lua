@@ -425,12 +425,12 @@ local function smellSources()
         local src = profile.active and online[profile.owner]
         local text = src and RPISmells.text(profile.smells)
         -- joueur civil seulement (mode civil ou sans rôle) : un policier en service n'a pas d'odeur de profil
-        if text and not policeUnit(src) then list.players[#list.players + 1] = { id = src, text = text } end
+        if text and not policeUnit(src) then list.players[#list.players + 1] = { id = src, text = text, range = RPISmells.range(profile.smells) } end
     end
     for netId in pairs(VehicleProfiles) do
         local profile = vehicleProfile(netId)
         local text = profile and RPISmells.text(profile.smells)
-        if text then list.vehicles[#list.vehicles + 1] = { netId = netId, text = text } end
+        if text then list.vehicles[#list.vehicles + 1] = { netId = netId, text = text, range = RPISmells.range(profile.smells) } end
     end
     return list
 end

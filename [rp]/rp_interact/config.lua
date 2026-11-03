@@ -266,27 +266,31 @@ InteractConfig = {
     -- fois par source tant qu'il reste à côté (de nouveau après s'être éloigné et Smell.Cooldown ms).
     -- Les odeurs s'ajoutent aussi à l'inspection olfactive. id : ne pas changer (gardé dans les profils) ;
     -- label : nom dans la fiche ; text : ce que sent le policier.
-    Smell = { Enabled = true, Distance = 6.0, Max = 2, Duration = 9000, Cooldown = 60000, Volume = 0.4 },
+    Smell = { Enabled = true, Distance = 3.0, ClosedVehicle = 0.5, Max = 2, Duration = 9000, Cooldown = 60000, Volume = 0.4 },
+    -- Odeurs réalistes : chacune a sa PORTÉE (range, m) : celle à laquelle un policier la sent vraiment en passant
+    -- (haleine alcoolisée : tout près ; cannabis fumé, décomposition : de plus loin). Véhicule fermé (portières et
+    -- vitres fermées) : portée x Smell.ClosedVehicle. Les drogues sans odeur (méthamphétamine stockée, cocaïne,
+    -- pilules…) ne sont pas dans la liste : elles se trouvent à la fouille, pas au nez.
     Smells = {
-        { id = 'cannabis',       group = 'Drogues', label = 'Cannabis (herbe)',        text = 'une forte odeur d\'herbe de cannabis' },
-        { id = 'cannabis_smoke', group = 'Drogues', label = 'Cannabis fumé',           text = 'une odeur de cannabis fumé' },
-        { id = 'meth',           group = 'Drogues', label = 'Méthamphétamine',         text = 'une odeur chimique d\'ammoniaque et de solvant (typique de la méthamphétamine)' },
-        { id = 'crack',          group = 'Drogues', label = 'Crack fumé',              text = 'une odeur de plastique brûlé (typique du crack fumé)' },
-        { id = 'heroin',         group = 'Drogues', label = 'Héroïne',                 text = 'une odeur de vinaigre (typique de l\'héroïne)' },
-        { id = 'pcp',            group = 'Drogues', label = 'PCP',                     text = 'une odeur d\'éther et de produits chimiques (typique du PCP)' },
-        { id = 'opium',          group = 'Drogues', label = 'Opium fumé',              text = 'une odeur de fumée douceâtre et fleurie (typique de l\'opium)' },
-        { id = 'lean',           group = 'Drogues', label = 'Lean (sirop codéiné)',    text = 'une odeur sucrée de sirop pour la toux' },
-        { id = 'alcohol',        group = 'Alcool',  label = 'Alcool',                  text = 'une odeur d\'alcool' },
-        { id = 'alcohol_strong', group = 'Alcool',  label = 'Alcool fort (haleine chargée)', text = 'une forte odeur d\'alcool' },
-        { id = 'tobacco',        group = 'Autres',  label = 'Tabac froid',             text = 'une odeur de tabac froid' },
-        { id = 'gunpowder',      group = 'Autres',  label = 'Poudre (tirs récents)',   text = 'une odeur de poudre brûlée, comme après des tirs' },
-        { id = 'gasoline',       group = 'Autres',  label = 'Essence',                 text = 'une odeur d\'essence' },
-        { id = 'burnt',          group = 'Autres',  label = 'Brûlé / fumée',           text = 'une odeur de brûlé et de fumée' },
-        { id = 'blood',          group = 'Autres',  label = 'Sang',                    text = 'une odeur métallique de sang' },
-        { id = 'decay',          group = 'Autres',  label = 'Décomposition',           text = 'une odeur de décomposition' },
-        { id = 'bleach',         group = 'Autres',  label = 'Javel / produits ménagers', text = 'une forte odeur de javel' },
-        { id = 'perfume',        group = 'Autres',  label = 'Parfum très fort',        text = 'un parfum très fort, comme pour couvrir une autre odeur' },
-        { id = 'vomit',          group = 'Autres',  label = 'Vomi',                    text = 'une odeur de vomi' },
+        { id = 'cannabis',       group = 'Drogues', range = 4.0, label = 'Cannabis (herbe)',          text = 'une forte odeur d\'herbe de cannabis' },
+        { id = 'cannabis_smoke', group = 'Drogues', range = 6.0, label = 'Cannabis fumé',             text = 'une odeur de cannabis fumé' },
+        { id = 'crack',          group = 'Drogues', range = 2.0, label = 'Crack fumé récemment',      text = 'une odeur chimique de plastique brûlé (crack fumé récemment)' },
+        { id = 'heroin',         group = 'Drogues', range = 1.5, label = 'Héroïne (black tar)',       text = 'une légère odeur de vinaigre (typique de l\'héroïne black tar)' },
+        { id = 'pcp',            group = 'Drogues', range = 4.0, label = 'Cigarette au PCP',          text = 'une odeur chimique d\'éther (cigarette trempée dans du PCP)' },
+        { id = 'opium',          group = 'Drogues', range = 4.0, label = 'Opium fumé',                text = 'une odeur de fumée douceâtre et fleurie (typique de l\'opium)' },
+        { id = 'drug_lab',       group = 'Drogues', range = 3.0, label = 'Labo de drogue (vapeurs)',  text = 'une odeur chimique âcre d\'ammoniaque et de solvants, imprégnée dans les vêtements' },
+        { id = 'alcohol',        group = 'Alcool',  range = 1.5, label = 'Haleine alcoolisée',        text = 'une odeur d\'alcool dans l\'haleine' },
+        { id = 'alcohol_strong', group = 'Alcool',  range = 2.5, label = 'Alcool fort (très chargé)', text = 'une forte odeur d\'alcool' },
+        { id = 'tobacco',        group = 'Autres',  range = 2.0, label = 'Tabac froid',               text = 'une odeur de tabac froid' },
+        { id = 'gunpowder',      group = 'Autres',  range = 2.5, label = 'Poudre (tirs récents)',     text = 'une odeur de poudre brûlée, comme après des tirs' },
+        { id = 'gasoline',       group = 'Autres',  range = 4.0, label = 'Essence',                   text = 'une odeur d\'essence' },
+        { id = 'burnt',          group = 'Autres',  range = 5.0, label = 'Brûlé / fumée',             text = 'une odeur de brûlé et de fumée' },
+        { id = 'blood',          group = 'Autres',  range = 1.5, label = 'Sang',                      text = 'une odeur métallique de sang' },
+        { id = 'decay',          group = 'Autres',  range = 10.0, label = 'Décomposition',            text = 'une odeur de décomposition' },
+        { id = 'bleach',         group = 'Autres',  range = 3.0, label = 'Javel / produits ménagers', text = 'une forte odeur de javel' },
+        { id = 'perfume',        group = 'Autres',  range = 2.5, label = 'Parfum très fort',          text = 'un parfum très fort, comme pour couvrir une autre odeur' },
+        { id = 'vomit',          group = 'Autres',  range = 3.0, label = 'Vomi',                      text = 'une odeur de vomi' },
+        { id = 'urine',          group = 'Autres',  range = 2.0, label = 'Urine',                     text = 'une odeur d\'urine' },
     },
 
     -- Réponses par défaut quand la case n'est pas cochée / pas remplie (ou sans profil).

@@ -9,8 +9,8 @@ lua54 'yes'
 
 name 'rp_weaponscontrol'
 author 'Lincolnnn'
-description 'Recul, effets au tir, acouphènes, flash et fumée du canon synchronisés, lampe toujours allumée et renforcée, sélecteur de tir, effet de tir sur les bords de l\'écran - standalone'
-version '1.8.0'
+description 'Recul, effets au tir, flash et fumée du canon synchronisés, posture normale à la 1re personne, lampe toujours allumée et renforcée, sélecteur de tir, effet de tir sur les bords de l\'écran - standalone'
+version '1.9.0'
 
 ui_page 'html/index.html'
 

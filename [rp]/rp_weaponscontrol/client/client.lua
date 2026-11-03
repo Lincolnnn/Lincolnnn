@@ -6,8 +6,7 @@
     rapides (Smoke.Shots dans Smoke.Window ms) : filet de fumée au bout du canon. Pas de rechargement automatique.
     Les tirs sont envoyés au serveur par paquets (Sync.Batch ms), qui les relaie aux joueurs proches (Sync.Range).
     JOUEURS AUTOUR : flash au canon du tireur, fumée, petite secousse s'ils sont proches (Shake.Range).
-    ACOUPHÈNE (léger) : seulement quand ça tire beaucoup tout près : Tinnitus.Shots tirs en Tinnitus.Window ms par des
-    tireurs à moins de Tinnitus.Range m (soi-même, un autre joueur ou un PNJ). Silencieux : ni flash, ni acouphène.
+    (Plus d'acouphène : le sifflement a été retiré.) Silencieux : pas de flash.
     LAMPE TOUJOURS ALLUMÉE (Flashlight) : allumée par le joueur, elle le reste (même arme baissée, en courant ; réglage
     du jeu réappliqué en permanence, d'autres scripts le remettant à false) et se rallume quand
     l'arme revient en main ; éteinte par le joueur, elle reste éteinte. Lampes de CartoonFlashlight : gérées par elle,
@@ -51,7 +50,7 @@ RPWeapons.profileOf = profileOf
 local function profileByKey(key) return (W.Profiles or {})[key] end
 
 -- =========================================================================
--- EFFETS : flash, fumée, secousse, acouphène
+-- EFFETS : flash, fumée, secousse
 -- =========================================================================
 --- Position du bout du canon de l'arme tenue par ce personnage (sinon sa main droite)
 local function muzzleOf(ped)
@@ -112,10 +111,6 @@ RPWeapons.smoke = smoke
 -- =========================================================================
 -- ACOUPHÈNE : seulement quand ça tire beaucoup tout près (soi, joueurs, PNJ)
 -- =========================================================================
-local nearShots = {} -- heures des tirs entendus de près (tireur à moins de Tinnitus.Range m)
-local lastRing = -math.huge
-
---- n tirs entendus, tireur à d mètres : l'acouphène part quand il y en a assez dans la fenêtre
 --- Événements locaux pour les autres scripts du client (rp_adrenaline) : aucun coût sans écouteur
 ---   'rp_weaponscontrol:shotNear' (n, distance) : n tirs (soi, joueur, PNJ) entendus, tireur à `distance` m
 ---   'rp_weaponscontrol:bulletHit' ()          : le joueur vient d'être touché par une balle
@@ -123,21 +118,6 @@ local function emitShot(n, d)
     TriggerEvent('rp_weaponscontrol:shotNear', math.max(1, n or 1), (d or 0.0) + 0.0)
 end
 
-local function heard(n, d)
-    local T = W.Tinnitus or {}
-    if T.Enabled == false or d > (T.Range or 10.0) then return end
-    local now = GetGameTimer()
-    for _ = 1, math.max(1, n or 1) do nearShots[#nearShots + 1] = now end
-    while nearShots[1] and now - nearShots[1] > (T.Window or 10000) do table.remove(nearShots, 1) end
-    local need = T.Shots or 10
-    if #nearShots < need or now - lastRing < (T.Cooldown or 12000) then return end
-    lastRing = now
-    local amount = math.min(1.0, 0.5 + (#nearShots - need) / (need * 2)) -- plus il y a de tirs, plus il dure
-    local duration = (T.MinDuration or 2500) + ((T.MaxDuration or 6000) - (T.MinDuration or 2500)) * amount
-    SendNUIMessage({ action = 'tinnitus', data = { amount = amount, volume = T.Volume or 0.05, duration = math.floor(duration) } })
-    nearShots = {}
-end
-RPWeapons.heard = heard
 
 -- =========================================================================
 -- EFFET DE TIR SUR LES BORDS DE L'ÉCRAN (Suppression) : dessiné par le NUI (html/script.js), au-dessus de toutes les
@@ -321,7 +301,6 @@ local function onShot(ped, weapon, entry)
     emitShot(1, 0.0)
     if not suppressed then
         flash(ped)
-        heard(1, 0.0)
     end
     -- tirs rapides : fumée au canon
     local now = GetGameTimer()
@@ -610,6 +589,40 @@ if FL.Enabled ~= false then
 end
 
 -- =========================================================================
+-- POSTURE À LA 1RE PERSONNE (FirstPerson) : mode action (posture de combat courbée) coupé à chaque image tant que le
+-- joueur est à la 1re personne à pied (ThirdPerson : aussi à la 3e). Le personnage est animé par ce client et
+-- synchronisé chez les autres : la posture normale se voit aussi depuis les joueurs autour. Hors 1re personne : une
+-- vérification toutes les 250 ms.
+-- =========================================================================
+local FP = W.FirstPerson or {}
+local fpActive = FP.Enabled ~= false
+local function fixPosture(ped)
+    SetPedResetFlag(ped, 200, true) -- PRF_DisableActionMode : pas d'animations de combat (posture courbée)
+    if IsPedUsingActionMode(ped) then SetPedUsingActionMode(ped, false, -1, 'DEFAULT_ACTION') end
+end
+RPWeapons.fixPosture = fixPosture
+CreateThread(function()
+    while true do
+        local ped = PlayerPedId()
+        local onFoot = not IsPedInAnyVehicle(ped, false)
+        local firstPerson = GetFollowPedCamViewMode() == 4
+        if fpActive and onFoot and (firstPerson or FP.ThirdPerson) and not IsEntityDead(ped) then
+            fixPosture(ped)
+            Wait(0)
+        else
+            Wait(250)
+        end
+    end
+end)
+if FP.Command and FP.Command ~= '' then
+    RegisterCommand(FP.Command, function()
+        fpActive = not fpActive
+        TriggerEvent('chat:addMessage', { args = { 'Armes', fpActive and 'Posture normale à la 1re personne : activée.'
+            or 'Posture normale à la 1re personne : coupée (posture du jeu).' } })
+    end, false)
+end
+
+-- =========================================================================
 -- AIDE AU STYLE DU SERVEUR pour une autre ressource (CartoonFlashlight : aide de la lampe en haut à gauche) :
 -- exports.rp_weaponscontrol:showHint(id, { title, lines = { { touche, texte } | 'texte' } }) à rappeler au moins
 -- toutes les 300 ms tant qu'elle doit rester ; plus rappelée : retirée. Envoyée au NUI seulement si elle change.
@@ -648,7 +661,7 @@ RegisterCommand('wc_blurtest', function(_, args)
 end, false)
 
 -- =========================================================================
--- PNJ ARMÉS PROCHES (acouphène, effet de tir sur les bords) : liste toutes les 250 ms, leurs tirs lus à chaque image
+-- PNJ ARMÉS PROCHES (effet de tir sur les bords, tirs annoncés à rp_adrenaline) : liste toutes les 250 ms, leurs tirs lus à chaque image
 -- tant qu'il y en a. Un PNJ en combat contre le joueur qui tire : tir dans sa direction.
 -- =========================================================================
 
@@ -667,10 +680,7 @@ end
 RPWeapons.shotAround = shotAround
 
 CreateThread(function()
-    local T = W.Tinnitus or {}
-    local tinnitus = T.Enabled ~= false and T.Npc ~= false
-    if not tinnitus and SP.Enabled == false then return end
-    local range = math.max(tinnitus and (T.Range or 10.0) or 0.0, SP.Enabled ~= false and (SP.Range or 25.0) or 0.0,
+    local range = math.max(SP.Enabled ~= false and (SP.Range or 25.0) or 0.0,
         W.ShotEventRange or 30.0) -- tirs de PNJ annoncés aux autres scripts (rp_adrenaline : 30 m)
     while true do
         local me = PlayerPedId()
@@ -692,7 +702,6 @@ CreateThread(function()
                         local mine = PlayerPedId()
                         local d = #(GetEntityCoords(ped) - GetEntityCoords(mine))
                         local silenced = IsPedCurrentWeaponSilenced(ped)
-                        if tinnitus and not silenced then heard(1, d) end
                         emitShot(1, d)
                         shotAround(1, d, IsPedInCombat(ped, mine), silenced)
                     end
@@ -781,7 +790,6 @@ RegisterNetEvent('rp_weaponscontrol:shots', function(src, count, key, suppressed
         local amount = (Sh.Amount or 0.08) * (p.loudness or 0.8) * (1.0 - d / (Sh.Range or 15.0)) * (suppressed and 0.4 or 1.0)
         if amount > 0.01 then camShake(Sh.Name or 'SMALL_EXPLOSION_SHAKE', amount) end
     end
-    if not suppressed then heard(count, d) end
     emitShot(count, d)
     -- effet sur les bords : tir proche ; tir dans notre direction (balle passée tout près, touché ou non) : + secousse
     local towardMe = passesNear(aim, GetEntityCoords(PlayerPedId()), SP.IncomingRadius or 2.5)

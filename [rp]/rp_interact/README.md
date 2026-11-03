@@ -335,13 +335,18 @@ proximité*) et ce qu'il sent (« Une odeur d'alcool et une odeur de cannabis fu
 source tant qu'il reste à côté ; de nouveau après s'être éloigné et une minute (`Smell.Cooldown`). Les odeurs
 s'ajoutent aussi au résultat de l'**inspection olfactive** (avant le texte écrit par le joueur).
 
-| Groupe | Odeurs (`config.lua` : `Smells`) |
+| Groupe | Odeurs et **portée** (à laquelle le policier la sent vraiment) |
 |---|---|
-| Drogues | Cannabis (herbe), Cannabis fumé, Méthamphétamine (ammoniaque / solvant), Crack fumé (plastique brûlé), Héroïne (vinaigre), PCP (éther), Opium fumé (fumée douceâtre), Lean (sirop codéiné) |
-| Alcool | Alcool, Alcool fort (haleine chargée) |
-| Autres | Tabac froid, Poudre (tirs récents), Essence, Brûlé / fumée, Sang, Décomposition, Javel / produits ménagers, Parfum très fort, Vomi |
+| Drogues | Cannabis (herbe) 4 m, Cannabis fumé 6 m, Crack fumé récemment (plastique brûlé) 2 m, Héroïne black tar (vinaigre) 1,5 m, Cigarette au PCP (éther) 4 m, Opium fumé 4 m, Labo de drogue (vapeurs d'ammoniaque / solvants dans les vêtements) 3 m |
+| Alcool | Haleine alcoolisée 1,5 m, Alcool fort 2,5 m |
+| Autres | Tabac froid 2 m, Poudre (tirs récents) 2,5 m, Essence 4 m, Brûlé / fumée 5 m, Sang 1,5 m, Décomposition 10 m, Javel 3 m, Parfum très fort 2,5 m, Vomi 3 m, Urine 2 m |
 
-La cocaïne n'y est pas : elle ne sent presque rien. Seuls les policiers en service reçoivent la liste des odeurs
+**Réaliste** : chaque odeur a sa portée (`range`) au lieu de 6 m pour toutes ; un profil qui en a deux se sent à la
+plus grande. **Véhicule fermé** (portières fermées, vitres intactes / remontées) : l'odeur reste dedans, portée x 0,5
+(`Smell.ClosedVehicle`). Retirées car **sans odeur** ou impossibles à sentir en passant : méthamphétamine stockée
+(inodore ; seules les vapeurs d'un labo imprègnent les vêtements : « Labo de drogue »), lean (sirop). La cocaïne et
+les pilules n'y sont pas non plus : elles se trouvent à la fouille, pas au nez. Une odeur retirée encore enregistrée
+dans un ancien profil est simplement ignorée. Seuls les policiers en service reçoivent la liste des odeurs
 (jamais les autres joueurs) ; un joueur entré dans une unité du MDC n'a plus d'odeur de profil.
 
 ### Véhicule (temporaire)
@@ -553,7 +558,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `AimRadius`, `AimRange`, `AimRefresh` | mise en joue : rayon autour du civil, portée, confirmation |
 | `PlaceDoorDistance` | placer à l'arrière : le civil doit être à moins de 4 m d'une portière arrière libre |
 | `Weather` | page Météo : activée, permission ACE, prise de main sur vMenu (`TakeOverVMenu`), temps par défaut, vitesses du temps (de base / réaliste / personnalisée par défaut), défilement de la météo (minutes, transition, listes beau temps / pluvieux), temps proposés |
-| `Smell`, `Smells` | odeurs détectées automatiquement : activées, distance (6 m), 2 au plus, durée de la notification, délai avant d'être prévenu de nouveau, volume du son ; liste des odeurs (`id` à ne pas changer, nom dans la fiche, ce que sent le policier) |
+| `Smell`, `Smells` | odeurs détectées automatiquement : activées, portée par défaut (3 m) et facteur véhicule fermé (0,5), 2 au plus, durée de la notification, délai avant d'être prévenu de nouveau, volume du son ; liste des odeurs (`id` à ne pas changer, `range` : portée en m, nom dans la fiche, ce que sent le policier) |
 
 ## Liens avec le MDC et le chat
 

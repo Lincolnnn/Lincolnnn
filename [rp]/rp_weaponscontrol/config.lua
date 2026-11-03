@@ -4,8 +4,7 @@
       - RECUL (sur le modèle du script de Lyrad / Blumlaut) : à chaque tir, la caméra remonte de Recoil.Step degré par
         image jusqu'à la valeur de l'arme (Weapons), à la 3e personne ; pas en tirant depuis un véhicule (drive-by) ;
       - SECOUSSE au tir (Weapons : shake) ; chez les joueurs proches, petite secousse (Shake) ;
-      - ACOUPHÈNE : seulement quand ça tire beaucoup tout près : au moins Tinnitus.Shots tirs en Tinnitus.Window ms par
-        des tireurs à moins de Tinnitus.Range m (soi-même, un autre joueur ou un PNJ) ; sifflement léger ;
+      - (acouphène retiré : plus de sifflement) ;
       - FLASH : un éclair jaune éclaire les alentours du canon à chaque tir, vu par tout le monde autour (Flash) ;
       - FUMÉE : après Smoke.Shots tirs rapides (dans Smoke.Window ms), un filet de fumée sort du canon (vu par tous) ;
       - PAS DE RECHARGEMENT AUTOMATIQUE : chargeur vide, il faut recharger soi-même (touche R) ;
@@ -14,7 +13,7 @@
       - SÉLECTEUR DE TIR : coup par coup / automatique sur les armes qui en ont un (FireMode), touche B : petit clic et
         logo en bas au milieu de l'écran ;
       - EFFET DE TIR SUR LES BORDS DE L'ÉCRAN : voile style « motion blur » (Suppression, en bas de ce fichier).
-    Une arme avec silencieux : ni flash, ni acouphène, secousse réduite.
+    Une arme avec silencieux : pas de flash, secousse réduite.
 ]]
 
 WeaponsConfig = {
@@ -95,6 +94,14 @@ WeaponsConfig = {
     --   (plus petit = porte plus loin, plus doux) | Roundness : netteté du bord | Shadows : nb de faisceaux avec ombres
     --   (les plus proches ; les autres sans ombre, plus légers) | Color : blanc légèrement chaud.
     -- Texture plus réaliste (Realistic_Flashlight) : voir le README (fichier graphics.ytd, non fourni dans le dépôt).
+    -- POSTURE À LA 1RE PERSONNE : en vue à la 1re personne avec une arme, le jeu met le personnage en « mode action »
+    -- (posture de combat courbée, démarche tactique), vue par le joueur ET par les joueurs autour (son personnage est
+    -- animé par son jeu puis synchronisé chez les autres). Ici le mode action est coupé à chaque image tant que le
+    -- joueur est à la 1re personne à pied : posture normale pour lui et pour tout le monde.
+    -- ThirdPerson = true : aussi à la 3e personne (posture de combat après un tir). Command : /fpsposture (test en jeu :
+    -- active / coupe la correction pour comparer).
+    FirstPerson = { Enabled = true, ThirdPerson = false, Command = 'fpsposture' },
+
     Flashlight = { Enabled = true, KeepOnWhileMoving = true,
         Cartoon = { Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },
         Boost = { Enabled = true, Range = 45.0, Intensity = 6.0, Radius = 16.0, Falloff = 18.0, Roundness = 4.0,
@@ -118,10 +125,7 @@ WeaponsConfig = {
     Smoke = { Enabled = true, Shots = 15, Window = 3000, Duration = 6000, Cooldown = 4000, Range = 60.0,
         Asset = 'core', Name = 'ent_anim_cig_smoke', Scale = 1.6 },
 
-    -- Acouphène : Shots tirs au moins en Window ms par des tireurs à moins de Range m (soi, joueurs, PNJ : Npc) ;
-    -- sifflement léger (Volume), Duration ms (min / max selon le nombre de tirs) ; Cooldown ms avant un nouveau
-    Tinnitus = { Enabled = true, Range = 10.0, Shots = 15, Window = 10000, Npc = true,
-        Volume = 0.05, MinDuration = 2500, MaxDuration = 6000, Cooldown = 12000 },
+    -- (Acouphène retiré : plus aucun sifflement.)
 
     -- Secousse chez les joueurs proches d'un tireur
     Shake = { Enabled = true, Range = 15.0, Amount = 0.08, Name = 'SMALL_EXPLOSION_SHAKE' },

@@ -34,6 +34,16 @@ function RPISmells.text(list)
     return table.concat(parts, ' et ')
 end
 
+--- Portée (m) à laquelle ces odeurs se sentent : la plus grande des odeurs de la liste (Smell.Distance à défaut)
+function RPISmells.range(list)
+    local best
+    for _, id in ipairs(type(list) == 'table' and list or {}) do
+        local r = byId[id] and tonumber(byId[id].range)
+        if r and (not best or r > best) then best = r end
+    end
+    return best or (InteractConfig.Smell or {}).Distance or 3.0
+end
+
 --- Première lettre en majuscule (UTF-8 : lettres accentuées de début de phrase laissées telles quelles)
 function RPISmells.sentence(text)
     if not text or text == '' then return text end
