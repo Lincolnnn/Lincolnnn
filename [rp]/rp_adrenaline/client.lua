@@ -3,16 +3,18 @@
     ----------------------
     Écoute rp_weaponscontrol (événements locaux) : 'rp_weaponscontrol:shotNear' (n tirs entendus, distance) et
     'rp_weaponscontrol:bulletHit' (touché par balle).
-    Première balle : recherche des tirs pendant Analysis.Seconds s (aucune chute) ; à la fin, scénario haute ou basse
-    adrénaline (config.lua) ; chutes (ragdoll) jusqu'à Duration s après la fin de la recherche, ou soigné (vie au
-    maximum) / mort / réapparu. À chaque chute, l'arme à feu tenue tombe au sol avec le % du scénario
-    (exports.rp_vehicleprops:dropHeldWeapon, reprise avec l'œil).
+    Balle reçue : recherche des tirs pendant Analysis.Seconds s (aucune chute) ; à la fin, adrénaline haute (fusillade)
+    ou basse (hors fusillade), config.lua ; tirages au sort de chutes (ragdoll) jusqu'à Duration s après la fin de la
+    recherche, ou soigné (vie au maximum) / mort / réapparu. À chaque chute, l'arme à feu tenue tombe au sol avec le %
+    du scénario (exports.rp_vehicleprops:dropHeldWeapon, reprise avec l'œil). Dès la 2e chute : démarche blessée,
+    remise à la fin.
     Performance : aucune boucle hors blessure ; pendant un épisode, une vérification toutes les 250 ms.
 ]]
 
 local C = AdrenalineConfig
 local A = C.Analysis or {}
 local H, Lo = C.High or {}, C.Low or {}
+local W = C.Walk
 
 local shots = {}   -- { at, n } : tirs entendus récemment
 local ep = nil     -- épisode en cours
@@ -27,19 +29,19 @@ local function shotsBetween(from, to)
     return n
 end
 
---- Scénario d'après les balles reçues et les tirs autour : 'high' | 'low'
-local function levelOf(bullets, around)
-    if bullets >= (H.MinBullets or 3) and around >= (H.MinShots or 15) then return 'high' end
-    if bullets <= (Lo.MaxBullets or 4) and around < (Lo.MaxShots or 8) then return 'low' end
+--- Scénario d'après les tirs autour : 'high' (fusillade) | 'low' (hors fusillade)
+local function levelOf(around)
+    if around >= (H.MinShots or 10) then return 'high' end
+    if around < (Lo.MaxShots or 5) then return 'low' end
     return C.Fallback == 'high' and 'high' or 'low'
 end
 
---- Ligne de High.Stages pour ce nombre de balles (la plus haute atteinte ; la première sinon)
-local function stageOf(bullets)
-    local list = H.Stages or {}
+--- { Chance, Drop } pour ce scénario et ce nombre de balles
+local function stageOf(level, bullets)
+    local list = (level == 'high' and H.Stages) or Lo.Stages or {}
     local best = list[1]
     for _, s in ipairs(list) do if bullets >= (s.Bullets or 0) then best = s end end
-    return best or { From = 50, To = 70, Drop = 65 }
+    return best or { Chance = 50, Drop = 50 }
 end
 
 local function between(a, b) -- s -> ms, au hasard
@@ -48,7 +50,32 @@ local function between(a, b) -- s -> ms, au hasard
     return math.random(a, b)
 end
 
---- Une chute : à pied, vivant ; l'arme à feu tenue tombe avec `dropPct` %. false si impossible maintenant.
+-- =========================================================================
+-- DÉMARCHE BLESSÉE
+-- =========================================================================
+local function setWalk(injured)
+    if not W or not ep then return end
+    if injured == (ep.walk == true) then return end
+    ep.walk = injured
+    if W.Mode == 'native' then
+        local ped = PlayerPedId()
+        if injured then
+            RequestAnimSet(W.Clipset or 'move_m@injured')
+            local deadline = GetGameTimer() + 1000
+            while not HasAnimSetLoaded(W.Clipset or 'move_m@injured') and GetGameTimer() < deadline do Wait(0) end
+            SetPedMovementClipset(ped, W.Clipset or 'move_m@injured', 0.2)
+        else
+            ResetPedMovementClipset(ped, 0.2)
+        end
+    else
+        ExecuteCommand(injured and (W.Injured or 'walk injured') or (W.Reset or 'walk reset'))
+        -- RPEMOTES (PersistentWalk) retient « injured » et la remet à la réapparition : remise à zéro à ce moment-là
+        if injured then SetResourceKvpInt('walkInjured', 1) end
+    end
+    debug('démarche : %s', injured and 'blessée' or 'normale')
+end
+
+--- Une chute : à pied, vivant ; l'arme à feu tenue (s'il en tient une) tombe avec `dropPct` %
 local function fall(dropPct)
     local ped = PlayerPedId()
     if IsEntityDead(ped) or IsPedInAnyVehicle(ped, true) or IsPedRagdoll(ped) or IsPedSwimming(ped) then return false end
@@ -63,35 +90,23 @@ local function fall(dropPct)
     return true
 end
 
---- Fin de la recherche des tirs : choix du scénario
+--- Fin de la recherche des tirs : choix du scénario et du premier tirage
 local function decide(now)
     local around = shotsBetween(ep.firstHit - (A.Lead or 1) * 1000, ep.analysisEnd)
     ep.shots = around
-    ep.level = levelOf(ep.bullets, around)
+    ep.level = levelOf(around)
     if ep.level == 'high' then
-        local s = stageOf(ep.bullets)
-        ep.drop = s.Drop or 65
-        ep.fallAt = ep.firstHit + between(s.From or 50, s.To or 70)
+        ep.nextRoll = ep.analysisEnd + between((H.Start or { 50, 70 })[1], (H.Start or { 50, 70 })[2])
     else
-        ep.drop = Lo.Drop or 65
-        ep.nextRoll = now -- premier tirage dès la fin des 15 s
+        ep.nextRoll = now -- effet de surprise : dès la fin des 8 s
     end
     debug('fin de la recherche : %d balle(s), %d tir(s) à moins de %.0f m -> adrénaline %s', ep.bullets, around,
-        A.Range or 50.0, ep.level == 'high' and 'HAUTE' or 'BASSE')
-end
-
---- Prochain tirage au sort (adrénaline basse, ou haute après la première chute)
-local function rollEvery()
-    if ep.level == 'high' then return (H.AfterFirst or {}).Every or 7 end
-    return Lo.Every or 7
-end
-local function rollChance()
-    if ep.level == 'high' then return (H.AfterFirst or {}).Chance or 55 end
-    return Lo.Chance or 55
+        A.Range or 50.0, ep.level == 'high' and 'HAUTE (fusillade)' or 'BASSE (hors fusillade)')
 end
 
 local function finish(reason)
     debug('fin : %s', reason)
+    setWalk(false)
     ep = nil
 end
 
@@ -109,17 +124,14 @@ local function run()
             elseif now >= ep.stopAt then finish('1 min 30 après la recherche')
             else
                 if not ep.level and now >= ep.analysisEnd then decide(now) end
-                if ep.level == 'high' and ep.fallAt then
-                    -- première chute de l'adrénaline haute : attend d'être à pied
-                    if now >= ep.fallAt and fall(ep.drop) then
-                        ep.fallAt = nil
-                        local after = H.AfterFirst
-                        if after then ep.nextRoll = now + (after.Every or 7) * 1000 end
+                if ep.level and now >= ep.nextRoll then
+                    local s = stageOf(ep.level, ep.bullets)
+                    if math.random(1, 100) <= (s.Chance or 50) and fall(s.Drop or 0) then
+                        ep.falls = ep.falls + 1
+                        if W and ep.falls >= (W.From or 2) then setWalk(true) end
                     end
-                elseif ep.nextRoll and now >= ep.nextRoll then
-                    if math.random(1, 100) <= rollChance() then fall(ep.drop) end
-                    local jitter = ep.level == 'low' and (Lo.Jitter or 0) or 0
-                    ep.nextRoll = ep.nextRoll + math.max(1000, rollEvery() * 1000 + between(-jitter, jitter))
+                    local every = (ep.level == 'high' and H.Every or Lo.Every) or 8
+                    ep.nextRoll = ep.nextRoll + math.max(1, every) * 1000
                 end
             end
             if ep then Wait(250) end
@@ -131,20 +143,14 @@ end
 local function onBullet()
     local now = GetGameTimer()
     if ep then
-        ep.bullets = ep.bullets + 1
-        if ep.level == 'high' and ep.fallAt then
-            -- plus de balles avant la première chute : elle peut arriver plus tôt, arme plus souvent lâchée
-            local s = stageOf(ep.bullets)
-            ep.drop = math.max(ep.drop or 0, s.Drop or 0)
-            ep.fallAt = math.min(ep.fallAt, ep.firstHit + between(s.From or 50, s.To or 70))
-        end
+        ep.bullets = ep.bullets + 1 -- compte pour les tirages suivants (chance de chute, d'arme lâchée)
         debug('balle reçue : %d balle(s)', ep.bullets)
         return
     end
-    local analysisEnd = now + (A.Seconds or 15) * 1000
+    local analysisEnd = now + (A.Seconds or 8) * 1000
     ep = { firstHit = now, analysisEnd = analysisEnd, stopAt = analysisEnd + (C.Duration or 90) * 1000, bullets = 1,
-        hurt = false } -- hurt : vie passée sous le maximum (une balle arrêtée par le gilet ne compte pas)
-    debug('première balle : recherche des tirs pendant %d s', A.Seconds or 15)
+        falls = 0, hurt = false } -- hurt : vie passée sous le maximum (une balle arrêtée par le gilet ne compte pas)
+    debug('balle reçue : recherche des tirs pendant %d s', A.Seconds or 8)
     run()
 end
 
@@ -153,14 +159,24 @@ AddEventHandler('rp_weaponscontrol:shotNear', function(n, d)
     local now = GetGameTimer()
     shots[#shots + 1] = { at = now, n = math.max(1, math.floor(tonumber(n) or 1)) }
     -- gardés le temps d'une recherche (+ marge) ; au plus 600
-    local keep = ((A.Seconds or 15) + (A.Lead or 1) + 5) * 1000
+    local keep = ((A.Seconds or 8) + (A.Lead or 1) + 5) * 1000
     while shots[1] and (now - shots[1].at > keep or #shots > 600) do table.remove(shots, 1) end
 end)
 
 AddEventHandler('rp_weaponscontrol:bulletHit', onBullet)
 
--- Réapparu / réanimé (rp_revive) : l'épisode s'arrête
-AddEventHandler('playerSpawned', function() if ep then finish('réapparu') end end)
+-- Réapparu / réanimé (rp_revive) : l'épisode s'arrête ; démarche blessée retenue par RPEMOTES : remise à zéro (une fois)
+AddEventHandler('playerSpawned', function()
+    if ep then finish('réapparu') end
+    if W and W.Mode ~= 'native' and GetResourceKvpInt('walkInjured') == 1 then
+        DeleteResourceKvp('walkInjured')
+        SetTimeout(2000, function() if not (ep and ep.walk) then ExecuteCommand(W.Reset or 'walk reset') end end)
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() and ep then setWalk(false) end
+end)
 
 -- Pour les tests et les autres scripts
 RPAdrenaline = {
