@@ -122,7 +122,7 @@ StatusConfig = {
     MessageIds = { status = '', players = '' },
 
     UpdateSeconds = 60,   -- mise à jour régulière (minimum 30) ; une arrivée / un départ met à jour en ~10 s
-    ServerName = '',      -- vide = sv_projectName (ou sv_hostname) du server.cfg
+    ServerName = 'Washington Policing | FiveM', -- nom affiché dans le statut (vide = sv_projectName / sv_hostname)
     ConnectInfo = '',     -- ex. 'cfx.re/join/xxxxxx' ou 'connect monserveur.fr' : affiché dans l'embed de statut
     MaxPlayers = 0,       -- 0 = valeur de sv_maxclients
     ShowIp = true,        -- false = alertes sans adresse IP

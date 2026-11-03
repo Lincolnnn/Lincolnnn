@@ -669,8 +669,8 @@ end
 RPWeapons.shotAround = shotAround
 
 CreateThread(function()
-    local range = math.max(SP.Enabled ~= false and (SP.Range or 25.0) or 0.0,
-        W.ShotEventRange or 30.0) -- tirs de PNJ annoncés aux autres scripts (rp_adrenaline : 30 m)
+    local spRange = SP.Enabled ~= false and (SP.Range or 25.0) or 0.0
+    local range = math.max(spRange, W.ShotEventRange or 50.0) -- tirs de PNJ annoncés aux autres scripts (rp_adrenaline : 50 m)
     while true do
         local me = PlayerPedId()
         local origin = GetEntityCoords(me)
@@ -692,7 +692,7 @@ CreateThread(function()
                         local d = #(GetEntityCoords(ped) - GetEntityCoords(mine))
                         local silenced = IsPedCurrentWeaponSilenced(ped)
                         emitShot(1, d)
-                        shotAround(1, d, IsPedInCombat(ped, mine), silenced)
+                        if d <= spRange then shotAround(1, d, IsPedInCombat(ped, mine), silenced) end
                     end
                 end
                 Wait(0)

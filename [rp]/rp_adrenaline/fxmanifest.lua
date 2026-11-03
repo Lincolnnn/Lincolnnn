@@ -1,7 +1,7 @@
 --[[
-    RP Adrénaline - blessé par balle : chutes (ragdoll) au hasard pendant un moment, plus ou moins longtemps selon le
-    nombre de tirs autour (adrénaline), et l'arme à feu tenue lâchée au sol une fois sur trois à chaque chute (reprise
-    avec l'œil). Aucun framework.
+    RP Adrénaline - blessé par balle : 15 s de recherche des tirs autour, puis adrénaline haute (chute retardée de 50 à
+    70 s selon les balles reçues) ou basse (chutes au hasard toutes les 7 s), arme à feu lâchée au sol à chaque chute
+    selon un pourcentage (reprise avec l'œil). Arrêt soigné ou 1 min 30 après la recherche. Aucun framework.
 ]]
 
 fx_version 'cerulean'
@@ -10,8 +10,8 @@ lua54 'yes'
 
 name 'rp_adrenaline'
 author 'Lincolnnn'
-description 'Blessé par balle : chutes aléatoires selon l\'adrénaline (tirs autour) et arme lâchée - standalone'
-version '1.0.0'
+description 'Blessé par balle : adrénaline haute ou basse selon les tirs autour, chutes et arme lâchée - standalone'
+version '2.0.0'
 
 dependency 'rp_weaponscontrol' -- tirs entendus et balles reçues (événements locaux)
 

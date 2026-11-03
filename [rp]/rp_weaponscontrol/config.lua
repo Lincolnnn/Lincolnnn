@@ -134,6 +134,10 @@ WeaponsConfig = {
     -- Synchronisation : tirs envoyés par paquets (Batch ms), aux joueurs à moins de Range m
     Sync = { Range = 120.0, Batch = 100, MaxPerSecond = 25 },
 
+    -- Tirs de PNJ annoncés aux autres scripts (événement rp_weaponscontrol:shotNear) jusqu'à ShotEventRange m :
+    -- rp_adrenaline compte les tirs à moins de 50 m (les tirs des joueurs arrivent jusqu'à Sync.Range m)
+    ShotEventRange = 50.0,
+
     -- =====================================================================
     -- EFFET DE TIR SUR LES BORDS DE L'ÉCRAN (style « motion blur ») : un voile transparent mais dense (on voit à travers,
     -- mal) sur les BORDS de l'écran seulement, jamais au centre. Il apparaît quand on tire, quand quelqu'un tire près de

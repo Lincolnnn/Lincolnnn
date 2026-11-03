@@ -160,5 +160,5 @@ seulement pendant l'effet ; tout s'arrête quand il a disparu.
 ## Événements pour les autres scripts (client)
 
 Aucun coût sans écouteur : `rp_weaponscontrol:shotNear` (n tirs, distance du tireur en m ; soi, autres joueurs, PNJ
-armés jusqu'à `ShotEventRange` = 30 m) et `rp_weaponscontrol:bulletHit` (le joueur vient d'être touché par une balle).
+armés jusqu'à `ShotEventRange` = 50 m) et `rp_weaponscontrol:bulletHit` (le joueur vient d'être touché par une balle).
 Utilisés par `rp_adrenaline`.
