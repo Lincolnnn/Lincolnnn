@@ -16,21 +16,15 @@ ensure rp_weaponscontrol
 
 | Pour qui | Effet |
 |---|---|
-| le tireur | **recul** (comme le script de Lyrad / Blumlaut) : la caméra remonte de 0,1° par image jusqu'à la valeur de l'arme (`Weapons` : pistolet 0,5°, fusil d'assaut 0,5°, pompe 0,4°, sniper 0,5 à 0,7°…), à la 3e personne, pas en drive-by ; **secousse** propre à l'arme (`shake`) |
+| le tireur | **recul** (comme le script de Lyrad / Blumlaut) : la caméra remonte de 0,1° par image jusqu'à la valeur de l'arme (`Weapons` : pistolet 0,5°, fusil d'assaut 0,65°, pompe 0,45°, sniper 0,5 à 0,7°…), à la 3e personne, pas en drive-by ; **secousse** propre à l'arme (`shake`) |
 | tout le monde à moins de 90 m | **flash jaune** au bout du canon qui éclaire les alentours, à chaque tir |
 | joueurs à moins de 15 m | petite **secousse** de la caméra (plus forte près du tireur) |
 | tout le monde à moins de 60 m | **fumée** : après **15 tirs rapides** (en 3 s), un filet de fumée sort du canon pendant 6 s |
 
 **Acouphène : retiré** (plus aucun sifflement).
 
-**Posture à la 1re personne** (`FirstPerson`) : en vue à la 1re personne avec une arme, le jeu met le personnage en
-« mode action » (posture de combat **courbée**, démarche tactique), visible par le joueur ET par les joueurs autour.
-Elle est **coupée à chaque image** tant que le joueur est à la 1re personne à pied (reset flag 200
-`PRF_DisableActionMode` + `SetPedUsingActionMode(false)`) : posture normale. Le personnage de chaque joueur est animé
-par son propre jeu puis **synchronisé** chez les autres : la correction faite par son client se voit aussi depuis les
-joueurs autour (aucun serveur ne peut changer l'animation d'un autre joueur). `ThirdPerson = true` : aussi à la 3e
-personne. **`/fpsposture`** (F8 ou chat) : coupe / remet la correction pour comparer en jeu. Limite : la position des
-mains et de l'arme propre à la vue 1re personne (arme levée devant soi) n'est pas réglable par le jeu.
+**Posture à la 1re personne** : déplacée dans la ressource [`rp_firstperson`](../rp_firstperson/README.md) (pour tout,
+pas seulement avec une arme). Le bloc `FirstPerson` de `config.lua` n'existe plus.
 
 **Pas de rechargement automatique** : chargeur vide, il faut recharger soi-même (touche **R**).
 
@@ -122,6 +116,15 @@ ou **COUP PAR COUP** (blanc, 1 balle), affiché **3 s après l'appui** puis reti
 affiché tant que l'arme est en main). Coup par coup : **un tir par pression de la détente**. Le mode est gardé pour
 chaque arme. B sert aussi au Taser 10 (sécurité) : chacun ne réagit qu'à sa propre arme.
 
+**Armes longues en coup par coup** (`FireMode.Long`) : chaque fois qu'un joueur **prend en main** une arme longue à
+sélecteur (fusils d'assaut, carabines, mitrailleuses, pistolets-mitrailleurs non compacts, fusils à pompe
+automatiques : sortie de l'arme, changement d'arme, reprise sur un véhicule ou au sol…), elle passe en **coup par
+coup** et le **logo du mode de tir s'affiche** quelques secondes (`BadgeSeconds`, sans clic), comme après un appui
+sur B ; B la remet en automatique. `Long.Mode = false` : garder le dernier mode choisi ; `Long.Badge = false` : pas
+de logo ; `Long.Groups` / `Long.NotLong` : ce qui compte comme arme longue (Micro SMG, Mini SMG, AP Pistol et Machine
+Pistol, tenus comme un pistolet, n'en sont pas). Une arme longue sans sélecteur (pompe, précision) tire déjà au coup
+par coup : pas de logo.
+
 Arme avec **silencieux** : pas de flash, secousse réduite. Le Taser, le pistolet de détresse, le pistolet radar,
 l'extincteur et le jerrican ne sont jamais concernés (`Excluded`). Les armes sont reconnues quel que soit le signe de
 leur empreinte (le problème des « negative hashes » du script d'origine est réglé).
@@ -139,9 +142,9 @@ tireur qu'il voit. Le sifflement est généré par le script (aucun fichier son)
 | `Excluded` | armes jamais concernées |
 | `Recoil` | activé, degrés par image (`Step`), douceur (`Smooth`), 1re personne, drive-by, multiplicateur |
 | `NoAutoReload` | pas de rechargement automatique |
+| `FireMode` | sélecteur de tir : touche, mode par défaut, clic, logo, armes concernées ; `Long` : armes longues en coup par coup à la prise en main (mode, logo, groupes) |
 | `Flash` | activé, portée, couleur, rayon, intensité, durée (ms) |
 | `Smoke` | activé, tirs et fenêtre (ms) pour la fumée, durée, délai entre deux, portée, effet de particules |
-| `FirstPerson` | posture normale à la 1re personne (mode action coupé) : activée, aussi à la 3e personne, commande de test |
 | `Shake` | secousse des voisins : activée, portée, force, type |
 | `Sync` | portée du relais, paquets (ms), limite par seconde |
 | `Suppression` | effet de tir sur les bords : montées (`Own`, `Near`, `Incoming`, `Hit`, `Curve`), portées, tailles (`MinCoverage`, `MaxCoverage`), voile (`Opacity`, `Blur`, `Streaks`, `Grain`, `Tint`), vrai flou du jeu (`GameBlur`), rouge si touché, durée (`FadeOut`), premier plan (`ZIndex`), secousses |

@@ -44,8 +44,9 @@
     let hideTimer = null; let flashTimer = null;
     function fireMode(d) {
         clearTimeout(hideTimer);
-        // Logo non permanent : seulement `seconds` s après un appui sur la touche (arme sortie ou changée : rien)
-        if (!d.show || (d.persistent !== true && !d.changed)) { badge.classList.remove('show', 'flash'); return; }
+        // Logo non permanent : seulement `seconds` s après un appui sur la touche, ou quand une arme longue est prise
+        // en main (drawn : coup par coup, sans clic) ; autre arme sortie ou changée : rien
+        if (!d.show || (d.persistent !== true && !d.changed && !d.drawn)) { badge.classList.remove('show', 'flash'); return; }
         const auto = d.mode !== 'semi';
         badge.dataset.mode = auto ? 'auto' : 'semi';
         badge.querySelectorAll('.bullets i').forEach((b, i) => b.classList.toggle('off', !auto && i > 0));

@@ -1510,7 +1510,7 @@
         vdraft: null,
         vconfirm: false,
         smells: [],          // odeurs détectées automatiquement (config.lua : Smells)
-        smellMax: 2,
+        smellMax: 0,         // 0 = sans limite
         smellsEnabled: true,
     };
 
@@ -1530,14 +1530,15 @@
         visualKnown: false, interior: '', exterior: '', olfactory: '', notable: '', cabin: '', rear: '', trunk: '', smells: [],
     });
 
-    // ---- Odeurs détectées automatiquement (2 au plus) ----
+    // ---- Odeurs détectées automatiquement (sans limite ; smellMax > 0 : au plus) ----
     const smellLabel = (id) => (ed.smells.find((x) => x.id === id) || {}).label || id;
     const smellText = (list) => toArray(list).map(smellLabel).join(' + ');
 
     function smellsHtml(d, who) {
         if (!ed.smellsEnabled || !ed.smells.length) return '';
         const chosen = toArray(d.smells);
-        const full = chosen.length >= ed.smellMax;
+        const limited = ed.smellMax > 0;
+        const full = limited && chosen.length >= ed.smellMax;
         const groups = [];
         ed.smells.forEach((s) => {
             let g = groups.find((x) => x.name === s.group);
@@ -1546,8 +1547,8 @@
         });
         return `
             <div class="form-part">
-                <span class="form-section-title">Odeur détectée automatiquement <span class="smell-count">${chosen.length}/${ed.smellMax}</span></span>
-                <div class="form-section-desc">Facultatif. Un policier en service qui passe à moins de 6 m ${who} la sent tout de suite (notification) ; elle s'ajoute aussi à l'inspection olfactive. ${ed.smellMax} odeurs au plus, combinables.</div>
+                <span class="form-section-title">Odeur détectée automatiquement <span class="smell-count">${limited ? `${chosen.length}/${ed.smellMax}` : (chosen.length ? `${chosen.length} choisie${chosen.length > 1 ? 's' : ''}` : '')}</span></span>
+                <div class="form-section-desc">Facultatif. Un policier en service qui passe à portée ${who} la sent tout de suite (notification ; portée réaliste selon l'odeur) ; elle s'ajoute aussi à l'inspection olfactive. ${limited ? `${ed.smellMax} odeurs au plus` : 'Autant d\'odeurs que vous voulez'}, combinables.</div>
                 <div class="smell-groups">${groups.map((g) => `
                     <div><div class="smell-group-title">${esc(g.name)}</div><div class="smell-chips">${g.list.map((s) => {
                         const on = chosen.includes(s.id);
@@ -1557,7 +1558,7 @@
             </div>`;
     }
 
-    /** Clic sur une odeur : ajoutée / retirée (2 au plus), formulaire redessiné sans perdre la saisie */
+    /** Clic sur une odeur : ajoutée / retirée (sans limite, ou smellMax au plus), formulaire redessiné sans perdre la saisie */
     function bindSmells(container, getDraft, rerender) {
         container.addEventListener('click', (e) => {
             const chip = e.target.closest('[data-smell]');
@@ -1567,7 +1568,7 @@
             const list = toArray(d.smells).slice();
             const i = list.indexOf(id);
             if (i >= 0) list.splice(i, 1);
-            else if (list.length < ed.smellMax) list.push(id);
+            else if (!(ed.smellMax > 0) || list.length < ed.smellMax) list.push(id);
             d.smells = list;
             const scroll = container.scrollTop;
             rerender();
@@ -1950,7 +1951,7 @@
         ed.profiles = toArray(profiles.profiles);
         ed.max = profiles.max || ed.max;
         ed.smells = toArray(data.smells);
-        ed.smellMax = Number(data.smellMax) || 2;
+        ed.smellMax = Math.max(0, Number(data.smellMax) || 0);
         ed.smellsEnabled = data.smellsEnabled !== false;
         if (data.vehicle) setVehicle(data.vehicle);
         ed.selected = null;

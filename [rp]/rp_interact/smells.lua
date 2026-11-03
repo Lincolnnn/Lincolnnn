@@ -10,10 +10,11 @@ RPISmells = {}
 
 function RPISmells.get(id) return byId[id] end
 
---- Liste d'odeurs reçue (fiche civile) -> ids valides, sans doublon, Smell.Max au plus
+--- Liste d'odeurs reçue (fiche civile) -> ids valides, sans doublon (Smell.Max au plus si > 0 ; 0 = sans limite)
 function RPISmells.clean(list)
     local out, seen = {}, {}
-    local max = (InteractConfig.Smell or {}).Max or 2
+    local max = tonumber((InteractConfig.Smell or {}).Max) or 0
+    if max <= 0 then max = math.huge end -- sans limite (au plus une fois chaque odeur)
     if type(list) ~= 'table' then return out end
     for _, id in ipairs(list) do
         if type(id) == 'string' and byId[id] and not seen[id] and #out < max then
@@ -24,14 +25,15 @@ function RPISmells.clean(list)
     return out
 end
 
---- « une odeur d'essence et une odeur de brûlé » (nil sans odeur)
+--- « une odeur d'essence, une odeur de tabac froid et une odeur de brûlé » (nil sans odeur)
 function RPISmells.text(list)
     local parts = {}
     for _, id in ipairs(type(list) == 'table' and list or {}) do
         if byId[id] then parts[#parts + 1] = byId[id].text end
     end
     if #parts == 0 then return nil end
-    return table.concat(parts, ' et ')
+    if #parts == 1 then return parts[1] end
+    return table.concat(parts, ', ', 1, #parts - 1) .. ' et ' .. parts[#parts]
 end
 
 --- Portée (m) à laquelle ces odeurs se sentent : la plus grande des odeurs de la liste (Smell.Distance à défaut)

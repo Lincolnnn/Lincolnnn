@@ -69,6 +69,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_doorlock
    ensure rp_revive
    ensure rp_weaponscontrol
+   ensure rp_firstperson            # posture normale à la 1re personne (armé ou non)
    ensure rp_vehicleprops
    ensure rp_taser10
    ensure rp_TrafficControl

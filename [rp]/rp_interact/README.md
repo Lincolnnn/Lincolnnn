@@ -327,8 +327,8 @@ Pour une même personne, la réponse par défaut choisie dans la liste est toujo
 
 ### Odeur détectée automatiquement (profil et véhicule)
 
-Dans **Inspection** (profil) et **Inspection olfactive** (véhicule) : des pastilles à cocher, **2 odeurs au plus**
-(combinables), facultatif. Un **policier en service** (unité du MDC) qui passe à **moins de 6 m** du joueur civil
+Dans **Inspection** (profil) et **Inspection olfactive** (véhicule) : des pastilles à cocher, **autant d'odeurs que voulu**
+(combinables), facultatif. Un **policier en service** (unité du MDC) qui passe **à portée** (selon l'odeur, ci-dessous) du joueur civil
 (profil **actif**) ou du véhicule qui a le profil reçoit aussitôt, en haut au milieu de l'écran, une notification
 comme l'entrée dans une zone de recherche de `/scene` : **ODEUR DÉTECTÉE · Individu à proximité** (ou *Véhicule à
 proximité*) et ce qu'il sent (« Une odeur d'alcool et une odeur de cannabis fumé. »), avec un court son. Une fois par
@@ -337,14 +337,14 @@ s'ajoutent aussi au résultat de l'**inspection olfactive** (avant le texte écr
 
 | Groupe | Odeurs et **portée** (à laquelle le policier la sent vraiment) |
 |---|---|
-| Drogues | Cannabis (herbe) 4 m, Cannabis fumé 6 m, Crack fumé récemment (plastique brûlé) 2 m, Héroïne black tar (vinaigre) 1,5 m, Cigarette au PCP (éther) 4 m, Opium fumé 4 m, Labo de drogue (vapeurs d'ammoniaque / solvants dans les vêtements) 3 m |
+| Drogues | Cannabis (herbe) 4 m, Cannabis fumé 6 m, Crack fumé récemment (plastique brûlé) 2 m, Héroïne black tar (vinaigre) 1,5 m, Cigarette au PCP (éther) 4 m, Opium fumé 4 m |
 | Alcool | Haleine alcoolisée 1,5 m, Alcool fort 2,5 m |
 | Autres | Tabac froid 2 m, Poudre (tirs récents) 2,5 m, Essence 4 m, Brûlé / fumée 5 m, Sang 1,5 m, Décomposition 10 m, Javel 3 m, Parfum très fort 2,5 m, Vomi 3 m, Urine 2 m |
 
-**Réaliste** : chaque odeur a sa portée (`range`) au lieu de 6 m pour toutes ; un profil qui en a deux se sent à la
-plus grande. **Véhicule fermé** (portières fermées, vitres intactes / remontées) : l'odeur reste dedans, portée x 0,5
+**Réaliste** : chaque odeur a sa portée (`range`) au lieu de 6 m pour toutes ; un profil qui en a plusieurs se sent à la
+plus grande. **Sans limite** : autant d'odeurs que voulu par profil / véhicule (`Smell.Max = 0` ; un nombre > 0 remet une limite). **Véhicule fermé** (portières fermées, vitres intactes / remontées) : l'odeur reste dedans, portée x 0,5
 (`Smell.ClosedVehicle`). Retirées car **sans odeur** ou impossibles à sentir en passant : méthamphétamine stockée
-(inodore ; seules les vapeurs d'un labo imprègnent les vêtements : « Labo de drogue »), lean (sirop). La cocaïne et
+(inodore), lean (sirop), labo de drogue. La cocaïne et
 les pilules n'y sont pas non plus : elles se trouvent à la fouille, pas au nez. Une odeur retirée encore enregistrée
 dans un ancien profil est simplement ignorée. Seuls les policiers en service reçoivent la liste des odeurs
 (jamais les autres joueurs) ; un joueur entré dans une unité du MDC n'a plus d'odeur de profil.
@@ -358,7 +358,7 @@ peut le modifier ou le supprimer.
 | Partie | Non rempli |
 |---|---|
 | ☐ **Inspection visuelle** → Intérieur, Extérieur | « Rien d'anormal » / « Tout semble normal » / « Rien de suspect » / « Rien à signaler » |
-| **Inspection olfactive** (texte) + **odeur détectée automatiquement** (2 au plus) | « Rien d'anormal » / « Rien de suspect » |
+| **Inspection olfactive** (texte) + **odeurs détectées automatiquement** (sans limite) | « Rien d'anormal » / « Rien de suspect » |
 | **Détail notoire** | « Aucun détail notoire » |
 | **Fouille** : Habitacle, Banquette arrière, Coffre | « Rien à signaler » / « Aucun élément » / « Rien d'illégal » |
 
@@ -558,7 +558,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `AimRadius`, `AimRange`, `AimRefresh` | mise en joue : rayon autour du civil, portée, confirmation |
 | `PlaceDoorDistance` | placer à l'arrière : le civil doit être à moins de 4 m d'une portière arrière libre |
 | `Weather` | page Météo : activée, permission ACE, prise de main sur vMenu (`TakeOverVMenu`), temps par défaut, vitesses du temps (de base / réaliste / personnalisée par défaut), défilement de la météo (minutes, transition, listes beau temps / pluvieux), temps proposés |
-| `Smell`, `Smells` | odeurs détectées automatiquement : activées, portée par défaut (3 m) et facteur véhicule fermé (0,5), 2 au plus, durée de la notification, délai avant d'être prévenu de nouveau, volume du son ; liste des odeurs (`id` à ne pas changer, `range` : portée en m, nom dans la fiche, ce que sent le policier) |
+| `Smell`, `Smells` | odeurs détectées automatiquement : activées, portée par défaut (3 m) et facteur véhicule fermé (0,5), nombre au plus (`Max`, 0 = sans limite), durée de la notification, délai avant d'être prévenu de nouveau, volume du son ; liste des odeurs (`id` à ne pas changer, `range` : portée en m, nom dans la fiche, ce que sent le policier) |
 
 ## Liens avec le MDC et le chat
 

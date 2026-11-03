@@ -604,7 +604,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .smell-text { margin-top: 5px; font-size: 13.5px; line-height: 1.45; color: var(--text); }
 .smell-text div + div { margin-top: 2px; }
 
-/* Fiche civile : odeurs détectées automatiquement (cases à cocher en pastilles, 2 au plus) */
+/* Fiche civile : odeurs détectées automatiquement (cases à cocher en pastilles, sans limite) */
 .smell-groups { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 .smell-group-title { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
 .smell-chips { display: flex; flex-wrap: wrap; gap: 6px; }

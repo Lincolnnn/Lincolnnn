@@ -481,7 +481,7 @@ local function openEditor(view, vehicle, cb)
             RPI.setUi('editor', true)
             SendNUIMessage({ action = 'editor', data = {
                 open = true, view = view, profiles = profiles, vehicle = vehicleData,
-                smells = Config.Smells or {}, smellMax = (Config.Smell or {}).Max or 2,
+                smells = Config.Smells or {}, smellMax = tonumber((Config.Smell or {}).Max) or 0,
                 smellsEnabled = (Config.Smell or {}).Enabled ~= false,
             } })
             if cb then cb({ ok = true }) end

@@ -12,7 +12,8 @@
     l'arme revient en main ; éteinte par le joueur, elle reste éteinte. Lampes de CartoonFlashlight : gérées par elle,
     leur état est gardé ici (exports flashlightWanted / setFlashlight).
     SÉLECTEUR DE TIR (FireMode) : touche B sur une arme automatique : coup par coup <-> automatique (petit clic, logo
-    en bas au milieu de l'écran). Coup par coup : un tir par pression de la détente.
+    en bas au milieu de l'écran). Coup par coup : un tir par pression de la détente. Arme longue prise en main : coup
+    par coup (FireMode.Long) et logo affiché quelques secondes.
     EFFET DE TIR SUR LES BORDS (Suppression) : voile style « motion blur » sur les bords de l'écran (jamais au centre),
     au-dessus de toutes les interfaces : on tire, quelqu'un tire près de nous, on nous tire dessus (+ secousse, touché
     ou non), on est touché (+ bords légèrement rouges). Chaque tir l'étend ; il disparaît FadeOut ms après le dernier.
@@ -332,6 +333,10 @@ local SELECT_GROUPS, SELECT_WEAPONS, SELECT_EXCLUDED = {}, {}, {}
 for _, g in ipairs(FM.Groups or {}) do SELECT_GROUPS[u32(GetHashKey(g))] = true end
 for _, n in ipairs(FM.Weapons or {}) do SELECT_WEAPONS[u32(GetHashKey(n))] = true end
 for _, n in ipairs(FM.Excluded or {}) do SELECT_EXCLUDED[u32(GetHashKey(n))] = true end
+local LONG = FM.Long or {}
+local LONG_GROUPS, NOT_LONG = {}, {}
+for _, g in ipairs(LONG.Groups or {}) do LONG_GROUPS[u32(GetHashKey(g))] = true end
+for _, n in ipairs(LONG.NotLong or {}) do NOT_LONG[u32(GetHashKey(n))] = true end
 local modes = {}       -- [arme] = 'semi' | 'auto' (réglé par le joueur)
 local semiLock = false -- coup par coup : tir parti, la détente doit être relâchée
 local badgeFor = nil   -- arme dont le logo est affiché
@@ -345,17 +350,33 @@ local function hasSelector(weapon)
 end
 
 local function modeOf(weapon) return modes[u32(weapon)] or (FM.Default == 'semi' and 'semi' or 'auto') end
-RPWeapons.hasSelector, RPWeapons.modeOf = hasSelector, modeOf
+
+--- Arme longue (fusils, mitrailleuses, pistolets-mitrailleurs non compacts, fusils à pompe, précision) ?
+local function isLong(weapon)
+    if LONG.Enabled == false or not weapon or weapon == 0 then return false end
+    local h = u32(weapon)
+    return not NOT_LONG[h] and LONG_GROUPS[u32(GetWeapontypeGroup(weapon))] == true
+end
+RPWeapons.hasSelector, RPWeapons.modeOf, RPWeapons.isLong = hasSelector, modeOf, isLong
 
 --- Logo en bas au milieu de l'écran : BadgeSeconds s après un appui sur la touche (Badge = true : tant que l'arme
---- à sélecteur est en main) ; arme rangée ou changée : retiré
+--- à sélecteur est en main) ; arme rangée ou changée : retiré. Arme LONGUE à sélecteur prise en main : mise en
+--- Long.Mode (coup par coup) et logo affiché BadgeSeconds s, sans clic (drawn).
 local function badge(weapon, changed)
     local show = weapon and hasSelector(weapon) or false
     local key = show and u32(weapon) or nil
     if key == badgeFor and not changed then return end
+    local drawn = false
+    if key and not changed and isLong(weapon) then -- arme longue tout juste prise en main
+        if LONG.Mode == 'semi' or LONG.Mode == 'auto' then
+            modes[key] = LONG.Mode
+            semiLock = false
+        end
+        drawn = LONG.Badge ~= false
+    end
     badgeFor = key
     SendNUIMessage({ action = 'firemode', data = { show = show, mode = show and modeOf(weapon) or nil,
-        changed = changed == true, persistent = FM.Badge == true, seconds = FM.BadgeSeconds or 3,
+        changed = changed == true, drawn = drawn, persistent = FM.Badge == true, seconds = FM.BadgeSeconds or 3,
         volume = FM.Volume or 0.35 } })
 end
 
@@ -588,39 +609,7 @@ if FL.Enabled ~= false then
     end
 end
 
--- =========================================================================
--- POSTURE À LA 1RE PERSONNE (FirstPerson) : mode action (posture de combat courbée) coupé à chaque image tant que le
--- joueur est à la 1re personne à pied (ThirdPerson : aussi à la 3e). Le personnage est animé par ce client et
--- synchronisé chez les autres : la posture normale se voit aussi depuis les joueurs autour. Hors 1re personne : une
--- vérification toutes les 250 ms.
--- =========================================================================
-local FP = W.FirstPerson or {}
-local fpActive = FP.Enabled ~= false
-local function fixPosture(ped)
-    SetPedResetFlag(ped, 200, true) -- PRF_DisableActionMode : pas d'animations de combat (posture courbée)
-    if IsPedUsingActionMode(ped) then SetPedUsingActionMode(ped, false, -1, 'DEFAULT_ACTION') end
-end
-RPWeapons.fixPosture = fixPosture
-CreateThread(function()
-    while true do
-        local ped = PlayerPedId()
-        local onFoot = not IsPedInAnyVehicle(ped, false)
-        local firstPerson = GetFollowPedCamViewMode() == 4
-        if fpActive and onFoot and (firstPerson or FP.ThirdPerson) and not IsEntityDead(ped) then
-            fixPosture(ped)
-            Wait(0)
-        else
-            Wait(250)
-        end
-    end
-end)
-if FP.Command and FP.Command ~= '' then
-    RegisterCommand(FP.Command, function()
-        fpActive = not fpActive
-        TriggerEvent('chat:addMessage', { args = { 'Armes', fpActive and 'Posture normale à la 1re personne : activée.'
-            or 'Posture normale à la 1re personne : coupée (posture du jeu).' } })
-    end, false)
-end
+-- (Posture normale à la 1re personne : ressource rp_firstperson.)
 
 -- =========================================================================
 -- AIDE AU STYLE DU SERVEUR pour une autre ressource (CartoonFlashlight : aide de la lampe en haut à gauche) :

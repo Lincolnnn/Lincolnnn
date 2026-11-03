@@ -149,7 +149,7 @@ local function buildProfile(p)
             return nil, ('%s : décrivez ce qu\'il y a (ou décochez la case).'):format(part.label)
         end
     end
-    r.smells = RPISmells.clean(p.smells) -- odeurs détectées automatiquement par la police (2 au plus)
+    r.smells = RPISmells.clean(p.smells) -- odeurs détectées automatiquement par la police (sans limite, sauf Smell.Max)
     return r
 end
 

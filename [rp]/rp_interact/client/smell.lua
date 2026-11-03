@@ -1,7 +1,7 @@
 --[[
     RP Interact - odeurs détectées automatiquement (côté policier)
     --------------------------------------------------------------
-    Dans la fiche civile (/fichecivil), le joueur civil choisit jusqu'à Smell.Max odeurs (drogues, alcool, autres :
+    Dans la fiche civile (/fichecivil), le joueur civil choisit autant d'odeurs qu'il veut (Smell.Max > 0 : au plus) (drogues, alcool, autres :
     config.lua, Smells) pour son profil et / ou son véhicule. Le serveur envoie aux SEULS policiers en service (unité
     du MDC) les joueurs (profil actif) et les véhicules (profil) qui en ont. Un policier qui passe à PORTÉE de l'un
     d'eux (celle de l'odeur, config.lua > Smells > range : 1,5 m pour une haleine alcoolisée, 6 m pour du cannabis

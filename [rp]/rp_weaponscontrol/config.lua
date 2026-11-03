@@ -11,7 +11,7 @@
       - LAMPE TOUJOURS ALLUMÉE : une lampe allumée (arme équipée d'une lampe, lampe de poche) le reste, même en courant
         et même si l'arme est rangée puis ressortie (Flashlight) ;
       - SÉLECTEUR DE TIR : coup par coup / automatique sur les armes qui en ont un (FireMode), touche B : petit clic et
-        logo en bas au milieu de l'écran ;
+        logo en bas au milieu de l'écran ; une ARME LONGUE prise en main est en coup par coup (logo affiché un instant) ;
       - EFFET DE TIR SUR LES BORDS DE L'ÉCRAN : voile style « motion blur » (Suppression, en bas de ce fichier).
     Une arme avec silencieux : pas de flash, secousse réduite.
 ]]
@@ -31,22 +31,22 @@ WeaponsConfig = {
         WEAPON_GLOCK19 = { recoil = 0.5, shake = 0.045 },      WEAPON_FM1_P226 = { recoil = 0.5, shake = 0.045 },
         WEAPON_SWMP9 = { recoil = 0.5, shake = 0.045 },        WEAPON_P320 = { recoil = 0.5, shake = 0.045 },
         -- Pistolets-mitrailleurs, mitrailleuses
-        WEAPON_MICROSMG = { recoil = 0.2, shake = 0.035 },     WEAPON_SMG = { recoil = 0.1, shake = 0.045 },
-        WEAPON_SMG_MK2 = { recoil = 0.1, shake = 0.055 },      WEAPON_ASSAULTSMG = { recoil = 0.1, shake = 0.05 },
-        WEAPON_COMBATPDW = { recoil = 0.2, shake = 0.045 },    WEAPON_MINISMG = { recoil = 0.1, shake = 0.035 },
-        WEAPON_GUSENBERG = { recoil = 0.1, shake = 0.05 },     WEAPON_MG = { recoil = 0.1, shake = 0.07 },
-        WEAPON_COMBATMG = { recoil = 0.1, shake = 0.08 },      WEAPON_COMBATMG_MK2 = { recoil = 0.1, shake = 0.085 },
+        WEAPON_MICROSMG = { recoil = 0.45, shake = 0.08 },     WEAPON_SMG = { recoil = 0.45, shake = 0.08 },
+        WEAPON_SMG_MK2 = { recoil = 0.45, shake = 0.08 },      WEAPON_ASSAULTSMG = { recoil = 0.45, shake = 0.08 },
+        WEAPON_COMBATPDW = { recoil = 0.45, shake = 0.08 },    WEAPON_MINISMG = { recoil = 0.45, shake = 0.08 },
+        WEAPON_GUSENBERG = { recoil = 0.65, shake = 0.12 },     WEAPON_MG = { recoil = 0.45, shake = 0.08 },
+        WEAPON_COMBATMG = { recoil = 0.65, shake = 0.12 },     WEAPON_COMBATMG_MK2 = { recoil = 0.65, shake = 0.085 },
         -- Fusils
-        WEAPON_ASSAULTRIFLE = { recoil = 0.5, shake = 0.09 },  WEAPON_ASSAULTRIFLE_MK2 = { recoil = 0.2, shake = 0.075 },
-        WEAPON_CARBINERIFLE = { recoil = 0.5, shake = 0.09 },  WEAPON_CARBINERIFLE_MK2 = { recoil = 0.1, shake = 0.065 },
-        WEAPON_ADVANCEDRIFLE = { recoil = 0.1, shake = 0.06 }, WEAPON_SPECIALCARBINE = { recoil = 0.2, shake = 0.06 },
-        WEAPON_SPECIALCARBINE_MK2 = { recoil = 0.25, shake = 0.075 }, WEAPON_BULLPUPRIFLE = { recoil = 0.2, shake = 0.05 },
-        WEAPON_BULLPUPRIFLE_MK2 = { recoil = 0.25, shake = 0.065 }, WEAPON_COMPACTRIFLE = { recoil = 0.3, shake = 0.05 },
-        WEAPON_PM4 = { recoil = 0.5, shake = 0.09 },           WEAPON_FM1_M16A4 = { recoil = 0.5, shake = 0.09 },
-        WEAPON_M6IC = { recoil = 0.5, shake = 0.09 },
+        WEAPON_ASSAULTRIFLE = { recoil = 0.65, shake = 0.12 },  WEAPON_ASSAULTRIFLE_MK2 = { recoil = 0.65, shake = 0.12 },
+        WEAPON_CARBINERIFLE = { recoil = 0.65, shake = 0.12 },  WEAPON_CARBINERIFLE_MK2 = { recoil = 0.65, shake = 0.12 },
+        WEAPON_ADVANCEDRIFLE = { recoil = 0.65, shake = 0.12 }, WEAPON_SPECIALCARBINE = { recoil = 0.65, shake = 0.12 },
+        WEAPON_SPECIALCARBINE_MK2 = { recoil = 0.65, shake = 0.12 }, WEAPON_BULLPUPRIFLE = { recoil = 0.65, shake = 0.12 },
+        WEAPON_BULLPUPRIFLE_MK2 = { recoil = 0.65, shake = 0.12 }, WEAPON_COMPACTRIFLE = { recoil = 0.65, shake = 0.12 },
+        WEAPON_PM4 = { recoil = 0.65, shake = 0.12 },          WEAPON_FM1_M16A4 = { recoil = 0.65, shake = 0.12 },
+        WEAPON_M6IC = { recoil = 0.65, shake = 0.12 },
         -- Fusils à pompe
-        WEAPON_PUMPSHOTGUN = { recoil = 0.4, shake = 0.07 },   WEAPON_PUMPSHOTGUN_MK2 = { recoil = 0.4, shake = 0.085 },
-        WEAPON_BEANBAG = { recoil = 0.4, shake = 0.07 },       WEAPON_SAWNOFFSHOTGUN = { recoil = 0.7, shake = 0.06 },
+        WEAPON_PUMPSHOTGUN = { recoil = 0.45, shake = 0.09 },   WEAPON_PUMPSHOTGUN_MK2 = { recoil = 0.4, shake = 0.085 },
+        WEAPON_BEANBAG = { recoil = 0.45, shake = 0.09 },      WEAPON_SAWNOFFSHOTGUN = { recoil = 0.7, shake = 0.06 },
         WEAPON_ASSAULTSHOTGUN = { recoil = 0.4, shake = 0.12 }, WEAPON_BULLPUPSHOTGUN = { recoil = 0.2, shake = 0.08 },
         WEAPON_DBSHOTGUN = { recoil = 0.7, shake = 0.05 },     WEAPON_AUTOSHOTGUN = { recoil = 0.2, shake = 0.08 },
         WEAPON_HEAVYSHOTGUN = { recoil = 0.2, shake = 0.13 },  WEAPON_MUSKET = { recoil = 0.7, shake = 0.04 },
@@ -94,13 +94,7 @@ WeaponsConfig = {
     --   (plus petit = porte plus loin, plus doux) | Roundness : netteté du bord | Shadows : nb de faisceaux avec ombres
     --   (les plus proches ; les autres sans ombre, plus légers) | Color : blanc légèrement chaud.
     -- Texture plus réaliste (Realistic_Flashlight) : voir le README (fichier graphics.ytd, non fourni dans le dépôt).
-    -- POSTURE À LA 1RE PERSONNE : en vue à la 1re personne avec une arme, le jeu met le personnage en « mode action »
-    -- (posture de combat courbée, démarche tactique), vue par le joueur ET par les joueurs autour (son personnage est
-    -- animé par son jeu puis synchronisé chez les autres). Ici le mode action est coupé à chaque image tant que le
-    -- joueur est à la 1re personne à pied : posture normale pour lui et pour tout le monde.
-    -- ThirdPerson = true : aussi à la 3e personne (posture de combat après un tir). Command : /fpsposture (test en jeu :
-    -- active / coupe la correction pour comparer).
-    FirstPerson = { Enabled = true, ThirdPerson = false, Command = 'fpsposture' },
+    -- (Posture normale à la 1re personne : déplacée dans la ressource rp_firstperson, pour tout et pas seulement les armes.)
 
     Flashlight = { Enabled = true, KeepOnWhileMoving = true,
         Cartoon = { Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },
@@ -111,11 +105,18 @@ WeaponsConfig = {
     -- Excluded). Touche Key (Raccourcis clavier > FiveM) : petit clic (Volume) et logo en bas au milieu de l'écran
     -- pendant BadgeSeconds s, seulement après un appui (Badge = true : affiché tant que l'arme est en main).
     -- Mode gardé pour chaque arme ; Default : mode d'une arme jamais réglée ('auto' ou 'semi').
+    -- ARMES LONGUES (Long) : à chaque prise en main (sortie, changement d'arme, reprise sur un véhicule / au sol…),
+    -- une arme longue à sélecteur passe en Long.Mode ('semi' = coup par coup ; false = garder le dernier mode) et le
+    -- logo du mode de tir s'affiche BadgeSeconds s (sans clic), comme après un appui sur B. Armes longues : les groupes
+    -- Long.Groups, sauf Long.NotLong (pistolets-mitrailleurs compacts, tenus comme un pistolet).
     FireMode = {
         Enabled = true, Key = 'B', Default = 'auto', Volume = 0.35, Badge = false, BadgeSeconds = 3,
         Groups = { 'GROUP_SMG', 'GROUP_MG', 'GROUP_RIFLE' },
         Weapons = { 'WEAPON_APPISTOL', 'WEAPON_MACHINEPISTOL', 'WEAPON_ASSAULTSHOTGUN', 'WEAPON_AUTOSHOTGUN' },
         Excluded = {},  -- ex. { 'WEAPON_GUSENBERG' } : arme automatique sans sélecteur
+        Long = { Enabled = true, Mode = 'semi', Badge = true,
+            Groups = { 'GROUP_RIFLE', 'GROUP_MG', 'GROUP_SMG', 'GROUP_SHOTGUN', 'GROUP_SNIPER' },
+            NotLong = { 'WEAPON_MICROSMG', 'WEAPON_MINISMG', 'WEAPON_MACHINEPISTOL', 'WEAPON_APPISTOL' } },
     },
 
     -- Flash de bouche : lumière jaune autour du canon (vue par les joueurs à moins de Range m)
@@ -178,9 +179,9 @@ WeaponsConfig = {
         -- ci-dessus passe sur elles. Les valeurs dépendent du jeu : à ajuster en jeu (commande F8 : wc_blurtest).
         GameBlur = {
             Enabled = true,
-            Intensity = 1.4,              -- force du flou des bords à pleine intensité (blur_vignetting_intensity)
+            Intensity = 1.1,              -- force du flou des bords à pleine intensité (blur_vignetting_intensity)
             RadiusMin = 0.35, RadiusMax = 0.9, -- étendue du flou (blur_vignetting_radius) : premier tir -> maximum
-            MotionBlur = 1.2,             -- flou de mouvement (recul, secousses) à pleine intensité ; 0 = aucun
+            MotionBlur = 0.7,             -- flou de mouvement (recul, secousses) à pleine intensité ; 0 = aucun
         },
         -- Secousses de la caméra
         IncomingShake = 0.09, -- quelqu'un tire dans notre direction (touché ou non)
