@@ -125,10 +125,18 @@ local function releaseWeapon(ped, weapon)
 end
 RZ.splitAmmo = splitAmmo -- pour les tests
 
+--- Juste avant que l'arme quitte la main (après le début du geste) : toujours EN MAIN, toujours en mode civil, à pied.
+--- Sinon (rangée dans l'inventaire / changée pendant le geste, mode civil désactivé, monté en véhicule…) : rien n'est
+--- lâché (avant : l'arme rangée pendant le geste partait quand même au sol, en double avec celle de l'inventaire).
+local function stillHolding(ped, weapon)
+    return canUse(ped) and GetSelectedPedWeapon(ped) == weapon and HasPedGotWeapon(ped, weapon, false)
+end
+
 local function place(ped, weapon, model)
     loadAnim('pickup_object')
     TaskPlayAnim(ped, 'pickup_object', 'putdown_low', 8.0, -8.0, 900, 0, 0.0, false, false, false)
     Wait(450)
+    if not stillHolding(ped, weapon) then return StopAnimTask(ped, 'pickup_object', 'putdown_low', 2.0) end
     local spot = GetOffsetFromEntityInWorldCoords(ped, 0.15, 0.55, 0.0)
     local found, ground = GetGroundZFor_3dCoord(spot.x, spot.y, spot.z + 1.0, false)
     if not found then ground = spot.z - 0.98 end
@@ -147,6 +155,7 @@ local function throw(ped, weapon, model)
         TaskPlayAnim(ped, anim[1], anim[2], 8.0, -8.0, W.ThrowAnimTime or 1200, 48, 0.0, false, false, false)
     end
     Wait(W.ThrowRelease or 550) -- l'arme quitte la main à ce moment du geste
+    if not stillHolding(ped, weapon) then return StopAnimTask(ped, anim[1], anim[2], 2.0) end
     local hand = GetPedBoneCoords(ped, 57005, 0.0, 0.0, 0.0) -- main droite
     local dir = RZ.camDirection()
     local flat = math.sqrt(dir.x * dir.x + dir.y * dir.y)
@@ -254,6 +263,14 @@ local function onKey()
 end
 
 RegisterCommand(COMMAND, function() if not RZ.spikesBusy() then onKey() end end, false) -- G : touche de la herse de Riven
+
+-- Mode civil désactivé : choix et rappel fermés tout de suite (la touche ne fait plus rien)
+AddStateBagChangeHandler('rpiCivilMode', ('player:%d'):format(GetPlayerServerId(PlayerId())), function(_, _, value)
+    if value ~= true and W.CivilOnly ~= false then
+        choice, reminderUntil = nil, 0
+        hint(nil)
+    end
+end)
 RegisterKeyMapping(COMMAND, 'Mode civil : lâcher son arme (jeter / poser au sol)', 'keyboard', W.Key or 'G')
 
 -- Arme sortie (mode civil) : rappel pendant 10 s

@@ -410,102 +410,6 @@ local function canDrop(src, civil)
     return GetResourceState('rp_interact') ~= 'started' or civil == true
 end
 
--- =========================================================================
--- SCÈNES AUTOMATIQUES (Config.Auto) : arme lâchée par un civil, accident de la route, joueur blessé
---   exports.rp_RoleplayZone:autoScene(type, pos, src) -- type : 'weapon' | 'accident' | 'injury' ; pos : { x, y, z }
---   (au sol) ; src : joueur à l'origine (facultatif). Côté serveur seulement.
--- =========================================================================
-local AUTO = Config.Auto or {}
-local AUTO_LABEL = { weapon = 'Arme abandonnée', accident = 'Accident de la route', injury = 'Traces de sang' }
-
-local function autoCount()
-    local n, oldest = 0, nil
-    for _, s in pairs(Scenes) do
-        if s.auto then
-            n = n + 1
-            if not oldest or s.created < oldest.created then oldest = s end
-        end
-    end
-    return n, oldest
-end
-
---- Une scène automatique (ou prolonge celle du même événement tout près)
-local function addAuto(event, kind, def, pos)
-    if type(def) ~= 'table' then return nil end
-    local duration = math.max(1, math.floor(tonumber(AUTO.Duration) or 45))
-    for _, s in pairs(Scenes) do
-        if s.auto == event and s.kind == kind and dist(s.pos, pos) <= (AUTO.MergeDistance or 8.0) then
-            s.created = os.time()
-            s.expires = s.created + duration * 60
-            schedule(s)
-            return s
-        end
-    end
-    local n, oldest = autoCount()
-    if n >= (AUTO.MaxActive or 40) and oldest then Scenes[oldest.id] = nil end
-    local total = 0
-    for _ in pairs(Scenes) do total = total + 1 end
-    if total >= (Config.MaxScenes or 80) then return nil end
-    local title = cleanText(def.Title or AUTO_LABEL[event] or '', Config.TitleLength or 40, false)
-    local s = { kind = kind, pos = { x = pos.x, y = pos.y, z = pos.z }, title = title,
-        text = cleanText(def.Text or '', Config.TextLength or 500, true),
-        look = kind == 'zone' and '' or cleanText(def.Look or '', Config.LookLength or 160, true),
-        owner = 'auto', by = 'Automatique', label = title, searches = 0, auto = event,
-        radius = tonumber(def.Radius) or (kind == 'zone' and 20.0 or 1.5), duration = duration }
-    s.id = nextId
-    nextId = nextId + 1
-    s.created = os.time()
-    s.expires = s.created + duration * 60
-    Scenes[s.id] = s
-    schedule(s)
-    return s
-end
-
---- Événement : ses scènes (zone et / ou périmètre), publiées d'un coup
-local function autoScene(event, pos, src)
-    if AUTO.Enabled == false then return false end
-    local def = AUTO[event == 'weapon' and 'Weapon' or event == 'accident' and 'Accident' or event == 'injury' and 'Injury' or '']
-    if type(def) ~= 'table' or def.Enabled == false then return false end
-    pos = point(pos)
-    if not pos then return false end
-    local made = {}
-    if event == 'accident' then
-        made[#made + 1] = addAuto(event, 'zone', def.Zone, pos)
-        made[#made + 1] = addAuto(event, 'perimeter', def.Perimeter, pos)
-    else
-        made[#made + 1] = addAuto(event, 'perimeter', def, pos)
-    end
-    if #made == 0 then return false end
-    publish()
-    print(('^5[rp_RoleplayZone]^0 %s : scène automatique « %s »%s'):format(os.date('%H:%M'), AUTO_LABEL[event] or event,
-        src and src > 0 and (' (' .. (GetPlayerName(src) or src) .. ')') or ''))
-    return true
-end
-exports('autoScene', autoScene)
-RPSceneAuto = autoScene -- pour les tests
-
---- Arme lâchée par un CIVIL (pas dans une unité du MDC) : odeur de poudre là où elle est
-local function weaponScene(src, pos)
-    if policeUnit(src) then return end
-    autoScene('weapon', pos, src)
-end
-
--- Joueur blessé (signalé par son jeu : client/auto.lua) : vérifié ici (position, fréquence)
-local lastInjury = {}
-RegisterNetEvent('rp_scene:auto:injured', function(pos)
-    local src = source
-    local I = AUTO.Injury or {}
-    if AUTO.Enabled == false or I.Enabled == false then return end
-    pos = point(pos)
-    local here = pedPos(src)
-    if not pos or not here or dist(pos, here) > 6.0 then return end
-    local now = os.time()
-    if lastInjury[src] and now - lastInjury[src] < math.max(10, tonumber(I.Cooldown) or 60) then return end
-    lastInjury[src] = now
-    autoScene('injury', pos, src)
-end)
-AddEventHandler('playerDropped', function() lastInjury[source] = nil end)
-
 -- Le joueur lâche l'arme qu'il a en main : { mode = 'place' | 'throw', weapon, model, ammo, x, y, z, rx, ry, rz,
 -- velocity (jetée) } ; posée : figée au sol ; jetée : créée à sa main, l'élan est donné par son jeu (settled ensuite)
 RegisterNetEvent('rp_scene:weapon:drop', function(data)
@@ -549,18 +453,8 @@ RegisterNetEvent('rp_scene:weapon:drop', function(data)
         SetTimeout(6000, function()
             if Weapons[object] == w and w.flying then w.flying = false; FreezeEntityPosition(object, true) end
         end)
-        -- pas encore retombée : odeur de poudre là où elle s'est arrêtée (settled), sinon là où elle est au bout de 6 s
-        SetTimeout(6500, function()
-            if Weapons[object] == w and not w.scened and DoesEntityExist(object) then
-                w.scened = true
-                local c = GetEntityCoords(object)
-                weaponScene(src, { x = c.x, y = c.y, z = c.z })
-            end
-        end)
     else
         FreezeEntityPosition(object, true)
-        w.scened = true
-        weaponScene(src, pos)
     end
     TriggerClientEvent('rp_scene:weapon:dropped', src, weapon, NetworkGetNetworkIdFromEntity(object), throw and 'throw' or 'place', velocity)
     if (W.Expire or 0) > 0 then
@@ -587,11 +481,6 @@ RegisterNetEvent('rp_scene:weapon:settled', function(netId, pos, rot)
         end
     end
     FreezeEntityPosition(object, true)
-    if not w.scened then
-        w.scened = true
-        local c = GetEntityCoords(object)
-        weaponScene(src, { x = c.x, y = c.y, z = c.z })
-    end
 end)
 
 -- Ramassée avec l'œil de rp_interact (seule façon de la récupérer) : le premier qui la prend

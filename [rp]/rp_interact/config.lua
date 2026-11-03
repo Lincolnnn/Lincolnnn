@@ -214,6 +214,11 @@ InteractConfig = {
     -- 'police' = joueurs dans une unité du MDC ; 'everyone' = tout le monde.
     -- La permission ACE DeleteAce l'autorise toujours (ex. add_ace group.admin rpinteract.delete allow).
     DeleteAccess = 'everyone',
+    -- Rang minimal pour SUPPRIMER avec l'œil (PNJ, véhicules, objets du décor ou posés par des joueurs, props du menu
+    -- des props) : 'rp.membre' = Membres et Admins (rang Discord de rp_permissions) ; les Joueurs non-officiels ne
+    -- peuvent plus rien supprimer. La permission DeleteAce passe toujours. false = pas de rang demandé ; sans
+    -- rp_permissions démarré, aucun rang n'est demandé.
+    DeleteRank = 'rp.membre',
     DeleteAce = 'rpinteract.delete',
 
     -- Permission ACE des commandes d'administration (rechargement des fichiers : emotes, véhicules)

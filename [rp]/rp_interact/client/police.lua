@@ -168,12 +168,16 @@ end
 
 --- Allure du policier dans SON repère (m/s : x à droite, y devant) -> 'walk' / 'run' et 'forward' / 'back', ou nil
 --- (arrêté). Près des limites, l'allure en cours est gardée (pas de clignotement).
-local function policeGait(vx, vy, current)
+--- Recul : seulement s'il est FRANC (au moins 0,6 m/s vers l'arrière) et pas pendant un virage (`turning`) : en
+--- tournant en marchant, la vitesse du policier paraît un instant « en arrière » dans son repère, et l'animation de
+--- recul (pas chassés) ressemblait à une mise en joue de quelques dixièmes de seconde.
+local function policeGait(vx, vy, current, turning)
     local M = Config.DragMove or {}
     local speed = math.sqrt(vx * vx + vy * vy)
     local idle = M.Idle or 0.35
     if speed < (current and idle * 0.7 or idle) then return nil end
-    local dir = (vy < -0.3 and math.abs(vy) >= math.abs(vx)) and 'back' or 'forward'
+    local backward = not turning and vy < -(current and current.dir == 'back' and 0.3 or 0.6) and math.abs(vy) >= math.abs(vx)
+    local dir = backward and 'back' or 'forward'
     local trot = M.Trot or 2.6
     local run = speed >= (current and current.gait == 'run' and trot * 0.85 or trot)
     return { gait = run and 'run' or 'walk', dir = dir }
@@ -194,6 +198,7 @@ local function holdLoop(ped, getPolicePed, isActive, onEnd, isSelf, isCuffedFn)
         local cuffAnim = Config.CuffAnim
         local attachedTo, first, nextCheck = nil, true, 0
         local move, playing = nil, nil
+        local backCount = 0
         local function stopMove()
             if playing and DoesEntityExist(ped) then StopAnimTask(ped, playing[1], playing[2], 2.0) end
             playing = nil
@@ -229,7 +234,15 @@ local function holdLoop(ped, getPolicePed, isActive, onEnd, isSelf, isCuffedFn)
                 if now >= nextCheck then
                     nextCheck = now + 100
                     local v = GetEntitySpeedVector(policePed, true)
-                    local nextMove = policeGait(v.x, v.y, move)
+                    local turning = math.abs(GetEntityRotationVelocity(policePed).z) > 0.9
+                    local nextMove = policeGait(v.x, v.y, move, turning)
+                    -- recul confirmé sur 3 vérifications de suite (0,3 s) avant de changer d'animation
+                    if nextMove and nextMove.dir == 'back' and not (move and move.dir == 'back') then
+                        backCount = backCount + 1
+                        if backCount < 3 then nextMove.dir = 'forward' end
+                    else
+                        backCount = 0
+                    end
                     local anim = nextMove and moveAnim(ped, nextMove, cuffedNow)
                     if not anim then
                         stopMove()
@@ -602,7 +615,10 @@ local seated = false -- assis au sol par un policier ("/e menotté2")
 local draggedBy = nil
 -- Monte ('enter') / descend ('leave') d'un véhicule : menottes du jeu retirées le temps du mouvement
 local vehicleMove = { kind = nil, untilTime = 0 }
-local CUFF_BLOCKED = { 21, 22, 23, 24, 25, 37, 44, 45, 47, 58, 140, 141, 142, 143, 257, 263, 264 }
+local CUFF_BLOCKED = { 21, 22, 23, 24, 25, 37, 44, 45, 47, 58, 140, 141, 142, 143, 257, 263, 264,
+    -- en véhicule (placé à l'arrière) : tir / visée en véhicule, armes suivante / précédente, touches 1 à 9 des armes
+    14, 15, 16, 17, 68, 69, 70, 91, 92, 99, 100, 114, 115, 116, 157, 158, 159, 160, 161, 162, 163, 164, 165, 261, 262 }
+local UNARMED_HASH = GetHashKey('WEAPON_UNARMED')
 local SEATED_BLOCKED = { 30, 31, 32, 33, 34, 35 } -- assis : pas de déplacement (il reste assis)
 
 function RPI.isCuffed() return cuffed end
@@ -637,6 +653,10 @@ local function cuffLoop()
                 nextCheck = now + 1000
                 local ped = PlayerPedId()
                 local inVehicle = IsPedInAnyVehicle(ped, false)
+                -- menotté : jamais d'arme en main, même en véhicule (un autre script / le jeu a pu en sortir une)
+                if GetSelectedPedWeapon(ped) ~= UNARMED_HASH then SetCurrentPedWeapon(ped, UNARMED_HASH, true) end
+                SetPedCanSwitchWeapon(ped, false)
+                SetPlayerCanDoDriveBy(PlayerId(), false)
                 local direct = inVehicle or draggedBy ~= nil
                 local sit = seated and not direct
                 local posed = isPlayingPose(ped, sit, direct)
@@ -679,6 +699,8 @@ local function setCuffed(state)
         deleteProp(cuffProp)
         cuffProp = nil
         stopPose(ped, false)
+        SetPedCanSwitchWeapon(ped, true) -- armes rendues (bloquées pendant les menottes)
+        SetPlayerCanDoDriveBy(PlayerId(), true)
     end
 end
 
@@ -939,8 +961,20 @@ end
 -- =========================================================================
 -- SUPPRIMER (PNJ, véhicules sans joueur, objets ; y compris créés par des joueurs), jusqu'à 50 m
 -- =========================================================================
+--- Rang demandé pour supprimer (Config.DeleteRank, rang Discord de rp_permissions, état « rpRank ») : les Joueurs
+--- non-officiels ne voient pas « Supprimer » (le serveur revérifie)
+local RANK_LEVEL = { nonofficiel = 1, membre = 2, admin = 3 }
+function Police.deleteRankOk()
+    if not Config.DeleteRank or GetResourceState('rp_permissions') ~= 'started' then return true end
+    local need = RANK_LEVEL[tostring(Config.DeleteRank):match('^rp%.(%w+)$') or '']
+    if not need then return true end
+    return (RANK_LEVEL[LocalPlayer.state.rpRank] or 0) >= need
+end
+
 function Police.canDelete()
-    if LocalPlayer.state.rpiCanDelete == true or Config.DeleteAccess == 'everyone' then return true end
+    if LocalPlayer.state.rpiCanDelete == true then return true end
+    if not Police.deleteRankOk() then return false end
+    if Config.DeleteAccess == 'everyone' then return true end
     return Config.DeleteAccess == 'police' and RPI.isPolice()
 end
 

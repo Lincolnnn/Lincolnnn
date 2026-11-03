@@ -54,6 +54,9 @@ alentours (ouvre directement la scène). Le civil est prévenu (message privé) 
 
 Réservé aux joueurs en **mode civil** (hors unité du MDC ; `Weapons.CivilOnly = false` : tout le monde).
 
+Juste avant de quitter la main, l'arme doit **toujours être en main** (mode civil toujours actif) : rangée dans
+l'inventaire ou changée pendant le geste, rien ne part au sol (avant : elle pouvait tomber en double avec celle de
+l'inventaire) ; mode civil désactivé : le choix jeter / poser se ferme tout de suite.
 L'arme **quitte les mains tout de suite** (au moment du geste), avec **son chargeur seulement** : la **réserve** du
 même calibre reste au joueur (avant : tout le calibre était vidé) ; ramassée, le chargeur est rendu ; si le serveur refuse (trop
 d'armes au sol, endroit impossible…), elle est **rendue**. Un autre script qui rendrait l'arme entre-temps est
@@ -74,23 +77,6 @@ contré (elle est retirée encore une fois à la confirmation).
 L'arme au sol se récupère **uniquement avec l'œil de `rp_interact`**, par **tout le monde** (Alt : « Arme au sol » →
 **Ramasser l'arme**, avec ses munitions) : il suffit de viser le sol juste à côté (une arme couchée est très fine). Elle disparaît au bout de 60 min (`Weapons.Expire`). Les fusées, le jerrican et l'extincteur ne se
 lâchent pas (`Weapons.Blacklist`). La touche se change dans Échap > Paramètres > Raccourcis clavier > FiveM.
-
-## Scènes automatiques (`Auto`)
-
-Créées **toutes seules**, à fouiller par la police comme les autres (périmètre : description visuelle au-dessus +
-contenu à la fouille ; zone : message en y entrant ; œil d'aigle) :
-
-| Événement | Scène(s) | Déclenché par |
-|---|---|---|
-| **Arme lâchée / jetée / posée par un civil** (pas dans une unité du MDC), au sol ou sur un véhicule | périmètre « Arme abandonnée » : **odeur de poudre** | ce script (touche G), `rp_vehicleprops` (œil : poser l'arme au sol / sur un véhicule ; pas une lampe, pas un Taser) |
-| **Accident de la route** important (celui qui allume les warnings tout seuls) | **zone** « Accident de la route » (débris, traces de freinage, **odeur d'essence et de matériaux abîmés**) + périmètre « Point de choc » | `rp_vehiclecontrol` (aussi en mode Riven) |
-| **Joueur blessé** à pied (au moins 20 points de vie perdus d'un coup, ou à terre) | périmètre « Traces de sang » : **odeur de sang** | ce script (`client/auto.lua`, sur l'événement de dégâts du jeu) |
-
-Un même événement au même endroit (8 m, `MergeDistance`) **prolonge** sa scène au lieu d'en créer une autre ; blessure :
-une fois par minute et par joueur, position vérifiée par le serveur. Durée : 45 min (`Duration`) ; 40 au plus
-(`MaxActive`, la plus ancienne part). Les admins les voient dans `/scene` (créées par « Automatique ») et peuvent les
-supprimer. Textes, rayons et seuils : `config.lua` > `Auto`. Pour un autre script serveur :
-`exports.rp_RoleplayZone:autoScene('weapon' | 'accident' | 'injury', { x, y, z }, source)`.
 
 ## Policiers : l'œil d'aigle (Verr. Maj)
 

@@ -75,8 +75,3 @@ mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est re
   refaits quand l'état change.
 - Performance : une vérification toutes les 2,5 s (véhicules proches qui portent des objets, véhicules disparus) ;
   rien d'autre. Éditeur : seulement pendant le réglage.
-
-## Scène automatique
-
-Une **arme à feu** posée (sur un véhicule ou au sol) par un **civil** (pas dans une unité du MDC) crée une scène de
-recherche « Arme abandonnée » (odeur de poudre) de `rp_RoleplayZone` (pas pour une lampe ni un Taser).

@@ -857,15 +857,14 @@ end
 --- pas encore en main / son modèle pas encore là, sondes en cours de création sur le suspect)
 local function tryReactivate()
     if not armed or battery <= 0 or connection.state ~= 'CONNECTED' then return 'fail' end
-    if not usingTaser() or not attachedProngs() then return 'wait' end
+    if not usingTaser() then return 'wait' end -- Taser repris : pas encore dans la main
 
+    -- Les sondes VISIBLES (objets locaux accrochés au suspect) ne bloquent plus : sur un joueur, elles peuvent être
+    -- en train de se recréer chez nous alors que la connexion est bonne ; le SERVEUR vérifie la connexion, le suspect
+    -- et la distance. Ici, seulement un fil manifestement trop long (distance mesurable) coupe la connexion.
     local active = activeConnections[connection.connectionId]
-    if not active then return 'wait' end
-    local wireDistance = connectionWireDistance(active)
-    -- distance pas mesurable (arme pas encore dans la main) : on attend, on ne coupe PAS le fil (avant : coupé ici,
-    -- d'où des appuis à répéter après avoir repris le Taser posé au sol)
-    if not wireDistance then return 'wait' end
-    if wireDistance >= Config.Prongs.MaxWireDistance then
+    local wireDistance = active and attachedProngs() and connectionWireDistance(active)
+    if wireDistance and wireDistance >= Config.Prongs.MaxWireDistance + (Config.Prongs.CordBreakTolerance or 0.0) then
         clearOwnedConnection('distance', true)
         return 'fail'
     end
@@ -908,15 +907,29 @@ local function setSafe()
     updateCid()
 end
 
+-- DOUBLE APPUI (touche du sélecteur, Config.Keys.safety) = RÉACTIVATION des sondes déjà plantées, quel que soit l'état
+-- de départ :
+--   ARMÉ    : 1er appui SÉCURITÉ, 2e appui ARMÉ + décharge ;
+--   SÉCURITÉ : 1er appui ARMÉ, 2e appui (dans SelectorReactivationWindow ms) : reste ARMÉ + décharge (avant : il
+--             repassait en SÉCURITÉ, d'où 3 appuis ou plus quand on avait remis la sécurité après la première décharge).
+local armedPressAt = nil -- ARMÉ à l'instant par un appui (depuis SÉCURITÉ), sondes reliées
+
 RegisterCommand('+axonSafety', function()
     if not usingTaser() then return end
+    local now = GetGameTimer()
+    local window = Config.Prongs.SelectorReactivationWindow or 1500
 
     if armed then
-        -- sondes vérifiées au moment de la réactivation (réessayée si elles se recréent) : ici, la connexion suffit
         local canReactivate = connection.state == 'CONNECTED'
+        if canReactivate and armedPressAt and now - armedPressAt <= window then
+            armedPressAt = nil
+            reactivateConnection()
+            return
+        end
+        armedPressAt = nil
         setSafe()
         if canReactivate then
-            reactivationSafeAt = GetGameTimer()
+            reactivationSafeAt = now
         end
     else
         if functionTestState == 'passed' then
@@ -937,7 +950,10 @@ RegisterCommand('+axonSafety', function()
         TriggerServerEvent('axon_taser10:armed', not stealth)
         updateCid()
         if reactivate then
+            armedPressAt = nil
             reactivateConnection()
+        else
+            armedPressAt = connection.state == 'CONNECTED' and now or nil
         end
     end
 end, false)
@@ -1184,6 +1200,7 @@ end)
 
 RegisterNetEvent('axon_taser10:reactivationResult', function()
     battery = math.max(0.0, battery - Config.BatteryDrain)
+    playTaserSound('connect') -- décharge relancée : entendue par le tireur et autour (retour clair du double appui)
     updateCid()
 end)
 

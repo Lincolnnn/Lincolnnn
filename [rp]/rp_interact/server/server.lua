@@ -1031,8 +1031,15 @@ end)
 local DELETE_RANGE = Config.DeleteDistance + 10.0 -- tolérance (décalage réseau, grands véhicules)
 local HiddenProps = {} -- { model, x, y, z }
 
+--- Rang demandé pour supprimer (Config.DeleteRank, rp_permissions) : les Joueurs non-officiels ne suppriment rien
+local function deleteRankOk(src)
+    if not Config.DeleteRank or GetResourceState('rp_permissions') ~= 'started' then return true end
+    return rankAllowed(src, Config.DeleteRank)
+end
+
 local function canDelete(src)
     if IsPlayerAceAllowed(src, Config.DeleteAce) then return true end
+    if not deleteRankOk(src) then return false end
     if Config.DeleteAccess == 'everyone' then return true end
     return Config.DeleteAccess == 'police' and policeUnit(src) ~= nil
 end
@@ -1141,6 +1148,9 @@ on('propAction', function(src, p)
     if not canUseProp(src, entity) then return { ok = false, error = 'Vous ne pouvez pas modifier ce props.' } end
     local netId = tonumber(p.netId)
     if p.action == 'delete' then
+        if not IsPlayerAceAllowed(src, Config.DeleteAce) and not deleteRankOk(src) then
+            return { ok = false, error = 'Supprimer : réservé aux membres.' }
+        end
         if inSceneArea(coordsOfEntity(entity)) then return SCENE_REFUSED end
         if Props.DeletedEvent and Props.DeletedEvent ~= '' then TriggerEvent(Props.DeletedEvent, netId, src) end
         DeleteEntity(entity)

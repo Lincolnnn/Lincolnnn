@@ -424,8 +424,9 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     `rp_vehicleprops`, **Retirer les sondes du Taser** / **Recharger le Taser** de `rp_taser10`, **Nettoyer les débris** d'un accident de
     `rp_vehiclecontrol`. Le script fournit les exports client
     `targetOptions(info)` -> `{ label, options = { { id, label, icon } } }` et `targetSelect(id, info)`.
-  - **Secteur d'une scène de roleplay** (`SceneResource`, `rp_RoleplayZone` : zone / lieu / objet + 70 m) : **ni
-    « Supprimer » ni « Supprimer le props »** à l'œil, et le serveur refuse la suppression (rien ne doit disparaître).
+  - **Secteur d'une scène de roleplay** (`SceneResource`, `rp_RoleplayZone` : zone / lieu / objet + 70 m) : « Supprimer »
+    et « Supprimer le props » restent **affichés mais grisés** (« … (scène de roleplay à proximité) » : on comprend
+    pourquoi, avant l'option disparaissait), et le serveur refuse la suppression (rien ne doit disparaître).
     Les **portes** reconnues par `rp_doorlock` (export `isDoor`) ne sont jamais proposées à la suppression.
     Reconnaissance automatique (OneSync) : à chaque objet créé par un script, le serveur demande à son créateur quel
     script l'a fait apparaître ; si c'est `props`, l'objet est marqué pour tout le monde. Votre script de props peut
@@ -433,8 +434,11 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     (`StateKeys`, `Export`), et être prévenu des suppressions / déplacements (`DeletedEvent`, `MovedEvent`, pour sa
     sauvegarde) ;
   - **Supprimer** (jusqu'à **50 m**) : PNJ, véhicule sans joueur à bord, objet — **y compris les véhicules et objets
-    créés par des joueurs ou des scripts**. Ouvert à **tous les joueurs** (`DeleteAccess = 'everyone'` ;
-    `'police'` pour le réserver aux policiers en service, ou permission ACE `rpinteract.delete`). Jamais un joueur, ni un véhicule où se trouve un joueur. Avec OneSync, le serveur supprime
+    créés par des joueurs ou des scripts**. Ouvert aux **Membres et Admins** (`DeleteRank = 'rp.membre'`, rang Discord
+    de `rp_permissions` : les **Joueurs non-officiels ne peuvent rien supprimer**, ni PNJ, ni véhicule, ni objet, ni
+    props du menu des props ; vérifié aussi par le serveur ; sans `rp_permissions`, pas de rang demandé) ; en plus
+    `DeleteAccess = 'everyone'` (`'police'` pour le réserver aux policiers en service), ou permission ACE
+    `rpinteract.delete` (passe toujours). Jamais un joueur, ni un véhicule où se trouve un joueur. Avec OneSync, le serveur supprime
     l'élément pour tout le monde ; s'il est encore là, le client en prend le contrôle et le supprime. Une notification
     confirme « Élément supprimé. » (ou explique l'échec). Les objets de la carte sont masqués chez tous les joueurs
     (`rpi_showprops` en console pour tout réafficher) ;
@@ -453,12 +457,14 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
   (`SetEnableHandcuffs`) et animation « mains dans le dos » du jeu (`CuffAnim` : `mp_arresting idle`), avec les
   menottes aux poignets (`p_cs_cuffs_02_s`, dans leur toute première position). Si l'animation s'arrête (bousculé,
   monté dans un véhicule…), elle est **relancée automatiquement** ; menotté, il ne peut plus courir, sauter, frapper,
-  viser ni monter seul dans un véhicule (les menottes du jeu sont levées le temps d'être placé / sorti par un
+  viser ni monter seul dans un véhicule, et **aucune arme** : remise aux mains nues, changement d'arme bloqué, pas de
+  tir depuis un véhicule (placé à l'arrière : touches de tir / visée en véhicule et touches 1 à 9 bloquées) (les menottes du jeu sont levées le temps d'être placé / sorti par un
   policier). **Retirer les menottes** : 3 s.
 - **Prendre par le bras** (individu le plus proche, 2 m ; joueur ou PNJ) : le policier fait **`/e tenirlebras`**,
   l'individu est **tenu de force** à sa droite, un peu devant (`DragOffset`). Il est accroché au **centre** du
   policier (pas à un os : l'os du bassin le couchait à 90°) : il reste **droit**, sur son propre axe, et tourne avec
-  le policier. Il **marche quand le policier marche**, trottine s'il trottine, recule s'il recule, et **s'arrête quand
+  le policier. Il **marche quand le policier marche**, trottine s'il trottine, recule s'il recule (seulement un recul
+  franc qui dure 0,3 s, jamais en virage : avant, en tournant, il prenait un instant une pose de « mise en joue »), et **s'arrête quand
   il s'arrête** (ses jambes suivent la vitesse du policier, `DragMove` / `DragMoves`). **Menotté** : mains dans le dos
   (menottes du jeu, marche menottée) ; **pas menotté** : démarche normale du personnage, aucune emote. Accroché une
   seule fois (pas de ré-accrochage). Le policier qui le tient **ne peut pas sprinter** ni sauter. L'individu ne peut

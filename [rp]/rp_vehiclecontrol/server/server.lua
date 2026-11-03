@@ -243,27 +243,6 @@ RegisterNetEvent('rp_vehiclecontrol:debris', function(point)
 end)
 AddEventHandler('playerDropped', function() debrisAt[source] = nil end)
 
--- Accident important signalé par le conducteur (client/damage.lua) : scène de recherche automatique de rp_RoleplayZone
--- (zone « accident de la route » + point de choc : odeur d'essence et de matériaux abîmés). Vérifié : près du joueur,
--- une fois par 10 s et par joueur. Aussi relayé aux autres scripts serveur : AddEventHandler('rp_vehiclecontrol:accidentHappened').
-local accidentAt = {}
-RegisterNetEvent('rp_vehiclecontrol:accident', function(point)
-    local src = source
-    if type(point) ~= 'table' then return end
-    local x, y, z = tonumber(point.x), tonumber(point.y), tonumber(point.z)
-    if not (x and y and z) or x ~= x or y ~= y or z ~= z then return end
-    local ped = GetPlayerPed(src)
-    if not ped or ped == 0 or #(GetEntityCoords(ped) - vector3(x, y, z)) > 25.0 then return end
-    local now = GetGameTimer()
-    if accidentAt[src] and now - accidentAt[src] < 10000 then return end
-    accidentAt[src] = now
-    TriggerEvent('rp_vehiclecontrol:accidentHappened', src, { x = x, y = y, z = z })
-    if GetResourceState('rp_RoleplayZone') == 'started' then
-        pcall(function() exports.rp_RoleplayZone:autoScene('accident', { x = x, y = y, z = z }, src) end)
-    end
-end)
-AddEventHandler('playerDropped', function() accidentAt[source] = nil end)
-
 -- /cleardebrisall : débris et verre retirés chez tous les joueurs (permission ACE)
 RegisterNetEvent('rp_vehiclecontrol:clearDebrisAll', function()
     local src = source

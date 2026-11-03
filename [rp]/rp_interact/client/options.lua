@@ -211,10 +211,15 @@ end
 --- Supprimer un PNJ, un véhicule sans joueur ou un objet (même créé par un joueur), jusqu'à 50 m ; jamais dans le
 --- secteur d'une scène de roleplay
 local function deleteOption(ctx, out)
-    if within(ctx, Config.DeleteDistance) and RPI.Police.canDelete() and RPI.Police.deletable(ctx)
-        and not RPI.inSceneArea(ctx.hit) then
-        out[#out + 1] = { id = 'env:delete', label = 'Supprimer', icon = 'trash',
-            run = function(c) RPI.Police.delete(c) end }
+    if within(ctx, Config.DeleteDistance) and RPI.Police.canDelete() and RPI.Police.deletable(ctx) then
+        if RPI.inSceneArea(ctx.hit) then
+            -- secteur d'une scène : l'option reste VISIBLE, grisée, avec la raison (avant : elle disparaissait)
+            out[#out + 1] = { id = 'env:delete', label = 'Supprimer (scène de roleplay à proximité)', icon = 'trash',
+                disabled = true, run = function() RPI.notify('Scène de roleplay à proximité : rien ne peut être supprimé ici.', 'error') end }
+        else
+            out[#out + 1] = { id = 'env:delete', label = 'Supprimer', icon = 'trash',
+                run = function(c) RPI.Police.delete(c) end }
+        end
     end
     return out
 end

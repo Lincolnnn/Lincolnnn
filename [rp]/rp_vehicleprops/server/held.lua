@@ -62,17 +62,6 @@ local function cleanWeapon(src, d)
         components = components, componentTints = tints, light = d.light == true, torch = TORCHES[hash] ~= nil }
 end
 
---- Arme (pas une lampe, pas un Taser) posée par un CIVIL (pas dans une unité du MDC) : scène de recherche automatique
---- de rp_RoleplayZone (odeur de poudre)
-local NO_POWDER = { [GetHashKey('WEAPON_STUNGUN') & 0xFFFFFFFF] = true, [GetHashKey('WEAPON_STUNGUN_MP') & 0xFFFFFFFF] = true }
-local function civilWeaponScene(src, w, pos)
-    if w.torch or NO_POWDER[w.hash] or tostring(w.label):lower():find('taser', 1, true) then return end
-    if GetResourceState('rp_RoleplayZone') ~= 'started' then return end
-    local unit = Player(src).state.mdcUnit
-    if type(unit) == 'string' and unit ~= '' then return end
-    pcall(function() exports.rp_RoleplayZone:autoScene('weapon', { x = pos.x, y = pos.y, z = pos.z }, src) end)
-end
-
 local function weaponsOf(vehicle)
     local list, out = Entity(vehicle).state.rpWeapons, {}
     if type(list) == 'table' then
@@ -105,8 +94,6 @@ RegisterNetEvent('rp_vehicleprops:placeWeapon', function(netId, data)
     list[#list + 1] = w
     Entity(vehicle).state:set('rpWeapons', list, true)
     reply(src, true)
-    local c = GetEntityCoords(vehicle)
-    civilWeaponScene(src, w, vector3(c.x, c.y, c.z - 0.5))
 end)
 
 -- Reprendre une arme posée (n'importe qui à côté du véhicule) : rendue telle quelle
@@ -152,7 +139,6 @@ RegisterNetEvent('rp_vehicleprops:placeGround', function(data)
     list[#list + 1] = w
     GlobalState.rpGroundItems = list
     reply(src, true)
-    civilWeaponScene(src, w, pos)
 end)
 
 RegisterNetEvent('rp_vehicleprops:pickupGround', function(id)

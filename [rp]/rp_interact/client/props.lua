@@ -208,7 +208,11 @@ function RPI.propOptions(ctx, out)
     if not RPI.isPlacedProp(ctx.entity) then return false end
     if (ctx.distance or 0) <= (P.Distance or 3.0) and canUse(ctx.entity) and not moving then
         out[#out + 1] = { id = 'prop:move', label = 'Déplacer le props', icon = 'move', run = function(c) moveProp(c.entity) end }
-        if not (RPI.inSceneArea and RPI.inSceneArea(ctx.hit)) then -- jamais dans le secteur d'une scène de roleplay
+        local rankOk = LocalPlayer.state.rpiCanDelete == true or RPI.Police.deleteRankOk()
+        if rankOk and RPI.inSceneArea and RPI.inSceneArea(ctx.hit) then -- jamais dans le secteur d'une scène de roleplay
+            out[#out + 1] = { id = 'prop:delete', label = 'Supprimer le props (scène de roleplay à proximité)', icon = 'trash',
+                disabled = true, run = function() end }
+        elseif rankOk then
             out[#out + 1] = { id = 'prop:delete', label = 'Supprimer le props', icon = 'trash', run = function(c) deleteProp(c.entity) end }
         end
     end
