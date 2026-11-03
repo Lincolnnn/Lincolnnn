@@ -1974,7 +1974,7 @@
         win.style.top = `${Math.round((innerHeight - h) / 2)}px`;
     }
 
-    $('#editorClose').addEventListener('click', () => post('closeEditor'));
+    $('#editorClose').addEventListener('click', () => post('closeEditor', { reason: 'bouton fermer' }));
 
     // Déplacement de la fenêtre (barre de titre)
     let drag = null;
@@ -1998,7 +1998,7 @@
             eye.menu = false;
             post('eyeCancel');
         } else if (ed.open) {
-            post('closeEditor');
+            post('closeEditor', { reason: 'touche Échap' });
         }
     });
 

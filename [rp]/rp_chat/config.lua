@@ -82,6 +82,7 @@ ChatConfig = {
                 { "Début", "noms RP et numéros des joueurs au-dessus des têtes (maintenir ou appuyer : /configtetes)" },
                 { "/goto ID · /back", "aller à un joueur, sur toute la carte / revenir" },
                 { "/blip ID · /players", "suivre un joueur sur la carte (/blip off) / liste des joueurs" },
+                { "/viser", "visée : maintenir le clic droit, ou appuyer une fois (/viser maintenir | appuyer)" },
             } },
             { title = "MDC & menus", items = {
                 { "K", "MDC : unités, appels, recherches, BOLO, rapports, messages entre unités" }, { "Y / N", "accepter / refuser un appel" },

@@ -75,3 +75,9 @@ mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est re
   refaits quand l'état change.
 - Performance : une vérification toutes les 2,5 s (véhicules proches qui portent des objets, véhicules disparus) ;
   rien d'autre. Éditeur : seulement pendant le réglage.
+
+## Export : lâcher l'arme tenue
+
+`exports.rp_vehicleprops:dropHeldWeapon()` (client) : l'arme à feu tenue tombe **à ses pieds, tout de suite, sans
+animation**, et se reprend avec l'œil comme une arme posée (accessoires, chargeur). Pas une lampe ni un Taser.
+Utilisé par `rp_adrenaline` (chute).

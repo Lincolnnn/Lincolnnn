@@ -330,6 +330,31 @@ local function placeOnVehicle(info, vehicle, spot)
     end)
 end
 
+--- Lâcher l'arme à feu tenue à ses pieds, tout de suite, sans animation (rp_adrenaline : chute au sol). Elle se
+--- reprend avec l'œil comme une arme posée (« Ramasser »), avec ses accessoires et son chargeur. true si lancé.
+---   exports.rp_vehicleprops:dropHeldWeapon()
+local function dropHeldWeapon()
+    local ped = PlayerPedId()
+    if busy then return false end
+    local w = capture()
+    if not w or w.torch or heldHash(ped) ~= w.hash or isTaser(w.hash) then return false end
+    busy = true
+    CreateThread(function()
+        local point = GetOffsetFromEntityInWorldCoords(ped, math.random(-30, 30) / 100.0, 0.45, -0.5)
+        local hit, normal = surfaceAt(point, 1 | 16, nil)
+        local model = modelOf(w, true)
+        if not hit or not loadModel(model) then busy = false return end
+        local pos, rx, ry, rz = surfacePose(model, hit, normal, GetEntityHeading(ped) + 90.0 + math.random(-60, 60))
+        SetModelAsNoLongerNeeded(model)
+        if heldHash(ped) ~= w.hash then busy = false return end
+        release(ped, w)
+        w.x, w.y, w.z, w.rx, w.ry, w.rz = pos.x, pos.y, pos.z, rx, ry, rz
+        TriggerServerEvent('rp_vehicleprops:placeGround', w)
+    end)
+    return true
+end
+exports('dropHeldWeapon', dropHeldWeapon)
+
 local function placeOnGround(info)
     local ped = PlayerPedId()
     local w = capture()

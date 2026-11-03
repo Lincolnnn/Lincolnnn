@@ -70,3 +70,12 @@ Client : `exports.rp_teleport:teleport(vector3(x, y, z), heading)`.
 
 Aucune boucle sans action : le serveur n'envoie les positions des blips (toutes les 1,5 s) que tant que quelqu'un suit
 un joueur ; le client n'a aucun thread permanent.
+
+## Avec vMenu (téléportation au-delà de 400 m)
+
+vMenu (Joueurs en ligne > Se téléporter / dans le véhicule) ne cherche les joueurs à **toute distance** (liste et
+position demandées au serveur) que si la convar `onesync_enableInfinity` vaut `"true"`. Les FiveM récents activent
+OneSync avec `onesync on` et ne posent plus cette ancienne convar : vMenu se croyait limité au rayon du joueur
+(~400 m). **rp_teleport la pose au démarrage** dès que OneSync est actif (`VMenuInfinity = true`). Démarrez
+`rp_teleport` **avant** `vMenu` ; les joueurs déjà connectés doivent se reconnecter. Sinon, dans `server.cfg` :
+`set onesync_enableInfinity true`.

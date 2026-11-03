@@ -116,6 +116,13 @@ local nearShots = {} -- heures des tirs entendus de près (tireur à moins de Ti
 local lastRing = -math.huge
 
 --- n tirs entendus, tireur à d mètres : l'acouphène part quand il y en a assez dans la fenêtre
+--- Événements locaux pour les autres scripts du client (rp_adrenaline) : aucun coût sans écouteur
+---   'rp_weaponscontrol:shotNear' (n, distance) : n tirs (soi, joueur, PNJ) entendus, tireur à `distance` m
+---   'rp_weaponscontrol:bulletHit' ()          : le joueur vient d'être touché par une balle
+local function emitShot(n, d)
+    TriggerEvent('rp_weaponscontrol:shotNear', math.max(1, n or 1), (d or 0.0) + 0.0)
+end
+
 local function heard(n, d)
     local T = W.Tinnitus or {}
     if T.Enabled == false or d > (T.Range or 10.0) then return end
@@ -311,6 +318,7 @@ local function onShot(ped, weapon, entry)
     recoil(ped, entry.w)
     local shake = entry.w.shake or entry.p.shake
     if shake and shake > 0 then camShake((W.Shake or {}).Name or 'SMALL_EXPLOSION_SHAKE', shake * (suppressed and 0.5 or 1.0)) end
+    emitShot(1, 0.0)
     if not suppressed then
         flash(ped)
         heard(1, 0.0)
@@ -662,7 +670,8 @@ CreateThread(function()
     local T = W.Tinnitus or {}
     local tinnitus = T.Enabled ~= false and T.Npc ~= false
     if not tinnitus and SP.Enabled == false then return end
-    local range = math.max(tinnitus and (T.Range or 10.0) or 0.0, SP.Enabled ~= false and (SP.Range or 25.0) or 0.0)
+    local range = math.max(tinnitus and (T.Range or 10.0) or 0.0, SP.Enabled ~= false and (SP.Range or 25.0) or 0.0,
+        W.ShotEventRange or 30.0) -- tirs de PNJ annoncés aux autres scripts (rp_adrenaline : 30 m)
     while true do
         local me = PlayerPedId()
         local origin = GetEntityCoords(me)
@@ -684,6 +693,7 @@ CreateThread(function()
                         local d = #(GetEntityCoords(ped) - GetEntityCoords(mine))
                         local silenced = IsPedCurrentWeaponSilenced(ped)
                         if tinnitus and not silenced then heard(1, d) end
+                        emitShot(1, d)
                         shotAround(1, d, IsPedInCombat(ped, mine), silenced)
                     end
                 end
@@ -720,7 +730,7 @@ end
 RPWeapons.hitByFirearm = hitByFirearm
 
 AddEventHandler('gameEventTriggered', function(name, args)
-    if name ~= 'CEventNetworkEntityDamage' or SP.Enabled == false or type(args) ~= 'table' then return end
+    if name ~= 'CEventNetworkEntityDamage' or type(args) ~= 'table' then return end
     local ped = PlayerPedId()
     if args[1] ~= ped then return end
     local gun = hitByFirearm(ped, args)
@@ -728,6 +738,8 @@ AddEventHandler('gameEventTriggered', function(name, args)
     ClearPedLastWeaponDamage(ped)
     ClearEntityLastDamageEntity(ped)
     if not gun then return end
+    TriggerEvent('rp_weaponscontrol:bulletHit') -- rp_adrenaline
+    if SP.Enabled == false then return end
     if (SP.HitShake or 0) > 0 then camShake(SP.ShakeName or 'SMALL_EXPLOSION_SHAKE', SP.HitShake) end
     suppress(SP.Hit or 0.22, true)
 end)
@@ -770,6 +782,7 @@ RegisterNetEvent('rp_weaponscontrol:shots', function(src, count, key, suppressed
         if amount > 0.01 then camShake(Sh.Name or 'SMALL_EXPLOSION_SHAKE', amount) end
     end
     if not suppressed then heard(count, d) end
+    emitShot(count, d)
     -- effet sur les bords : tir proche ; tir dans notre direction (balle passée tout près, touché ou non) : + secousse
     local towardMe = passesNear(aim, GetEntityCoords(PlayerPedId()), SP.IncomingRadius or 2.5)
     shotAround(count, d, towardMe, suppressed)

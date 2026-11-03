@@ -29,4 +29,9 @@ TeleportConfig = {
     Blip = { Interval = 1500, Max = 10, Sprite = 1, Colour = 3, Scale = 0.9, ShortRange = false },
 
     ChatTitle = 'Téléportation', -- titre des messages privés dans le chat (rp_chat)
+
+    -- vMenu : sa téléportation vers un joueur (Joueurs en ligne) marche à toute distance si la convar
+    -- « onesync_enableInfinity » vaut "true" ; ce script la pose au démarrage quand OneSync est actif. false : ne rien
+    -- toucher (à mettre alors dans server.cfg : set onesync_enableInfinity true). Démarrez rp_teleport AVANT vMenu.
+    VMenuInfinity = true,
 }

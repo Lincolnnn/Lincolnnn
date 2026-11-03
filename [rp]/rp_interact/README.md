@@ -424,6 +424,9 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     `rp_vehicleprops`, **Retirer les sondes du Taser** / **Recharger le Taser** de `rp_taser10`, **Nettoyer les débris** d'un accident de
     `rp_vehiclecontrol`. Le script fournit les exports client
     `targetOptions(info)` -> `{ label, options = { { id, label, icon } } }` et `targetSelect(id, info)`.
+  - **Fiche civile** (`/fichecivil`) : tant qu'elle est ouverte, elle **garde le focus** (souris / clavier) même si un
+    autre script prend puis relâche le sien entre-temps ; à chaque fermeture, la raison est écrite dans la console F8
+    (`[rp_interact] fiche civile fermée : …`) pour repérer une fermeture inattendue ;
   - **Secteur d'une scène de roleplay** (`SceneResource`, `rp_RoleplayZone` : zone / lieu / objet + 70 m) : « Supprimer »
     et « Supprimer le props » restent **affichés mais grisés** (« … (scène de roleplay à proximité) » : on comprend
     pourquoi, avant l'option disparaissait), et le serveur refuse la suppression (rien ne doit disparaître).

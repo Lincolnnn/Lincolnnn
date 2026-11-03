@@ -77,9 +77,26 @@ function RPI.setMenuCursor(on)
     RPI.applyFocus()
 end
 
+local editorGuard = false
+--- Fiche civile ouverte : elle garde le focus (souris / clavier) même si un autre script (MDC, chat, menus près d'un
+--- véhicule…) prend puis relâche le sien entre-temps (avant : la fiche restait affichée mais ne répondait plus, ou
+--- passait derrière). Vérifié toutes les 250 ms, seulement pendant qu'elle est ouverte.
+local function guardEditor()
+    if editorGuard then return end
+    editorGuard = true
+    CreateThread(function()
+        while ui.editor do
+            if not IsNuiFocused() then RPI.applyFocus() end
+            Wait(250)
+        end
+        editorGuard = false
+    end)
+end
+
 function RPI.setUi(name, open)
     ui[name] = open and true or false
     RPI.applyFocus()
+    if name == 'editor' and ui.editor then guardEditor() end
 end
 
 --- `name` : cette fenêtre est-elle ouverte ? Sans nom : une fenêtre avec la souris (fiche civile, liste de l'œil)
@@ -496,6 +513,7 @@ end)
 if Config.EditorCommand then
     RegisterCommand(Config.EditorCommand, function()
         if ui.editor then
+            print('[rp_interact] fiche civile fermée : commande /' .. Config.EditorCommand)
             RPI.setUi('editor', false)
             SendNUIMessage({ action = 'editor', data = { open = false } })
             return
@@ -516,7 +534,9 @@ RegisterNUICallback('findVehicle', function(_, cb)
     end)
 end)
 
-RegisterNUICallback('closeEditor', function(_, cb)
+RegisterNUICallback('closeEditor', function(data, cb)
+    -- raison affichée dans la console F8 (bouton ✕ ou Échap) : aide à repérer une fermeture inattendue
+    print('[rp_interact] fiche civile fermée : ' .. tostring(type(data) == 'table' and data.reason or 'interface'))
     RPI.setUi('editor', false)
     SendNUIMessage({ action = 'editor', data = { open = false } })
     cb({ ok = true })

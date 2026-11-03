@@ -86,6 +86,19 @@ end
 
 local function sameBucket(a, b) return GetPlayerRoutingBucket(a) == GetPlayerRoutingBucket(b) end
 
+-- vMenu (Joueurs en ligne > Se téléporter / Téléporter dans le véhicule) : il ne cherche les joueurs à TOUTE distance
+-- (liste et position demandées au serveur) que si la convar « onesync_enableInfinity » vaut "true". Les FiveM récents
+-- activent OneSync avec « onesync on » et ne posent plus cette ancienne convar : vMenu se croyait limité au rayon du
+-- joueur (~400 m) et la téléportation échouait au-delà. Posée ici dès que OneSync est actif (C.VMenuInfinity).
+local function fixVMenuInfinity()
+    if C.VMenuInfinity == false or GetConvar('onesync', 'off') == 'off' then return end
+    if GetConvar('onesync_enableInfinity', 'false') == 'true' then return end
+    SetConvar('onesync_enableInfinity', 'true')
+    print('^5[rp_teleport]^0 vMenu : téléportation vers les joueurs à toute distance activée (onesync_enableInfinity = true).'
+        .. ' Les joueurs déjà connectés doivent se reconnecter.')
+end
+fixVMenuInfinity()
+
 AddEventHandler('onResourceStart', function(res)
     if res ~= RES then return end
     if GetConvar('onesync', 'off') == 'off' then
