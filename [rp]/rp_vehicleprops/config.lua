@@ -28,7 +28,7 @@ VPConfig = {
         Enabled = true,
         MaxWeaponsPerVehicle = 4,
         GroundDistance = 3.0,   -- au sol : au point visé s'il est à moins de … m, sinon devant soi
-        GroundMax = 3,          -- objets posés au sol en même temps, par joueur
+        GroundMax = 0,          -- objets posés au sol en même temps, par joueur (0 = sans limite ; GroundTotal s'applique)
         GroundTotal = 100,      -- au sol, en tout (au-delà : le plus ancien disparaît)
         PickupDistance = 2.5,   -- ramasser : à moins de … m de l'objet
         PickupSnap = 0.8,       -- œil : objet au sol à moins de … m du point visé
@@ -46,6 +46,14 @@ VPConfig = {
         Beam = { Drawn = false, Range = 60.0, Color = { 255, 246, 228 }, Distance = 22.0, Brightness = 5.0,
             Hardness = 2.0, Radius = 13.0, Falloff = 30.0 },
     },
+
+    -- CHAPEAU / LUNETTES TOMBÉS (tenues EUP ou du jeu) : quand le jeu fait tomber le chapeau (casquette, casque…) ou
+    -- les lunettes du joueur (chute, coup, balle, ragdoll de rp_adrenaline…), il peut les RAMASSER avec l'œil
+    -- (« Ramasser : chapeau ») à l'endroit où ils sont tombés : remis tels quels (même modèle EUP, même texture).
+    --   CheckMs : vérification de la tenue (ms) | Distance : ramasser à moins de … m | Snap : œil à moins de … m de
+    --   l'objet | Expire : oublié après … s | Marker : petit repère au sol si l'objet du jeu n'a pas été retrouvé
+    LostProps = { Enabled = true, CheckMs = 300, Distance = 2.5, Snap = 1.2, Expire = 900, Marker = true,
+        Anim = { 'pickup_object', 'pickup_low', 900 } },
 
     Props = {
         { id = 'pistol',     label = 'Pistolet',                category = 'Armes',      model = 'w_pi_combatpistol' },

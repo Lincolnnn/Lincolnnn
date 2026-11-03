@@ -129,7 +129,9 @@ RegisterNetEvent('rp_vehicleprops:placeGround', function(data)
     if not near(src, pos, (H.GroundDistance or 3.0) + 2.0) then return reply(src, false, 'Trop loin.') end
     local list, mine = groundList(), 0
     for _, item in ipairs(list) do if item.owner == src then mine = mine + 1 end end
-    if mine >= (H.GroundMax or 3) then return reply(src, false, ('Pas plus de %d objets posés au sol.'):format(H.GroundMax or 3)) end
+    -- Sans limite par joueur par défaut (GroundMax = 0) : une arme lâchée dans une chute (rp_adrenaline) tombe toujours
+    local max = tonumber(H.GroundMax) or 0
+    if max > 0 and mine >= max then return reply(src, false, ('Pas plus de %d objets posés au sol.'):format(max)) end
     if #list >= (H.GroundTotal or 100) then table.remove(list, 1) end -- le plus ancien disparaît
     nextGround = nextGround + 1
     w.id = ('g%d_%d'):format(os.time() % 100000, nextGround)

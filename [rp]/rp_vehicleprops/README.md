@@ -46,13 +46,29 @@ Liée à `rp_interact` (œil, accessoires des armes), `rp_weaponscontrol` (lampe
 - **« Reprendre : <arme> »** (œil sur le véhicule) : rendue **telle quelle**, lampe rallumée si elle l'était.
 - **Ailleurs** (sol, mur, personne…), arme ou lampe en main : **« Poser l'arme au sol »** / **« … la lampe au sol »**,
   de la même façon (au point visé à moins de 3 m, sinon devant soi) ; **« Ramasser : <arme> »** avec l'œil (n'importe
-  qui, à 2,5 m). 3 au plus par joueur (`GroundMax`). **La jeter** reste possible avec `rp_RoleplayZone` (touche G).
+  qui, à 2,5 m). **Sans limite** par joueur (`GroundMax = 0` ; un nombre > 0 remet une limite) : une arme lâchée dans
+  une chute (`rp_adrenaline`) tombe toujours ; 100 objets au sol en tout (`GroundTotal`, le plus ancien disparaît). **La jeter** reste possible avec `rp_RoleplayZone` (touche G).
 - **Taser** : au sol avec `rp_taser10` (sondes gardées) ; relié à un suspect, il ne va pas sur un véhicule.
 
 Lampe posée **au sol** : toujours le modèle **`prop_cs_police_torch_02`** (`GroundTorches`) ; sur un véhicule :
 `prop_cs_police_torch`, celui de la lampe tenue (`Torches`). Lampes torches posées allumées : **lumière du modèle** (celle de CartoonFlashlight), réappliquée régulièrement ;
 `Beam.Drawn = true` : faisceau dessiné en plus (`TorchBeamAxis` pour son axe). Le serveur vérifie : arme en main (ou
 mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est rendue.
+
+## Chapeau / lunettes tombés (`LostProps`)
+
+Quand le jeu fait **tomber le chapeau** (casquette, casque, chapeau **EUP**…) **ou les lunettes** d'un joueur (chute,
+coup, balle, ragdoll de `rp_adrenaline`…), il peut les **reprendre** : œil (Alt) sur l'objet tombé ou à côté,
+**« Ramasser : chapeau »** / **« Ramasser : lunettes »** -> petit geste, l'objet disparaît du sol et le chapeau / les
+lunettes sont **remis tels quels** (même modèle EUP, même texture).
+
+- Seulement quand ils **tombent** (pendant une chute, un ragdoll, ou juste après une blessure) : les retirer avec un
+  menu (EUP, vMenu…) ne laisse rien à ramasser ; les remettre avec un menu efface l'objet au sol.
+- C'est le **propriétaire** qui les ramasse (le script suit sa propre tenue) ; oubliés après 15 min (`Expire`) ou si
+  son personnage change de modèle.
+- L'objet que le jeu fait tomber est retrouvé autour de la tête et suivi jusqu'à ce qu'il s'arrête ; s'il n'est pas
+  retrouvé, un **petit repère blanc** marque l'endroit (`Marker`), et l'option apparaît quand même en visant le sol.
+- En véhicule : rien (le casque de moto est géré par le jeu).
 
 ## Configuration (`config.lua`)
 
@@ -64,6 +80,7 @@ mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est re
 | `Restricted` | `true` : réservé à la permission ACE `rp_vehicleprops.use` |
 | `Editor` | portée de la position (±3 m), pas des curseurs, sensibilité |
 | `Held` | arme / lampe tenue : armes par véhicule, objets au sol (par joueur, en tout), distances, hauteur au-dessus de la surface, modèles des lampes, armes exclues, faisceau dessiné |
+| `LostProps` | chapeau / lunettes tombés : activé, vérification (ms), distance pour ramasser, visée, oubli (s), repère, geste |
 | `Props` | objets proposés : `id` unique, `label`, `category`, `model` (modèle du jeu). **Le serveur n'accepte que ces modèles.** |
 
 ## Fonctionnement

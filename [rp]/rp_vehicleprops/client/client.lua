@@ -288,13 +288,17 @@ exports('targetOptions', function(info)
     end
     -- arme / lampe tenue en main (client/held.lua) : la poser sur le véhicule, la lampe au sol ; reprendre
     if VPHeld and VPHeld.options then VPHeld.options(info, vehicle, options) end
+    -- chapeau / lunettes tombés (client/lostprops.lua) : les ramasser
+    local before = #options
+    if VPLost and VPLost.options then VPLost.options(info, vehicle, options) end
     if #options == 0 then return nil end
-    return { label = vehicle and 'Véhicule' or 'Lampe', options = options }
+    return { label = vehicle and 'Véhicule' or (before == 0 and 'Tenue' or 'Lampe'), options = options }
 end)
 
 exports('targetSelect', function(id, info)
     local vehicle = vehicleFromInfo(info)
     if VPHeld and VPHeld.select and VPHeld.select(id, info, vehicle) then return end
+    if VPLost and VPLost.select and VPLost.select(id, info) then return end
     if not vehicle then return notify('Rapprochez-vous du véhicule.') end
     if id == 'add' or id == 'edit' or id == 'remove' then openList(vehicle, id, info.hit) end
 end)
