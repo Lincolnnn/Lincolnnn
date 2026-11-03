@@ -66,6 +66,17 @@ Bot Discord : sur le serveur Discord (ID dans `config.lua`, `GuildId`, ou convar
 affiche « connecté au serveur Discord » ou l'erreur (token refusé, bot absent…). **Ne lancez plus DiscordWhitelist** en
 même temps (double vérification).
 
+## Rôle donné sur Discord : sans redémarrer le serveur
+
+- **À la connexion**, les rôles sont **toujours redemandés à Discord** : un rôle qui vient d'être donné (ou un membre
+  qui vient de rejoindre le serveur Discord) compte **tout de suite**. Avant, un refus restait en cache 10 min
+  (`CacheMinutes`) et il fallait redémarrer le serveur pour que le joueur puisse entrer. Le dernier résultat connu
+  (moins de 10 min) ne sert plus que si Discord ne répond pas.
+- **En jeu** : rangs revérifiés toutes les **5 min** (`RefreshMinutes`) ; **`/roles`** : le joueur revérifie ses rôles
+  **immédiatement** (30 s entre deux, `SelfRefresh`) ; les admins : `rpperms_refresh [id]`. Les scripts `rp_` suivent
+  le nouveau rang tout de suite ; **vMenu** lit ses permissions à l'arrivée du joueur : un message lui dit de se
+  reconnecter pour que vMenu les prenne aussi (une simple reconnexion, pas de redémarrage du serveur).
+
 ## Réservé aux membres (`MembersOnly`)
 
 Les **loadouts d'armes enregistrés de vMenu** (menu *Weapon Loadouts* : créer, équiper, équiper au respawn) sont

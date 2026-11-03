@@ -86,8 +86,12 @@ PermsConfig = {
         'vMenu.WeaponLoadouts.Equip', 'vMenu.WeaponLoadouts.EquipOnRespawn',
     },
 
-    CacheMinutes = 10,    -- rôles d'un joueur gardés 10 min (reconnexion rapide sans nouvelle demande à Discord)
-    RefreshMinutes = 15,  -- rôles des joueurs connectés revérifiés toutes les 15 min (rôle donné / retiré en jeu)
+    -- Rôles TOUJOURS redemandés à Discord à la connexion (un rôle donné compte tout de suite, sans redémarrer le
+    -- serveur) ; le dernier résultat connu (moins de CacheMinutes) ne sert que si Discord ne répond pas
+    CacheMinutes = 10,
+    RefreshMinutes = 5,   -- rôles des joueurs connectés revérifiés toutes les 5 min (rôle donné / retiré en jeu)
+    -- /roles : un joueur revérifie ses rôles tout de suite (rôle reçu en jeu) ; Cooldown s entre deux
+    SelfRefresh = { Enabled = true, Command = 'roles', Cooldown = 30 },
     Debug = false,        -- détails dans la console du serveur
 }
 

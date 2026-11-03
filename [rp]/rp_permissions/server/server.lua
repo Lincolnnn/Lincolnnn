@@ -85,15 +85,22 @@ local function fetchMember(discordId, cb)
     end, 'GET', '', { Authorization = 'Bot ' .. TOKEN, ['Content-Type'] = 'application/json' })
 end
 
---- Comme fetchMember, en attendant la réponse (dans un thread), avec le cache
+--- Comme fetchMember, en attendant la réponse (dans un thread), avec le cache.
+--- `fresh` : toujours redemandé à Discord ; si Discord ne répond pas, le dernier résultat connu (moins de
+--- CacheMinutes) sert de secours.
 local function lookup(discordId, fresh)
-    local entry = cache[discordId]
+    local cached = cache[discordId]
     local maxAge = (C.CacheMinutes or 10) * 60000
-    if not fresh and entry and entry.status ~= 'error' and GetGameTimer() - entry.at < maxAge then return entry end
+    local recent = cached and cached.status ~= 'error' and GetGameTimer() - cached.at < maxAge
+    if not fresh and recent then return cached end
     local p = promise.new()
     fetchMember(discordId, function(status, roles, code) p:resolve({ status = status, roles = roles, code = code }) end)
     local res = Citizen.Await(p)
-    entry = { status = res.status, roles = res.roles, rank = res.status == 'ok' and rankOf(res.roles) or nil,
+    if res.status == 'error' and recent then
+        debug('Discord injoignable (code %s) : dernier résultat connu utilisé', tostring(res.code))
+        return cached
+    end
+    local entry = { status = res.status, roles = res.roles, rank = res.status == 'ok' and rankOf(res.roles) or nil,
         at = GetGameTimer(), code = res.code }
     if res.status ~= 'error' then cache[discordId] = entry end
     return entry
@@ -160,15 +167,23 @@ local function refreshPlayer(src, fresh)
     local discordId = discordOf(src)
     if not discordId then return setRank(src, nil) end
     local entry = lookup(discordId, fresh)
-    if entry.status == 'error' then return end -- Discord injoignable : rang actuel gardé
+    if entry.status == 'error' then return ranks[src] end -- Discord injoignable : rang actuel gardé
     local rank = entry.status == 'ok' and not blacklisted(entry.roles) and entry.rank or nil
     applyPrincipal(discordId, rank)
     if ranks[src] ~= rank then
-        if ranks[src] ~= nil or rank ~= nil then
+        local before = ranks[src]
+        if before ~= nil or rank ~= nil then
             log('%s (%d) : rang %s', GetPlayerName(src) or '?', src, rank and ROLES[rank].label or 'aucun')
         end
         setRank(src, rank)
+        -- en jeu (pas à l'arrivée) : le joueur est prévenu ; les scripts rp_ suivent tout de suite, vMenu lit ses
+        -- permissions à l'arrivée seulement
+        if before ~= nil and GetPlayerName(src) then
+            TriggerClientEvent('chat:addMessage', src, { args = { 'Permissions', ('Rôle Discord mis à jour : %s. '
+                .. 'Reconnecte-toi pour que vMenu prenne aussi tes nouvelles permissions.'):format(rank and ROLES[rank].label or 'aucun') } })
+        end
     end
+    return rank
 end
 
 -- =========================================================================
@@ -187,7 +202,9 @@ AddEventHandler('playerConnecting', function(name, _, deferrals)
         if W.Enabled then return deferrals.done(M.noDiscord) end
         return deferrals.done()
     end
-    local entry = lookup(discordId, false)
+    -- Toujours redemandé à Discord à la connexion : un rôle donné (ou un membre arrivé sur le serveur Discord) compte
+    -- tout de suite. Avant : un refus restait en cache CacheMinutes (10 min) et il fallait redémarrer le serveur.
+    local entry = lookup(discordId, true)
     if entry.status == 'error' then
         log('Discord injoignable pour %s (code %s) : %s', name, tostring(entry.code),
             W.OnApiError == 'deny' and 'connexion refusée' or 'connexion acceptée sans rôle')
@@ -320,6 +337,30 @@ RegisterCommand('rpperms', function(src)
         reply(src, ('%d  %s  : %s'):format(n, GetPlayerName(n) or '?', rank and ROLES[rank].label or 'aucun rôle'))
     end
 end, false)
+
+-- /roles (C.SelfRefresh) : un joueur revérifie SES rôles Discord tout de suite (rôle reçu en jeu), sans attendre la
+-- revérification régulière ni redémarrer le serveur
+local selfRefreshAt = {}
+local SR = C.SelfRefresh or {}
+if SR.Enabled ~= false then
+    RegisterCommand(SR.Command or 'roles', function(src)
+        if src == 0 then return end
+        local now = GetGameTimer()
+        local wait = (SR.Cooldown or 30) * 1000
+        if selfRefreshAt[src] and now - selfRefreshAt[src] < wait then
+            return reply(src, ('Patiente %d s avant de revérifier tes rôles.'):format(math.ceil((wait - (now - selfRefreshAt[src])) / 1000)))
+        end
+        selfRefreshAt[src] = now
+        local before = ranks[src]
+        CreateThread(function()
+            local rank = refreshPlayer(src, true)
+            if rank == before then
+                reply(src, ('Rôles revérifiés auprès de Discord : %s (inchangé).'):format(rank and ROLES[rank].label or 'aucun rôle'))
+            end
+        end)
+    end, false)
+    AddEventHandler('playerDropped', function() selfRefreshAt[source] = nil end)
+end
 
 RegisterCommand('rpperms_refresh', function(src, args)
     if not canUse(src) then return end

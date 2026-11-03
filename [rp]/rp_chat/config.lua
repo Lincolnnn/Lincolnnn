@@ -83,6 +83,7 @@ ChatConfig = {
                 { "/goto ID · /back", "aller à un joueur, sur toute la carte / revenir" },
                 { "/blip ID · /players", "suivre un joueur sur la carte (/blip off) / liste des joueurs" },
                 { "/viser", "visée : maintenir le clic droit, ou appuyer une fois (/viser maintenir | appuyer)" },
+                { "/roles", "rôle Discord reçu en jeu : le prendre en compte tout de suite" },
             } },
             { title = "MDC & menus", items = {
                 { "K", "MDC : unités, appels, recherches, BOLO, rapports, messages entre unités" }, { "Y / N", "accepter / refuser un appel" },
