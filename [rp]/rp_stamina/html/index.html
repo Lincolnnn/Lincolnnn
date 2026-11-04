@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="night" data-night-color="logo">
+<head>
+    <meta charset="UTF-8">
+    <title>RP Stamina</title>
+    <style>
+        /* Couleurs du serveur : de jour, celles du logo (noir et rouge) ; mode nuit du MDC : sa couleur */
+        :root { --card: 12, 12, 14; --accent: #d8323f; --accent-rgb: 216, 50, 63; --text: #ebe7e7; --muted: rgba(235, 231, 231, .62); }
+        [data-night-color="green"] { --card: 1, 6, 3; --accent: #27a854; --accent-rgb: 39, 168, 84; --text: #6cc28b; --muted: rgba(108, 194, 139, .65); }
+        [data-night-color="yellow"] { --card: 6, 5, 1; --accent: #a89027; --accent-rgb: 168, 144, 39; --text: #c2b36c; --muted: rgba(194, 179, 108, .65); }
+        [data-night-color="red"] { --card: 6, 1, 1; --accent: #c12d2f; --accent-rgb: 193, 45, 47; --text: #cb8282; --muted: rgba(203, 130, 130, .65); }
+        [data-night-color="blue"] { --card: 1, 3, 6; --accent: #3077cd; --accent-rgb: 48, 119, 205; --text: #8caacf; --muted: rgba(140, 170, 207, .65); }
+
+        html, body { margin: 0; background: transparent; overflow: hidden; }
+        #stamina {
+            position: fixed; top: 1.6vh; left: 50%; width: 240px; transform: translate(-50%, -8px);
+            padding: 6px 10px 8px; box-sizing: border-box; pointer-events: none; user-select: none;
+            font: 600 10.5px/1.2 'Segoe UI', Roboto, Arial, sans-serif; color: var(--text);
+            background: rgba(var(--card), .82); border: 1px solid rgba(255, 255, 255, .08); border-radius: 4px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .4); opacity: 0; transition: opacity .25s, transform .25s;
+        }
+        #stamina::before { content: ""; position: absolute; left: 10px; right: 10px; top: 0; height: 2px; background: var(--accent); border-radius: 0 0 2px 2px; }
+        #stamina.show { opacity: 1; transform: translate(-50%, 0); }
+        .st-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+        .st-title { letter-spacing: .14em; text-transform: uppercase; }
+        .st-label { font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .st-track { position: relative; height: 6px; overflow: hidden; background: rgba(255, 255, 255, .1); border-radius: 3px; }
+        .st-fill {
+            position: absolute; inset: 0 auto 0 0; width: 100%; border-radius: 3px; background: var(--accent);
+            box-shadow: 0 0 8px rgba(var(--accent-rgb), .55); transition: width .12s linear;
+        }
+        /* repère : le sprint revient à ce niveau après épuisement */
+        .st-mark { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, .35); }
+        #stamina.out .st-fill { background: rgba(255, 255, 255, .38); box-shadow: none; animation: st-pulse 1s ease-in-out infinite; }
+        #stamina.out .st-title { color: var(--accent); }
+        @keyframes st-pulse { 50% { opacity: .45; } }
+    </style>
+</head>
+<body>
+    <div id="stamina" aria-hidden="true">
+        <div class="st-head"><span class="st-title" id="stTitle">Endurance</span><span class="st-label" id="stLabel"></span></div>
+        <div class="st-track"><div class="st-fill" id="stFill"></div><div class="st-mark" id="stMark"></div></div>
+    </div>
+    <script>
+        (() => {
+            const box = document.getElementById('stamina');
+            const fill = document.getElementById('stFill');
+            const title = document.getElementById('stTitle');
+            const label = document.getElementById('stLabel');
+            const mark = document.getElementById('stMark');
+            mark.style.left = '25%';
+            window.addEventListener('message', ({ data }) => {
+                if (!data || !data.action) return;
+                const d = data.data || {};
+                if (data.action === 'uiTheme') {
+                    document.documentElement.dataset.theme = 'night'; // toujours sombre : de jour, couleurs du logo
+                    document.documentElement.dataset.nightColor = d.theme === 'night' && ['green', 'yellow', 'red', 'blue'].includes(d.color) ? d.color : 'logo';
+                    return;
+                }
+                if (data.action !== 'stamina') return;
+                box.classList.toggle('show', d.show === true);
+                if (!d.show) return;
+                const ratio = Math.max(0, Math.min(1, Number(d.ratio) || 0));
+                fill.style.width = (ratio * 100).toFixed(1) + '%';
+                box.classList.toggle('out', d.exhausted === true);
+                title.textContent = d.exhausted ? 'Essoufflé' : 'Endurance';
+                label.textContent = d.label || '';
+                if (typeof d.resume === 'number') mark.style.left = (d.resume * 100) + '%';
+                mark.style.display = d.exhausted ? 'block' : 'none';
+            });
+        })();
+    </script>
+</body>
+</html>
