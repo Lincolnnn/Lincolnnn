@@ -163,6 +163,9 @@ menu** (jamais ceux du décor).
 - **Un pistolet radar** dans le coffre de **chaque véhicule de police** (1 / 1) : **« Prendre »** / **« Ranger »**. Un
   seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi. **`/restock`** le remet.
 
+**`/coffre`** : ouvre le même menu par commande (à une portière avant ou au coffre d'un véhicule de police, en
+service) ; sinon un message dit où se placer.
+
 **Lampe en main** (`rp_weaponscontrol` : état `flashlightHand`) : sa touche **E** allume / éteint la lampe, donc le
 menu Équipement ne s'ouvre pas et sa proposition n'est pas affichée tant qu'elle est en main.
 

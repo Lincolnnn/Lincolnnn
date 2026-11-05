@@ -136,12 +136,14 @@ local function close()
     stopAnim()
 end
 
-RegisterCommand(C.Command or 'notepad', function()
+local function toggle()
     if state == 0 then open()
     elseif state == 2 then openWriting() -- mode visuel : retour à l'écriture
     else close() end
-end, false)
-RegisterKeyMapping(C.Command or 'notepad', 'Bloc-notes : ouvrir / fermer', 'keyboard', C.Key or 'U')
+end
+RegisterCommand(C.Command or 'notepad', toggle, false)
+for _, alias in ipairs(C.Aliases or {}) do RegisterCommand(alias, toggle, false) end
+RegisterKeyMapping(C.Command or 'notepad', 'Bloc-notes : ouvrir / fermer', 'keyboard', C.Key or 'F2')
 TriggerEvent('chat:addSuggestion', '/' .. (C.Command or 'notepad'), 'Bloc-notes (écrire, dessiner ; pages gardées)')
 
 -- =========================================================================

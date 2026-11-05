@@ -466,6 +466,19 @@ RegisterCommand('interactions', function()
 end, false)
 RegisterKeyMapping('interactions', 'Menu Interaction', 'keyboard', Config.MenuKey)
 
+-- Commandes du Menu Interaction (config.lua : MenuCommands) : /menu, /joueurs, /equipements, /mestenues…
+for _, c in ipairs(Config.MenuCommands or {}) do
+    if type(c.command) == 'string' and c.command ~= '' then
+        RegisterCommand(c.command, function()
+            if not c.view then
+                if ui.menu then closeMenu() else openMenu(nil) end
+            else
+                openMenu(c.view)
+            end
+        end, false)
+    end
+end
+
 RegisterNUICallback('closeMenu', function(_, cb)
     closeMenu()
     cb({ ok = true })

@@ -67,6 +67,7 @@ ChatConfig = {
     -- clavier > FiveM. Modifiez librement les textes : chaque ligne = { touche ou commande, description }.
     Tuto = {
         Command = 'tuto',
+        Aliases = { 'aide', 'commandes' }, -- autres commandes qui ouvrent / ferment le tuto
         Title = 'Bienvenue sur le serveur',
         -- Message privé dans le chat à chaque connexion ('' = aucun), quelques secondes après l'arrivée en jeu
         JoinMessage = 'Faites /tuto pour découvrir les fonctionnalités du serveur !',
@@ -84,6 +85,18 @@ ChatConfig = {
                 { "/blip ID · /players", "suivre un joueur sur la carte (/blip off) / liste des joueurs" },
                 { "/viser", "visée : maintenir le clic droit, ou appuyer une fois (/viser maintenir | appuyer)" },
                 { "/roles", "rôle Discord reçu en jeu : le prendre en compte tout de suite" },
+            } },
+            { title = "Interfaces (commandes)", items = {
+                { "/mdc · K", "MDC (police)" }, { "/menu · F1", "Menu Interaction" },
+                { "/notepad · F2", "bloc-notes (aussi /blocnotes) ; retranscrit dans la note de l'unité du MDC" },
+                { "/joueurs", "liste des joueurs : se téléporter (admins : téléporter à soi, kick, ban)" },
+                { "/equipements · /mestenues", "Menu > Équipements ; vos tenues enregistrées" },
+                { "/eup", "tenues (Modifier ma tenue, Enregistrer ma tenue)" }, { "/fichecivil", "fiche civile (profils, véhicule)" },
+                { "/voiture · /autoradio", "Menu > Voiture ; radio du véhicule" }, { "/meteo", "météo et heure du serveur" },
+                { "/coffre · E", "police : équipement du véhicule (portière avant ou coffre)" },
+                { "/freecam", "mode photo : caméra libre, zoom, inclinaison 90°, interfaces masquées" },
+                { "/trafic · /scene", "gestion du trafic (police) ; scène à fouiller (civil)" },
+                { "/tuto · /aide", "cette page" },
             } },
             { title = "MDC & menus", items = {
                 { "K", "MDC : unités, appels, recherches, BOLO, rapports, messages entre unités" }, { "Y / N", "accepter / refuser un appel" },

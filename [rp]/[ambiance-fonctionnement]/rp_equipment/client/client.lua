@@ -952,6 +952,16 @@ RegisterCommand('rp_equipment', function()
 end, false)
 RegisterKeyMapping('rp_equipment', 'Véhicule de police : menu Équipement', 'keyboard', Config.Key or 'E')
 
+-- /coffre : même menu, par commande (à côté d'une portière avant ou du coffre d'un véhicule de police)
+RegisterCommand(Config.Command or 'coffre', function()
+    if open then return closeMenu() end
+    if IsPauseMenuActive() or spikesBusy() then return end
+    if not near then
+        return TriggerEvent('chat:addMessage', { args = { 'Équipement', 'Placez-vous à une portière avant ou au coffre d\'un véhicule de police (en service).' } })
+    end
+    openMenu(near)
+end, false)
+
 local HELP = {
     front = 'Équipement du véhicule (portière)',
     trunk = 'Équipement du véhicule (coffre)',

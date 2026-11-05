@@ -17,7 +17,8 @@ FreecamConfig = {
     Speeds = { { label = 'Lente', value = 2.0 }, { label = 'Normale', value = 6.0 }, { label = 'Rapide', value = 15.0 } },
     Sensitivity = 6.0,      -- souris (degrés par unité de mouvement)
     MenuToggleControl = 22, -- caméra libre : touche qui masque / affiche le menu (22 = Espace ; H marche toujours)
-    RollStep = 5.0,         -- inclinaison (degrés par cran, -45 à 45)
+    RollStep = 5.0,         -- inclinaison : degrés par cran (← →)
+    RollMax = 90.0,         -- inclinaison max (90 = caméra couchée sur le côté : photo verticale ; Entrée : 90° / 0°)
     -- Interfaces des scripts du serveur masquées avec l'option « Masquer les interfaces » : événement client
     -- 'rp_freecam:hideUi' (true / false), écouté par le MDC (HUD, PLD, car HUD), le chat, l'œil, les barres…
     HideUiEvent = 'rp_freecam:hideUi',

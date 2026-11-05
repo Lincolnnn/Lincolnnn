@@ -1,13 +1,15 @@
 --[[
     RP Notepad - configuration
-    /notepad (ou la touche, U par défaut ; chaque joueur peut la changer : Paramètres > Raccourcis clavier > FiveM)
+    /notepad ou /blocnotes (ou la touche, F2 par défaut ; chaque joueur peut la changer : Paramètres > Raccourcis
+    clavier > FiveM)
     ouvre le bloc-notes ; à nouveau : le ferme. En « mode visuel » (bouton œil) : le bloc reste affiché, on peut
     marcher ; la touche revient à l'écriture.
 ]]
 
 NotepadConfig = {
     Command = 'notepad',
-    Key = 'U',               -- touche par défaut (J est déjà « à genoux » dans les tips d'arrestation)
+    Key = 'F2',              -- touche par défaut (U : portière du véhicule ; J : « à genoux » des tips d'arrestation)
+    Aliases = { 'blocnotes' }, -- autres commandes qui ouvrent / ferment le bloc-notes
     MaxPages = 30,           -- pages au plus
     Lines = 13,              -- lignes par page (le texte qui dépasse passe à la page suivante)
     -- Animations (personnage + props tenus) : choisies dans le bloc-notes ; la première est celle par défaut

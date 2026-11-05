@@ -5,6 +5,16 @@ InteractConfig = {
     -- Touches par défaut (modifiables par chaque joueur : Échap > Paramètres > Raccourcis
     -- clavier > FiveM > "Menu Interaction" et "Œil : interagir (maintenir)")
     MenuKey = 'F1',
+    -- Commandes qui ouvrent le Menu Interaction (directement sur une page) ; view = nil : l'accueil (bascule)
+    MenuCommands = {
+        { command = 'menu', label = 'Menu Interaction' },
+        { command = 'joueurs', view = 'players', label = 'Menu > Joueurs (se téléporter ; admins : kick, ban)' },
+        { command = 'equipements', view = 'equipment', label = 'Menu > Équipements (tenues, armes)' },
+        { command = 'mestenues', view = 'outfits', label = 'Menu > Équipements > Mes tenues' },
+        { command = 'voiture', view = 'car', label = 'Menu > Voiture (faire apparaître un véhicule, radio)' },
+        { command = 'autoradio', view = 'radio', label = 'Menu > Voiture > Radio du véhicule' },
+        { command = 'meteo', view = 'weather', label = 'Menu > Météo (météo et heure du serveur)' },
+    },
     TargetKey = 'LMENU',          -- Alt gauche
     EditorCommand = 'fichecivil', -- commande qui ouvre la fiche civile (création de profils) ; false = aucune
 

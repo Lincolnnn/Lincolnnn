@@ -1324,8 +1324,9 @@
     }
 
     // Pages ouvertes directement (ex. 'radio' depuis l'œil) : le chemin, pour que Retour arrière remonte
-    const MENU_PATHS = { radio: [carPage, radioPage], spawn: [carPage, spawnPage], police: [policePage], civil: [civilPage], equipment: [equipmentPage] };
-    const SECTION_OF = { radio: 'car', spawn: 'car', equipment: 'equipment' };
+    const MENU_PATHS = { radio: [carPage, radioPage], spawn: [carPage, spawnPage], police: [policePage], civil: [civilPage], equipment: [equipmentPage],
+        car: [carPage], weather: [weatherPage], players: [playersPage], outfits: [equipmentPage, myOutfitsPage] };
+    const SECTION_OF = { radio: 'car', spawn: 'car', car: 'car', equipment: 'equipment', outfits: 'equipment', weather: 'weather' };
 
     function menuPages(view) {
         const pages = [homePage()];

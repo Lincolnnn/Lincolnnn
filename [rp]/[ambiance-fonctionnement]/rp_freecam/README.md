@@ -15,7 +15,7 @@ clavier, sans curseur** (la souris reste à la caméra) :
 | **Masquer mon personnage** | invisible pour soi seulement (photo du décor) |
 | **Zoom** | champ de vision 5° à 100° (← → ou molette) |
 | **Vitesse** | lente / normale / rapide |
-| **Inclinaison** | -45° à 45° (photo penchée) |
+| **Inclinaison** | -90° à 90° (← →, par 5°) ; **Entrée : 90°** (photo verticale, format portrait) ou retour à 0° |
 | **Réinitialiser** | zoom, vitesse, inclinaison par défaut |
 
 **Espace** (caméra libre ; le personnage ne saute pas) ou **H** (toujours) : masquer / remettre le menu (pour prendre
@@ -38,6 +38,6 @@ ensure rp_freecam
 | `MaxDistance` | distance max caméra ↔ personnage (m), 0 = sans limite |
 | `Fov` | zoom : `Min`, `Max`, `Default`, `Step` (cran de molette) |
 | `Speeds` | vitesses de déplacement (m/s) |
-| `Sensitivity`, `RollStep` | souris, cran d'inclinaison |
+| `Sensitivity`, `RollStep`, `RollMax` | souris, cran et maximum d'inclinaison (90°) |
 | `HideUiEvent` | événement envoyé aux autres scripts pour masquer leurs interfaces |
 | `HideHudComponents` | composants du HUD du jeu masqués |

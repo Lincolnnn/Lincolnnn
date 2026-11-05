@@ -82,7 +82,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_stamina                # endurance de sprint selon les armes portées
    ensure rp_holster                # holsters EUP pleins / vides selon l'arme de poing
    ensure rp_freecam                # /freecam : mode photo (caméra libre, minimap / HUD masqués, zoom)
-   ensure rp_notepad                # /notepad (U) : bloc-notes ; retranscrit dans la note de l'unité du MDC
+   ensure rp_notepad                # /notepad (F2) : bloc-notes ; retranscrit dans la note de l'unité du MDC
    ensure rp_vehicleprops
    ensure rp_taser10
    ensure rp_TrafficControl

@@ -2,7 +2,8 @@
 
 **Standalone**, Lua 5.4, `cerulean`. Pour **tous les joueurs**. Aucune boucle (0,00 ms).
 
-`/notepad` ou la touche **U** (modifiable : Paramètres > Raccourcis clavier > FiveM) : ouvre / ferme le bloc-notes.
+`/notepad` (ou `/blocnotes`) ou la touche **F2** (modifiable : Paramètres > Raccourcis clavier > FiveM ; U est la portière
+du véhicule) : ouvre / ferme le bloc-notes.
 Le personnage prend le bloc et le crayon (animation et props, vus par tous). Inspiré d'un bloc-notes fourni, **réécrit**
 au style du serveur : barre noire à bandeau rouge (couleur du mode nuit du MDC), papier de bloc à spirale dessiné en CSS
 (lignes bleues, marge rouge), écriture manuscrite **Kalam** (licence libre SIL OFL, `html/fonts/OFL-Kalam.txt`).

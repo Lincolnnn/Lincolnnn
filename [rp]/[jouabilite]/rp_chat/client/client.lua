@@ -371,6 +371,7 @@ local function toggleTuto()
     } or { show = false } })
 end
 RegisterCommand(Tuto.Command or 'tuto', toggleTuto, false)
+for _, alias in ipairs(Tuto.Aliases or {}) do RegisterCommand(alias, toggleTuto, false) end -- /aide, /commandes
 
 -- Rappel privé à la connexion : attend l'arrivée en jeu (fin de l'écran de chargement), une seule fois.
 -- Boucle courte (1 s) uniquement pendant le chargement, puis arrêtée.

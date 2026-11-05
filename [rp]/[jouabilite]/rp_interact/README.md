@@ -26,6 +26,10 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
 
 ## Menu Interaction (touche F1)
 
+**Commandes** (config.lua : `MenuCommands`) : **`/menu`** (ouvrir / fermer), et directement sur une page : **`/joueurs`**,
+**`/equipements`**, **`/mestenues`**, **`/voiture`**, **`/autoradio`** (radio du véhicule), **`/meteo`** (pages
+réservées : même règle que dans le menu). Retour arrière remonte aux pages au-dessus.
+
 Un **vrai menu de jeu, au clavier** (comme `/eup`, même apparence), **sans souris** : vous continuez de bouger
 pendant qu'il est ouvert. **F1** l'ouvre et le ferme (modifiable : Échap > Paramètres > Raccourcis clavier > FiveM).
 

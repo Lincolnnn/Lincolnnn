@@ -40,7 +40,7 @@ local ITEMS = {
     { id = 'hidePed', label = 'Masquer mon personnage', kind = 'check' },
     { id = 'fov', label = 'Zoom', kind = 'list' },
     { id = 'speed', label = 'Vitesse', kind = 'list' },
-    { id = 'roll', label = 'Inclinaison', kind = 'list' },
+    { id = 'roll', label = 'Inclinaison', kind = 'list' }, -- ← → : -90° à 90° ; Entrée : 90° (photo verticale) / 0°
     { id = 'reset', label = 'Réinitialiser', kind = 'button' },
     { id = 'quit', label = 'Quitter', kind = 'button' },
 }
@@ -58,7 +58,8 @@ local function sendMenu()
     for i, item in ipairs(ITEMS) do
         local camOnly = (item.id == 'fov' or item.id == 'roll' or item.id == 'speed') and not state.freecam
         items[i] = { label = item.label, kind = item.kind, value = valueOf(item), disabled = camOnly or nil,
-            desc = camOnly and 'Avec la caméra libre.' or nil }
+            desc = camOnly and 'Avec la caméra libre.'
+                or (item.id == 'roll' and '← → : de -90° à 90° ; Entrée : 90° (photo verticale) ou 0°.' or nil) }
     end
     SendNUIMessage({ action = 'menu', data = { open = session and menuShown, index = index, items = items,
         freecam = state.freecam } })
@@ -178,8 +179,14 @@ local function change(item, dir)
     elseif item.id == 'speed' and state.freecam then
         state.speed = ((state.speed - 1 + (dir ~= 0 and dir or 1)) % #SPEEDS) + 1
     elseif item.id == 'roll' and state.freecam then
-        local step = C.RollStep or 5.0
-        state.roll = math.max(-45.0, math.min(45.0, state.roll + (dir ~= 0 and dir or 1) * step))
+        local max = C.RollMax or 90.0
+        if dir == 0 then
+            -- Entrée : photo verticale (90°) <-> droite (0°)
+            state.roll = math.abs(state.roll) >= max - 0.5 and 0.0 or max
+        else
+            local step = C.RollStep or 5.0
+            state.roll = math.max(-max, math.min(max, state.roll + dir * step))
+        end
     elseif item.id == 'reset' and dir == 0 then
         state.fov, state.roll, state.speed = FOV.Default or 50.0, 0.0, math.min(2, #SPEEDS)
     elseif item.id == 'quit' and dir == 0 then
