@@ -158,6 +158,13 @@ RegisterKeyMapping(Config.Command, 'Ouvrir le MDC (Police)', 'keyboard', Config.
 -- =========================================================================
 
 -- Fermeture (touche Échap ou bouton de fermeture dans l'UI)
+-- Note de l'unité > « Retranscription du notepad » : texte du bloc-notes (ressource rp_notepad)
+RegisterNUICallback('notepadTranscript', function(_, cb)
+    if GetResourceState('rp_notepad') ~= 'started' then return cb({ ok = false, error = 'Bloc-notes (rp_notepad) non démarré.' }) end
+    local ok, text = pcall(function() return exports.rp_notepad:transcript() end)
+    cb(ok and { ok = true, text = type(text) == 'string' and text or '' } or { ok = false, error = 'Bloc-notes indisponible.' })
+end)
+
 RegisterNUICallback('close', function(_, cb)
     closeMDC()
     cb({ ok = true })

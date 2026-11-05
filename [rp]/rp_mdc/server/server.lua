@@ -1382,7 +1382,7 @@ end
 RegisterMDCCallback('setUnitMemo', function(src, payload)
     local unit = findUnit(PlayerUnit[src])
     if not unit then return { ok = false, error = 'Rejoignez une unité pour écrire sa note.' } end
-    local memo = cleanMultiline(payload.memo, 500) -- panneau "Note de l'unité" (à droite du MDC)
+    local memo = cleanMultiline(payload.memo, 2000) -- panneau "Note de l'unité" (à droite du MDC ; bloc-notes retranscrit)
     if memo == (unit.memo or '') then return { ok = true } end
     unit.memo = memo
     pushUnits()

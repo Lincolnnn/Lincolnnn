@@ -574,6 +574,7 @@
         // Note de l'unité (panneau à droite) : partagée entre ses membres
         const memo = $('#unitMemo');
         memo.disabled = !unit;
+        $('#memoNotepad').disabled = !unit;
         memo.placeholder = unit ? 'Rappels, observations…' : 'Rejoignez une unité pour écrire sa note.';
         $('#memoUnit').innerHTML = unit ? `<span>${esc(unit.name)}</span>${unitTag(unit)}` : '<span class="muted">Aucune unité</span>';
         $('#memoDot').classList.toggle('hidden', !(unit && unit.memo));
@@ -604,6 +605,27 @@
         memoTimer = setTimeout(saveMemo, 700);
     });
     $('#unitMemo').addEventListener('change', saveMemo);
+
+    // « Retranscription du notepad » : le texte du bloc-notes (rp_notepad, page par page) ajouté à la fin de la note
+    $('#memoNotepad').addEventListener('click', async () => {
+        const unit = myUnit();
+        if (!unit) return toast('Rejoignez une unité pour écrire sa note.', 'error');
+        const res = await post('notepadTranscript');
+        if (!res || !res.ok) return toast((res && res.error) || 'Bloc-notes indisponible.', 'error');
+        const text = String(res.text || '').trim();
+        if (!text) return toast('Votre bloc-notes est vide.', 'info');
+        const memo = $('#unitMemo');
+        const max = Number(memo.maxLength) || 2000;
+        const before = memo.value.replace(/\s+$/, '');
+        let next = before ? `${before}\n${text}` : text;
+        const cut = next.length > max;
+        if (cut) next = next.slice(0, max);
+        memo.value = next;
+        memoUnitId = unit.id;
+        saveMemo();
+        memo.scrollTop = memo.scrollHeight;
+        toast(cut ? 'Bloc-notes retranscrit (coupé : la note est pleine).' : 'Bloc-notes retranscrit dans la note de l\'unité.', cut ? 'info' : 'success');
+    });
 
     // Bouton en haut à droite : ouvre / ferme le panneau de la note (gardé ouvert ou fermé d'une ouverture à l'autre)
     function setMemoPane(open) {

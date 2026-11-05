@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="day" data-night-color="green">
+<head>
+    <meta charset="UTF-8">
+    <title>RP Notepad</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="pad" class="hidden" aria-hidden="true">
+        <!-- Barre du bloc-notes (déplacer, animation, mode visuel, fermer) -->
+        <div class="chrome head" id="padHead">
+            <div class="title"><span class="dot"></span>Bloc-notes</div>
+            <select id="animSelect" title="Animation"></select>
+            <button class="icon" id="btnVisual" title="Mode visuel : le bloc reste affiché, vous pouvez marcher (touche du bloc-notes : reprendre)">
+                <svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <button class="icon danger" id="btnClose" title="Fermer (Échap)">
+                <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <!-- Outils -->
+        <div class="chrome tools">
+            <div class="seg">
+                <button id="modeText" class="on">Texte</button>
+                <button id="modeDraw">Dessin</button>
+            </div>
+            <div class="inks hidden" id="inks">
+                <button class="ink on" data-ink="#1d3a8a" title="Encre bleue" style="--ink:#1d3a8a"></button>
+                <button class="ink" data-ink="#1b1c22" title="Encre noire" style="--ink:#1b1c22"></button>
+                <button class="ink" data-ink="#b3202a" title="Encre rouge" style="--ink:#b3202a"></button>
+                <button class="ink eraser" data-ink="eraser" title="Gomme">
+                    <svg viewBox="0 0 24 24"><path d="m15 4 5 5-9 9H6l-3-3 12-11ZM9 18h11"/></svg>
+                </button>
+            </div>
+            <button class="icon" id="btnClear" title="Effacer la page">
+                <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+            </button>
+            <div class="pages">
+                <button class="icon" id="prev" title="Page précédente">‹</button>
+                <span id="pageNo">1 / 1</span>
+                <button class="icon" id="next" title="Page suivante (une nouvelle page sur la dernière)">›</button>
+            </div>
+        </div>
+        <!-- Papier : bloc à spirale, lignes et marge dessinées en CSS -->
+        <div class="paper" id="paper">
+            <div class="rings" aria-hidden="true"></div>
+            <div class="sheet">
+                <div class="page-tag" id="pageTag">Page 1</div>
+                <textarea id="text" spellcheck="false" placeholder="Écrivez ici…"></textarea>
+                <canvas id="draw"></canvas>
+            </div>
+        </div>
+        <div class="chrome foot">
+            <span id="hint">Le texte passe à la page suivante quand la page est pleine.</span>
+            <span class="grip" id="grip" title="Agrandir / réduire">◢</span>
+        </div>
+        <div class="visual-tip" id="visualTip">Mode visuel — touche du bloc-notes : reprendre l'écriture</div>
+    </div>
+    <script src="script.js"></script>
+    <script>/* rp_freecam (mode photo) : interface masquée tant que « Masquer les interfaces » est coché */
+        window.addEventListener('message', (e) => { const d = e.data; if (d && d.action === 'rpHideUi') document.documentElement.style.opacity = d.data && d.data.hidden ? '0' : ''; });</script>
+</body>
+</html>

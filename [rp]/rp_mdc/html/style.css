@@ -377,6 +377,8 @@ body.dragging, body.dragging * { user-select: none !important; }
 .memo-unit { display: flex; align-items: center; gap: 6px; font-weight: 600; min-height: 22px; }
 .memopane textarea { flex: 1; min-height: 120px; resize: none; line-height: 1.5; }
 .memopane .hint-text { font-size: 11.5px; }
+.memo-notepad { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.memo-notepad svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
 
 /* ---------- Poignées de redimensionnement ---------- */
 .rz { position: absolute; z-index: 5; }

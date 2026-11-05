@@ -930,8 +930,11 @@
                     <button class="btn btn-icon btn-ghost" id="memoClose" title="Fermer la note"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button>
                 </div>
                 <div class="memo-unit" id="memoUnit">Aucune unité</div>
-                <textarea id="unitMemo" maxlength="500" spellcheck="false" disabled
+                <textarea id="unitMemo" maxlength="2000" spellcheck="false" disabled
                     placeholder="Rappels, observations… (rejoignez une unité)"></textarea>
+                <button class="btn memo-notepad" id="memoNotepad" type="button" disabled
+                    title="Ajoute à la note le texte de votre bloc-notes (/notepad), page par page">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2h8v12H4zM6 5h4M6 8h4M6 11h2"/></svg>Retranscription du notepad</button>
                 <p class="hint-text">Partagée entre les membres de l'unité et enregistrée pendant la frappe. Gardée dans l'unité :
                     en changeant d'unité, on voit la note de la nouvelle.</p>
             </aside>

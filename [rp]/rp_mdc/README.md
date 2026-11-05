@@ -73,6 +73,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_stamina                # endurance de sprint selon les armes portées
    ensure rp_holster                # holsters EUP pleins / vides selon l'arme de poing
    ensure rp_freecam                # /freecam : mode photo (caméra libre, minimap / HUD masqués, zoom)
+   ensure rp_notepad                # /notepad (U) : bloc-notes ; retranscrit dans la note de l'unité du MDC
    ensure rp_vehicleprops
    ensure rp_taser10
    ensure rp_TrafficControl
@@ -178,9 +179,10 @@ dans `server/server.lua`.
   **Paramètres**.
 - **Au centre** : le **titre de la page** et son sous-titre, puis le contenu, en cartes.
 - **Note de l'unité** (polices) : bouton **en haut à droite** de la fenêtre (barre de titre, un point bleu quand une
-  note existe) : il ouvre / ferme un **panneau à droite** avec la note propre à l'unité (500 caractères, plusieurs
+  note existe) : il ouvre / ferme un **panneau à droite** avec la note propre à l'unité (2000 caractères, plusieurs
   lignes, partagée par ses membres, enregistrée pendant la frappe ; gardée dans l'unité côté serveur). Panneau ouvert
-  ou fermé : gardé chez le joueur.
+  ou fermé : gardé chez le joueur. Bouton **« Retranscription du notepad »** : ajoute à la fin de la note le texte de
+  votre bloc-notes (`rp_notepad`, `/notepad`), page par page.
 - **Messagerie entre unités** (polices) : bouton **Messages** juste à côté de la note de l'unité (pastille rouge : nombre
   de messages non lus). Il ouvre un **panneau à droite** : la liste des **autres unités** de police (WSP et KCSO ; les
   conversations récentes d'abord, avec le dernier message et ses non-lus), puis la **conversation** avec l'unité
