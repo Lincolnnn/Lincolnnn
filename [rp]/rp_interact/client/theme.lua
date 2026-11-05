@@ -20,3 +20,6 @@ CreateThread(function()
     local okColor, color = pcall(function() return exports[mdc]:uiNightColor() end)
     if ok then sendTheme(theme, okColor and color or 'green') end
 end)
+
+-- rp_freecam (mode photo) : interface de ce script masquée tant que « Masquer les interfaces » est coché
+AddEventHandler('rp_freecam:hideUi', function(hidden) SendNUIMessage({ action = 'rpHideUi', data = { hidden = hidden == true } }) end)

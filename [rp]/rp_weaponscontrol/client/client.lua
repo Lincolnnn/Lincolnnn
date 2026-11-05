@@ -787,3 +787,6 @@ RegisterNetEvent('rp_weaponscontrol:shots', function(src, count, key, suppressed
     local towardMe = passesNear(aim, GetEntityCoords(PlayerPedId()), SP.IncomingRadius or 2.5)
     shotAround(count, d, towardMe, suppressed)
 end)
+
+-- rp_freecam (mode photo) : interface de ce script masquée tant que « Masquer les interfaces » est coché
+AddEventHandler('rp_freecam:hideUi', function(hidden) SendNUIMessage({ action = 'rpHideUi', data = { hidden = hidden == true } }) end)

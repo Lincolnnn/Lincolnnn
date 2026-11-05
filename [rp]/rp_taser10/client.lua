@@ -1574,3 +1574,6 @@ AddEventHandler('onResourceStop', function(resource)
     activeConnections = {}
     victimProngCounts = {}
 end)
+
+-- rp_freecam (mode photo) : interface de ce script masquée tant que « Masquer les interfaces » est coché
+AddEventHandler('rp_freecam:hideUi', function(hidden) SendNUIMessage({ action = 'rpHideUi', data = { hidden = hidden == true } }) end)

@@ -88,5 +88,7 @@
     </div>
     <div id="suppressHit" aria-hidden="true"></div>
     <script src="script.js"></script>
+    <script>/* rp_freecam (mode photo) : interface masquée tant que « Masquer les interfaces » est coché */
+        window.addEventListener('message', (e) => { const d = e.data; if (d && d.action === 'rpHideUi') document.documentElement.style.opacity = d.data && d.data.hidden ? '0' : ''; });</script>
 </body>
 </html>

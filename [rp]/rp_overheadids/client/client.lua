@@ -146,3 +146,6 @@ RegisterNUICallback('close', function(_, cb)
 end)
 
 OverheadMode = function() return mode end -- pour les tests
+
+-- rp_freecam (mode photo) : interface de ce script masquée tant que « Masquer les interfaces » est coché
+AddEventHandler('rp_freecam:hideUi', function(hidden) SendNUIMessage({ action = 'rpHideUi', data = { hidden = hidden == true } }) end)
