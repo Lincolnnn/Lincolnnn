@@ -1,16 +1,19 @@
 --[[
-    RP Holster - serveur : son du holster relayé aux joueurs proches (Sound.Range), une fois par geste au plus
+    RP Holster - serveur : sons du holster (sortie / rangement) relayés aux joueurs proches (Sound.Range),
+    une fois par geste au plus
 ]]
 
 local C = HolsterConfig or {}
 local SND = C.Sound or {}
+local KINDS = { draw = true, holster = true }
 local last = {}
 
-RegisterNetEvent('rp_holster:sound', function()
+RegisterNetEvent('rp_holster:sound', function(kind)
     local src = source
     if SND.Enabled == false then return end
+    kind = KINDS[kind] and kind or 'holster'
     local now = GetGameTimer()
-    if last[src] and now - last[src] < 300 then return end
+    if last[src] and now - last[src] < 250 then return end
     last[src] = now
     local ped = GetPlayerPed(src)
     if not ped or ped == 0 then return end
@@ -21,7 +24,7 @@ RegisterNetEvent('rp_holster:sound', function()
         if p ~= src then
             local other = GetPlayerPed(p)
             if other and other ~= 0 and #(GetEntityCoords(other) - pos) <= range then
-                TriggerClientEvent('rp_holster:play', p, { x = pos.x, y = pos.y, z = pos.z })
+                TriggerClientEvent('rp_holster:play', p, { x = pos.x, y = pos.y, z = pos.z }, kind)
             end
         end
     end

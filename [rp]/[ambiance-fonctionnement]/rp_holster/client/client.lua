@@ -1,17 +1,18 @@
 --[[
-    RP Holster - client
-    -------------------
-    Toutes les CheckMs ms : si le joueur porte un holster de la liste (modèle plein ou vide, sur sa partie de tenue),
-    le modèle voulu est posé :
-      - arme de la liste (Weapons) EN MAIN -> holster VIDE ;
-      - arme de la liste dans l'inventaire, pas en main -> holster PLEIN ;
-      - aucune arme de la liste -> VIDE (EmptyWhenNoWeapon).
-    SEULES les armes de Weapons (et des groupes de Groups, s'il y en a) comptent : sortir une autre arme ne vide pas
-    le holster. En sortant ET en rangeant une arme de la liste : son « holster.ogg » entendu par les joueurs proches
-    (relayé par le serveur), holster porté ou non (Sound.RequireHolster) ; animation (main au holster, à pied) avec
-    un holster de la liste.
-    La texture portée est gardée ; la tenue est synchronisée par le jeu (vue par tous).
-    Performance : une lecture de la tenue toutes les 250 ms (100 ms avec une arme de la liste en main).
+    RP Holster - client (rework, gestes et sons inspirés de « EUP Gun Holster Animation » de ChapterDonut)
+    -------------------------------------------------------------------------------------------------------
+    Un état « arme rangée / sortie » suivi en continu, pour les SEULES armes de la liste (Weapons, Groups) :
+      SORTIE   (arme de la liste prise en main) : geste de la main au holster (Animation.Draw), le holster passe VIDE
+               au milieu du geste (swapAt), son « unholster.ogg » ;
+      RANGEMENT (arme de la liste rangée, toujours dans l'inventaire) : geste de retour (Animation.Holster), le holster
+               passe PLEIN à la fin du geste (swapAt), son « holster.ogg ».
+    Pendant le geste : ni tir, ni visée, ni roue des armes (Animation.BlockControls), comme un vrai dégainage.
+    Sons entendus par les joueurs proches (relayés par le serveur, plus faibles avec la distance), holster porté ou
+    non (Sound.RequireHolster) ; geste avec un holster de la liste porté (Animation.RequireHolster), à pied.
+    Hors geste, le holster suit l'inventaire : arme de la liste en main -> VIDE ; rangée -> PLEIN ; aucune -> VIDE
+    (EmptyWhenNoWeapon). Une arme hors liste ne touche jamais au holster. La texture portée est gardée.
+    Performance : vérification toutes les CheckMs (250 ms) sans arme de la liste sur soi, ArmedCheckMs (100 ms) avec ;
+    boucle par image seulement pendant un geste (~0,6 s).
 ]]
 
 local C = HolsterConfig or {}
@@ -21,6 +22,12 @@ local function u32(h) return (math.tointeger(tonumber(h) or 0) or 0) & 0xFFFFFFF
 local MALE, FEMALE = u32(GetHashKey('mp_m_freemode_01')), u32(GetHashKey('mp_f_freemode_01'))
 local offset = C.OneBased == false and 0 or 1
 local A, SND = C.Animation or {}, C.Sound or {}
+
+-- Gestes par défaut (ChapterDonut) si la configuration n'en donne pas
+local DEFAULT_DRAW = { dict = 'reaction@intimidation@cop@unarmed', clip = 'intro', ms = 600, swapAt = 120 }
+local DEFAULT_HOLSTER = { dict = 'reaction@intimidation@cop@unarmed', clip = 'outro', ms = 600, swapAt = 450 }
+local DRAW = type(A.Draw) == 'table' and A.Draw.dict and A.Draw or DEFAULT_DRAW
+local HOLSTER = type(A.Holster) == 'table' and A.Holster.dict and A.Holster or DEFAULT_HOLSTER
 
 local HOLSTERS = {}
 for _, h in ipairs(C.Holsters or {}) do
@@ -59,7 +66,7 @@ local function genderOf(ped)
     return model == MALE and 'male' or (model == FEMALE and 'female' or nil)
 end
 
---- Holster porté (ligne de la liste) ou nil
+--- Holster porté (ligne de la liste) et modèle actuel, ou nil
 local function wornHolster(ped)
     local gender = genderOf(ped)
     if not gender then return nil end
@@ -72,84 +79,123 @@ local function wornHolster(ped)
     return nil
 end
 
--- =========================================================================
--- ANIMATION ET SON
--- =========================================================================
-local function playAnim(ped, anim)
-    if A.Enabled == false or type(anim) ~= 'table' or not anim.dict then return end
-    if IsPedInAnyVehicle(ped, false) or IsPedRagdoll(ped) or IsEntityDead(ped) or IsPedSwimming(ped) then return end
-    CreateThread(function()
-        RequestAnimDict(anim.dict)
-        local deadline = GetGameTimer() + 1000
-        while not HasAnimDictLoaded(anim.dict) and GetGameTimer() < deadline do Wait(0) end
-        if not HasAnimDictLoaded(anim.dict) then return end
-        TaskPlayAnim(ped, anim.dict, anim.clip, 8.0, -8.0, anim.ms or 500, 48, 0.0, false, false, false)
-        RemoveAnimDict(anim.dict)
-    end)
+local function setDrawable(ped, h, d)
+    if GetPedDrawableVariation(ped, h.component) ~= d then
+        SetPedComponentVariation(ped, h.component, d, GetPedTextureVariation(ped, h.component), 0)
+    end
 end
 
-local function playSound(volume)
-    SendNUIMessage({ action = 'play', data = { file = SND.File or 'holster.ogg', volume = volume } })
+-- =========================================================================
+-- SONS (soi + joueurs proches)
+-- =========================================================================
+local SOUND_FILES = { draw = SND.DrawFile or 'unholster.ogg', holster = SND.File or 'holster.ogg' }
+
+local function playSound(kind, volume)
+    SendNUIMessage({ action = 'play', data = { file = SOUND_FILES[kind] or SOUND_FILES.holster, volume = volume } })
 end
 
-local function holsterSound()
+local function holsterSound(kind)
     if SND.Enabled == false then return end
-    playSound(SND.Volume or 0.5)                 -- soi : tout de suite
-    TriggerServerEvent('rp_holster:sound')       -- les joueurs proches (serveur)
+    playSound(kind, SND.Volume or 0.5)             -- soi : tout de suite
+    TriggerServerEvent('rp_holster:sound', kind)   -- les joueurs proches (serveur)
 end
 
 -- Son d'un autre joueur : volume selon la distance
-RegisterNetEvent('rp_holster:play', function(coords)
+RegisterNetEvent('rp_holster:play', function(coords, kind)
     if SND.Enabled == false or type(coords) ~= 'table' or not tonumber(coords.x) then return end
     local range = SND.Range or 8.0
     local d = #(GetEntityCoords(PlayerPedId()) - vector3(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0))
     if d > range then return end
-    playSound((SND.Volume or 0.5) * (1.0 - d / range))
+    playSound(kind == 'draw' and 'draw' or 'holster', (SND.Volume or 0.5) * (1.0 - d / range))
 end)
+
+-- =========================================================================
+-- GESTE (animation du haut du corps + commandes bloquées pendant le geste)
+-- =========================================================================
+local gesture = 0        -- n° du geste en cours (0 : aucun) ; un nouveau geste annule le précédent
+local gestureUntil = 0   -- fin du geste (GetGameTimer)
+
+local function blockControls()
+    if A.BlockControls == false then return end
+    CreateThread(function()
+        while GetGameTimer() < gestureUntil do
+            DisableControlAction(0, 24, true)  -- tir
+            DisableControlAction(0, 25, true)  -- visée
+            DisableControlAction(0, 37, true)  -- roue des armes
+            DisableControlAction(0, 140, true) -- coups (corps à corps)
+            DisablePlayerFiring(PlayerId(), true)
+            Wait(0)
+        end
+    end)
+end
+
+local function canAnimate(ped)
+    return A.Enabled ~= false and not IsPedInAnyVehicle(ped, false) and not IsPedRagdoll(ped)
+        and not IsEntityDead(ped) and not IsPedSwimming(ped) and not IsPedFalling(ped)
+end
+
+--- Joue le geste `anim` ; `swap()` est appelé à anim.swapAt ms (changement du modèle de holster)
+local function startGesture(ped, anim, animate, swap)
+    gesture = gesture + 1
+    local id = gesture
+    local ms = math.floor(tonumber(anim.ms) or 600)
+    local swapAt = math.floor(tonumber(anim.swapAt) or ms * 0.6)
+    if animate then
+        gestureUntil = GetGameTimer() + ms
+        blockControls()
+        CreateThread(function()
+            RequestAnimDict(anim.dict)
+            local deadline = GetGameTimer() + 1000
+            while not HasAnimDictLoaded(anim.dict) and GetGameTimer() < deadline do Wait(0) end
+            if id ~= gesture or not HasAnimDictLoaded(anim.dict) then return end
+            TaskPlayAnim(ped, anim.dict, anim.clip, 8.0, -8.0, ms, 48, 0.0, false, false, false) -- haut du corps : on marche
+            RemoveAnimDict(anim.dict)
+        end)
+    else
+        swapAt = 0
+    end
+    SetTimeout(swapAt, function() if id == gesture then swap() end end)
+end
 
 -- =========================================================================
 -- BOUCLE
 -- =========================================================================
-local lastInHand = nil   -- arme de la liste en main au tour précédent (nil : premier tour, pas d'animation)
-local holdUntil = 0      -- rangement en cours : holster rempli à la fin du geste
-
-local function setDrawable(ped, h, d)
-    SetPedComponentVariation(ped, h.component, d, GetPedTextureVariation(ped, h.component), 0)
-end
+local drawn = nil  -- arme de la liste sortie ? (nil : premier tour, pas de geste à la connexion)
+local armed = false -- une arme de la liste sur soi : vérification plus rapide (geste au bon moment)
 
 local function update()
     local ped = PlayerPedId()
     local inHand = holsterWeapon(GetSelectedPedWeapon(ped))
+    local owned = inHand or hasHolsterWeapon(ped)
+    armed = owned
     local h, current = wornHolster(ped)
-    local before = lastInHand
-    lastInHand = inHand
-    local drawn = before ~= nil and inHand and not before
-    local holstered = before and not inHand and hasHolsterWeapon(ped)
-    -- Son : à chaque sortie ET à chaque rangement d'une arme de la liste ; avec ou sans holster porté
-    -- (Sound.RequireHolster = true : seulement avec un holster de la liste)
-    if (drawn or holstered) and (h or SND.RequireHolster ~= true) then holsterSound() end
-    if not h then return end
-    local now = GetGameTimer()
+    local before = drawn
+    drawn = inHand
 
-    if drawn then
-        -- sortie de l'arme : main au holster, holster vide
-        holdUntil = 0
-        playAnim(ped, A.Draw)
-    elseif holstered then
-        -- rangement : main au holster ; le holster se remplit à la fin du geste
-        playAnim(ped, A.Holster)
-        holdUntil = now + math.floor(((A.Holster or {}).ms or 500) * 0.6)
-        SetTimeout(math.max(0, holdUntil - now), function()
-            local p = PlayerPedId()
-            local hh, cur = wornHolster(p)
-            if hh and not holsterWeapon(GetSelectedPedWeapon(p)) and hasHolsterWeapon(p) and cur ~= hh.full then setDrawable(p, hh, hh.full) end
-        end)
+    if before ~= nil and inHand ~= before and not IsEntityDead(ped) then
+        local holstering = not inHand
+        if holstering and not owned then
+            -- arme de la liste perdue (lâchée, retirée) : ni geste ni son, le holster suit l'inventaire plus bas
+        else
+            if h or SND.RequireHolster ~= true then holsterSound(holstering and 'holster' or 'draw') end
+            local animate = canAnimate(ped) and (h ~= nil or A.RequireHolster == false)
+            startGesture(ped, holstering and HOLSTER or DRAW, animate, function()
+                local p = PlayerPedId()
+                local hh = wornHolster(p)
+                if not hh then return end
+                local nowInHand = holsterWeapon(GetSelectedPedWeapon(p))
+                if holstering and not nowInHand and hasHolsterWeapon(p) then setDrawable(p, hh, hh.full)
+                elseif not holstering and nowInHand then setDrawable(p, hh, hh.empty) end
+            end)
+            return
+        end
     end
-    if now < holdUntil then return end
 
+    -- hors geste : le holster suit l'inventaire
+    if not h or GetGameTimer() < gestureUntil then return end
     local wanted
     if inHand then wanted = h.empty
-    elseif hasHolsterWeapon(ped) then wanted = h.full
+    elseif owned then wanted = h.full
     else wanted = C.EmptyWhenNoWeapon == false and current or h.empty end
     if wanted ~= current then setDrawable(ped, h, wanted) end
 end
@@ -157,8 +203,7 @@ end
 CreateThread(function()
     while true do
         update()
-        -- arme de la liste en main : vérification plus rapide, le son du rangement tombe au bon moment
-        Wait(lastInHand and (C.ArmedCheckMs or 100) or (C.CheckMs or 250))
+        Wait(armed and (C.ArmedCheckMs or 100) or (C.CheckMs or 250))
     end
 end)
 

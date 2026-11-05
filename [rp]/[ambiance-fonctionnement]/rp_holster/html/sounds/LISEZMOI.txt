@@ -1,4 +1,4 @@
-Déposez ici le son du holster : holster.ogg (format Ogg Vorbis ; un .mp3 ou un .wav marche aussi :
-indiquez son nom dans config.lua, Sound.File).
-Il est joué en sortant ET en rangeant une arme de la liste (config.lua : Weapons), entendu par les joueurs proches,
-holster porté ou non (config.lua : Sound.RequireHolster).
+Sons du holster (ChapterDonut, « FiveM EUP Gun Holster Animation Script with Sounds ») :
+- unholster.ogg : en sortant une arme de la liste (config.lua : Sound.DrawFile)
+- holster.ogg   : en la rangeant (config.lua : Sound.File)
+Entendus par les joueurs proches. Un .mp3 ou un .wav marche aussi : indiquez son nom dans config.lua.

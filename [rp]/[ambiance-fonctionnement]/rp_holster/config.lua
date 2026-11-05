@@ -44,15 +44,20 @@ HolsterConfig = {
     CheckMs = 250,            -- vérification (ms)
     ArmedCheckMs = 100,       -- vérification (ms) avec une arme de la liste en main (son du rangement au bon moment)
 
-    -- ANIMATION : la main va au holster quand on sort / range une arme de la liste (holster porté, à pied)
+    -- GESTES (inspirés de ChapterDonut) : la main va au holster en sortant / rangeant une arme de la liste, haut du
+    -- corps (on marche), à pied. swapAt : moment (ms) où le holster passe vide (sortie) / plein (rangement).
+    -- RequireHolster = true : geste seulement avec un holster de la liste porté. BlockControls : pendant le geste, ni
+    -- tir, ni visée, ni roue des armes.
     Animation = {
         Enabled = true,
-        Draw = { dict = 'rcmjosh4', clip = 'josh_leadout_cop2', ms = 600 },                 -- sortir l'arme
-        Holster = { dict = 'reaction@intimidation@cop@unarmed', clip = 'intro', ms = 500 },  -- la ranger
+        RequireHolster = true,
+        BlockControls = true,
+        Draw = { dict = 'reaction@intimidation@cop@unarmed', clip = 'intro', ms = 600, swapAt = 120 },    -- sortir l'arme
+        Holster = { dict = 'reaction@intimidation@cop@unarmed', clip = 'outro', ms = 600, swapAt = 450 }, -- la ranger
     },
 
-    -- SON : html/sounds/holster.ogg (fichier à déposer ; .mp3 / .wav acceptés aussi : changez File), joué en sortant
-    -- ET en rangeant une arme de la liste, entendu par les joueurs proches (plus faible avec la distance).
-    -- RequireHolster = false : son même sans holster de la liste porté ; true : seulement avec un holster de la liste.
-    Sound = { Enabled = true, File = 'holster.ogg', Volume = 0.5, Range = 8.0, RequireHolster = false },
+    -- SONS (html/sounds, de ChapterDonut) : DrawFile en sortant (unholster.ogg), File en rangeant (holster.ogg) ;
+    -- entendus par les joueurs proches (plus faibles avec la distance). .mp3 / .wav acceptés aussi.
+    -- RequireHolster = false : sons même sans holster de la liste porté ; true : seulement avec un holster de la liste.
+    Sound = { Enabled = true, File = 'holster.ogg', DrawFile = 'unholster.ogg', Volume = 0.5, Range = 8.0, RequireHolster = false },
 }
