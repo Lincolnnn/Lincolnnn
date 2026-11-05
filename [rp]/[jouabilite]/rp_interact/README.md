@@ -194,7 +194,7 @@ couleur de la police ouverte (bleu WSP, vert KCSO).
   trouvées dans le fichier (ex. `NCSHP`) ;
 - **Civil** : la liste des tenues civiles (ou leurs groupes, si vous en indiquez dans `Category2`).
 Seules les tenues du personnage (**homme / femme**, personnage multijoueur) sont listées ; la tenue mise est cochée.
-Les tenues se configurent **uniquement dans `[rp]/rp_interact/data/outfits.json`** (relu avec `rpi_vehicles` en
+Les tenues se configurent **uniquement dans `[rp]/[jouabilite]/rp_interact/data/outfits.json`** (relu avec `rpi_vehicles` en
 console ou au redémarrage de la ressource) : une **liste** `[ ... ]`, un objet par tenue, au format EUP habituel
 (le fichier fourni contient 3 tenues d'exemple à remplacer par les vôtres) :
 
@@ -236,7 +236,7 @@ lunettes…) à la tenue que vous portez, selon son **service** :
 - **Remettre la tenue d'origine** : la tenue telle qu'elle était (mise avec `/eup`, ou à la première ouverture de
   « Modifier ma tenue »).
 
-Les pièces se configurent dans **`[rp]/rp_interact/data/modifoutfits.json`** : une liste par service (`WSP`, `KCSO`,
+Les pièces se configurent dans **`[rp]/[jouabilite]/rp_interact/data/modifoutfits.json`** : une liste par service (`WSP`, `KCSO`,
 `Civil`, une autre police du fichier des tenues, ou **`Tous`** : proposée pour tous les services). Une pièce = un nom
 et **une ou plusieurs parties**, avec les mêmes noms et le même format que `outfits.json` (`Hat`, `Glasses`, `Ear`,
 `Watch`, `Bracelet`, `Mask`, `UpperSkin`, `Pants`, `Parachute`, `Shoes`, `Accessories`, `UnderCoat`, `Armor`,

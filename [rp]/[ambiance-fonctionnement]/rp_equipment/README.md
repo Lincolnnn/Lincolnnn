@@ -169,7 +169,7 @@ menu Équipement ne s'ouvre pas et sa proposition n'est pas affichée tant qu'el
 **Herse** (script payant **riven_spikes**, facultatif ; `Stock.Spikes`)
 - Seulement le **Stop Stick** (ni herse, ni Terminator : config de riven_spikes, `Trunk.types`). Pris et rangé avec
   **l'œil** (Alt) sur le coffre de tout véhicule d'urgence : **« Prendre le Stop Stick dans le coffre »** / **« Ranger
-  le Stop Stick dans le coffre »** (options de Riven ; voir [`ox_target/`](../ox_target/README.md)).
+  le Stop Stick dans le coffre »** (options de Riven ; voir [`ox_target/`](../../%5Bjouabilite%5D/ox_target/README.md)).
   `Stock.Spikes.Menu = true` ajoute en plus une ligne « Herse » à ce menu (désactivée par défaut).
 - Herse en main : la touche **X** de Riven (« ranger dans la poche ») ne la fait plus disparaître : elle revient
   aussitôt dans les mains. On doit la **lancer / poser au sol** ou la **ranger dans le coffre** (œil). Mort, à bord d'un

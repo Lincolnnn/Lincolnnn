@@ -46,9 +46,16 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
 à installer) et `ox_target`, remplacé ici par le **pont [`ox_target/`](../ox_target/README.md)** branché sur l'œil.
 
 1. Copiez le dossier **`[rp]`** tel quel dans `resources/` (FiveM trouve les ressources dans les dossiers entre
-   crochets).
+   crochets, même imbriqués). Il est rangé en trois dossiers :
+   - **`[jouabilite]`** : ox_target (pont), rp_adrenaline, rp_chat, rp_doorlock, rp_interact, rp_mdc, rp_notepad,
+     rp_overheadids, rp_revive, rp_RoleplayZone, rp_stamina, rp_taser10, rp_teleport, rp_TrafficControl,
+     rp_vehiclecontrol, rp_vehicleprops, rp_viser, rp_weaponscontrol ;
+   - **`[autres]`** : rp_Ganghunt, rp_permissions ;
+   - **`[ambiance-fonctionnement]`** : rp_camshake, rp_equipment, rp_flares, rp_freecam, rp_holster, rp_NPCcontrol.
+   Les noms des ressources ne changent pas : les lignes `ensure` ci-dessous marchent telles quelles (l'ordre compte,
+   c'est pourquoi elles sont listées une par une plutôt qu'avec `ensure [jouabilite]`).
 2. Dans `server.cfg`, démarrez celles que vous voulez, **rp_permissions** (rôles Discord, voir
-   [son README](../rp_permissions/README.md) : token du bot en convar, permissions.cfg) puis le MDC en premier :
+   [son README](../../%5Bautres%5D/rp_permissions/README.md) : token du bot en convar, permissions.cfg) puis le MDC en premier :
    ```
    set rp_discord_token "TOKEN_DU_BOT"   # jamais dans un fichier du dépôt
    exec @vMenu/config/permissions.cfg
@@ -69,7 +76,9 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_doorlock
    ensure rp_revive
    ensure rp_weaponscontrol
-   ensure rp_firstperson            # posture normale à la 1re personne (armé ou non)
+   ensure rp_adrenaline             # ragdolls et arme lâchée quand on est touché
+   ensure rp_viser                  # /viser : visée maintenue ou bascule
+   ensure rp_teleport               # téléportations (Menu Interaction > Joueurs, commandes)
    ensure rp_stamina                # endurance de sprint selon les armes portées
    ensure rp_holster                # holsters EUP pleins / vides selon l'arme de poing
    ensure rp_freecam                # /freecam : mode photo (caméra libre, minimap / HUD masqués, zoom)
@@ -79,7 +88,6 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_TrafficControl
    ensure rp_RoleplayZone
    ensure rp_Ganghunt
-   ensure rp_vmenukeys              # touches de vMenu imposées (plus de vMenu sur V), avant vMenu
    ensure rp_overheadids            # noms RP et numéros des joueurs au-dessus des têtes (touche maintenue)
    ```
    Le MDC publie son nom de ressource (`GlobalState.mdcResource`) : son dossier peut être renommé.
@@ -100,14 +108,14 @@ Le dépôt contient aussi le **chat écrit RP** dans le dossier [`rp_chat/`](../
 séparée, à copier à part dans `resources/` (voir son README). Elle partage le nom RP avec le MDC et ses réglages
 se font dans l'onglet « Paramètres » du MDC. Le MDC fonctionne aussi sans elle.
 
-Et **RP CamShake** dans [`rp_camshake/`](../rp_camshake/README.md) : petit script indépendant de tremblement de la caméra
+Et **RP CamShake** dans [`rp_camshake/`](../../%5Bambiance-fonctionnement%5D/rp_camshake/README.md) : petit script indépendant de tremblement de la caméra
 (marche, course, sprint, chocs, accidents).
 
-Et **RP NPC Control** dans [`rp_NPCcontrol/`](../rp_NPCcontrol/README.md) : plus de police / pompiers / ambulanciers du
+Et **RP NPC Control** dans [`rp_NPCcontrol/`](../../%5Bambiance-fonctionnement%5D/rp_NPCcontrol/README.md) : plus de police / pompiers / ambulanciers du
 jeu (ni leurs véhicules), plus d'indice de recherche, PNJ qui ignorent les joueurs, densité du trafic et des piétons
 de 0.0 à 3.0.
 
-Et **RP Flares** dans [`rp_flares/`](../rp_flares/README.md) : fusées de détresse posées au sol (touche G, fusée en main),
+Et **RP Flares** dans [`rp_flares/`](../../%5Bambiance-fonctionnement%5D/rp_flares/README.md) : fusées de détresse posées au sol (touche G, fusée en main),
 retirées avec l'œil, lumière rouge renforcée la nuit.
 
 Et **RP Doorlock** dans [`rp_doorlock/`](../rp_doorlock/README.md) : avec l'œil, les joueurs **verrouillent /
@@ -131,7 +139,7 @@ qui y entrent, son d'intrigue, cercle sur la carte), **périmètre à fouiller**
 (fouillés avec l'œil, contenu trouvé à la fouille, description visuelle affichée au-dessus à 10 m), **arme jetée ou posée** au sol par les civils (G, arme en main ; ramassée à l'œil), et l'**œil d'aigle** des policiers (Verr. Maj : onde radar de 15 m,
 contours blancs, zone proche pointée). Rien ne disparaît autour des scènes (protégées des « ClearArea »).
 
-Et **RP Ganghunt** dans [`rp_Ganghunt/`](../rp_Ganghunt/README.md) : `/ganghunt`, n'importe quel joueur fait venir des
+Et **RP Ganghunt** dans [`rp_Ganghunt/`](../../%5Bautres%5D/rp_Ganghunt/README.md) : `/ganghunt`, n'importe quel joueur fait venir des
 **vagues d'ennemis** (1 à 10 vagues de 1 à 30) qui le traquent et le **cherchent** quand ils le perdent de vue, comme
 la police du jeu (gangs, organisations ou forces de l'ordre) : armes réparties en pourcentages ou aléatoires (armes
 spéciales comprises), convoi de véhicules et hélicoptère de la faction, silencieux, grenades, musique de poursuite du

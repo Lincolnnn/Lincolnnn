@@ -628,7 +628,6 @@ if FL.Enabled ~= false then
     end
 end
 
--- (Posture normale à la 1re personne : ressource rp_firstperson.)
 
 -- =========================================================================
 -- AIDE AU STYLE DU SERVEUR pour une autre ressource (CartoonFlashlight : aide de la lampe en haut à gauche) :

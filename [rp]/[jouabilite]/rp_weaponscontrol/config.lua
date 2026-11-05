@@ -94,7 +94,6 @@ WeaponsConfig = {
     --   (plus petit = porte plus loin, plus doux) | Roundness : netteté du bord | Shadows : nb de faisceaux avec ombres
     --   (les plus proches ; les autres sans ombre, plus légers) | Color : blanc légèrement chaud.
     -- Texture plus réaliste (Realistic_Flashlight) : voir le README (fichier graphics.ytd, non fourni dans le dépôt).
-    -- (Posture normale à la 1re personne : déplacée dans la ressource rp_firstperson, pour tout et pas seulement les armes.)
 
     Flashlight = { Enabled = true, KeepOnWhileMoving = true,
         Cartoon = { Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },

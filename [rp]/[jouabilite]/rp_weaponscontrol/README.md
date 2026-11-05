@@ -23,9 +23,6 @@ ensure rp_weaponscontrol
 
 **Acouphène : retiré** (plus aucun sifflement).
 
-**Posture à la 1re personne** : déplacée dans la ressource [`rp_firstperson`](../rp_firstperson/README.md) (pour tout,
-pas seulement avec une arme). Le bloc `FirstPerson` de `config.lua` n'existe plus.
-
 **Pas de rechargement automatique** : chargeur vide, il faut recharger soi-même (touche **R**).
 
 Avec **`rp_camshake`** : avant chaque secousse de tir, il est mis en pause (`TriggerEvent('rp_camshake:pause', 800)`)

@@ -1,9 +1,9 @@
 # Données enregistrées par les scripts sur le serveur (jamais versionnées)
-rp_mdc/data/*.json
-rp_interact/data/*.json
-rp_equipment/data/*.json
-rp_doorlock/data/*.json
+*/rp_mdc/data/*.json
+*/rp_interact/data/*.json
+*/rp_equipment/data/*.json
+*/rp_doorlock/data/*.json
 # Exceptions : fichiers à remplir soi-même, fournis avec rp_interact (véhicules de Voiture > Spawn, tenues et pièces de /eup)
-!rp_interact/data/vehicle.json
-!rp_interact/data/outfits.json
-!rp_interact/data/modifoutfits.json
+!*/rp_interact/data/vehicle.json
+!*/rp_interact/data/outfits.json
+!*/rp_interact/data/modifoutfits.json
