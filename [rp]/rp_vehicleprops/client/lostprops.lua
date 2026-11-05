@@ -5,12 +5,13 @@
       - TOMBÉS : le jeu fait tomber le chapeau (ancre 0 : casquette, casque, chapeau EUP…) ou les lunettes (ancre 1)
         d'un joueur qui chute, est bousculé, blessé, ragdoll (rp_adrenaline)… Son client le voit tomber, attend qu'il
         s'arrête, retire l'objet local du jeu et l'annonce au serveur : il apparaît chez tous à cet endroit ;
-      - POSÉS SUR UN VÉHICULE : œil (rp_interact) sur un véhicule, chapeau / lunettes sur la tête : « Poser son chapeau
-        sur le véhicule » (au point visé, sur la carrosserie) ;
+      - POSÉS SUR UN VÉHICULE : œil (rp_interact) sur un véhicule, chapeau sur la tête : « Poser un objet › Déposer son
+        chapeau » (au point visé, sur la carrosserie ; pas les lunettes) ;
       - œil : « Ramasser : chapeau » (au sol) / « Reprendre : chapeau » (sur le véhicule) : n'importe quel joueur dont
         le personnage a le même modèle (homme / femme) ; remis tel quel (même modèle EUP, même texture).
-    Objet affiché : un modèle du jeu (LostProps.Models, et Overrides par numéro de chapeau / lunettes), le modèle EUP
-    lui-même ne pouvant pas être posé comme objet.
+    Objet affiché : LE VRAI chapeau EUP (même modèle, même texture) : un personnage local invisible du même modèle le
+    porte un instant, le jeu le lui fait tomber (KnockOffPedProp) et l'objet ainsi créé est gardé, posé à l'endroit.
+    Si ça échoue (pièce introuvable…) : un modèle du jeu (LostProps.Models, ou Overrides par numéro).
     Performance : deux lectures de la tenue toutes les 300 ms ; objets mis à jour à chaque changement (états
     "rpWearGround" / "rpWear") et toutes les 2,5 s (portée).
 ]]
@@ -21,7 +22,7 @@ VPLost = {}
 if LP.Enabled == false then return end
 
 local NAMES = { [0] = 'chapeau', [1] = 'lunettes' }
-local PLACE_LABEL = { [0] = 'Poser son chapeau sur le véhicule', [1] = 'Poser ses lunettes sur le véhicule' }
+local PLACE_LABEL = { [0] = 'Déposer son chapeau' } -- sur un véhicule : le chapeau seulement (pas les lunettes)
 local HEAD = 31086 -- SKEL_Head
 local RANGE = 80.0
 
@@ -34,8 +35,8 @@ local function notify(text)
     TriggerEvent('chat:addMessage', { args = { 'Tenue', text } })
 end
 
---- Modèle d'objet affiché pour une pièce (Overrides par numéro, sinon Models)
-local function objectModel(item)
+--- Modèle choisi dans la configuration pour une pièce (Overrides par numéro) ; nil : le vrai modèle EUP
+local function overrideModel(item)
     local gender = u32(item.pedModel) == FEMALE and 'female' or (u32(item.pedModel) == MALE and 'male' or nil)
     for _, o in ipairs(LP.Overrides or {}) do
         if o.anchor == item.anchor and tonumber(o.drawable) and math.floor(o.drawable) - offset == item.drawable
@@ -43,12 +44,18 @@ local function objectModel(item)
             return o.model
         end
     end
-    return (LP.Models or {})[item.anchor] or (item.anchor == 0 and 'prop_cap_01' or 'prop_cs_sol_glasses')
+    return nil
+end
+
+--- Modèle de remplacement (Overrides, sinon Models) : utilisé si le vrai objet ne peut pas être créé
+local function objectModel(item)
+    return overrideModel(item) or (LP.Models or {})[item.anchor] or (item.anchor == 0 and 'prop_cap_01' or 'prop_cs_sol_glasses')
 end
 VPLost.objectModel = objectModel
 
 local function loadModel(name)
     local model = type(name) == 'number' and name or GetHashKey(name)
+    if model >= 0x80000000 then model = model - 0x100000000 end -- hash signé (32 bits)
     if not IsModelInCdimage(model) then return nil end
     RequestModel(model)
     local deadline = GetGameTimer() + 3000
@@ -56,7 +63,74 @@ local function loadModel(name)
     return HasModelLoaded(model) and model or nil
 end
 
+local creating = false -- un vrai objet à la fois (repéré parmi les nouveaux objets du jeu)
+
+--- LE VRAI OBJET de la pièce EUP : un personnage local (non synchronisé), invisible et figé, du même modèle (homme /
+--- femme) la porte ; le jeu la lui fait tomber (KnockOffPedProp) : l'objet créé est celui de la pièce (modèle et
+--- texture). Retourne l'objet et sa rotation « portée sur la tête » (pour le poser à l'endroit), ou nil.
+local function realObject(item, x, y, z)
+    if LP.RealObject == false then return nil end
+    local model = loadModel(u32(item.pedModel))
+    if not model then return nil end
+    while creating do Wait(0) end
+    creating = true
+    local ok, obj, rot = pcall(function()
+        local ped = CreatePed(4, model, x, y, z + 1.0, 0.0, false, false)
+        if not ped or ped == 0 then return nil end
+        SetEntityVisible(ped, false, false)
+        SetEntityCollision(ped, false, false)
+        FreezeEntityPosition(ped, true)
+        SetEntityInvincible(ped, true)
+        SetBlockingOfNonTemporaryEvents(ped, true)
+        SetPedPreloadPropData(ped, item.anchor, item.drawable, item.texture or 0)
+        local deadline = GetGameTimer() + 3000
+        while not HasPedPreloadPropDataFinished(ped) and GetGameTimer() < deadline do Wait(0) end
+        SetPedPropIndex(ped, item.anchor, item.drawable, item.texture or 0, true)
+        ReleasePedPreloadPropData(ped)
+        Wait(0)
+        local found, rot = nil, nil
+        if GetPedPropIndex(ped, item.anchor) == item.drawable then
+            local before = {}
+            for _, o in ipairs(GetGamePool('CObject')) do before[o] = true end
+            KnockOffPedProp(ped, true, true, true, true)
+            local head = GetEntityCoords(ped)
+            local untilTime = GetGameTimer() + 1000
+            repeat
+                Wait(0)
+                local best = 6.0
+                for _, o in ipairs(GetGamePool('CObject')) do
+                    if not before[o] and not IsEntityAttached(o) then
+                        local d = #(GetEntityCoords(o) - head)
+                        if d < best then found, best = o, d end
+                    end
+                end
+            until found or GetGameTimer() >= untilTime
+            if found then
+                SetEntityAsMissionEntity(found, true, true)
+                FreezeEntityPosition(found, true)
+                SetEntityCollision(found, false, false)
+                SetEntityInvincible(found, true)
+                rot = GetEntityRotation(found, 2)
+            end
+        end
+        DeletePed(ped)
+        return found, rot
+    end)
+    creating = false
+    SetModelAsNoLongerNeeded(model)
+    if not ok then
+        print(('^3[rp_vehicleprops] vrai chapeau EUP impossible (modèle de remplacement) : %s^7'):format(tostring(obj)))
+        return nil
+    end
+    return obj, rot
+end
+
+--- Objet affiché pour une pièce : le vrai (sauf Overrides), sinon le modèle de remplacement ; et sa rotation de base
 local function spawn(item, x, y, z)
+    if not overrideModel(item) then
+        local obj, rot = realObject(item, x, y, z)
+        if obj then return obj, rot end
+    end
     local model = loadModel(objectModel(item))
     if not model then return nil end
     local obj = CreateObjectNoOffset(model, x, y, z, false, false, false)
@@ -64,13 +138,31 @@ local function spawn(item, x, y, z)
     if not obj or obj == 0 then return nil end
     SetEntityCollision(obj, false, false)
     SetEntityInvincible(obj, true)
-    return obj
+    return obj, vector3(0.0, 0.0, 0.0)
+end
+
+--- Hauteur à ajouter pour que le bas de l'objet (sa boîte, tournée) touche la surface à surfaceZ
+local function bottomLift(obj, surfaceZ)
+    local mn, mx = GetModelDimensions(GetEntityModel(obj))
+    if not mn or not mx then return 0.0 end
+    local low = nil
+    for _, cx in ipairs({ mn.x, mx.x }) do
+        for _, cy in ipairs({ mn.y, mx.y }) do
+            for _, cz in ipairs({ mn.z, mx.z }) do
+                local w = GetOffsetFromEntityInWorldCoords(obj, cx, cy, cz)
+                if not low or w.z < low then low = w.z end
+            end
+        end
+    end
+    if not low then return 0.0 end
+    return math.max(-0.5, math.min(0.5, surfaceZ - low))
 end
 
 -- =========================================================================
 -- AFFICHAGE (chez tous) : au sol (GlobalState "rpWearGround") et sur les véhicules (état "rpWear")
 -- =========================================================================
 local ground = {} -- [id] = { obj, item }
+local making = {} -- [id] = true : objet en cours de création (pas deux fois)
 local onVehicles = {} -- [véhicule] = { sig, objects = { [id] = { obj, item } } }
 
 local function groundItems()
@@ -95,13 +187,17 @@ local function refreshGround()
             if #(pos - me) <= RANGE then
                 keep[item.id] = true
                 local g = ground[item.id]
-                if not g or not DoesEntityExist(g.obj) then
-                    local obj = spawn(item, pos.x, pos.y, pos.z)
+                if (not g or not DoesEntityExist(g.obj)) and not making[item.id] then
+                    making[item.id] = true
+                    local obj, base = spawn(item, pos.x, pos.y, pos.z)
+                    making[item.id] = nil
                     if obj then
                         FreezeEntityPosition(obj, true)
+                        SetEntityRotation(obj, base.x + (tonumber(item.rx) or 0.0), base.y + (tonumber(item.ry) or 0.0),
+                            base.z + (tonumber(item.rz) or 0.0), 2, true)
                         SetEntityCoordsNoOffset(obj, pos.x, pos.y, pos.z, false, false, false)
-                        SetEntityRotation(obj, (tonumber(item.rx) or 0.0) + 0.0, (tonumber(item.ry) or 0.0) + 0.0,
-                            (tonumber(item.rz) or 0.0) + 0.0, 2, true)
+                        local lift = bottomLift(obj, pos.z) -- posé à plat sur le sol
+                        SetEntityCoordsNoOffset(obj, pos.x, pos.y, pos.z + lift, false, false, false)
                         ground[item.id] = { obj = obj, item = item }
                     end
                 end
@@ -137,18 +233,27 @@ local function refreshVehicle(vehicle)
     onVehicles[vehicle] = entry
     local c = GetEntityCoords(vehicle)
     for _, item in ipairs(list) do
-        local obj = spawn(item, c.x, c.y, c.z - 3.0)
+        local obj, base = spawn(item, c.x, c.y, c.z + 2.0)
+        if onVehicles[vehicle] ~= entry then -- liste changée entre-temps
+            if obj then DeleteObject(obj) end
+            return
+        end
         if obj then
-            AttachEntityToEntity(obj, vehicle, 0, (tonumber(item.x) or 0.0) + 0.0, (tonumber(item.y) or 0.0) + 0.0,
-                (tonumber(item.z) or 0.0) + 0.0, (tonumber(item.rx) or 0.0) + 0.0, (tonumber(item.ry) or 0.0) + 0.0,
-                (tonumber(item.rz) or 0.0) + 0.0, false, false, false, false, 2, true)
+            local x, y, z = (tonumber(item.x) or 0.0) + 0.0, (tonumber(item.y) or 0.0) + 0.0, (tonumber(item.z) or 0.0) + 0.0
+            local rx, ry, rz = base.x + (tonumber(item.rx) or 0.0), base.y + (tonumber(item.ry) or 0.0), base.z + (tonumber(item.rz) or 0.0)
+            AttachEntityToEntity(obj, vehicle, 0, x, y, z, rx, ry, rz, false, false, false, false, 2, true)
+            -- posé à plat sur la carrosserie : le bas de l'objet au point choisi
+            local lift = bottomLift(obj, GetOffsetFromEntityInWorldCoords(vehicle, x, y, z).z)
+            if math.abs(lift) > 0.005 then
+                AttachEntityToEntity(obj, vehicle, 0, x, y, z + lift, rx, ry, rz, false, false, false, false, 2, true)
+            end
             entry.objects[item.id] = { obj = obj, item = item }
         end
     end
 end
 VPLost.refreshVehicle = refreshVehicle
 
-AddStateBagChangeHandler('rpWearGround', 'global', function() SetTimeout(0, refreshGround) end)
+AddStateBagChangeHandler('rpWearGround', 'global', function() CreateThread(refreshGround) end)
 AddStateBagChangeHandler('rpWear', nil, function(bagName)
     CreateThread(function()
         local untilTime = GetGameTimer() + 3000
@@ -224,7 +329,7 @@ local function dropped(anchor, w, head, fallback)
         end
         local ground = groundUnder(pos)
         TriggerServerEvent('rp_vehicleprops:wearDrop', { anchor = anchor, drawable = w.drawable, texture = w.texture,
-            x = pos.x, y = pos.y, z = math.max(ground.z + 0.03, math.min(pos.z, ground.z + 0.3)), rx = 0.0, ry = 0.0, rz = heading })
+            x = pos.x, y = pos.y, z = ground.z + 0.01, rx = 0.0, ry = 0.0, rz = heading })
     end)
 end
 
@@ -301,11 +406,11 @@ function VPLost.options(info, vehicle, out)
     if vehicle then
         for anchor, label in pairs(PLACE_LABEL) do
             if GetPedPropIndex(ped, anchor) >= 0 then
-                out[#out + 1] = { id = 'wear:place:' .. anchor, icon = 'hand', primary = true, label = label }
+                out[#out + 1] = { id = 'wear:place:' .. anchor, icon = 'hand', primary = true, label = label, sub = 'Poser un objet' }
             end
         end
         for _, item in ipairs(vehicleItems(vehicle)) do
-            out[#out + 1] = { id = 'wear:take:' .. item.id, icon = 'hand', primary = true,
+            out[#out + 1] = { id = 'wear:take:' .. item.id, icon = 'hand', primary = true, sub = 'Reprendre',
                 label = 'Reprendre : ' .. (NAMES[item.anchor] or 'objet') }
         end
         return
@@ -326,7 +431,7 @@ local function placeOnVehicle(info, vehicle, anchor)
         local hit = VPHeld.surfaceAt(point, 2, vehicle)
         if hit then point = hit end
     end
-    local o = GetOffsetFromEntityGivenWorldCoords(vehicle, point.x, point.y, point.z + 0.02)
+    local o = GetOffsetFromEntityGivenWorldCoords(vehicle, point.x, point.y, point.z + 0.005)
     local yaw = (GetEntityHeading(ped) - GetEntityHeading(vehicle)) + math.random(-30, 30)
     yaw = ((yaw + 180.0) % 360.0) - 180.0
     local piece = { anchor = anchor, drawable = drawable, texture = GetPedPropTextureIndex(ped, anchor),

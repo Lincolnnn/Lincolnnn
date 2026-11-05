@@ -123,6 +123,13 @@ kbd {
 .eye-options li.opt.disabled { color: var(--faint); cursor: default; background: none; }
 .eye-options li.opt.disabled::before { display: none; }
 .opt svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-2); }
+/* Sous-menus de l'œil (Inspections ›, Fouilles ›…) et retour */
+.eye-options li.opt.sub .opt-label { flex: 1; }
+.eye-options .opt-count { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+.eye-options .opt-chevron { font-size: 17px; line-height: 1; color: var(--muted); margin-left: 2px; }
+.eye-options li.opt.sub:hover .opt-chevron { color: var(--accent); }
+.eye-options li.opt.back { color: var(--muted); padding-top: 6px; padding-bottom: 6px; font-size: 12px; }
+.eye-options .opt-chevron.back { margin: 0 4px 0 2px; }
 .opt-label { flex: 1; }
 .opt-police {
     font-size: 10px; font-weight: 600; letter-spacing: .4px; color: var(--accent);

@@ -654,12 +654,14 @@ function VPHeld.options(info, vehicle, out)
     if vehicle then
         if h and not taserConnected(h) then
             local spots = vehicleSpots(vehicle)
-            out[#out + 1] = { id = 'held:here', icon = 'hand', primary = true, label = ('Poser %s ici'):format(what) }
-            if spots.roof then out[#out + 1] = { id = 'held:roof', icon = 'hand', primary = true, label = ('Poser %s sur le toit'):format(what) } end
-            if spots.trunk then out[#out + 1] = { id = 'held:trunk', icon = 'hand', primary = true, label = ('Poser %s sur le coffre'):format(what) } end
+            -- sous-menu « Poser un objet › » de l'œil (rp_interact)
+            local P = 'Poser un objet'
+            out[#out + 1] = { id = 'held:here', icon = 'hand', primary = true, sub = P, label = ('Déposer %s ici'):format(what) }
+            if spots.roof then out[#out + 1] = { id = 'held:roof', icon = 'hand', primary = true, sub = P, label = ('Déposer %s sur le toit'):format(what) } end
+            if spots.trunk then out[#out + 1] = { id = 'held:trunk', icon = 'hand', primary = true, sub = P, label = ('Déposer %s sur le coffre'):format(what) } end
         end
         for _, w in ipairs(weaponsOf(vehicle)) do
-            out[#out + 1] = { id = 'held:take:' .. w.id, icon = 'hand', primary = true,
+            out[#out + 1] = { id = 'held:take:' .. w.id, icon = 'hand', primary = true, sub = 'Reprendre',
                 label = ('Reprendre : %s'):format(type(w.label) == 'string' and w.label or 'arme') }
         end
         return

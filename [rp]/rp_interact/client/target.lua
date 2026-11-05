@@ -118,6 +118,7 @@ local function providerOptions(ctx, options, onlyBridge)
                     local id = o.id
                     options[#options + 1] = { id = ('%s:%s'):format(resource, tostring(id)), label = o.label or '?',
                         icon = o.icon or 'search', police = o.police, primary = o.primary, last = o.last,
+                        sub = type(o.sub) == 'string' and o.sub ~= '' and o.sub or nil, subIcon = o.subIcon,
                         run = function() exports[resource]:targetSelect(id, info) end }
                 end
                 if #res.options > 0 and res.label then ctx.providerLabel = res.label end
@@ -130,26 +131,45 @@ end
 
 --- Options PRINCIPALES (mises en avant) : inspections et détail notoire, ce qui est visé précisément (portière visée,
 --- herse, porte, banc…) et les options de police (sauf faire s'asseoir au sol) ; pas « Monter » (place visée).
---- Liste rangée par GROUPES, séparés par un trait dans l'œil : inspections et détail notoire, fouilles, actions de
---- police, portière visée, le reste, puis les options « en bas » (pousser le véhicule…).
+--- Liste rangée par GROUPES, séparés par un trait dans l'œil, et regroupée en SOUS-MENUS (Inspections ›, Fouilles ›,
+--- Conducteur ›, Poser un objet ›…) : inspections, fouilles, occupant, police, portière, poser / reprendre,
+--- le reste, radio, les options « en bas » (pousser le véhicule…), puis Supprimer.
 local NOT_PRIMARY = { ['police:seat'] = true, ['door:enter'] = true }
 local INSPECT = { visual = true, olfactory = true, visualInterior = true, visualExterior = true, notable = true }
 local SEARCH = { upper = true, lower = true, cabin = true, rear = true, trunk = true }
-local GROUP_ORDER = { inspect = 1, search = 2, police = 3, door = 4, other = 5, last = 6 }
+local GROUP_ORDER = { inspect = 1, search = 2, occupant = 3, police = 4, door = 5, place = 6, other = 7, radio = 8, last = 9, delete = 10 }
+-- Sous-menus : icône de l'entrée (les autres scripts donnent « sub » / « subIcon » à leurs options)
+local SUB_ICONS = { Inspections = 'eye', Fouilles = 'search', ['Poser un objet'] = 'hand', Reprendre = 'hand' }
 
 local function groupOf(option)
     local id = tostring(option.id or '')
     if option.last then return 'last' end
+    if id == 'env:delete' then return 'delete' end
+    if id == 'radio' then return 'radio' end
     local kind, field = id:match('^(%w+):(%w+)$')
-    if kind == 'occupant' or (field and INSPECT[field] and kind ~= 'police') then return 'inspect' end
+    if kind == 'occupant' then return 'occupant' end
+    if field and INSPECT[field] and kind ~= 'police' then return 'inspect' end
     if (field and SEARCH[field]) or id == 'env:bin' then return 'search' end
     if kind == 'police' then return 'police' end
-    if id == 'door:toggle' then return 'door' end
+    if id == 'door:toggle' or id == 'door:enter' then return 'door' end
+    if option.sub == 'Poser un objet' or option.sub == 'Reprendre' then return 'place' end
     return 'other'
+end
+
+--- Sous-menu d'une option (nil : directement dans la liste)
+local function submenuOf(option)
+    if option.sub then return option.sub end
+    local id = tostring(option.id or '')
+    local kind, field = id:match('^(%w+):(%w+)$')
+    if not field or kind == 'police' or kind == 'occupant' then return nil end
+    if INSPECT[field] then return 'Inspections' end
+    if SEARCH[field] then return 'Fouilles' end
+    return nil
 end
 
 local function markPrimary(options)
     for i, option in ipairs(options) do
+        option.sub = submenuOf(option)
         option.group = groupOf(option)
         option.primary = (option.primary == true and not NOT_PRIMARY[option.id]) or option.group == 'inspect'
             or (option.police == true and not NOT_PRIMARY[option.id]) or nil
@@ -157,12 +177,52 @@ local function markPrimary(options)
     end
     -- groupes dans l'ordre ; dans un groupe, l'ordre d'origine
     table.sort(options, function(a, b)
-        local ga, gb = GROUP_ORDER[a.group] or 5, GROUP_ORDER[b.group] or 5
+        local ga, gb = GROUP_ORDER[a.group] or 7, GROUP_ORDER[b.group] or 7
         if ga ~= gb then return ga < gb end
         return a.rank < b.rank
     end)
     return options
 end
+
+--- Liste envoyée à l'œil : options directes et sous-menus { sub, label, icon, children = {...} } ;
+--- un sous-menu d'une seule option est remplacé par l'option elle-même
+local function menuEntries(options)
+    local entries, subs = {}, {}
+    for i, option in ipairs(options) do
+        local row = { index = i, label = option.label, icon = option.icon, police = option.police, primary = option.primary,
+            disabled = option.disabled, group = option.group }
+        local name = option.sub
+        if not name then
+            entries[#entries + 1] = row
+        else
+            local entry = subs[name]
+            if not entry then
+                entry = { sub = name, label = name, icon = option.subIcon or SUB_ICONS[name] or option.icon, group = option.group,
+                    children = {} }
+                subs[name] = entry
+                entries[#entries + 1] = entry
+            end
+            entry.children[#entry.children + 1] = row
+        end
+    end
+    for i, entry in ipairs(entries) do
+        if entry.children then
+            if #entry.children == 1 then
+                entries[i] = entry.children[1]
+            else
+                local police, primary, enabled = true, false, false
+                for _, c in ipairs(entry.children) do
+                    police = police and c.police == true
+                    primary = primary or c.primary == true
+                    enabled = enabled or not c.disabled
+                end
+                entry.police, entry.primary, entry.disabled = police or nil, primary or nil, not enabled or nil
+            end
+        end
+    end
+    return entries
+end
+RPI.menuEntries = menuEntries -- pour les tests
 RPI.markPrimary = markPrimary -- pour les tests
 
 local function update()
@@ -204,11 +264,7 @@ local function openOptions()
     menuOpen = true
     RPI.setUi('options', true)
     SetCursorLocation(0.5, 0.5)
-    local list = {}
-    for i, option in ipairs(current.options) do
-        list[i] = { index = i, label = option.label, icon = option.icon, police = option.police, primary = option.primary,
-            disabled = option.disabled, group = option.group }
-    end
+    local list = menuEntries(current.options)
     SendNUIMessage({ action = 'eyeOptions', data = { label = RPI.targetLabel(current.ctx), options = list } })
 end
 

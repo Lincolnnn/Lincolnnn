@@ -377,9 +377,17 @@ peut le modifier ou le supprimer.
 Un œil apparaît au centre de l'écran ; il s'allume (bleu) quand la cible propose des options, avec son nom.
 **Clic gauche** : liste des options, à droite de l'œil et **centrée verticalement sur lui** (défile si elle est plus haute que l'écran) ; clic sur une option pour l'exécuter. **Échap**, clic droit ou clic à côté : fermer.
 
-Options rangées par **groupes**, séparés par un trait : **inspections et détail notoire** (personne, véhicule,
-occupant) · **fouilles** · **actions de police** · **ouvrir / fermer la portière visée** · le reste · tout en bas,
-les options « en bas de liste » d'un script (`last = true` : **Pousser le véhicule** de Vehicle Control…).
+Options rangées en **sous-menus** (clic : ses options, « ‹ Retour » pour revenir ; un sous-menu d'une seule option
+est affiché directement) et par **groupes**, séparés par un trait. Exemple, policier visant un véhicule :
+**Inspections ›** (visuelle intérieure, extérieure, olfactive, détail notoire) · **Fouilles ›** (habitacle, banquette
+arrière, coffre) · **Conducteur ›** (ou la place de l'occupant le plus proche : inspection visuelle, olfactive) ·
+actions de police (placer / faire sortir) · **Ouvrir la portière…** · **Monter à…** (portière visée) · **Poser un
+objet ›** (déposer l'arme ici / sur le toit / sur le coffre, déposer son chapeau, ajouter / déplacer / retirer un objet)
+· **Reprendre ›** (arme, chapeau posés) · le reste · **Radio du véhicule** (avant visé, portière ouverte) · les
+options « en bas de liste » (`last = true` : **Pousser le véhicule**…) · **Supprimer**. En visant un individu :
+**Inspections ›** (visuelle, olfactive, détail notoire) · **Fouilles ›** (supérieure, inférieure) · Menotter ·
+Prendre par le bras · Faire s'asseoir · Saluer · Supprimer. Un script de l'œil range ses options avec `sub = 'Nom'`
+(et `subIcon`).
 Options **principales** mises en avant (surlignées dans la couleur du thème) : les **inspections et le détail
 notoire**, ce qui est **visé précisément** (portière visée, radio, banc, poubelle, objet d'un autre script, porte de
 `rp_doorlock`, herse au coffre ou au sol…) et **les options de police** (sauf « Faire s'asseoir / se relever ») ;

@@ -3,7 +3,7 @@
     -----------------------------------------------------------------------------------------------------
     Visibles et repris par TOUS les joueurs (aucune permission) :
       - au sol : liste GlobalState "rpWearGround" (tombés d'un joueur bousculé, blessé, en chute…) ;
-      - sur un véhicule : liste dans l'état du véhicule "rpWear" (posés avec l'œil), qui vit et disparaît avec lui.
+      - sur un véhicule : liste dans l'état du véhicule "rpWear" (chapeaux posés avec l'œil), qui vit et disparaît avec lui.
     Chaque élément : { id, anchor (0 chapeau, 1 lunettes), drawable, texture, pedModel, x, y, z, rx, ry, rz, at }.
     Le reprendre : seulement par un personnage du même modèle (homme / femme : les modèles EUP diffèrent).
     Vérifié : distance, nombres, valeurs bornées ; au sol, les plus anciens disparaissent (Expire, GroundTotal).
@@ -103,7 +103,7 @@ RegisterNetEvent('rp_vehicleprops:wearPlaceVehicle', function(netId, data)
         return reply(src, false, 'Action impossible.')
     end
     local item = cleanPiece(src, data)
-    if not item then return reply(src, false, 'Action impossible.') end
+    if not item or item.anchor ~= 0 then return reply(src, false, 'Action impossible.') end -- le chapeau seulement
     local list = vehicleList(vehicle)
     if #list >= (LP.MaxPerVehicle or 6) then return reply(src, false, 'Plus de place sur ce véhicule.') end
     local o = type(data.offsets) == 'table' and data.offsets or {}

@@ -186,9 +186,10 @@ local function occupantOptions(ctx, out)
     }
     local kind = isPlayer and 'player' or 'npc'
     local who = SEAT_NAMES[seat] or ('place ' .. (seat + 2))
+    who = who:sub(1, 1):upper() .. who:sub(2) -- sous-menu « Conducteur › » (ou la place de l'occupant le plus proche)
     for _, def in ipairs(OCCUPANT_OPTIONS) do
         out[#out + 1] = {
-            id = 'occupant:' .. def.field, label = ('%s (%s)'):format(def.label, who), icon = def.icon,
+            id = 'occupant:' .. def.field, label = def.label, icon = def.icon, sub = who, subIcon = 'seat',
             run = function()
                 if not DoesEntityExist(ped) or GetVehiclePedIsIn(ped, false) ~= ctx.entity then
                     return RPI.notify('Cette personne n\'est plus dans le véhicule.', 'error')
@@ -228,10 +229,10 @@ end
 -- VÉHICULES : portières, capot, coffre, monter
 -- =========================================================================
 local DOORS = {
-    { bone = 'door_dside_f', index = 0, seat = -1, name = 'la portière avant gauche', seatName = 'Monter (conducteur)' },
-    { bone = 'door_pside_f', index = 1, seat = 0, name = 'la portière avant droite', seatName = 'Monter (passager avant)' },
-    { bone = 'door_dside_r', index = 2, seat = 1, name = 'la portière arrière gauche', seatName = 'Monter (arrière gauche)' },
-    { bone = 'door_pside_r', index = 3, seat = 2, name = 'la portière arrière droite', seatName = 'Monter (arrière droite)' },
+    { bone = 'door_dside_f', index = 0, seat = -1, name = 'la portière avant gauche', seatName = 'Monter à la place du conducteur' },
+    { bone = 'door_pside_f', index = 1, seat = 0, name = 'la portière avant droite', seatName = 'Monter à l\'avant (passager)' },
+    { bone = 'door_dside_r', index = 2, seat = 1, name = 'la portière arrière gauche', seatName = 'Monter à l\'arrière gauche' },
+    { bone = 'door_pside_r', index = 3, seat = 2, name = 'la portière arrière droite', seatName = 'Monter à l\'arrière droite' },
     { bone = 'bonnet', index = 4, name = 'le capot' },
     { bone = 'boot', index = 5, name = 'le coffre' },
 }

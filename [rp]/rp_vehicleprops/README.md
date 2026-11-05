@@ -62,17 +62,19 @@ mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est re
 - **Tombés** : quand le jeu fait tomber le chapeau (casquette, casque, chapeau **EUP**…) ou les lunettes d'un joueur
   (chute, bousculade, coup, balle, ragdoll de `rp_adrenaline`…), ils apparaissent **au sol chez tous** à l'endroit
   où ils se sont arrêtés.
-- **Posés sur un véhicule** : œil (Alt) sur un véhicule, chapeau / lunettes sur la tête : **« Poser son chapeau sur le
-  véhicule »** / **« Poser ses lunettes sur le véhicule »** (au point visé, sur la carrosserie, collés au véhicule chez
-  tous, ils le suivent).
+- **Posé sur un véhicule** : œil (Alt) sur un véhicule, chapeau sur la tête : **« Poser un objet › Déposer son
+  chapeau »** (au point visé, à plat sur la carrosserie, collé au véhicule chez tous, il le suit). Les lunettes ne se
+  posent pas sur un véhicule.
 - **Les reprendre** : œil sur l'objet ou à côté : **« Ramasser : chapeau »** (sol) / **« Reprendre : chapeau »**
   (véhicule), par **n'importe quel joueur** dont le personnage a le même modèle (homme / femme : les numéros EUP
   diffèrent) et qui n'en porte pas déjà un : remis **tels quels** (même modèle EUP, même texture), avec un petit geste.
 - Au sol : disparaissent après 15 min (`Expire`), 60 en tout (`GroundTotal`, le plus ancien disparaît) ; sur un
   véhicule : 6 au plus (`MaxPerVehicle`), ils disparaissent avec le véhicule.
-- **Objet affiché** : un modèle du jeu (le modèle EUP ne peut pas être posé comme objet) : casquette
-  `prop_cap_01` pour les chapeaux, `prop_cs_sol_glasses` pour les lunettes (`Models`). `Overrides` : un autre modèle
-  pour un numéro précis (ex. un chapeau à bord, `reh_prop_reh_hat_cowboy_01a`, pour le chapeau de campagne de la WSP).
+- **Objet affiché : LE VRAI chapeau EUP** (le numéro et la texture exacts) : chez chaque joueur, un personnage local
+  invisible du même modèle le porte un instant, le jeu le lui fait tomber (`KnockOffPedProp`) et cet objet est gardé,
+  posé à plat (le bas de l'objet sur la surface). Si ça échoue (pièce introuvable : un message `^3` dans la console
+  F8), un modèle de remplacement : `prop_cap_01` / `prop_cs_sol_glasses` (`Models`) ; `Overrides` : un modèle précis
+  pour un numéro (il remplace alors le vrai). `RealObject = false` : toujours les modèles de remplacement.
 
 ## Configuration (`config.lua`)
 

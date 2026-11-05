@@ -93,30 +93,49 @@
         $('#eyeLabel').classList.toggle('hidden', !data.hasOptions || !data.label || eye.menu);
     }
 
-    function showEyeOptions(data) {
-        eye.menu = true;
-        // Options par groupes (inspections, fouilles, police, portière, le reste, en bas), un trait entre deux groupes ;
-        // les principales (inspections, ce qui est visé précisément, police) sont mises en avant
-        const all = toArray(data.options);
-        const grouped = all.some((o) => o.group);
-        const row = (o) => `
-                <li class="opt ${o.primary ? 'primary' : ''} ${o.disabled ? 'disabled' : ''}" data-index="${esc(o.index)}">
+    // Liste de l'œil : options directes et SOUS-MENUS (Inspections ›, Fouilles ›, Conducteur ›, Poser un objet ›…) ;
+    // un clic sur un sous-menu affiche ses options (« ‹ Retour » pour revenir), le choix renvoie l'index d'origine
+    function renderEyeList(title, entries, back) {
+        const grouped = entries.some((o) => o.group);
+        const row = (o, i) => o.children
+            ? `<li class="opt sub ${o.primary ? 'primary' : ''} ${o.disabled ? 'disabled' : ''}" data-sub="${i}">
+                    ${icon(o.icon)}
+                    <span class="opt-label">${esc(o.label)}</span>
+                    ${o.police ? '<span class="opt-police">POLICE</span>' : ''}
+                    <span class="opt-count">${o.children.length}</span><span class="opt-chevron" aria-hidden="true">›</span>
+                </li>`
+            : `<li class="opt ${o.primary ? 'primary' : ''} ${o.disabled ? 'disabled' : ''}" data-index="${esc(o.index)}">
                     ${icon(o.icon)}
                     <span class="opt-label">${esc(o.label)}</span>
                     ${o.police ? '<span class="opt-police">POLICE</span>' : ''}
                 </li>`;
-        $('#eyeLabel').classList.add('hidden');
         $('#eyeOptions').innerHTML = `
-            ${data.label ? `<li class="opt-title">${esc(data.label)}</li>` : ''}
-            ${grouped
-                ? all.map((o, i) => (i > 0 && o.group !== all[i - 1].group ? '<li class="opt-sep" aria-hidden="true"></li>' : '') + row(o)).join('')
-                : all.map(row).join('')}`;
+            ${title ? `<li class="opt-title">${esc(title)}</li>` : ''}
+            ${back ? '<li class="opt back" data-back="1"><span class="opt-chevron back" aria-hidden="true">‹</span><span class="opt-label">Retour</span></li>' : ''}
+            ${grouped && !back
+                ? entries.map((o, i) => (i > 0 && o.group !== entries[i - 1].group ? '<li class="opt-sep" aria-hidden="true"></li>' : '') + row(o, i)).join('')
+                : entries.map(row).join('')}`;
+    }
+
+    function showEyeOptions(data) {
+        eye.menu = true;
+        // Options par groupes (inspections, fouilles, occupant, police, portière, poser, le reste, radio, en bas,
+        // supprimer), un trait entre deux groupes ; les principales sont mises en avant
+        eye.data = { label: data.label || '', entries: toArray(data.options).map((o) => (o.children ? { ...o, children: toArray(o.children) } : o)) };
+        $('#eyeLabel').classList.add('hidden');
+        renderEyeList(eye.data.label, eye.data.entries, false);
         $('#eyeOptions').classList.remove('hidden');
     }
 
     $('#eyeOptions').addEventListener('click', (e) => {
         const li = e.target.closest('li.opt');
-        if (!li || li.classList.contains('disabled')) return;
+        if (!li || li.classList.contains('disabled') || !eye.data) return;
+        if (li.dataset.back) return renderEyeList(eye.data.label, eye.data.entries, false);
+        if (li.dataset.sub !== undefined) {
+            const entry = eye.data.entries[Number(li.dataset.sub)];
+            if (entry) renderEyeList(`${eye.data.label ? `${eye.data.label} — ` : ''}${entry.label}`, entry.children, true);
+            return;
+        }
         eye.menu = false;
         post('eyeSelect', { index: Number(li.dataset.index) });
     });

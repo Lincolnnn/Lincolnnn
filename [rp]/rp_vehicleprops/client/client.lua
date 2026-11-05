@@ -278,19 +278,21 @@ exports('targetOptions', function(info)
     if editor or type(info) ~= 'table' then return nil end
     local vehicle = vehicleFromInfo(info)
     local options = {}
-    if vehicle then
-        local count = #propsOf(vehicle)
-        options[1] = { id = 'add', icon = 'hand', label = 'Ajouter un objet' }
-        if count > 0 then
-            options[#options + 1] = { id = 'edit', icon = 'move', label = ('Déplacer un objet (%d)'):format(count) }
-            options[#options + 1] = { id = 'remove', icon = 'trash', label = 'Retirer un objet' }
-        end
-    end
-    -- arme / lampe tenue en main (client/held.lua) : la poser sur le véhicule, la lampe au sol ; reprendre
+    -- arme / lampe tenue en main (client/held.lua) : la déposer sur le véhicule, la lampe au sol ; reprendre
     if VPHeld and VPHeld.options then VPHeld.options(info, vehicle, options) end
-    -- chapeau / lunettes tombés (client/lostprops.lua) : les ramasser
+    -- chapeau (client/lostprops.lua) : le déposer sur le véhicule, le reprendre ; au sol : le ramasser
     local before = #options
     if VPLost and VPLost.options then VPLost.options(info, vehicle, options) end
+    if vehicle then
+        -- sous-menu « Poser un objet › » de l'œil (rp_interact) : déposer l'arme, déposer son chapeau, ajouter un objet…
+        local count = #propsOf(vehicle)
+        local P = 'Poser un objet'
+        options[#options + 1] = { id = 'add', icon = 'hand', label = 'Ajouter un objet', sub = P }
+        if count > 0 then
+            options[#options + 1] = { id = 'edit', icon = 'move', label = ('Déplacer un objet (%d)'):format(count), sub = P }
+            options[#options + 1] = { id = 'remove', icon = 'trash', label = 'Retirer un objet', sub = P }
+        end
+    end
     if #options == 0 then return nil end
     return { label = vehicle and 'Véhicule' or (before == 0 and 'Tenue' or 'Lampe'), options = options }
 end)

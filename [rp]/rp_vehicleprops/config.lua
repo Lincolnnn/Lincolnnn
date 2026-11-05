@@ -52,13 +52,15 @@ VPConfig = {
     --   - œil sur un véhicule, chapeau / lunettes sur la tête : « Poser son chapeau sur le véhicule » ;
     --   - « Ramasser : chapeau » (sol) / « Reprendre : chapeau » (véhicule) : n'importe quel joueur dont le personnage a
     --     le même modèle (homme / femme) ; remis tels quels (même modèle EUP, même texture).
-    -- Objet affiché : Models (par ancre : 0 chapeau, 1 lunettes) ; Overrides : un autre modèle pour un numéro précis
-    -- (compté comme dans outfits.json si OneBased), ex. le chapeau de campagne de la WSP.
+    -- Objet affiché : le VRAI chapeau EUP (RealObject : un personnage local invisible le porte, le jeu le lui fait
+    -- tomber, l'objet est gardé). Sinon (échec, ou RealObject = false) : Models (par ancre : 0 chapeau, 1 lunettes) ;
+    -- Overrides : un modèle précis pour un numéro (compté comme dans outfits.json si OneBased), il remplace le vrai.
     --   CheckMs : vérification de la tenue (ms) | Distance : ramasser à moins de … m | Snap : œil à moins de … m de
     --   l'objet | Expire : disparaît du sol après … s | GroundTotal : au sol en tout (le plus ancien disparaît) |
     --   MaxPerVehicle : posés sur un même véhicule
     LostProps = { Enabled = true, CheckMs = 300, Distance = 2.5, Snap = 1.2, Expire = 900, GroundTotal = 60, MaxPerVehicle = 6,
         Anim = { 'pickup_object', 'pickup_low', 900 },
+        RealObject = true,
         Models = { [0] = 'prop_cap_01', [1] = 'prop_cs_sol_glasses' },
         OneBased = true,
         Overrides = {
