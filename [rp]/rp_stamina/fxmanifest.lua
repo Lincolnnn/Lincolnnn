@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_stamina'
 author 'Lincolnnn'
 description 'Endurance de sprint selon les armes portées (police : armes longues ; civils : par type d\'arme) - standalone'
-version '1.0.0'
+version '1.1.0'
 
 ui_page 'html/index.html'
 

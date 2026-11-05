@@ -3,11 +3,13 @@
     ==========================
     Le sprint est limité dès qu'un joueur a une arme dans son INVENTAIRE (pas seulement en main) :
       - POLICE (joueur dans une unité du MDC) : selon le nombre d'ARMES LONGUES sur lui (Police.LongGroups : fusils à
-        pompe et fusils d'assaut) : 2 et plus -> 15 s de sprint ; 1 -> 25 s ; aucune -> 1 min 30 ;
+        pompe et fusils d'assaut) : 2 et plus -> 7 s de sprint ; 1 -> 10 s ; aucune -> pas de limite (endurance du jeu) ;
       - CIVILS (mode civil, ou ni civil ni dans une unité) : chaque type d'arme pèse (sauf les armes de poing) ; avec
         plusieurs armes, c'est la plus lourde (le sprint le plus court) qui compte.
-    Sprint épuisé : le joueur passe à la course normale (illimitée), jusqu'à ce qu'il ait repris ResumeAt de son
-    endurance. Sans arme (ou seulement des armes de poing pour un civil) : endurance du jeu, rien ne change.
+    Seul le SPRINT est limité : la course normale (footing) n'a jamais de limite. Sprint épuisé : le joueur passe à la
+    course normale, jusqu'à ce qu'il ait repris ResumeAt de son endurance. Sans arme qui pèse (police sans arme longue,
+    civil avec seulement des armes de poing) : endurance du jeu, rien ne change, pas de barre.
+    Quand une arme se met à peser (prise, ou plus lourde que la précédente) : petite notification sous la barre.
 ]]
 
 StaminaConfig = {
@@ -16,22 +18,22 @@ StaminaConfig = {
     -- POLICE : secondes de sprint selon le nombre d'armes longues portées (la dernière ligne = « et plus »)
     Police = {
         LongGroups = { 'GROUP_SHOTGUN', 'GROUP_RIFLE' },  -- fusils à pompe & fusils d'assaut
-        Sprint = { [0] = 90, [1] = 25, [2] = 15 },
+        Sprint = { [1] = 10, [2] = 7 },  -- 1 arme longue : 10 s ; 2 et plus : 7 s ; aucune : pas de limite
     },
 
     -- CIVILS : secondes de sprint par type d'arme (la plus lourde portée compte). Armes de poing : aucun poids.
     Civil = {
         Groups = {
-            GROUP_RIFLE = 35,    -- fusils d'assaut
-            GROUP_SHOTGUN = 40,  -- fusils à pompe
-            GROUP_SMG = 35,      -- pistolets-mitrailleurs
-            GROUP_MG = 35,       -- mitrailleuses légères
-            GROUP_THROWN = 70,   -- armes de jet (grenades, cocktails Molotov, fusées…)
+            GROUP_RIFLE = 25,    -- fusils d'assaut
+            GROUP_SHOTGUN = 25,  -- fusils à pompe
+            GROUP_SMG = 25,      -- pistolets-mitrailleurs
+            GROUP_MG = 25,       -- mitrailleuses légères
+            GROUP_THROWN = 45,   -- armes de jet (grenades, cocktails Molotov, fusées…)
             GROUP_HEAVY = 15,    -- armes lourdes (lance-roquettes, minigun…)
             GROUP_SNIPER = 35,   -- fusils de précision
         },
-        MeleeLong = 40,          -- armes blanches longues (MeleeLongWeapons)
-        MeleeShort = 70,         -- autres armes blanches (couteau, poing américain, matraque, lampe…)
+        MeleeLong = 30,          -- armes blanches longues (MeleeLongWeapons)
+        MeleeShort = 50,         -- autres armes blanches (couteau, poing américain, matraque, lampe…)
         MeleeLongWeapons = { 'WEAPON_BAT', 'WEAPON_GOLFCLUB', 'WEAPON_CROWBAR', 'WEAPON_POOLCUE', 'WEAPON_BATTLEAXE',
             'WEAPON_MACHETE', 'WEAPON_WRENCH', 'WEAPON_STONE_HATCHET', 'WEAPON_HATCHET', 'WEAPON_CANDYCANE' },
     },
@@ -45,6 +47,11 @@ StaminaConfig = {
     Bar = { AlwaysShow = false, HideAfter = 3 },
 
     CheckMs = 1000,      -- relecture de l'inventaire (ms)
+
+    -- Notification sous la barre quand une arme se met à peser (prise, ou plus lourde que la précédente)
+    Notify = { Enabled = true, Seconds = 4,
+        Police = 'Votre arme longue pèse sur vous : votre endurance est réduite.',
+        Civil = 'L\'arme que vous portez pèse : votre endurance est réduite.' },
 
     -- Armes vérifiées dans l'inventaire (le jeu ne sait pas les énumérer) : armes du jeu + armes ajoutées du serveur.
     -- Le TYPE de chaque arme est lu dans le jeu (groupe) : une arme ajoutée n'a qu'à figurer ici.

@@ -43,15 +43,15 @@ chutes en adrénaline haute (`High.Start`), intervalle (`Every`), tableaux `Stag
 balles), `Duration`, démarche (`Walk` : `Mode = 'command'` avec RPEMOTES, `'native'` sans, `false` : jamais), temps
 au sol, `Debug` (détails dans F8).
 
-**RPEMOTES et la démarche** : avec `PersistentWalk = true` (config de RPEMOTES), `/walk injured` est retenu par
-RPEMOTES et reviendrait à la réapparition suivante (`/walk reset` ne l'efface pas) : ce script refait donc
-`/walk reset` 2 s après cette réapparition (une fois). `Walk.Mode = 'native'` : même démarche posée directement,
-jamais retenue, sans RPEMOTES.
+**Démarche** : par défaut (`Walk.Mode = 'native'`), la démarche de `/walk injured` est posée directement par ce
+script, sans passer par RPEMOTES : elle n'est jamais sauvegardée et ne revient pas à la connexion suivante. **Correctif** :
+à chaque connexion / réapparition, une démarche blessée restée d'une ancienne sauvegarde de RPEMOTES (`PersistentWalk`)
+est retirée (1, 3 et 6 s après l'apparition) s'il n'y a pas d'épisode en cours (`Walk.ClearOnSpawn`). `Walk.Mode =
+'command'` : les commandes de RPEMOTES (`/walk injured`, `/walk reset`).
 
 ## Installation
 
 ```cfg
-ensure rpemotes            # /walk (démarche blessée) ; sinon Walk.Mode = 'native'
 ensure rp_weaponscontrol   # tirs entendus et balles reçues (obligatoire) ; ShotEventRange = 50 m pour les PNJ
 ensure rp_vehicleprops     # arme lâchée au sol, reprise avec l'œil
 ensure rp_adrenaline

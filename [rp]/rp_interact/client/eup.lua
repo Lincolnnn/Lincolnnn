@@ -178,6 +178,30 @@ RegisterNUICallback('eupMod', function(data, cb)
     cb({ ok = true, worn = wornList() })
 end)
 
+-- Catégorie (liste ← →) : la pièce choisie remplace celle de la même catégorie ; 0 : pièces de la tenue d'origine
+RegisterNUICallback('eupModSelect', function(data, cb)
+    if not open or type(data) ~= 'table' or type(data.ids) ~= 'table' then return cb({ ok = false }) end
+    base = base or readPed()
+    local ped = PlayerPedId()
+    -- d'abord la tenue d'origine sur toutes les parties de la catégorie
+    for _, id in ipairs(data.ids) do
+        local m = mods[tonumber(id) or 0]
+        if m then
+            for _, c in ipairs(m.components or {}) do
+                local o = base.c[c[1]]
+                if o then SetPedComponentVariation(ped, c[1], o[1], o[2], 0) end
+            end
+            for _, p in ipairs(m.props or {}) do
+                local o = base.p[p[1]]
+                if o then setProp(ped, p[1], o[1], o[2]) else ClearPedProp(ped, p[1]) end
+            end
+        end
+    end
+    local chosen = mods[tonumber(data.id) or 0]
+    if chosen then wear(chosen) end
+    cb({ ok = true, worn = wornList() })
+end)
+
 RegisterNUICallback('eupModReset', function(_, cb)
     if not open then return cb({ ok = false }) end
     if base then

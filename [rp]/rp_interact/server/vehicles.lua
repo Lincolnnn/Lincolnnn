@@ -439,9 +439,13 @@ local function loadOutfits()
 end
 
 -- =========================================================================
--- MODIFIER MA TENUE (data/modifoutfits.json) : pièces proposées selon le service de la tenue mise
---   { "WSP": [ { "Name": "Gilet de Haute Visibilité", "Category": "Gilets", "Gender": "Male", "Armor": "110:1" } ],
+-- MODIFIER MA TENUE (data/modifoutfits.json) : pièces proposées selon le service de la tenue mise, rangées en
+-- CATÉGORIES (une pièce à la fois par catégorie, choisie dans une liste, comme les accessoires d'une arme) :
+--   { "WSP": [ { "Category": "Gilets", "Items": [ { "Name": "Gilet haute visibilité", "Gender": "Male", "Armor": "110:1" },
+--                                                  { "Name": "Gilet pare-balles", "Armor": "13:1" } ] },
+--              { "Category": "Couvre-chefs", "Items": [ ... ] } ],
 --     "KCSO": [ ... ], "Civil": [ ... ], "Tous": [ ... ] }   ("Tous" : proposées pour tous les services)
+-- Ancien format accepté : pièces directement dans la liste, avec "Category" facultatif.
 -- Une pièce = un nom + une ou plusieurs parties de tenue (mêmes noms que outfits.json : Hat, Armor, Top...).
 -- =========================================================================
 local ModOutfits = {}
@@ -465,7 +469,23 @@ local function loadModOutfits()
     table.sort(keys)
     for _, k in ipairs(keys) do
         local service = serviceKey(k)
-        for i, o in ipairs(type(data[k]) == 'table' and data[k] or {}) do
+        -- Catégories { Category, Items } dépliées en pièces (la catégorie est donnée à chacune)
+        local flat = {}
+        for _, o in ipairs(type(data[k]) == 'table' and data[k] or {}) do
+            local items = type(o) == 'table' and (field(o, 'Items') or field(o, 'Pieces') or field(o, 'Options')) or nil
+            if type(items) == 'table' then
+                local category = trim(field(o, 'Category'))
+                for _, item in ipairs(items) do
+                    if type(item) == 'table' then
+                        if category ~= '' and trim(field(item, 'Category')) == '' then item.Category = category end
+                        flat[#flat + 1] = item
+                    end
+                end
+            else
+                flat[#flat + 1] = o
+            end
+        end
+        for i, o in ipairs(flat) do
             local name = trim(field(o, 'Name'))
             local components, props = parseParts(o, oneBased)
             if name == '' or (#components == 0 and #props == 0) then

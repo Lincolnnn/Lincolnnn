@@ -2088,15 +2088,6 @@
         return { title: 'Modifier ma tenue', sub: sub || eupServiceName(code), color: eupServiceColor(code), logo: agencyLogo(code) };
     }
 
-    function eupModCategoryPage(category) {
-        return {
-            id: 'modcat', title: category,
-            banner: () => eupModBanner(`${eupServiceName(eup.modService)} · ${category}`),
-            onEnter: () => post('eupModState').then(eupModRefresh),
-            items: () => eupModPieces().filter((m) => m.category === category).map(eupModButton),
-        };
-    }
-
     // Pièces du service, puis celles de "Tous"
     const eupModPieces = () => [...eup.mods.filter((m) => m.service === eup.modService), ...eup.mods.filter((m) => m.service === 'Tous' && eup.modService !== 'Tous')];
 
@@ -2120,10 +2111,16 @@
                     items.push({ kind: 'info', label: 'Aucune pièce pour ce service (data/modifoutfits.json).', tone: 'muted' });
                 } else {
                     items.push({ kind: 'section', label: 'Pièces' });
+                    // Une catégorie = une liste : ← → pour choisir la pièce (une seule à la fois), « D'origine » en premier
                     categories.forEach((c) => {
                         const list = pieces.filter((m) => m.category === c);
-                        items.push({ kind: 'menu', label: c, right: `${list.length}`, mark: list.some((m) => eup.modWorn.has(m.id)),
-                            desc: plural(list.length, 'pièce'), open: () => eupModCategoryPage(c) });
+                        const options = ['D\'origine', ...list.map((m) => m.name)];
+                        const worn = list.findIndex((m) => eup.modWorn.has(m.id));
+                        items.push({
+                            kind: 'list', label: c, options, index: worn + 1,
+                            desc: `${plural(list.length, 'pièce')} — ← → pour choisir ; « D'origine » : celle de la tenue mise.`,
+                            onChange: (i) => post('eupModSelect', { ids: list.map((m) => m.id), id: i > 0 ? list[i - 1].id : 0 }).then(eupModRefresh),
+                        });
                     });
                     pieces.filter((m) => !m.category).forEach((m) => items.push(eupModButton(m)));
                 }

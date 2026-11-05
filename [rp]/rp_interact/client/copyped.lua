@@ -8,7 +8,8 @@
         moment de l'animation, avec ses props ; ou un scénario (WORLD_HUMAN_…) ; ou une animation de ce script ;
       - les objets accrochés au personnage qui ne viennent pas de l'emote (menottes…).
     Le double ne bouge pas (figé, invulnérable) ; pose figée à l'instant de la copie (CopyPed.FreezePose).
-    /copyped suppr : supprime vos doubles (CopyPed.Max au plus, le plus ancien est remplacé).
+    /copyped suppr : supprime vos doubles. Autant de doubles que voulu (CopyPed.Max = 0) ; un nombre > 0 remet une limite
+    (le plus ancien est alors remplacé).
     Performance : rien en dehors de la commande.
 ]]
 
@@ -223,7 +224,8 @@ local function copyPed()
             local emoteModels = (emote and not aiming) and copyEmote(ped, clone, emote, objects) or {}
             copyAttached(ped, clone, emoteModels, objects)
             clones[#clones + 1] = { ped = clone, objects = objects }
-            while #clones > (C.Max or 5) do deleteClone(table.remove(clones, 1)) end
+            local max = tonumber(C.Max) or 0 -- 0 : sans limite
+            while max > 0 and #clones > max do deleteClone(table.remove(clones, 1)) end
             RPI.notify(emote and ('Personnage copié (animation : %s).'):format(emote.n) or 'Personnage copié.', 'success')
             busy = false
         end)

@@ -49,18 +49,16 @@ end
 --- Secondes de sprint et libellé d'après l'inventaire ; nil : aucune arme qui pèse (endurance du jeu)
 local function profileOf(ped)
     if isPolice() then
-        if u32(GetBestPedWeapon(ped, false)) == UNARMED then return nil end -- aucune arme sur lui
         local long = 0
         for _, w in ipairs(WEAPONS) do
             if HasPedGotWeapon(ped, w.hash, false) and LONG[u32(GetWeapontypeGroup(w.hash))] then long = long + 1 end
         end
-        local sprint = P.Sprint or { [0] = 90, [1] = 25, [2] = 15 }
+        if long == 0 then return nil end -- pas d'arme longue : pas de limite (endurance du jeu)
+        local sprint = P.Sprint or { [1] = 10, [2] = 7 }
         local top = 0
         for k in pairs(sprint) do if k > top then top = k end end
-        local seconds = sprint[math.min(long, top)] or 90
-        local label = long == 0 and 'Police · sans arme longue'
-            or ('Police · %d arme%s longue%s'):format(long, long > 1 and 's' or '', long > 1 and 's' or '')
-        return { seconds = seconds, label = label, police = true, long = long }
+        local seconds = sprint[math.min(long, top)] or sprint[1] or 10
+        return { seconds = seconds, label = ('police, %d arme(s) longue(s)'):format(long), police = true, long = long }
     end
     local best, label = nil, nil
     for _, w in ipairs(WEAPONS) do
@@ -95,15 +93,24 @@ local function sendUi(show, now, sprinting)
         if sprinting or ratio < 0.999 or exhausted then shownUntil = now + (B.HideAfter or 3) * 1000 end
         show = now < shownUntil
     end
-    local key = show and ('%d|%s|%s'):format(math.floor(ratio * 100 + 0.5), tostring(exhausted), profile and profile.label or '') or 'hide'
+    local key = show and ('%d|%s'):format(math.floor(ratio * 100 + 0.5), tostring(exhausted)) or 'hide'
     if key == uiKey then return end
     uiKey = key
     SendNUIMessage({ action = 'stamina', data = { show = show, ratio = ratio, exhausted = exhausted,
-        label = profile and profile.label or '', seconds = math.floor(budget + 0.5), resume = C.ResumeAt or 0.25 } })
+        seconds = math.floor(budget + 0.5), resume = C.ResumeAt or 0.25 } })
+end
+
+--- Notification : une arme se met à peser (prise, ou plus lourde que la précédente)
+local function notifyWeight(new, old)
+    local N = C.Notify or {}
+    if N.Enabled == false or not new or (old and new.seconds >= old.seconds) then return end
+    uiKey = nil -- la barre se réaffiche avec la notification
+    SendNUIMessage({ action = 'staminaNotice', data = { text = new.police and N.Police or N.Civil, seconds = N.Seconds or 4 } })
 end
 
 local function setProfile(new, now)
     if new and profile and new.seconds == profile.seconds then profile = new return end
+    notifyWeight(new, profile)
     local ratio = maxBudget > 0 and budget / maxBudget or 1.0
     profile = new
     if new then

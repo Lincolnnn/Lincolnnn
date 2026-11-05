@@ -61,10 +61,11 @@ InteractConfig = {
         LongGroups = { 'GROUP_RIFLE', 'GROUP_SHOTGUN', 'GROUP_SNIPER', 'GROUP_MG' },
         Long = { Offset = { x = 0.85, y = 1.65, z = 0.2 }, Target = { x = 0.3, y = 0.0, z = 0.0 }, Fov = 42.0 } },
     -- /copyped : copie du personnage pour les photos (arme et accessoires, emote de RPEMOTES et ses props). Max : copies
-    -- par joueur (la plus ancienne est remplacée) ; Networked : visibles par tous ; FreezePose : pose figée à
+    -- par joueur (0 = sans limite ; sinon la plus ancienne est remplacée) ; Networked : visibles par tous ; FreezePose : pose figée à
     -- l'instant de la copie ; ExtraComponents : accessoires d'armes à copier en plus de ceux de equipment_services.json.
     -- /copyped suppr : supprime ses copies.
-    CopyPed = { Enabled = true, Command = 'copyped', Max = 5, Networked = true, FreezePose = true, ExtraComponents = {} },
+    CopyPed = { Enabled = true, Command = 'copyped', Max = 0, -- Max 0 : sans limite
+        Networked = true, FreezePose = true, ExtraComponents = {} },
 
     -- MENU DES TENUES (/eup, ou Menu Interaction > Équipements > "Accéder aux tenues") : tenues de
     -- data/outfits.json, uniquement dans ce fichier. Menu au clavier : flèches haut / bas, Entrée (ou

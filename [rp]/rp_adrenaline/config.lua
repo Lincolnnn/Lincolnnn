@@ -55,9 +55,13 @@ AdrenalineConfig = {
 
     Fallback = 'low',   -- 5 à 9 tirs (ni fusillade ni hors fusillade) : 'low' ou 'high'
 
-    -- Démarche blessée dès la 2e chute, jusqu'à la fin. Mode 'command' : commandes de RPEMOTES (« /walk injured »,
-    -- « /walk reset ») ; 'native' : même démarche (Clipset) posée directement (sans RPEMOTES). false : jamais.
-    Walk = { From = 2, Mode = 'command', Injured = 'walk injured', Reset = 'walk reset', Clipset = 'move_m@injured' },
+    -- Démarche blessée dès la 2e chute, jusqu'à la fin. Mode 'native' (conseillé) : la démarche de « /walk injured »
+    -- (Clipset) posée directement, jamais retenue par RPEMOTES ; 'command' : les commandes de RPEMOTES (« /walk
+    -- injured », « /walk reset »), que RPEMOTES peut garder d'une connexion à l'autre (PersistentWalk). false : jamais.
+    -- ClearOnSpawn : à la connexion / réapparition, une démarche blessée restée (ancienne sauvegarde de RPEMOTES) est
+    -- retirée s'il n'y a pas d'épisode en cours.
+    Walk = { From = 2, Mode = 'native', Injured = 'walk injured', Reset = 'walk reset', Clipset = 'move_m@injured',
+        ClearOnSpawn = true, Injuries = { 'move_m@injured', 'move_f@injured' } },
 
     RagdollTime = { 1200, 2600 }, -- ms au sol à chaque chute (au hasard entre les deux)
     Debug = false,                -- détails dans la console F8

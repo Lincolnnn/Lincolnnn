@@ -166,13 +166,31 @@ end)
 AddEventHandler('rp_weaponscontrol:bulletHit', onBullet)
 
 -- Réapparu / réanimé (rp_revive) : l'épisode s'arrête ; démarche blessée retenue par RPEMOTES : remise à zéro (une fois)
+-- Démarche blessée restée à la connexion / réapparition (RPEMOTES la remet depuis sa sauvegarde) : retirée
+local INJURED = {}
+for _, name in ipairs((W and W.Injuries) or { 'move_m@injured', 'move_f@injured' }) do
+    INJURED[GetHashKey(name) & 0xFFFFFFFF] = true
+end
+local function clearStaleWalk()
+    if not W or W.ClearOnSpawn == false then return end
+    for _, delay in ipairs({ 1000, 3000, 6000 }) do -- RPEMOTES pose sa démarche juste après l'apparition
+        SetTimeout(delay, function()
+            if ep and ep.walk then return end
+            local ped = PlayerPedId()
+            if INJURED[(GetPedMovementClipset(ped) or 0) & 0xFFFFFFFF] then
+                ResetPedMovementClipset(ped, 0.2)
+                debug('démarche blessée restée (sauvegarde RPEMOTES) : retirée')
+            end
+        end)
+    end
+end
+
 AddEventHandler('playerSpawned', function()
     if ep then finish('réapparu') end
-    if W and W.Mode ~= 'native' and GetResourceKvpInt('walkInjured') == 1 then
-        DeleteResourceKvp('walkInjured')
-        SetTimeout(2000, function() if not (ep and ep.walk) then ExecuteCommand(W.Reset or 'walk reset') end end)
-    end
+    DeleteResourceKvp('walkInjured') -- ancienne version
+    clearStaleWalk()
 end)
+clearStaleWalk() -- redémarrage de la ressource, joueur déjà en jeu
 
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() and ep then setWalk(false) end

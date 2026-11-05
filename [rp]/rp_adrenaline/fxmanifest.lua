@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_adrenaline'
 author 'Lincolnnn'
 description 'Blessé par balle : adrénaline haute ou basse selon les tirs autour, chutes et arme lâchée - standalone'
-version '3.0.0'
+version '3.0.1'
 
 dependency 'rp_weaponscontrol' -- tirs entendus et balles reçues (événements locaux)
 

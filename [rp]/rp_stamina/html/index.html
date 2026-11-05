@@ -34,19 +34,30 @@
         #stamina.out .st-fill { background: rgba(255, 255, 255, .38); box-shadow: none; animation: st-pulse 1s ease-in-out infinite; }
         #stamina.out .st-title { color: var(--accent); }
         @keyframes st-pulse { 50% { opacity: .45; } }
+        /* Notification : une arme se met à peser */
+        #stNotice {
+            position: fixed; top: calc(1.6vh + 44px); left: 50%; max-width: 360px; transform: translate(-50%, -6px);
+            padding: 6px 12px; box-sizing: border-box; pointer-events: none; text-align: center;
+            font: 500 12px/1.35 'Segoe UI', Roboto, Arial, sans-serif; color: var(--text);
+            background: rgba(var(--card), .82); border: 1px solid rgba(255, 255, 255, .08); border-left: 2px solid var(--accent);
+            border-radius: 4px; box-shadow: 0 6px 18px rgba(0, 0, 0, .4); opacity: 0; transition: opacity .25s, transform .25s;
+        }
+        #stNotice.show { opacity: 1; transform: translate(-50%, 0); }
     </style>
 </head>
 <body>
     <div id="stamina" aria-hidden="true">
-        <div class="st-head"><span class="st-title" id="stTitle">Endurance</span><span class="st-label" id="stLabel"></span></div>
+        <div class="st-head"><span class="st-title" id="stTitle">Endurance</span></div>
         <div class="st-track"><div class="st-fill" id="stFill"></div><div class="st-mark" id="stMark"></div></div>
     </div>
+    <div id="stNotice" aria-hidden="true"></div>
     <script>
         (() => {
             const box = document.getElementById('stamina');
             const fill = document.getElementById('stFill');
             const title = document.getElementById('stTitle');
-            const label = document.getElementById('stLabel');
+            const notice = document.getElementById('stNotice');
+            let noticeTimer = null;
             const mark = document.getElementById('stMark');
             mark.style.left = '25%';
             window.addEventListener('message', ({ data }) => {
@@ -57,6 +68,13 @@
                     document.documentElement.dataset.nightColor = d.theme === 'night' && ['green', 'yellow', 'red', 'blue'].includes(d.color) ? d.color : 'logo';
                     return;
                 }
+                if (data.action === 'staminaNotice') {
+                    notice.textContent = d.text || '';
+                    notice.classList.add('show');
+                    clearTimeout(noticeTimer);
+                    noticeTimer = setTimeout(() => notice.classList.remove('show'), (Number(d.seconds) || 4) * 1000);
+                    return;
+                }
                 if (data.action !== 'stamina') return;
                 box.classList.toggle('show', d.show === true);
                 if (!d.show) return;
@@ -64,7 +82,6 @@
                 fill.style.width = (ratio * 100).toFixed(1) + '%';
                 box.classList.toggle('out', d.exhausted === true);
                 title.textContent = d.exhausted ? 'Essoufflé' : 'Endurance';
-                label.textContent = d.label || '';
                 if (typeof d.resume === 'number') mark.style.left = (d.resume * 100) + '%';
                 mark.style.display = d.exhausted ? 'block' : 'none';
             });

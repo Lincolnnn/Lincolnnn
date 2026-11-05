@@ -207,8 +207,10 @@ lunettes…) à la tenue que vous portez, selon son **service** :
 - le service est celui de la **dernière tenue mise avec `/eup`** (WSP, KCSO, autre police du fichier, ou Civil) ;
   sans tenue mise avec `/eup` : la police de votre unité du MDC, sinon Civil. La ligne **Service** (← →) permet d'en
   choisir un autre ;
-- la tenue actuelle est **lue sur le personnage** : une pièce déjà portée est **cochée** ; **Entrée** la met, ou la
-  retire (la pièce de la tenue d'origine revient ; un accessoire de la tenue d'origine est enlevé) ;
+- les pièces sont rangées en **catégories** (Gilets, Couvre-chefs, Holsters, Lunettes…) : chaque catégorie est **une
+  liste** (comme les accessoires d'une arme) : **← →** choisit la pièce portée, **une seule à la fois** dans la
+  catégorie ; **« D'origine »** remet celle de la tenue mise. La tenue actuelle est **lue sur le personnage** : la
+  liste s'ouvre sur la pièce portée ;
 - **Remettre la tenue d'origine** : la tenue telle qu'elle était (mise avec `/eup`, ou à la première ouverture de
   « Modifier ma tenue »).
 
@@ -221,17 +223,25 @@ et **une ou plusieurs parties**, avec les mêmes noms et le même format que `ou
 ```json
 {
     "WSP": [
-        { "Name": "Gilet de Haute Visibilité", "Category": "Gilets", "Gender": "Male", "Armor": "110:1" },
-        { "Name": "Chapeau de campagne", "Category": "Couvre-chefs", "Hat": "14:1" }
+        { "Category": "Gilets", "Items": [
+            { "Name": "Gilet de Haute Visibilité", "Gender": "Male", "Armor": "110:1" },
+            { "Name": "Gilet pare-balles", "Gender": "Male", "Armor": "13:1" }
+        ] },
+        { "Category": "Couvre-chefs", "Items": [
+            { "Name": "Chapeau de campagne", "Hat": "14:1" },
+            { "Name": "Sans couvre-chef", "Hat": "0:0" }
+        ] }
     ],
-    "KCSO": [ { "Name": "Casquette KCSO", "Gender": "Female", "Hat": "46:1" } ],
-    "Civil": [ { "Name": "Veste en cuir", "Gender": "Male", "Top": "7:1", "UpperSkin": "1:1" } ],
-    "Tous": [ { "Name": "Sans couvre-chef", "Hat": "0:0" } ]
+    "KCSO": [ { "Category": "Couvre-chefs", "Items": [ { "Name": "Casquette KCSO", "Gender": "Female", "Hat": "46:1" } ] } ],
+    "Civil": [ { "Category": "Hauts", "Items": [ { "Name": "Veste en cuir", "Gender": "Male", "Top": "7:1", "UpperSkin": "1:1" } ] } ],
+    "Tous": [ { "Category": "Gants", "Items": [ { "Name": "Gants noirs", "UpperSkin": "20:1" } ] } ]
 }
 ```
 
-- `Category` (facultatif) : les pièces d'une même catégorie sont regroupées dans un sous-menu ; `Gender` (facultatif) :
-  `Male` / `Female`, sinon pour les deux. Accessoire à `0:0` : l'enlever (ex. « Sans couvre-chef »).
+- Une **catégorie** = `{ "Category": "Nom", "Items": [ pièces ] }` : ses pièces s'excluent (une seule portée à la fois,
+  au choix dans la liste). Mettez dans une même catégorie des pièces qui vont **au même endroit** (même partie : `Hat`,
+  `Armor`…). `Gender` (facultatif) : `Male` / `Female`, sinon pour les deux. Accessoire à `0:0` : l'enlever (ex. « Sans
+  couvre-chef »). L'ancien format (pièces directement dans la liste avec `"Category"`) est toujours lu.
 - Numéros comptés comme dans `outfits.json` (`Eup.OneBased`). Relu avec `rpi_vehicles` (console) ; une pièce sans
   `Name` ou sans partie est ignorée (la console l'indique).
 - Avec `Eup.PoliceOnly = true`, les pièces des polices ne sont envoyées qu'aux policiers en service.
@@ -646,8 +656,8 @@ puis vous pouvez vous déplacer pour prendre la photo. Il reprend :
   une fois), **au même moment** de l'animation et **figée** (`FreezePose`), avec les **props** de l'emote (téléphone,
   carnet…) ; un **scénario** (fumer, café…) ; ou une animation de ce script (menotté…) ;
 - les **objets accrochés** au personnage (menottes…).
-Le double ne bouge pas et ne prend pas de dégâts. **`/copyped suppr`** supprime vos doubles ; au-delà de
-`CopyPed.Max` (5), le plus ancien est remplacé. À pied seulement.
+Le double ne bouge pas et ne prend pas de dégâts. **`/copyped suppr`** supprime vos doubles. **Autant de doubles que
+voulu** (`CopyPed.Max = 0`) ; un nombre > 0 remet une limite (le plus ancien est alors remplacé). À pied seulement.
 
 ## Performance
 
