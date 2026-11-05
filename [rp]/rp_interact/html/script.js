@@ -435,7 +435,10 @@
                     else if (it.onRight) it.onRight();
                     break;
                 case 'select': if (it) return this.activate(it); break;
-                case 'back': if (!this.pop()) return this.opts.close(); return;
+                case 'back':
+                    if (it && it.onBack) { it.onBack(); break; } // dans un onglet ouvert : le refermer
+                    if (!this.pop()) return this.opts.close();
+                    return;
                 case 'close': return this.opts.close();
                 default: return;
             }
@@ -2242,6 +2245,17 @@
         eupMenu.render();
     }
 
+    // Onglet d'une pièce : « Tab » du fichier, sinon d'après le nom de sa catégorie
+    const EUP_TABS = ['Vêtements', 'Microphones & Bodycam', 'Autres Presets'];
+    function eupTabOf(m) {
+        if (m && m.tab) return m.tab;
+        const c = String((m && m.category) || '').toLowerCase();
+        if (/micro|\bmics?\b|bodycam|body cam|cam[ée]ra|radio|recorder|enregistr|sheepdog/.test(c)) return 'Microphones & Bodycam';
+        if (/gilet|holster|veste|chemise|gant|ceintur|haut|pantalon|chaussure|couvre|chapeau|casquette|casque|t-shirt|pull|manteau|dessous|v[êe]tement|botte/.test(c)) return 'Vêtements';
+        return 'Autres Presets';
+    }
+    const eupTabRank = (t) => { const i = EUP_TABS.indexOf(t); return i < 0 ? EUP_TABS.length : i; };
+
     function eupModButton(m) {
         const worn = eup.modWorn.has(m.id);
         return {
@@ -2278,27 +2292,51 @@
                 if (!pieces.length) {
                     items.push({ kind: 'info', label: 'Aucune pièce pour ce service (data/modifoutfits.json).', tone: 'muted' });
                 } else {
-                    items.push({ kind: 'section', label: 'Pièces' });
-                    // Une catégorie = une liste : ← → pour choisir la pièce (une seule à la fois), « D'origine » en premier
-                    categories.forEach((c) => {
-                        const list = pieces.filter((m) => m.category === c);
-                        // noms répétés dans la catégorie (variantes d'une même pièce) : numérotés « Nom · 2 », « Nom · 3 »…
-                        const seen = {};
-                        const total = {};
-                        list.forEach((m) => { total[m.name] = (total[m.name] || 0) + 1; });
-                        const options = ['D\'origine', ...list.map((m) => {
-                            if (total[m.name] < 2) return m.name;
-                            seen[m.name] = (seen[m.name] || 0) + 1;
-                            return `${m.name} · ${seen[m.name]}`;
-                        })];
-                        const worn = list.findIndex((m) => eup.modWorn.has(m.id));
-                        items.push({
-                            kind: 'list', label: c, options, index: worn + 1,
-                            desc: `${plural(list.length, 'pièce')} — ← → pour choisir ; « D'origine » : celle de la tenue mise.`,
-                            onChange: (i) => post('eupModSelect', { ids: list.map((m) => m.id), id: i > 0 ? list[i - 1].id : 0 }).then(eupModRefresh),
+                    // ONGLETS (Vêtements, Microphones & Bodycam, Autres Presets) : Entrée / → ouvre, ← / Entrée referme ;
+                    // un seul ouvert à la fois. Dans un onglet : une catégorie = une liste (← → : choisir la pièce).
+                    const tabs = [];
+                    const byTab = {};
+                    const add = (tab, entry) => {
+                        if (!byTab[tab]) { byTab[tab] = []; tabs.push(tab); }
+                        byTab[tab].push(entry);
+                    };
+                    categories.forEach((c) => add(eupTabOf(pieces.find((m) => m.category === c)), { category: c }));
+                    pieces.filter((m) => !m.category).forEach((m) => add(eupTabOf(m), { piece: m }));
+                    tabs.sort((x, y) => eupTabRank(x) - eupTabRank(y));
+                    const closeTab = () => { eup.modReselect = eup.modTab; eup.modTab = null; eupMenu.render(); };
+                    tabs.forEach((tab) => {
+                        const open = eup.modTab === tab;
+                        if (eup.modReselect === tab && eupMenu.page) { eupMenu.page.sel = items.length; eup.modReselect = null; }
+                        const entries = byTab[tab];
+                        const wornCount = entries.reduce((n, e) => n + (e.piece ? (eup.modWorn.has(e.piece.id) ? 1 : 0)
+                            : pieces.filter((m) => m.category === e.category && eup.modWorn.has(m.id)).length), 0);
+                        items.push({ kind: 'fold', label: tab, open,
+                            right: wornCount ? `${wornCount} portée${wornCount > 1 ? 's' : ''}` : `${entries.length}`,
+                            desc: open ? 'Entrée / ← : refermer l\'onglet.' : `${plural(entries.length, 'catégorie')} — Entrée / → : ouvrir l'onglet.`,
+                            onBack: open ? closeTab : undefined,
+                            action: () => { eup.modTab = open ? null : tab; } });
+                        if (!open) return;
+                        entries.forEach((e) => {
+                            if (e.piece) return items.push({ ...eupModButton(e.piece), sub: true, onLeft: closeTab, onBack: closeTab });
+                            const c = e.category;
+                            const list = pieces.filter((m) => m.category === c);
+                            // noms répétés dans la catégorie (variantes d'une même pièce) : numérotés « Nom · 2 », « Nom · 3 »…
+                            const seen = {};
+                            const total = {};
+                            list.forEach((m) => { total[m.name] = (total[m.name] || 0) + 1; });
+                            const options = ['D\'origine', ...list.map((m) => {
+                                if (total[m.name] < 2) return m.name;
+                                seen[m.name] = (seen[m.name] || 0) + 1;
+                                return `${m.name} · ${seen[m.name]}`;
+                            })];
+                            const worn = list.findIndex((m) => eup.modWorn.has(m.id));
+                            items.push({
+                                kind: 'list', label: c, options, index: worn + 1, sub: true, onBack: closeTab,
+                                desc: `${plural(list.length, 'pièce')} — ← → pour choisir ; « D'origine » : celle de la tenue mise. Retour arrière : refermer l'onglet.`,
+                                onChange: (i) => post('eupModSelect', { ids: list.map((m) => m.id), id: i > 0 ? list[i - 1].id : 0 }).then(eupModRefresh),
+                            });
                         });
                     });
-                    pieces.filter((m) => !m.category).forEach((m) => items.push(eupModButton(m)));
                 }
                 items.push({ kind: 'section', label: 'Tenue' });
                 items.push({ kind: 'button', label: 'Remettre la tenue d\'origine', desc: 'La tenue telle qu\'elle était avant les modifications.',

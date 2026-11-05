@@ -65,6 +65,7 @@
             const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
             const KEYS_MENU = '<div class="keys"><span><kbd>↑</kbd><kbd>↓</kbd>choisir</span><span><kbd>←</kbd><kbd>→</kbd>régler</span>'
                 + '<span><kbd>Entrée</kbd>activer</span><span><kbd>H</kbd>masquer le menu</span><span><kbd>Retour</kbd>quitter</span></div>';
+            const KEYS_PHOTO = '<div class="keys" style="margin-top:6px"><span><kbd>Espace</kbd>masquer / remettre le menu (photo)</span></div>';
             const KEYS_CAM = '<div class="keys" style="margin-top:6px"><span><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd>bouger</span>'
                 + '<span><kbd>E</kbd><kbd>A</kbd>monter / descendre</span><span><kbd>Maj</kbd>vite</span><span><kbd>Ctrl</kbd>lent</span>'
                 + '<span><kbd>Molette</kbd>zoom</span></div>';
@@ -80,7 +81,7 @@
                 }).join('');
                 const current = items[sel - 1];
                 document.getElementById('sub').textContent = d.freecam ? 'Caméra libre : activée' : 'Caméra libre : désactivée';
-                desc.innerHTML = (current && current.desc ? `<div style="margin-bottom:6px">${esc(current.desc)}</div>` : '') + KEYS_MENU + (d.freecam ? KEYS_CAM : '');
+                desc.innerHTML = (current && current.desc ? `<div style="margin-bottom:6px">${esc(current.desc)}</div>` : '') + KEYS_MENU + (d.freecam ? KEYS_CAM + KEYS_PHOTO : '');
             }
             window.addEventListener('message', ({ data }) => {
                 if (!data || !data.action) return;

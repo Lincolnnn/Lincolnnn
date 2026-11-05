@@ -7,7 +7,8 @@
         le personnage ne bouge pas pendant ce temps.
       - Masquer la minimap, le HUD du jeu, les interfaces des scripts (événement 'rp_freecam:hideUi'), son personnage.
       - Zoom (champ de vision), vitesse, inclinaison ; Réinitialiser.
-    H : masquer / afficher le menu (photo) ; Retour arrière / Échap : quitter, tout est remis comme avant.
+    Espace (caméra libre) ou H : masquer / afficher le menu (photo) ; Retour arrière / Échap : quitter, tout est remis
+    comme avant.
     Performance : rien tant que /freecam n'est pas ouvert ; ensuite une boucle à chaque image jusqu'à la sortie.
 ]]
 
@@ -214,7 +215,8 @@ local function run()
             end
             applyHides()
 
-            if IsDisabledControlJustPressed(0, 74) then -- H : menu masqué / affiché
+            -- H (toujours) ou Espace (caméra libre : le personnage ne saute pas) : menu masqué / affiché, pour la photo
+            if IsDisabledControlJustPressed(0, 74) or (state.freecam and cam and IsDisabledControlJustPressed(0, C.MenuToggleControl or 22)) then
                 menuShown = not menuShown; sendMenu()
             elseif IsDisabledControlJustPressed(0, 177) or IsDisabledControlJustPressed(0, 194)
                 or IsDisabledControlJustPressed(0, 200) or IsDisabledControlJustPressed(0, 322) then

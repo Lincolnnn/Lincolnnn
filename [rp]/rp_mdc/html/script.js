@@ -2358,14 +2358,49 @@
         return c ? `<span class="off-badge off-${esc(id)}" title="${esc(c.info || '')}">${esc(c.short)}</span>` : '';
     };
 
+    // Classification IMPOSÉE par le rapport (champ « lock » : ex. Notice of Infraction routière -> Traffic Infraction
+    // seulement) : toutes les infractions du rapport sont de ce type ; un autre type = un autre rapport
+    const lockedClassOf = (f, root) => {
+        if (!f || !f.lock || !root) return '';
+        return (f.lock.map || {})[root[f.lock.k]] || '';
+    };
+
+    /** Infractions déjà saisies remises au type imposé (type d'avis changé…) ; true si quelque chose a changé */
+    function enforceLocks(fields, obj, root) {
+        let changed = false;
+        toArray(fields).forEach((f) => {
+            if (f.t === 'group') changed = enforceLocks(f.f, obj, root) || changed;
+            else if (f.t === 'list') toArray(obj[f.k]).forEach((item) => { changed = enforceLocks(f.f, item, root) || changed; });
+            else if (f.t === 'offclass' && f.lock) {
+                const locked = lockedClassOf(f, root);
+                if (locked && obj[f.k] !== locked) { obj[f.k] = locked; changed = true; }
+            } else if (f.t === 'offense' && f.lock) {
+                const locked = lockedClassOf(f, root);
+                const o = offenses.byId[obj[f.k]];
+                if (locked && o && o.c !== locked) {
+                    obj[f.k] = '';
+                    if (f.fineKey && String(o.fine) === String(obj[f.fineKey])) obj[f.fineKey] = '';
+                    changed = true;
+                }
+            }
+        });
+        return changed;
+    }
+
     function offclassHtml(f, obj, key, codeField) {
         const allowed = toArray(f.classes);
-        const list = offenses.classes.filter((c) => !allowed.length || allowed.includes(c.id));
-        const v = obj[f.k] || '';
+        const locked = lockedClassOf(f, reports.draft && reports.draft.data);
+        const list = offenses.classes.filter((c) => (locked ? c.id === locked : (!allowed.length || allowed.includes(c.id))));
+        const v = locked || obj[f.k] || '';
         const info = offenses.classById[v];
         const extra = codeField
             ? ` data-code-key="${esc(codeField.k)}"${codeField.fineKey ? ` data-fine-key="${esc(codeField.fineKey)}"` : ''}`
             : '';
+        if (locked) {
+            return `<select data-path="${esc(key)}" data-t="offclass" disabled>${list.map((c) =>
+                `<option value="${esc(c.id)}" selected>${esc(c.short)} — ${esc(c.label)}</option>`).join('')}</select>
+                <span class="off-info">${classBadge(v)} Imposée par le type de rapport : une infraction d'un autre type se fait dans un autre rapport.</span>`;
+        }
         return `<select data-path="${esc(key)}" data-t="offclass"${extra}>
                 <option value="">— Toutes les classifications —</option>${list.map((c) =>
                 `<option value="${esc(c.id)}" ${c.id === v ? 'selected' : ''}>${esc(c.short)} — ${esc(c.label)}</option>`).join('')}
@@ -2374,7 +2409,7 @@
 
     function offenseHtml(f, obj, key) {
         const allowed = toArray(f.classes);
-        const cls = (f.classKey && obj[f.classKey]) || '';
+        const cls = lockedClassOf(f, reports.draft && reports.draft.data) || (f.classKey && obj[f.classKey]) || '';
         const v = obj[f.k] || '';
         const list = offenses.list.filter((o) => (!allowed.length || allowed.includes(o.c)) && (!cls || o.c === cls));
         const groups = [];
@@ -2587,7 +2622,8 @@
         const max = f.max || 20;
         return `
             <div class="subgroup">
-                <span class="subgroup-title">${esc(f.l)}${min ? ' *' : ''}</span>
+                <span class="subgroup-title">${esc(f.l)}${min ? ' *' : ''}${items.length < max
+                    ? `<button type="button" class="win-btn entry-add" data-list-add="${esc(key)}" title="${esc(f.add || 'Ajouter')}">+</button>` : ''}</span>
                 <div class="entries">${items.map((item, i) => `
                     <div class="entry-box">
                         <div class="entry-head">
@@ -2642,6 +2678,10 @@
     function renderReportForm() {
         const draft = reports.draft;
         const type = reports.byId[draft.type];
+        // type d'infraction imposé (Notice of Infraction routière / civile…) : lignes déjà saisies remises en accord
+        if (sectionsOf(type).reduce((changed, section) => enforceLocks(section.f, draft.data, draft.data) || changed, false)) {
+            draftSync({ op: 'replace', data: draft.data });
+        }
         const scroller = $('#reportForm');
         const top = scroller.scrollTop;
         const active = document.activeElement;

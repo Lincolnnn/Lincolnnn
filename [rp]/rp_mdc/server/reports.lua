@@ -573,13 +573,17 @@ local function waVehicle(opts)
     }
 end
 
---- Liste d'infractions / de charges : classification + infraction du catalogue (liées), et options
+--- Liste d'infractions / de charges : classification + infraction du catalogue (liées), et options.
+--- La première ligne est déjà là (min 1), « + » en ajoute une. o.lock = { k = champ du rapport, map = { [valeur] =
+--- classification } } : TOUTES les lignes sont de la classification imposée par ce champ (ex. Notice of Infraction
+--- routière -> Traffic Infraction seulement) ; un autre type d'infraction = un autre rapport. Sans lock (Arrest, DUI,
+--- Criminal Citation, Incident, collision…) : plusieurs classifications différentes dans le même rapport.
 local function offenseList(o)
     local classes = CLASS_SETS[o.set] or CLASS_SETS.all
     local f = {
-        { k = 'class', t = 'offclass', l = 'Classification', classes = classes, req = true },
+        { k = 'class', t = 'offclass', l = 'Classification', classes = classes, req = true, lock = o.lock },
         { k = 'code', t = 'offense', l = o.codeLabel or 'Infraction (RCW)', classes = classes, classKey = 'class',
-          fineKey = o.fine and 'fine' or nil, req = true, w = 3 },
+          fineKey = o.fine and 'fine' or nil, req = true, w = 3, lock = o.lock },
     }
     if o.fine then f[#f + 1] = { k = 'fine', t = 'num', l = 'Pénalité', min = 0, max = 100000, money = true } end
     if o.counts then f[#f + 1] = { k = 'counts', t = 'num', l = 'Nombre de chefs', min = 1, max = 50, def = 1 } end
@@ -639,8 +643,9 @@ local NOI = {
             } },
         } },
         { title = 'Infractions', f = {
+            { t = 'note', l = 'Toutes les infractions de l\'avis sont du type choisi en haut : routières (Traffic Infraction) pour une Notice of Traffic Infraction, civiles (Civil Infraction) pour une Notice of Civil Infraction. Une infraction d\'un autre type : un autre avis.' },
             offenseList({ k = 'violations', l = 'Infractions', item = 'Infraction', add = '+ Ajouter une infraction', set = 'infractions',
-                fine = true, max = 3 }),
+                fine = true, max = 3, lock = { k = 'kind', map = { traffic = 'TI', civil = 'CI' } } }),
         } },
         { title = 'Réponse et certification', f = {
             { t = 'note', l = 'La personne doit répondre sous 30 jours (RCW 46.63.070) : payer la pénalité, demander une audience d\'atténuation (mitigation hearing) ou contester l\'infraction (contested hearing). Sans réponse : défaut, pénalité majorée, et pour une traffic infraction suspension du permis.' },
@@ -722,7 +727,7 @@ local WWARNING = {
         { title = 'Véhicule', show = WW_TRAFFIC, f = waVehicle({ req = true }) },
         { title = 'Infractions', f = {
             offenseList({ k = 'violations', l = 'Infractions', item = 'Infraction', add = '+ Ajouter une infraction', set = 'infractions', max = 3,
-                detailsLabel = 'Faits / correction demandée' }),
+                detailsLabel = 'Faits / correction demandée', lock = { k = 'kind', map = { traffic = 'TI', other = 'CI' } } }),
         } },
         { title = 'Notes de l\'agent', f = { narrative('Notes de l\'agent', false) } },
     },

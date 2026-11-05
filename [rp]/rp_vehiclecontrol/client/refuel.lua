@@ -358,7 +358,8 @@ local function stationLoop()
                 if not onFoot then stopPouring() else pourTick(ped, pos, dt) end
             end
 
-            local pressed = onFoot and IsControlJustPressed(0, 38) -- E
+            -- E ; lampe en main (rp_weaponscontrol) : E allume / éteint la lampe -> rien ici
+            local pressed = onFoot and LocalPlayer.state.flashlightHand ~= true and IsControlJustPressed(0, 38)
             local lines = {}
             if onFoot and fillingCan then
                 lines[#lines + 1] = 'Remplissage du jerrican…'

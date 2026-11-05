@@ -18,7 +18,8 @@ clavier, sans curseur** (la souris reste à la caméra) :
 | **Inclinaison** | -45° à 45° (photo penchée) |
 | **Réinitialiser** | zoom, vitesse, inclinaison par défaut |
 
-**H** : masquer / afficher le menu (pour prendre la photo, ex. touche F12 de Steam ou capture Windows).
+**Espace** (caméra libre ; le personnage ne saute pas) ou **H** (toujours) : masquer / remettre le menu (pour prendre
+la photo, ex. touche F12 de Steam ou capture Windows ; `MenuToggleControl`).
 **Retour arrière** ou **Échap** (ou « Quitter ») : sortie, tout est remis comme avant (caméra, minimap, interfaces).
 
 Une autre ressource peut savoir si le mode photo est ouvert : `exports.rp_freecam:active()`.

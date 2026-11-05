@@ -224,6 +224,11 @@ lunettes…) à la tenue que vous portez, selon son **service** :
 - le service est celui de la **dernière tenue mise avec `/eup`** (WSP, KCSO, autre police du fichier, ou Civil) ;
   sans tenue mise avec `/eup` : la police de votre unité du MDC, sinon Civil. La ligne **Service** (← →) permet d'en
   choisir un autre ;
+- les catégories sont rangées en **onglets** qui s'ouvrent et se referment au clavier : **Vêtements** (gilets,
+  holsters, dessous de veste, gants, ceinturons, couvre-chefs…), **Microphones & Bodycam** (bodycams, micros,
+  enregistreurs) et **Autres Presets** (lunettes, montres…). **Entrée / →** ouvre un onglet (un seul ouvert à la fois),
+  **Entrée / ←** sur l'onglet ou **Retour arrière** dedans le referme. L'onglet est choisi d'après le nom de la
+  catégorie, ou imposé par `"Tab": "Vêtements"` à côté de `"Category"` dans `modifoutfits.json` ;
 - les pièces sont rangées en **catégories** (Gilets, Couvre-chefs, Holsters, Lunettes…) : chaque catégorie est **une
   liste** (comme les accessoires d'une arme) : **← →** choisit la pièce portée, **une seule à la fois** dans la
   catégorie ; **« D'origine »** remet celle de la tenue mise. La tenue actuelle est **lue sur le personnage** : la

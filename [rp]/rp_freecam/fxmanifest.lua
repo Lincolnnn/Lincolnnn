@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_freecam'
 author 'Lincolnnn'
 description '/freecam : caméra libre et mode photo (minimap / HUD masqués, zoom, inclinaison) - standalone'
-version '1.0.0'
+version '1.1.0'
 
 ui_page 'html/index.html'
 

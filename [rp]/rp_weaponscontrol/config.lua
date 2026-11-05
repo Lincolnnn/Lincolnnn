@@ -98,6 +98,8 @@ WeaponsConfig = {
 
     Flashlight = { Enabled = true, KeepOnWhileMoving = true,
         Cartoon = { Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },
+        -- Lampes tenues en main : leurs touches (E, O) passent avant le menu Équipement du véhicule, le pistolet d'essence…
+        HandLights = { 'WEAPON_FLASHLIGHT', 'WEAPON_POCKETLIGHT' },
         Boost = { Enabled = true, Range = 45.0, Intensity = 6.0, Radius = 16.0, Falloff = 18.0, Roundness = 4.0,
             Color = { 255, 247, 235 }, Ahead = 0.12, Shadows = 2, Others = true, OthersRange = 80.0, CheckMs = 300 } },
 

@@ -404,6 +404,15 @@ Dans chaque infraction / chef : **Classification** et **Infraction (RCW)**, deux
 - choisir d'abord la classification ne propose **que les infractions de cette classification** (en changer retire
   une infraction qui n'en fait pas partie).
 
+**Plusieurs infractions dans un rapport** : la première ligne est déjà là ; **« + »** (à côté du titre de la liste, ou
+« + Ajouter une infraction » en bas) en ajoute une, **✕** en retire une. **Type imposé** quand le formulaire n'en
+admet qu'un : **Notice of Infraction** routière (*Notice of Traffic Infraction*) -> **Traffic Infraction seulement**,
+civile hors route -> **Civil Infraction seulement** ; **Written Warning** : contrôle routier -> TI, autre contact -> CI.
+La classification est alors verrouillée sur toutes les lignes, la liste ne propose que ces infractions, changer le
+type d'avis retire les infractions qui ne vont plus, et le serveur refuse le reste (« une infraction d'un autre type
+se fait dans un autre rapport »). **Arrest Report, DUI, Criminal Citation, Incident, PTCR** : plusieurs
+classifications différentes dans le même rapport (champ `lock` d'`offenseList` dans `server/reports.lua`).
+
 Les infractions sont classées par catégorie (Speed, Moving Violations, Equipment, DUI, Crimes Against Persons,
 Property Crimes…). Chaque formulaire n'offre que les classifications qui lui correspondent (NOI : TI / CI ;
 Criminal Citation : M / GM ; Arrest / DUI : M à A FEL ; Incident / PTCR : toutes). Le serveur revérifie tout : une

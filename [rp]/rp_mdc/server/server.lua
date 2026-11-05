@@ -2070,9 +2070,19 @@ local Offenses, OffenseClasses = {}, {}
 for _, offense in ipairs(MDC_OFFENSES or {}) do Offenses[offense.id] = offense end
 for _, class in ipairs(MDC_OFFENSE_CLASSES or {}) do OffenseClasses[class.id] = class end
 
---- Classification autorisée pour ce champ (liste "classes" du modèle ; sinon toutes)
+local lockRoot = nil -- données du rapport en cours de validation (classification imposée : champ « lock »)
+
+--- Classification imposée à ce champ par le rapport (ex. Notice of Infraction routière -> 'TI'), nil sinon
+local function lockedClass(f)
+    if type(f.lock) ~= 'table' or not lockRoot then return nil end
+    return (f.lock.map or {})[lockRoot[f.lock.k]]
+end
+
+--- Classification autorisée pour ce champ (liste "classes" du modèle ; sinon toutes ; imposée par « lock »)
 local function classAllowed(f, class)
     if not OffenseClasses[class] then return false end
+    local locked = lockedClass(f)
+    if locked and class ~= locked then return false end
     if type(f.classes) ~= 'table' then return true end
     for _, c in ipairs(f.classes) do if c == class then return true end end
     return false
@@ -2186,7 +2196,7 @@ local function readValue(f, v, out, crumb)
         value = (type(v) == 'string' and optionSet(f.o)[v]) and v or ''
     elseif f.t == 'offclass' then
         -- obligatoire vérifié après le niveau entier : l'infraction (champ suivant) peut la remplir
-        out[f.k] = (type(v) == 'string' and classAllowed(f, v)) and v or ''
+        out[f.k] = lockedClass(f) or ((type(v) == 'string' and classAllowed(f, v)) and v or '')
         return nil
     elseif f.t == 'offense' then
         -- Infraction du catalogue, d'une classification permise ; sa classification fait foi (champ classKey)
@@ -2195,6 +2205,10 @@ local function readValue(f, v, out, crumb)
         if offense and classAllowed(f, offense.c) then
             value = v
             if f.classKey then out[f.classKey] = offense.c end
+        elseif offense and lockedClass(f) then
+            local c = OffenseClasses[lockedClass(f)]
+            return fieldError(crumb, f, ('ce rapport n\'accepte que des %s : une infraction d\'un autre type se fait dans un autre rapport.')
+                :format(c and c.label or lockedClass(f)))
         end
     else
         return nil
@@ -2274,6 +2288,7 @@ end
 
 local function buildReport(reportType, raw)
     local out = {}
+    lockRoot = out
     local ctx = { raw = raw, out = out, fields = ReportFields[reportType.id] }
     for _, section in ipairs(reportType.sections) do
         -- Section conditionnelle (ex : "Véhicule" du Warning, seulement pour une infraction routière)

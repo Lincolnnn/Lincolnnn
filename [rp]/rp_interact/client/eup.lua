@@ -68,7 +68,7 @@ function RPI.openEup()
         for _, m in ipairs(res.mods or {}) do
             if m.gender == nil or m.gender == sex then
                 mods[m.id] = m
-                pieces[#pieces + 1] = { id = m.id, name = m.name, service = m.service, category = m.category }
+                pieces[#pieces + 1] = { id = m.id, name = m.name, service = m.service, category = m.category, tab = m.tab }
             end
         end
         open = true

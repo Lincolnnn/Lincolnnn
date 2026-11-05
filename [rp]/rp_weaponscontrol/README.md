@@ -113,6 +113,11 @@ on reprend une arme posée avec sa lampe allumée).
 noire, bandeau rouge, touches en gros, en haut à gauche. Utilisée par CartoonFlashlight (seule modification de ce
 script : son aide, en français : « E Allumer / Éteindre la lampe », « O Changer de position »).
 
+**Lampe en main** (lampe torche / de poche, lampes de CartoonFlashlight ; `Flashlight.HandLights`) : état local
+`LocalPlayer.state.flashlightHand`. Ses touches (**E** allumer / éteindre, **O** position) passent avant celles des
+autres scripts : pas de menu Équipement du véhicule ni de proposition « E » (`rp_equipment`), pas de pistolet /
+jerrican d'essence sur E (`rp_vehiclecontrol`) tant qu'elle est en main.
+
 ### Sélecteur de tir (`FireMode`)
 Sur les armes **automatiques** (pistolets-mitrailleurs, mitrailleuses, fusils d'assaut, AP Pistol, Machine Pistol,
 fusils à pompe automatiques ; `Groups` / `Weapons` / `Excluded`) : touche **B** (Raccourcis clavier > FiveM > « Arme :

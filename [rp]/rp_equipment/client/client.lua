@@ -942,10 +942,12 @@ end)
 --- Une action d'essence est proposée sur la même touche (pistolet de pompe / jerrican à la trappe, rp_vehiclecontrol) :
 --- elle passe en premier, le menu Équipement ne s'ouvre pas
 local function fuelPrompt() return LocalPlayer.state.vcFuelPrompt == true end
+--- Lampe tenue en main (rp_weaponscontrol) : sa touche E allume / éteint la lampe -> pas de menu Équipement
+local function flashlightBusy() return LocalPlayer.state.flashlightHand == true end
 
 RegisterCommand('rp_equipment', function()
     if open then return closeMenu() end
-    if not near or IsPauseMenuActive() or fuelPrompt() or spikesBusy() then return end -- E : touche de Riven
+    if not near or IsPauseMenuActive() or fuelPrompt() or spikesBusy() or flashlightBusy() then return end -- E : Riven, lampe
     openMenu(near)
 end, false)
 RegisterKeyMapping('rp_equipment', 'Véhicule de police : menu Équipement', 'keyboard', Config.Key or 'E')
@@ -963,7 +965,7 @@ local function promptLoop()
     CreateThread(function()
         local key = ('~INPUT_%X~'):format((GetHashKey('rp_equipment') | 0x80000000) & 0xFFFFFFFF)
         while near do
-            if not open and not fuelPrompt() then
+            if not open and not fuelPrompt() and not flashlightBusy() then
                 BeginTextCommandDisplayHelp('STRING')
                 AddTextComponentSubstringPlayerName(('%s %s'):format(key, HELP[near.where] or HELP.front))
                 EndTextCommandDisplayHelp(0, false, false, -1)

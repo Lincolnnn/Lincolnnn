@@ -163,6 +163,9 @@ menu** (jamais ceux du décor).
 - **Un pistolet radar** dans le coffre de **chaque véhicule de police** (1 / 1) : **« Prendre »** / **« Ranger »**. Un
   seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi. **`/restock`** le remet.
 
+**Lampe en main** (`rp_weaponscontrol` : état `flashlightHand`) : sa touche **E** allume / éteint la lampe, donc le
+menu Équipement ne s'ouvre pas et sa proposition n'est pas affichée tant qu'elle est en main.
+
 **Herse** (script payant **riven_spikes**, facultatif ; `Stock.Spikes`)
 - Seulement le **Stop Stick** (ni herse, ni Terminator : config de riven_spikes, `Trunk.types`). Pris et rangé avec
   **l'œil** (Alt) sur le coffre de tout véhicule d'urgence : **« Prendre le Stop Stick dans le coffre »** / **« Ranger

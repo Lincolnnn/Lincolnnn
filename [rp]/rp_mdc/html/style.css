@@ -575,6 +575,13 @@ input[type="range"] { accent-color: var(--accent); }
 }
 .entry-title { font-weight: 600; }
 .entry-remove { width: 28px; height: 24px; border-radius: var(--radius-sm); }
+/* « + » dans le titre d'une liste (infractions, chefs d'accusation…) : ajouter un élément */
+.entry-add {
+    display: inline-grid; place-items: center; width: 22px; height: 22px; margin-left: 8px; vertical-align: middle;
+    border-radius: var(--radius-sm); font-size: 16px; font-weight: 700; line-height: 1; color: var(--accent);
+    border: 1px solid rgba(var(--accent-rgb), .45); background: rgba(var(--accent-rgb), .1); cursor: pointer;
+}
+.entry-add:hover { background: var(--accent); color: #fff; }
 .entry-remove svg { width: 10px; height: 10px; }
 .entry-remove:hover { background: rgba(var(--danger-rgb), .9); color: #fff; }
 .hint-text { font-size: 12px; color: var(--muted); line-height: 1.45; }

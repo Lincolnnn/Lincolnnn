@@ -110,6 +110,10 @@ local function realObject(item, x, y, z)
                 FreezeEntityPosition(found, true)
                 SetEntityCollision(found, false, false)
                 SetEntityInvincible(found, true)
+                -- tombé d'un personnage invisible : l'objet peut l'être aussi -> toujours rendu visible
+                SetEntityVisible(found, true, false)
+                ResetEntityAlpha(found)
+                SetEntityLodDist(found, 100)
                 rot = GetEntityRotation(found, 2)
             end
         end
@@ -141,22 +145,28 @@ local function spawn(item, x, y, z)
     return obj, vector3(0.0, 0.0, 0.0)
 end
 
---- Hauteur à ajouter pour que le bas de l'objet (sa boîte, tournée) touche la surface à surfaceZ
-local function bottomLift(obj, surfaceZ)
+--- Hauteur à ajouter pour que le BAS de l'objet (sa boîte, tournée de rx / ry) soit au point où on le pose.
+--- Calculée sur le modèle (pas sur la position de l'objet dans le monde : juste après un AttachEntityToEntity, le jeu
+--- ne l'a pas encore mise à jour, et l'ancienne position enfonçait le chapeau de 50 cm dans la carrosserie).
+--- Rotation du jeu (ordre 2 : Y, puis X, puis Z ; Z ne change pas la hauteur).
+local function bottomLift(obj, rx, ry)
     local mn, mx = GetModelDimensions(GetEntityModel(obj))
     if not mn or not mx then return 0.0 end
+    local sx, cx = math.sin(math.rad(rx or 0.0)), math.cos(math.rad(rx or 0.0))
+    local sy, cy = math.sin(math.rad(ry or 0.0)), math.cos(math.rad(ry or 0.0))
     local low = nil
-    for _, cx in ipairs({ mn.x, mx.x }) do
-        for _, cy in ipairs({ mn.y, mx.y }) do
-            for _, cz in ipairs({ mn.z, mx.z }) do
-                local w = GetOffsetFromEntityInWorldCoords(obj, cx, cy, cz)
-                if not low or w.z < low then low = w.z end
+    for _, x in ipairs({ mn.x, mx.x }) do
+        for _, y in ipairs({ mn.y, mx.y }) do
+            for _, z in ipairs({ mn.z, mx.z }) do
+                local h = y * sx + (-x * sy + z * cy) * cx
+                if not low or h < low then low = h end
             end
         end
     end
     if not low then return 0.0 end
-    return math.max(-0.5, math.min(0.5, surfaceZ - low))
+    return math.max(-0.2, math.min(0.5, -low))
 end
+VPLost.bottomLift = bottomLift
 
 -- =========================================================================
 -- AFFICHAGE (chez tous) : au sol (GlobalState "rpWearGround") et sur les véhicules (état "rpWear")
@@ -193,10 +203,9 @@ local function refreshGround()
                     making[item.id] = nil
                     if obj then
                         FreezeEntityPosition(obj, true)
-                        SetEntityRotation(obj, base.x + (tonumber(item.rx) or 0.0), base.y + (tonumber(item.ry) or 0.0),
-                            base.z + (tonumber(item.rz) or 0.0), 2, true)
-                        SetEntityCoordsNoOffset(obj, pos.x, pos.y, pos.z, false, false, false)
-                        local lift = bottomLift(obj, pos.z) -- posé à plat sur le sol
+                        local rx, ry = base.x + (tonumber(item.rx) or 0.0), base.y + (tonumber(item.ry) or 0.0)
+                        SetEntityRotation(obj, rx, ry, base.z + (tonumber(item.rz) or 0.0), 2, true)
+                        local lift = bottomLift(obj, rx, ry) -- posé à plat sur le sol
                         SetEntityCoordsNoOffset(obj, pos.x, pos.y, pos.z + lift, false, false, false)
                         ground[item.id] = { obj = obj, item = item }
                     end
@@ -241,12 +250,9 @@ local function refreshVehicle(vehicle)
         if obj then
             local x, y, z = (tonumber(item.x) or 0.0) + 0.0, (tonumber(item.y) or 0.0) + 0.0, (tonumber(item.z) or 0.0) + 0.0
             local rx, ry, rz = base.x + (tonumber(item.rx) or 0.0), base.y + (tonumber(item.ry) or 0.0), base.z + (tonumber(item.rz) or 0.0)
-            AttachEntityToEntity(obj, vehicle, 0, x, y, z, rx, ry, rz, false, false, false, false, 2, true)
-            -- posé à plat sur la carrosserie : le bas de l'objet au point choisi
-            local lift = bottomLift(obj, GetOffsetFromEntityInWorldCoords(vehicle, x, y, z).z)
-            if math.abs(lift) > 0.005 then
-                AttachEntityToEntity(obj, vehicle, 0, x, y, z + lift, rx, ry, rz, false, false, false, false, 2, true)
-            end
+            -- posé à plat sur la carrosserie : le bas de l'objet au point choisi (repère du véhicule)
+            local lift = bottomLift(obj, rx, ry)
+            AttachEntityToEntity(obj, vehicle, 0, x, y, z + lift, rx, ry, rz, false, false, false, false, 2, true)
             entry.objects[item.id] = { obj = obj, item = item }
         end
     end

@@ -7,6 +7,7 @@
     Les tirs sont envoyés au serveur par paquets (Sync.Batch ms), qui les relaie aux joueurs proches (Sync.Range).
     JOUEURS AUTOUR : flash au canon du tireur, fumée, petite secousse s'ils sont proches (Shake.Range).
     (Plus d'acouphène : le sifflement a été retiré.) Silencieux : pas de flash.
+    LAMPE EN MAIN : état local « flashlightHand » (menus en conflit avec ses touches E / O bloqués ailleurs).
     LAMPE TOUJOURS ALLUMÉE (Flashlight) : allumée par le joueur, elle le reste (même arme baissée, en courant ; réglage
     du jeu réappliqué en permanence, d'autres scripts le remettant à false) et se rallume quand
     l'arme revient en main ; éteinte par le joueur, elle reste éteinte. Lampes de CartoonFlashlight : gérées par elle,
@@ -477,12 +478,27 @@ if FL.Enabled ~= false then
             or IsPedClimbing(ped) or IsPedReloading(ped)
     end
 
+    -- LAMPE EN MAIN (lampe torche / de poche, lampes de CartoonFlashlight) : état local « flashlightHand », lu par les
+    -- autres scripts dont la touche entre en conflit avec celles de la lampe (E : allumer / éteindre, O : position) :
+    -- menu Équipement du véhicule (rp_equipment), pistolet / jerrican d'essence (rp_vehiclecontrol)…
+    local HANDLIGHTS = {}
+    for _, name in ipairs(FL.HandLights or { 'WEAPON_FLASHLIGHT', 'WEAPON_POCKETLIGHT' }) do HANDLIGHTS[u32(GetHashKey(name))] = true end
+    for h in pairs(cartoonWeapons) do HANDLIGHTS[h] = true end
+    local inHand = nil
+    local function setHand(on)
+        if on == inHand then return end
+        inHand = on
+        LocalPlayer.state:set('flashlightHand', on, false)
+    end
+    RPWeapons.flashlightHand = function() return inHand == true end
+
     CreateThread(function()
         while true do
             local ped = PlayerPedId()
             local weapon = u32(GetSelectedPedWeapon(ped))
             local armed = weapon ~= 0 and weapon ~= UNARMED
             local now = GetGameTimer()
+            setHand(HANDLIGHTS[weapon] == true)
             if weapon ~= current then
                 current, since, restoring = weapon, now, armed and lit[weapon] == true
             end

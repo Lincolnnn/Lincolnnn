@@ -475,9 +475,11 @@ local function loadModOutfits()
             local items = type(o) == 'table' and (field(o, 'Items') or field(o, 'Pieces') or field(o, 'Options')) or nil
             if type(items) == 'table' then
                 local category = trim(field(o, 'Category'))
+                local tab = trim(field(o, 'Tab')) -- onglet du menu (facultatif : sinon d'après le nom de la catégorie)
                 for _, item in ipairs(items) do
                     if type(item) == 'table' then
                         if category ~= '' and trim(field(item, 'Category')) == '' then item.Category = category end
+                        if tab ~= '' and trim(field(item, 'Tab')) == '' then item.Tab = tab end
                         flat[#flat + 1] = item
                     end
                 end
@@ -493,9 +495,11 @@ local function loadModOutfits()
                     name == '' and 'Name manquant' or 'aucune partie "modèle:texture"'))
             else
                 local category = trim(field(o, 'Category'))
+                local tab = trim(field(o, 'Tab'))
                 ModOutfits[#ModOutfits + 1] = {
                     id = #ModOutfits + 1, name = name:sub(1, 80), service = service, gender = genderOf(o),
-                    category = category ~= '' and category:sub(1, 40) or nil, components = components, props = props,
+                    category = category ~= '' and category:sub(1, 40) or nil, tab = tab ~= '' and tab:sub(1, 40) or nil,
+                    components = components, props = props,
                 }
             end
         end
