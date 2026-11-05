@@ -232,7 +232,7 @@ plus de flou de l'arrière-plan.
 | Unités | (polices) Une liste : les unités **de votre police** seulement. Bouton **Créer une unité** (nom, **tag** au menu déroulant : Aucun, **SUP.** (superviseur) ou **Autre** à saisir, couleur) ; l'unité appartient à la police du MDC (pastille **WSP** bleue / **KCSO** verte). Chacun peut rejoindre une unité de sa police (4 joueurs max par unité) ; **une seule unité à la fois** : dans une unité, le bouton « Rejoindre » des autres disparaît, il faut d'abord **quitter** la sienne (le serveur refuse aussi). **Modifier** et **Supprimer** : réservés aux **membres** de l'unité. Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
 | Interventions | **Police** : les appels de **sa police** (toujours ouverts), puis les **appels communs** (WSP & KCSO) ; les appels de l'autre police ne sont **pas** visibles. Seules les polices visées peuvent rejoindre un appel (vérifié par le serveur). Incident : police de l'unité déclarante toujours cochée, **case** pour y ajouter l'autre police (incident commun). **Générique** : les listes de **chaque police** et les appels communs, **en lecture** (pas de « Rejoindre ») ; bouton **Modifier** sur les **interventions** (appels des civils) pour les corriger directement. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer (ou **✕** en haut du panneau) pour le masquer : **sans appel choisi, le panneau des détails est réduit à une fine colonne** et la liste prend toute la place. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités |
 | Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
-| Rapports | **Communs à tous les MDC**. DOT-523 (Georgia Uniform Crash Report), Arrest Report, Incident Report, Citation (identité seule), Traffic Citation (type d'infraction : Excès de vitesse / Conduite / Contrôle, intitulé, description ; sans amende), Convocation, Warning (infraction routière : identité complète avec licence et véhicule ; autre infraction : identité), Incident Report (« Impliqués » : individus et véhicules enregistrés) ; « Charges » pour l'Arrest Report. Les anciens Tickets restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
+| Rapports | **Communs à tous les MDC**. Formulaires de l'**État de Washington** : Notice of Infraction (NOI), Criminal Citation and Notice to Appear, Written Warning, Arrest Report, DUI Arrest Report, Police Traffic Collision Report (PTCR), Incident Report, Vehicle Impound / Inventory Report. Infractions choisies dans le **catalogue RCW** (classification + infraction liées, pénalité automatique). Les anciens modèles (DOT-523, Citation, Traffic Citation, Convocation, Warning, Ticket) restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
 | Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, **apparence jour / nuit**, couleur du mode nuit et où il s'applique, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : taille et position seulement, tous leurs éléments sont toujours affichés ; volume des sons du véhicule ; le Menu Interaction de `rp_interact` n'est plus réglable : il est toujours en haut à gauche, comme les menus du jeu) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
 | Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, priorité, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
 
@@ -367,13 +367,45 @@ concerné). Modifier le rapport met la fiche à jour (une personne retirée du r
 
 Sur les champs **Nom de famille** et **Immatriculation**, une liste déroulante propose les fiches de l'historique de
 l'onglet « Recherches » : en choisir une remplit tous les champs liés (identité, licence, véhicule, propriétaire, assurance).
-Les rapports ne contiennent ni caution ni chefs d'accusation ; seules les infractions des tickets / citations ont une amende.
+#### Formulaires de l'État de Washington (WSP / KCSO)
 
-**DOT-523** : 0 - Amorce (date, horaire, météo, luminosité, chaussée, comté, service, nb d'unités de police) ;
-1 - Impliqués (autant d'« Units » que nécessaire : type Véhicule / Piéton / H&R / Commercial, conducteur et licence,
-DWI, occupants, véhicule, et partie commerciale si cochée : compagnie, USDOT, type d'unité, cargo body type, poids,
-surcharge → MCE, matières dangereuses, tests DWI obligatoires) ; 2 - Type de collision (lieu précis, causes à cocher
-pour chaque unit, vitesses et distances par unit, lieu) ; 3 - Partie narrative.
+Intitulés et termes officiels (Washington Uniform Court Docket, SECTOR, RCW) ; les aides sont en français.
+
+| Formulaire | Quand | Contenu |
+|---|---|---|
+| **Notice of Infraction (NOI)** | infraction **civile** : *Notice of Traffic Infraction* (RCW 46.63) ou *Notice of Civil Infraction* (RCW 7.80) | date / heure / lieu (milepost, ville, comté), **tribunal** (King County District Court…), conducteur et permis (OLN), CMV / HAZMAT, véhicule (plaque, VIN, propriétaire, assurance), vitesse (radar, lidar, pace, **avion de la WSP**, zone scolaire / de travaux), **3 violations au plus** avec pénalité, réponse sous 30 jours (payer, *mitigation hearing*, *contested hearing*), signature, certification sous peine de parjure |
+| **Criminal Citation and Notice to Appear** | délit : **misdemeanor / gross misdemeanor** (un crime = arrestation) | prévenu, véhicule si *criminal traffic*, **3 charges au plus** (DV), tribunal, date et heure de comparution, laissé libre sur citation ou écroué (KCCF, MRJC, SCORE…), signature, certification, *Statement of Probable Cause* |
+| **Written Warning** | avertissement, sans pénalité | personne, véhicule (contrôle routier), violations (TI / CI), correction demandée |
+| **Arrest Report** | arrestation (délits et crimes) | type (on-view, probable cause, mandat + n°, citoyen), signalement (taille, poids, cheveux, yeux, SMT), **charges** (classification, nombre, DV), droits constitutionnels (Miranda : heure, renonciation / invocation), usage de la force, blessures, examen médical, saisies, établissement d'écrou, véhicule, ***Certification for Determination of Probable Cause*** |
+| **DUI Arrest Report** | RCW 46.61.502 / .504 | raison du contact, observations de conduite et au contact, **SFST** (HGN /6, Walk-and-Turn /8, One-Leg Stand /4), PBT, Miranda, **Implied Consent Warning** (RCW 46.20.308), test probant (BAC DataMaster : 2 échantillons ; prise de sang : mandat ou consentement ; refus), DRE, charges, immobilisation 12 h (RCW 46.55.360), écrou |
+| **Police Traffic Collision Report (PTCR)** | collision avec blessé, mort ou ≥ 1 000 $ de dégâts (RCW 46.52.030) | lieu (route, intersection, milepost), délit de fuite, blessés / morts, type de collision, météo, éclairage, chaussée, intersection, signalisation, zone de travaux ; **units** (véhicule en circulation, garé, piéton, cycliste, délit de fuite) : conducteur, permis, **blessures KABCO**, ceinture, airbag, éjection, sobriété, distraction, circonstances, transport, **violations citées** ; véhicule, direction, manœuvre, vitesses, dégâts, remorquage, CMV (USDOT) ; passagers |
+| **Incident Report** | tout autre événement | nature, DV, **infractions** (toutes classifications), personnes (V, S, A, W, RP, O), véhicules, biens et preuves |
+| **Vehicle Impound / Inventory Report** | fourrière (RCW 46.55) | motif légal (RCW 46.55.113, .085, .080, .360…), police hold, véhicule, état, conducteur, dépanneur agréé (RTTO), lieu de stockage, **inventaire** |
+
+**Infractions (`server/offenses.lua`)** : catalogue des infractions de l'État de Washington, avec article **RCW**,
+intitulé officiel, **classification** et, pour les infractions civiles, la **pénalité** du barème des tribunaux de
+district (IRLJ 6.2, frais légaux compris ; modifiable dans le rapport). Classifications (RCW 9A.20.021) :
+
+| | Classification | Peine maximale |
+|---|---|---|
+| TI | Traffic Infraction | pénalité civile (RCW 46.63) |
+| CI | Civil Infraction (Non-Traffic) | classe 1 à 4, jusqu'à 250 $ (RCW 7.80) |
+| M | Misdemeanor | 90 jours et / ou 1 000 $ |
+| GM | Gross Misdemeanor | 364 jours et / ou 5 000 $ |
+| C FEL | Class C Felony | 5 ans et / ou 10 000 $ |
+| B FEL | Class B Felony | 10 ans et / ou 20 000 $ |
+| A FEL | Class A Felony | perpétuité et / ou 50 000 $ |
+
+Dans chaque infraction / charge : **Classification** et **Violation (RCW)**, deux listes déroulantes liées :
+- choisir l'infraction règle **automatiquement** sa classification (et la pénalité pour une NOI) ;
+- choisir d'abord la classification ne propose **que les infractions de cette classification** (en changer retire
+  une infraction qui n'en fait pas partie).
+
+Les infractions sont classées par catégorie (Speed, Moving Violations, Equipment, DUI, Crimes Against Persons,
+Property Crimes…). Chaque formulaire n'offre que les classifications qui lui correspondent (NOI : TI / CI ;
+Criminal Citation : M / GM ; Arrest / DUI : M à A FEL ; Incident / PTCR : toutes). Le serveur revérifie tout : une
+infraction inconnue ou d'une autre classification est refusée, et la classification enregistrée est celle de
+l'infraction. Ajouter une infraction : une ligne dans `server/offenses.lua`.
 
 Les formulaires sont décrits dans **`server/reports.lua`** : ajoutez un champ ou une option à cet endroit uniquement,
 l'interface et la validation serveur suivent automatiquement.

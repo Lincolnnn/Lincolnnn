@@ -2346,7 +2346,53 @@
         queryTimer: null,
     };
 
-    const DATA_TYPES = ['text', 'area', 'date', 'time', 'num', 'select', 'check', 'checks'];
+    const DATA_TYPES = ['text', 'area', 'date', 'time', 'num', 'select', 'check', 'checks', 'offclass', 'offense'];
+
+    // ---- Infractions de l'État de Washington (server/offenses.lua) ----
+    // Classification et infraction liées : choisir l'infraction règle la classification ; choisir d'abord la
+    // classification ne propose que ses infractions.
+    const offenses = { list: [], byId: {}, classes: [], classById: {} };
+    const offenseLabel = (o) => `${o.rcw} — ${o.t}${o.fine != null ? ` ($${Number(o.fine).toLocaleString('en-US')})` : ''}`;
+    const classBadge = (id) => {
+        const c = offenses.classById[id];
+        return c ? `<span class="off-badge off-${esc(id)}" title="${esc(c.info || '')}">${esc(c.short)}</span>` : '';
+    };
+
+    function offclassHtml(f, obj, key, codeField) {
+        const allowed = toArray(f.classes);
+        const list = offenses.classes.filter((c) => !allowed.length || allowed.includes(c.id));
+        const v = obj[f.k] || '';
+        const info = offenses.classById[v];
+        const extra = codeField
+            ? ` data-code-key="${esc(codeField.k)}"${codeField.fineKey ? ` data-fine-key="${esc(codeField.fineKey)}"` : ''}`
+            : '';
+        return `<select data-path="${esc(key)}" data-t="offclass"${extra}>
+                <option value="">— All classifications —</option>${list.map((c) =>
+                `<option value="${esc(c.id)}" ${c.id === v ? 'selected' : ''}>${esc(c.short)} — ${esc(c.label)}</option>`).join('')}
+            </select>${info ? `<span class="off-info">${classBadge(v)} ${esc(info.info || '')}</span>` : ''}`;
+    }
+
+    function offenseHtml(f, obj, key) {
+        const allowed = toArray(f.classes);
+        const cls = (f.classKey && obj[f.classKey]) || '';
+        const v = obj[f.k] || '';
+        const list = offenses.list.filter((o) => (!allowed.length || allowed.includes(o.c)) && (!cls || o.c === cls));
+        const groups = [];
+        list.forEach((o) => {
+            let g = groups.find((x) => x.name === o.g);
+            if (!g) { g = { name: o.g, items: [] }; groups.push(g); }
+            g.items.push(o);
+        });
+        const current = offenses.byId[v];
+        const orphan = v && !list.includes(current) ? `<option value="${esc(v)}" selected>${esc(current ? offenseLabel(current) : v)}</option>` : '';
+        const what = cls && offenses.classById[cls] ? `a ${offenses.classById[cls].label}` : 'an offense';
+        const extra = `${f.classKey ? ` data-class-key="${esc(f.classKey)}"` : ''}${f.fineKey ? ` data-fine-key="${esc(f.fineKey)}"` : ''}`;
+        return `<select data-path="${esc(key)}" data-t="offense"${extra}>
+                <option value="">— Select ${esc(what)} (${list.length}) —</option>${orphan}
+                ${groups.map((g) => `<optgroup label="${esc(g.name)}">${g.items.map((o) =>
+                    `<option value="${esc(o.id)}" ${o.id === v ? 'selected' : ''}>${esc(offenseLabel(o))}</option>`).join('')}</optgroup>`).join('')}
+            </select>`;
+    }
 
     const pathGet = (obj, path) => path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
     function pathSet(obj, path, value) {
@@ -2460,10 +2506,16 @@
         }
     }
 
-    function fieldHtml(f, obj, path, suggestId) {
+    function fieldHtml(f, obj, path, suggestId, siblings) {
         const span = f.w > 1 ? ` span-${Math.min(f.w, 4)}` : '';
         const required = isRequired(f, obj) ? ' *' : '';
         const key = path + f.k;
+
+        if (f.t === 'offclass') {
+            const codeField = toArray(siblings).find((x) => x.t === 'offense' && x.classKey === f.k);
+            return `<label class="lbl off-class${span}">${esc(f.l)}${required}${offclassHtml(f, obj, key, codeField)}</label>`;
+        }
+        if (f.t === 'offense') return `<label class="lbl${span}">${esc(f.l)}${required}${offenseHtml(f, obj, key)}</label>`;
 
         // Nom de famille / immatriculation : liste déroulante de l'historique des recherches
         if (suggestId != null) {
@@ -2521,7 +2573,7 @@
                 flush();
                 html += unitTableHtml(f);
             } else if (f.t !== 'lookup') {
-                grid += fieldHtml(f, obj, path, anchors[f.k]);
+                grid += fieldHtml(f, obj, path, anchors[f.k], fields);
             }
         });
         flush();
@@ -2753,7 +2805,37 @@
         const path = el.dataset && el.dataset.path;
         if (!path || !reports.draft) return;
 
-        if (el.dataset.t === 'check') {
+        if (el.dataset.t === 'offense' || el.dataset.t === 'offclass') {
+            // Infraction <-> classification (et pénalité) : champs du même niveau
+            const cut = path.lastIndexOf('.');
+            const owner = cut < 0 ? reports.draft.data : pathGet(reports.draft.data, path.slice(0, cut));
+            const k = path.slice(cut + 1);
+            if (!owner) return;
+            const fineKey = el.dataset.fineKey;
+            if (el.dataset.t === 'offense') {
+                const previous = offenses.byId[owner[k]];
+                owner[k] = el.value;
+                const o = offenses.byId[el.value];
+                if (o && el.dataset.classKey) owner[el.dataset.classKey] = o.c;
+                if (fineKey) {
+                    // pénalité remplie d'office, sauf si l'agent l'a changée à la main
+                    const auto = !owner[fineKey] || (previous && String(previous.fine) === String(owner[fineKey]));
+                    if (o && o.fine != null && auto) owner[fineKey] = String(o.fine);
+                    else if (!o && auto) owner[fineKey] = '';
+                }
+            } else {
+                owner[k] = el.value;
+                const codeKey = el.dataset.codeKey;
+                const current = codeKey && offenses.byId[owner[codeKey]];
+                if (current && el.value && current.c !== el.value) {
+                    owner[codeKey] = ''; // l'infraction choisie n'est pas de cette classification
+                    if (fineKey && String(current.fine) === String(owner[fineKey])) owner[fineKey] = '';
+                }
+            }
+            draftSync({ op: 'replace', data: reports.draft.data });
+            renderReportForm();
+            return;
+        } else if (el.dataset.t === 'check') {
             pathSet(reports.draft.data, path, el.checked);
         } else if (el.dataset.t === 'checks') {
             const current = toArray(pathGet(reports.draft.data, path));
@@ -3054,6 +3136,14 @@
         if (f.t === 'checks') return toArray(value).map((v) => esc(optionLabel(f.o, v))).join(', ');
         if (value === '' || value == null) return '';
         if (f.t === 'select') return esc(optionLabel(f.o, value));
+        if (f.t === 'offclass') {
+            const c = offenses.classById[value];
+            return c ? `${classBadge(value)} ${esc(c.label)} <span class="muted">— ${esc(c.info || '')}</span>` : esc(value);
+        }
+        if (f.t === 'offense') {
+            const o = offenses.byId[value];
+            return o ? `<b>${esc(o.rcw)}</b> — ${esc(o.t)}` : esc(value);
+        }
         if (f.t === 'num' && f.money) return `$${esc(Number(value).toLocaleString('en-US'))}`;
         if (f.t === 'num' && f.unit) return `${esc(value)} ${esc(f.unit)}`;
         return esc(value);
@@ -3206,6 +3296,10 @@
             return false;
         }
         reports.types = toArray(res.types);
+        offenses.list = toArray(res.offenses);
+        offenses.byId = Object.fromEntries(offenses.list.map((o) => [o.id, o]));
+        offenses.classes = toArray(res.classes);
+        offenses.classById = Object.fromEntries(offenses.classes.map((c) => [c.id, c]));
         reports.types.forEach((type) => {
             reports.byId[type.id] = type;
             reports.index[type.id] = indexFields(allFields(type), {});

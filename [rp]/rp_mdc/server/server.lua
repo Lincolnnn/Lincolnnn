@@ -2013,8 +2013,9 @@ RegisterMDCCallback('editNote', function(src, payload)
 end)
 
 -- =========================================================================
--- RAPPORTS (onglet "Rapports") : DOT-523, Arrest Report, Incident Report,
--- Citation, Traffic Ticket, Ticket, Warning.
+-- RAPPORTS (onglet "Rapports") : formulaires de l'État de Washington (Notice of Infraction, Criminal Citation,
+-- Written Warning, Arrest Report, DUI Arrest Report, Police Traffic Collision Report, Incident Report, Impound) ;
+-- anciens modèles (DOT-523, Citation, Traffic Citation, Convocation, Warning, Ticket) en lecture seule.
 -- Permanents (data/reports.json), comme les identités et les véhicules.
 -- Les formulaires sont décrits dans server/reports.lua (MDC_REPORT_TYPES) :
 -- le serveur valide chaque rapport avec ces mêmes règles.
@@ -2062,6 +2063,19 @@ end
 
 if not MDC_REPORT_TYPES then
     print('^1[MDC] ERREUR : server/reports.lua n\'est pas chargé (vérifiez fxmanifest.lua). Onglet "Rapports" indisponible.^0')
+end
+
+-- Infractions de l'État de Washington (server/offenses.lua) : [id] = infraction, [classe] = true
+local Offenses, OffenseClasses = {}, {}
+for _, offense in ipairs(MDC_OFFENSES or {}) do Offenses[offense.id] = offense end
+for _, class in ipairs(MDC_OFFENSE_CLASSES or {}) do OffenseClasses[class.id] = class end
+
+--- Classification autorisée pour ce champ (liste "classes" du modèle ; sinon toutes)
+local function classAllowed(f, class)
+    if not OffenseClasses[class] then return false end
+    if type(f.classes) ~= 'table' then return true end
+    for _, c in ipairs(f.classes) do if c == class then return true end end
+    return false
 end
 
 local function optionSet(options)
@@ -2170,6 +2184,18 @@ local function readValue(f, v, out, crumb)
         end
     elseif f.t == 'select' then
         value = (type(v) == 'string' and optionSet(f.o)[v]) and v or ''
+    elseif f.t == 'offclass' then
+        -- obligatoire vérifié après le niveau entier : l'infraction (champ suivant) peut la remplir
+        out[f.k] = (type(v) == 'string' and classAllowed(f, v)) and v or ''
+        return nil
+    elseif f.t == 'offense' then
+        -- Infraction du catalogue, d'une classification permise ; sa classification fait foi (champ classKey)
+        local offense = type(v) == 'string' and Offenses[v] or nil
+        value = ''
+        if offense and classAllowed(f, offense.c) then
+            value = v
+            if f.classKey then out[f.classKey] = offense.c end
+        end
     else
         return nil
     end
@@ -2236,6 +2262,13 @@ sanitizeFields = function(fields, raw, out, ctx, crumb)
             if err then return err end
         end
     end
+    -- Classification obligatoire : remplie par l'agent ou par l'infraction choisie
+    for _, f in ipairs(fields) do
+        if f.t == 'offclass' and (f.req or (f.reqIf and condMet(f.reqIf, out))) and (not f.show or condMet(f.show, out))
+            and (out[f.k] or '') == '' then
+            return fieldError(crumb, f, 'champ obligatoire.')
+        end
+    end
     return nil
 end
 
@@ -2273,6 +2306,7 @@ local function reportSummary(reportType, data)
         if count == '#' then return tostring(type(value) == 'table' and #value or 0) end
         local f = fields[key]
         if f and f.t == 'select' then return optionSet(f.o)[value] or '' end
+        if f and f.t == 'offense' then return Offenses[value] and Offenses[value].t or '' end
         if type(value) == 'string' or type(value) == 'number' then return tostring(value) end
         return ''
     end)
@@ -2384,7 +2418,7 @@ local function reportListItem(report, me)
 end
 
 RegisterMDCCallback('getReportTypes', function()
-    return { ok = true, types = MDC_REPORT_TYPES or {} }
+    return { ok = true, types = MDC_REPORT_TYPES or {}, offenses = MDC_OFFENSES or {}, classes = MDC_OFFENSE_CLASSES or {} }
 end, true)
 
 -- Liste : filtres par type, par texte (n°, résumé, auteur, contenu) et "mes rapports"
