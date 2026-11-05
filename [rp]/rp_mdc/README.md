@@ -369,7 +369,8 @@ Sur les champs **Nom de famille** et **Immatriculation**, une liste déroulante 
 l'onglet « Recherches » : en choisir une remplit tous les champs liés (identité, licence, véhicule, propriétaire, assurance).
 #### Formulaires de l'État de Washington (WSP / KCSO)
 
-Intitulés et termes officiels (Washington Uniform Court Docket, SECTOR, RCW) ; les aides sont en français.
+Noms officiels des documents (Notice of Infraction, Criminal Citation…), classifications (Misdemeanor, Felony…), sigles et
+articles **RCW** en anglais ; tout le reste (champs, options, intitulés des infractions) traduit en **français pratique**.
 
 | Formulaire | Quand | Contenu |
 |---|---|---|
@@ -383,7 +384,7 @@ Intitulés et termes officiels (Washington Uniform Court Docket, SECTOR, RCW) ; 
 | **Vehicle Impound / Inventory Report** | fourrière (RCW 46.55) | motif légal (RCW 46.55.113, .085, .080, .360…), police hold, véhicule, état, conducteur, dépanneur agréé (RTTO), lieu de stockage, **inventaire** |
 
 **Infractions (`server/offenses.lua`)** : catalogue des infractions de l'État de Washington, avec article **RCW**,
-intitulé officiel, **classification** et, pour les infractions civiles, la **pénalité** du barème des tribunaux de
+intitulé (en français), **classification** et, pour les infractions civiles, la **pénalité** du barème des tribunaux de
 district (IRLJ 6.2, frais légaux compris ; modifiable dans le rapport). Classifications (RCW 9A.20.021) :
 
 | | Classification | Peine maximale |
@@ -396,7 +397,7 @@ district (IRLJ 6.2, frais légaux compris ; modifiable dans le rapport). Classif
 | B FEL | Class B Felony | 10 ans et / ou 20 000 $ |
 | A FEL | Class A Felony | perpétuité et / ou 50 000 $ |
 
-Dans chaque infraction / charge : **Classification** et **Violation (RCW)**, deux listes déroulantes liées :
+Dans chaque infraction / chef : **Classification** et **Infraction (RCW)**, deux listes déroulantes liées :
 - choisir l'infraction règle **automatiquement** sa classification (et la pénalité pour une NOI) ;
 - choisir d'abord la classification ne propose **que les infractions de cette classification** (en changer retire
   une infraction qui n'en fait pas partie).

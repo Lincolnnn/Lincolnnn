@@ -2367,7 +2367,7 @@
             ? ` data-code-key="${esc(codeField.k)}"${codeField.fineKey ? ` data-fine-key="${esc(codeField.fineKey)}"` : ''}`
             : '';
         return `<select data-path="${esc(key)}" data-t="offclass"${extra}>
-                <option value="">— All classifications —</option>${list.map((c) =>
+                <option value="">— Toutes les classifications —</option>${list.map((c) =>
                 `<option value="${esc(c.id)}" ${c.id === v ? 'selected' : ''}>${esc(c.short)} — ${esc(c.label)}</option>`).join('')}
             </select>${info ? `<span class="off-info">${classBadge(v)} ${esc(info.info || '')}</span>` : ''}`;
     }
@@ -2385,10 +2385,10 @@
         });
         const current = offenses.byId[v];
         const orphan = v && !list.includes(current) ? `<option value="${esc(v)}" selected>${esc(current ? offenseLabel(current) : v)}</option>` : '';
-        const what = cls && offenses.classById[cls] ? `a ${offenses.classById[cls].label}` : 'an offense';
+        const what = cls && offenses.classById[cls] ? offenses.classById[cls].label : 'une infraction';
         const extra = `${f.classKey ? ` data-class-key="${esc(f.classKey)}"` : ''}${f.fineKey ? ` data-fine-key="${esc(f.fineKey)}"` : ''}`;
         return `<select data-path="${esc(key)}" data-t="offense"${extra}>
-                <option value="">— Select ${esc(what)} (${list.length}) —</option>${orphan}
+                <option value="">— Choisir ${cls ? ': ' : ''}${esc(what)} (${list.length}) —</option>${orphan}
                 ${groups.map((g) => `<optgroup label="${esc(g.name)}">${g.items.map((o) =>
                     `<option value="${esc(o.id)}" ${o.id === v ? 'selected' : ''}>${esc(offenseLabel(o))}</option>`).join('')}</optgroup>`).join('')}
             </select>`;

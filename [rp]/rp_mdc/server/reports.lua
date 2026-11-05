@@ -456,13 +456,13 @@ local WARNING = {
 -- =========================================================================
 local CLASS_SETS = MDC_CLASS_SETS or {}
 
-local WA_SEXES = { { 'male', 'M — Male' }, { 'female', 'F — Female' }, { 'x', 'X — Unspecified' } }
+local WA_SEXES = { { 'male', 'M — Homme' }, { 'female', 'F — Femme' }, { 'x', 'X — Non précisé' } }
 
 local WA_COUNTIES = {
     { 'king', 'King County' }, { 'pierce', 'Pierce County' }, { 'snohomish', 'Snohomish County' },
     { 'kitsap', 'Kitsap County' }, { 'thurston', 'Thurston County' }, { 'spokane', 'Spokane County' },
     { 'clark', 'Clark County' }, { 'whatcom', 'Whatcom County' }, { 'skagit', 'Skagit County' },
-    { 'yakima', 'Yakima County' }, { 'other', 'Other County' },
+    { 'yakima', 'Yakima County' }, { 'other', 'Autre comté' },
 }
 
 local WA_COURTS = {
@@ -477,7 +477,7 @@ local WA_COURTS = {
     { 'kcsc', 'King County Superior Court' },
     { 'pcdc', 'Pierce County District Court' },
     { 'sncdc', 'Snohomish County District Court' },
-    { 'other', 'Other Court' },
+    { 'other', 'Autre tribunal' },
 }
 
 local WA_JAILS = {
@@ -486,16 +486,16 @@ local WA_JAILS = {
     { 'score', 'South Correctional Entity (SCORE) — Des Moines' },
     { 'pcj', 'Pierce County Jail — Tacoma' },
     { 'scj', 'Snohomish County Jail — Everett' },
-    { 'other', 'Other Facility' },
+    { 'other', 'Autre établissement' },
 }
 
 -- Types de permis (WA) + anciennes classes (fiches d'identité existantes, remplissage depuis l'historique)
 local WA_DL_TYPES = {
-    { 'DL', 'Driver License' }, { 'EDL', 'Enhanced Driver License (EDL)' },
-    { 'IL', 'Intermediate License (Under 18)' }, { 'IP', 'Instruction Permit' },
-    { 'DLM', 'Driver License — Motorcycle Endorsement' },
-    { 'CDL A', 'Commercial Driver License (CDL) — Class A' }, { 'CDL B', 'Commercial Driver License (CDL) — Class B' },
-    { 'CDL C', 'Commercial Driver License (CDL) — Class C' }, { 'ID', 'Identicard Only (No Driving Privilege)' },
+    { 'DL', 'Permis de conduire' }, { 'EDL', 'Permis amélioré (EDL)' },
+    { 'IL', 'Permis intermédiaire (moins de 18 ans)' }, { 'IP', 'Permis d\'apprentissage' },
+    { 'DLM', 'Permis avec mention moto' },
+    { 'CDL A', 'Permis poids lourd (CDL) — classe A' }, { 'CDL B', 'Permis poids lourd (CDL) — classe B' },
+    { 'CDL C', 'Permis poids lourd (CDL) — classe C' }, { 'ID', 'Carte d\'identité seule (pas de permis)' },
 }
 for _, legacy in ipairs(LICENSE_CLASSES) do
     local known = false
@@ -504,19 +504,19 @@ for _, legacy in ipairs(LICENSE_CLASSES) do
 end
 
 local WA_DL_STATUS = {
-    { 'valid', 'Valid' }, { 'suspended', 'Suspended' }, { 'revoked', 'Revoked' }, { 'expired', 'Expired' },
-    { 'none', 'Unlicensed / Never Licensed' },
+    { 'valid', 'Valide' }, { 'suspended', 'Suspendu' }, { 'revoked', 'Révoqué' }, { 'expired', 'Expiré' },
+    { 'none', 'Sans permis' },
 }
 
 local WA_BODY_STYLES = {
-    { 'sedan', 'Passenger Car — Sedan' }, { 'coupe', 'Passenger Car — Coupe' }, { 'hatchback', 'Passenger Car — Hatchback' },
-    { 'wagon', 'Station Wagon' }, { 'suv', 'Sport Utility Vehicle (SUV)' }, { 'pickup', 'Pickup Truck' }, { 'van', 'Van / Minivan' },
-    { 'moto', 'Motorcycle' }, { 'truck', 'Truck (Single Unit)' }, { 'semi', 'Truck Tractor' }, { 'bus', 'Bus' },
-    { 'rv', 'Motor Home' }, { 'other', 'Other' },
+    { 'sedan', 'Berline' }, { 'coupe', 'Coupé' }, { 'hatchback', 'Citadine / compacte' },
+    { 'wagon', 'Break' }, { 'suv', 'SUV' }, { 'pickup', 'Pick-up' }, { 'van', 'Van / monospace' },
+    { 'moto', 'Moto' }, { 'truck', 'Camion' }, { 'semi', 'Tracteur routier' }, { 'bus', 'Bus' },
+    { 'rv', 'Camping-car' }, { 'other', 'Autre' },
 }
 
 local DIRECTIONS = {
-    { 'N', 'Northbound' }, { 'S', 'Southbound' }, { 'E', 'Eastbound' }, { 'W', 'Westbound' },
+    { 'N', 'Vers le nord' }, { 'S', 'Vers le sud' }, { 'E', 'Vers l\'est' }, { 'W', 'Vers l\'ouest' },
 }
 
 --- Date, heure et lieu (Washington)
@@ -524,11 +524,11 @@ local function waWhere(opts)
     opts = opts or {}
     return {
         { k = 'date', t = 'date', l = opts.dateLabel or 'Date', req = true, def = 'today', past = true },
-        { k = 'time', t = 'time', l = opts.timeLabel or 'Time (24h)', req = true, def = 'now' },
-        { k = 'address', t = 'text', l = 'Location (Address / Roadway)', req = true, max = 80, w = 2 },
-        { k = 'milepost', t = 'text', l = 'Milepost (State Route)', max = 12, ph = 'ex : SR 520 MP 4.5' },
-        { k = 'city', t = 'text', l = 'City / Unincorporated', max = 40, ph = 'ex : Unincorporated' },
-        { k = 'county', t = 'select', l = 'County', req = true, def = 'king', o = WA_COUNTIES },
+        { k = 'time', t = 'time', l = opts.timeLabel or 'Heure', req = true, def = 'now' },
+        { k = 'address', t = 'text', l = 'Lieu (adresse / route)', req = true, max = 80, w = 2 },
+        { k = 'milepost', t = 'text', l = 'Borne kilométrique (Milepost)', max = 12, ph = 'ex : SR 520 MP 4.5' },
+        { k = 'city', t = 'text', l = 'Ville / hors commune', max = 40, ph = 'ex : Unincorporated' },
+        { k = 'county', t = 'select', l = 'Comté', req = true, def = 'king', o = WA_COUNTIES },
     }
 end
 
@@ -539,18 +539,18 @@ local function waPerson(opts)
         { t = 'lookup', kind = 'identity',
           map = { lastname = 'lastname', firstname = 'firstname', dob = 'dob', sex = 'sexReport', homeAddress = 'address',
                   dlNumber = 'licenseNumber', dlClass = 'licenseClass', dlState = 'licenseState' } },
-        { k = 'lastname', t = 'text', l = 'Last Name', req = opts.req, reqIf = opts.reqIf, max = 40 },
-        { k = 'firstname', t = 'text', l = 'First Name', req = opts.req, max = 40 },
-        { k = 'dob', t = 'date', l = 'Date of Birth (DOB)', req = opts.req, past = true },
-        { k = 'sex', t = 'select', l = 'Sex', o = WA_SEXES },
-        { k = 'homeAddress', t = 'text', l = 'Address', max = 80, w = 3 },
-        { k = 'phone', t = 'text', l = 'Phone', max = 20 },
+        { k = 'lastname', t = 'text', l = 'Nom', req = opts.req, reqIf = opts.reqIf, max = 40 },
+        { k = 'firstname', t = 'text', l = 'Prénom', req = opts.req, max = 40 },
+        { k = 'dob', t = 'date', l = 'Date de naissance', req = opts.req, past = true },
+        { k = 'sex', t = 'select', l = 'Sexe', o = WA_SEXES },
+        { k = 'homeAddress', t = 'text', l = 'Adresse', max = 80, w = 3 },
+        { k = 'phone', t = 'text', l = 'Téléphone', max = 20 },
     }
     if opts.license then
-        fields[#fields + 1] = { k = 'dlNumber', t = 'text', l = 'Driver License No. (OLN)', max = 20, upper = true, req = opts.licenseReq }
-        fields[#fields + 1] = { k = 'dlState', t = 'text', l = 'DL State', max = 40, ph = 'ex : WA' }
-        fields[#fields + 1] = { k = 'dlClass', t = 'select', l = 'License Type / Class', o = WA_DL_TYPES }
-        fields[#fields + 1] = { k = 'dlStatus', t = 'select', l = 'License Status', o = WA_DL_STATUS }
+        fields[#fields + 1] = { k = 'dlNumber', t = 'text', l = 'N° de permis (OLN)', max = 20, upper = true, req = opts.licenseReq }
+        fields[#fields + 1] = { k = 'dlState', t = 'text', l = 'État du permis', max = 40, ph = 'ex : WA' }
+        fields[#fields + 1] = { k = 'dlClass', t = 'select', l = 'Type de permis', o = WA_DL_TYPES }
+        fields[#fields + 1] = { k = 'dlStatus', t = 'select', l = 'Statut du permis', o = WA_DL_STATUS }
     end
     return fields
 end
@@ -561,15 +561,15 @@ local function waVehicle(opts)
     return {
         { t = 'lookup', kind = 'vehicle',
           map = { plate = 'plate', model = 'makeModel', color = 'color', owner = 'ownerFull', vin = 'vin', year = 'year', insurance = 'insurance' } },
-        { k = 'plate', t = 'text', l = 'Vehicle License No. (Plate)', req = opts.req, max = 8, upper = true },
-        { k = 'plateState', t = 'text', l = 'Plate State', max = 40, ph = 'ex : WA' },
-        { k = 'year', t = 'num', l = 'Year', min = 1900, max = 2100 },
-        { k = 'model', t = 'text', l = 'Make / Model', max = 60 },
-        { k = 'style', t = 'select', l = 'Body Style', o = WA_BODY_STYLES },
-        { k = 'color', t = 'text', l = 'Color', max = 40 },
+        { k = 'plate', t = 'text', l = 'Plaque d\'immatriculation', req = opts.req, max = 8, upper = true },
+        { k = 'plateState', t = 'text', l = 'État de la plaque', max = 40, ph = 'ex : WA' },
+        { k = 'year', t = 'num', l = 'Année', min = 1900, max = 2100 },
+        { k = 'model', t = 'text', l = 'Marque / modèle', max = 60 },
+        { k = 'style', t = 'select', l = 'Carrosserie', o = WA_BODY_STYLES },
+        { k = 'color', t = 'text', l = 'Couleur', max = 40 },
         { k = 'vin', t = 'text', l = 'VIN', max = 17, upper = true, w = 2 },
-        { k = 'owner', t = 'text', l = 'Registered Owner', max = 80, w = 2 },
-        { k = 'insurance', t = 'text', l = 'Insurance (Company / Policy No.)', max = 80, w = 2 },
+        { k = 'owner', t = 'text', l = 'Propriétaire', max = 80, w = 2 },
+        { k = 'insurance', t = 'text', l = 'Assurance (compagnie / n° de contrat)', max = 80, w = 2 },
     }
 end
 
@@ -578,19 +578,19 @@ local function offenseList(o)
     local classes = CLASS_SETS[o.set] or CLASS_SETS.all
     local f = {
         { k = 'class', t = 'offclass', l = 'Classification', classes = classes, req = true },
-        { k = 'code', t = 'offense', l = o.codeLabel or 'Violation (RCW)', classes = classes, classKey = 'class',
+        { k = 'code', t = 'offense', l = o.codeLabel or 'Infraction (RCW)', classes = classes, classKey = 'class',
           fineKey = o.fine and 'fine' or nil, req = true, w = 3 },
     }
-    if o.fine then f[#f + 1] = { k = 'fine', t = 'num', l = 'Penalty Amount', min = 0, max = 100000, money = true } end
-    if o.counts then f[#f + 1] = { k = 'counts', t = 'num', l = 'Count(s)', min = 1, max = 50, def = 1 } end
-    if o.dv then f[#f + 1] = { k = 'dv', t = 'check', l = 'Domestic Violence (DV) — RCW 10.99' } end
+    if o.fine then f[#f + 1] = { k = 'fine', t = 'num', l = 'Pénalité', min = 0, max = 100000, money = true } end
+    if o.counts then f[#f + 1] = { k = 'counts', t = 'num', l = 'Nombre de chefs', min = 1, max = 50, def = 1 } end
+    if o.dv then f[#f + 1] = { k = 'dv', t = 'check', l = 'Violence conjugale (DV) — RCW 10.99' } end
     for _, extra in ipairs(o.extra or {}) do f[#f + 1] = extra end
-    f[#f + 1] = { k = 'details', t = 'area', l = o.detailsLabel or 'Facts / Description', max = 1500, rows = 2, w = 4 }
+    f[#f + 1] = { k = 'details', t = 'area', l = o.detailsLabel or 'Faits / description', max = 1500, rows = 2, w = 4 }
     return { k = o.k, t = 'list', l = o.l, item = o.item, add = o.add, min = o.min or 1, max = o.max or 3, f = f, show = o.show }
 end
 
-local CERTIFY = 'I certify (or declare) under penalty of perjury under the laws of the State of Washington that I have '
-    .. 'reasonable grounds to believe, and do believe, that the above-named person committed the above offense(s) contrary to law.'
+local CERTIFY = 'Je certifie sous peine de parjure, selon les lois de l\'État de Washington, avoir des motifs raisonnables '
+    .. 'de croire, et croire, que la personne ci-dessus a commis la ou les infractions ci-dessus.'
 
 local function certification()
     return { k = 'certify', t = 'check', l = CERTIFY, req = true, w = 4 }
@@ -606,50 +606,50 @@ local NOI = {
     label = 'Notice of Infraction (NOI)',
     short = 'NOI',
     button = 'Notice of Infraction',
-    summary = '{lastname} {firstname} — {plate} — {#violations} violation(s)',
+    summary = '{lastname} {firstname} — {plate} — {#violations} infraction(s)',
     sections = {
-        { title = 'Washington Uniform Court Docket — Notice of Infraction', f = (function()
+        { title = 'Notice of Infraction (Washington Uniform Court Docket)', f = (function()
             local fields = {
-                { t = 'note', l = 'Infraction civile (pas de casier ni de prison) : traffic infraction (RCW 46.63) ou civil infraction hors route (RCW 7.80). 3 violations au plus par docket, comme sur le formulaire officiel.' },
-                { k = 'kind', t = 'select', l = 'Notice Type', req = true, def = 'traffic', w = 2, o = {
-                    { 'traffic', 'Notice of Traffic Infraction (RCW 46.63)' }, { 'civil', 'Notice of Civil Infraction (RCW 7.80)' },
+                { t = 'note', l = 'Infraction civile (ni casier ni prison) : infraction routière (RCW 46.63) ou civile hors route (RCW 7.80). 3 infractions au plus, comme sur le formulaire officiel.' },
+                { k = 'kind', t = 'select', l = 'Type d\'avis', req = true, def = 'traffic', w = 2, o = {
+                    { 'traffic', 'Infraction routière — Notice of Traffic Infraction (RCW 46.63)' }, { 'civil', 'Infraction civile hors route — Notice of Civil Infraction (RCW 7.80)' },
                 } },
             }
-            for _, f in ipairs(waWhere({ dateLabel = 'Date of Violation', timeLabel = 'Time of Violation' })) do fields[#fields + 1] = f end
-            fields[#fields + 1] = { k = 'court', t = 'select', l = 'Court', req = true, def = 'kcdc_sea', w = 2, o = WA_COURTS }
+            for _, f in ipairs(waWhere({ dateLabel = 'Date de l\'infraction', timeLabel = 'Heure de l\'infraction' })) do fields[#fields + 1] = f end
+            fields[#fields + 1] = { k = 'court', t = 'select', l = 'Tribunal', req = true, def = 'kcdc_sea', w = 2, o = WA_COURTS }
             return fields
         end)() },
-        { title = 'Driver / Person Charged', f = (function()
+        { title = 'Conducteur / personne verbalisée', f = (function()
             local fields = waPerson({ req = true, license = true })
-            fields[#fields + 1] = { k = 'cmv', t = 'check', l = 'Commercial Motor Vehicle (CMV)', show = NOI_TRAFFIC }
-            fields[#fields + 1] = { k = 'hazmat', t = 'check', l = 'Hazardous Materials (HAZMAT)', show = NOI_TRAFFIC }
-            fields[#fields + 1] = { k = 'collision', t = 'check', l = 'Collision Involved', show = NOI_TRAFFIC }
+            fields[#fields + 1] = { k = 'cmv', t = 'check', l = 'Véhicule commercial (CMV)', show = NOI_TRAFFIC }
+            fields[#fields + 1] = { k = 'hazmat', t = 'check', l = 'Matières dangereuses (HAZMAT)', show = NOI_TRAFFIC }
+            fields[#fields + 1] = { k = 'collision', t = 'check', l = 'Accident impliqué', show = NOI_TRAFFIC }
             return fields
         end)() },
-        { title = 'Vehicle', show = NOI_TRAFFIC, f = waVehicle({ req = true }) },
-        { title = 'Speed (if applicable)', show = NOI_TRAFFIC, f = {
-            { k = 'speedLimit', t = 'num', l = 'Posted Speed Limit', min = 0, max = 85, unit = 'mph' },
-            { k = 'speedRecorded', t = 'num', l = 'Alleged Speed', min = 0, max = 250, unit = 'mph' },
-            { k = 'speedMethod', t = 'select', l = 'Speed Measured By', o = {
-                { 'radar', 'Radar' }, { 'lidar', 'Lidar (Laser)' }, { 'pace', 'Pace — Patrol Vehicle' },
-                { 'aircraft', 'Aircraft — WSP Aviation' }, { 'visual', 'Visual Estimate' },
+        { title = 'Véhicule', show = NOI_TRAFFIC, f = waVehicle({ req = true }) },
+        { title = 'Vitesse (si applicable)', show = NOI_TRAFFIC, f = {
+            { k = 'speedLimit', t = 'num', l = 'Vitesse autorisée', min = 0, max = 85, unit = 'mph' },
+            { k = 'speedRecorded', t = 'num', l = 'Vitesse relevée', min = 0, max = 250, unit = 'mph' },
+            { k = 'speedMethod', t = 'select', l = 'Mesurée par', o = {
+                { 'radar', 'Radar' }, { 'lidar', 'Lidar (laser)' }, { 'pace', 'Suivi au véhicule de patrouille (pace)' },
+                { 'aircraft', 'Avion de la WSP (WSP Aviation)' }, { 'visual', 'Estimation visuelle' },
             } },
-            { k = 'speedZone', t = 'select', l = 'Special Zone', o = {
-                { 'school', 'School / Playground Speed Zone' }, { 'work', 'Roadway Construction Zone — Workers Present' },
+            { k = 'speedZone', t = 'select', l = 'Zone particulière', o = {
+                { 'school', 'Zone scolaire / aire de jeux' }, { 'work', 'Zone de travaux — ouvriers présents' },
             } },
         } },
-        { title = 'Violations', f = {
-            offenseList({ k = 'violations', l = 'Violations', item = 'Violation', add = '+ Add Violation', set = 'infractions',
+        { title = 'Infractions', f = {
+            offenseList({ k = 'violations', l = 'Infractions', item = 'Infraction', add = '+ Ajouter une infraction', set = 'infractions',
                 fine = true, max = 3 }),
         } },
-        { title = 'Response & Certification', f = {
+        { title = 'Réponse et certification', f = {
             { t = 'note', l = 'La personne doit répondre sous 30 jours (RCW 46.63.070) : payer la pénalité, demander une audience d\'atténuation (mitigation hearing) ou contester l\'infraction (contested hearing). Sans réponse : défaut, pénalité majorée, et pour une traffic infraction suspension du permis.' },
             { k = 'signed', t = 'select', l = 'Signature', w = 2, o = {
-                { 'signed', 'Signed — Promise to Respond' }, { 'refused', 'Refused to Sign' }, { 'mailed', 'Served by Mail' },
+                { 'signed', 'Signé — s\'engage à répondre' }, { 'refused', 'Refus de signer' }, { 'mailed', 'Envoyé par courrier' },
             } },
             certification(),
         } },
-        { title = 'Officer Notes', f = { narrative('Officer Notes (not printed on the docket)', false) } },
+        { title = 'Notes de l\'agent', f = { narrative('Notes de l\'agent (non imprimées sur l\'avis)', false) } },
     },
 }
 
@@ -663,37 +663,37 @@ local CRIMCITE = {
     label = 'Criminal Citation and Notice to Appear',
     short = 'Criminal Citation',
     button = 'Criminal Citation',
-    summary = '{lastname} {firstname} — {#charges} charge(s)',
+    summary = '{lastname} {firstname} — {#charges} chef(s)',
     sections = {
-        { title = 'Washington Uniform Court Docket — Criminal Citation', f = (function()
+        { title = 'Criminal Citation (Washington Uniform Court Docket)', f = (function()
             local fields = {
-                { t = 'note', l = 'Délits seulement (misdemeanor, gross misdemeanor) : un crime (felony) se traite par une arrestation (Arrest Report). 3 charges au plus par docket.' },
+                { t = 'note', l = 'Délits seulement (misdemeanor, gross misdemeanor) : un crime (felony) se traite par une arrestation (Arrest Report). 3 chefs au plus.' },
             }
-            for _, f in ipairs(waWhere({ dateLabel = 'Date of Offense', timeLabel = 'Time of Offense' })) do fields[#fields + 1] = f end
-            fields[#fields + 1] = { k = 'traffic', t = 'check', l = 'Criminal Traffic (vehicle involved)' }
+            for _, f in ipairs(waWhere({ dateLabel = 'Date des faits', timeLabel = 'Heure des faits' })) do fields[#fields + 1] = f end
+            fields[#fields + 1] = { k = 'traffic', t = 'check', l = 'Délit routier (véhicule impliqué)' }
             return fields
         end)() },
-        { title = 'Defendant', f = waPerson({ req = true, license = true }) },
-        { title = 'Vehicle', show = CC_VEHICLE, f = waVehicle({ req = true }) },
-        { title = 'Charges', f = {
-            offenseList({ k = 'charges', l = 'Charges', item = 'Charge', add = '+ Add Charge', set = 'citable',
-                codeLabel = 'Charge (RCW)', dv = true, max = 3 }),
+        { title = 'Prévenu', f = waPerson({ req = true, license = true }) },
+        { title = 'Véhicule', show = CC_VEHICLE, f = waVehicle({ req = true }) },
+        { title = 'Chefs d\'accusation', f = {
+            offenseList({ k = 'charges', l = 'Chefs d\'accusation', item = 'Chef d\'accusation', add = '+ Ajouter un chef', set = 'citable',
+                codeLabel = 'Infraction (RCW)', dv = true, max = 3 }),
         } },
-        { title = 'Notice to Appear', f = {
-            { k = 'court', t = 'select', l = 'Court', req = true, def = 'kcdc_sea', w = 2, o = WA_COURTS },
-            { k = 'appearDate', t = 'date', l = 'Appearance Date', req = true },
-            { k = 'appearTime', t = 'time', l = 'Appearance Time', req = true, def = '08:30' },
-            { k = 'custodyStatus', t = 'select', l = 'Custody Status', req = true, w = 2, o = {
-                { 'released', 'Released on Citation (Promise to Appear)' }, { 'booked', 'Booked Into Jail' },
+        { title = 'Convocation au tribunal (Notice to Appear)', f = {
+            { k = 'court', t = 'select', l = 'Tribunal', req = true, def = 'kcdc_sea', w = 2, o = WA_COURTS },
+            { k = 'appearDate', t = 'date', l = 'Date de comparution', req = true },
+            { k = 'appearTime', t = 'time', l = 'Heure de comparution', req = true, def = '08:30' },
+            { k = 'custodyStatus', t = 'select', l = 'Situation', req = true, w = 2, o = {
+                { 'released', 'Laissé libre sur citation (s\'engage à comparaître)' }, { 'booked', 'Écroué' },
             } },
-            { k = 'jail', t = 'select', l = 'Booking Facility', req = true, w = 2, o = WA_JAILS, show = { k = 'custodyStatus', eq = 'booked' } },
-            { k = 'signed', t = 'select', l = 'Defendant Signature', w = 2, o = {
-                { 'signed', 'Signed — Promise to Appear' }, { 'refused', 'Refused to Sign' },
+            { k = 'jail', t = 'select', l = 'Lieu d\'écrou', req = true, w = 2, o = WA_JAILS, show = { k = 'custodyStatus', eq = 'booked' } },
+            { k = 'signed', t = 'select', l = 'Signature du prévenu', w = 2, o = {
+                { 'signed', 'Signé — s\'engage à comparaître' }, { 'refused', 'Refus de signer' },
             } },
             { t = 'note', l = 'Refus de signer la promesse de comparaître : la personne peut être placée en détention.', show = { k = 'signed', eq = 'refused' } },
             certification(),
         } },
-        { title = 'Statement of Probable Cause', f = { narrative('Statement of Probable Cause') } },
+        { title = 'Exposé de la cause probable (Statement of Probable Cause)', f = { narrative('Exposé de la cause probable (Statement of Probable Cause)') } },
     },
 }
 
@@ -706,25 +706,25 @@ local WWARNING = {
     id = 'wwarning',
     label = 'Written Warning',
     short = 'Written Warning',
-    summary = '{lastname} {firstname} — {plate} — {#violations} violation(s)',
+    summary = '{lastname} {firstname} — {plate} — {#violations} infraction(s)',
     sections = {
         { title = 'Written Warning', f = (function()
             local fields = {
                 { t = 'note', l = 'Avertissement écrit : aucune pénalité ni suite au tribunal ; il reste au dossier de la personne.' },
-                { k = 'kind', t = 'select', l = 'Contact Type', req = true, def = 'traffic', w = 2, o = {
-                    { 'traffic', 'Traffic Stop' }, { 'other', 'Other Contact' },
+                { k = 'kind', t = 'select', l = 'Type de contact', req = true, def = 'traffic', w = 2, o = {
+                    { 'traffic', 'Contrôle routier' }, { 'other', 'Autre contact' },
                 } },
             }
             for _, f in ipairs(waWhere()) do fields[#fields + 1] = f end
             return fields
         end)() },
-        { title = 'Driver / Person Warned', f = waPerson({ req = true, license = true }) },
-        { title = 'Vehicle', show = WW_TRAFFIC, f = waVehicle({ req = true }) },
-        { title = 'Violations', f = {
-            offenseList({ k = 'violations', l = 'Violations', item = 'Violation', add = '+ Add Violation', set = 'infractions', max = 3,
-                detailsLabel = 'Facts / Correction Required' }),
+        { title = 'Personne avertie', f = waPerson({ req = true, license = true }) },
+        { title = 'Véhicule', show = WW_TRAFFIC, f = waVehicle({ req = true }) },
+        { title = 'Infractions', f = {
+            offenseList({ k = 'violations', l = 'Infractions', item = 'Infraction', add = '+ Ajouter une infraction', set = 'infractions', max = 3,
+                detailsLabel = 'Faits / correction demandée' }),
         } },
-        { title = 'Officer Notes', f = { narrative('Officer Notes', false) } },
+        { title = 'Notes de l\'agent', f = { narrative('Notes de l\'agent', false) } },
     },
 }
 
@@ -737,57 +737,57 @@ local ARREST = {
     id = 'arrest',
     label = 'Arrest Report',
     short = 'Arrest',
-    summary = '{lastname} {firstname} — {#charges} charge(s)',
+    summary = '{lastname} {firstname} — {#charges} chef(s)',
     sections = {
-        { title = 'Arrest Information', f = (function()
-            local fields = waWhere({ dateLabel = 'Date of Arrest', timeLabel = 'Time of Arrest' })
-            fields[#fields + 1] = { k = 'arrestType', t = 'select', l = 'Type of Arrest', req = true, w = 2, o = {
-                { 'onview', 'On-View Arrest' }, { 'pc', 'Probable Cause Arrest' }, { 'warrant', 'Warrant Arrest' },
-                { 'citizen', 'Citizen Arrest — Turned Over' },
+        { title = 'Arrestation', f = (function()
+            local fields = waWhere({ dateLabel = 'Date de l\'arrestation', timeLabel = 'Heure de l\'arrestation' })
+            fields[#fields + 1] = { k = 'arrestType', t = 'select', l = 'Type d\'arrestation', req = true, w = 2, o = {
+                { 'onview', 'Flagrant délit (on-view)' }, { 'pc', 'Sur cause probable (probable cause)' }, { 'warrant', 'Sur mandat (warrant)' },
+                { 'citizen', 'Arrestation citoyenne — remise à la police' },
             } }
-            fields[#fields + 1] = { k = 'warrantNo', t = 'text', l = 'Warrant No.', req = true, max = 30, upper = true, show = ARREST_WARRANT }
-            fields[#fields + 1] = { k = 'warrantCourt', t = 'select', l = 'Issuing Court', w = 2, o = WA_COURTS, show = ARREST_WARRANT }
+            fields[#fields + 1] = { k = 'warrantNo', t = 'text', l = 'N° du mandat', req = true, max = 30, upper = true, show = ARREST_WARRANT }
+            fields[#fields + 1] = { k = 'warrantCourt', t = 'select', l = 'Tribunal émetteur', w = 2, o = WA_COURTS, show = ARREST_WARRANT }
             return fields
         end)() },
-        { title = 'Arrestee', f = (function()
+        { title = 'Personne arrêtée', f = (function()
             local fields = waPerson({ req = true, license = true })
-            fields[#fields + 1] = { k = 'height', t = 'text', l = 'Height', max = 10, ph = 'ex : 5\'10"' }
-            fields[#fields + 1] = { k = 'weight', t = 'num', l = 'Weight', min = 50, max = 700, unit = 'lbs' }
-            fields[#fields + 1] = { k = 'hair', t = 'text', l = 'Hair', max = 20 }
-            fields[#fields + 1] = { k = 'eyes', t = 'text', l = 'Eyes', max = 20 }
-            fields[#fields + 1] = { k = 'marks', t = 'text', l = 'Scars, Marks & Tattoos (SMT)', max = 120, w = 4 }
+            fields[#fields + 1] = { k = 'height', t = 'text', l = 'Taille', max = 10, ph = 'ex : 5\'10"' }
+            fields[#fields + 1] = { k = 'weight', t = 'num', l = 'Poids', min = 50, max = 700, unit = 'lbs' }
+            fields[#fields + 1] = { k = 'hair', t = 'text', l = 'Cheveux', max = 20 }
+            fields[#fields + 1] = { k = 'eyes', t = 'text', l = 'Yeux', max = 20 }
+            fields[#fields + 1] = { k = 'marks', t = 'text', l = 'Cicatrices, marques et tatouages', max = 120, w = 4 }
             return fields
         end)() },
-        { title = 'Charges', f = {
-            offenseList({ k = 'charges', l = 'Charges', item = 'Charge', add = '+ Add Charge', set = 'criminal',
-                codeLabel = 'Charge (RCW)', counts = true, dv = true, max = 20,
-                extra = { { k = 'charge', t = 'text', l = 'Additional Description', max = 120, w = 2 } } }),
+        { title = 'Chefs d\'accusation', f = {
+            offenseList({ k = 'charges', l = 'Chefs d\'accusation', item = 'Chef d\'accusation', add = '+ Ajouter un chef', set = 'criminal',
+                codeLabel = 'Infraction (RCW)', counts = true, dv = true, max = 20,
+                extra = { { k = 'charge', t = 'text', l = 'Précisions', max = 120, w = 2 } } }),
         } },
-        { title = 'Constitutional Rights, Force & Custody', f = {
-            { k = 'miranda', t = 'check', l = 'Advised of Constitutional Rights (Miranda)' },
-            { k = 'mirandaTime', t = 'time', l = 'Time Advised', show = { k = 'miranda', eq = true } },
-            { k = 'waiver', t = 'select', l = 'Rights', w = 2, show = { k = 'miranda', eq = true }, o = {
-                { 'waived', 'Waived — Agreed to Answer Questions' }, { 'attorney', 'Invoked — Requested an Attorney' },
-                { 'silent', 'Invoked — Remained Silent' },
+        { title = 'Droits, usage de la force et écrou', f = {
+            { k = 'miranda', t = 'check', l = 'Droits Miranda lus' },
+            { k = 'mirandaTime', t = 'time', l = 'Heure de lecture', show = { k = 'miranda', eq = true } },
+            { k = 'waiver', t = 'select', l = 'Droits', w = 2, show = { k = 'miranda', eq = true }, o = {
+                { 'waived', 'Renonce — accepte de répondre' }, { 'attorney', 'Invoque — demande un avocat' },
+                { 'silent', 'Invoque — garde le silence' },
             } },
-            { k = 'force', t = 'check', l = 'Use of Force' },
-            { k = 'injuries', t = 'check', l = 'Arrestee Injured' },
-            { k = 'forceDetails', t = 'area', l = 'Use of Force — Details', req = true, max = 1000, rows = 3, w = 4, show = { k = 'force', eq = true } },
-            { k = 'injuryDetails', t = 'area', l = 'Injuries — Details', req = true, max = 1000, rows = 3, w = 4, show = { k = 'injuries', eq = true } },
-            { k = 'medical', t = 'select', l = 'Medical', w = 2, o = {
-                { 'none', 'Not Required' }, { 'cleared', 'Medically Cleared (Fire / EMS)' }, { 'hospital', 'Transported to Hospital' },
+            { k = 'force', t = 'check', l = 'Usage de la force' },
+            { k = 'injuries', t = 'check', l = 'Personne blessée' },
+            { k = 'forceDetails', t = 'area', l = 'Usage de la force — détails', req = true, max = 1000, rows = 3, w = 4, show = { k = 'force', eq = true } },
+            { k = 'injuryDetails', t = 'area', l = 'Blessures — détails', req = true, max = 1000, rows = 3, w = 4, show = { k = 'injuries', eq = true } },
+            { k = 'medical', t = 'select', l = 'Médical', w = 2, o = {
+                { 'none', 'Non nécessaire' }, { 'cleared', 'Examiné et apte (pompiers / EMS)' }, { 'hospital', 'Transporté à l\'hôpital' },
             } },
-            { k = 'seized', t = 'area', l = 'Property / Evidence Seized', max = 1500, rows = 3, w = 4 },
-            { k = 'jail', t = 'select', l = 'Booking Facility', req = true, w = 2, o = WA_JAILS },
-            { k = 'custody', t = 'text', l = 'Booking No. / Notes', max = 80, w = 2 },
-            { k = 'vehDisposition', t = 'select', l = 'Arrestee\'s Vehicle', w = 2, o = {
-                { 'na', 'N/A' }, { 'impound', 'Impounded (see Impound Report)' }, { 'released', 'Released to Licensed Driver' },
-                { 'parked', 'Left Legally Parked' },
+            { k = 'seized', t = 'area', l = 'Objets / preuves saisis', max = 1500, rows = 3, w = 4 },
+            { k = 'jail', t = 'select', l = 'Lieu d\'écrou', req = true, w = 2, o = WA_JAILS },
+            { k = 'custody', t = 'text', l = 'N° d\'écrou / notes', max = 80, w = 2 },
+            { k = 'vehDisposition', t = 'select', l = 'Véhicule de la personne', w = 2, o = {
+                { 'na', 'Sans objet' }, { 'impound', 'Mis en fourrière (voir Impound Report)' }, { 'released', 'Remis à un conducteur titulaire du permis' },
+                { 'parked', 'Laissé stationné légalement' },
             } },
         } },
-        { title = 'Certification for Determination of Probable Cause', f = {
+        { title = 'Cause probable (Certification for Determination of Probable Cause)', f = {
             { t = 'note', l = 'Exposé des faits établissant la cause probable (probable cause), lu par le juge pour maintenir la détention.' },
-            narrative('Probable Cause Narrative'),
+            narrative('Exposé des faits'),
             certification(),
         } },
     },
@@ -804,68 +804,68 @@ local DUI = {
     short = 'DUI',
     summary = '{lastname} {firstname} — {plate}',
     sections = {
-        { title = 'Incident', f = (function()
+        { title = 'Faits', f = (function()
             local fields = waWhere()
-            fields[#fields + 1] = { k = 'contactReason', t = 'select', l = 'Reason for Contact', req = true, w = 2, o = {
-                { 'traffic', 'Traffic Violation' }, { 'collision', 'Collision' }, { 'pc', 'Physical Control — Occupied Parked Vehicle' },
-                { 'citizen', 'Citizen Report' }, { 'other', 'Other' },
+            fields[#fields + 1] = { k = 'contactReason', t = 'select', l = 'Motif du contrôle', req = true, w = 2, o = {
+                { 'traffic', 'Infraction routière' }, { 'collision', 'Accident' }, { 'pc', 'Contrôle du véhicule — véhicule stationné occupé' },
+                { 'citizen', 'Signalement d\'un citoyen' }, { 'other', 'Autre' },
             } }
             return fields
         end)() },
-        { title = 'Subject', f = waPerson({ req = true, license = true }) },
-        { title = 'Vehicle', f = waVehicle() },
-        { title = 'Driving Observations', f = {
-            { k = 'driving', t = 'checks', l = 'Observed', ph = 'cochez tout ce qui s\'applique', o = {
-                { 'weaving', 'Weaving' }, { 'lane', 'Lane Travel Violation' }, { 'speed', 'Speed Variance' },
-                { 'wide', 'Wide Turn' }, { 'braking', 'Erratic Braking' }, { 'nolights', 'No Headlights' },
-                { 'stopped', 'Stopped in Roadway' }, { 'collision', 'Collision' }, { 'slow', 'Slow Response to Signals' },
+        { title = 'Personne contrôlée', f = waPerson({ req = true, license = true }) },
+        { title = 'Véhicule', f = waVehicle() },
+        { title = 'Observations de conduite', f = {
+            { k = 'driving', t = 'checks', l = 'Constaté', ph = 'cochez tout ce qui s\'applique', o = {
+                { 'weaving', 'Zigzague' }, { 'lane', 'Sort de sa voie' }, { 'speed', 'Vitesse irrégulière' },
+                { 'wide', 'Virage trop large' }, { 'braking', 'Freinages brusques' }, { 'nolights', 'Phares éteints' },
+                { 'stopped', 'Arrêté sur la chaussée' }, { 'collision', 'Accident' }, { 'slow', 'Réagit lentement aux feux' },
             } },
         } },
-        { title = 'Observations at Contact', f = {
-            { k = 'contact', t = 'checks', l = 'Observed', ph = 'cochez tout ce qui s\'applique', o = {
-                { 'odor', 'Odor of Intoxicants' }, { 'eyes', 'Bloodshot / Watery Eyes' }, { 'speech', 'Slurred Speech' },
-                { 'balance', 'Unsteady Balance' }, { 'fumble', 'Fumbled Documents' }, { 'admit', 'Admitted Drinking' },
-                { 'containers', 'Open Containers in Vehicle' }, { 'drugs', 'Signs of Drug Impairment' },
+        { title = 'Observations au contact', f = {
+            { k = 'contact', t = 'checks', l = 'Constaté', ph = 'cochez tout ce qui s\'applique', o = {
+                { 'odor', 'Odeur d\'alcool' }, { 'eyes', 'Yeux rouges / larmoyants' }, { 'speech', 'Élocution pâteuse' },
+                { 'balance', 'Équilibre instable' }, { 'fumble', 'Peine à sortir ses papiers' }, { 'admit', 'Reconnaît avoir bu' },
+                { 'containers', 'Contenants ouverts dans le véhicule' }, { 'drugs', 'Signes de consommation de drogue' },
             } },
-            { k = 'admission', t = 'text', l = 'Statement — Amount / Type Consumed', max = 120, w = 4 },
+            { k = 'admission', t = 'text', l = 'Déclaration — quantité / type consommé', max = 120, w = 4 },
         } },
-        { title = 'Standardized Field Sobriety Tests (SFST)', f = {
-            { k = 'sfst', t = 'select', l = 'SFSTs', req = true, w = 2, o = {
-                { 'performed', 'Performed (Voluntary)' }, { 'refused', 'Refused' }, { 'na', 'Not Offered — Safety / Medical' },
+        { title = 'Tests de sobriété sur le terrain (SFST)', f = {
+            { k = 'sfst', t = 'select', l = 'Tests SFST', req = true, w = 2, o = {
+                { 'performed', 'Réalisés (volontairement)' }, { 'refused', 'Refusés' }, { 'na', 'Non proposés — sécurité / médical' },
             } },
-            { k = 'hgn', t = 'num', l = 'HGN — Clues (of 6)', min = 0, max = 6, show = SFST_DONE },
-            { k = 'wat', t = 'num', l = 'Walk-and-Turn — Clues (of 8)', min = 0, max = 8, show = SFST_DONE },
-            { k = 'ols', t = 'num', l = 'One-Leg Stand — Clues (of 4)', min = 0, max = 4, show = SFST_DONE },
-            { k = 'pbt', t = 'text', l = 'Portable Breath Test (PBT)', max = 6, ph = '0.000' },
+            { k = 'hgn', t = 'num', l = 'HGN (nystagmus) — indices (sur 6)', min = 0, max = 6, show = SFST_DONE },
+            { k = 'wat', t = 'num', l = 'Walk-and-Turn (marche) — indices (sur 8)', min = 0, max = 8, show = SFST_DONE },
+            { k = 'ols', t = 'num', l = 'One-Leg Stand (sur une jambe) — indices (sur 4)', min = 0, max = 4, show = SFST_DONE },
+            { k = 'pbt', t = 'text', l = 'Éthylotest portable (PBT)', max = 6, ph = '0.000' },
         } },
-        { title = 'Arrest, Implied Consent & Evidential Test', f = {
-            { k = 'miranda', t = 'check', l = 'Advised of Constitutional Rights (Miranda)' },
-            { k = 'implied', t = 'check', l = 'Implied Consent Warning for Breath Read (RCW 46.20.308)' },
-            { k = 'testType', t = 'select', l = 'Evidential Test', req = true, w = 2, o = {
-                { 'breath', 'Breath Test — BAC DataMaster DMT' }, { 'bloodwarrant', 'Blood Draw — Search Warrant' },
-                { 'bloodconsent', 'Blood Draw — Consent' }, { 'refused', 'Refused Breath Test' }, { 'none', 'No Test — Medical / Unable' },
+        { title = 'Arrestation, consentement implicite et test probant', f = {
+            { k = 'miranda', t = 'check', l = 'Droits Miranda lus' },
+            { k = 'implied', t = 'check', l = 'Avertissement de consentement implicite lu (Implied Consent, RCW 46.20.308)' },
+            { k = 'testType', t = 'select', l = 'Test probant', req = true, w = 2, o = {
+                { 'breath', 'Éthylomètre — BAC DataMaster DMT' }, { 'bloodwarrant', 'Prise de sang — sur mandat' },
+                { 'bloodconsent', 'Prise de sang — avec consentement' }, { 'refused', 'Refus de l\'éthylomètre' }, { 'none', 'Aucun test — médical / impossible' },
             } },
-            { k = 'brac1', t = 'text', l = 'Breath Sample 1 (BrAC)', max = 6, ph = '0.000', show = { k = 'testType', eq = 'breath' } },
-            { k = 'brac2', t = 'text', l = 'Breath Sample 2 (BrAC)', max = 6, ph = '0.000', show = { k = 'testType', eq = 'breath' } },
-            { k = 'bloodResult', t = 'text', l = 'Blood Result (WSP Toxicology Lab)', max = 60, w = 2,
+            { k = 'brac1', t = 'text', l = 'Souffle — échantillon 1 (BrAC)', max = 6, ph = '0.000', show = { k = 'testType', eq = 'breath' } },
+            { k = 'brac2', t = 'text', l = 'Souffle — échantillon 2 (BrAC)', max = 6, ph = '0.000', show = { k = 'testType', eq = 'breath' } },
+            { k = 'bloodResult', t = 'text', l = 'Résultat sanguin (labo de toxicologie WSP)', max = 60, w = 2,
               show = { k = 'testType', ['in'] = { 'bloodwarrant', 'bloodconsent' } } },
-            { k = 'dre', t = 'check', l = 'Drug Recognition Expert (DRE) Evaluation' },
+            { k = 'dre', t = 'check', l = 'Évaluation par un expert drogues (DRE)' },
         } },
-        { title = 'Charges', f = {
-            offenseList({ k = 'charges', l = 'Charges', item = 'Charge', add = '+ Add Charge', set = 'criminal',
-                codeLabel = 'Charge (RCW)', max = 6 }),
+        { title = 'Chefs d\'accusation', f = {
+            offenseList({ k = 'charges', l = 'Chefs d\'accusation', item = 'Chef d\'accusation', add = '+ Ajouter un chef', set = 'criminal',
+                codeLabel = 'Infraction (RCW)', max = 6 }),
         } },
-        { title = 'Disposition', f = {
-            { k = 'vehDisposition', t = 'select', l = 'Vehicle', req = true, w = 2, o = {
-                { 'impound', 'Impounded — 12-Hour DUI Hold (RCW 46.55.360)' }, { 'released', 'Released to Licensed Driver' },
-                { 'parked', 'Left Legally Parked' }, { 'na', 'N/A' },
+        { title = 'Suites', f = {
+            { k = 'vehDisposition', t = 'select', l = 'Véhicule', req = true, w = 2, o = {
+                { 'impound', 'Fourrière — immobilisation DUI de 12 h (RCW 46.55.360)' }, { 'released', 'Remis à un conducteur titulaire du permis' },
+                { 'parked', 'Laissé stationné légalement' }, { 'na', 'Sans objet' },
             } },
-            { k = 'custodyStatus', t = 'select', l = 'Custody Status', req = true, w = 2, o = {
-                { 'booked', 'Booked Into Jail' }, { 'released', 'Released on Citation' }, { 'hospital', 'Released to Hospital' },
+            { k = 'custodyStatus', t = 'select', l = 'Situation', req = true, w = 2, o = {
+                { 'booked', 'Écroué' }, { 'released', 'Laissé libre sur citation' }, { 'hospital', 'Remis à l\'hôpital' },
             } },
-            { k = 'jail', t = 'select', l = 'Booking Facility', req = true, w = 2, o = WA_JAILS, show = { k = 'custodyStatus', eq = 'booked' } },
+            { k = 'jail', t = 'select', l = 'Lieu d\'écrou', req = true, w = 2, o = WA_JAILS, show = { k = 'custodyStatus', eq = 'booked' } },
         } },
-        { title = 'Narrative / Probable Cause', f = { narrative('Narrative — Probable Cause'), certification() } },
+        { title = 'Rapport / cause probable', f = { narrative('Rapport — cause probable'), certification() } },
     },
 }
 
@@ -873,14 +873,14 @@ local DUI = {
 -- POLICE TRAFFIC COLLISION REPORT (PTCR — SECTOR)
 -- -------------------------------------------------------------------------
 local KABCO = {
-    { 'O', 'O — No Apparent Injury' }, { 'C', 'C — Possible Injury' }, { 'B', 'B — Suspected Minor Injury' },
-    { 'A', 'A — Suspected Serious Injury' }, { 'K', 'K — Fatal Injury' },
+    { 'O', 'O — Aucune blessure apparente' }, { 'C', 'C — Blessure possible' }, { 'B', 'B — Blessure légère' },
+    { 'A', 'A — Blessure grave' }, { 'K', 'K — Mortel' },
 }
 local RESTRAINTS = {
-    { 'belt', 'Lap & Shoulder Belt' }, { 'lap', 'Lap Belt Only' }, { 'child', 'Child Restraint' },
-    { 'helmet', 'Helmet (Motorcycle / Bicycle)' }, { 'none', 'None Used' }, { 'unknown', 'Unknown' },
+    { 'belt', 'Ceinture 3 points' }, { 'lap', 'Ceinture ventrale' }, { 'child', 'Siège enfant' },
+    { 'helmet', 'Casque (moto / vélo)' }, { 'none', 'Aucune' }, { 'unknown', 'Inconnu' },
 }
-local EJECTION = { { 'no', 'Not Ejected' }, { 'partial', 'Partially Ejected' }, { 'total', 'Totally Ejected' }, { 'trapped', 'Trapped' } }
+local EJECTION = { { 'no', 'Non éjecté' }, { 'partial', 'Partiellement éjecté' }, { 'total', 'Éjecté' }, { 'trapped', 'Coincé' } }
 local UNIT_DRIVEN = { k = 'unitType', ['in'] = { 'mv', 'parked', 'hr' } }   -- unit avec un véhicule
 local UNIT_PERSON = { k = 'unitType', ['in'] = { 'mv', 'ped', 'cyclist' } } -- conducteur / piéton connu
 local UNIT_MOVING = { k = 'unitType', eq = 'mv' }
@@ -892,164 +892,164 @@ local PTCR = {
     button = 'Collision Report (PTCR)',
     summary = '{street} {crossStreet} — {#units} unit(s)',
     sections = {
-        { title = 'Collision Information', f = {
-            { t = 'note', l = 'Collision à déclarer : blessé, mort, ou dégâts d\'au moins 1 000 $ (RCW 46.52.030).' },
-            { k = 'date', t = 'date', l = 'Date of Collision', req = true, def = 'today', past = true },
-            { k = 'time', t = 'time', l = 'Time (24h)', req = true, def = 'now' },
-            { k = 'county', t = 'select', l = 'County', req = true, def = 'king', o = WA_COUNTIES },
-            { k = 'city', t = 'text', l = 'City / Unincorporated', max = 40 },
-            { k = 'street', t = 'text', l = 'Roadway / Street', req = true, max = 80, w = 2 },
-            { k = 'crossStreet', t = 'text', l = 'At Intersection With', max = 80, w = 2 },
-            { k = 'milepost', t = 'text', l = 'Milepost (State Route)', max = 12 },
-            { k = 'refDistance', t = 'text', l = 'Distance From Reference Point', max = 30, ph = 'ex : 200 ft N of' },
-            { k = 'agency', t = 'text', l = 'Investigating Agency', req = true, max = 80, w = 2, def = 'unitAgency' },
-            { k = 'hitRun', t = 'check', l = 'Hit and Run' },
-            { k = 'damage1000', t = 'check', l = 'Property Damage $1,000 or More' },
-            { k = 'injured', t = 'num', l = 'Number Injured', min = 0, max = 99 },
-            { k = 'killed', t = 'num', l = 'Number Killed', min = 0, max = 99 },
+        { title = 'Accident', f = {
+            { t = 'note', l = 'Accident à déclarer : blessé, mort, ou au moins 1 000 $ de dégâts (RCW 46.52.030).' },
+            { k = 'date', t = 'date', l = 'Date de l\'accident', req = true, def = 'today', past = true },
+            { k = 'time', t = 'time', l = 'Heure', req = true, def = 'now' },
+            { k = 'county', t = 'select', l = 'Comté', req = true, def = 'king', o = WA_COUNTIES },
+            { k = 'city', t = 'text', l = 'Ville / hors commune', max = 40 },
+            { k = 'street', t = 'text', l = 'Route / rue', req = true, max = 80, w = 2 },
+            { k = 'crossStreet', t = 'text', l = 'À l\'intersection avec', max = 80, w = 2 },
+            { k = 'milepost', t = 'text', l = 'Borne kilométrique (Milepost)', max = 12 },
+            { k = 'refDistance', t = 'text', l = 'Distance d\'un point de repère', max = 30, ph = 'ex : 200 ft au nord de' },
+            { k = 'agency', t = 'text', l = 'Service enquêteur', req = true, max = 80, w = 2, def = 'unitAgency' },
+            { k = 'hitRun', t = 'check', l = 'Délit de fuite' },
+            { k = 'damage1000', t = 'check', l = 'Dégâts de 1 000 $ ou plus' },
+            { k = 'injured', t = 'num', l = 'Nombre de blessés', min = 0, max = 99 },
+            { k = 'killed', t = 'num', l = 'Nombre de morts', min = 0, max = 99 },
         } },
-        { title = 'Environment & Roadway', f = {
-            { k = 'collisionType', t = 'select', l = 'Collision Type', req = true, w = 2, o = {
-                { 'rearend', 'Rear End (Front to Rear)' }, { 'headon', 'Head On (Front to Front)' },
-                { 'angle', 'Angle (Entering at Angle / T-Bone)' }, { 'sssame', 'Sideswipe — Same Direction' },
-                { 'ssopp', 'Sideswipe — Opposite Direction' }, { 'reartoside', 'Rear to Side' }, { 'reartorear', 'Rear to Rear (Backing)' },
-                { 'fixed', 'Fixed Object' }, { 'overturn', 'Overturn / Rollover' }, { 'ped', 'Pedestrian' },
-                { 'cyclist', 'Pedalcyclist' }, { 'parked', 'Parked Vehicle' }, { 'animal', 'Animal' }, { 'other', 'Other / Non-Collision' },
+        { title = 'Conditions et route', f = {
+            { k = 'collisionType', t = 'select', l = 'Type de collision', req = true, w = 2, o = {
+                { 'rearend', 'Collision arrière' }, { 'headon', 'Collision frontale' },
+                { 'angle', 'Collision en angle (en T)' }, { 'sssame', 'Accrochage latéral — même sens' },
+                { 'ssopp', 'Accrochage latéral — sens inverse' }, { 'reartoside', 'Arrière contre flanc' }, { 'reartorear', 'Arrière contre arrière (marche arrière)' },
+                { 'fixed', 'Obstacle fixe' }, { 'overturn', 'Tonneau / renversement' }, { 'ped', 'Piéton' },
+                { 'cyclist', 'Cycliste' }, { 'parked', 'Véhicule stationné' }, { 'animal', 'Animal' }, { 'other', 'Autre / sans collision' },
             } },
-            { k = 'weather', t = 'select', l = 'Weather', req = true, w = 2, o = {
-                { 'clear', 'Clear or Partly Cloudy' }, { 'overcast', 'Overcast' }, { 'rain', 'Raining' }, { 'snow', 'Snowing' },
-                { 'fog', 'Fog / Smog / Smoke' }, { 'sleet', 'Sleet / Hail / Freezing Rain' }, { 'wind', 'Severe Crosswind' },
-                { 'blowing', 'Blowing Sand / Dirt / Snow' }, { 'unknown', 'Unknown' },
+            { k = 'weather', t = 'select', l = 'Météo', req = true, w = 2, o = {
+                { 'clear', 'Dégagé / peu nuageux' }, { 'overcast', 'Couvert' }, { 'rain', 'Pluie' }, { 'snow', 'Neige' },
+                { 'fog', 'Brouillard / fumée' }, { 'sleet', 'Grésil / grêle / pluie verglaçante' }, { 'wind', 'Fort vent latéral' },
+                { 'blowing', 'Sable / poussière / neige soufflés' }, { 'unknown', 'Inconnu' },
             } },
-            { k = 'light', t = 'select', l = 'Lighting Condition', w = 2, o = {
-                { 'day', 'Daylight' }, { 'dawn', 'Dawn' }, { 'dusk', 'Dusk' }, { 'darklit', 'Dark — Street Lights On' },
-                { 'darkoff', 'Dark — Street Lights Off' }, { 'dark', 'Dark — No Street Lights' }, { 'unknown', 'Unknown' },
+            { k = 'light', t = 'select', l = 'Luminosité', w = 2, o = {
+                { 'day', 'Jour' }, { 'dawn', 'Aube' }, { 'dusk', 'Crépuscule' }, { 'darklit', 'Nuit — éclairage allumé' },
+                { 'darkoff', 'Nuit — éclairage éteint' }, { 'dark', 'Nuit — sans éclairage' }, { 'unknown', 'Inconnu' },
             } },
-            { k = 'surface', t = 'select', l = 'Roadway Surface Condition', w = 2, o = {
-                { 'dry', 'Dry' }, { 'wet', 'Wet' }, { 'snow', 'Snow / Slush' }, { 'ice', 'Ice / Frost' },
-                { 'water', 'Standing Water' }, { 'sand', 'Sand / Mud / Dirt' }, { 'oil', 'Oil' }, { 'other', 'Other' },
+            { k = 'surface', t = 'select', l = 'État de la chaussée', w = 2, o = {
+                { 'dry', 'Sèche' }, { 'wet', 'Mouillée' }, { 'snow', 'Neige / neige fondue' }, { 'ice', 'Verglas / givre' },
+                { 'water', 'Flaques d\'eau' }, { 'sand', 'Sable / boue / terre' }, { 'oil', 'Huile' }, { 'other', 'Autre' },
             } },
-            { k = 'junction', t = 'select', l = 'Junction Relationship', w = 2, o = {
-                { 'intersection', 'At Intersection and Related' }, { 'intrelated', 'Intersection Related — Not at Intersection' },
-                { 'notint', 'Not at Intersection' }, { 'driveway', 'Driveway Related' }, { 'ramp', 'At Ramp Junction' }, { 'alley', 'Alley' },
+            { k = 'junction', t = 'select', l = 'Intersection', w = 2, o = {
+                { 'intersection', 'À l\'intersection' }, { 'intrelated', 'Près d\'une intersection' },
+                { 'notint', 'Hors intersection' }, { 'driveway', 'Entrée / sortie de propriété' }, { 'ramp', 'Bretelle d\'accès' }, { 'alley', 'Ruelle' },
             } },
-            { k = 'control', t = 'select', l = 'Traffic Control', w = 2, o = {
-                { 'none', 'None' }, { 'signal', 'Traffic Signal' }, { 'stop', 'Stop Sign' }, { 'yield', 'Yield Sign' },
-                { 'flashing', 'Flashing Signal' }, { 'rr', 'Railroad Crossing Device' }, { 'officer', 'Officer / Flagger' },
-                { 'roundabout', 'Roundabout' },
+            { k = 'control', t = 'select', l = 'Signalisation', w = 2, o = {
+                { 'none', 'Aucune' }, { 'signal', 'Feu tricolore' }, { 'stop', 'Stop' }, { 'yield', 'Cédez le passage' },
+                { 'flashing', 'Feu clignotant' }, { 'rr', 'Passage à niveau' }, { 'officer', 'Agent / signaleur' },
+                { 'roundabout', 'Rond-point' },
             } },
-            { k = 'workZone', t = 'select', l = 'Work Zone', o = {
-                { 'no', 'No' }, { 'workers', 'Yes — Workers Present' }, { 'noworkers', 'Yes — No Workers Present' },
+            { k = 'workZone', t = 'select', l = 'Zone de travaux', o = {
+                { 'no', 'Non' }, { 'workers', 'Oui — ouvriers présents' }, { 'noworkers', 'Oui — sans ouvriers' },
             } },
-            { k = 'roadType', t = 'select', l = 'Roadway Classification', w = 2, o = {
-                { 'interstate', 'Interstate' }, { 'us_highway', 'US Route' }, { 'state_route', 'State Route (SR)' },
-                { 'county_road', 'County Road' }, { 'city_street', 'City Street' }, { 'private', 'Private Road / Parking Lot' },
+            { k = 'roadType', t = 'select', l = 'Type de route', w = 2, o = {
+                { 'interstate', 'Interstate (autoroute)' }, { 'us_highway', 'US Route' }, { 'state_route', 'State Route (route d\'État)' },
+                { 'county_road', 'Route de comté' }, { 'city_street', 'Rue' }, { 'private', 'Route privée / parking' },
             } },
-            { k = 'lanes', t = 'num', l = 'Number of Lanes', min = 1, max = 12 },
+            { k = 'lanes', t = 'num', l = 'Nombre de voies', min = 1, max = 12 },
         } },
-        { title = 'Units Involved', f = {
-            { k = 'units', t = 'list', l = 'Units', item = 'Unit', add = '+ Add Unit', min = 1, max = 10, f = {
-                { k = 'unitType', t = 'select', l = 'Unit Type', req = true, w = 2, o = {
-                    { 'mv', 'Motor Vehicle in Transport' }, { 'parked', 'Parked Motor Vehicle' }, { 'ped', 'Pedestrian' },
-                    { 'cyclist', 'Pedalcyclist' }, { 'hr', 'Hit and Run Vehicle — Driver Unknown' },
+        { title = 'Impliqués (units)', f = {
+            { k = 'units', t = 'list', l = 'Units', item = 'Unit', add = '+ Ajouter une unit', min = 1, max = 10, f = {
+                { k = 'unitType', t = 'select', l = 'Type d\'unit', req = true, w = 2, o = {
+                    { 'mv', 'Véhicule en circulation' }, { 'parked', 'Véhicule stationné' }, { 'ped', 'Piéton' },
+                    { 'cyclist', 'Cycliste' }, { 'hr', 'Véhicule en fuite — conducteur inconnu' },
                 } },
-                { t = 'group', l = 'Driver / Pedestrian / Pedalcyclist', show = UNIT_PERSON, f = {
+                { t = 'group', l = 'Conducteur / piéton / cycliste', show = UNIT_PERSON, f = {
                     { t = 'lookup', kind = 'identity',
                       map = { lastname = 'lastname', firstname = 'firstname', dob = 'dob', sex = 'sexReport', address = 'address',
                               dlNumber = 'licenseNumber', dlClass = 'licenseClass', dlState = 'licenseState' } },
-                    { k = 'lastname', t = 'text', l = 'Last Name', req = true, max = 40 },
-                    { k = 'firstname', t = 'text', l = 'First Name', max = 40 },
-                    { k = 'dob', t = 'date', l = 'Date of Birth (DOB)', past = true },
-                    { k = 'sex', t = 'select', l = 'Sex', o = WA_SEXES },
-                    { k = 'address', t = 'text', l = 'Address', max = 80, w = 3 },
-                    { k = 'phone', t = 'text', l = 'Phone', max = 20 },
-                    { k = 'dlNumber', t = 'text', l = 'Driver License No. (OLN)', max = 20, upper = true, show = UNIT_MOVING },
-                    { k = 'dlState', t = 'text', l = 'DL State', max = 40, show = UNIT_MOVING },
-                    { k = 'dlClass', t = 'select', l = 'License Type / Class', o = WA_DL_TYPES, show = UNIT_MOVING },
-                    { k = 'dlStatus', t = 'select', l = 'License Status', o = WA_DL_STATUS, show = UNIT_MOVING },
-                    { k = 'injury', t = 'select', l = 'Injury (KABCO)', req = true, w = 2, o = KABCO },
-                    { k = 'restraint', t = 'select', l = 'Restraint / Helmet', o = RESTRAINTS },
+                    { k = 'lastname', t = 'text', l = 'Nom', req = true, max = 40 },
+                    { k = 'firstname', t = 'text', l = 'Prénom', max = 40 },
+                    { k = 'dob', t = 'date', l = 'Date de naissance', past = true },
+                    { k = 'sex', t = 'select', l = 'Sexe', o = WA_SEXES },
+                    { k = 'address', t = 'text', l = 'Adresse', max = 80, w = 3 },
+                    { k = 'phone', t = 'text', l = 'Téléphone', max = 20 },
+                    { k = 'dlNumber', t = 'text', l = 'N° de permis (OLN)', max = 20, upper = true, show = UNIT_MOVING },
+                    { k = 'dlState', t = 'text', l = 'État du permis', max = 40, show = UNIT_MOVING },
+                    { k = 'dlClass', t = 'select', l = 'Type de permis', o = WA_DL_TYPES, show = UNIT_MOVING },
+                    { k = 'dlStatus', t = 'select', l = 'Statut du permis', o = WA_DL_STATUS, show = UNIT_MOVING },
+                    { k = 'injury', t = 'select', l = 'Blessures (KABCO)', req = true, w = 2, o = KABCO },
+                    { k = 'restraint', t = 'select', l = 'Ceinture / casque', o = RESTRAINTS },
                     { k = 'airbag', t = 'select', l = 'Airbag', show = UNIT_MOVING, o = {
-                        { 'none', 'Not Deployed' }, { 'front', 'Deployed — Front' }, { 'side', 'Deployed — Side' },
-                        { 'multiple', 'Deployed — Multiple' }, { 'na', 'Not Applicable' },
+                        { 'none', 'Non déclenché' }, { 'front', 'Déclenché — avant' }, { 'side', 'Déclenché — latéral' },
+                        { 'multiple', 'Déclenché — plusieurs' }, { 'na', 'Sans objet' },
                     } },
-                    { k = 'ejection', t = 'select', l = 'Ejection', o = EJECTION },
-                    { k = 'condition', t = 'select', l = 'Sobriety', w = 2, o = {
-                        { 'hnbd', 'Had Not Been Drinking' }, { 'hbdimpaired', 'HBD — Ability Impaired' },
-                        { 'hbdnot', 'HBD — Ability Not Impaired' }, { 'hbdunknown', 'HBD — Unknown if Impaired' },
-                        { 'drugs', 'Under Influence of Drugs' }, { 'unknown', 'Unknown' },
+                    { k = 'ejection', t = 'select', l = 'Éjection', o = EJECTION },
+                    { k = 'condition', t = 'select', l = 'Sobriété', w = 2, o = {
+                        { 'hnbd', 'N\'a pas bu' }, { 'hbdimpaired', 'A bu — capacités altérées' },
+                        { 'hbdnot', 'A bu — capacités non altérées' }, { 'hbdunknown', 'A bu — altération inconnue' },
+                        { 'drugs', 'Sous l\'emprise de drogues' }, { 'unknown', 'Inconnu' },
                     } },
-                    { k = 'sobrietyTest', t = 'select', l = 'Test Given', o = {
-                        { 'none', 'None' }, { 'breath', 'Breath' }, { 'blood', 'Blood' }, { 'refused', 'Refused' },
+                    { k = 'sobrietyTest', t = 'select', l = 'Test réalisé', o = {
+                        { 'none', 'Aucune' }, { 'breath', 'Souffle' }, { 'blood', 'Sang' }, { 'refused', 'Refusés' },
                     } },
-                    { k = 'distraction', t = 'select', l = 'Driver Distraction', w = 2, show = UNIT_MOVING, o = {
-                        { 'none', 'Not Distracted' }, { 'phonetalk', 'Cell Phone — Talking' }, { 'phonetext', 'Cell Phone — Texting / Browsing' },
-                        { 'device', 'Other Electronic Device' }, { 'passenger', 'Passenger' }, { 'outside', 'Outside the Vehicle' },
-                        { 'unknown', 'Unknown' },
+                    { k = 'distraction', t = 'select', l = 'Distraction du conducteur', w = 2, show = UNIT_MOVING, o = {
+                        { 'none', 'Pas distrait' }, { 'phonetalk', 'Téléphone — appel' }, { 'phonetext', 'Téléphone — SMS / navigation' },
+                        { 'device', 'Autre appareil électronique' }, { 'passenger', 'Passager' }, { 'outside', 'Extérieur du véhicule' },
+                        { 'unknown', 'Inconnu' },
                     } },
-                    { k = 'contributing', t = 'checks', l = 'Contributing Circumstances', ph = 'cochez tout ce qui s\'applique', o = {
-                        { 'none', 'None' }, { 'reasspeed', 'Exceeding Reasonably Safe Speed' }, { 'limit', 'Exceeding Stated Speed Limit' },
-                        { 'row', 'Did Not Grant Right-of-Way to Vehicle' }, { 'signal', 'Disregard Stop Sign / Signal' },
-                        { 'follow', 'Following Too Closely' }, { 'passing', 'Improper Passing' }, { 'center', 'Over Center Line' },
-                        { 'inattention', 'Inattention' }, { 'alcohol', 'Under Influence of Alcohol' }, { 'drugs', 'Under Influence of Drugs' },
-                        { 'asleep', 'Apparently Asleep / Fatigued' }, { 'turn', 'Improper Turn' }, { 'backing', 'Improper Backing' },
-                        { 'defective', 'Operating Defective Equipment' }, { 'pedrow', 'Failure to Yield to Pedestrian' },
-                        { 'pedaction', 'Pedestrian / Cyclist Action' },
+                    { k = 'contributing', t = 'checks', l = 'Causes de l\'accident', ph = 'cochez tout ce qui s\'applique', o = {
+                        { 'none', 'Aucune' }, { 'reasspeed', 'Vitesse inadaptée' }, { 'limit', 'Excès de vitesse' },
+                        { 'row', 'Refus de priorité' }, { 'signal', 'Non-respect du stop / feu' },
+                        { 'follow', 'Distance de sécurité insuffisante' }, { 'passing', 'Dépassement dangereux' }, { 'center', 'Franchissement de la ligne centrale' },
+                        { 'inattention', 'Inattention' }, { 'alcohol', 'Sous l\'emprise de l\'alcool' }, { 'drugs', 'Sous l\'emprise de drogues' },
+                        { 'asleep', 'Endormi / fatigué' }, { 'turn', 'Virage dangereux' }, { 'backing', 'Marche arrière dangereuse' },
+                        { 'defective', 'Équipement défectueux' }, { 'pedrow', 'Refus de priorité à un piéton' },
+                        { 'pedaction', 'Action d\'un piéton / cycliste' },
                     } },
-                    { k = 'transportedTo', t = 'text', l = 'Transported To (Hospital / EMS)', max = 80, w = 2, ph = 'ex : Harborview Medical Center' },
-                    { k = 'cited', t = 'check', l = 'Citation / NOI Issued' },
-                    offenseList({ k = 'violations', l = 'Violations Cited', item = 'Violation', add = '+ Add Violation', set = 'all',
+                    { k = 'transportedTo', t = 'text', l = 'Transporté vers (hôpital / EMS)', max = 80, w = 2, ph = 'ex : Harborview Medical Center' },
+                    { k = 'cited', t = 'check', l = 'Infraction relevée (citation / NOI)' },
+                    offenseList({ k = 'violations', l = 'Infractions relevées', item = 'Infraction', add = '+ Ajouter une infraction', set = 'all',
                         min = 0, max = 3, show = { k = 'cited', eq = true } }),
                 } },
-                { t = 'group', l = 'Vehicle', show = UNIT_DRIVEN, f = {
+                { t = 'group', l = 'Véhicule', show = UNIT_DRIVEN, f = {
                     { t = 'lookup', kind = 'vehicle',
                       map = { plate = 'plate', vin = 'vin', model = 'makeModel', year = 'year', owner = 'ownerFull', insurance = 'insurance' } },
-                    { k = 'plate', t = 'text', l = 'Vehicle License No. (Plate)', max = 8, upper = true },
-                    { k = 'plateState', t = 'text', l = 'Plate State', max = 40 },
-                    { k = 'year', t = 'num', l = 'Year', min = 1900, max = 2100 },
-                    { k = 'model', t = 'text', l = 'Make / Model', max = 60 },
-                    { k = 'vehType', t = 'select', l = 'Body Style', o = WA_BODY_STYLES },
+                    { k = 'plate', t = 'text', l = 'Plaque d\'immatriculation', max = 8, upper = true },
+                    { k = 'plateState', t = 'text', l = 'État de la plaque', max = 40 },
+                    { k = 'year', t = 'num', l = 'Année', min = 1900, max = 2100 },
+                    { k = 'model', t = 'text', l = 'Marque / modèle', max = 60 },
+                    { k = 'vehType', t = 'select', l = 'Carrosserie', o = WA_BODY_STYLES },
                     { k = 'vin', t = 'text', l = 'VIN', max = 17, upper = true, w = 2 },
-                    { k = 'owner', t = 'text', l = 'Registered Owner', max = 80, w = 2 },
-                    { k = 'insurance', t = 'text', l = 'Insurance (Company / Policy No.)', max = 80, w = 2 },
-                    { k = 'direction', t = 'select', l = 'Direction of Travel', o = DIRECTIONS },
-                    { k = 'action', t = 'select', l = 'Vehicle Action', w = 2, o = {
-                        { 'straight', 'Going Straight Ahead' }, { 'right', 'Making Right Turn' }, { 'left', 'Making Left Turn' },
-                        { 'uturn', 'Making U-Turn' }, { 'slowing', 'Slowing' }, { 'stopped', 'Stopped for Traffic' },
-                        { 'starting', 'Starting From Parked' }, { 'backing', 'Backing' }, { 'lane', 'Changing Lanes' },
-                        { 'overtaking', 'Overtaking / Passing' }, { 'merging', 'Merging' }, { 'parked', 'Legally Parked' },
+                    { k = 'owner', t = 'text', l = 'Propriétaire', max = 80, w = 2 },
+                    { k = 'insurance', t = 'text', l = 'Assurance (compagnie / n° de contrat)', max = 80, w = 2 },
+                    { k = 'direction', t = 'select', l = 'Sens de circulation', o = DIRECTIONS },
+                    { k = 'action', t = 'select', l = 'Manœuvre', w = 2, o = {
+                        { 'straight', 'Tout droit' }, { 'right', 'Tourne à droite' }, { 'left', 'Tourne à gauche' },
+                        { 'uturn', 'Demi-tour' }, { 'slowing', 'Ralentit' }, { 'stopped', 'Arrêté dans la circulation' },
+                        { 'starting', 'Démarre d\'un stationnement' }, { 'backing', 'Marche arrière' }, { 'lane', 'Change de voie' },
+                        { 'overtaking', 'Dépasse' }, { 'merging', 'S\'insère' }, { 'parked', 'Stationné légalement' },
                     } },
-                    { k = 'speedLimit', t = 'num', l = 'Posted Speed Limit', min = 0, max = 85, unit = 'mph' },
-                    { k = 'estSpeed', t = 'num', l = 'Estimated Speed', min = 0, max = 250, unit = 'mph' },
-                    { k = 'damage', t = 'select', l = 'Vehicle Damage Severity', o = {
-                        { 'none', 'None' }, { 'minor', 'Minor' }, { 'functional', 'Functional' }, { 'disabling', 'Disabling' },
+                    { k = 'speedLimit', t = 'num', l = 'Vitesse autorisée', min = 0, max = 85, unit = 'mph' },
+                    { k = 'estSpeed', t = 'num', l = 'Vitesse estimée', min = 0, max = 250, unit = 'mph' },
+                    { k = 'damage', t = 'select', l = 'Gravité des dégâts', o = {
+                        { 'none', 'Aucune' }, { 'minor', 'Légers' }, { 'functional', 'Fonctionnels' }, { 'disabling', 'Immobilisants' },
                     } },
-                    { k = 'damageCost', t = 'num', l = 'Estimated Damage', min = 0, max = 10000000, money = true },
-                    { k = 'towed', t = 'select', l = 'Towed', o = {
-                        { 'no', 'Not Towed' }, { 'damage', 'Towed — Due to Damage' }, { 'other', 'Towed — Other Reason' },
+                    { k = 'damageCost', t = 'num', l = 'Coût estimé des dégâts', min = 0, max = 10000000, money = true },
+                    { k = 'towed', t = 'select', l = 'Remorquage', o = {
+                        { 'no', 'Non remorqué' }, { 'damage', 'Remorqué — dégâts' }, { 'other', 'Remorqué — autre raison' },
                     } },
-                    { k = 'towCompany', t = 'text', l = 'Tow Company', max = 60, w = 2 },
-                    { k = 'cmv', t = 'check', l = 'Commercial Motor Vehicle (CMV)' },
-                    { k = 'company', t = 'text', l = 'Motor Carrier Name', req = true, max = 80, w = 2, show = { k = 'cmv', eq = true } },
-                    { k = 'usdot', t = 'text', l = 'USDOT No.', req = true, max = 10, show = { k = 'cmv', eq = true } },
-                    { k = 'hazmat', t = 'check', l = 'Hazardous Materials Placard', show = { k = 'cmv', eq = true } },
+                    { k = 'towCompany', t = 'text', l = 'Dépanneur', max = 60, w = 2 },
+                    { k = 'cmv', t = 'check', l = 'Véhicule commercial (CMV)' },
+                    { k = 'company', t = 'text', l = 'Transporteur', req = true, max = 80, w = 2, show = { k = 'cmv', eq = true } },
+                    { k = 'usdot', t = 'text', l = 'N° USDOT', req = true, max = 10, show = { k = 'cmv', eq = true } },
+                    { k = 'hazmat', t = 'check', l = 'Plaque matières dangereuses', show = { k = 'cmv', eq = true } },
                 } },
-                { k = 'occupants', t = 'list', l = 'Passengers', item = 'Passenger', add = '+ Add Passenger', min = 0, max = 8,
+                { k = 'occupants', t = 'list', l = 'Passagers', item = 'Passager', add = '+ Ajouter un passager', min = 0, max = 8,
                   show = UNIT_DRIVEN, f = {
-                    { k = 'name', t = 'text', l = 'Full Name', req = true, max = 80, w = 2 },
-                    { k = 'dob', t = 'date', l = 'Date of Birth (DOB)', past = true },
-                    { k = 'seat', t = 'select', l = 'Seating Position', o = {
-                        { 'front_mid', 'Front Middle' }, { 'front', 'Front Right' }, { 'rear_left', 'Second Row Left' },
-                        { 'rear_center', 'Second Row Middle' }, { 'rear_right', 'Second Row Right' }, { 'third', 'Third Row' },
-                        { 'cargo', 'Cargo Area' }, { 'other', 'Other' },
+                    { k = 'name', t = 'text', l = 'Nom complet', req = true, max = 80, w = 2 },
+                    { k = 'dob', t = 'date', l = 'Date de naissance', past = true },
+                    { k = 'seat', t = 'select', l = 'Place', o = {
+                        { 'front_mid', 'Avant milieu' }, { 'front', 'Avant droit' }, { 'rear_left', 'Arrière gauche' },
+                        { 'rear_center', 'Arrière milieu' }, { 'rear_right', 'Arrière droit' }, { 'third', '3e rangée' },
+                        { 'cargo', 'Zone de chargement' }, { 'other', 'Autre' },
                     } },
-                    { k = 'injury', t = 'select', l = 'Injury (KABCO)', o = KABCO, w = 2 },
-                    { k = 'restraint', t = 'select', l = 'Restraint', o = RESTRAINTS },
-                    { k = 'ejection', t = 'select', l = 'Ejection', o = EJECTION },
+                    { k = 'injury', t = 'select', l = 'Blessures (KABCO)', o = KABCO, w = 2 },
+                    { k = 'restraint', t = 'select', l = 'Ceinture', o = RESTRAINTS },
+                    { k = 'ejection', t = 'select', l = 'Éjection', o = EJECTION },
                 } },
             } },
         } },
-        { title = 'Narrative & Diagram Description', f = { narrative('Narrative — Sequence of Events and Diagram Description') } },
+        { title = 'Rapport et croquis', f = { narrative('Rapport — déroulement de l\'accident et description du croquis') } },
     },
 }
 
@@ -1062,40 +1062,40 @@ local INCIDENT = {
     short = 'Incident',
     summary = '{nature} — {address}',
     sections = {
-        { title = 'Incident Information', f = (function()
-            local fields = waWhere({ dateLabel = 'Date Occurred', timeLabel = 'Time Occurred' })
-            table.insert(fields, 1, { k = 'nature', t = 'text', l = 'Incident Type / Nature', req = true, max = 80, w = 3 })
-            table.insert(fields, 2, { k = 'dv', t = 'check', l = 'Domestic Violence (DV)' })
+        { title = 'Faits', f = (function()
+            local fields = waWhere({ dateLabel = 'Date des faits', timeLabel = 'Heure des faits' })
+            table.insert(fields, 1, { k = 'nature', t = 'text', l = 'Nature des faits', req = true, max = 80, w = 3 })
+            table.insert(fields, 2, { k = 'dv', t = 'check', l = 'Violence conjugale (DV)' })
             return fields
         end)() },
-        { title = 'Offenses', f = {
-            offenseList({ k = 'offenses', l = 'Offenses', item = 'Offense', add = '+ Add Offense', set = 'all',
-                codeLabel = 'Offense (RCW)', min = 0, max = 10 }),
+        { title = 'Infractions', f = {
+            offenseList({ k = 'offenses', l = 'Infractions', item = 'Infraction', add = '+ Ajouter une infraction', set = 'all',
+                codeLabel = 'Infraction (RCW)', min = 0, max = 10 }),
         } },
-        { title = 'Involved Persons', f = {
-            { k = 'persons', t = 'list', l = 'Persons', item = 'Person', add = '+ Add Person', min = 0, max = 15, f = (function()
+        { title = 'Personnes impliquées', f = {
+            { k = 'persons', t = 'list', l = 'Personnes', item = 'Personne', add = '+ Ajouter une personne', min = 0, max = 15, f = (function()
                 local fields = waPerson({ req = true })
-                table.insert(fields, 1, { k = 'role', t = 'select', l = 'Role', req = true, o = {
-                    { 'victim', 'Victim (V)' }, { 'suspect', 'Suspect (S)' }, { 'arrestee', 'Arrestee (A)' }, { 'witness', 'Witness (W)' },
-                    { 'caller', 'Reporting Party (RP)' }, { 'other', 'Other / Involved (O)' },
+                table.insert(fields, 1, { k = 'role', t = 'select', l = 'Rôle', req = true, o = {
+                    { 'victim', 'Victime (V)' }, { 'suspect', 'Suspect (S)' }, { 'arrestee', 'Personne arrêtée (A)' }, { 'witness', 'Témoin (W)' },
+                    { 'caller', 'Requérant (RP)' }, { 'other', 'Autre impliqué (O)' },
                 } })
-                fields[#fields + 1] = { k = 'statement', t = 'area', l = 'Statement', max = 1500, rows = 3, w = 4 }
+                fields[#fields + 1] = { k = 'statement', t = 'area', l = 'Déclaration', max = 1500, rows = 3, w = 4 }
                 return fields
             end)() },
-            { k = 'vehicles', t = 'list', l = 'Vehicles', item = 'Vehicle', add = '+ Add Vehicle', min = 0, max = 10, f = (function()
+            { k = 'vehicles', t = 'list', l = 'Véhicules', item = 'Véhicule', add = '+ Ajouter un véhicule', min = 0, max = 10, f = (function()
                 local fields = waVehicle({ req = true })
-                fields[#fields + 1] = { k = 'role', t = 'select', l = 'Involvement', o = {
-                    { 'suspect', 'Suspect Vehicle' }, { 'victim', 'Victim Vehicle' }, { 'witness', 'Witness Vehicle' },
-                    { 'stolen', 'Stolen' }, { 'recovered', 'Recovered' }, { 'other', 'Other' },
+                fields[#fields + 1] = { k = 'role', t = 'select', l = 'Implication', o = {
+                    { 'suspect', 'Véhicule suspect' }, { 'victim', 'Véhicule de la victime' }, { 'witness', 'Véhicule témoin' },
+                    { 'stolen', 'Volé' }, { 'recovered', 'Retrouvé' }, { 'other', 'Autre' },
                 } }
                 fields[#fields + 1] = { k = 'notes', t = 'text', l = 'Notes', max = 200, w = 3 }
                 return fields
             end)() },
         } },
-        { title = 'Property & Evidence', f = {
-            { k = 'evidence', t = 'area', l = 'Property (Stolen / Recovered / Damaged) and Evidence Collected', max = 1500, rows = 4, w = 4 },
+        { title = 'Biens et preuves', f = {
+            { k = 'evidence', t = 'area', l = 'Biens (volés / retrouvés / endommagés) et preuves recueillies', max = 1500, rows = 4, w = 4 },
         } },
-        { title = 'Narrative', f = { narrative() } },
+        { title = 'Rapport narratif', f = { narrative() } },
     },
 }
 
@@ -1108,40 +1108,40 @@ local IMPOUND = {
     short = 'Impound',
     summary = '{plate} — {model}',
     sections = {
-        { title = 'Impound Information', f = (function()
+        { title = 'Mise en fourrière', f = (function()
             local fields = waWhere()
-            fields[#fields + 1] = { k = 'authority', t = 'select', l = 'Impound Authority', req = true, w = 4, o = {
-                { 'hazard', 'Traffic Hazard / Obstruction — RCW 46.55.113' },
-                { 'arrest', 'Driver Arrested — RCW 46.55.113' },
-                { 'dwls', 'Driving While License Suspended — RCW 46.55.113' },
-                { 'dui', 'DUI Arrest — 12-Hour Hold, RCW 46.55.360' },
-                { 'abandoned', 'Abandoned Vehicle (24 h Tag) — RCW 46.55.085' },
-                { 'private', 'Private Property Impound — RCW 46.55.080' },
-                { 'stolen', 'Stolen Vehicle Recovered' },
-                { 'evidence', 'Evidence / Investigative Hold' },
-                { 'collision', 'Collision — Owner / Driver Unable to Arrange Removal' },
-                { 'other', 'Other' },
+            fields[#fields + 1] = { k = 'authority', t = 'select', l = 'Motif légal', req = true, w = 4, o = {
+                { 'hazard', 'Danger / obstruction de la circulation — RCW 46.55.113' },
+                { 'arrest', 'Conducteur arrêté — RCW 46.55.113' },
+                { 'dwls', 'Conduite avec permis suspendu — RCW 46.55.113' },
+                { 'dui', 'Arrestation DUI — immobilisation 12 h, RCW 46.55.360' },
+                { 'abandoned', 'Véhicule abandonné (avis 24 h) — RCW 46.55.085' },
+                { 'private', 'Propriété privée — RCW 46.55.080' },
+                { 'stolen', 'Véhicule volé retrouvé' },
+                { 'evidence', 'Pièce à conviction / enquête' },
+                { 'collision', 'Accident — enlèvement impossible par le propriétaire / conducteur' },
+                { 'other', 'Autre' },
             } }
-            fields[#fields + 1] = { k = 'hold', t = 'check', l = 'Police Hold' }
-            fields[#fields + 1] = { k = 'holdReason', t = 'text', l = 'Hold Reason / Released Only To', max = 120, w = 3, show = { k = 'hold', eq = true } }
+            fields[#fields + 1] = { k = 'hold', t = 'check', l = 'Retenue police (police hold)' }
+            fields[#fields + 1] = { k = 'holdReason', t = 'text', l = 'Motif de la retenue / restitution uniquement à', max = 120, w = 3, show = { k = 'hold', eq = true } }
             return fields
         end)() },
-        { title = 'Vehicle', f = (function()
+        { title = 'Véhicule', f = (function()
             local fields = waVehicle({ req = true })
-            fields[#fields + 1] = { k = 'keys', t = 'check', l = 'Keys With Vehicle' }
-            fields[#fields + 1] = { k = 'condition', t = 'area', l = 'Vehicle Condition / Existing Damage', max = 800, rows = 2, w = 4 }
+            fields[#fields + 1] = { k = 'keys', t = 'check', l = 'Clés avec le véhicule' }
+            fields[#fields + 1] = { k = 'condition', t = 'area', l = 'État du véhicule / dégâts existants', max = 800, rows = 2, w = 4 }
             return fields
         end)() },
-        { title = 'Driver / Person in Control', f = waPerson({ license = true }) },
-        { title = 'Tow', f = {
-            { k = 'towCompany', t = 'text', l = 'Registered Tow Truck Operator (RTTO)', req = true, max = 80, w = 2 },
-            { k = 'towDest', t = 'text', l = 'Storage Location', max = 80, w = 2 },
-            { k = 'towTime', t = 'time', l = 'Time Tow Arrived' },
+        { title = 'Conducteur / responsable du véhicule', f = waPerson({ license = true }) },
+        { title = 'Dépannage', f = {
+            { k = 'towCompany', t = 'text', l = 'Dépanneur agréé (RTTO)', req = true, max = 80, w = 2 },
+            { k = 'towDest', t = 'text', l = 'Lieu de stockage', max = 80, w = 2 },
+            { k = 'towTime', t = 'time', l = 'Heure d\'arrivée du dépanneur' },
         } },
-        { title = 'Inventory', f = {
-            { k = 'inventory', t = 'area', l = 'Inventory of Personal Property (Visible / Unlocked Areas)', max = 2000, rows = 4, w = 4 },
+        { title = 'Inventaire', f = {
+            { k = 'inventory', t = 'area', l = 'Inventaire des effets personnels (zones visibles / non verrouillées)', max = 2000, rows = 4, w = 4 },
         } },
-        { title = 'Officer Notes', f = { narrative('Officer Notes', false) } },
+        { title = 'Notes de l\'agent', f = { narrative('Notes de l\'agent', false) } },
     },
 }
 
