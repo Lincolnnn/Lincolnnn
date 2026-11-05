@@ -1,0 +1,2 @@
+Déposez ici le son du holster : holster.ogg (format Ogg Vorbis).
+Il est joué en sortant / rangeant une arme de la liste (config.lua : Weapons), entendu par les joueurs proches.

@@ -2282,7 +2282,15 @@
                     // Une catégorie = une liste : ← → pour choisir la pièce (une seule à la fois), « D'origine » en premier
                     categories.forEach((c) => {
                         const list = pieces.filter((m) => m.category === c);
-                        const options = ['D\'origine', ...list.map((m) => m.name)];
+                        // noms répétés dans la catégorie (variantes d'une même pièce) : numérotés « Nom · 2 », « Nom · 3 »…
+                        const seen = {};
+                        const total = {};
+                        list.forEach((m) => { total[m.name] = (total[m.name] || 0) + 1; });
+                        const options = ['D\'origine', ...list.map((m) => {
+                            if (total[m.name] < 2) return m.name;
+                            seen[m.name] = (seen[m.name] || 0) + 1;
+                            return `${m.name} · ${seen[m.name]}`;
+                        })];
                         const worn = list.findIndex((m) => eup.modWorn.has(m.id));
                         items.push({
                             kind: 'list', label: c, options, index: worn + 1,

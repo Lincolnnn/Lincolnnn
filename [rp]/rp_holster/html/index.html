@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><title>RP Holster</title></head>
+<body style="margin:0;background:transparent">
+    <script>
+        // Son du holster (html/sounds/holster.ogg) : soi-même et les joueurs proches (volume selon la distance)
+        window.addEventListener('message', ({ data }) => {
+            if (!data || data.action !== 'play') return;
+            const d = data.data || {};
+            const file = String(d.file || 'holster.ogg').replace(/[^\w.-]/g, '');
+            const audio = new Audio(`sounds/${file}`);
+            audio.volume = Math.max(0, Math.min(1, Number(d.volume) || 0));
+            audio.play().catch(() => {}); // fichier absent : rien
+        });
+    </script>
+</body>
+</html>

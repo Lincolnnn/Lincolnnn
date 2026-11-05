@@ -20,26 +20,37 @@ HolsterConfig = {
     -- { gender = 'male' | 'female' (facultatif : les deux), full = modèle plein, empty = modèle vide,
     --   component = autre partie (facultatif), label = nom (aide) }
     Holsters = {
-        { gender = 'male', full = 9, empty = 10, label = 'Holster de ceinture (EXEMPLE)' },
-        { gender = 'male', full = 11, empty = 12, label = 'Holster de cuisse (EXEMPLE)' },
-        { gender = 'female', full = 9, empty = 10, label = 'Holster de ceinture (EXEMPLE)' },
+        { gender = 'male', full = 209, empty = 210, label = 'Holster de ceinture (EXEMPLE)' },
+        { gender = 'male', full = 211, empty = 212, label = 'Holster de cuisse (EXEMPLE)' },
+        { gender = 'male', full = 207, empty = 208, label = 'Holster de ceinture (EXEMPLE)' },
+        { gender = 'male', full = 205, empty = 206, label = 'Holster de cuisse (EXEMPLE)' },
+        { gender = 'male', full = 200, empty = 202, label = 'Holster de ceinture (EXEMPLE)' },
+        { gender = 'male', full = 201, empty = 203, label = 'Holster de cuisse (EXEMPLE)' },
     },
 
-    -- Armes qui vont dans le holster : groupes du jeu (armes de poing) + armes précises ; jamais : Excluded
-    Groups = { 'GROUP_PISTOL' },
-    Weapons = {},
+    -- Armes qui vont dans le holster : SEULES ces armes le vident quand on les sort (et le remplissent quand on les
+    -- range) ; une autre arme (pas dans la liste) ne touche pas au holster. Groups = { 'GROUP_PISTOL' } (facultatif) :
+    -- toutes les armes de poing en plus. Jamais : Excluded
+    Weapons = { 'WEAPON_MP92', 'WEAPON_P320', 'WEAPON_GLOCK19', 'WEAPON_FM1_P226' },
     Excluded = { 'WEAPON_FLAREGUN' },
 
     -- Armes de poing vérifiées dans l'inventaire (le jeu ne sait pas les énumérer) : armes du jeu + armes ajoutées
     Inventory = {
-        'WEAPON_PISTOL', 'WEAPON_PISTOL_MK2', 'WEAPON_COMBATPISTOL', 'WEAPON_APPISTOL', 'WEAPON_PISTOL50',
-        'WEAPON_SNSPISTOL', 'WEAPON_SNSPISTOL_MK2', 'WEAPON_HEAVYPISTOL', 'WEAPON_VINTAGEPISTOL', 'WEAPON_MARKSMANPISTOL',
-        'WEAPON_REVOLVER', 'WEAPON_REVOLVER_MK2', 'WEAPON_DOUBLEACTION', 'WEAPON_CERAMICPISTOL', 'WEAPON_NAVYREVOLVER',
-        'WEAPON_GADGETPISTOL', 'WEAPON_PISTOLXM3',
         -- armes ajoutées du serveur
         'WEAPON_GLOCK19', 'WEAPON_FM1_P226', 'WEAPON_SWMP9', 'WEAPON_P320',
     },
 
     EmptyWhenNoWeapon = true, -- aucune arme de poing sur soi : holster vide
     CheckMs = 250,            -- vérification (ms) ; seulement quand un holster de la liste est porté
+
+    -- ANIMATION : la main va au holster quand on sort / range une arme de la liste (holster porté, à pied)
+    Animation = {
+        Enabled = true,
+        Draw = { dict = 'rcmjosh4', clip = 'josh_leadout_cop2', ms = 600 },                 -- sortir l'arme
+        Holster = { dict = 'reaction@intimidation@cop@unarmed', clip = 'intro', ms = 500 },  -- la ranger
+    },
+
+    -- SON : html/sounds/holster.ogg (fichier à déposer), joué en sortant / rangeant l'arme, entendu par les joueurs
+    -- proches (plus faible avec la distance)
+    Sound = { Enabled = true, File = 'holster.ogg', Volume = 0.5, Range = 8.0 },
 }
