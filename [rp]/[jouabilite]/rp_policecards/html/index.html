@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>RP Police Cards</title>
+    <style>
+        html, body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; background: transparent; user-select: none; }
+        body { font: 13px "Segoe UI", Arial, sans-serif; }
+        .card { position: absolute; display: none; pointer-events: none; }
+        .card.on { display: block; animation: card-in .18s ease-out; }
+        .card img { display: block; width: 100%; height: auto; border-radius: 10px; box-shadow: 0 6px 22px rgba(0, 0, 0, .45); -webkit-user-drag: none; }
+        body.paused .card { visibility: hidden; }
+        /* Ajustement (/cartes) : cartes déplaçables, contour et légende */
+        body.adjust .card { pointer-events: auto; cursor: grab; }
+        body.adjust .card.dragging { cursor: grabbing; }
+        body.adjust .card img { outline: 2px dashed rgba(255, 255, 255, .85); outline-offset: 3px; }
+        .hint { position: absolute; left: 50%; bottom: 7vh; transform: translateX(-50%); display: none; padding: 8px 14px;
+            background: rgba(20, 25, 34, .92); color: #f2f2f2; border-radius: 4px; box-shadow: 0 6px 18px rgba(0, 0, 0, .4); white-space: nowrap; }
+        body.adjust .hint { display: block; }
+        .hint kbd { display: inline-block; min-width: 18px; padding: 0 5px; margin: 0 2px; border: 1px solid rgba(255, 255, 255, .35);
+            border-radius: 3px; font: 600 11px/18px "Segoe UI", Arial, sans-serif; text-align: center; }
+        @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    </style>
+</head>
+<body>
+    <div class="hint">Glisser : déplacer · <kbd>Molette</kbd> taille · <kbd>Clic droit</kbd> masquer la carte · <kbd>Échap</kbd> / <kbd>Entrée</kbd> terminer</div>
+    <script>
+        // Cartes aide-mémoire (client/client.lua) : affichées sans curseur ; /cartes pour les déplacer / redimensionner.
+        // Place (x, y) et largeur en fractions de l'écran.
+        const cards = {}; // [id] = { el, x, y, width, min, max }
+        let adjusting = false;
+        let drag = null;
+        const post = (name, body) => fetch(`https://${GetParentResourceName()}/${name}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify(body || {}),
+        }).catch(() => {});
+
+        function place(c) {
+            c.el.style.left = `${c.x * 100}vw`;
+            c.el.style.top = `${c.y * 100}vh`;
+            c.el.style.width = `${c.width * 100}vw`;
+        }
+
+        function show(d) {
+            let c = cards[d.id];
+            if (!c) {
+                const el = document.createElement('div');
+                el.className = 'card';
+                el.dataset.id = d.id;
+                const img = document.createElement('img');
+                img.alt = d.label || d.id;
+                img.draggable = false;
+                el.appendChild(img);
+                document.body.appendChild(el);
+                c = cards[d.id] = { el, img };
+            }
+            c.img.src = String(d.image || '').replace(/[^\w./-]/g, '');
+            Object.assign(c, { x: +d.x || 0, y: +d.y || 0, width: +d.width || 0.28, min: +d.minWidth || 0.12, max: +d.maxWidth || 0.6 });
+            place(c);
+            c.el.classList.add('on');
+        }
+
+        function hide(id) {
+            const c = cards[id];
+            if (c) c.el.classList.remove('on');
+        }
+
+        function finish() {
+            if (!adjusting) return;
+            const layouts = {};
+            Object.entries(cards).forEach(([id, c]) => {
+                if (c.el.classList.contains('on')) layouts[id] = { x: c.x, y: c.y, width: c.width };
+            });
+            setAdjust(false);
+            post('done', { layouts });
+        }
+
+        function setAdjust(on) {
+            adjusting = on;
+            drag = null;
+            document.body.classList.toggle('adjust', on);
+        }
+
+        window.addEventListener('message', ({ data }) => {
+            if (!data || !data.action) return;
+            const d = data.data || {};
+            switch (data.action) {
+                case 'show': show(d); break;
+                case 'hide': hide(d.id); break;
+                case 'adjust': setAdjust(!!d.on); break;
+                case 'paused': document.body.classList.toggle('paused', !!d.paused); break;
+                // rp_freecam (mode photo) : interface masquée tant que « Masquer les interfaces » est coché
+                case 'rpHideUi': document.documentElement.style.opacity = d.hidden ? '0' : ''; break;
+            }
+        });
+
+        const cardAt = (target) => {
+            const el = target.closest && target.closest('.card.on');
+            return el ? cards[el.dataset.id] : null;
+        };
+
+        document.addEventListener('mousedown', (e) => {
+            if (!adjusting) return;
+            const c = cardAt(e.target);
+            if (!c) return;
+            e.preventDefault();
+            if (e.button === 2) { // clic droit : masquer la carte
+                hide(c.el.dataset.id);
+                post('hide', { id: c.el.dataset.id });
+                return;
+            }
+            if (e.button !== 0) return;
+            // carte saisie au premier plan
+            document.body.appendChild(c.el);
+            drag = { c, dx: e.clientX / innerWidth - c.x, dy: e.clientY / innerHeight - c.y };
+            c.el.classList.add('dragging');
+        });
+        document.addEventListener('mousemove', (e) => {
+            if (!drag) return;
+            drag.c.x = Math.min(0.98, Math.max(-0.5, e.clientX / innerWidth - drag.dx));
+            drag.c.y = Math.min(0.98, Math.max(-0.5, e.clientY / innerHeight - drag.dy));
+            place(drag.c);
+        });
+        document.addEventListener('mouseup', () => {
+            if (drag) drag.c.el.classList.remove('dragging');
+            drag = null;
+        });
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Molette : taille de la carte survolée, autour du curseur
+        document.addEventListener('wheel', (e) => {
+            if (!adjusting) return;
+            const c = cardAt(e.target);
+            if (!c) return;
+            e.preventDefault();
+            const old = c.width;
+            const width = Math.min(c.max, Math.max(c.min, old * (e.deltaY < 0 ? 1.08 : 1 / 1.08)));
+            const k = width / old;
+            const mx = e.clientX / innerWidth, my = e.clientY / innerHeight;
+            c.x = mx - (mx - c.x) * k;
+            c.y = my - (my - c.y) * k;
+            c.width = width;
+            place(c);
+        }, { passive: false });
+
+        document.addEventListener('keydown', (e) => {
+            if (adjusting && (e.key === 'Escape' || e.key === 'Enter')) {
+                e.preventDefault();
+                finish();
+            }
+        });
+    </script>
+</body>
+</html>

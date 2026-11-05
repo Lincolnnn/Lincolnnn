@@ -10,13 +10,15 @@ lua54 'yes'
 name 'rp_holster'
 author 'Lincolnnn'
 description 'Holster EUP plein quand l\'arme est rangée, vide quand elle est sortie - standalone'
-version '1.1.0'
+version '1.2.0'
 
 ui_page 'html/index.html'
 
 files {
     'html/index.html',
     'html/sounds/*.ogg', -- holster.ogg (à déposer) : son en sortant / rangeant l'arme
+    'html/sounds/*.mp3', -- (autre format possible : config.lua, Sound.File)
+    'html/sounds/*.wav',
 }
 
 shared_script 'config.lua'

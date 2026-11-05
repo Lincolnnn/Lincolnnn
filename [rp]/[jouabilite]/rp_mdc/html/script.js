@@ -457,6 +457,7 @@
         if (!state.open) return;
         if (hud.placing) setPlacing(false);
         state.open = false;
+        stopTyping(); // bruit du clavier coupé
         drag = null;
         document.body.classList.remove('dragging');
         win.classList.add('hidden');
@@ -1082,6 +1083,7 @@
         }
 
         const results = toArray(res.results);
+        if (hud.settings.notify.sound !== false) playSound(results.length ? 'result' : 'noresult');
         if (!results.length) {
             toast('Aucun résultat pour cette recherche.', 'info');
             return;
@@ -3448,6 +3450,20 @@
         if (hud.settings.notify.sound) playSound(incident ? 'incident' : 'call');
     }
 
+    // Nouveau BOLO (communs aux deux polices) : notification + son pour toutes les unités de police
+    function boloNotification(b) {
+        const el = document.createElement('div');
+        el.className = 'call-toast bolo-toast';
+        el.innerHTML = `
+            <div class="ct-head"><span>NOUVEAU BOLO</span><span class="ct-number">${esc(b.number)}</span></div>
+            <div class="ct-title">${esc(b.reason)}</div>
+            <div class="ct-row"><span class="hud-label">TYPE</span>${b.kind === 'vehicle' ? 'Véhicule' : 'Individu'}</div>
+            ${b.summary ? `<div class="ct-row"><span class="hud-label">DESCRIPTION</span><span class="ct-ellipsis">${esc(b.summary)}</span></div>` : ''}
+            ${b.agencyShort ? `<div class="ct-row"><span class="hud-label">ÉMIS PAR</span>${esc(b.agencyShort)}${b.unitName ? ` — ${esc(b.unitName)}` : ''}</div>` : ''}`;
+        pushNotification(el, 10000);
+        serverSound('bolo');
+    }
+
     // "Vous êtes l'une des unités les plus proches" : Y pour accepter, N pour refuser (client/hud.lua).
     // Reste affichée jusqu'à la réponse (ou la fin du délai), avec un compte à rebours.
     const offers = {}; // [id de l'appel] = { el, timer }
@@ -3492,33 +3508,87 @@
     }
 
     // =====================================================================
-    // SONS DE L'INTERFACE : générés par le navigateur (Web Audio, aucun fichier),
-    // au volume réglé dans "Paramètres > MDC" (0 à 100 %).
-    // Chaque son : liste de notes [fréquence (Hz), début (s), durée (s)].
+    // SONS DU MDC, au volume réglé dans "Paramètres > MDC" (0 à 100 %).
+    //   Fichiers (html/sounds/) : décodés une seule fois (Web Audio), joués sans délai.
+    //   Sons générés (aucun fichier) : message d'une autre unité, incident déclaré par une unité.
     // =====================================================================
-    // [fréquence, début, durée, forme d'onde (sine par défaut)]
+    // [fichier, gain, début (s) : saute le silence du début]
+    const SOUND_FILES = {
+        call: ['inter.wav', 1.0, 0],        // intervention créée par un civil (et proposition "unité la plus proche")
+        bolo: ['2.mp3', 0.9, 0],            // nouveau BOLO (commun aux deux polices)
+        assign: ['assign.mp3', 1.0, 0],     // une unité rejoint l'appel
+        deassign: ['deassign.mp3', 0.6, 0], // une unité quitte l'appel
+        link: ['dsp.mp3', 0.9, 0],          // observation, rapport, identité ou véhicule lié à l'appel
+        result: ['result.mp3', 1.0, 0],     // recherche avec résultat
+        noresult: ['nnul.mp3', 1.0, 0],     // recherche sans résultat
+        click: ['click.mp3', 0.55, 0.08],   // clic de souris dans le MDC
+        typing: ['laptop.mp3', 0.5, 0],     // clavier (en boucle tant que le joueur écrit)
+    };
+    // [fréquence (Hz), début (s), durée (s), forme d'onde (sine par défaut)]
     const SOUNDS = {
-        call: [[880, 0, 0.16], [1320, 0.18, 0.26]],                         // intervention : deux tons montants
         message: [[988, 0, 0.11], [1319, 0.12, 0.2], [1760, 0.12, 0.12]],    // message d'une autre unité : petit carillon
         incident: [[660, 0, 0.12], [880, 0.14, 0.12], [1175, 0.28, 0.24]],  // incident : trois tons
     };
-    const SOUND_GAIN = 0.35; // volume à 100 % (évite la saturation)
+    const SOUND_GAIN = 0.35; // volume à 100 % des sons générés (évite la saturation)
+    const FILE_GAIN = 0.8;   // volume à 100 % des fichiers
     let audioCtx = null;
+    const buffers = {}; // [fichier] = Promise<AudioBuffer | null>
+
+    function getAudio() {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+    }
+
+    function loadBuffer(file) {
+        if (!buffers[file]) {
+            buffers[file] = fetch(`sounds/${file}`)
+                .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+                .then((data) => new Promise((resolve, reject) => getAudio().decodeAudioData(data, resolve, reject)))
+                .catch(() => null); // fichier absent : pas de son
+        }
+        return buffers[file];
+    }
+
+    // Joue un fichier ; retourne { source, gain } (ou null) pour pouvoir l'arrêter (son du clavier)
+    async function playFile(kind, volume, loop) {
+        const [file, gain, offset] = SOUND_FILES[kind];
+        const buffer = await loadBuffer(file);
+        if (!buffer) return null;
+        const ctx = getAudio();
+        const source = ctx.createBufferSource();
+        const env = ctx.createGain();
+        source.buffer = buffer;
+        env.gain.value = FILE_GAIN * gain * volume;
+        source.connect(env);
+        env.connect(ctx.destination);
+        if (loop) {
+            source.loop = true;
+            source.start(0, Math.random() * buffer.duration); // reprend à un endroit différent à chaque fois
+        } else {
+            source.start(0, Math.min(offset, buffer.duration));
+        }
+        return { source, gain: env };
+    }
 
     function playSound(kind, volumeOverride) {
         const volume = volumeOverride === undefined ? hud.settings.notify.volume : volumeOverride;
-        const notes = SOUNDS[kind];
-        if (!notes || !(volume > 0)) return;
+        if (!(volume > 0)) return;
         try {
-            audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const t0 = audioCtx.currentTime + 0.02;
-            const master = audioCtx.createGain();
+            if (SOUND_FILES[kind]) {
+                playFile(kind, volume, false).catch(() => {});
+                return;
+            }
+            const notes = SOUNDS[kind];
+            if (!notes) return;
+            const ctx = getAudio();
+            const t0 = ctx.currentTime + 0.02;
+            const master = ctx.createGain();
             master.gain.value = SOUND_GAIN * volume;
-            master.connect(audioCtx.destination);
+            master.connect(ctx.destination);
             notes.forEach(([freq, start, duration, wave]) => {
-                const osc = audioCtx.createOscillator();
-                const env = audioCtx.createGain();
+                const osc = ctx.createOscillator();
+                const env = ctx.createGain();
                 osc.type = wave || 'sine';
                 osc.frequency.value = freq;
                 // Attaque et extinction douces (pas de "clic")
@@ -3534,6 +3604,55 @@
             // Audio indisponible : la notification reste affichée sans son
         }
     }
+
+    // Sons d'événements envoyés par le serveur (client/hud.lua) : BOLO, unité qui rejoint / quitte l'appel, fiche liée
+    const SERVER_SOUNDS = new Set(['bolo', 'assign', 'deassign', 'link']);
+    function serverSound(kind) {
+        if (SERVER_SOUNDS.has(kind) && hud.settings.notify.sound !== false) playSound(kind);
+    }
+
+    // Sons de l'interface (réglage "Sons de l'interface") : clic de souris et clavier, MDC ouvert seulement
+    const uiSounds = () => state.open && hud.settings.notify.ui !== false;
+    document.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 || !uiSounds() || !e.target.closest('#mdc, #suggestBox')) return;
+        playSound('click');
+    }, true);
+
+    // Clavier : le bruit démarre à la première touche et s'arrête peu après la dernière
+    const TYPING_STOP_MS = 450;
+    const typing = { play: null, starting: false, timer: null };
+    const isTextField = (el) => el && el.closest('#mdc') && (el.isContentEditable || el.tagName === 'TEXTAREA'
+        || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'range', 'button', 'submit', 'color', 'file'].includes(el.type)));
+    function stopTyping() {
+        clearTimeout(typing.timer);
+        typing.timer = null;
+        const play = typing.play;
+        typing.play = null;
+        if (!play) return;
+        try {
+            const t = audioCtx.currentTime;
+            play.gain.gain.setValueAtTime(play.gain.gain.value, t);
+            play.gain.gain.linearRampToValueAtTime(0, t + 0.12); // extinction douce
+            play.source.stop(t + 0.14);
+        } catch (err) { /* déjà arrêté */ }
+    }
+    document.addEventListener('keydown', (e) => {
+        if (!uiSounds() || !isTextField(e.target) || e.ctrlKey || e.altKey || e.metaKey) return;
+        if (e.key.length !== 1 && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Enter') return;
+        const volume = hud.settings.notify.volume;
+        if (!(volume > 0)) return;
+        clearTimeout(typing.timer);
+        typing.timer = setTimeout(stopTyping, TYPING_STOP_MS);
+        if (typing.play || typing.starting) return;
+        typing.starting = true;
+        playFile('typing', volume, true).then((play) => {
+            typing.starting = false;
+            if (!play) return;
+            typing.play = play;
+            if (!typing.timer) stopTyping(); // touches déjà relâchées pendant le chargement
+        }).catch(() => { typing.starting = false; });
+    }, true);
+    document.addEventListener('focusout', (e) => { if (isTextField(e.target)) stopTyping(); }, true);
 
     function pushNotification(el, duration) {
         const box = $('#toasts');
@@ -3719,7 +3838,9 @@
         // 'all' (MDC et tous les menus), 'mdc' (MDC seulement), 'menus' (menus des autres ressources, pas le MDC) ;
         // couleur du mode nuit (textes, boutons, contour du chat) : 'green', 'yellow', 'red', 'blue'
         mdc: { zoom: 1, startTab: 'last', glass: true, opacity: 0.97, theme: 'day', themeScope: 'all', nightColor: 'green' },
-        notify: { calls: true, sound: true, status: true, messages: true, volume: 0.8 },
+        // sound : sons des notifications et des événements (appels, BOLO, unités, fiches liées, recherches) ;
+        // ui : sons de l'interface (clic de souris, clavier)
+        notify: { calls: true, sound: true, ui: true, status: true, messages: true, volume: 0.8 },
         // Car HUD : au-dessus de la minimap, sans fond ; volume des sons de la ceinture
         car: { x: 0.016, y: 0.715, scale: 1, volume: 0.7 },
         // Contour de la minimap : ajustement fin (pixels) de la place calculée par client/hud.lua
@@ -5151,6 +5272,12 @@
                 break;
             case 'callNotify': // nouvelle intervention / nouvel incident (même MDC fermé)
                 if (data.data) callNotification(data.data);
+                break;
+            case 'boloNotify': // nouveau BOLO (toutes les unités de police, même MDC fermé)
+                if (data.data) boloNotification(data.data);
+                break;
+            case 'sound': // son d'un événement : unité qui rejoint / quitte l'appel, fiche liée à l'appel
+                if (data.data) serverSound(data.data.kind);
                 break;
             case 'unitSync': // espace partagé d'unité (recherches, rapport en cours)
                 if (data.data) handleUnitSync(data.data.scope, data.data.payload);

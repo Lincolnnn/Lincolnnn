@@ -1182,6 +1182,8 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .ct-title { margin: 3px 0 5px; font: 600 15px var(--font-display); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ct-row { display: flex; align-items: center; font-size: 12px; line-height: 19px; }
 .ct-row .hud-label { min-width: 70px; }
+.call-toast.bolo-toast { --prio: 255, 99, 99; }
+.ct-ellipsis { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status-toast { --prio: 150, 150, 150; width: 290px; }
 .status-toast[data-status="available"]   { --prio: var(--st-available); }
 .status-toast[data-status="en_route"]    { --prio: var(--st-en_route); }

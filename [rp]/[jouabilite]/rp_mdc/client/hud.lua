@@ -322,6 +322,19 @@ RegisterNetEvent('mdc:client:callNotify', function(call)
     SendNUIMessage({ action = 'callNotify', data = call })
 end)
 
+-- Nouveau BOLO (communs aux polices) : notification + son, même MDC fermé (réglage "Notifier les nouvelles interventions")
+RegisterNetEvent('mdc:client:boloNotify', function(bolo)
+    if type(bolo) ~= 'table' or not setting('notify', 'calls') then return end
+    SendNUIMessage({ action = 'boloNotify', data = bolo })
+end)
+
+-- Son d'un événement de l'appel de l'unité (unité qui rejoint / quitte, observation / rapport / fiche liée).
+-- Le NUI applique le réglage "Sons" et le volume.
+local SOUND_EVENTS = { assign = true, deassign = true, link = true }
+RegisterNetEvent('mdc:client:sound', function(kind)
+    if SOUND_EVENTS[kind] then SendNUIMessage({ action = 'sound', data = { kind = kind } }) end
+end)
+
 -- "Vous êtes l'une des unités les plus proches" : proposition d'un appel à l'unité du joueur.
 -- Y : accepter (l'unité est rattachée à l'appel, "En route"), N : refuser. Sans passer par le MDC.
 -- Raccourcis FiveM (modifiables : Paramètres > Raccourcis clavier > FiveM) : aucune boucle ; les touches

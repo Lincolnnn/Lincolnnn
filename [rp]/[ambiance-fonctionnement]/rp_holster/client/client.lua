@@ -7,10 +7,11 @@
       - arme de la liste dans l'inventaire, pas en main -> holster PLEIN ;
       - aucune arme de la liste -> VIDE (EmptyWhenNoWeapon).
     SEULES les armes de Weapons (et des groupes de Groups, s'il y en a) comptent : sortir une autre arme ne vide pas
-    le holster. En sortant / rangeant une arme de la liste : animation (main au holster, à pied) et son « holster.ogg »
-    entendu par les joueurs proches (relayé par le serveur).
+    le holster. En sortant ET en rangeant une arme de la liste : son « holster.ogg » entendu par les joueurs proches
+    (relayé par le serveur), holster porté ou non (Sound.RequireHolster) ; animation (main au holster, à pied) avec
+    un holster de la liste.
     La texture portée est gardée ; la tenue est synchronisée par le jeu (vue par tous).
-    Performance : une lecture de la tenue toutes les 250 ms ; inventaire lu seulement quand un holster est porté.
+    Performance : une lecture de la tenue toutes les 250 ms (100 ms avec une arme de la liste en main).
 ]]
 
 local C = HolsterConfig or {}
@@ -122,18 +123,21 @@ local function update()
     local h, current = wornHolster(ped)
     local before = lastInHand
     lastInHand = inHand
+    local drawn = before ~= nil and inHand and not before
+    local holstered = before and not inHand and hasHolsterWeapon(ped)
+    -- Son : à chaque sortie ET à chaque rangement d'une arme de la liste ; avec ou sans holster porté
+    -- (Sound.RequireHolster = true : seulement avec un holster de la liste)
+    if (drawn or holstered) and (h or SND.RequireHolster ~= true) then holsterSound() end
     if not h then return end
     local now = GetGameTimer()
 
-    if before ~= nil and inHand and not before then
-        -- sortie de l'arme : main au holster, son, holster vide
+    if drawn then
+        -- sortie de l'arme : main au holster, holster vide
         holdUntil = 0
         playAnim(ped, A.Draw)
-        holsterSound()
-    elseif before and not inHand and hasHolsterWeapon(ped) then
-        -- rangement : main au holster, son ; le holster se remplit à la fin du geste
+    elseif holstered then
+        -- rangement : main au holster ; le holster se remplit à la fin du geste
         playAnim(ped, A.Holster)
-        holsterSound()
         holdUntil = now + math.floor(((A.Holster or {}).ms or 500) * 0.6)
         SetTimeout(math.max(0, holdUntil - now), function()
             local p = PlayerPedId()
@@ -153,7 +157,8 @@ end
 CreateThread(function()
     while true do
         update()
-        Wait(C.CheckMs or 250)
+        -- arme de la liste en main : vérification plus rapide, le son du rangement tombe au bon moment
+        Wait(lastInHand and (C.ArmedCheckMs or 100) or (C.CheckMs or 250))
     end
 end)
 

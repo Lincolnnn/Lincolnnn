@@ -71,6 +71,9 @@ assez près (2 m ; véhicule à 6 m pour placer), mises à jour en direct. Elles
 menu se ferme). En bas, **Display MDC > Secteur** (zone de jeu, saisi à la main) : choisi par les **admins**
 seulement (`SectorAce`, grisé pour les autres), publié par le serveur, gardé chez l'admin et affiché sur le display du
 MDC. Il n'y a plus de « service principal » : la police est celle du MDC choisi.
+Tout en bas, **Aide-mémoire** (avec la ressource `rp_policecards`) : **Carte Miranda** et **Alphabet phonétique
+(police)** : affichées / masquées (le menu reste ouvert), à l'écran **sans curseur** : on marche, on conduit, on ouvre
+ses autres menus. Aussi `/miranda`, `/alphabet` ; `/cartes` pour les déplacer et changer leur taille.
 Page **Civil** : rappel du **profil actif**, la case **Mode civil**, puis **Créer un profil** et **Créer un véhicule**
 (ouvrent la **fiche civile** et ferment le menu) et, en mode civil, **Tips arrestation**.
 Page **Équipements** : **Tenues** → **Accéder aux tenues** (ferme ce menu et ouvre le menu `/eup`, ci-dessous) ;

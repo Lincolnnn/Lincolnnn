@@ -48,7 +48,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
 1. Copiez le dossier **`[rp]`** tel quel dans `resources/` (FiveM trouve les ressources dans les dossiers entre
    crochets, même imbriqués). Il est rangé en trois dossiers :
    - **`[jouabilite]`** : ox_target (pont), rp_adrenaline, rp_chat, rp_doorlock, rp_interact, rp_mdc, rp_notepad,
-     rp_overheadids, rp_revive, rp_RoleplayZone, rp_stamina, rp_taser10, rp_teleport, rp_TrafficControl,
+     rp_overheadids, rp_policecards, rp_revive, rp_RoleplayZone, rp_stamina, rp_taser10, rp_teleport, rp_TrafficControl,
      rp_vehiclecontrol, rp_vehicleprops, rp_viser, rp_weaponscontrol ;
    - **`[autres]`** : rp_Ganghunt, rp_permissions ;
    - **`[ambiance-fonctionnement]`** : rp_camshake, rp_equipment, rp_flares, rp_freecam, rp_holster, rp_NPCcontrol.
@@ -83,6 +83,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_holster                # holsters EUP pleins / vides selon l'arme de poing
    ensure rp_freecam                # /freecam : mode photo (caméra libre, minimap / HUD masqués, zoom)
    ensure rp_notepad                # /notepad (F2) : bloc-notes ; retranscrit dans la note de l'unité du MDC
+   ensure rp_policecards            # /miranda, /alphabet : cartes aide-mémoire (Menu Interaction > Police)
    ensure rp_vehicleprops
    ensure rp_taser10
    ensure rp_TrafficControl
@@ -352,9 +353,24 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   sollicitée. Les autres unités de la police gardent la notification habituelle et peuvent rejoindre l'appel depuis le
   MDC. Touches modifiables : Paramètres > Raccourcis clavier > FiveM > « MDC : accepter / refuser l'appel ».
   Position des joueurs lue par le serveur (**OneSync**) ; à défaut, la position du civil est envoyée par son jeu. Chacune se désactive dans
-  « Paramètres ». Un son accompagne les nouveaux appels (deux tons) et incidents (trois tons) : son **volume (0 à 100 %)**
-  se règle dans *Paramètres > MDC > Notifications et sons* (bouton « Tester »). Le son est généré par l'interface :
-  aucun fichier audio n'est nécessaire.
+  « Paramètres ». Volume de tous les sons (0 à 100 %) : *Paramètres > MDC > Notifications et sons* (bouton « Tester »).
+
+### Sons du MDC (`html/sounds/`)
+
+| Son | Quand | Qui l'entend |
+|---|---|---|
+| `inter.wav` | intervention **créée par un civil** (et proposition « unité la plus proche ») | unités de la police de l'appel |
+| `2.mp3` | **nouveau BOLO** (avec une notification « NOUVEAU BOLO ») | **toutes les unités WSP et KCSO** (BOLOs communs) |
+| `assign.mp3` / `deassign.mp3` | une unité **rejoint** / **quitte** l'appel | unités sur l'appel (et celle qui part) |
+| `dsp.mp3` | **observation**, **rapport**, **identité** ou **véhicule** lié à l'appel | unités sur l'appel |
+| `result.mp3` / `nnul.mp3` | recherche **avec** / **sans** résultat | l'agent qui cherche |
+| `click.mp3` | clic de souris dans le MDC | soi |
+| `laptop.mp3` | clavier : en boucle **tant que l'on écrit**, s'arrête ~0,5 s après la dernière touche | soi |
+
+Les incidents déclarés par une unité gardent leur son à trois tons et les messages entre unités leur carillon (générés
+par l'interface). Réglages : « Sons des appels, BOLOs, unités, fiches liées et recherches » et « Sons de l'interface
+(clic de souris, clavier) » (*Paramètres > MDC > Notifications et sons*). Les fichiers sont décodés une seule fois puis
+joués sans délai (Web Audio) ; remplacer un fichier par un autre du même nom suffit.
 
 Onglet **Paramètres** : afficher / masquer chaque HUD et ses éléments, taille (50 à 200 %), **Placer les HUD à
 l'écran** (glisser à la souris, molette = taille), notifications et son.

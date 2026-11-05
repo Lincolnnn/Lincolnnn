@@ -422,6 +422,24 @@ end)
 
 local closeMenu
 
+--- Cartes aide-mémoire de rp_policecards (Menu Interaction > Police) : { id, label, command, shown } ; vide sans la ressource
+local function policeCards()
+    if GetResourceState('rp_policecards') ~= 'started' then return {} end
+    local ok, list = pcall(function() return exports.rp_policecards:cards() end)
+    return ok and type(list) == 'table' and list or {}
+end
+
+-- Afficher / masquer une carte (le menu reste ouvert ; la carte s'affiche sans curseur)
+RegisterNUICallback('policeCard', function(data, cb)
+    local id = type(data) == 'table' and data.id or nil
+    if type(id) ~= 'string' or GetResourceState('rp_policecards') ~= 'started' then
+        return cb({ ok = false, error = 'Cartes indisponibles (ressource rp_policecards arrêtée).' })
+    end
+    local ok, shown = pcall(function() return exports.rp_policecards:toggle(id) end)
+    if not ok or shown == nil then return cb({ ok = false, error = 'Carte introuvable.' }) end
+    cb({ ok = true, shown = shown == true, cards = policeCards() })
+end)
+
 --- Ouvre le menu (sur la page `view` si elle est donnée, ex. 'radio' depuis l'œil)
 local function openMenu(view)
     if ui.menu and view then -- déjà ouvert (ex. œil > Radio) : le menu va sur cette page
@@ -444,6 +462,7 @@ local function openMenu(view)
             tipsManual = RPI.tipsManual and RPI.tipsManual() or false,
             policeProfile = policeProfile(),
             sectorAllowed = res and res.sectorAllowed or false, -- secteur de jeu : admins (Config.SectorAce)
+            cards = policeCards(), -- carte Miranda, alphabet phonétique (rp_policecards)
             locked = res and res.locked or {},  -- catégories réservées (config.lua : Permissions)
         } })
     end)

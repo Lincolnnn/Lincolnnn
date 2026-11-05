@@ -89,6 +89,7 @@ ChatConfig = {
             { title = "Interfaces (commandes)", items = {
                 { "/mdc · K", "MDC (police)" }, { "/menu · F1", "Menu Interaction" },
                 { "/notepad · F2", "bloc-notes (aussi /blocnotes) ; retranscrit dans la note de l'unité du MDC" },
+                { "/miranda · /alphabet", "carte Miranda, alphabet phonétique de la police (on peut marcher) ; /cartes : les déplacer" },
                 { "/joueurs", "liste des joueurs : se téléporter (admins : téléporter à soi, kick, ban)" },
                 { "/equipements · /mestenues", "Menu > Équipements ; vos tenues enregistrées" },
                 { "/eup", "tenues (Modifier ma tenue, Enregistrer ma tenue)" }, { "/fichecivil", "fiche civile (profils, véhicule)" },

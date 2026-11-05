@@ -647,6 +647,23 @@
         if (menuOn('police')) rerender();
     }
 
+    // Cartes aide-mémoire (rp_policecards) : affichées sans curseur, on marche et on ouvre ses menus
+    function cardItems(d) {
+        const list = toArray(d.cards);
+        if (!list.length) return [];
+        return [
+            { kind: 'section', label: 'Aide-mémoire' },
+            ...list.map((c) => ({ kind: 'button', label: c.shown ? `Masquer : ${c.label}` : c.label, mark: !!c.shown, right: `/${c.command}`,
+                desc: 'Affichée à l\'écran sans curseur : vous marchez, conduisez et ouvrez vos menus. /cartes : la déplacer, changer sa taille.',
+                action: async () => {
+                    const res = await post('policeCard', { id: c.id });
+                    if (!res || !res.ok) return toast(res?.error || 'Action impossible.', 'error');
+                    d.cards = toArray(res.cards);
+                    rerender();
+                } })),
+        ];
+    }
+
     function policePage() {
         return {
             id: 'police', title: 'Police',
@@ -681,6 +698,7 @@
                         } },
                     { kind: 'info', label: d.police ? `Œil (${targetKey}) : inspections, fouilles, détails notoires.`
                         : `Œil (${targetKey}) : inspections visuelles et olfactives seulement.`, tone: 'muted' },
+                    ...cardItems(d),
                 ];
             },
         };

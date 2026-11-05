@@ -1634,9 +1634,27 @@ local function notifyNewCall(call, skip)
     end
 end
 
+-- Son d'un événement de l'appel (html/sounds) joué chez les membres des unités présentes sur l'appel
+-- (+ `extra` : unité qui vient de le quitter). kind : 'assign', 'deassign', 'link'.
+local function callSound(call, kind, extra)
+    local sent = {}
+    local function send(unit)
+        for key in pairs(unit and unit.members or {}) do
+            if not sent[key] then
+                sent[key] = true
+                TriggerClientEvent('mdc:client:sound', tonumber(key), kind)
+            end
+        end
+    end
+    for unitId in pairs(call.units) do send(findUnit(tonumber(unitId))) end
+    send(extra)
+end
+
 -- Rattacher une unité à un appel (MDC "Rejoindre l'appel" ou Y sur la proposition) : "En route"
 local function joinCall(call, unit)
+    local already = call.units[tostring(unit.id)]
     call.units[tostring(unit.id)] = true
+    if not already then callSound(call, 'assign') end
     local changed = unit.status ~= 'en_route'
     unit.status = 'en_route'
     unit.updatedAt = os.time()
@@ -1860,7 +1878,10 @@ RegisterMDCCallback('interventionAction', function(src, payload)
         local offers = Offers[call.id]
         if offers and offers.pending[unit.id] then closeOffer(call, unit, 'accepted') end
     elseif payload.action == 'leave' then
-        call.units[key] = nil
+        if call.units[key] then
+            call.units[key] = nil
+            callSound(call, 'deassign', unit) -- l'unité qui part l'entend aussi
+        end
     elseif payload.action == 'end' then
         if not call.units[key] then return { ok = false, error = 'Seules les unités sur l\'appel peuvent y mettre fin.' } end
         call.closed = true
@@ -1929,6 +1950,7 @@ RegisterMDCCallback('addNote', function(src, payload)
     }
     call.nextNoteId = call.nextNoteId + 1
     pushInterventions()
+    callSound(call, 'link') -- observation ajoutée à l'appel
     return { ok = true }
 end)
 
@@ -1958,6 +1980,7 @@ RegisterMDCCallback('linkRecord', function(src, payload)
 
     call.links[#call.links + 1] = { kind = payload.kind, recordId = record.id, addedBy = unit.name, addedAt = os.time() }
     pushInterventions()
+    callSound(call, 'link') -- identité / véhicule lié à l'appel
     return { ok = true }
 end)
 
@@ -2551,8 +2574,10 @@ RegisterMDCCallback('saveReport', function(src, payload)
     local previous = old and liveCall(old.call)
     if previous then previous.reports[key] = nil end
     local current = liveCall(record.call)
+    local newlyLinked = current and not current.reports[key]
     if current then current.reports[key] = true end
     pushInterventions()
+    if newlyLinked then callSound(current, 'link') end -- rapport lié à l'appel
 
     print(('^5[MDC]^0 Rapport %s n°%s %s par %s [%s] (intervention %s)'):format(reportType.short, record.number,
         old and 'modifié' or 'créé', agentName(src), GetPlayerName(src) or '?', link and link.number or '-'))
@@ -2830,6 +2855,17 @@ RegisterMDCCallback('saveBolo', function(src, payload)
     end
 
     pushBolos()
+    if not old then
+        -- Nouveau BOLO (commun aux polices) : notification + son pour les membres de toutes les unités de police
+        local data = boloListItem(record)
+        data.agencyShort = AGENCIES[record.agency] and AGENCIES[record.agency].short or nil
+        data.unitName = record.unitName
+        for _, unit in ipairs(Units) do
+            if isPoliceAgency(unit.agency) then
+                for key in pairs(unit.members) do TriggerClientEvent('mdc:client:boloNotify', tonumber(key), data) end
+            end
+        end
+    end
     print(('^5[MDC]^0 BOLO n°%s %s par %s [%s]'):format(record.number, old and 'modifié' or 'créé', agentName(src), GetPlayerName(src) or '?'))
     return { ok = true, id = record.id, number = record.number }
 end)

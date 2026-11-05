@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_mdc'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police 100% standalone - NUI Vanilla JS'
-version '2.15.0'
+version '2.16.0'
 
 ui_page 'html/index.html'
 
@@ -19,6 +19,8 @@ files {
     'html/style.css',
     'html/script.js',
     'html/img/*.png', -- logos des polices (WSP, KCSO)
+    'html/sounds/*.mp3', -- sons du MDC (appels, BOLO, unités, fiches liées, recherches, clic, clavier)
+    'html/sounds/*.wav',
     'config/blocks.json' -- blocs de localisation du HUD (lu par client/hud.lua)
 }
 
