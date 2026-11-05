@@ -75,6 +75,13 @@ InteractConfig = {
         Command = 'eup',
         PoliceOnly = false,         -- true : tenues de police réservées aux policiers en service (unité du MDC)
         OneBased = true,            -- numéros "24:1" comptés à partir de 1 (format EUP habituel) ; false : à partir de 0
+        MaxSaved = 20,              -- Mes tenues : tenues enregistrées au plus par joueur (data/saved_outfits.json)
+    },
+    -- Menu Interaction > Joueurs : se téléporter (tous) ; admins : téléporter à soi, expulser, bannir (rp_permissions)
+    Players = {
+        AdminAce = 'rp.admin',      -- admins : rang Admin de rp_permissions ou cette ACE
+        TeleportCooldown = 5,       -- s entre deux téléportations (sauf admins)
+        KickMessage = 'Expulsé par un admin. Raison : %s',
     },
     -- Radio du véhicule (lien YouTube ou lien direct vers un son / une radio en ligne)
     RadioRangeClosed = 15.0,        -- m : entendue dehors jusqu'à 15 m, vitres et portières fermées

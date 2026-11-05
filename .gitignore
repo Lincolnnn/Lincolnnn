@@ -6,3 +6,6 @@ riven_auth.token
 [[]rp]/rp_weaponscontrol/stream/
 # rp_permissions : IDs des messages Discord créés par discord_status.lua (propres à chaque serveur)
 [[]rp]/rp_permissions/discord_messages.json
+# rp_interact : données des joueurs écrites par le serveur (tenues enregistrées, équipements modifiés)
+[[]rp]/rp_interact/data/saved_outfits.json
+[[]rp]/rp_interact/data/custom_equipment.json

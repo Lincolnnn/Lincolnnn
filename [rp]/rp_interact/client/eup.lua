@@ -10,6 +10,8 @@
       actuelle est lue sur le personnage : une pièce déjà portée est cochée ; Entrée la met, ou la retire (la pièce
       de la tenue d'origine revient ; un accessoire de la tenue d'origine est enlevé). "Remettre la tenue d'origine" :
       la tenue telle qu'elle était (mise avec /eup, ou à la première ouverture de "Modifier ma tenue").
+      "Enregistrer ma tenue" : la tenue actuelle, avec un nom, dans le répertoire du joueur (server/outfits.lua),
+      remise ensuite depuis Menu Interaction > Équipements > Mes tenues.
     Menu au CLAVIER, sans la souris (le joueur peut continuer à bouger), touches lues par client/kbmenu.lua :
       flèches haut / bas (maintenues : défilement), Entrée ou flèche droite : ouvrir / mettre la tenue,
       Retour arrière ou flèche gauche : revenir, Échap : fermer.
@@ -211,6 +213,67 @@ RegisterNUICallback('eupModReset', function(_, cb)
         RPI.notify('Tenue d\'origine remise.', 'success')
     end
     cb({ ok = true, worn = wornList() })
+end)
+
+-- ---- Mes tenues : la tenue actuelle enregistrée (répertoire propre au joueur, server/outfits.lua) ----
+local function pieces()
+    local cur, components, props = readPed(), {}, {}
+    for _, id in ipairs(COMPONENTS) do components[#components + 1] = { id, cur.c[id][1], cur.c[id][2] } end
+    for _, id in ipairs(PROPS) do props[#props + 1] = { id, cur.p[id][1], cur.p[id][2] } end
+    return components, props
+end
+
+RegisterNUICallback('eupSave', function(data, cb)
+    local sex = gender()
+    if not sex then
+        RPI.notify('Tenues enregistrables uniquement avec un personnage multijoueur (homme / femme).', 'error')
+        return cb({ ok = false })
+    end
+    local components, props = pieces()
+    RPI.request('outfitSave', { name = type(data) == 'table' and data.name or nil, gender = sex, service = wornService,
+        components = components, props = props }, function(res)
+        res = res or { ok = false }
+        if res.ok then RPI.notify(('Tenue enregistrée : %s (Équipements > Mes tenues).'):format(res.name), 'success')
+        else RPI.notify(res.error or 'Enregistrement impossible.', 'error') end
+        cb(res)
+    end)
+end)
+
+RegisterNUICallback('outfitList', function(_, cb)
+    RPI.request('outfitList', {}, function(res)
+        res = res or { ok = false }
+        res.gender = gender()
+        cb(res)
+    end)
+end)
+
+RegisterNUICallback('outfitWear', function(data, cb)
+    RPI.request('outfitWear', { id = type(data) == 'table' and tonumber(data.id) or nil }, function(res)
+        res = res or { ok = false }
+        local o = res.outfit
+        if not res.ok or type(o) ~= 'table' then
+            RPI.notify(res.error or 'Tenue indisponible.', 'error')
+            return cb({ ok = false })
+        end
+        if o.gender ~= gender() then
+            RPI.notify('Cette tenue a été enregistrée avec un autre personnage (homme / femme).', 'error')
+            return cb({ ok = false })
+        end
+        wear(o)
+        base = readPed()
+        wornService, wornName = o.service or wornService, o.name
+        RPI.notify(('Tenue : %s'):format(o.name), 'success')
+        cb({ ok = true })
+    end)
+end)
+
+RegisterNUICallback('outfitDelete', function(data, cb)
+    RPI.request('outfitDelete', { id = type(data) == 'table' and tonumber(data.id) or nil }, function(res)
+        res = res or { ok = false }
+        if res.ok then RPI.notify('Tenue supprimée.', 'success') else RPI.notify(res.error or 'Suppression impossible.', 'error') end
+        res.gender = gender()
+        cb(res)
+    end)
 end)
 
 RegisterNUICallback('eupClose', function(_, cb)

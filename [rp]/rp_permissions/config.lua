@@ -92,6 +92,16 @@ PermsConfig = {
     RefreshMinutes = 5,   -- rôles des joueurs connectés revérifiés toutes les 5 min (rôle donné / retiré en jeu)
     -- /roles : un joueur revérifie ses rôles tout de suite (rôle reçu en jeu) ; Cooldown s entre deux
     SelfRefresh = { Enabled = true, Command = 'roles', Cooldown = 30 },
+
+    -- BANNISSEMENTS (Menu Interaction > Joueurs, admins ; /bans, /unban <n°>) : gardés dans la mémoire du serveur,
+    -- vérifiés à la connexion (licence, Discord, FiveM, Steam… et jetons matériels ; jamais l'IP).
+    -- « Ban en jeu et Discord » : rôles retirés sur Discord dans cet ordre (du plus haut au plus bas) ; le bot doit avoir
+    -- la permission « Gérer les rôles » et un rôle placé AU-DESSUS de ceux-ci dans la liste des rôles du serveur.
+    Bans = {
+        Message = 'Tu es banni du serveur. Raison : %s',
+        DiscordRemoveRoles = { 'membre', 'nonofficiel' },
+        ListCommand = 'bans', UnbanCommand = 'unban',
+    },
     Debug = false,        -- détails dans la console du serveur
 }
 

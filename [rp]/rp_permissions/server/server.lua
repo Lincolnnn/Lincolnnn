@@ -76,7 +76,11 @@ local function fetchMember(discordId, cb)
     PerformHttpRequest(('%s/guilds/%s/members/%s'):format(API, GUILD, discordId), function(code, body)
         if code == 200 then
             local ok, data = pcall(json.decode, body or '')
-            if ok and type(data) == 'table' then return cb('ok', type(data.roles) == 'table' and data.roles or {}) end
+            if ok and type(data) == 'table' then
+                local user = type(data.user) == 'table' and data.user or {}
+                local name = type(user.global_name) == 'string' and user.global_name ~= '' and user.global_name or user.username
+                return cb('ok', type(data.roles) == 'table' and data.roles or {}, nil, type(name) == 'string' and name or nil)
+            end
             return cb('error', nil, code)
         elseif code == 404 then
             return cb('notInGuild')
@@ -94,14 +98,14 @@ local function lookup(discordId, fresh)
     local recent = cached and cached.status ~= 'error' and GetGameTimer() - cached.at < maxAge
     if not fresh and recent then return cached end
     local p = promise.new()
-    fetchMember(discordId, function(status, roles, code) p:resolve({ status = status, roles = roles, code = code }) end)
+    fetchMember(discordId, function(status, roles, code, name) p:resolve({ status = status, roles = roles, code = code, name = name }) end)
     local res = Citizen.Await(p)
     if res.status == 'error' and recent then
         debug('Discord injoignable (code %s) : dernier résultat connu utilisé', tostring(res.code))
         return cached
     end
     local entry = { status = res.status, roles = res.roles, rank = res.status == 'ok' and rankOf(res.roles) or nil,
-        at = GetGameTimer(), code = res.code }
+        at = GetGameTimer(), code = res.code, name = res.name }
     if res.status ~= 'error' then cache[discordId] = entry end
     return entry
 end
@@ -163,10 +167,18 @@ local function setRank(src, rank)
     if p and p.state then p.state:set('rpRank', rank or 'aucun', true) end
 end
 
+--- Pseudo Discord du joueur (nom affiché, sinon nom d'utilisateur) : état « discordName » (liste des joueurs du Menu
+--- Interaction) ; sans Discord : son nom FiveM
+local function setDiscordName(src, name)
+    local p = Player(src)
+    if p and p.state then p.state:set('discordName', name or GetPlayerName(src) or '?', true) end
+end
+
 local function refreshPlayer(src, fresh)
     local discordId = discordOf(src)
-    if not discordId then return setRank(src, nil) end
+    if not discordId then setDiscordName(src, nil) return setRank(src, nil) end
     local entry = lookup(discordId, fresh)
+    if entry.name then setDiscordName(src, entry.name) end
     if entry.status == 'error' then return ranks[src] end -- Discord injoignable : rang actuel gardé
     local rank = entry.status == 'ok' and not blacklisted(entry.roles) and entry.rank or nil
     applyPrincipal(discordId, rank)
@@ -187,6 +199,109 @@ local function refreshPlayer(src, fresh)
 end
 
 -- =========================================================================
+-- BANNISSEMENTS (Menu Interaction > Joueurs, admins) : gardés dans la mémoire du serveur (KVP « rp_bans »), vérifiés à
+-- la connexion sur tous les identifiants du joueur (licence, Discord, FiveM, Steam, Xbox…) et ses jetons matériels.
+-- « Ban en jeu et Discord » : en plus, rôles d'accès retirés sur Discord, du plus haut au plus bas (Membre puis Joueur
+-- non-officiel) ; le bot doit avoir la permission « Gérer les rôles » et un rôle plus haut que ceux-là.
+-- /bans : liste ; /unban <n°> : lever un ban (admins ou console).
+-- =========================================================================
+local KVP_BANS = 'rp_bans'
+local B = C.Bans or {}
+local bans = {}
+do
+    local ok, data = pcall(json.decode, GetResourceKvpString(KVP_BANS) or '[]')
+    if ok and type(data) == 'table' then bans = data end
+end
+local function saveBans() SetResourceKvp(KVP_BANS, json.encode(bans)) end
+
+--- Identifiants et jetons d'un joueur (connecté ou en connexion)
+local function idsOf(src)
+    local out = {}
+    for _, id in ipairs(GetPlayerIdentifiers(src) or {}) do
+        if not id:find('^ip:') then out[#out + 1] = id end -- jamais l'adresse IP
+    end
+    for i = 0, math.min(10, (GetNumPlayerTokens(src) or 0)) - 1 do
+        local t = GetPlayerToken(src, i)
+        if t then out[#out + 1] = 'token:' .. t end
+    end
+    return out
+end
+
+local function findBan(src)
+    local mine = {}
+    for _, id in ipairs(idsOf(src)) do mine[id] = true end
+    for _, ban in ipairs(bans) do
+        for _, id in ipairs(ban.ids or {}) do if mine[id] then return ban end end
+    end
+    return nil
+end
+
+local function banMessage(ban)
+    return (B.Message or 'Tu es banni du serveur. Raison : %s'):format(ban.reason ~= '' and ban.reason or 'aucune')
+end
+
+--- Rôles d'accès retirés sur Discord, du plus haut au plus bas (Membre, puis Joueur non-officiel) ; cb(retirés, échecs)
+local function removeDiscordRoles(discordId, cb)
+    if not working or not discordId then return cb({}, { 'Discord indisponible' }) end
+    CreateThread(function()
+        local entry = lookup(discordId, true)
+        local has = {}
+        for _, id in ipairs(entry.roles or {}) do has[tostring(id)] = true end
+        local removed, failed = {}, {}
+        for _, key in ipairs(B.DiscordRemoveRoles or { 'membre', 'nonofficiel' }) do
+            local r = ROLES[key]
+            if r and has[tostring(r.role)] then
+                local p = promise.new()
+                PerformHttpRequest(('%s/guilds/%s/members/%s/roles/%s'):format(API, GUILD, discordId, r.role),
+                    function(code) p:resolve(code) end, 'DELETE', '',
+                    { Authorization = 'Bot ' .. TOKEN, ['X-Audit-Log-Reason'] = 'Ban en jeu' })
+                local code = Citizen.Await(p)
+                if code == 204 or code == 200 then removed[#removed + 1] = r.label else failed[#failed + 1] = ('%s (code %s)'):format(r.label, tostring(code)) end
+                Wait(300) -- limites de l'API de Discord
+            end
+        end
+        cache[discordId] = nil
+        cb(removed, failed)
+    end)
+end
+
+--- Bannir un joueur connecté : opts = { reason, by (joueur ou 0), discord (rôles retirés aussi) } ; cb(ok, texte)
+local function banPlayer(target, opts, cb)
+    cb = cb or function() end
+    target = tonumber(target)
+    if not target or not GetPlayerName(target) then return cb(false, 'Joueur introuvable.') end
+    opts = type(opts) == 'table' and opts or {}
+    local reason = type(opts.reason) == 'string' and opts.reason:sub(1, 200) or ''
+    local by = tonumber(opts.by) or 0
+    local discordId = discordOf(target)
+    local ban = {
+        n = (bans[#bans] and tonumber(bans[#bans].n) or 0) + 1, name = GetPlayerName(target), discord = discordId,
+        reason = reason, by = by == 0 and 'console' or (GetPlayerName(by) or '?'), at = os.time(), discordBan = opts.discord == true,
+        ids = idsOf(target),
+    }
+    bans[#bans + 1] = ban
+    saveBans()
+    log('%s banni par %s%s (raison : %s)', ban.name, ban.by, ban.discordBan and ' (en jeu et Discord)' or '', reason ~= '' and reason or 'aucune')
+    local function finish(extra)
+        DropPlayer(target, banMessage(ban))
+        cb(true, ('%s est banni%s.%s'):format(ban.name, ban.discordBan and ' (en jeu et Discord)' or ' (en jeu)', extra or ''))
+    end
+    if not ban.discordBan then return finish() end
+    removeDiscordRoles(discordId, function(removed, failed)
+        local extra = #removed > 0 and (' Rôles retirés : %s.'):format(table.concat(removed, ', ')) or ' Aucun rôle d\'accès à retirer.'
+        if #failed > 0 then extra = extra .. (' Échec : %s.'):format(table.concat(failed, ', ')) end
+        finish(extra)
+    end)
+end
+
+exports('ban', banPlayer)
+exports('isBanned', function(src) return findBan(tonumber(src)) ~= nil end)
+exports('discordName', function(src)
+    local p = Player(tonumber(src) or -1)
+    return p and p.state and p.state.discordName or GetPlayerName(src)
+end)
+
+-- =========================================================================
 -- CONNEXION : liste blanche et groupe ACE posé avant l'arrivée en jeu (vMenu lit les permissions à l'arrivée)
 -- =========================================================================
 AddEventHandler('playerConnecting', function(name, _, deferrals)
@@ -196,6 +311,11 @@ AddEventHandler('playerConnecting', function(name, _, deferrals)
     deferrals.defer()
     Wait(0)
     deferrals.update((M.checking or 'Vérification Discord… (%s)'):format(name))
+    local ban = findBan(src)
+    if ban then
+        log('%s refusé : banni (n° %s, %s)', name, tostring(ban.n), ban.reason ~= '' and ban.reason or 'sans raison')
+        return deferrals.done(banMessage(ban))
+    end
 
     local discordId = discordOf(src)
     if not discordId then
@@ -243,6 +363,7 @@ AddEventHandler('playerJoining', function()
     local entry = discordId and cache[discordId]
     if entry and entry.status == 'ok' then
         setRank(src, not blacklisted(entry.roles) and entry.rank or nil)
+        setDiscordName(src, entry.name)
     else
         CreateThread(function() refreshPlayer(src, false) end)
     end
@@ -452,3 +573,29 @@ end, false)
 
 if membersOnly then log('^3session whitelist active : connexion réservée aux membres recrutés (/whitelistoff pour rouvrir).^0') end
 RPPermsSession = { allows = sessionAllows, isOn = function() return membersOnly end } -- pour les tests
+
+-- /bans (liste) et /unban <n°> : admins ou console du serveur
+RegisterCommand(B.ListCommand or 'bans', function(src)
+    if not canUse(src) then return end
+    if #bans == 0 then return reply(src, 'Aucun joueur banni.') end
+    for _, ban in ipairs(bans) do
+        reply(src, ('n° %s : %s — %s (par %s, %s%s)'):format(tostring(ban.n), ban.name or '?', ban.reason ~= '' and ban.reason or 'sans raison',
+            ban.by or '?', os.date('%d/%m/%Y %H:%M', ban.at or 0), ban.discordBan and ', Discord' or ''))
+    end
+end, false)
+
+RegisterCommand(B.UnbanCommand or 'unban', function(src, args)
+    if not canUse(src) then return end
+    local n = tonumber(args[1])
+    for i, ban in ipairs(bans) do
+        if tonumber(ban.n) == n then
+            table.remove(bans, i)
+            saveBans()
+            log('ban n° %s (%s) levé', tostring(n), ban.name or '?')
+            return reply(src, ('Ban n° %s levé (%s).%s'):format(tostring(n), ban.name or '?',
+                ban.discordBan and ' Ses rôles Discord ne sont pas rendus automatiquement.' or ''))
+        end
+    end
+    reply(src, 'Usage : /unban <n°> (voir /bans).')
+end, false)
+

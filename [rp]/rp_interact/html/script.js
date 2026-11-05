@@ -497,7 +497,7 @@
     const LOCKED_TEXT = 'Accès réservé : vous n\'avez pas la permission.';
     // Couleur de la bannière : une par partie du menu ; WSP / KCSO : couleur de la police (comme le MDC)
     const AGENCY_COLORS = { wsp: '#2d63b3', kcso: '#2f7a55' };
-    const MENU_COLORS = { home: '#2f5ea8', police: '#28509a', civil: '#6a4fa0', equipment: '#a0662a', car: '#23827a', weather: '#3a6f8f' };
+    const MENU_COLORS = { home: '#2f5ea8', police: '#28509a', civil: '#6a4fa0', equipment: '#a0662a', car: '#23827a', weather: '#3a6f8f', players: '#4d5866' };
     const agencyCode = (text) => {
         const t = String(text || '').toLowerCase();
         if (t === 'wsp' || t.startsWith('washington')) return 'wsp';
@@ -540,6 +540,98 @@
                     { kind: 'menu', label: 'Équipements', open: equipmentPage, desc: 'Tenues (/eup) et armes.', ...locked('equipment') },
                     { kind: 'menu', label: 'Voiture', open: carPage, desc: 'Faire apparaître un véhicule, radio du véhicule.', ...locked('car') },
                     { kind: 'menu', label: 'Météo', open: weatherPage, desc: 'Météo et heure du serveur (pour tout le monde), et leur défilement.', ...locked('weather') },
+                    { kind: 'section', label: 'Joueurs' },
+                    { kind: 'menu', label: 'Joueurs', right: players.loaded ? `${players.list.length}` : '', open: playersPage,
+                        desc: 'Tous les joueurs connectés (pseudo Discord et nom RP) : se téléporter ; admins : téléporter à soi, expulser, bannir.' },
+                ];
+            },
+        };
+    }
+
+    // ---- Joueurs : pseudo Discord (nom RP) ; se téléporter (tous) ; admins : téléporter à soi, expulser, bannir ----
+    const players = { loaded: false, list: [], admin: false, reason: '', confirm: null };
+    const playerLabel = (pl) => (pl.rp ? `${pl.discord} (${pl.rp})` : pl.discord);
+
+    async function loadPlayers() {
+        const res = await post('playersList');
+        if (!res || !res.ok) return;
+        players.loaded = true;
+        players.list = toArray(res.players);
+        players.admin = !!res.admin;
+        rerender();
+    }
+
+    function playersPage() {
+        return {
+            id: 'players', title: 'Joueurs',
+            banner: () => ({ title: 'Joueurs', sub: players.loaded ? (players.list.length > 1 ? `${players.list.length} joueurs connectés` : `${players.list.length} joueur connecté`) : 'Chargement…', color: MENU_COLORS.players }),
+            onEnter: loadPlayers,
+            items: () => [
+                ...(players.loaded && !players.list.length ? [{ kind: 'info', label: 'Aucun joueur.', tone: 'muted' }] : []),
+                ...players.list.map((pl) => ({
+                    kind: 'menu', label: playerLabel(pl), right: pl.self ? 'Vous' : `ID ${pl.id}`, open: () => playerPage(pl),
+                    desc: pl.self ? 'Vous-même.' : (players.admin ? 'Se téléporter, téléporter à soi, expulser, bannir.' : 'Se téléporter à côté de ce joueur.'),
+                })),
+            ],
+        };
+    }
+
+    const action = async (pl, actionName, extra) => {
+        const res = await post('playerAction', { action: actionName, target: pl.id, ...(extra || {}) });
+        players.confirm = null;
+        if (res && res.ok && (actionName === 'kick' || actionName === 'ban')) {
+            players.reason = '';
+            // le joueur n'est plus là : retour à la liste (rechargée en y revenant)
+            if (actionName === 'ban') interact.pop();
+            interact.pop();
+        } else rerender();
+    };
+
+    function playerPage(pl) {
+        return {
+            id: 'player', title: playerLabel(pl),
+            banner: () => ({ title: pl.discord, sub: pl.rp ? `Nom RP : ${pl.rp} — ID ${pl.id}` : `ID ${pl.id}`, color: MENU_COLORS.players }),
+            onEnter: () => { players.confirm = null; },
+            items: () => {
+                const admin = players.admin;
+                const protectedAdmin = pl.admin ? { disabled: true, why: 'Impossible sur un autre admin.' } : {};
+                const confirmKick = players.confirm === 'kick';
+                return [
+                    { kind: 'button', label: 'Se téléporter', ...(pl.self ? { disabled: true, why: 'C\'est vous.' } : {}),
+                        desc: 'À côté de ce joueur (à côté de son véhicule s\'il est dedans).', action: () => action(pl, 'goto') },
+                    admin && { kind: 'section', label: 'Admin' },
+                    admin && { kind: 'button', label: 'Téléporter le joueur à soi', ...(pl.self ? { disabled: true, why: 'C\'est vous.' } : {}),
+                        desc: 'Le joueur arrive à côté de vous.', action: () => action(pl, 'bring') },
+                    admin && { kind: 'input', key: 'reason', label: 'Raison', value: players.reason, max: 200, placeholder: 'facultative',
+                        desc: 'Raison affichée au joueur expulsé ou banni. Entrée pour écrire, Entrée pour valider.',
+                        onChange: (value) => { players.reason = value; rerender(); } },
+                    admin && { kind: 'button', label: confirmKick ? 'Confirmer l\'expulsion' : 'Expulser (kick)', danger: true,
+                        ...(pl.self ? { disabled: true, why: 'C\'est vous.' } : protectedAdmin),
+                        desc: confirmKick ? 'Entrée à nouveau : expulser le joueur du serveur.' : 'Déconnecte le joueur (il peut revenir).',
+                        action: () => { if (!confirmKick) { players.confirm = 'kick'; return; } action(pl, 'kick', { reason: players.reason }); } },
+                    admin && { kind: 'menu', label: 'Bannir', ...(pl.self ? { disabled: true, why: 'C\'est vous.' } : protectedAdmin),
+                        desc: 'Choisir : ban en jeu, ou ban en jeu et Discord.', open: () => banPage(pl) },
+                ];
+            },
+        };
+    }
+
+    function banPage(pl) {
+        return {
+            id: 'player-ban', title: 'Bannir',
+            banner: () => ({ title: 'Bannir', sub: playerLabel(pl), color: '#8a121b' }),
+            onEnter: () => { players.confirm = null; },
+            items: () => {
+                const c = players.confirm;
+                return [
+                    { kind: 'info', label: players.reason ? `Raison : ${players.reason}` : 'Sans raison (à écrire sur la page précédente).', tone: 'muted' },
+                    { kind: 'button', label: c === 'game' ? 'Confirmer : ban en jeu' : 'Ban en jeu', danger: true,
+                        desc: c === 'game' ? 'Entrée à nouveau : bannir du serveur.' : 'Banni du serveur (licence, Discord, FiveM, Steam… vérifiés à la connexion).',
+                        action: () => { if (c !== 'game') { players.confirm = 'game'; return; } action(pl, 'ban', { mode: 'game', reason: players.reason }); } },
+                    { kind: 'button', label: c === 'discord' ? 'Confirmer : ban en jeu et Discord' : 'Ban en jeu et Discord', danger: true,
+                        desc: c === 'discord' ? 'Entrée à nouveau : bannir du serveur et retirer ses rôles Discord.'
+                            : 'Banni du serveur, et ses rôles retirés sur Discord : « Membre » puis « Joueur non-officiel » (du plus haut au plus bas).',
+                        action: () => { if (c !== 'discord') { players.confirm = 'discord'; return; } action(pl, 'ban', { mode: 'discord', reason: players.reason }); } },
                 ];
             },
         };
@@ -670,6 +762,8 @@
                 return [
                     { kind: 'section', label: 'Tenues' },
                     { kind: 'button', label: 'Accéder aux tenues', right: '/eup', desc: 'Menu des tenues (WSP, KCSO, Civil).', action: () => post('openEup') },
+                    { kind: 'menu', label: 'Mes tenues', right: outfits.loaded ? `${outfits.list.length}` : '', open: myOutfitsPage,
+                        desc: 'Vos tenues enregistrées (/eup > Modifier ma tenue > « Enregistrer ma tenue »).' },
                     { kind: 'section', label: 'Armes' },
                     equip.locked && { kind: 'info', label: LOCKED_WEAPONS, tone: 'warn' },
                     ...(equip.loaded && !equip.services.length ? [{ kind: 'info', label: 'Aucun équipement de police (equipment_services.json).', tone: 'muted' }] : []),
@@ -690,6 +784,61 @@
                     ...equip.loadouts.map((x) => ({ kind: 'button', label: x.name, ...lock,
                         action: () => post('useEquipment', { kind: 'loadout', index: Number(x.index) }) })),
                     { kind: 'button', label: 'Retirer mes armes', danger: true, action: () => post('useEquipment', { kind: 'removeWeapons' }) },
+                ];
+            },
+        };
+    }
+
+    // ---- Mes tenues : tenues enregistrées par le joueur (server/outfits.lua) ----
+    const outfits = { loaded: false, list: [], max: 20, gender: null, confirm: null };
+    const outfitDate = (at) => (at ? new Date(Number(at) * 1000).toLocaleDateString('fr-FR') : '');
+    function setOutfits(res) {
+        if (!res || !res.ok) return;
+        outfits.loaded = true;
+        outfits.list = toArray(res.outfits);
+        if (res.max) outfits.max = Number(res.max) || outfits.max;
+        outfits.gender = res.gender || null;
+    }
+    async function loadOutfits() { setOutfits(await post('outfitList')); rerender(); }
+
+    function myOutfitsPage() {
+        return {
+            id: 'my-outfits', title: 'Mes tenues',
+            banner: () => ({ title: 'Mes tenues', sub: outfits.loaded ? `${outfits.list.length} / ${outfits.max}` : 'Chargement…', color: MENU_COLORS.equipment }),
+            onEnter: loadOutfits,
+            items: () => [
+                ...(outfits.loaded && !outfits.list.length
+                    ? [{ kind: 'info', label: 'Aucune tenue : /eup > Modifier ma tenue > « Enregistrer ma tenue ».', tone: 'muted' }] : []),
+                ...outfits.list.map((o) => {
+                    const other = outfits.gender && o.gender && o.gender !== outfits.gender;
+                    return { kind: 'menu', label: o.name, right: other ? (o.gender === 'female' ? 'Femme' : 'Homme') : (o.service || ''),
+                        open: () => outfitPage(o),
+                        desc: `${o.service ? `${o.service} · ` : ''}enregistrée le ${outfitDate(o.at)}${other ? ' — autre personnage (homme / femme)' : ''}.` };
+                }),
+                { kind: 'button', label: 'Ouvrir /eup', desc: 'Menu des tenues, pour en modifier une puis l\'enregistrer.', action: () => post('openEup') },
+            ],
+        };
+    }
+
+    function outfitPage(o) {
+        return {
+            id: 'my-outfit', title: o.name,
+            banner: () => ({ title: o.name, sub: `Mes tenues${o.service ? ` · ${o.service}` : ''}`, color: MENU_COLORS.equipment }),
+            onEnter: () => { outfits.confirm = null; },
+            items: () => {
+                const other = outfits.gender && o.gender && o.gender !== outfits.gender;
+                const confirm = outfits.confirm === o.id;
+                return [
+                    { kind: 'button', label: 'Mettre cette tenue', ...(other ? { disabled: true, why: 'Tenue enregistrée avec un autre personnage (homme / femme).' } : {}),
+                        desc: 'La tenue enregistrée, pièce par pièce.', action: () => post('outfitWear', { id: o.id }) },
+                    { kind: 'button', label: confirm ? 'Confirmer la suppression' : 'Supprimer cette tenue', danger: true,
+                        desc: confirm ? 'Entrée à nouveau : supprimer définitivement.' : 'Retire la tenue de votre répertoire.',
+                        action: async () => {
+                            if (!confirm) { outfits.confirm = o.id; return; }
+                            const res = await post('outfitDelete', { id: o.id });
+                            outfits.confirm = null;
+                            if (res && res.ok) { setOutfits(res); interact.pop(); }
+                        } },
                 ];
             },
         };
@@ -2146,6 +2295,17 @@
                 items.push({ kind: 'section', label: 'Tenue' });
                 items.push({ kind: 'button', label: 'Remettre la tenue d\'origine', desc: 'La tenue telle qu\'elle était avant les modifications.',
                     action: () => post('eupModReset').then(eupModRefresh) });
+                // Enregistrer : la tenue actuelle, dans « Mes tenues » (Menu Interaction > Équipements)
+                if (eup.saveName === undefined) eup.saveName = eup.wornName || '';
+                items.push({ kind: 'input', key: 'saveName', label: 'Nom de la tenue', value: eup.saveName, max: 40, placeholder: 'ex : Patrouille hiver',
+                    desc: 'Nom sous lequel la tenue sera enregistrée. Entrée pour écrire, Entrée pour valider.',
+                    onChange: (value) => { eup.saveName = value; eupMenu.render(); } });
+                items.push({ kind: 'button', label: 'Enregistrer ma tenue', right: 'Mes tenues',
+                    desc: 'Enregistre la tenue actuelle dans votre répertoire : Menu Interaction > Équipements > Mes tenues. Même nom : remplacée.',
+                    action: async () => {
+                        if (!String(eup.saveName || '').trim()) return toast('Donnez d\'abord un nom à la tenue.', 'error');
+                        await post('eupSave', { name: eup.saveName });
+                    } });
                 return items;
             },
         };
@@ -2223,7 +2383,7 @@
             case 'eup': setEup(data.data || {}); break;
             case 'eupWorn': // tenue mise : son service est celui de "Modifier ma tenue"
                 eup.service = (data.data && data.data.service) || 'Civil';
-                eup.wornName = (data.data && data.data.wornName) || null;
+                eup.wornName = (data.data && data.data.wornName) || null; eup.saveName = undefined;
                 if (eupMenu.open) eupMenu.render();
                 break;
             case 'kbKey': if (data.data && kbMenus[data.data.menu]) kbMenus[data.data.menu].key(data.data.key); break;

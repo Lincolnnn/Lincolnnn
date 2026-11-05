@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '3.20.0'
+version '3.21.0'
 
 ui_page 'html/index.html'
 
@@ -45,6 +45,7 @@ client_scripts {
     'client/weather.lua',  -- météo et heure du serveur (Menu > Configuration > Météo)
     'client/copyped.lua',  -- /copyped : copie du personnage (arme, accessoires, emote) pour les photos
     'client/heldweapon.lua', -- arme tenue : capture / restitution (exports, rp_vehicleprops)
+    'client/players.lua',  -- Menu > Joueurs : se téléporter ; admins : téléporter à soi, expulser, bannir
 }
 
 server_scripts {
@@ -52,4 +53,6 @@ server_scripts {
     'server/server.lua',
     'server/vehicles.lua', -- liste des véhicules, radio, équipements
     'server/weather.lua',  -- météo et heure du serveur, réglées dans le menu
+    'server/players.lua',  -- Menu > Joueurs : liste, téléportation, expulsion, bannissement (rp_permissions)
+    'server/outfits.lua',  -- Mes tenues : tenues enregistrées après /eup (data/saved_outfits.json, par joueur)
 }

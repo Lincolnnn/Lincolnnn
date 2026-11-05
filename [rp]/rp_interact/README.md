@@ -166,6 +166,23 @@ Page **Voiture** :
 **En service** = dans une unité du MDC : dès que vous rejoignez une unité, les fouilles et détails notoires
 apparaissent dans l'œil (notification) ; dès que vous la quittez, ils sont retirés (et refusés par le serveur).
 
+### Joueurs (en bas du menu)
+
+Liste de **tous les joueurs connectés** : **pseudo Discord** (nom affiché sur Discord, sinon nom d'utilisateur, lu
+par `rp_permissions` ; sans Discord : nom FiveM) et **(nom RP)** (`/nomrp`). Clic sur un joueur :
+
+| Option | Qui |
+|---|---|
+| **Se téléporter** (à côté de lui ; de son véhicule s'il est dedans) | **tout le monde** (5 s entre deux, `Players.TeleportCooldown`) |
+| **Téléporter le joueur à soi** | admins |
+| **Raison** (texte, facultatif) puis **Expulser (kick)** (Entrée deux fois) | admins |
+| **Bannir** › **Ban en jeu** / **Ban en jeu et Discord** (Entrée deux fois) | admins |
+
+« Ban en jeu et Discord » : banni du serveur **et** ses rôles d'accès retirés sur Discord, du plus haut au plus bas
+(**Membre**, puis **Joueur non-officiel** : un membre perd les deux). Bans gardés et vérifiés par `rp_permissions`
+(`/bans`, `/unban <n°>`). Admins = rang Admin de `rp_permissions` ou ACE `rp.admin` ; un admin ne peut ni expulser ni
+bannir un autre admin. Téléportation par `rp_teleport` s'il est démarré (décor chargé, sol sûr).
+
 ## Menu des tenues (`/eup`)
 
 S'ouvre avec **`/eup`** dans le chat écrit (même sans nom RP défini avec `/nomrp`), ou par **Menu Interaction >
@@ -245,6 +262,14 @@ et **une ou plusieurs parties**, avec les mêmes noms et le même format que `ou
 - Numéros comptés comme dans `outfits.json` (`Eup.OneBased`). Relu avec `rpi_vehicles` (console) ; une pièce sans
   `Name` ou sans partie est ignorée (la console l'indique).
 - Avec `Eup.PoliceOnly = true`, les pièces des polices ne sont envoyées qu'aux policiers en service.
+
+### Mes tenues (tenue enregistrée)
+
+En bas de *Modifier ma tenue* : **Nom de la tenue** puis **Enregistrer ma tenue** : la tenue actuelle (toutes les
+parties et accessoires, après vos modifications) va dans **votre répertoire** (`data/saved_outfits.json`, par licence,
+`Eup.MaxSaved` = 20 au plus ; même nom : remplacée). Menu Interaction > **Équipements > Mes tenues** : la liste ;
+une tenue › **Mettre cette tenue** / **Supprimer cette tenue** (Entrée deux fois). Une tenue enregistrée avec un
+personnage femme n'est pas proposée à un personnage homme (et inversement).
 
 ## Mode civil (case à cocher, gardée chez chaque joueur)
 
@@ -592,8 +617,9 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 
 ## Données
 
-`data/profiles.json` et `data/custom_equipment.json` (équipements modifiés, nommés et enregistrés par les joueurs,
-rempli par le serveur ; l'ancien format de la v2.8, un par service, est converti tout seul), voir `data/LISEZMOI.txt`. **À remplir vous-même**, en **JSON** : `data/vehicle.json`
+`data/profiles.json`, `data/saved_outfits.json` (Mes tenues) et `data/custom_equipment.json` (équipements modifiés,
+nommés et enregistrés par les joueurs, rempli par le serveur ; l'ancien format de la v2.8, un par service, est converti
+tout seul ; ces deux fichiers de joueurs sont ignorés par git), voir `data/LISEZMOI.txt`. **À remplir vous-même**, en **JSON** : `data/vehicle.json`
 (véhicules du menu Voiture > Spawn), `data/loadouts.json` (autres lots d'armes du menu Équipements) et
 `data/outfits.json` (tenues du menu `/eup`) ; `rpi_vehicles` (console) les relit, ainsi que
 **`equipment_services.json`** (à la racine de la ressource, fourni avec deux exemples : WSP et KCSO).

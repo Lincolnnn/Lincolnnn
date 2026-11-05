@@ -119,7 +119,20 @@ serveur : relancez-le vous-même (ou `RestartCommand = ''` : déconnexion des jo
 
 - Le plus simple : `IsPlayerAceAllowed(src, 'rp.admin')` / `'rp.membre'` (repères donnés aux groupes).
 - Exports serveur : `getRank(src)`, `hasRank(src, 'membre')` (membre ou plus haut), `isAdmin(src)`, `isMember(src)`,
-  `refresh(src)`.
+  `refresh(src)`, `discordName(src)`, `isBanned(src)`, `ban(src, { reason, by, discord }, cb)`.
+- État du joueur **`discordName`** : son pseudo Discord (nom affiché, sinon nom d'utilisateur ; sans Discord : son nom
+  FiveM), lu par la liste des joueurs du Menu Interaction.
+
+## Bannissements (`Bans`)
+
+Depuis le Menu Interaction > Joueurs (admins) : **Ban en jeu** ou **Ban en jeu et Discord**. Le ban est gardé dans la
+mémoire du serveur (KVP `rp_bans`, survit aux redémarrages) et vérifié **à chaque connexion**, sur tous les
+identifiants du joueur (licence, Discord, FiveM, Steam, Xbox…) et ses **jetons matériels** (jamais l'IP) : il ne
+revient pas avec un autre compte Discord ou une autre licence sur le même PC. « En jeu et Discord » : ses rôles sont
+aussi retirés sur Discord, **du plus haut au plus bas** (`DiscordRemoveRoles` : Membre, puis Joueur non-officiel).
+**Le bot doit avoir la permission « Gérer les rôles »** et un rôle placé **au-dessus** de ces rôles dans la liste des
+rôles du serveur Discord (sinon Discord refuse : l'échec est indiqué à l'admin). `/bans` : liste ; `/unban <n°>` :
+lever un ban (les rôles Discord ne sont pas rendus automatiquement).
 
 ## Commandes (console du serveur ou admins)
 
@@ -127,6 +140,8 @@ serveur : relancez-le vous-même (ou `RestartCommand = ''` : déconnexion des jo
 |---|---|
 | `rpperms` | liste des joueurs connectés et de leur rôle |
 | `rpperms_refresh [id]` | revérifie les rôles auprès de Discord (tous, ou un joueur) |
+| `bans` | liste des joueurs bannis (n°, raison, par qui, date) |
+| `unban <n°>` | lève un ban |
 
 ## Performance
 
