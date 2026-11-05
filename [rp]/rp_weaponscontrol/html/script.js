@@ -109,10 +109,43 @@
 
     const rgbArr = (a, def) => (Array.isArray(a) && a.length >= 3 ? a.slice(0, 3).map((v) => Math.max(0, Math.min(255, Number(v) || 0))) : def);
 
+    // Mode « light » : un dégradé sombre (rouge si touché) sur les bords, son opacité s'efface par une transition CSS
+    // (aucun flou, aucun masque, aucune image par image : rien qui coûte des FPS)
+    function fadeLayer(el, opacity, ms) {
+        el.style.display = 'block';
+        el.style.transition = 'none';
+        el.style.opacity = opacity.toFixed(3);
+        void el.offsetWidth; // applique l'opacité de départ avant la transition
+        el.style.transition = `opacity ${Math.max(100, ms)}ms linear`;
+        el.style.opacity = 0;
+    }
+
+    function suppressLight(d, c) {
+        const now = performance.now();
+        const rgb = (a, def) => (Array.isArray(a) && a.length >= 3 ? a.slice(0, 3).map((v) => Math.round(Number(v) || 0)) : def).join(', ');
+        spEl.classList.add('light'); spHit.classList.add('light');
+        spEl.style.setProperty('--tint', rgb(c.tint, [26, 28, 32]));
+        spHit.style.setProperty('--hit', rgb(c.hitColor, [150, 8, 12]));
+        const add = clamp01(d.add);
+        if (add > 0) {
+            sp.peak = Math.min(1, levelAt(sp.peak, sp.last, c.fadeOut, now) + add);
+            sp.last = now;
+            fadeLayer(spEl, clamp01(c.opacity) * Math.pow(sp.peak, Number(c.curve) > 0 ? Number(c.curve) : 0.5) * 0.8, c.fadeOut);
+        }
+        if (d.hit) {
+            sp.hitPeak = Math.min(1, levelAt(sp.hitPeak, sp.hitLast, c.hitFade, now) + 0.6);
+            sp.hitLast = now;
+            fadeLayer(spHit, clamp01(c.hitOpacity) * sp.hitPeak * 0.7, c.hitFade);
+        }
+    }
+
     function suppress(d) {
         const c = d.cfg || sp.cfg;
         if (!c) return;
         sp.cfg = c;
+        if (c.visual === 'none') return;
+        if (c.visual !== 'full') return suppressLight(d, c);
+        spEl.classList.remove('light'); spHit.classList.remove('light');
         const now = performance.now();
         const rgb = (a, def) => (Array.isArray(a) && a.length >= 3 ? a.slice(0, 3).map((v) => Math.round(Number(v) || 0)) : def).join(', ');
         spEl.style.setProperty('--tint', rgb(c.tint, [26, 28, 32]));

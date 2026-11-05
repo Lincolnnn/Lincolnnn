@@ -32,6 +32,11 @@ Avec **`rp_camshake`** : avant chaque secousse de tir, il est mis en pause (`Tri
 pour que son tremblement de marche ne modifie plus l'amplitude de la secousse du tir (premiers tirs 20 fois trop brusques).
 
 ### Effet de tir sur les bords de l'écran (`Suppression`)
+
+**Par défaut (`Suppression.Visual = 'light'`) : SECOUSSES seulement + bords de l'écran légèrement assombris** (rouges
+si touché), un simple dégradé dont l'opacité s'efface (aucun flou, aucun masque, aucun calcul image par image : pas
+de perte de FPS). `'none'` : aucun effet visuel (secousses gardées). `'full'` : l'ancien effet décrit ci-dessous
+(voile flouté, traînées, grain, vrai flou du jeu), **lourd pour les FPS**.
 Un **voile style « motion blur »** sur les **bords de l'écran seulement** (jamais au centre) : transparent mais dense
 (on voit à travers, mal), avec des traînées rayonnantes floutées et un léger grain. Il apparaît quand :
 

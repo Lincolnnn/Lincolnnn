@@ -14,9 +14,9 @@
     SÉLECTEUR DE TIR (FireMode) : touche B sur une arme automatique : coup par coup <-> automatique (petit clic, logo
     en bas au milieu de l'écran). Coup par coup : un tir par pression de la détente. Arme longue prise en main : coup
     par coup (FireMode.Long) et logo affiché quelques secondes.
-    EFFET DE TIR SUR LES BORDS (Suppression) : voile style « motion blur » sur les bords de l'écran (jamais au centre),
-    au-dessus de toutes les interfaces : on tire, quelqu'un tire près de nous, on nous tire dessus (+ secousse, touché
-    ou non), on est touché (+ bords légèrement rouges). Chaque tir l'étend ; il disparaît FadeOut ms après le dernier.
+    EFFET DE TIR (Suppression) : SECOUSSES de la caméra (on nous tire dessus, touché ou non ; on est touché) et, selon
+    Suppression.Visual : 'light' (défaut) bords de l'écran assombris (rouges si touché), un simple dégradé qui s'efface
+    (aucun flou : pas de perte de FPS) ; 'full' l'ancien voile flouté + flou du jeu (lourd) ; 'none' rien de visuel.
     Performance : sans arme à feu en main, une vérification toutes les 250 ms ; arme en main : lecture du tir à chaque
     image (comme le jeu) ; PNJ armés à moins de 10 m : lecture de leurs tirs à chaque image tant qu'il y en a ; lampe :
     une lecture toutes les 200 ms arme en main (500 ms sinon).
@@ -130,6 +130,9 @@ local SP_CFG = { -- réglages envoyés au NUI (aspect, tailles, durées)
     blur = SP.Blur or 7, streaks = SP.Streaks or 0.55, grain = SP.Grain or 0.35, tint = SP.Tint or { 26, 28, 32 },
     hitColor = SP.HitColor or { 150, 8, 12 }, hitOpacity = SP.HitOpacity or 0.4, hitFade = SP.HitFade or 4500,
     fadeOut = SP.FadeOut or 5500, curve = SP.Curve or 0.5,
+    -- 'light' : simple assombrissement des bords (dégradé, fondu d'opacité : sans flou, sans masque, aucun coût) ;
+    -- 'full' : voile flouté + vrai flou du jeu (lourd pour les FPS) ; 'none' : aucun effet visuel (secousses gardées)
+    visual = (SP.Visual == 'full' or SP.Visual == 'none') and SP.Visual or 'light',
 }
 local spUntil, spOnTop = 0, false
 
@@ -183,7 +186,7 @@ end
 --- pendant l'effet), puis le modificateur est retiré (s'il est toujours le nôtre : rp_vehiclecontrol utilise aussi
 --- l'emplacement « extra »)
 local function gameBlur(add)
-    if GB.Enabled == false or not findTcVars() then return end
+    if SP_CFG.visual ~= 'full' or GB.Enabled == false or not findTcVars() then return end
     local now = GetGameTimer()
     gb.peak = math.min(1.0, gameBlurLevel(now) + add)
     gb.last = now
@@ -207,7 +210,7 @@ RPWeapons.gameBlur = gameBlur
 --- L'effet monte de `add` (0-1) ; hit : bords rouges. Pas d'effet de post-traitement coloré du jeu (l'ancien « zoom »
 --- RaceTurbo teintait l'image d'orange grisâtre) : seulement le flou et le voile.
 local function suppress(add, hit)
-    if SP.Enabled == false then return end
+    if SP.Enabled == false or SP_CFG.visual == 'none' then return end
     add = math.max(0.0, math.min(1.0, add or 0.0))
     if add <= 0.0 and not hit then return end
     spUntil = GetGameTimer() + math.max(SP_CFG.fadeOut, hit and SP_CFG.hitFade or 0) + 300

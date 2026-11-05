@@ -12,7 +12,7 @@
         et même si l'arme est rangée puis ressortie (Flashlight) ;
       - SÉLECTEUR DE TIR : coup par coup / automatique sur les armes qui en ont un (FireMode), touche B : petit clic et
         logo en bas au milieu de l'écran ; une ARME LONGUE prise en main est en coup par coup (logo affiché un instant) ;
-      - EFFET DE TIR SUR LES BORDS DE L'ÉCRAN : voile style « motion blur » (Suppression, en bas de ce fichier).
+      - EFFET DE TIR : secousses + bords de l'écran assombris, sans flou (Suppression.Visual, en bas de ce fichier).
     Une arme avec silencieux : pas de flash, secousse réduite.
 ]]
 
@@ -148,6 +148,10 @@ WeaponsConfig = {
     -- =====================================================================
     Suppression = {
         Enabled = true,
+        -- Effet VISUEL : 'light' = bords de l'écran assombris (rouges si touché), simple dégradé qui s'efface, sans flou
+        -- (aucune perte de FPS) ; 'full' = voile flouté, traînées, grain et vrai flou du jeu (GameBlur : lourd) ;
+        -- 'none' = aucun effet visuel. Les SECOUSSES (IncomingShake, HitShake) restent dans tous les cas.
+        Visual = 'light',
         -- Ce qui fait monter l'effet (0 = rien, 1 = effet maximal d'un coup), par tir :
         Own = 0.20,         -- on tire soi-même (arme avec silencieux : moitié)
         Near = 0.10,        -- quelqu'un tire près de nous (au plus près ; diminue avec la distance, 0 à Range m)

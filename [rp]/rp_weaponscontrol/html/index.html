@@ -69,6 +69,11 @@
             border-radius: 3px; font: 700 13px 'Segoe UI', Roboto, Arial, sans-serif;
         }
         #suppressHit { inset: -24px; background: rgb(var(--hit)); filter: blur(10px); }
+        /* Mode « light » (défaut) : simple dégradé sur les bords, sans flou ni masque (aucun coût) */
+        #suppress.light, #suppressHit.light { -webkit-mask-image: none; mask-image: none; filter: none; inset: 0; will-change: opacity; }
+        #suppress.light .sp { display: none; }
+        #suppress.light { background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(var(--tint), .45) 80%, rgba(var(--tint), .85) 100%); }
+        #suppressHit.light { background: radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(var(--hit), .45) 80%, rgba(var(--hit), .8) 100%); }
     </style>
 </head>
 <body>
