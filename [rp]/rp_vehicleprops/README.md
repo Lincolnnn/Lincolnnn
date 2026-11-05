@@ -55,20 +55,24 @@ Lampe posée **au sol** : toujours le modèle **`prop_cs_police_torch_02`** (`Gr
 `Beam.Drawn = true` : faisceau dessiné en plus (`TorchBeamAxis` pour son axe). Le serveur vérifie : arme en main (ou
 mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est rendue.
 
-## Chapeau / lunettes tombés (`LostProps`)
+## Chapeau / lunettes : tombés ou posés sur un véhicule (`LostProps`)
 
-Quand le jeu fait **tomber le chapeau** (casquette, casque, chapeau **EUP**…) **ou les lunettes** d'un joueur (chute,
-coup, balle, ragdoll de `rp_adrenaline`…), il peut les **reprendre** : œil (Alt) sur l'objet tombé ou à côté,
-**« Ramasser : chapeau »** / **« Ramasser : lunettes »** -> petit geste, l'objet disparaît du sol et le chapeau / les
-lunettes sont **remis tels quels** (même modèle EUP, même texture).
+**Visibles et repris par tous les joueurs** (synchronisés par le serveur, `server/wear.lua`), **sans permission** :
 
-- Seulement quand ils **tombent** (pendant une chute, un ragdoll, ou juste après une blessure) : les retirer avec un
-  menu (EUP, vMenu…) ne laisse rien à ramasser ; les remettre avec un menu efface l'objet au sol.
-- C'est le **propriétaire** qui les ramasse (le script suit sa propre tenue) ; oubliés après 15 min (`Expire`) ou si
-  son personnage change de modèle.
-- L'objet que le jeu fait tomber est retrouvé autour de la tête et suivi jusqu'à ce qu'il s'arrête ; s'il n'est pas
-  retrouvé, un **petit repère blanc** marque l'endroit (`Marker`), et l'option apparaît quand même en visant le sol.
-- En véhicule : rien (le casque de moto est géré par le jeu).
+- **Tombés** : quand le jeu fait tomber le chapeau (casquette, casque, chapeau **EUP**…) ou les lunettes d'un joueur
+  (chute, bousculade, coup, balle, ragdoll de `rp_adrenaline`…), ils apparaissent **au sol chez tous** à l'endroit
+  où ils se sont arrêtés.
+- **Posés sur un véhicule** : œil (Alt) sur un véhicule, chapeau / lunettes sur la tête : **« Poser son chapeau sur le
+  véhicule »** / **« Poser ses lunettes sur le véhicule »** (au point visé, sur la carrosserie, collés au véhicule chez
+  tous, ils le suivent).
+- **Les reprendre** : œil sur l'objet ou à côté : **« Ramasser : chapeau »** (sol) / **« Reprendre : chapeau »**
+  (véhicule), par **n'importe quel joueur** dont le personnage a le même modèle (homme / femme : les numéros EUP
+  diffèrent) et qui n'en porte pas déjà un : remis **tels quels** (même modèle EUP, même texture), avec un petit geste.
+- Au sol : disparaissent après 15 min (`Expire`), 60 en tout (`GroundTotal`, le plus ancien disparaît) ; sur un
+  véhicule : 6 au plus (`MaxPerVehicle`), ils disparaissent avec le véhicule.
+- **Objet affiché** : un modèle du jeu (le modèle EUP ne peut pas être posé comme objet) : casquette
+  `prop_cap_01` pour les chapeaux, `prop_cs_sol_glasses` pour les lunettes (`Models`). `Overrides` : un autre modèle
+  pour un numéro précis (ex. un chapeau à bord, `reh_prop_reh_hat_cowboy_01a`, pour le chapeau de campagne de la WSP).
 
 ## Configuration (`config.lua`)
 
@@ -80,7 +84,7 @@ lunettes sont **remis tels quels** (même modèle EUP, même texture).
 | `Restricted` | `true` : réservé à la permission ACE `rp_vehicleprops.use` |
 | `Editor` | portée de la position (±3 m), pas des curseurs, sensibilité |
 | `Held` | arme / lampe tenue : armes par véhicule, objets au sol (par joueur, en tout), distances, hauteur au-dessus de la surface, modèles des lampes, armes exclues, faisceau dessiné |
-| `LostProps` | chapeau / lunettes tombés : activé, vérification (ms), distance pour ramasser, visée, oubli (s), repère, geste |
+| `LostProps` | chapeau / lunettes au sol / sur un véhicule (vus par tous) : activé, vérification (ms), distance pour ramasser, visée, durée au sol (s), nombres, geste, modèles affichés (`Models`, `Overrides`) |
 | `Props` | objets proposés : `id` unique, `label`, `category`, `model` (modèle du jeu). **Le serveur n'accepte que ces modèles.** |
 
 ## Fonctionnement

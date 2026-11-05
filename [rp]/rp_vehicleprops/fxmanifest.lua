@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_vehicleprops'
 author 'Lincolnnn'
 description 'Objets collés sur les véhicules, posés et réglés avec l\'œil de rp_interact - standalone, NUI Vanilla JS'
-version '1.5.0'
+version '1.6.0'
 
 ui_page 'html/index.html'
 
@@ -28,10 +28,11 @@ client_scripts {
     'client/theme.lua',   -- mode nuit des menus (réglé dans le MDC)
     'client/client.lua',  -- objets posés (chez tous), œil, éditeur
     'client/held.lua',    -- arme / lampe tenue : posée sur un véhicule (accessoires, lampe) ou la lampe au sol
-    'client/lostprops.lua', -- chapeau / lunettes tombés (EUP) : les ramasser avec l'œil
+    'client/lostprops.lua', -- chapeau / lunettes : tombés ou posés sur un véhicule, vus et repris par tous
 }
 
 server_scripts {
     'server/server.lua',
     'server/held.lua',    -- arme / lampe posée : état du véhicule "rpWeapons", lampes au sol
+    'server/wear.lua',    -- chapeaux / lunettes au sol ou sur un véhicule, vus et repris par tous
 }
