@@ -180,15 +180,27 @@ local function inZone(zone, p)
 end
 
 --- Partie du véhicule (bones) la plus proche du point visé, ou nil si aucune n'est assez proche
+--- Point visé à l'arrière du véhicule (coffre) : moins de TrunkDepth m depuis l'arrière de sa carrosserie, dans sa largeur
+local function atRear(entity, hit)
+    if GetEntityType(entity) ~= 2 then return false end
+    local min, max = GetModelDimensions(GetEntityModel(entity))
+    if not min or not max then return false end
+    local o = GetOffsetFromEntityGivenWorldCoords(entity, hit.x, hit.y, hit.z)
+    return o.y <= min.y + (Config.TrunkDepth or 1.3) and math.abs(o.x) <= math.max(math.abs(min.x), math.abs(max.x)) + 0.25
+end
+
 local function nearestBone(entity, bones, hit)
-    local best, bestD
+    local best, bestD, trunk
     for _, name in ipairs(type(bones) == 'table' and bones or { bones }) do
         local index = GetEntityBoneIndexByName(entity, name)
         if index ~= -1 then
             local d = #(GetWorldPositionOfEntityBone(entity, index) - hit)
             if d <= Config.BoneDistance and (not bestD or d < bestD) then best, bestD = index, d end
         end
+        if (Config.TrunkBones or {})[name] then trunk = trunk or { index = index } end
     end
+    -- coffre : tout l'arrière du véhicule compte (hayon, lunette, pare-chocs ; modèle sans pièce « boot »)
+    if not best and trunk and atRear(entity, hit) then best = trunk.index end
     return best
 end
 
@@ -285,8 +297,9 @@ exports('targetOptions', function(info)
     for _, c in ipairs(list) do
         -- principale (mise en avant dans l'œil) : liée à une partie précise visée (coffre…) ou script réservé à la police
         local primary = c.option.bones ~= nil or (Config.PoliceOnly or {})[c.option.resource] == true or nil
+        -- part : liée à une partie du véhicule (coffre…) -> en tête de l'œil, jamais dans un sous-menu
         options[#options + 1] = { id = c.uid, label = translate(c.option.resource, c.option.label or c.option.name), icon = icon(c.option.icon),
-            primary = primary }
+            primary = primary, part = c.option.bones ~= nil or nil }
         label = label or Config.Labels[c.option.resource]
     end
     return { label = label, options = options }

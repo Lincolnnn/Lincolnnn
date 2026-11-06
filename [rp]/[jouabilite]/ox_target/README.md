@@ -34,7 +34,12 @@ conditions sont ignorées. Les options d'un script disparaissent quand il s'arr�
 unité du MDC). Par défaut : `riven_spikes`.
 
 Options **mises en avant** dans l'œil (surlignées, en tête) : celles liées à une partie précise visée (`bones` : le
-coffre…) et celles des scripts `PoliceOnly` (herses).
+coffre…) et celles des scripts `PoliceOnly` (herses). Les options liées à une partie (`bones`) sont **en tête de la
+liste et jamais dans un sous-menu** (ex. **« Prendre le Stop Stick dans le coffre »**, directement dans l'œil).
+
+**Coffre** (`bones = { 'boot' }`) : proposé en visant **n'importe où à l'arrière** du véhicule (hayon, lunette,
+pare-chocs : `TrunkDepth`, 1,3 m depuis l'arrière de la carrosserie), pas seulement à 1,25 m de la pièce « boot » du
+modèle (sur les SUV, c'est la charnière en haut du hayon) ; marche aussi sur un modèle sans pièce « boot ».
 
 Options **cachées** dans l'œil (`HiddenPrefixes` : nom qui commence par…) : aucune par défaut. Elles restent utilisables par nos menus
 avec l'export client **`runOption(nom, entité)`** (point visé = la partie demandée par l'option ; `canInteract`

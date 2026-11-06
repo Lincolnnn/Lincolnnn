@@ -206,6 +206,9 @@ menu Équipement ne s'ouvre pas et sa proposition n'est pas affichée tant qu'el
 - Herse en main : la touche **X** de Riven (« ranger dans la poche ») ne la fait plus disparaître : elle revient
   aussitôt dans les mains. On doit la **lancer / poser au sol** ou la **ranger dans le coffre** (œil). Mort, à bord d'un
   véhicule, à terre ou menotté : Riven la range lui-même. `Stock.Spikes.KeepInHands = false` : comportement de Riven.
+- **Prise / rangée avec l'œil** sur l'arrière du véhicule : l'option est **directement dans l'œil**, en tête (pas dans
+  un sous-menu). Coffre proposé sur les véhicules d'urgence (classe 18) **et** les modèles de `Trunk.models` dans la
+  config de riven_spikes (les 10 véhicules de police du serveur y sont : fichier fourni à part).
 - **Une par véhicule** (`Trunk.stock = 1` dans la config de riven_spikes), posée au sol avec sa touche, reprise avec
   l'œil, rangée dans un coffre. **Jamais supprimée par l'œil** (rp_interact ne propose pas « Supprimer » sur les objets
   de Riven : `NoDeleteModelPrefixes`). **Laissée à l'abandon, elle reste** : dans la config de riven_spikes,

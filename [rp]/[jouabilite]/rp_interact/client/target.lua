@@ -117,8 +117,9 @@ local function providerOptions(ctx, options, onlyBridge)
                 for _, o in ipairs(res.options) do
                     local id = o.id
                     options[#options + 1] = { id = ('%s:%s'):format(resource, tostring(id)), label = o.label or '?',
-                        icon = o.icon or 'search', police = o.police, primary = o.primary, last = o.last,
-                        sub = type(o.sub) == 'string' and o.sub ~= '' and o.sub or nil, subIcon = o.subIcon,
+                        icon = o.icon or 'search', police = o.police, primary = o.primary, last = o.last, part = o.part == true or nil,
+                        -- option liée à une partie visée (coffre : herse de Riven…) : jamais dans un sous-menu
+                        sub = not o.part and type(o.sub) == 'string' and o.sub ~= '' and o.sub or nil, subIcon = o.subIcon,
                         run = function() exports[resource]:targetSelect(id, info) end }
                 end
                 if #res.options > 0 and res.label then ctx.providerLabel = res.label end
@@ -137,13 +138,15 @@ end
 local NOT_PRIMARY = { ['police:seat'] = true, ['door:enter'] = true }
 local INSPECT = { visual = true, olfactory = true, visualInterior = true, visualExterior = true, notable = true }
 local SEARCH = { upper = true, lower = true, cabin = true, rear = true, trunk = true }
-local GROUP_ORDER = { inspect = 1, search = 2, occupant = 3, police = 4, door = 5, place = 6, other = 7, radio = 8, last = 9, delete = 10 }
+-- part : options d'autres scripts liées à la partie visée (coffre : prendre / ranger la herse de Riven) : en tête
+local GROUP_ORDER = { part = 0, inspect = 1, search = 2, occupant = 3, police = 4, door = 5, place = 6, other = 7, radio = 8, last = 9, delete = 10 }
 -- Sous-menus : icône de l'entrée (les autres scripts donnent « sub » / « subIcon » à leurs options)
 local SUB_ICONS = { Inspections = 'eye', Fouilles = 'search', ['Poser un objet'] = 'hand', Reprendre = 'hand' }
 
 local function groupOf(option)
     local id = tostring(option.id or '')
     if option.last then return 'last' end
+    if option.part then return 'part' end
     if id == 'env:delete' then return 'delete' end
     if id == 'radio' then return 'radio' end
     local kind, field = id:match('^(%w+):(%w+)$')
@@ -158,6 +161,7 @@ end
 
 --- Sous-menu d'une option (nil : directement dans la liste)
 local function submenuOf(option)
+    if option.part then return nil end
     if option.sub then return option.sub end
     local id = tostring(option.id or '')
     local kind, field = id:match('^(%w+):(%w+)$')

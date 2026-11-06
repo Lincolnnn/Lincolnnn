@@ -7,6 +7,11 @@
 BridgeConfig = {
     DefaultDistance = 7.0, -- m : distance d'une option qui n'en précise pas (comme ox_target)
     BoneDistance = 1.25,   -- m : options sur une partie du véhicule (bones = { 'boot' }…) : point visé à moins de 1,25 m
+    -- COFFRE (bones = { 'boot' } : prendre / ranger la herse de Riven…) : aussi proposé en visant n'importe où à
+    -- l'ARRIÈRE du véhicule (TrunkDepth m depuis l'arrière de sa carrosserie : hayon, lunette, pare-chocs), même si le
+    -- modèle n'a pas de pièce « boot » ou si elle est haute (charnière du hayon des SUV : Tahoe, Explorer…)
+    TrunkBones = { boot = true, trunk = true },
+    TrunkDepth = 1.3,
     -- Scripts dont les options ne sont proposées qu'aux policiers en service (dans une unité du MDC) : herses de
     -- riven_spikes (coffre des véhicules de police, ramasser / tirer le cordon d'une herse posée)
     PoliceOnly = { riven_spikes = true },
