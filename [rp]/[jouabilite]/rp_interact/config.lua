@@ -103,10 +103,11 @@ InteractConfig = {
         { Max = 49,  Closed = 30.0, Open = 75.0 },   -- 30 à 49 %
         { Max = 100, Closed = 45.0, Open = 110.0 },  -- 50 % et plus
     },
-    RadioMaxRange = 110.0,          -- plus grande portée ci-dessus (lecteur fermé au-delà, + 20 m)
+    RadioMaxRange = 150.0,          -- plus grande portée (RadioRanges et périmètres de /musique ; lecteur fermé au-delà, + 20 m)
     RadioInsulation = 0.35,         -- volume entendu dehors quand tout est fermé (le reste : basses qui traversent)
     RadioMaxVolume = 0.8,           -- volume maximal (radio à 100 %) pour tous les joueurs
     RadioHistory = 10,              -- morceaux précédents gardés (« Déjà écoutés », même quand tout est fini)
+    RadioQueueMax = 10,             -- morceaux dans la file « Écouter ensuite » (la playlist)
     -- SON 3D (lecteur de ce script, liens audio directs : mp3, ogg, radio en ligne…) :
     --  - direction (HRTF) : on entend de quel côté est la source (gauche, droite, derrière), selon la caméra ;
     --  - FERMÉ (véhicule fermé, musique dans un intérieur vue de dehors, ou auditeur dans un véhicule fermé) : les aigus
@@ -134,6 +135,15 @@ InteractConfig = {
         PlaceDistance = 8.0,        -- m : endroit / objet à 8 m au plus du joueur
         MaxTotal = 30,              -- musiques en même temps sur le serveur
         RemoveOnDrop = true,        -- créateur déconnecté : ses musiques posées (endroit, objet) s'arrêtent
+        -- Réglages choisis en préparant la musique (et modifiables ensuite) :
+        -- PÉRIMÈTRE audible (m) : 'Selon le volume' (RadioRanges) ou une de ces distances ; fermé (murs d'un intérieur,
+        -- véhicule fermé) : périmètre x ClosedRatio. MaxRange : plus grand périmètre accepté par le serveur.
+        Ranges = { 10, 25, 50, 75, 110, 150 },
+        ClosedRatio = 0.4,
+        MaxRange = 150.0,
+        -- INTENSITÉ : force des basses et de la résonance (x) : Douce, Normale, Forte, Très forte
+        Intensities = { { label = 'Douce', factor = 0.5 }, { label = 'Normale', factor = 1.0 },
+            { label = 'Forte', factor = 1.5 }, { label = 'Très forte', factor = 2.1 } },
     },
     -- Facultatif : adresse d'un service à vous qui renvoie l'AUDIO d'une vidéo YouTube (avec l'en-tête CORS
     -- Access-Control-Allow-Origin), {id} = identifiant de la vidéo, ex. 'https://audio.mon-serveur.fr/yt/{id}'.

@@ -1265,8 +1265,26 @@
     }
     const radioUis = {
         radio: { page: 'radio', info: null, url: '', volume: 60, volumeTimer: null },
-        music: { page: 'music', info: null, url: '', volume: 60, volumeTimer: null },
+        // /musique : réglages préparés avant de lancer (intensité 0..3, périmètre en m ou 0 = selon le volume, boucle)
+        music: { page: 'music', info: null, url: '', volume: 60, volumeTimer: null, intensity: 1, range: 0, loop: false, setTimer: null },
     };
+    const DEFAULT_INTENSITIES = [{ label: 'Douce' }, { label: 'Normale' }, { label: 'Forte' }, { label: 'Très forte' }];
+    function intensityOptions(info) {
+        const list = toArray(info && info.intensities).length ? toArray(info.intensities) : DEFAULT_INTENSITIES;
+        return list.map((x) => x.label);
+    }
+    function perimeterList(info) {
+        const list = toArray(info && info.perimeters).map(Number).filter((n) => n > 0);
+        return list.length ? list : [10, 25, 50, 75, 110, 150];
+    }
+    function perimeterOptions(info) {
+        const ratio = Number(info && info.closedRatio) || 0.4;
+        return ['Selon le volume'].concat(perimeterList(info).map((m) => `${m} m · fermé ${Math.round(m * ratio)} m`));
+    }
+    function perimeterIndex(info, range) {
+        const i = perimeterList(info).indexOf(Number(range));
+        return i < 0 ? 0 : i + 1;
+    }
     const radioUi = radioUis.radio; // (ancien nom)
 
     async function loadRadio(page) {
@@ -1274,8 +1292,7 @@
         for (const k of pages) {
             const ui = radioUis[k];
             ui.info = await post('radioInfo', { page: k });
-            const radio = ui.info && ui.info.radio;
-            if (radio) ui.volume = Number(radio.volume) || 0;
+            syncUi(ui);
         }
         rerender();
     }
@@ -1287,9 +1304,27 @@
             return null;
         }
         ui.info = res;
-        if (res.radio) ui.volume = Number(res.radio.volume) || 0;
+        syncUi(ui);
         rerender();
         return res;
+    }
+
+    /** Réglages affichés = ceux de la source (si elle existe) */
+    function syncUi(ui) {
+        const radio = ui.info && ui.info.radio;
+        if (!radio) return;
+        ui.volume = Number(radio.volume) || 0;
+        ui.loop = !!radio.loop;
+        if (ui.page === 'music') {
+            ui.intensity = Number.isFinite(Number(radio.intensity)) ? Number(radio.intensity) : 1;
+            ui.range = Number(radio.range) || 0;
+        }
+    }
+
+    /** Réglage d'une source existante, envoyé après 350 ms sans changement (← → répétés) */
+    function radioSetLater(ui, action, value) {
+        clearTimeout(ui.setTimer);
+        ui.setTimer = setTimeout(() => radioAction(ui, action, { value }), 350);
     }
 
     // Début du morceau ; deux appuis rapprochés (moins de 2,5 s) : morceau précédent
@@ -1306,6 +1341,7 @@
         const radio = info.radio || null;
         const on = !!(radio && !radio.stopped);
         const queue = radio ? toArray(radio.queue) : [];
+        const queueMax = Number(info.queueMax) || RADIO_QUEUE_MAX;
         const history = radio ? toArray(radio.history) : [];
         const exists = !!info.source && !!radio;
         const can = music ? (!exists || !!info.canControl) : !!info.canControl;
@@ -1326,31 +1362,35 @@
                 desc: 'Entrée : coller / écrire le lien (Ctrl+V), puis Entrée.', onChange: (v) => { ui.url = v; rerender(); } },
         ];
         const needUrl = ui.url ? {} : { disabled: true, why: 'Écrivez d\'abord un lien.' };
+        const create = (where) => radioAction(ui, 'create', { where, url: ui.url, volume: ui.volume, intensity: ui.intensity,
+            range: ui.range, loop: ui.loop });
         if (music && (!exists || info.own)) {
             // Créer (ou déplacer : la nouvelle remplace l'ancienne)
             const verb = exists ? 'Déplacer et lancer' : 'Lancer';
             items.push(
                 { kind: 'section', label: exists ? 'Déplacer la musique' : 'Où jouer la musique' },
                 { kind: 'button', label: `${verb} sur moi`, ...needUrl, desc: 'La musique vous suit (aussi dans un véhicule).',
-                    action: () => radioAction(ui, 'create', { where: 'player', url: ui.url, volume: ui.volume }) },
+                    action: () => create('player') },
                 { kind: 'button', label: `${verb} ici`, ...needUrl, desc: 'La musique reste à cet endroit (fête, tapage…).',
-                    action: () => radioAction(ui, 'create', { where: 'place', url: ui.url, volume: ui.volume }) },
+                    action: () => create('place') },
                 { kind: 'button', label: `${verb} sur l'objet visé`, ...needUrl, desc: 'Visez un objet (enceinte, radio…) ou tenez-vous à 3 m de lui.',
-                    action: () => radioAction(ui, 'create', { where: 'prop', url: ui.url, volume: ui.volume }) },
+                    action: () => create('prop') },
             );
         }
         if (!exists && music) {
-            items.push({ kind: 'list', label: 'Volume', options: volumeOptions(info), index: Math.round(ui.volume / 5), clamp: true,
-                desc: '← → : volume de départ ; entendu jusqu\'à la 1re distance quand c\'est fermé, la 2de en plein air.',
-                onChange: (i) => { ui.volume = i * 5; rerender(); } });
+            // Préparer : volume, intensité, périmètre, boucle (envoyés avec « Lancer… »)
+            items.push(
+                { kind: 'section', label: 'Réglages' },
+                ...musicSettings(ui, info, false),
+            );
             return items;
         }
         items.push(
             { kind: 'button', label: 'Lancer ce lien', ...ctl(needUrl),
                 desc: 'Tout le monde l\'entend au même moment, selon la distance (plus loin quand c\'est fort ; étouffé quand c\'est fermé).',
                 action: () => radioAction(ui, 'play', { url: ui.url, volume: ui.volume }) },
-            { kind: 'button', label: 'Ajouter à « Écouter ensuite »', right: `${queue.length} / ${RADIO_QUEUE_MAX}`,
-                ...ctl(!ui.url ? needUrl : (on && queue.length >= RADIO_QUEUE_MAX ? { disabled: true, why: 'File pleine (5 max).' } : {})),
+            { kind: 'button', label: 'Ajouter à « Écouter ensuite »', right: `${queue.length} / ${queueMax}`,
+                ...ctl(!ui.url ? needUrl : (on && queue.length >= queueMax ? { disabled: true, why: `File pleine (${queueMax} max).` } : {})),
                 desc: 'Lu à la suite du morceau en cours.',
                 action: async () => { if (await radioAction(ui, 'queue', { url: ui.url, volume: ui.volume })) { ui.url = ''; rerender(); } } },
             { kind: 'section', label: 'Morceau en cours' },
@@ -1367,18 +1407,22 @@
                 ...ctl(off(history.length, 'Aucun morceau précédent.')),
                 desc: 'Relance le morceau d\'avant, même si tout est fini.', action: () => radioAction(ui, 'previous') },
             { kind: 'button', label: 'Morceau suivant', ...ctl(off(on, 'Aucun morceau en cours.')), action: () => radioAction(ui, 'next') },
+            { kind: 'check', label: 'Lecture en boucle', checked: !!(radio && radio.loop), ...ctl(off(radio, 'Rien à mettre en boucle.')),
+                desc: queue.length ? 'Toute la playlist (morceau en cours + « Écouter ensuite ») tourne en boucle.' : 'Un seul morceau : il recommence à la fin. Ajoutez-en à « Écouter ensuite » pour faire tourner une playlist.',
+                onChange: (v) => radioAction(ui, 'loop', { value: v }) },
             { kind: 'button', label: music ? 'Arrêter la musique' : 'Arrêter la radio', danger: true, ...ctl(off(on, 'Aucun morceau en cours.')),
                 desc: 'Vide la file « Écouter ensuite » ; les morceaux restent dans « Déjà écoutés ».', action: () => radioAction(ui, 'stop') },
             music && { kind: 'button', label: 'Retirer la musique', danger: true, ...ctl(),
                 desc: 'Plus de son ni d\'historique à cet endroit.', action: () => radioAction(ui, 'remove') },
-            { kind: 'list', label: music ? 'Volume' : 'Volume du véhicule', options: volumeOptions(info), index: Math.round(ui.volume / 5), clamp: true, ...ctl(),
+            ...(music ? musicSettings(ui, info, true, ctl) : []),
+            !music && { kind: 'list', label: 'Volume du véhicule', options: volumeOptions(info), index: Math.round(ui.volume / 5), clamp: true, ...ctl(),
                 desc: '← → : régler (pour tout le monde). Entendu jusqu\'à la 1re distance quand c\'est fermé (vitres, portières, murs), la 2de quand c\'est ouvert.',
                 onChange: (i) => {
                     ui.volume = i * 5;
                     clearTimeout(ui.volumeTimer);
                     if (radio) ui.volumeTimer = setTimeout(() => radioAction(ui, 'volume', { volume: ui.volume }), 350);
                 } },
-            { kind: 'section', label: `Écouter ensuite (${queue.length} / ${RADIO_QUEUE_MAX})` },
+            { kind: 'section', label: `Écouter ensuite (${queue.length} / ${queueMax})${radio && radio.loop && queue.length ? ' · playlist en boucle' : ''}` },
         );
         if (!queue.length) items.push({ kind: 'info', label: 'Aucun morceau en attente.', tone: 'muted' });
         queue.forEach((url, i) => items.push({ kind: 'button', label: url, right: `${i + 1}`, ...ctl(),
@@ -1392,6 +1436,26 @@
                 action: () => radioAction(ui, 'replay', { index: i + 1 }) });
         }
         return items;
+    }
+
+    /** /musique : volume, intensité, périmètre (et boucle quand on prépare) ; live = source existante (envoyé au serveur) */
+    function musicSettings(ui, info, live, ctl = (x) => x || {}) {
+        const intensities = intensityOptions(info);
+        return [
+            { kind: 'list', label: 'Volume', options: volumeOptions(info), index: Math.round(ui.volume / 5), clamp: true, ...ctl(),
+                desc: ui.range ? '← → : volume (le périmètre choisi ci-dessous fixe la distance).'
+                    : '← → : volume ; entendu jusqu\'à la 1re distance quand c\'est fermé, la 2de en plein air.',
+                onChange: (i) => { ui.volume = i * 5; if (live) radioSetLater(ui, 'volume', ui.volume); else rerender(); } },
+            { kind: 'list', label: 'Intensité', options: intensities, index: Math.min(intensities.length - 1, Math.max(0, ui.intensity)), clamp: true, ...ctl(),
+                desc: '← → : force des basses et de la résonance (douce : discrète ; très forte : ça cogne, même à travers les murs).',
+                onChange: (i) => { ui.intensity = i; if (live) radioSetLater(ui, 'intensity', i); else rerender(); } },
+            { kind: 'list', label: 'Périmètre', options: perimeterOptions(info), index: perimeterIndex(info, ui.range), clamp: true, ...ctl(),
+                desc: '← → : jusqu\'où la musique s\'entend (en plein air ; fermé : murs, véhicule fermé, moins loin). « Selon le volume » : comme la radio.',
+                onChange: (i) => { ui.range = i ? perimeterList(info)[i - 1] : 0; if (live) radioSetLater(ui, 'range', ui.range); else rerender(); } },
+            !live && { kind: 'check', label: 'En boucle', checked: !!ui.loop,
+                desc: 'Un seul morceau : il recommence à la fin ; avec « Écouter ensuite » : toute la playlist tourne.',
+                onChange: (v) => { ui.loop = v; rerender(); } },
+        ];
     }
 
     function radioPage() {
@@ -1610,6 +1674,10 @@
         let bass = loudBass, peak = 3 * loudBass;
         if (closed || listener) { bass = num(d.bassBoost, 2.2) * (0.45 + 0.55 * loud); peak = 8; }
         if (d.inside) { bass = loudBass * 1.3; peak = 4 + 3 * loud; }
+        // intensité (/musique : douce .. très forte) : basses et résonance plus ou moins marquées, même à volume moyen
+        const k = Math.max(0, num(d.intensity, 1));
+        bass = bass * k + Math.max(0, k - 1) * 0.35;
+        peak = Math.min(12, peak * Math.min(k, 1.6) + Math.max(0, k - 1) * 3);
         setParam(g.bass.gain, bass, 0.12);
         setParam(g.bassPeak.gain, peak, 0.12);
         // air : aigus atténués au loin ; derrière soi : un peu plus sourd
@@ -1622,7 +1690,7 @@
             g.env = env;
             try { g.reverb.buffer = impulse(radioCtx, env); } catch (err) { /* ancien navigateur : buffer fixe */ }
         }
-        let wet = ENV_IR[env].wet * num(d.reverb, 1) * (d.inside ? 1 : 0.4 + 0.9 * dist);
+        let wet = ENV_IR[env].wet * num(d.reverb, 1) * (d.inside ? 1 : 0.4 + 0.9 * dist) * (0.85 + 0.15 * k);
         if (closed && !d.inside) wet *= 0.7;
         setParam(g.wet.gain, wet, 0.3);
         applyRadio(r);

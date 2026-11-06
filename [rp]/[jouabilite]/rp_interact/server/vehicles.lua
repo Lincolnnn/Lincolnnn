@@ -564,8 +564,10 @@ end)
 --   id de la source : 'entity:<n° réseau>' (véhicule ou objet), 'player:<id serveur>', 'place:<n°>'.
 --   État : véhicule / objet -> état de l'entité « rpiRadio » ; joueur -> état du joueur « rpiRadio » ;
 --   lieu -> GlobalState.rpiPlaces[n°]. Champs : url, start, volume, seq, queue, history, paused, stopped
---   (morceaux finis / radio arrêtée : historique gardé pour revenir en arrière), music (/musique : { owner, kind,
---   label, x, y, z }).
+--   (morceaux finis / radio arrêtée : historique gardé pour revenir en arrière), loop (lecture en boucle : un seul
+--   morceau -> il recommence ; une file -> toute la playlist tourne), music (/musique : { owner, kind, label, x, y, z }),
+--   intensity (/musique : 0 douce, 1 normale, 2 forte, 3 très forte : basses / résonance), range (/musique : périmètre
+--   audible choisi, m ; nil = selon le volume).
 -- =========================================================================
 local MUSIC = Config.Music or {}
 
@@ -592,7 +594,8 @@ local function validUrl(url)
     return url
 end
 
-local MAX_QUEUE = 5
+local MAX_QUEUE = Config.RadioQueueMax or 10
+local settingsOf -- (plus bas)
 local MAX_HISTORY = Config.RadioHistory or 10 -- morceaux précédents gardés (revenir en arrière, même finis)
 local trackSeq = 0 -- n° unique de chaque morceau lancé (deux morceaux peuvent démarrer dans la même seconde)
 
@@ -624,7 +627,11 @@ local function radioState(base, fields)
         volume = fields.volume or base.volume or 60, by = fields.by or base.by,
         queue = fields.queue or copyQueue(base), history = fields.history or copyHistory(base),
         seq = base.seq, paused = base.paused, music = fields.music or base.music,
+        loop = base.loop, intensity = base.intensity, range = base.range,
     }
+    if fields.loop ~= nil then r.loop = fields.loop or nil end
+    if fields.intensity ~= nil then r.intensity = fields.intensity end
+    if fields.range ~= nil then r.range = fields.range or nil end
     if fields.new then
         trackSeq = trackSeq + 1
         r.seq, r.paused = trackSeq, nil
@@ -635,17 +642,28 @@ end
 
 local function pushHistory(history, url)
     if type(url) ~= 'string' then return history end
+    for i = #history, 1, -1 do
+        if history[i] == url then table.remove(history, i) end -- pas de doublon (boucle, relance)
+    end
     history[#history + 1] = url
     while #history > MAX_HISTORY do table.remove(history, 1) end
     return history
+end
+
+--- Réglages gardés d'un morceau à l'autre, même arrêtée (volume, boucle, musique, intensité, périmètre)
+settingsOf = function(current)
+    current = type(current) == 'table' and current or {}
+    return { volume = current.volume or 60, music = current.music, loop = current.loop, intensity = current.intensity,
+        range = current.range }
 end
 
 --- Arrêtée (morceaux finis ou bouton Arrêter) : plus de son, mais l'historique reste (revenir en arrière, relancer)
 local function stoppedState(current)
     local history = copyHistory(current)
     if isOn(current) then pushHistory(history, current.url) end
-    return { stopped = true, volume = current and current.volume or 60, history = history, queue = {},
-        music = current and current.music or nil }
+    local stopped = settingsOf(current)
+    stopped.stopped, stopped.history, stopped.queue = true, history, {}
+    return stopped
 end
 
 -- ---- Sources ----
@@ -730,22 +748,42 @@ local function playTrack(source, current, url, fields)
     fields = fields or {}
     local history = copyHistory(current)
     if isOn(current) and not fields.noHistory then pushHistory(history, current.url) end
-    source.set(radioState(current and not current.stopped and current or { volume = current and current.volume,
-        music = current and current.music }, {
+    source.set(radioState(isOn(current) and current or settingsOf(current), {
         url = url, start = os.time(), volume = fields.volume, by = fields.by, music = fields.music,
         queue = fields.queue, history = history, new = true,
     }))
 end
 
---- Morceau suivant de la file "Écouter ensuite" ; file vide : arrêtée (historique gardé)
+--- Morceau suivant de la file "Écouter ensuite" ; file vide : arrêtée (historique gardé).
+--- En boucle : un seul morceau -> il recommence ; une file -> le morceau fini repart en fin de file (playlist en boucle)
 local function playNext(source, current)
     local queue = copyQueue(current)
+    if current.loop and isOn(current) then
+        if #queue == 0 then
+            return playTrack(source, current, current.url, { queue = {}, noHistory = true })
+        end
+        local nextUrl = table.remove(queue, 1)
+        queue[#queue + 1] = current.url
+        return playTrack(source, current, nextUrl, { queue = queue }) -- aussi dans « Déjà écoutés » (revenir en arrière)
+    end
     local nextUrl = table.remove(queue, 1)
     if nextUrl then
         playTrack(source, current, nextUrl, { queue = queue })
     else
         source.set(stoppedState(current))
     end
+end
+
+-- /musique : intensité (0 douce .. 3 très forte) et périmètre audible (m, borné ; 0 / nil = selon le volume)
+local function intensityOf(v)
+    local n = math.tointeger(tonumber(v))
+    if not n then return nil end
+    return math.max(0, math.min(3, n))
+end
+local function rangeValue(v)
+    v = tonumber(v)
+    if not v or v <= 0 then return false end -- false : selon le volume
+    return math.floor(math.max(5.0, math.min(MUSIC.MaxRange or 150.0, v)) + 0.5)
 end
 
 local function volumeOf(v, default) return math.floor(math.max(0, math.min(100, tonumber(v) or default or 60))) end
@@ -804,6 +842,9 @@ local function createMusic(src, p)
     owners[src] = source.id
     local current = source.get()
     playTrack(source, current, url, { volume = volumeOf(p.volume, 60), by = src, music = music })
+    -- réglages choisis en préparant la musique : intensité, périmètre, boucle
+    local fields = { intensity = intensityOf(p.intensity) or 1, range = rangeValue(p.range), loop = p.loop == true }
+    source.set(radioState(source.get(), fields))
     return { ok = true, source = source.id }
 end
 
@@ -901,7 +942,7 @@ S.on('radio', function(src, p)
             table.insert(queue, 1, current.url)
             while #queue > MAX_QUEUE do table.remove(queue) end
         end
-        local base = isOn(current) and current or { volume = current and current.volume, music = current and current.music }
+        local base = isOn(current) and current or settingsOf(current)
         source.set(radioState(base, { url = previous, start = os.time(), queue = queue, history = history, new = true }))
     elseif p.action == 'replay' then
         -- Un morceau de l'historique (« Déjà écoutés »), même fini : relancé ; le morceau en cours passe dans l'historique
@@ -911,7 +952,7 @@ S.on('radio', function(src, p)
         if not url then return { ok = false, error = 'Morceau introuvable.' } end
         table.remove(history, index)
         if isOn(current) then pushHistory(history, current.url) end
-        local base = isOn(current) and current or { volume = current and current.volume, music = current and current.music }
+        local base = isOn(current) and current or settingsOf(current)
         source.set(radioState(base, { url = url, start = os.time(), queue = copyQueue(current), history = history, new = true }))
     elseif p.action == 'stop' then
         if not current then return { ok = true, radio = false } end
@@ -921,9 +962,25 @@ S.on('radio', function(src, p)
         if source.kind == 'vehicle' then return { ok = false, error = 'Action inconnue.' } end
         removeMusic(source)
         return { ok = true, radio = false, removed = true }
+    elseif p.action == 'loop' then
+        -- Lecture en boucle (bouton) : un morceau seul tourne en boucle ; avec une file, toute la playlist
+        if not current then return { ok = false, error = 'Aucun morceau en cours.' } end
+        local on = p.value
+        if on == nil then on = not current.loop end
+        source.set(radioState(current, { loop = on == true }))
+    elseif p.action == 'intensity' or p.action == 'range' then
+        if source.kind == 'vehicle' then return { ok = false, error = 'Réglage réservé à /musique.' } end
+        if not current then return { ok = false, error = 'Aucun morceau en cours.' } end
+        if p.action == 'intensity' then
+            local n = intensityOf(p.value)
+            if not n then return { ok = false, error = 'Intensité invalide.' } end
+            source.set(radioState(current, { intensity = n }))
+        else
+            source.set(radioState(current, { range = rangeValue(p.value) }))
+        end
     elseif p.action == 'volume' then
         if not current then return { ok = false, error = 'Aucun morceau en cours.' } end
-        source.set(radioState(current, { volume = volumeOf(p.volume, current.volume) }))
+        source.set(radioState(current, { volume = volumeOf(p.volume or p.value, current.volume) }))
     else
         return { ok = false, error = 'Action inconnue.' }
     end

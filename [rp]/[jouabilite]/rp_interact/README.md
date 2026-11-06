@@ -155,12 +155,14 @@ Page **Voiture** :
 
   « Ouvert » : une portière, le coffre, le capot, une vitre baissée ou cassée, un toit décapoté (seules les vitres que
   le véhicule possède comptent). La liste du volume affiche la portée qui va avec (ex. « 60 % · 45 / 110 m »).
-  **Ajouter à « Écouter ensuite »** : met le lien dans la file (jusqu'à **5** morceaux ; rien en cours : il est lancé
-  tout de suite). À la fin d'un morceau, le suivant démarre pour tout le monde. Une ligne de la file : Entrée la retire.
+  **Ajouter à « Écouter ensuite »** : met le lien dans la file (jusqu'à **10** morceaux, `RadioQueueMax` ; rien en
+  cours : il est lancé tout de suite). À la fin d'un morceau, le suivant démarre pour tout le monde. Une ligne de la file : Entrée la retire.
   Passé directement dans un **nouveau véhicule** depuis une place avant (Spawn, avec Vehicle Control) : la radio de
   l'ancien véhicule, laissé vide à l'avant, **s'arrête**.
   **Morceau en cours**, pour tout le monde : **Pause / Reprendre** (reprend là où il était, au même moment pour tous) ·
   **Début du morceau** (deux fois en moins de 2,5 s : morceau précédent) · **Morceau précédent** · **Morceau suivant** ·
+  **Lecture en boucle** (un seul bouton) : **un seul morceau** -> il recommence à la fin ; **avec une file** -> toute la
+  **playlist** (morceau en cours + « Écouter ensuite ») tourne en boucle (le morceau fini repart en fin de file) ·
   **Arrêter la radio** (vide la file) · **Volume du véhicule** (← →, par pas de 5 %).
   **Revenir en arrière, même quand tout est fini** : quand le dernier morceau se termine (ou après « Arrêter »), la
   radio est **arrêtée** mais garde ses **10 derniers morceaux** (`RadioHistory`) : **Morceau précédent** relance celui
@@ -193,7 +195,15 @@ Page **Voiture** :
 ### Musique (`/musique`, Menu Interaction > Musique)
 Même lecteur et mêmes réglages que la radio, mais la musique part d'**un joueur**, d'**un endroit** ou d'**un objet** —
 pour les scènes de fête, de tapage, de chantier… entendues par tous ceux qui sont autour :
-- écrire le **Lien**, choisir le **Volume** (la portée s'affiche), puis :
+- écrire le **Lien**, **préparer** les réglages (section « Réglages ») :
+  - **Volume** (la portée qui va avec s'affiche) ;
+  - **Intensité** : **Douce**, **Normale**, **Forte**, **Très forte** — force des basses et de la résonance (très forte :
+    ça cogne, même à travers les murs et à volume moyen) (`Music.Intensities`) ;
+  - **Périmètre** : jusqu'où elle s'entend : **Selon le volume** (comme la radio) ou **10, 25, 50, 75, 110, 150 m** en
+    plein air ; fermé (dans un bâtiment entendu de dehors, véhicule fermé) : x 0,4 (ex. « 75 m · fermé 30 m »)
+    (`Music.Ranges`, `ClosedRatio`, `MaxRange`) ;
+  - **En boucle** : un morceau seul recommence ; avec « Écouter ensuite », toute la playlist tourne ;
+- puis :
   - **Lancer sur moi** : la musique **vous suit** (à pied ; dans un véhicule, elle suit les règles du véhicule : fermé
     = étouffé) ;
   - **Lancer ici** : elle reste **à cet endroit** ;
@@ -203,8 +213,9 @@ pour les scènes de fête, de tapage, de chantier… entendues par tous ceux qui
 - **dans un bâtiment** (intérieur du jeu) : entendue de dehors comme « fermée » (étouffée, basses à travers les murs,
   portée « fermé ») ;
 - réglable par **son créateur**, le joueur qui la porte, ou **quiconque à 6 m** (`Music.ControlDistance` : un policier
-  peut la baisser ou la couper) : file, pause, précédent, déjà écoutés, suivant, volume, **Arrêter**, **Retirer la
-  musique** (plus de son ni d'historique) ;
+  peut la baisser ou la couper) : file, pause, précédent, déjà écoutés, suivant, **lecture en boucle**, **volume,
+  intensité, périmètre** (modifiables pendant la lecture), **Arrêter**, **Retirer la musique** (plus de son ni
+  d'historique) ;
 - créateur déconnecté : ses musiques posées (endroit, objet) s'arrêtent (`Music.RemoveOnDrop`) ;
 - au plus 30 musiques en même temps sur le serveur (`Music.MaxTotal`) ; permission : `Permissions.Sections.music`.
 
@@ -632,8 +643,8 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `SpawnPoliceOnly`, `EquipmentPoliceOnly` | véhicules de police (Voiture > Spawn) et armes réservés aux policiers en service |
 | `MaxCustomEquipment` | équipements modifiés (nommés, enregistrés) par joueur (10) |
 | `Eup` | menu des tenues : commande (`eup`), `PoliceOnly` (tenues de police réservées aux policiers en service, `false` par défaut), `OneBased` (numéros des tenues comptés à partir de 1) |
-| `RadioRanges`, `RadioMaxRange`, `RadioInsulation`, `RadioMaxVolume`, `RadioHistory`, `RadioMuffleHz`, `RadioBassBoost`, `RadioLoudBass`, `RadioReverb`, `RadioEnvInterval`, `RadioBehindHz`, `RadioYouTubeAudio`, `RadioEngine` | radio et musique : portée selon le volume (fermé / ouvert), plus grande portée, volume quand c'est fermé, volume maximal, morceaux gardés (« Déjà écoutés »), son étouffé (aigus coupés), basses qui traversent quand c'est fermé, basses à fort volume, force de la réverbération, mesure de l'endroit (ms), son un peu plus sourd derrière soi, service audio pour YouTube (facultatif), moteur du son (`'nui'` : ce script ; `'olisound'` : véhicules seulement ; `'auto'`) |
-| `Music` | `/musique` : `Enabled`, `ControlDistance` (régler la musique des autres, 6 m), `PlaceDistance` (endroit / objet à 8 m au plus), `MaxTotal` (30), `RemoveOnDrop` |
+| `RadioRanges`, `RadioMaxRange`, `RadioInsulation`, `RadioMaxVolume`, `RadioHistory`, `RadioQueueMax`, `RadioMuffleHz`, `RadioBassBoost`, `RadioLoudBass`, `RadioReverb`, `RadioEnvInterval`, `RadioBehindHz`, `RadioYouTubeAudio`, `RadioEngine` | radio et musique : portée selon le volume (fermé / ouvert), plus grande portée, volume quand c'est fermé, volume maximal, morceaux gardés (« Déjà écoutés »), son étouffé (aigus coupés), basses qui traversent quand c'est fermé, basses à fort volume, force de la réverbération, mesure de l'endroit (ms), son un peu plus sourd derrière soi, service audio pour YouTube (facultatif), moteur du son (`'nui'` : ce script ; `'olisound'` : véhicules seulement ; `'auto'`) |
+| `Music` | `/musique` : `Enabled`, `ControlDistance` (régler la musique des autres, 6 m), `PlaceDistance` (endroit / objet à 8 m au plus), `MaxTotal` (30), `RemoveOnDrop`, `Ranges` (périmètres proposés), `ClosedRatio` (fermé : x 0,4), `MaxRange` (150 m), `Intensities` (Douce / Normale / Forte / Très forte : force des basses) |
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |

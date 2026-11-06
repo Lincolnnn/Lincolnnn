@@ -17,8 +17,11 @@
         les RadioEnvInterval ms : plein air, rue entre des bâtiments, tunnel / parking couvert, pièce intérieure) et la
         distance ; air : aigus atténués au loin. Lien YouTube : le lecteur YouTube ne laisse passer aucun effet
         (volume seulement), sauf RadioYouTubeAudio.
-      - File "Écouter ensuite" (5 liens), pause / reprise, début du morceau, PRÉCÉDENT et DÉJÀ ÉCOUTÉS (aussi quand
-        tout est fini : la source reste « arrêtée » avec son historique), suivant, arrêter.
+      - File "Écouter ensuite" (10 liens), pause / reprise, début du morceau, PRÉCÉDENT et DÉJÀ ÉCOUTÉS (aussi quand
+        tout est fini : la source reste « arrêtée » avec son historique), suivant, LECTURE EN BOUCLE (un morceau seul,
+        ou toute la playlist), arrêter.
+      - /musique : INTENSITÉ (force des basses, x Music.Intensities) et PÉRIMÈTRE choisis (ouvert = ce périmètre,
+        fermé = x Music.ClosedRatio ; sinon selon le volume).
     MOTEUR 'olisound' (RadioEngine) : radio des véhicules seulement (portée, sans les effets).
     Performance : boucle (150 ms) seulement tant qu'une source joue à portée réseau ; aucune sinon. Mesure de
     l'endroit : 9 rayons toutes les 2 s par source entendue.
@@ -83,8 +86,13 @@ end
 local DEFAULT_RANGES = { { Max = 9, Closed = 10.0, Open = 25.0 }, { Max = 29, Closed = 20.0, Open = 50.0 },
     { Max = 49, Closed = 30.0, Open = 75.0 }, { Max = 100, Closed = 45.0, Open = 110.0 } }
 
---- Portée (m) selon le volume de la source (0-100) et fermé / ouvert
-function RPI.radioRange(volume, closed)
+--- Portée (m) selon le volume de la source (0-100) et fermé / ouvert ; `custom` : périmètre choisi pour /musique
+--- (ouvert = ce périmètre, fermé = x Music.ClosedRatio)
+function RPI.radioRange(volume, closed, custom)
+    custom = tonumber(custom)
+    if custom and custom > 0 then
+        return (closed and custom * (MUSIC.ClosedRatio or 0.4) or custom) + 0.0
+    end
     local tiers = Config.RadioRanges or DEFAULT_RANGES
     volume = tonumber(volume) or 0
     local tier = tiers[#tiers]
@@ -118,10 +126,10 @@ function RPI.radioSituation(src)
     return inside, closed, listenerClosed, #(GetEntityCoords(ped) - src.pos)
 end
 
---- Facteur de volume (0..1) pour ce joueur, et la portée utilisée
-function RPI.radioHearing(src, volume)
+--- Facteur de volume (0..1) pour ce joueur, et la portée utilisée (`custom` : périmètre choisi pour /musique)
+function RPI.radioHearing(src, volume, custom)
     local inside, closed, listenerClosed, distance = RPI.radioSituation(src)
-    local maxRange = RPI.radioRange(volume, closed)
+    local maxRange = RPI.radioRange(volume, closed, custom)
     if inside then return 1.0, maxRange, distance end
     if distance >= maxRange then return 0.0, maxRange, distance end
     local factor = (1.0 - distance / maxRange) ^ 1.4
@@ -186,6 +194,7 @@ end
 -- envoyé au NUI seulement quand ça change
 -- =========================================================================
 local lastPos = {} -- [id] = clé du dernier envoi
+local intensityFactor -- (plus bas)
 
 local function cameraRelative(pos)
     local cam = GetFinalRenderedCamCoord()
@@ -201,6 +210,15 @@ local function cameraRelative(pos)
     return x / len, y / len, -z / len, z < 0
 end
 
+--- Intensité de /musique (0 douce .. 3 très forte) -> force des basses / de la résonance (x) ; radio : normale
+local DEFAULT_INTENSITIES = { { label = 'Douce', factor = 0.5 }, { label = 'Normale', factor = 1.0 },
+    { label = 'Forte', factor = 1.5 }, { label = 'Très forte', factor = 2.1 } }
+intensityFactor = function(level)
+    local list = MUSIC.Intensities or DEFAULT_INTENSITIES
+    local entry = list[(math.tointeger(tonumber(level)) or 1) + 1]
+    return entry and tonumber(entry.factor) or 1.0
+end
+
 local function sendPos(id, src, radio, maxRange, now)
     local inside, closed, listenerClosed, distance = RPI.radioSituation(src)
     local x, y, z, behind = 0.0, 0.0, -1.0, false -- à bord : les haut-parleurs tout autour (devant)
@@ -212,9 +230,10 @@ local function sendPos(id, src, radio, maxRange, now)
         loud = math.floor((tonumber(radio.volume) or 0) / 5 + 0.5) * 5 / 100, env = e.preset, size = e.size,
         muffleHz = Config.RadioMuffleHz or 380, behindHz = Config.RadioBehindHz or 6000,
         bassBoost = Config.RadioBassBoost or 2.2, loudBass = Config.RadioLoudBass or 1.6, reverb = Config.RadioReverb or 1.0,
+        intensity = intensityFactor(radio.intensity),
     }
-    local key = ('%.2f|%.2f|%.2f|%s|%s|%s|%s|%.2f|%.2f|%s|%d'):format(x, y, z, tostring(inside), tostring(closed),
-        tostring(listenerClosed), tostring(behind), data.dist, data.loud, data.env, data.size)
+    local key = ('%.2f|%.2f|%.2f|%s|%s|%s|%s|%.2f|%.2f|%s|%d|%.2f'):format(x, y, z, tostring(inside), tostring(closed),
+        tostring(listenerClosed), tostring(behind), data.dist, data.loud, data.env, data.size, data.intensity)
     if lastPos[id] == key then return end
     lastPos[id] = key
     SendNUIMessage({ action = 'radioPos', data = data })
@@ -329,8 +348,8 @@ local function startLoop()
                 if not src then
                     stop(id) -- hors de portée réseau : reprend quand il revient
                 else
-                    local factor, maxRange, distance = RPI.radioHearing(src, radio.volume)
-                    if factor <= 0.0 and distance > RPI.radioRange(radio.volume, false) + 20.0 then
+                    local factor, maxRange, distance = RPI.radioHearing(src, radio.volume, radio.range)
+                    if factor <= 0.0 and distance > RPI.radioRange(radio.volume, false, radio.range) + 20.0 then
                         stop(id) -- loin : lecteur fermé (rouvert à l'approche, au bon moment)
                         env[id] = nil
                     elseif src.kind == 'vehicle' and useOli() then
@@ -362,7 +381,7 @@ local function apply(id, value)
         -- Autre morceau (lien ou n° différent) : lecteur refermé ; pause / reprise : même lecteur
         if old and (old.url ~= value.url or old.seq ~= value.seq) then stop(id) end
         radios[id] = { url = value.url, start = value.start, volume = tonumber(value.volume) or 60, seq = value.seq,
-            paused = tonumber(value.paused), music = value.music }
+            paused = tonumber(value.paused), music = value.music, range = tonumber(value.range), intensity = value.intensity }
         startLoop()
     else
         radios[id], ended[id], env[id] = nil, nil, nil
@@ -436,7 +455,8 @@ local function radioView(value)
     if type(value) ~= 'table' then return false end
     return { url = value.url, volume = value.volume, queue = value.queue or {}, paused = value.paused ~= nil,
         stopped = value.stopped == true or type(value.url) ~= 'string', history = historyOf(value),
-        label = type(value.music) == 'table' and value.music.label or nil }
+        label = type(value.music) == 'table' and value.music.label or nil, loop = value.loop == true,
+        intensity = math.tointeger(tonumber(value.intensity)) or 1, range = tonumber(value.range) }
 end
 
 --- Source de la page : 'radio' (véhicule) ou 'music' ; { id, canControl, label } ou erreur
@@ -463,6 +483,8 @@ local function radioInfo(page)
         ytAudio = (Config.RadioYouTubeAudio or '') ~= '', engine = (page ~= 'music' and useOli()) and 'olisound' or 'nui',
         vehicle = target.label, source = target.id, radio = radioView(value),
         canCreate = page == 'music', controlDistance = MUSIC.ControlDistance or 6.0, ranges = Config.RadioRanges or DEFAULT_RANGES,
+        queueMax = Config.RadioQueueMax or 10, perimeters = MUSIC.Ranges or { 10, 25, 50, 75, 110, 150 },
+        closedRatio = MUSIC.ClosedRatio or 0.4, intensities = MUSIC.Intensities or DEFAULT_INTENSITIES,
     }
 end
 
@@ -500,7 +522,8 @@ end
 RegisterNUICallback('radioAction', function(data, cb)
     data = type(data) == 'table' and data or {}
     local page = data.page == 'music' and 'music' or 'radio'
-    local payload = { action = data.action, url = data.url, volume = data.volume, index = data.index }
+    local payload = { action = data.action, url = data.url, volume = data.volume, index = data.index, value = data.value,
+        intensity = data.intensity, range = data.range, loop = data.loop }
     if data.action == 'create' then
         if page ~= 'music' then return cb({ ok = false, error = 'Action inconnue.' }) end
         local where = data.where
