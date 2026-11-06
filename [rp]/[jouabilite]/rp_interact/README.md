@@ -27,7 +27,7 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
 ## Menu Interaction (touche F1)
 
 **Commandes** (config.lua : `MenuCommands`) : **`/menu`** (ouvrir / fermer), et directement sur une page : **`/joueurs`**,
-**`/equipements`**, **`/mestenues`**, **`/voiture`**, **`/autoradio`** (radio du véhicule), **`/meteo`** (pages
+**`/equipements`**, **`/mestenues`**, **`/voiture`**, **`/autoradio`** (radio du véhicule), **`/musique`**, **`/meteo`** (pages
 réservées : même règle que dans le menu). Retour arrière remonte aux pages au-dessus.
 
 Un **vrai menu de jeu, au clavier** (comme `/eup`, même apparence), **sans souris** : vous continuez de bouger
@@ -142,33 +142,71 @@ Page **Voiture** :
   mission » (vérifié toutes les 2 s et au moment du nettoyage) ; il reste aussi si son joueur se déconnecte (supprimé
   par `/dv`, l'œil ou un nouveau spawn).
 - **Radio** : **Lien** (Entrée, collez le lien d'une vidéo / musique YouTube, ou un lien direct vers un fichier audio,
-  un podcast, une radio en ligne, Entrée) puis **Lancer ce lien** : le son est joué **dans le véhicule**, tel quel
-  (lecteur YouTube, ou lecteur audio pour un lien direct ; aucun effet ajouté). Tout le monde l'entend **au même moment
-  et au même volume de base**. À bord : normalement. Dehors, plus bas avec la distance : entendu jusqu'à **15 m** tout
-  fermé (`RadioRangeClosed`, volume réduit : `RadioInsulation`) et **25 m** avec une portière (coffre, capot) ouverte
-  ou une vitre baissée (`RadioRangeOpen`). Seules les vitres que le véhicule possède comptent.
-  **Ajouter à « Écouter ensuite »** : met le lien dans la file (jusqu'à **5** morceaux ; radio éteinte : il est lancé
+  un podcast, une radio en ligne, Entrée) puis **Lancer ce lien** : le son est joué **dans le véhicule**. Tout le monde
+  l'entend **au même moment et au même volume de base**. À bord : normalement. Dehors, **plus loin quand c'est fort**
+  (`RadioRanges`, selon le **volume** de la radio) :
+
+  | Volume | Tout fermé | Un élément ouvert |
+  |---|---|---|
+  | 0 à 9 % | 10 m | 25 m |
+  | 10 à 29 % | 20 m | 50 m |
+  | 30 à 49 % | 30 m | 75 m |
+  | 50 % et plus | 45 m | 110 m |
+
+  « Ouvert » : une portière, le coffre, le capot, une vitre baissée ou cassée, un toit décapoté (seules les vitres que
+  le véhicule possède comptent). La liste du volume affiche la portée qui va avec (ex. « 60 % · 45 / 110 m »).
+  **Ajouter à « Écouter ensuite »** : met le lien dans la file (jusqu'à **5** morceaux ; rien en cours : il est lancé
   tout de suite). À la fin d'un morceau, le suivant démarre pour tout le monde. Une ligne de la file : Entrée la retire.
   Passé directement dans un **nouveau véhicule** depuis une place avant (Spawn, avec Vehicle Control) : la radio de
   l'ancien véhicule, laissé vide à l'avant, **s'arrête**.
   **Morceau en cours**, pour tout le monde : **Pause / Reprendre** (reprend là où il était, au même moment pour tous) ·
-  **Début du morceau** (**deux fois** en moins de 2,5 s : **morceau précédent**, 5 gardés) · **Morceau suivant** ·
+  **Début du morceau** (deux fois en moins de 2,5 s : morceau précédent) · **Morceau précédent** · **Morceau suivant** ·
   **Arrêter la radio** (vide la file) · **Volume du véhicule** (← →, par pas de 5 %).
+  **Revenir en arrière, même quand tout est fini** : quand le dernier morceau se termine (ou après « Arrêter »), la
+  radio est **arrêtée** mais garde ses **10 derniers morceaux** (`RadioHistory`) : **Morceau précédent** relance celui
+  d'avant, et la liste **« Déjà écoutés »** (le plus récent en haut) relance n'importe lequel (Entrée).
   Réglable seulement par les **places avant**, ou avec l'**œil** en visant l'intérieur avant du véhicule, **portière
   avant ouverte** (option « Radio du véhicule » : le menu s'ouvre, ou va, sur la page Radio).
-  **Son 3D et effet étouffé** (lien audio direct : mp3, ogg, m4a, radio en ligne…) :
-  - on entend **de quel côté** est le véhicule, d'après la **caméra** : à gauche, à droite, devant, **derrière**
-    (spatialisation HRTF ; un véhicule derrière soi sonne aussi un peu plus sourd : `RadioBehindHz`) ;
-  - dehors, **portières et vitres fermées** : son **étouffé** (aigus coupés au-dessus de `RadioMuffleHz`, 550 Hz),
-    comme une musique entendue à travers la carrosserie ; une portière ou une vitre ouverte : son clair ;
-  - à bord : normal, devant soi.
-  Si le site du lien refuse que le jeu traite son son (en-tête CORS absent), la musique est jouée **sans effet**.
-  **Lien YouTube** : le lecteur YouTube ne laisse **aucun** effet s'appliquer (ni son 3D, ni étouffé : c'est une
-  limite de YouTube, pas réglable) ; seul le **volume selon la distance** marche. La page Radio l'indique. Pour avoir
-  les effets avec YouTube, il faut un service à vous qui renvoie l'audio de la vidéo avec l'en-tête CORS
-  (`RadioYouTubeAudio`, ex. `'https://audio.mon-serveur.fr/yt/{id}'`).
-  **pma-voice** : il ne transporte que la **voix des joueurs** (micro) ; il ne peut pas diffuser une musique depuis un
-  lien. La musique est donc jouée par le navigateur du jeu (NUI), avec les mêmes règles de distance.
+  **Son 3D** (lien audio direct : mp3, ogg, m4a, radio en ligne…), joué par le navigateur du jeu avec le Web Audio :
+  - **direction** : on entend **de quel côté** est la source, d'après la **caméra** (gauche, droite, devant,
+    **derrière** ; spatialisation HRTF ; derrière soi, un peu plus sourd : `RadioBehindHz`) ;
+  - **fermé** (véhicule fermé ; musique dans un intérieur entendue de dehors, ou l'inverse) : les **aigus ne passent
+    plus** (au-dessus de `RadioMuffleHz`, 380 Hz) mais les **basses traversent et cognent** (renforcées : `RadioBassBoost`,
+    résonance de l'habitacle / des murs vers 60 Hz) — l'effet « voiture qui fait boum-boum » ; l'auditeur lui-même
+    dans un **autre véhicule fermé** : étouffé aussi (encore plus si les deux sont fermés) ;
+  - **fort volume** : les basses résonnent davantage (au-delà de 30 %, surtout à 100 % : `RadioLoudBass`) ;
+  - **réverbération selon l'endroit** autour de la source, mesuré par le jeu toutes les 2 s (9 rayons) : **plein air**
+    (presque rien), **rue entre des bâtiments** (échos sur les façades), **tunnel / parking couvert** (longue
+    résonance), **pièce intérieure** ; plus présente quand on est **loin** de la source ; à bord : l'habitacle ;
+  - **air** : les aigus s'atténuent avec la distance.
+  Un limiteur évite la saturation quand les basses cognent. Si le site du lien refuse que le jeu traite son son
+  (en-tête CORS absent), la musique est jouée **sans effet**.
+  **Lien YouTube** : le lecteur YouTube ne laisse **aucun** effet s'appliquer (ni son 3D, ni étouffé, ni basses, ni
+  réverbération : c'est une limite de YouTube, pas réglable) ; seul le **volume selon la distance** marche. La page Radio
+  l'indique. Pour avoir les effets avec YouTube, il faut un service à vous qui renvoie l'audio de la vidéo avec
+  l'en-tête CORS (`RadioYouTubeAudio`, ex. `'https://audio.mon-serveur.fr/yt/{id}'`).
+  **pma-voice** : ses effets (radio, téléphone, distance) passent par le moteur de **voix** du jeu (Mumble, « submix »
+  audio) et ne s'appliquent **qu'au micro des joueurs** : impossible d'y faire passer une musique jouée depuis un
+  lien. Les mêmes idées (direction, distance, étouffement, réverbération) sont donc refaites dans le lecteur de ce
+  script.
+
+### Musique (`/musique`, Menu Interaction > Musique)
+Même lecteur et mêmes réglages que la radio, mais la musique part d'**un joueur**, d'**un endroit** ou d'**un objet** —
+pour les scènes de fête, de tapage, de chantier… entendues par tous ceux qui sont autour :
+- écrire le **Lien**, choisir le **Volume** (la portée s'affiche), puis :
+  - **Lancer sur moi** : la musique **vous suit** (à pied ; dans un véhicule, elle suit les règles du véhicule : fermé
+    = étouffé) ;
+  - **Lancer ici** : elle reste **à cet endroit** ;
+  - **Lancer sur l'objet visé** : visez un objet (enceinte, radio, poste…) ou tenez-vous à 3 m de lui ; un objet posé
+    par un script (synchronisé) **emporte la musique s'il bouge** ; un objet du décor la garde à sa place ;
+- **une musique par joueur** : en lancer une ailleurs **déplace** la vôtre ;
+- **dans un bâtiment** (intérieur du jeu) : entendue de dehors comme « fermée » (étouffée, basses à travers les murs,
+  portée « fermé ») ;
+- réglable par **son créateur**, le joueur qui la porte, ou **quiconque à 6 m** (`Music.ControlDistance` : un policier
+  peut la baisser ou la couper) : file, pause, précédent, déjà écoutés, suivant, volume, **Arrêter**, **Retirer la
+  musique** (plus de son ni d'historique) ;
+- créateur déconnecté : ses musiques posées (endroit, objet) s'arrêtent (`Music.RemoveOnDrop`) ;
+- au plus 30 musiques en même temps sur le serveur (`Music.MaxTotal`) ; permission : `Permissions.Sections.music`.
 
 **En service** = dans une unité du MDC : dès que vous rejoignez une unité, les fouilles et détails notoires
 apparaissent dans l'œil (notification) ; dès que vous la quittez, ils sont retirés (et refusés par le serveur).
@@ -594,7 +632,8 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `SpawnPoliceOnly`, `EquipmentPoliceOnly` | véhicules de police (Voiture > Spawn) et armes réservés aux policiers en service |
 | `MaxCustomEquipment` | équipements modifiés (nommés, enregistrés) par joueur (10) |
 | `Eup` | menu des tenues : commande (`eup`), `PoliceOnly` (tenues de police réservées aux policiers en service, `false` par défaut), `OneBased` (numéros des tenues comptés à partir de 1) |
-| `RadioRangeClosed`, `RadioRangeOpen`, `RadioInsulation`, `RadioMaxVolume`, `RadioMuffleHz`, `RadioMuffleBoost`, `RadioBehindHz`, `RadioYouTubeAudio`, `RadioEngine` | radio du véhicule : portée dehors tout fermé (15 m) / ouvert (25 m), volume quand tout est fermé, volume maximal, effet étouffé (coupure des aigus, volume compensé), son un peu plus sourd derrière soi, service audio pour YouTube (facultatif), moteur du son (`'nui'` : ce script ; `'olisound'` ; `'auto'`) |
+| `RadioRanges`, `RadioMaxRange`, `RadioInsulation`, `RadioMaxVolume`, `RadioHistory`, `RadioMuffleHz`, `RadioBassBoost`, `RadioLoudBass`, `RadioReverb`, `RadioEnvInterval`, `RadioBehindHz`, `RadioYouTubeAudio`, `RadioEngine` | radio et musique : portée selon le volume (fermé / ouvert), plus grande portée, volume quand c'est fermé, volume maximal, morceaux gardés (« Déjà écoutés »), son étouffé (aigus coupés), basses qui traversent quand c'est fermé, basses à fort volume, force de la réverbération, mesure de l'endroit (ms), son un peu plus sourd derrière soi, service audio pour YouTube (facultatif), moteur du son (`'nui'` : ce script ; `'olisound'` : véhicules seulement ; `'auto'`) |
+| `Music` | `/musique` : `Enabled`, `ControlDistance` (régler la musique des autres, 6 m), `PlaceDistance` (endroit / objet à 8 m au plus), `MaxTotal` (30), `RemoveOnDrop` |
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |
@@ -709,8 +748,9 @@ voulu** (`CopyPed.Max = 0`) ; un nombre > 0 remet une limite (le plus ancien est
 
 ## Performance
 
-- Aucune boucle quand rien n'est utilisé (0.00 ms dans le resmon). Radio : une vérification toutes les 150 ms
-  seulement tant qu'une radio est allumée dans un véhicule à portée réseau.
+- Aucune boucle quand rien n'est utilisé (0.00 ms dans le resmon). Radio / musique : une vérification toutes les
+  150 ms seulement tant qu'une source joue à portée réseau ; mesure de l'endroit (9 rayons) toutes les 2 s par source
+  entendue.
 - Menu Interaction et menu `/eup` (au clavier) : lecture des touches à chaque image **uniquement pendant qu'un menu
   est ouvert** ; aucune boucle sinon.
 - Arme à feu : une vérification toutes les 250 ms (arme en main) ; touches bloquées à chaque image **seulement tant

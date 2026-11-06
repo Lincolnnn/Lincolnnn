@@ -542,6 +542,7 @@
                     { kind: 'section', label: 'Configuration' },
                     { kind: 'menu', label: 'Équipements', open: equipmentPage, desc: 'Tenues (/eup) et armes.', ...locked('equipment') },
                     { kind: 'menu', label: 'Voiture', open: carPage, desc: 'Faire apparaître un véhicule, radio du véhicule.', ...locked('car') },
+                    { kind: 'menu', label: 'Musique', open: musicPage, desc: 'Faire jouer de la musique sur soi, à un endroit ou sur un objet (/musique).', ...locked('music') },
                     { kind: 'menu', label: 'Météo', open: weatherPage, desc: 'Météo et heure du serveur (pour tout le monde), et leur défilement.', ...locked('weather') },
                     { kind: 'section', label: 'Joueurs' },
                     { kind: 'menu', label: 'Joueurs', right: players.loaded ? `${players.list.length}` : '', open: playersPage,
@@ -1250,26 +1251,43 @@
         };
     }
 
-    // ---- Voiture > Radio : réglages du véhicule (le son est joué plus bas) ----
+    // ---- Voiture > Radio et Musique (/musique) : réglages de la source (le son est joué plus bas) ----
     const RADIO_QUEUE_MAX = 5;
-    const RADIO_VOLUMES = Array.from({ length: 21 }, (_, i) => `${i * 5} %`);
-    const radioUi = { info: null, url: '', volume: 60, volumeTimer: null };
+    // Volume et portée qui va avec (config.lua : RadioRanges, envoyée par client/radio.lua) : fermé / ouvert
+    const DEFAULT_RANGES = [{ Max: 9, Closed: 10, Open: 25 }, { Max: 29, Closed: 20, Open: 50 }, { Max: 49, Closed: 30, Open: 75 }, { Max: 100, Closed: 45, Open: 110 }];
+    function volumeOptions(info) {
+        const ranges = toArray(info && info.ranges).length ? toArray(info.ranges) : DEFAULT_RANGES;
+        return Array.from({ length: 21 }, (_, i) => {
+            const v = i * 5;
+            const t = ranges.find((x) => v <= Number(x.Max)) || ranges[ranges.length - 1];
+            return `${v} % · ${Math.round(t.Closed)} / ${Math.round(t.Open)} m`;
+        });
+    }
+    const radioUis = {
+        radio: { page: 'radio', info: null, url: '', volume: 60, volumeTimer: null },
+        music: { page: 'music', info: null, url: '', volume: 60, volumeTimer: null },
+    };
+    const radioUi = radioUis.radio; // (ancien nom)
 
-    async function loadRadio() {
-        radioUi.info = await post('radioInfo');
-        const radio = radioUi.info && radioUi.info.radio;
-        if (radio) radioUi.volume = Number(radio.volume) || 0;
+    async function loadRadio(page) {
+        const pages = page ? [page] : Object.keys(radioUis).filter((k) => menuOn(k));
+        for (const k of pages) {
+            const ui = radioUis[k];
+            ui.info = await post('radioInfo', { page: k });
+            const radio = ui.info && ui.info.radio;
+            if (radio) ui.volume = Number(radio.volume) || 0;
+        }
         rerender();
     }
 
-    async function radioAction(action, extra = {}) {
-        const res = await post('radioAction', { action, ...extra });
+    async function radioAction(ui, action, extra = {}) {
+        const res = await post('radioAction', { page: ui.page, action, ...extra });
         if (!res || !res.ok) {
             toast(res?.error || 'Action impossible.', 'error');
             return null;
         }
-        radioUi.info = res;
-        if (res.radio) radioUi.volume = Number(res.radio.volume) || 0;
+        ui.info = res;
+        if (res.radio) ui.volume = Number(res.radio.volume) || 0;
         rerender();
         return res;
     }
@@ -1278,73 +1296,128 @@
     const RADIO_DOUBLE_MS = 2500;
     let radioRestartAt = 0;
 
-    function radioItems() {
-        const info = radioUi.info;
+    function radioItems(ui) {
+        const info = ui.info;
+        const music = ui.page === 'music';
         if (!info) return [{ kind: 'info', label: 'Chargement…', tone: 'muted' }];
         if (!info.available) {
             return [{ kind: 'info', label: info.error || 'Montez dans un véhicule (ou visez l\'intérieur avant avec l\'œil, portière ouverte).', tone: 'muted' }];
         }
         const radio = info.radio || null;
+        const on = !!(radio && !radio.stopped);
         const queue = radio ? toArray(radio.queue) : [];
-        const can = !!info.canControl;
+        const history = radio ? toArray(radio.history) : [];
+        const exists = !!info.source && !!radio;
+        const can = music ? (!exists || !!info.canControl) : !!info.canControl;
         const off = (cond, why) => (cond ? {} : { disabled: true, why });
-        const front = 'Seules les places avant peuvent régler la radio.';
-        const ctl = (extra) => (can ? (extra || {}) : { disabled: true, why: front });
+        const deny = music ? `Approchez-vous à ${info.controlDistance || 6} m de la musique pour la régler.` : 'Seules les places avant peuvent régler la radio.';
+        const ctl = (extra) => (can ? (extra || {}) : { disabled: true, why: deny });
+        const what = music ? 'musique' : 'radio';
+        const state = !radio ? (music ? 'aucune musique à proximité' : 'radio éteinte')
+            : radio.stopped ? `${what} arrêtée` : (radio.paused ? `${what} en pause` : `${what} allumée`);
+        const head = music ? (radio && radio.label ? `Musique ${radio.label}` : 'Musique') : (info.vehicle || 'Radio');
         const items = [
-            { kind: 'info', label: `${info.vehicle ? `${info.vehicle} — ` : ''}${radio ? (radio.paused ? 'radio en pause' : 'radio allumée') : 'radio éteinte'}`, tone: radio ? 'ok' : 'muted' },
-            radio && { kind: 'info', label: radio.url, tone: 'muted' },
-            radio && youtubeId(radio.url) && !info.ytAudio && { kind: 'info', tone: 'muted',
-                label: 'Lien YouTube : volume selon la distance seulement (le lecteur YouTube ne permet ni son 3D ni effet étouffé). Lien audio direct (mp3, radio en ligne) : son 3D complet.' },
-            !can && { kind: 'info', label: front, tone: 'warn' },
-            { kind: 'input', key: 'url', label: 'Lien', value: radioUi.url, placeholder: 'YouTube, musique, podcast, radio…', max: 400, ...ctl(),
-                desc: 'Entrée : coller / écrire le lien (Ctrl+V), puis Entrée.', onChange: (v) => { radioUi.url = v; rerender(); } },
-            { kind: 'button', label: 'Lancer ce lien', ...ctl(radioUi.url ? {} : { disabled: true, why: 'Écrivez d\'abord un lien.' }),
-                desc: 'Tout le monde l\'entend au même moment : à bord, et dehors selon la distance (plus bas vitres et portières fermées).',
-                action: () => radioAction('play', { url: radioUi.url, volume: radioUi.volume }) },
+            { kind: 'info', label: `${head} — ${state}`, tone: on ? 'ok' : 'muted' },
+            on && { kind: 'info', label: radio.url, tone: 'muted' },
+            on && youtubeId(radio.url) && !info.ytAudio && { kind: 'info', tone: 'muted',
+                label: 'Lien YouTube : volume selon la distance seulement (le lecteur YouTube ne laisse passer aucun effet). Lien audio direct (mp3, radio en ligne) : son 3D complet (étouffé, basses, réverbération).' },
+            !can && { kind: 'info', label: deny, tone: 'warn' },
+            { kind: 'input', key: 'url', label: 'Lien', value: ui.url, placeholder: 'YouTube, musique, podcast, radio…', max: 400, ...ctl(),
+                desc: 'Entrée : coller / écrire le lien (Ctrl+V), puis Entrée.', onChange: (v) => { ui.url = v; rerender(); } },
+        ];
+        const needUrl = ui.url ? {} : { disabled: true, why: 'Écrivez d\'abord un lien.' };
+        if (music && (!exists || info.own)) {
+            // Créer (ou déplacer : la nouvelle remplace l'ancienne)
+            const verb = exists ? 'Déplacer et lancer' : 'Lancer';
+            items.push(
+                { kind: 'section', label: exists ? 'Déplacer la musique' : 'Où jouer la musique' },
+                { kind: 'button', label: `${verb} sur moi`, ...needUrl, desc: 'La musique vous suit (aussi dans un véhicule).',
+                    action: () => radioAction(ui, 'create', { where: 'player', url: ui.url, volume: ui.volume }) },
+                { kind: 'button', label: `${verb} ici`, ...needUrl, desc: 'La musique reste à cet endroit (fête, tapage…).',
+                    action: () => radioAction(ui, 'create', { where: 'place', url: ui.url, volume: ui.volume }) },
+                { kind: 'button', label: `${verb} sur l'objet visé`, ...needUrl, desc: 'Visez un objet (enceinte, radio…) ou tenez-vous à 3 m de lui.',
+                    action: () => radioAction(ui, 'create', { where: 'prop', url: ui.url, volume: ui.volume }) },
+            );
+        }
+        if (!exists && music) {
+            items.push({ kind: 'list', label: 'Volume', options: volumeOptions(info), index: Math.round(ui.volume / 5), clamp: true,
+                desc: '← → : volume de départ ; entendu jusqu\'à la 1re distance quand c\'est fermé, la 2de en plein air.',
+                onChange: (i) => { ui.volume = i * 5; rerender(); } });
+            return items;
+        }
+        items.push(
+            { kind: 'button', label: 'Lancer ce lien', ...ctl(needUrl),
+                desc: 'Tout le monde l\'entend au même moment, selon la distance (plus loin quand c\'est fort ; étouffé quand c\'est fermé).',
+                action: () => radioAction(ui, 'play', { url: ui.url, volume: ui.volume }) },
             { kind: 'button', label: 'Ajouter à « Écouter ensuite »', right: `${queue.length} / ${RADIO_QUEUE_MAX}`,
-                ...ctl(!radioUi.url ? { disabled: true, why: 'Écrivez d\'abord un lien.' } : (queue.length >= RADIO_QUEUE_MAX ? { disabled: true, why: 'File pleine (5 max).' } : {})),
+                ...ctl(!ui.url ? needUrl : (on && queue.length >= RADIO_QUEUE_MAX ? { disabled: true, why: 'File pleine (5 max).' } : {})),
                 desc: 'Lu à la suite du morceau en cours.',
-                action: async () => { if (await radioAction('queue', { url: radioUi.url, volume: radioUi.volume })) { radioUi.url = ''; rerender(); } } },
+                action: async () => { if (await radioAction(ui, 'queue', { url: ui.url, volume: ui.volume })) { ui.url = ''; rerender(); } } },
             { kind: 'section', label: 'Morceau en cours' },
-            { kind: 'button', label: radio && radio.paused ? 'Reprendre' : 'Pause', ...ctl(off(radio, 'Radio éteinte.')), action: () => radioAction('pause') },
-            { kind: 'button', label: 'Début du morceau', ...ctl(off(radio, 'Radio éteinte.')),
+            { kind: 'button', label: radio && radio.paused ? 'Reprendre' : 'Pause', ...ctl(off(on, 'Aucun morceau en cours.')), action: () => radioAction(ui, 'pause') },
+            { kind: 'button', label: 'Début du morceau', ...ctl(off(on, 'Aucun morceau en cours.')),
                 desc: 'Appuyez deux fois : morceau précédent.',
                 action: () => {
                     const now = Date.now();
                     const double = now - radioRestartAt < RADIO_DOUBLE_MS;
                     radioRestartAt = double ? 0 : now;
-                    radioAction(double ? 'previous' : 'restart');
+                    radioAction(ui, double ? 'previous' : 'restart');
                 } },
-            { kind: 'button', label: 'Morceau suivant', ...ctl(off(radio, 'Radio éteinte.')), action: () => radioAction('next') },
-            { kind: 'button', label: 'Arrêter la radio', danger: true, ...ctl(off(radio, 'Radio éteinte.')), desc: 'Vide aussi la file « Écouter ensuite ».', action: () => radioAction('stop') },
-            { kind: 'list', label: 'Volume du véhicule', options: RADIO_VOLUMES, index: Math.round(radioUi.volume / 5), clamp: true, ...ctl(),
-                desc: '← → : régler (pour tout le monde).',
+            { kind: 'button', label: 'Morceau précédent', right: history.length ? `${history.length}` : '',
+                ...ctl(off(history.length, 'Aucun morceau précédent.')),
+                desc: 'Relance le morceau d\'avant, même si tout est fini.', action: () => radioAction(ui, 'previous') },
+            { kind: 'button', label: 'Morceau suivant', ...ctl(off(on, 'Aucun morceau en cours.')), action: () => radioAction(ui, 'next') },
+            { kind: 'button', label: music ? 'Arrêter la musique' : 'Arrêter la radio', danger: true, ...ctl(off(on, 'Aucun morceau en cours.')),
+                desc: 'Vide la file « Écouter ensuite » ; les morceaux restent dans « Déjà écoutés ».', action: () => radioAction(ui, 'stop') },
+            music && { kind: 'button', label: 'Retirer la musique', danger: true, ...ctl(),
+                desc: 'Plus de son ni d\'historique à cet endroit.', action: () => radioAction(ui, 'remove') },
+            { kind: 'list', label: music ? 'Volume' : 'Volume du véhicule', options: volumeOptions(info), index: Math.round(ui.volume / 5), clamp: true, ...ctl(),
+                desc: '← → : régler (pour tout le monde). Entendu jusqu\'à la 1re distance quand c\'est fermé (vitres, portières, murs), la 2de quand c\'est ouvert.',
                 onChange: (i) => {
-                    radioUi.volume = i * 5;
-                    clearTimeout(radioUi.volumeTimer);
-                    if (radio) radioUi.volumeTimer = setTimeout(() => radioAction('volume', { volume: radioUi.volume }), 350);
+                    ui.volume = i * 5;
+                    clearTimeout(ui.volumeTimer);
+                    if (radio) ui.volumeTimer = setTimeout(() => radioAction(ui, 'volume', { volume: ui.volume }), 350);
                 } },
             { kind: 'section', label: `Écouter ensuite (${queue.length} / ${RADIO_QUEUE_MAX})` },
-        ];
+        );
         if (!queue.length) items.push({ kind: 'info', label: 'Aucun morceau en attente.', tone: 'muted' });
         queue.forEach((url, i) => items.push({ kind: 'button', label: url, right: `${i + 1}`, ...ctl(),
-            desc: 'Entrée : retirer de la file.', action: () => radioAction('unqueue', { index: i + 1 }) }));
+            desc: 'Entrée : retirer de la file.', action: () => radioAction(ui, 'unqueue', { index: i + 1 }) }));
+        items.push({ kind: 'section', label: `Déjà écoutés (${history.length})` });
+        if (!history.length) items.push({ kind: 'info', label: 'Aucun morceau précédent.', tone: 'muted' });
+        // le plus récent en premier
+        for (let i = history.length - 1; i >= 0; i--) {
+            const url = history[i];
+            items.push({ kind: 'button', label: url, right: '↺', ...ctl(), desc: 'Entrée : relancer ce morceau (même fini).',
+                action: () => radioAction(ui, 'replay', { index: i + 1 }) });
+        }
         return items;
     }
 
     function radioPage() {
+        const ui = radioUis.radio;
         return {
             id: 'radio', title: 'Radio',
-            banner: () => ({ title: 'Radio', sub: (radioUi.info && radioUi.info.vehicle) || 'Radio du véhicule', color: MENU_COLORS.car }),
-            onEnter: () => { radioUi.info = null; loadRadio(); },
-            items: radioItems,
+            banner: () => ({ title: 'Radio', sub: (ui.info && ui.info.vehicle) || 'Radio du véhicule', color: MENU_COLORS.car }),
+            onEnter: () => { ui.info = null; loadRadio('radio'); },
+            items: () => radioItems(ui),
+        };
+    }
+
+    function musicPage() {
+        const ui = radioUis.music;
+        return {
+            id: 'music', title: 'Musique',
+            banner: () => ({ title: 'Musique', sub: 'Sur soi, à un endroit, sur un objet', color: MENU_COLORS.car }),
+            onEnter: () => { ui.info = null; loadRadio('music'); },
+            items: () => radioItems(ui),
         };
     }
 
     // Pages ouvertes directement (ex. 'radio' depuis l'œil) : le chemin, pour que Retour arrière remonte
-    const MENU_PATHS = { radio: [carPage, radioPage], spawn: [carPage, spawnPage], police: [policePage], civil: [civilPage], equipment: [equipmentPage],
+    const MENU_PATHS = { radio: [carPage, radioPage], music: [musicPage], spawn: [carPage, spawnPage], police: [policePage], civil: [civilPage], equipment: [equipmentPage],
         car: [carPage], weather: [weatherPage], players: [playersPage], outfits: [equipmentPage, myOutfitsPage] };
-    const SECTION_OF = { radio: 'car', spawn: 'car', car: 'car', equipment: 'equipment', outfits: 'equipment', weather: 'weather' };
+    const SECTION_OF = { radio: 'car', music: 'music', spawn: 'car', car: 'car', equipment: 'equipment', outfits: 'equipment', weather: 'weather' };
 
     function menuPages(view) {
         const pages = [homePage()];
@@ -1372,48 +1445,128 @@
         interact.start(menuPages(view));
     }
 
-    // ---- Lecteurs de la radio des véhicules (client/radio.lua) ----
-    // Lien audio direct : lecteur audio passé dans le Web Audio : son 3D (HRTF) placé d'après la caméra du joueur
-    // ("radioPos" : gauche, droite, derrière…) et filtre qui coupe les aigus (son étouffé portières / vitres fermées,
-    // un peu plus sourd derrière soi). Si le site du lien refuse le Web Audio (CORS), relu sans effet.
-    // Lien YouTube : lecteur YouTube, qui ne laisse passer aucun effet (volume seulement), sauf si le serveur a un
-    // service qui donne l'audio de la vidéo (RadioYouTubeAudio).
-    // Le volume (distance, vitres / portières) est calculé par client/radio.lua. À la fin d'un morceau,
-    // le serveur est prévenu ("radioEnded") et lance le suivant de la file pour tout le monde.
+    // ---- Lecteurs de la radio des véhicules et de /musique (client/radio.lua) ----
+    // Lien audio direct : lecteur audio passé dans le Web Audio (son 3D) :
+    //   lecteur -> volume -> [ son direct (coupé au-dessus de muffleHz quand c'est FERMÉ)
+    //                          + basses (sous 150 Hz, résonance vers 60 Hz : elles traversent la carrosserie / les murs
+    //                            et cognent ; plus fortes à fort volume) ]
+    //            -> air (aigus atténués avec la distance) -> direction HRTF (caméra) -> sortie
+    //            -> réverbération de l'endroit autour de la source (pièce, tunnel / parking, rue, plein air, habitacle)
+    //   un limiteur commun évite la saturation quand les basses cognent.
+    // Si le site du lien refuse le Web Audio (CORS), relu sans effet. Lien YouTube : lecteur YouTube, qui ne laisse
+    // passer aucun effet (volume seulement), sauf si le serveur a un service qui donne l'audio (RadioYouTubeAudio).
+    // Le volume (distance, fermé / ouvert) est calculé par client/radio.lua. À la fin d'un morceau, le serveur est
+    // prévenu ("radioEnded") et lance le suivant de la file pour tout le monde.
     const radios = {};
     let ytReady = null;
     let radioCtx = null;
+    let radioOut = null;
 
     function audioContext() {
         if (!radioCtx) {
             const Ctx = window.AudioContext || window.webkitAudioContext;
             if (!Ctx) return null;
             radioCtx = new Ctx();
+            // limiteur commun : basses fortes sans saturation
+            radioOut = radioCtx.createDynamicsCompressor();
+            radioOut.threshold.value = -10;
+            radioOut.knee.value = 8;
+            radioOut.ratio.value = 6;
+            radioOut.attack.value = 0.004;
+            radioOut.release.value = 0.2;
+            radioOut.connect(radioCtx.destination);
         }
         if (radioCtx.state === 'suspended') radioCtx.resume().catch(() => {});
         return radioCtx;
     }
 
-    /** Lecteur audio -> filtre (étouffé) -> volume -> position 3D (HRTF) -> sortie ; false si impossible */
+    // Réverbérations : réponses impulsionnelles faites ici (bruit qui décroît, aigus qui s'éteignent plus vite ;
+    // rue : échos sur les façades), une fois par type d'endroit. t : durée (s), pre : délai avant (s), wet : part
+    // réverbérée, damp : aigus de la réverbération (Hz)
+    const ENV_IR = {
+        cabin: { t: 0.35, pre: 0.002, wet: 0.10, damp: 2600 },
+        room: { t: 1.0, pre: 0.008, wet: 0.32, damp: 4500 },
+        hall: { t: 2.8, pre: 0.02, wet: 0.42, damp: 3800 },
+        street: { t: 1.4, pre: 0.03, wet: 0.24, damp: 6000, echoes: [0.05, 0.11, 0.19, 0.3] },
+        open: { t: 0.6, pre: 0.05, wet: 0.06, damp: 7000 },
+    };
+    const irCache = {};
+    function impulse(ctx, name) {
+        if (irCache[name]) return irCache[name];
+        const p = ENV_IR[name] || ENV_IR.open;
+        const rate = ctx.sampleRate;
+        const pre = Math.floor(p.pre * rate);
+        const len = pre + Math.floor(rate * p.t);
+        const buf = ctx.createBuffer(2, len, rate);
+        for (let c = 0; c < 2; c++) {
+            const d = buf.getChannelData(c);
+            let lp = 0;
+            for (let i = pre; i < len; i++) {
+                const t = (i - pre) / rate;
+                // le filtre se referme avec le temps : la queue est plus sourde que le début
+                const cut = p.damp * (1 - 0.8 * t / p.t) + 300;
+                const k = Math.exp(-2 * Math.PI * cut / rate);
+                lp = lp * k + (Math.random() * 2 - 1) * (1 - k);
+                d[i] = lp * Math.exp(-6.9 * t / p.t) * 2.2;
+            }
+            (p.echoes || []).forEach((s, n) => {
+                const i = Math.floor((p.pre + s + c * 0.006) * rate);
+                if (i < len) d[i] += 0.55 / (n + 1);
+            });
+        }
+        irCache[name] = buf;
+        return buf;
+    }
+
+    /** Graphe du son 3D ; false si impossible */
     function buildGraph(r) {
         const ctx = audioContext();
         if (!ctx || !r.audio) return false;
         try {
             const source = ctx.createMediaElementSource(r.audio);
-            const filter = ctx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 20000;
-            filter.Q.value = 0.7;
-            const gain = ctx.createGain();
-            gain.gain.value = 0;
+            const volume = ctx.createGain();
+            volume.gain.value = 0;
+            // son direct : coupé au-dessus de muffleHz quand c'est fermé
+            const muffle = ctx.createBiquadFilter();
+            muffle.type = 'lowpass';
+            muffle.frequency.value = 20000;
+            muffle.Q.value = 0.6;
+            const dry = ctx.createGain();
+            // basses : sous 150 Hz, résonance vers 60 Hz (habitacle, murs)
+            const bassLp = ctx.createBiquadFilter();
+            bassLp.type = 'lowpass';
+            bassLp.frequency.value = 150;
+            bassLp.Q.value = 0.9;
+            const bassPeak = ctx.createBiquadFilter();
+            bassPeak.type = 'peaking';
+            bassPeak.frequency.value = 60;
+            bassPeak.Q.value = 1.2;
+            bassPeak.gain.value = 0;
+            const bass = ctx.createGain();
+            bass.gain.value = 0;
+            const mix = ctx.createGain();
+            // air : aigus atténués avec la distance ; derrière soi : un peu plus sourd
+            const air = ctx.createBiquadFilter();
+            air.type = 'lowpass';
+            air.frequency.value = 20000;
+            air.Q.value = 0.5;
             const panner = ctx.createPanner();
             panner.panningModel = 'HRTF';
             panner.distanceModel = 'linear';
             panner.rolloffFactor = 0; // la distance est dans le volume ; ici seulement la direction
             panner.refDistance = 1;
             panner.maxDistance = 10000;
-            source.connect(filter).connect(gain).connect(panner).connect(ctx.destination);
-            r.graph = { filter, gain, panner };
+            // réverbération de l'endroit (non orientée : elle vient de partout)
+            const reverb = ctx.createConvolver();
+            reverb.buffer = impulse(ctx, 'open');
+            const wet = ctx.createGain();
+            wet.gain.value = 0;
+            source.connect(volume);
+            volume.connect(muffle).connect(dry).connect(mix);
+            volume.connect(bassLp).connect(bassPeak).connect(bass).connect(mix);
+            mix.connect(air).connect(panner).connect(radioOut);
+            mix.connect(reverb).connect(wet).connect(radioOut);
+            r.graph = { volume, muffle, dry, bassPeak, bass, air, panner, reverb, wet, env: 'open' };
             r.audio.volume = 1;
             return true;
         } catch (err) {
@@ -1426,12 +1579,13 @@
         else param.value = value;
     }
 
-    /** Position (repère de la caméra) et coupure des aigus envoyées par client/radio.lua */
+    /** Acoustique envoyée par client/radio.lua : direction (repère de la caméra), fermé / ouvert, à bord, distance
+     *  (0 près .. 1 au bout de la portée), volume de la source (loud), endroit (env) */
     function applyPos(r) {
         const g = r.graph, d = r.pos;
         if (!g || !d) return;
-        const p = g.panner;
         const num = (v, def) => (Number.isFinite(Number(v)) ? Number(v) : def);
+        const p = g.panner;
         const x = num(d.x, 0), y = num(d.y, 0), z = num(d.z, -1);
         if (p.positionX) {
             setParam(p.positionX, x, 0.06);
@@ -1440,7 +1594,37 @@
         } else {
             p.setPosition(x, y, z);
         }
-        setParam(g.filter.frequency, Math.max(200, Math.min(20000, Number(d.cutoff) || 20000)), 0.12);
+        const dist = Math.max(0, Math.min(1, num(d.dist, 0)));
+        const loud = Math.max(0, Math.min(1, num(d.loud, 0.6)));
+        const closed = !!d.closed, listener = !!d.listenerClosed;
+        const muffleHz = num(d.muffleHz, 380);
+        // son direct : fermé des deux côtés = encore plus sourd
+        let cutoff = 20000;
+        if (closed && listener) cutoff = muffleHz * 0.75;
+        else if (closed) cutoff = muffleHz;
+        else if (listener) cutoff = Math.max(muffleHz * 1.8, 650);
+        setParam(g.muffle.frequency, cutoff, 0.12);
+        setParam(g.dry.gain, closed ? 0.55 : (listener ? 0.75 : 1), 0.12);
+        // basses : fermé -> elles traversent et cognent ; fort volume -> elles résonnent ; à bord -> habitacle
+        const loudBass = Math.max(0, (num(d.loudBass, 1.6) - 1) * Math.max(0, (loud - 0.3) / 0.7));
+        let bass = loudBass, peak = 3 * loudBass;
+        if (closed || listener) { bass = num(d.bassBoost, 2.2) * (0.45 + 0.55 * loud); peak = 8; }
+        if (d.inside) { bass = loudBass * 1.3; peak = 4 + 3 * loud; }
+        setParam(g.bass.gain, bass, 0.12);
+        setParam(g.bassPeak.gain, peak, 0.12);
+        // air : aigus atténués au loin ; derrière soi : un peu plus sourd
+        let airHz = d.inside ? 20000 : 18000 - 14000 * Math.pow(dist, 0.8);
+        if (d.behind && !d.inside) airHz = Math.min(airHz, num(d.behindHz, 6000));
+        setParam(g.air.frequency, Math.max(800, airHz), 0.15);
+        // réverbération de l'endroit, plus présente loin de la source
+        const env = ENV_IR[d.env] ? d.env : 'open';
+        if (g.env !== env) {
+            g.env = env;
+            try { g.reverb.buffer = impulse(radioCtx, env); } catch (err) { /* ancien navigateur : buffer fixe */ }
+        }
+        let wet = ENV_IR[env].wet * num(d.reverb, 1) * (d.inside ? 1 : 0.4 + 0.9 * dist);
+        if (closed && !d.inside) wet *= 0.7;
+        setParam(g.wet.gain, wet, 0.3);
         applyRadio(r);
     }
 
@@ -1472,9 +1656,9 @@
         const v = Math.min(Math.max(r.volume, 0), 1);
         if (r.player && r.player.setVolume) r.player.setVolume(Math.round(v * 100));
         if (r.graph) {
-            // étouffé : les aigus coupés font perdre du volume perçu, compensé (boost)
-            const boost = r.pos && r.pos.muffled ? Number(r.pos.boost) || 1 : 1;
-            setParam(r.graph.gain.gain, Math.min(1.5, v * boost), 0.08);
+            // fermé : les aigus coupés font perdre du volume perçu, compensé en partie (les basses font le reste)
+            const boost = r.pos && (r.pos.closed || r.pos.listenerClosed) ? 1.3 : 1;
+            setParam(r.graph.volume.gain, Math.min(1.5, v * boost), 0.08);
         } else if (r.audio) {
             r.audio.volume = v;
         }
@@ -1584,9 +1768,10 @@
         r.offset = d.offset;
         applyRadio(r);
         if (!created && r.paused !== !!d.paused) setRadioPaused(r, !!d.paused, d.offset);
-        if (!created && menuOn('radio') && r.pausedShown !== r.paused) loadRadio();
+        const pageOpen = menuOn('radio') || menuOn('music');
+        if (!created && pageOpen && r.pausedShown !== r.paused) loadRadio();
         r.pausedShown = r.paused;
-        if (created && menuOn('radio')) loadRadio(); // morceau suivant : page Radio à jour
+        if (created && pageOpen) loadRadio(); // morceau suivant : page à jour
     }
 
     // ---- Barre de chargement (fouilles, menottes) ----

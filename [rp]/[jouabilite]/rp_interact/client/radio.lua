@@ -1,37 +1,67 @@
 --[[
-    RP Interact - Radio du véhicule (client)
-    ----------------------------------------
-    Menu d'interactions > Voiture > Radio : un lien (YouTube, ou lien direct vers une musique, un
-    podcast, une radio en ligne) joué DANS LE VÉHICULE.
-      - L'état est porté par le véhicule ("rpiRadio" : lien, heure de lancement, volume) : tous les
-        joueurs entendent la même chose au même moment, et au même volume de base (89 % = 89 % pour
-        tout le monde), réglé seulement par les places avant, ou avec l'œil en visant l'intérieur avant
-        du véhicule portière avant ouverte.
-      - Chaque joueur entend selon sa position : à bord, normalement ; dehors, plus ou moins fort selon la
-        distance : jusqu'à 15 m tout fermé (RadioRangeClosed), 25 m avec une portière ouverte ou une vitre
-        baissée (RadioRangeOpen) ; tout fermé, volume plus bas (RadioInsulation). Pas d'effet sur le son
-        (lecture telle quelle : lecteur YouTube, ou lecteur audio pour un lien direct).
-      - File "Écouter ensuite" (5 liens max, bouton "+") : à la fin d'un morceau, le NUI d'un joueur qui
-        l'entend le signale au serveur, qui lance le suivant pour tout le monde.
-      - Pause / reprise (même position pour tous), retour au début du morceau (deux appuis rapprochés :
-        morceau précédent), suivant, arrêter : boutons à icônes de la page Radio.
-    MOTEUR DU SON (RadioEngine) : par défaut le NUI de ce script (html/script.js) : son 3D (HRTF) placé selon la
-    caméra (on entend de quel côté est le véhicule : gauche, droite, derrière), étouffé dehors portières et vitres
-    fermées. Pour un lien audio direct (mp3, radio en ligne…) ; un lien YouTube passe par le lecteur YouTube, qui
-    ne laisse aucun effet s'appliquer : volume selon la distance seulement (sauf RadioYouTubeAudio). 'olisound' :
-    la ressource olisound à la place (même limite pour YouTube).
-    Performance : boucle (150 ms) seulement tant qu'une radio est allumée dans un véhicule à portée réseau ; aucune
-    sinon.
+    RP Interact - Radio du véhicule et /musique (client)
+    ----------------------------------------------------
+    Une SOURCE de son joue un lien (YouTube, ou lien direct vers une musique, un podcast, une radio en ligne) :
+      - un VÉHICULE (Menu > Voiture > Radio, ou l'œil portière avant ouverte) : id 'entity:<n° réseau>' ;
+      - /musique : SUR UN JOUEUR ('player:<id serveur>' : le suit, aussi dans un véhicule), à un ENDROIT
+        ('place:<n°>', GlobalState.rpiPlaces) ou SUR UN OBJET ('entity:<n° réseau>' : le suit s'il bouge).
+    L'état est porté par la source ("rpiRadio" : lien, heure de lancement, volume…) : tous les joueurs entendent la
+    même chose au même moment, au même volume de base.
+    AUDITION de chaque joueur :
+      - PORTÉE selon le VOLUME de la source (RadioRanges) : de 10 m (0-9 %, fermé) à 110 m (50 % et plus, ouvert).
+        « Fermé » : véhicule aux vitres, portières, coffre et capot fermés ; musique dans un intérieur entendue de
+        dehors (ou l'inverse).
+      - SON 3D (lecteur de ce script, html/script.js) : direction d'après la caméra (gauche, droite, derrière) ;
+        fermé : aigus coupés, BASSES qui traversent et cognent ; auditeur dans un véhicule fermé : étouffé aussi ;
+        fort volume : basses qui résonnent ; RÉVERBÉRATION selon l'endroit autour de la source (mesuré ici toutes
+        les RadioEnvInterval ms : plein air, rue entre des bâtiments, tunnel / parking couvert, pièce intérieure) et la
+        distance ; air : aigus atténués au loin. Lien YouTube : le lecteur YouTube ne laisse passer aucun effet
+        (volume seulement), sauf RadioYouTubeAudio.
+      - File "Écouter ensuite" (5 liens), pause / reprise, début du morceau, PRÉCÉDENT et DÉJÀ ÉCOUTÉS (aussi quand
+        tout est fini : la source reste « arrêtée » avec son historique), suivant, arrêter.
+    MOTEUR 'olisound' (RadioEngine) : radio des véhicules seulement (portée, sans les effets).
+    Performance : boucle (150 ms) seulement tant qu'une source joue à portée réseau ; aucune sinon. Mesure de
+    l'endroit : 9 rayons toutes les 2 s par source entendue.
 ]]
 
 local Config = InteractConfig
-local radios = {}     -- [nom du state bag] = { url, start, volume }
-local playing = {}    -- [nom du state bag] = dernier envoi au NUI (clé)
+local MUSIC = Config.Music or {}
+local states = {}     -- [id] = état complet (aussi arrêté : historique)
+local radios = {}     -- [id] = { url, start, volume, seq, paused, music } : sources qui jouent
+local playing = {}    -- [id] = dernier envoi au NUI (clé)
 local loopRunning = false
 RPI.radioTarget = nil -- véhicule visé avec l'œil (menu ouvert sur la page Radio)
 
 -- =========================================================================
--- AUDITION : distance, vitres / portières, à bord
+-- SOURCE : où est le son ? { kind, pos, vehicle (véhicule où il est joué), entity, ped }
+-- =========================================================================
+local function anchorOf(id, radio)
+    local kind, n = id:match('^(%a+):(%d+)$')
+    n = tonumber(n)
+    if kind == 'entity' then
+        local entity = GetEntityFromStateBagName(id)
+        if not entity or entity == 0 or not DoesEntityExist(entity) then return nil end
+        if IsEntityAVehicle(entity) then
+            return { kind = 'vehicle', pos = GetEntityCoords(entity), vehicle = entity, entity = entity }
+        end
+        return { kind = 'prop', pos = GetEntityCoords(entity), entity = entity }
+    elseif kind == 'player' then
+        local index = GetPlayerFromServerId(n)
+        if not index or index == -1 then return nil end
+        local ped = GetPlayerPed(index)
+        if not ped or ped == 0 or not DoesEntityExist(ped) then return nil end
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        return { kind = 'player', pos = GetEntityCoords(ped), vehicle = vehicle ~= 0 and vehicle or nil, entity = ped, ped = ped }
+    elseif kind == 'place' then
+        local m = radio and radio.music or {}
+        if not tonumber(m.x) then return nil end
+        return { kind = 'place', pos = vector3(m.x + 0.0, m.y + 0.0, m.z + 0.0) }
+    end
+    return nil
+end
+
+-- =========================================================================
+-- AUDITION : portée selon le volume, fermé / ouvert, à bord
 -- =========================================================================
 -- Vitres avant / arrière : seulement celles que le véhicule possède (un coupé n'a pas de vitres
 -- arrière : le jeu les dit "non intactes", ce qui faisait croire à une vitre baissée)
@@ -50,21 +80,54 @@ function RPI.vehicleOpen(vehicle)
     return IsVehicleAConvertible(vehicle, false) and GetConvertibleRoofState(vehicle) ~= 0
 end
 
---- Portée de la radio dehors (m) : tout fermé / portière ouverte ou vitre baissée
-local function range(open)
-    return open and (Config.RadioRangeOpen or 25.0) or (Config.RadioRangeClosed or 15.0)
+local DEFAULT_RANGES = { { Max = 9, Closed = 10.0, Open = 25.0 }, { Max = 29, Closed = 20.0, Open = 50.0 },
+    { Max = 49, Closed = 30.0, Open = 75.0 }, { Max = 100, Closed = 45.0, Open = 110.0 } }
+
+--- Portée (m) selon le volume de la source (0-100) et fermé / ouvert
+function RPI.radioRange(volume, closed)
+    local tiers = Config.RadioRanges or DEFAULT_RANGES
+    volume = tonumber(volume) or 0
+    local tier = tiers[#tiers]
+    for _, t in ipairs(tiers) do
+        if volume <= (t.Max or 100) then tier = t; break end
+    end
+    return (closed and tier.Closed or tier.Open) + 0.0
 end
 
---- Facteur de volume (0..1) pour ce joueur (1 à bord ; dehors selon la distance et les ouvertures)
-function RPI.radioHearing(vehicle)
+local function interiorOf(src)
+    if src.entity then return GetInteriorFromEntity(src.entity) end
+    return GetInteriorAtCoords(src.pos.x, src.pos.y, src.pos.z)
+end
+
+--- Situation de ce joueur face à la source : inside (à bord du véhicule de la source / porte la musique),
+--- closed (source fermée : véhicule fermé, ou murs entre un intérieur et dehors), listenerClosed (auditeur dans un
+--- autre véhicule fermé), distance (m)
+function RPI.radioSituation(src)
     local ped = PlayerPedId()
-    if GetVehiclePedIsIn(ped, false) == vehicle then return 1.0 end
-    local distance = #(GetEntityCoords(ped) - GetEntityCoords(vehicle))
-    local open = RPI.vehicleOpen(vehicle)
-    local maxRange = range(open)
-    if distance >= maxRange then return 0.0 end
-    local factor = (1.0 - distance / maxRange) ^ 1.6
-    return open and factor or factor * Config.RadioInsulation
+    local myVeh = GetVehiclePedIsIn(ped, false)
+    local inside = (src.vehicle ~= nil and myVeh == src.vehicle) or (src.ped ~= nil and src.ped == ped and not src.vehicle)
+    local closed = false
+    if not inside then
+        if src.vehicle then
+            closed = not RPI.vehicleOpen(src.vehicle)
+        elseif interiorOf(src) ~= GetInteriorFromEntity(ped) then
+            closed = true -- murs : la musique est dans un intérieur et nous dehors (ou l'inverse)
+        end
+    end
+    local listenerClosed = not inside and myVeh ~= 0 and myVeh ~= src.vehicle and not RPI.vehicleOpen(myVeh)
+    return inside, closed, listenerClosed, #(GetEntityCoords(ped) - src.pos)
+end
+
+--- Facteur de volume (0..1) pour ce joueur, et la portée utilisée
+function RPI.radioHearing(src, volume)
+    local inside, closed, listenerClosed, distance = RPI.radioSituation(src)
+    local maxRange = RPI.radioRange(volume, closed)
+    if inside then return 1.0, maxRange, distance end
+    if distance >= maxRange then return 0.0, maxRange, distance end
+    local factor = (1.0 - distance / maxRange) ^ 1.4
+    if closed then factor = factor * (Config.RadioInsulation or 0.35) end
+    if listenerClosed then factor = factor * 0.6 end
+    return factor, maxRange, distance
 end
 
 --- Position dans le morceau (s) : la même pour tous (heure de lancement), ou figée pendant la pause
@@ -73,58 +136,96 @@ local function offsetOf(radio)
 end
 
 local function send(id, radio, volume)
-    local offset = offsetOf(radio)
     SendNUIMessage({ action = 'radio', data = {
-        id = id, url = radio.url, volume = volume, seq = radio.seq, offset = offset, paused = radio.paused ~= nil,
+        id = id, url = radio.url, volume = volume, seq = radio.seq, offset = offsetOf(radio), paused = radio.paused ~= nil,
         ytAudio = Config.RadioYouTubeAudio ~= '' and Config.RadioYouTubeAudio or nil,
     } })
 end
 
 -- =========================================================================
--- SON 3D (lecteur de ce script) : d'où vient la musique, vu de la CAMÉRA du joueur (devant, derrière, à gauche, à
--- droite, au-dessus), et son ÉTOUFFÉ dehors quand portières et vitres sont fermées. Envoyé au NUI seulement quand
--- ça change : position dans le repère de la caméra (x : droite, y : haut, z : vers l'arrière, comme le Web Audio),
--- coupure des aigus (Hz) : étouffé (RadioMuffleHz), derrière soi (RadioBehindHz, un peu plus sourd), sinon aucune.
+-- ENDROIT AUTOUR DE LA SOURCE (réverbération) : 8 rayons à l'horizontale + 1 vers le haut, toutes les
+-- RadioEnvInterval ms par source entendue : 'room' (intérieur), 'hall' (tunnel, parking couvert), 'street' (entre des
+-- bâtiments), 'open' (plein air) ; 'cabin' pour un auditeur à bord du véhicule de la source.
 -- =========================================================================
-local lastPos = {} -- [nom du state bag] = clé du dernier envoi
+local env = {} -- [id] = { at, preset, size }
 
---- Position du véhicule vue de la caméra, normalisée (seule la DIRECTION compte : la distance est dans le volume)
-local function cameraRelative(vehicle)
+local function probe(from, to, ignore)
+    local handle = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, 1 + 16, ignore or 0, 4)
+    local _, hit, point = GetShapeTestResult(handle)
+    if hit == 1 or hit == true then return #(point - from) end
+    return nil
+end
+
+function RPI.radioEnv(id, src, now)
+    local e = env[id]
+    if e and now - e.at < (Config.RadioEnvInterval or 2000) then return e end
+    local origin = src.pos + vector3(0.0, 0.0, 1.0)
+    local preset, size
+    if not src.vehicle and interiorOf(src) ~= 0 then
+        preset, size = 'room', 6.0
+    else
+        local hits, sum = 0, 0.0
+        for i = 0, 7 do
+            local a = i * math.pi / 4
+            local d = probe(origin, origin + vector3(math.cos(a) * 35.0, math.sin(a) * 35.0, 0.0), src.entity)
+            if d then hits, sum = hits + 1, sum + d end
+        end
+        local ceiling = probe(origin, origin + vector3(0.0, 0.0, 25.0), src.entity)
+        size = hits > 0 and sum / hits or 35.0
+        if ceiling and hits >= 4 then preset = 'hall'
+        elseif hits >= 4 then preset = 'street'
+        else preset = 'open' end
+    end
+    e = { at = now, preset = preset, size = math.floor(size + 0.5) }
+    env[id] = e
+    return e
+end
+
+-- =========================================================================
+-- SON 3D : direction vue de la CAMÉRA (repère du Web Audio : x droite, y haut, z vers l'arrière) et acoustique ;
+-- envoyé au NUI seulement quand ça change
+-- =========================================================================
+local lastPos = {} -- [id] = clé du dernier envoi
+
+local function cameraRelative(pos)
     local cam = GetFinalRenderedCamCoord()
     local rot = GetFinalRenderedCamRot(2)
     local pitch, yaw = math.rad(rot.x), math.rad(rot.z)
     local f = vector3(-math.sin(yaw) * math.cos(pitch), math.cos(yaw) * math.cos(pitch), math.sin(pitch))
     local r = vector3(math.cos(yaw), math.sin(yaw), 0.0)
     local u = vector3(r.y * f.z - r.z * f.y, r.z * f.x - r.x * f.z, r.x * f.y - r.y * f.x)
-    local d = GetEntityCoords(vehicle) - cam
+    local d = pos - cam
     local x, y, z = d.x * r.x + d.y * r.y + d.z * r.z, d.x * u.x + d.y * u.y + d.z * u.z, d.x * f.x + d.y * f.y + d.z * f.z
     local len = math.sqrt(x * x + y * y + z * z)
     if len < 0.5 then return 0.0, 0.0, -1.0, false end
     return x / len, y / len, -z / len, z < 0
 end
 
-local function sendPos(id, vehicle)
-    local inside = GetVehiclePedIsIn(PlayerPedId(), false) == vehicle
+local function sendPos(id, src, radio, maxRange, now)
+    local inside, closed, listenerClosed, distance = RPI.radioSituation(src)
     local x, y, z, behind = 0.0, 0.0, -1.0, false -- à bord : les haut-parleurs tout autour (devant)
-    local cutoff = 20000
-    if not inside then
-        x, y, z, behind = cameraRelative(vehicle)
-        if not RPI.vehicleOpen(vehicle) then cutoff = Config.RadioMuffleHz or 550
-        elseif behind then cutoff = Config.RadioBehindHz or 5000 end
-    end
-    local key = ('%.2f|%.2f|%.2f|%d'):format(x, y, z, cutoff)
+    if not inside then x, y, z, behind = cameraRelative(src.pos) end
+    local e = inside and src.vehicle and { preset = 'cabin', size = 2 } or RPI.radioEnv(id, src, now)
+    local data = {
+        id = id, x = x, y = y, z = z, inside = inside, closed = closed, listenerClosed = listenerClosed, behind = behind,
+        dist = inside and 0 or math.floor(math.min(1.0, distance / math.max(1.0, maxRange)) * 20 + 0.5) / 20,
+        loud = math.floor((tonumber(radio.volume) or 0) / 5 + 0.5) * 5 / 100, env = e.preset, size = e.size,
+        muffleHz = Config.RadioMuffleHz or 380, behindHz = Config.RadioBehindHz or 6000,
+        bassBoost = Config.RadioBassBoost or 2.2, loudBass = Config.RadioLoudBass or 1.6, reverb = Config.RadioReverb or 1.0,
+    }
+    local key = ('%.2f|%.2f|%.2f|%s|%s|%s|%s|%.2f|%.2f|%s|%d'):format(x, y, z, tostring(inside), tostring(closed),
+        tostring(listenerClosed), tostring(behind), data.dist, data.loud, data.env, data.size)
     if lastPos[id] == key then return end
     lastPos[id] = key
-    SendNUIMessage({ action = 'radioPos', data = { id = id, x = x, y = y, z = z, cutoff = cutoff,
-        muffled = cutoff < 1000, boost = Config.RadioMuffleBoost or 1.8 } })
+    SendNUIMessage({ action = 'radioPos', data = data })
 end
 
 -- =========================================================================
--- MOTEUR OLISOUND (si la ressource est démarrée) : un son par véhicule, accroché au véhicule
+-- MOTEUR OLISOUND (radio des véhicules seulement, si la ressource est démarrée)
 -- =========================================================================
 local OLI = 'olisound'
-local oli = {}   -- [nom du state bag] = { name, url, seq, start, volume, distance, paused }
-local ended = {} -- [nom du state bag] = n° du morceau dont la fin a été entendue (pas relancé)
+local oli = {}   -- [id] = { name, url, seq, start, volume, distance, paused }
+local ended = {} -- [id] = n° du morceau dont la fin a été entendue (pas relancé)
 
 local function useOli()
     local engine = Config.RadioEngine or 'nui'
@@ -145,6 +246,11 @@ local function oliStop(id)
     oliCall('Destroy', s.name)
 end
 
+local function requestRadio(id, payload, cb)
+    payload.source = id
+    RPI.request('radio', payload, cb or function() end)
+end
+
 --- Fin du son : vraie fin du morceau (pas notre Destroy, pas le véhicule disparu) -> le serveur lance le suivant
 local function oliEnded(id, s, info)
     if s.closing or s.done then return end
@@ -154,13 +260,11 @@ local function oliEnded(id, s, info)
     if not duration or duration <= 0 or offsetOf(radio) < duration - 5 then return end
     s.done = true
     ended[id] = s.seq
-    local netId = tonumber(id:match('^entity:(%d+)$'))
-    if netId then RPI.request('radio', { netId = netId, action = 'ended', seq = s.seq }, function() end) end
+    requestRadio(id, { action = 'ended', seq = s.seq })
 end
 
-local function oliPlay(id, radio, vehicle)
+local function oliPlay(id, radio, vehicle, distance)
     local volume = math.floor((radio.volume or 0) / 100 * Config.RadioMaxVolume * 100 + 0.5) / 100
-    local distance = range(RPI.vehicleOpen(vehicle))
     local paused = radio.paused ~= nil
     local s = oli[id]
     if s and (s.url ~= radio.url or s.seq ~= radio.seq) then oliStop(id); s = nil end
@@ -219,18 +323,19 @@ local function startLoop()
     loopRunning = true
     CreateThread(function()
         while next(radios) do
+            local now = GetGameTimer()
             for id, radio in pairs(radios) do
-                local vehicle = GetEntityFromStateBagName(id)
-                if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
+                local src = anchorOf(id, radio)
+                if not src then
                     stop(id) -- hors de portée réseau : reprend quand il revient
                 else
-                    local factor = RPI.radioHearing(vehicle)
-                    local distance = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(vehicle))
-                    if factor <= 0.0 and distance > range(true) + 20.0 then
+                    local factor, maxRange, distance = RPI.radioHearing(src, radio.volume)
+                    if factor <= 0.0 and distance > RPI.radioRange(radio.volume, false) + 20.0 then
                         stop(id) -- loin : lecteur fermé (rouvert à l'approche, au bon moment)
-                    elseif useOli() then
+                        env[id] = nil
+                    elseif src.kind == 'vehicle' and useOli() then
                         stopNui(id)
-                        oliPlay(id, radio, vehicle)
+                        oliPlay(id, radio, src.vehicle, maxRange)
                     else
                         oliStop(id)
                         local volume = math.floor((radio.volume or 0) / 100 * factor * Config.RadioMaxVolume * 100 + 0.5) / 100
@@ -239,7 +344,7 @@ local function startLoop()
                             playing[id] = key
                             send(id, radio, volume)
                         end
-                        sendPos(id, vehicle)
+                        sendPos(id, src, radio, maxRange, now)
                     end
                 end
             end
@@ -249,23 +354,45 @@ local function startLoop()
     end)
 end
 
--- Radio allumée / réglée / coupée dans un véhicule (ou véhicule arrivé à portée)
-AddStateBagChangeHandler('rpiRadio', nil, function(bagName, _, value)
-    if type(value) == 'table' and type(value.url) == 'string' then
-        local old = radios[bagName]
+--- Nouvel état d'une source (allumée, réglée, arrêtée avec son historique, ou retirée)
+local function apply(id, value)
+    states[id] = type(value) == 'table' and value or nil
+    if type(value) == 'table' and type(value.url) == 'string' and not value.stopped then
+        local old = radios[id]
         -- Autre morceau (lien ou n° différent) : lecteur refermé ; pause / reprise : même lecteur
-        if old and (old.url ~= value.url or old.seq ~= value.seq) then stop(bagName) end
-        radios[bagName] = { url = value.url, start = value.start, volume = tonumber(value.volume) or 60, seq = value.seq,
-            paused = tonumber(value.paused) }
+        if old and (old.url ~= value.url or old.seq ~= value.seq) then stop(id) end
+        radios[id] = { url = value.url, start = value.start, volume = tonumber(value.volume) or 60, seq = value.seq,
+            paused = tonumber(value.paused), music = value.music }
         startLoop()
     else
-        radios[bagName], ended[bagName] = nil, nil
-        stop(bagName)
+        radios[id], ended[id], env[id] = nil, nil, nil
+        stop(id)
     end
-end)
+end
+
+-- Véhicules, objets et joueurs (état "rpiRadio")
+AddStateBagChangeHandler('rpiRadio', nil, function(bagName, _, value) apply(bagName, value) end)
+
+-- Endroits (/musique « ici ») : GlobalState.rpiPlaces = { [n°] = état }
+local placeIds = {}
+local function applyPlaces(all)
+    all = type(all) == 'table' and all or {}
+    local seen = {}
+    for key, value in pairs(all) do
+        local id = 'place:' .. tostring(key)
+        seen[id] = true
+        apply(id, value)
+    end
+    for id in pairs(placeIds) do
+        if not seen[id] then apply(id, nil) end
+    end
+    placeIds = seen
+end
+AddStateBagChangeHandler('rpiPlaces', 'global', function(_, _, value) applyPlaces(value) end)
+CreateThread(function() applyPlaces(GlobalState.rpiPlaces) end)
 
 -- =========================================================================
--- MENU > VOITURE > RADIO
+-- MENU > VOITURE > RADIO et MENU > MUSIQUE (/musique)
 -- =========================================================================
 --- Véhicule concerné : celui visé avec l'œil, sinon celui où se trouve le joueur
 local function radioVehicle()
@@ -278,44 +405,132 @@ local function radioVehicle()
     return nil
 end
 
-local function canControl(vehicle, mode)
-    if mode == 'target' then return true end
-    local ped = PlayerPedId()
-    return GetPedInVehicleSeat(vehicle, -1) == ped or GetPedInVehicleSeat(vehicle, 0) == ped
+local function myServerId() return GetPlayerServerId(PlayerId()) end
+
+--- Musique réglable ici : la sienne (où qu'elle soit), sinon la plus proche à ControlDistance m
+local function musicSource()
+    local me = myServerId()
+    local pos = GetEntityCoords(PlayerPedId())
+    local best, bestDist = nil, (MUSIC.ControlDistance or 6.0)
+    for id, value in pairs(states) do
+        local music = type(value.music) == 'table' and value.music or nil
+        if music then
+            if music.owner == me or id == 'player:' .. me then return id, true end
+            local src = anchorOf(id, value)
+            if src then
+                local d = #(src.pos - pos)
+                if d <= bestDist then best, bestDist = id, d end
+            end
+        end
+    end
+    return best, false
 end
 
-local function radioInfo()
-    local vehicle, mode = radioVehicle()
-    if not vehicle then return { ok = true, available = false } end
-    if not NetworkGetEntityIsNetworked(vehicle) then
-        return { ok = true, available = false, error = 'Ce véhicule n\'est pas synchronisé avec le serveur.' }
+local function historyOf(value)
+    local out = {}
+    for i, url in ipairs(type(value) == 'table' and type(value.history) == 'table' and value.history or {}) do out[i] = url end
+    return out
+end
+
+local function radioView(value)
+    if type(value) ~= 'table' then return false end
+    return { url = value.url, volume = value.volume, queue = value.queue or {}, paused = value.paused ~= nil,
+        stopped = value.stopped == true or type(value.url) ~= 'string', history = historyOf(value),
+        label = type(value.music) == 'table' and value.music.label or nil }
+end
+
+--- Source de la page : 'radio' (véhicule) ou 'music' ; { id, canControl, label } ou erreur
+local function pageSource(page)
+    if page == 'music' then
+        if MUSIC.Enabled == false then return nil, 'La musique est désactivée sur ce serveur.' end
+        local id, own = musicSource()
+        return { id = id, canControl = id ~= nil, own = own, music = true }
     end
-    local radio = Entity(vehicle).state.rpiRadio
+    local vehicle, mode = radioVehicle()
+    if not vehicle then return nil end
+    if not NetworkGetEntityIsNetworked(vehicle) then return nil, 'Ce véhicule n\'est pas synchronisé avec le serveur.' end
+    local ped = PlayerPedId()
+    local can = mode == 'target' or GetPedInVehicleSeat(vehicle, -1) == ped or GetPedInVehicleSeat(vehicle, 0) == ped
+    return { id = 'entity:' .. VehToNet(vehicle), canControl = can, label = RPI.vehicleLabel and RPI.vehicleLabel(vehicle) or nil }
+end
+
+local function radioInfo(page)
+    local target, err = pageSource(page)
+    if not target then return { ok = true, available = false, error = err, page = page } end
+    local value = target.id and (states[target.id] or (page ~= 'music' and Entity(GetEntityFromStateBagName(target.id)).state.rpiRadio)) or nil
     return {
-        ok = true, available = true, canControl = canControl(vehicle, mode), ytAudio = (Config.RadioYouTubeAudio or '') ~= '',
-        engine = useOli() and 'olisound' or 'nui',
-        vehicle = RPI.vehicleLabel and RPI.vehicleLabel(vehicle) or nil,
-        radio = type(radio) == 'table' and { url = radio.url, volume = radio.volume, queue = radio.queue or {},
-            paused = radio.paused ~= nil, history = #(radio.history or {}) } or false,
+        ok = true, available = true, page = page, canControl = target.canControl, own = target.own,
+        ytAudio = (Config.RadioYouTubeAudio or '') ~= '', engine = (page ~= 'music' and useOli()) and 'olisound' or 'nui',
+        vehicle = target.label, source = target.id, radio = radioView(value),
+        canCreate = page == 'music', controlDistance = MUSIC.ControlDistance or 6.0, ranges = Config.RadioRanges or DEFAULT_RANGES,
     }
 end
 
-RegisterNUICallback('radioInfo', function(_, cb) cb(radioInfo()) end)
+RegisterNUICallback('radioInfo', function(data, cb)
+    cb(radioInfo(type(data) == 'table' and data.page == 'music' and 'music' or 'radio'))
+end)
+
+--- Objet visé (caméra, 8 m) ou le plus proche (3 m) : { kind = 'prop', netId } ou ses coordonnées (objet du décor)
+local function aimedObject()
+    local ped = PlayerPedId()
+    local cam = GetFinalRenderedCamCoord()
+    local rot = GetFinalRenderedCamRot(2)
+    local x, z = math.rad(rot.x), math.rad(rot.z)
+    local dir = vector3(-math.sin(z) * math.cos(x), math.cos(z) * math.cos(x), math.sin(x))
+    local to = cam + dir * 10.0
+    local handle = StartExpensiveSynchronousShapeTestLosProbe(cam.x, cam.y, cam.z, to.x, to.y, to.z, 16, ped, 4)
+    local _, hit, _, _, entity = GetShapeTestResult(handle)
+    local pos = GetEntityCoords(ped)
+    if not ((hit == 1 or hit == true) and entity and entity ~= 0 and GetEntityType(entity) == 3) then
+        entity = nil
+        local best = 3.0
+        for _, obj in ipairs(GetGamePool('CObject')) do
+            local d = #(GetEntityCoords(obj) - pos)
+            if d < best and not IsEntityAttachedToAnyPed(obj) and not IsEntityAttachedToAnyVehicle(obj) then
+                entity, best = obj, d
+            end
+        end
+    end
+    if not entity then return nil end
+    if NetworkGetEntityIsNetworked(entity) then return { kind = 'prop', netId = ObjToNet(entity) } end
+    local o = GetEntityCoords(entity)
+    return { kind = 'prop', x = o.x, y = o.y, z = o.z }
+end
 
 RegisterNUICallback('radioAction', function(data, cb)
     data = type(data) == 'table' and data or {}
-    local vehicle, mode = radioVehicle()
-    if not vehicle or not canControl(vehicle, mode) then
-        return cb({ ok = false, error = 'Seules les places avant peuvent régler la radio.' })
+    local page = data.page == 'music' and 'music' or 'radio'
+    local payload = { action = data.action, url = data.url, volume = data.volume, index = data.index }
+    if data.action == 'create' then
+        if page ~= 'music' then return cb({ ok = false, error = 'Action inconnue.' }) end
+        local where = data.where
+        if where == 'player' then
+            payload.anchor = { kind = 'player' }
+        elseif where == 'place' then
+            local p = GetEntityCoords(PlayerPedId())
+            payload.anchor = { kind = 'place', x = p.x, y = p.y, z = p.z }
+        elseif where == 'prop' then
+            payload.anchor = aimedObject()
+            if not payload.anchor then return cb({ ok = false, error = 'Aucun objet visé (visez-le, ou approchez-vous à 3 m).' }) end
+        else
+            return cb({ ok = false, error = 'Choisissez où jouer la musique.' })
+        end
+        return RPI.request('radio', payload, function(res)
+            if not res or not res.ok then return cb(res or { ok = false }) end
+            if res.source then apply(res.source, res.radio) end
+            cb(radioInfo(page))
+        end)
     end
-    RPI.request('radio', { netId = VehToNet(vehicle), action = data.action, url = data.url, volume = data.volume,
-        index = data.index }, function(res)
+    local target, err = pageSource(page)
+    if not target or not target.id then return cb({ ok = false, error = err or 'Aucune musique ici.' }) end
+    if not target.canControl then
+        return cb({ ok = false, error = page == 'music' and 'Approchez-vous de la musique pour la régler.'
+            or 'Seules les places avant peuvent régler la radio.' })
+    end
+    requestRadio(target.id, payload, function(res)
         if not res or not res.ok then return cb(res or { ok = false }) end
-        local info = radioInfo()
-        info.radio = type(res.radio) == 'table'
-            and { url = res.radio.url, volume = res.radio.volume, queue = res.radio.queue or {},
-                paused = res.radio.paused ~= nil, history = #(res.radio.history or {}) } or false
-        cb(info)
+        apply(target.id, res.radio) -- à jour tout de suite (l'état arrive aussi par le réseau)
+        cb(radioInfo(page))
     end)
 end)
 
@@ -325,17 +540,15 @@ RegisterNUICallback('radioEnded', function(data, cb)
     data = type(data) == 'table' and data or {}
     local radio = type(data.id) == 'string' and radios[data.id] or nil
     if not radio or radio.seq ~= data.seq then return end
-    local netId = tonumber(data.id:match('^entity:(%d+)$'))
-    if netId then RPI.request('radio', { netId = netId, action = 'ended', seq = radio.seq }, function() end) end
+    requestRadio(data.id, { action = 'ended', seq = radio.seq })
 end)
 
 -- Passé directement dans un autre véhicule (nouveau véhicule apparu, rp_vehiclecontrol) depuis une place avant :
 -- la radio de l'ancien s'arrête aussi
 AddEventHandler('rp_vehiclecontrol:swapped', function(netId, seat)
     if type(netId) ~= 'number' or (seat ~= -1 and seat ~= 0) then return end
-    local vehicle = NetworkDoesNetworkIdExist(netId) and NetToVeh(netId) or 0
-    if vehicle == 0 or type(Entity(vehicle).state.rpiRadio) ~= 'table' then return end
-    RPI.request('radio', { netId = netId, action = 'swapStop' }, function() end)
+    if not radios['entity:' .. netId] then return end
+    requestRadio('entity:' .. netId, { action = 'swapStop' })
 end)
 
 --- Œil : visée de l'intérieur avant, portière avant ouverte -> menu ouvert sur la page Radio
@@ -349,3 +562,6 @@ AddEventHandler('onResourceStop', function(resource)
     for id in pairs(playing) do SendNUIMessage({ action = 'radioStop', data = { id = id } }) end
     for id in pairs(oli) do oliStop(id) end
 end)
+
+RPIRadio = { apply = apply, radios = radios, states = states, anchorOf = anchorOf, musicSource = musicSource, -- tests
+    radioInfo = radioInfo, env = env }

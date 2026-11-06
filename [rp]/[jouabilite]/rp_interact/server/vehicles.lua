@@ -5,13 +5,14 @@
       vehicle.json (véhicules du menu Voiture > Spawn), loadouts.json (armes du menu Équipements),
       outfits.json (tenues du menu /eup), modifoutfits.json (pièces de "Modifier ma tenue" par service). Seuls les véhicules de vehicle.json peuvent être demandés ;
       véhicules de police réservés aux policiers en service si SpawnPoliceOnly.
-    - Radio : état du véhicule "rpiRadio" = { url, start (heure UTC de lancement, s), volume (0-100),
-      queue (file "Écouter ensuite", 5 liens max), history (5 morceaux précédents), seq (n° du morceau),
-      paused (position en pause, s) }, lu par tous les clients (chacun joue le son, plus ou moins fort
-      selon sa distance et les vitres / portières). Réglable par les places AVANT, ou par un joueur collé
-      au véhicule (œil, portière avant ouverte) : lancer, ajouter à la file, pause / reprise, début du
-      morceau (deux fois : morceau précédent), suivant, arrêter, volume. À la fin d'un morceau (signalée
-      par un joueur qui l'entend), le suivant de la file démarre.
+    - Radio et /musique : un état "rpiRadio" par source de son (véhicule, joueur, objet ; lieu : GlobalState.rpiPlaces)
+      = { url, start (heure UTC de lancement, s), volume (0-100), queue (file "Écouter ensuite", 5 liens max),
+      history (10 morceaux précédents, gardés même quand tout est fini), seq (n° du morceau), paused (position en
+      pause, s), stopped (arrêtée / tout fini), music (/musique : créateur, type, coordonnées d'un lieu) }, lu par tous
+      les clients (chacun joue le son selon sa distance, les vitres / portières, l'endroit). Véhicule : réglable par
+      les places AVANT ou un joueur collé au véhicule ; musique : son créateur, le joueur qui la porte, ou quiconque
+      à 6 m. Lancer, file, pause / reprise, début du morceau, précédent / déjà écoutés (même finis), suivant,
+      arrêter, volume. À la fin d'un morceau (signalée par un joueur qui l'entend), le suivant démarre.
     - Équipements : armes de loadouts.json ; tenues de outfits.json (menu /eup, vérification de l'accès) ;
       pièces de modifoutfits.json (celles des polices non envoyées si les tenues de police sont réservées).
     Aucune boucle.
@@ -559,8 +560,15 @@ RegisterNetEvent('rp_interact:vehicleSpawned', function(netId)
 end)
 
 -- =========================================================================
--- RADIO DU VÉHICULE
+-- RADIO DU VÉHICULE ET MUSIQUE (/musique) : une « source » de son = un véhicule, un joueur, un objet ou un lieu
+--   id de la source : 'entity:<n° réseau>' (véhicule ou objet), 'player:<id serveur>', 'place:<n°>'.
+--   État : véhicule / objet -> état de l'entité « rpiRadio » ; joueur -> état du joueur « rpiRadio » ;
+--   lieu -> GlobalState.rpiPlaces[n°]. Champs : url, start, volume, seq, queue, history, paused, stopped
+--   (morceaux finis / radio arrêtée : historique gardé pour revenir en arrière), music (/musique : { owner, kind,
+--   label, x, y, z }).
 -- =========================================================================
+local MUSIC = Config.Music or {}
+
 local function vehicleFromNet(netId)
     if type(netId) ~= 'number' then return nil end
     local entity = NetworkGetEntityFromNetworkId(netId)
@@ -585,7 +593,7 @@ local function validUrl(url)
 end
 
 local MAX_QUEUE = 5
-local MAX_HISTORY = 5 -- morceaux précédents gardés (bouton "revenir au début" appuyé deux fois)
+local MAX_HISTORY = Config.RadioHistory or 10 -- morceaux précédents gardés (revenir en arrière, même finis)
 local trackSeq = 0 -- n° unique de chaque morceau lancé (deux morceaux peuvent démarrer dans la même seconde)
 
 local function copyList(list, max)
@@ -597,17 +605,25 @@ local function copyList(list, max)
     return out
 end
 local function copyQueue(current) return copyList(current and current.queue, MAX_QUEUE) end
-local function copyHistory(current) return copyList(current and current.history, MAX_HISTORY) end
+local function copyHistory(current)
+    local list = type(current) == 'table' and type(current.history) == 'table' and current.history or {}
+    local out = {}
+    for i = math.max(1, #list - MAX_HISTORY + 1), #list do out[#out + 1] = list[i] end -- les plus récents
+    return out
+end
 
---- État de la radio (champs absents : repris de `base`, l'état actuel) ; `seq = nil` dans `fields`
---- avec `new = true` : nouveau morceau. `paused` : position (s) du morceau en pause, sinon nil.
+--- Morceau en cours (ni arrêté, ni fini)
+local function isOn(current) return current ~= nil and not current.stopped and type(current.url) == 'string' end
+
+--- État de la radio (champs absents : repris de `base`, l'état actuel) ; `new = true` : nouveau morceau.
+--- `paused` : position (s) du morceau en pause, sinon nil.
 local function radioState(base, fields)
     base = base or {}
     local r = {
         url = fields.url or base.url, start = fields.start or base.start,
         volume = fields.volume or base.volume or 60, by = fields.by or base.by,
         queue = fields.queue or copyQueue(base), history = fields.history or copyHistory(base),
-        seq = base.seq, paused = base.paused,
+        seq = base.seq, paused = base.paused, music = fields.music or base.music,
     }
     if fields.new then
         trackSeq = trackSeq + 1
@@ -617,82 +633,240 @@ local function radioState(base, fields)
     return r
 end
 
---- Lance `url` ; le morceau en cours passe dans l'historique (s'il y en a un)
-local function playTrack(state, current, url, fields)
-    fields = fields or {}
-    local history = copyHistory(current)
-    if current and current.url and not fields.noHistory then
-        table.insert(history, current.url)
-        while #history > MAX_HISTORY do table.remove(history, 1) end
-    end
-    state:set('rpiRadio', radioState(current, {
-        url = url, start = os.time(), volume = fields.volume, by = fields.by,
-        queue = fields.queue, history = history, new = true,
-    }), true)
+local function pushHistory(history, url)
+    if type(url) ~= 'string' then return history end
+    history[#history + 1] = url
+    while #history > MAX_HISTORY do table.remove(history, 1) end
+    return history
 end
 
---- Morceau suivant de la file "Écouter ensuite" (ou radio coupée si la file est vide)
-local function playNext(state, current)
+--- Arrêtée (morceaux finis ou bouton Arrêter) : plus de son, mais l'historique reste (revenir en arrière, relancer)
+local function stoppedState(current)
+    local history = copyHistory(current)
+    if isOn(current) then pushHistory(history, current.url) end
+    return { stopped = true, volume = current and current.volume or 60, history = history, queue = {},
+        music = current and current.music or nil }
+end
+
+-- ---- Sources ----
+local function places()
+    local t = GlobalState.rpiPlaces
+    return type(t) == 'table' and t or {}
+end
+local placeSeq = 0
+local owners = {} -- [joueur] = id de sa source /musique
+
+--- Source d'après son id : { id, kind ('vehicle' | 'prop' | 'player' | 'place'), entity, get(), set(v), pos() }
+local function sourceOf(id)
+    if type(id) ~= 'string' then return nil end
+    local kind, n = id:match('^(%a+):(%d+)$')
+    n = tonumber(n)
+    if not kind then return nil end
+    if kind == 'entity' then
+        local entity = NetworkGetEntityFromNetworkId(n)
+        if not entity or entity == 0 or not DoesEntityExist(entity) then return nil end
+        local t = GetEntityType(entity)
+        if t ~= 2 and t ~= 3 then return nil end
+        local state = Entity(entity).state
+        return { id = id, kind = t == 2 and 'vehicle' or 'prop', entity = entity,
+            get = function() return type(state.rpiRadio) == 'table' and state.rpiRadio or nil end,
+            set = function(v) state:set('rpiRadio', v or false, true) end,
+            pos = function() return GetEntityCoords(entity) end }
+    elseif kind == 'player' then
+        local ped = GetPlayerPed(n)
+        if not ped or ped == 0 then return nil end
+        local state = Player(n).state
+        return { id = id, kind = 'player', player = n,
+            get = function() return type(state.rpiRadio) == 'table' and state.rpiRadio or nil end,
+            set = function(v) state:set('rpiRadio', v or false, true) end,
+            pos = function() return GetEntityCoords(GetPlayerPed(n)) end }
+    elseif kind == 'place' then
+        local key = tostring(n)
+        if not places()[key] then return nil end
+        return { id = id, kind = 'place',
+            get = function() return places()[key] end,
+            set = function(v)
+                local all = places()
+                if v then
+                    v.music = v.music or (all[key] and all[key].music)
+                    all[key] = v
+                else
+                    all[key] = nil
+                end
+                GlobalState.rpiPlaces = all
+            end,
+            pos = function()
+                local m = (places()[key] or {}).music or {}
+                return vector3(tonumber(m.x) or 0.0, tonumber(m.y) or 0.0, tonumber(m.z) or 0.0)
+            end }
+    end
+    return nil
+end
+
+local function near(src, pos, distance)
+    local ped = GetPlayerPed(src)
+    return ped and ped ~= 0 and pos and #(GetEntityCoords(ped) - pos) <= distance
+end
+
+--- Qui règle : véhicule -> places avant (ou collé au véhicule) ; musique -> son créateur, le joueur qui la porte, ou
+--- quiconque à ControlDistance m (tapage : un policier peut baisser / couper)
+local function canControl(src, source, current)
+    if source.kind == 'vehicle' then return canUseRadio(src, source.entity) end
+    local music = current and current.music or {}
+    if music.owner == src or (source.kind == 'player' and source.player == src) then return true end
+    return near(src, source.pos(), MUSIC.ControlDistance or 6.0)
+end
+
+--- Retire complètement une source /musique (plus de son, plus d'historique)
+local function removeMusic(source)
+    local current = source.get()
+    local owner = current and current.music and current.music.owner
+    if owner and owners[owner] == source.id then owners[owner] = nil end
+    source.set(false)
+end
+
+--- Lance `url` ; le morceau en cours passe dans l'historique (s'il y en a un)
+local function playTrack(source, current, url, fields)
+    fields = fields or {}
+    local history = copyHistory(current)
+    if isOn(current) and not fields.noHistory then pushHistory(history, current.url) end
+    source.set(radioState(current and not current.stopped and current or { volume = current and current.volume,
+        music = current and current.music }, {
+        url = url, start = os.time(), volume = fields.volume, by = fields.by, music = fields.music,
+        queue = fields.queue, history = history, new = true,
+    }))
+end
+
+--- Morceau suivant de la file "Écouter ensuite" ; file vide : arrêtée (historique gardé)
+local function playNext(source, current)
     local queue = copyQueue(current)
     local nextUrl = table.remove(queue, 1)
     if nextUrl then
-        playTrack(state, current, nextUrl, { queue = queue })
+        playTrack(source, current, nextUrl, { queue = queue })
     else
-        state:set('rpiRadio', false, true)
+        source.set(stoppedState(current))
     end
 end
 
+local function volumeOf(v, default) return math.floor(math.max(0, math.min(100, tonumber(v) or default or 60))) end
+
+--- /musique : nouvelle source (sur soi, ici, sur un objet) ; l'ancienne du joueur est retirée
+local function createMusic(src, p)
+    if MUSIC.Enabled == false then return { ok = false, error = 'La musique est désactivée sur ce serveur.' } end
+    local url = validUrl(p.url)
+    if not url then return { ok = false, error = 'Lien invalide (adresse http:// ou https://).' } end
+    local anchor = type(p.anchor) == 'table' and p.anchor or {}
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return { ok = false } end
+    local reach = MUSIC.PlaceDistance or 8.0
+    local total = 0
+    for _ in pairs(owners) do total = total + 1 end
+    if not owners[src] and total >= (MUSIC.MaxTotal or 30) then
+        return { ok = false, error = 'Trop de musiques sur le serveur en ce moment.' }
+    end
+    local source, music
+    if anchor.kind == 'player' then
+        if owners[src] and owners[src] ~= 'player:' .. src then
+            local old = sourceOf(owners[src]); if old then removeMusic(old) end
+        end
+        source = sourceOf('player:' .. src)
+        music = { owner = src, kind = 'player', label = 'sur ' .. (GetPlayerName(src) or 'un joueur') }
+    elseif anchor.kind == 'prop' and tonumber(anchor.netId) then
+        local entity = NetworkGetEntityFromNetworkId(math.tointeger(tonumber(anchor.netId)) or -1)
+        if not entity or entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 3 then
+            return { ok = false, error = 'Objet introuvable.' }
+        end
+        if #(GetEntityCoords(ped) - GetEntityCoords(entity)) > reach then return { ok = false, error = 'Objet trop loin.' } end
+        local id = 'entity:' .. math.tointeger(tonumber(anchor.netId))
+        if owners[src] ~= id and type(Entity(entity).state.rpiRadio) == 'table' then
+            return { ok = false, error = 'Cet objet joue déjà de la musique.' }
+        end
+        if owners[src] and owners[src] ~= id then local old = sourceOf(owners[src]); if old then removeMusic(old) end end
+        source = sourceOf(id)
+        music = { owner = src, kind = 'prop', label = 'sur un objet' }
+    elseif anchor.kind == 'place' or anchor.kind == 'prop' then
+        -- lieu (ou objet du décor, non synchronisé : à sa place)
+        local pos = vector3(tonumber(anchor.x) or 0.0, tonumber(anchor.y) or 0.0, tonumber(anchor.z) or 0.0)
+        if #(GetEntityCoords(ped) - pos) > reach then return { ok = false, error = 'Endroit trop loin.' } end
+        if owners[src] then local old = sourceOf(owners[src]); if old then removeMusic(old) end end
+        placeSeq = placeSeq + 1
+        local key = tostring(placeSeq)
+        music = { owner = src, kind = anchor.kind == 'prop' and 'prop' or 'place',
+            label = anchor.kind == 'prop' and 'sur un objet du décor' or 'à un endroit', x = pos.x, y = pos.y, z = pos.z }
+        local all = places()
+        all[key] = { stopped = true, volume = 60, history = {}, queue = {}, music = music }
+        GlobalState.rpiPlaces = all
+        source = sourceOf('place:' .. key)
+    else
+        return { ok = false, error = 'Choisissez où jouer la musique.' }
+    end
+    if not source then return { ok = false, error = 'Impossible de créer la musique ici.' } end
+    owners[src] = source.id
+    local current = source.get()
+    playTrack(source, current, url, { volume = volumeOf(p.volume, 60), by = src, music = music })
+    return { ok = true, source = source.id }
+end
+
 S.on('radio', function(src, p)
-    if not allowed(src, 'car') then return DENIED end
-    local vehicle = vehicleFromNet(p.netId)
-    if not vehicle then return { ok = false, error = 'Véhicule introuvable.' } end
-    local state = Entity(vehicle).state
-    local current = type(state.rpiRadio) == 'table' and state.rpiRadio or nil
+    -- Source visée : p.source ('entity:12', 'player:5', 'place:3') ; ancien format : p.netId (véhicule)
+    local id = type(p.source) == 'string' and p.source or (type(p.netId) == 'number' and ('entity:' .. p.netId)) or nil
+    if p.action == 'create' then
+        if not allowed(src, 'music') then return DENIED end
+        local res = createMusic(src, p)
+        if res.ok then
+            local source = sourceOf(res.source)
+            res.radio = source and source.get() or false
+        end
+        return res
+    end
+    local source = sourceOf(id)
+    if not source then return { ok = false, error = 'Source du son introuvable.' } end
+    if not allowed(src, source.kind == 'vehicle' and 'car' or 'music') then return DENIED end
+    local current = source.get()
+    -- joueur / objet sans musique : se crée seulement avec /musique (action « create »)
+    if source.kind ~= 'vehicle' and not current then return { ok = false, error = 'Aucune musique ici.' } end
 
     -- Fin d'un morceau (signalée par un joueur qui l'entend) : morceau suivant de la file
     if p.action == 'ended' then
-        if not current or current.seq ~= tonumber(p.seq) or current.paused then return { ok = true } end -- déjà passé
-        local ped = GetPlayerPed(src)
-        if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) > 40.0 then return { ok = false } end
-        playNext(state, current)
+        if not isOn(current) or current.seq ~= tonumber(p.seq) or current.paused then return { ok = true } end -- déjà passé
+        if not near(src, source.pos(), (Config.RadioMaxRange or 110.0) + 20.0) then return { ok = false } end
+        playNext(source, current)
         return { ok = true }
     end
 
     -- Le joueur est passé directement dans un autre véhicule (rp_vehiclecontrol) : la radio de l'ancien, laissé
-    -- vide à l'avant, est coupée (joueur encore à proximité)
+    -- vide à l'avant, est arrêtée (joueur encore à proximité)
     if p.action == 'swapStop' then
-        if not current then return { ok = true } end
-        local ped = GetPlayerPed(src)
-        if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) > 30.0 then return { ok = false } end
+        if source.kind ~= 'vehicle' or not isOn(current) then return { ok = true } end
+        if not near(src, source.pos(), 30.0) then return { ok = false } end
         for seat = -1, 0 do
-            local occupant = GetPedInVehicleSeat(vehicle, seat)
+            local occupant = GetPedInVehicleSeat(source.entity, seat)
             if occupant ~= 0 and IsPedAPlayer(occupant) then return { ok = false } end -- quelqu'un y est encore
         end
-        state:set('rpiRadio', false, true)
+        source.set(stoppedState(current))
         return { ok = true }
     end
 
-    if not canUseRadio(src, vehicle) then
-        return { ok = false, error = 'Seules les places avant peuvent régler la radio.' }
+    if not canControl(src, source, current) then
+        return { ok = false, error = source.kind == 'vehicle' and 'Seules les places avant peuvent régler la radio.'
+            or 'Approchez-vous de la musique pour la régler.' }
     end
-    local function needOn() return not current and { ok = false, error = 'La radio est éteinte.' } or nil end
+    local function needOn() return not isOn(current) and { ok = false, error = 'Aucun morceau en cours.' } or nil end
     if p.action == 'play' then
         local url = validUrl(p.url)
         if not url then return { ok = false, error = 'Lien invalide (adresse http:// ou https://).' } end
-        local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or (current and current.volume) or 60)))
-        playTrack(state, current, url, { volume = volume, by = src })
+        playTrack(source, current, url, { volume = volumeOf(p.volume, current and current.volume), by = src })
     elseif p.action == 'queue' then
-        -- "+" : ajouté à la file "Écouter ensuite" (radio éteinte : lancé tout de suite)
+        -- "+" : ajouté à la file "Écouter ensuite" (rien en cours : lancé tout de suite)
         local url = validUrl(p.url)
         if not url then return { ok = false, error = 'Lien invalide (adresse http:// ou https://).' } end
-        if not current then
-            local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or 60)))
-            playTrack(state, nil, url, { volume = volume, by = src })
+        if not isOn(current) then
+            playTrack(source, current, url, { volume = volumeOf(p.volume, current and current.volume), by = src })
         else
             local queue = copyQueue(current)
             if #queue >= MAX_QUEUE then return { ok = false, error = ('File pleine (%d morceaux au maximum).'):format(MAX_QUEUE) } end
             queue[#queue + 1] = url
-            state:set('rpiRadio', radioState(current, { queue = queue }), true)
+            source.set(radioState(current, { queue = queue }))
         end
     elseif p.action == 'unqueue' then
         if needOn() then return needOn() end
@@ -700,45 +874,71 @@ S.on('radio', function(src, p)
         local index = math.tointeger(tonumber(p.index))
         if not index or not queue[index] then return { ok = false, error = 'Morceau introuvable.' } end
         table.remove(queue, index)
-        state:set('rpiRadio', radioState(current, { queue = queue }), true)
+        source.set(radioState(current, { queue = queue }))
     elseif p.action == 'next' then
         if needOn() then return needOn() end
-        playNext(state, current)
+        playNext(source, current)
     elseif p.action == 'pause' then
         -- Pause / reprise : même morceau, repris là où il était (pour tout le monde)
         if needOn() then return needOn() end
         if current.paused then
-            state:set('rpiRadio', radioState(current, { start = os.time() - current.paused, paused = false }), true)
+            source.set(radioState(current, { start = os.time() - current.paused, paused = false }))
         else
             local position = math.max(0, os.time() - (tonumber(current.start) or os.time()))
-            state:set('rpiRadio', radioState(current, { paused = position }), true)
+            source.set(radioState(current, { paused = position }))
         end
     elseif p.action == 'restart' then
         -- Retour au début du morceau (relancé pour tout le monde, pas d'entrée dans l'historique)
         if needOn() then return needOn() end
-        playTrack(state, current, current.url, { queue = copyQueue(current), noHistory = true })
+        playTrack(source, current, current.url, { queue = copyQueue(current), noHistory = true })
     elseif p.action == 'previous' then
-        -- Morceau précédent (bouton "début" appuyé deux fois) : le morceau en cours revient en tête de file
-        if needOn() then return needOn() end
+        -- Morceau précédent, même après la fin de tout (radio arrêtée) : le morceau en cours revient en tête de file
         local history = copyHistory(current)
         local previous = table.remove(history)
         if not previous then return { ok = false, error = 'Aucun morceau précédent.' } end
         local queue = copyQueue(current)
-        table.insert(queue, 1, current.url)
-        while #queue > MAX_QUEUE do table.remove(queue) end
-        state:set('rpiRadio', radioState(current, {
-            url = previous, start = os.time(), queue = queue, history = history, new = true,
-        }), true)
+        if isOn(current) then
+            table.insert(queue, 1, current.url)
+            while #queue > MAX_QUEUE do table.remove(queue) end
+        end
+        local base = isOn(current) and current or { volume = current and current.volume, music = current and current.music }
+        source.set(radioState(base, { url = previous, start = os.time(), queue = queue, history = history, new = true }))
+    elseif p.action == 'replay' then
+        -- Un morceau de l'historique (« Déjà écoutés »), même fini : relancé ; le morceau en cours passe dans l'historique
+        local history = copyHistory(current)
+        local index = math.tointeger(tonumber(p.index))
+        local url = index and history[index]
+        if not url then return { ok = false, error = 'Morceau introuvable.' } end
+        table.remove(history, index)
+        if isOn(current) then pushHistory(history, current.url) end
+        local base = isOn(current) and current or { volume = current and current.volume, music = current and current.music }
+        source.set(radioState(base, { url = url, start = os.time(), queue = copyQueue(current), history = history, new = true }))
     elseif p.action == 'stop' then
-        state:set('rpiRadio', false, true)
+        if not current then return { ok = true, radio = false } end
+        source.set(stoppedState(current))
+    elseif p.action == 'remove' then
+        -- /musique : retirer la source (plus de son, plus d'historique)
+        if source.kind == 'vehicle' then return { ok = false, error = 'Action inconnue.' } end
+        removeMusic(source)
+        return { ok = true, radio = false, removed = true }
     elseif p.action == 'volume' then
-        if needOn() then return needOn() end
-        local volume = math.floor(math.max(0, math.min(100, tonumber(p.volume) or current.volume)))
-        state:set('rpiRadio', radioState(current, { volume = volume }), true)
+        if not current then return { ok = false, error = 'Aucun morceau en cours.' } end
+        source.set(radioState(current, { volume = volumeOf(p.volume, current.volume) }))
     else
         return { ok = false, error = 'Action inconnue.' }
     end
-    return { ok = true, radio = state.rpiRadio or false }
+    return { ok = true, radio = source.get() or false }
+end)
+
+-- Créateur déconnecté : ses musiques posées (lieu, objet) s'arrêtent (Music.RemoveOnDrop) ; celle portée par lui
+-- disparaît avec lui
+AddEventHandler('playerDropped', function()
+    local src = source
+    local id = owners[src]
+    owners[src] = nil
+    if not id or MUSIC.RemoveOnDrop == false then return end
+    local s = sourceOf(id)
+    if s and s.kind ~= 'player' then s.set(false) end
 end)
 
 -- =========================================================================

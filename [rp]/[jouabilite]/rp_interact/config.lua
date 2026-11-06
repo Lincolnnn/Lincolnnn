@@ -13,6 +13,7 @@ InteractConfig = {
         { command = 'mestenues', view = 'outfits', label = 'Menu > Équipements > Mes tenues' },
         { command = 'voiture', view = 'car', label = 'Menu > Voiture (faire apparaître un véhicule, radio)' },
         { command = 'autoradio', view = 'radio', label = 'Menu > Voiture > Radio du véhicule' },
+        { command = 'musique', view = 'music', label = 'Menu > Musique (sur soi, à un endroit, sur un objet)' },
         { command = 'meteo', view = 'weather', label = 'Menu > Météo (météo et heure du serveur)' },
     },
     TargetKey = 'LMENU',          -- Alt gauche
@@ -24,7 +25,7 @@ InteractConfig = {
     -- l'ACE indiquée (les autres les voient grisées, le serveur refuse leurs demandes) ; false = ouvertes à tous.
     -- (La météo a sa propre règle : Weather.Ace, plus « Accès public » ; le secteur de jeu : SectorAce.)
     Permissions = {
-        Sections = { equipment = false, car = false, weather = false }, -- Équipements, Voiture (spawn, radio), Météo
+        Sections = { equipment = false, car = false, weather = false, music = false }, -- Équipements, Voiture (spawn, radio), Météo, Musique
     },
 
     -- MENU > CONFIGURATION > MÉTÉO : météo et heure du serveur, les mêmes pour tout le monde (server/weather.lua).
@@ -93,19 +94,47 @@ InteractConfig = {
         TeleportCooldown = 5,       -- s entre deux téléportations (sauf admins)
         KickMessage = 'Expulsé par un admin. Raison : %s',
     },
-    -- Radio du véhicule (lien YouTube ou lien direct vers un son / une radio en ligne)
-    RadioRangeClosed = 15.0,        -- m : entendue dehors jusqu'à 15 m, vitres et portières fermées
-    RadioRangeOpen = 25.0,          -- m : jusqu'à 25 m avec une portière (coffre, capot) ouverte ou une vitre baissée
-    RadioInsulation = 0.18,         -- volume entendu dehors quand tout est fermé (en plus de l'effet étouffé)
+    -- Radio du véhicule et /musique (lien YouTube ou lien direct vers un son / une radio en ligne)
+    -- PORTÉE selon le VOLUME de la source (0 - 100 %) : `Closed` = véhicule fermé (vitres, portières, coffre, capot) /
+    -- musique dans un intérieur et l'auditeur dehors ; `Open` = un élément ouvert / musique en plein air (m).
+    RadioRanges = {
+        { Max = 9,   Closed = 10.0, Open = 25.0 },   -- 0 à 9 %
+        { Max = 29,  Closed = 20.0, Open = 50.0 },   -- 10 à 29 %
+        { Max = 49,  Closed = 30.0, Open = 75.0 },   -- 30 à 49 %
+        { Max = 100, Closed = 45.0, Open = 110.0 },  -- 50 % et plus
+    },
+    RadioMaxRange = 110.0,          -- plus grande portée ci-dessus (lecteur fermé au-delà, + 20 m)
+    RadioInsulation = 0.35,         -- volume entendu dehors quand tout est fermé (le reste : basses qui traversent)
     RadioMaxVolume = 0.8,           -- volume maximal (radio à 100 %) pour tous les joueurs
-    -- Son 3D (lecteur de ce script) : on entend de quel côté est le véhicule (gauche, droite, derrière), selon la
-    -- caméra ; dehors, portières et vitres fermées, le son est ÉTOUFFÉ (aigus coupés au-dessus de RadioMuffleHz, volume
-    -- remonté de RadioMuffleBoost pour compenser) ; un véhicule derrière soi sonne un peu plus sourd (RadioBehindHz).
-    -- Pour les liens audio directs (mp3, ogg, radio en ligne…). Lien YouTube : le lecteur YouTube ne laisse passer
-    -- aucun effet ; volume selon la distance seulement.
-    RadioMuffleHz = 550,
-    RadioMuffleBoost = 1.8,
-    RadioBehindHz = 5000,
+    RadioHistory = 10,              -- morceaux précédents gardés (« Déjà écoutés », même quand tout est fini)
+    -- SON 3D (lecteur de ce script, liens audio directs : mp3, ogg, radio en ligne…) :
+    --  - direction (HRTF) : on entend de quel côté est la source (gauche, droite, derrière), selon la caméra ;
+    --  - FERMÉ (véhicule fermé, musique dans un intérieur vue de dehors, ou auditeur dans un véhicule fermé) : les aigus
+    --    ne passent plus (au-dessus de RadioMuffleHz), les BASSES traversent et cognent (RadioBassBoost, résonance de
+    --    l'habitacle / des murs vers 60 Hz) ;
+    --  - BASSES : plus le volume est fort, plus elles résonnent (au-delà de 50 % surtout) ;
+    --  - RÉVERBÉRATION selon l'ENDROIT autour de la source (mesuré par le jeu : plein air, rue entre des bâtiments,
+    --    tunnel / parking couvert, pièce intérieure) et la distance (plus loin = plus de réverbération) ;
+    --  - air : les aigus s'atténuent avec la distance.
+    -- Lien YouTube : le lecteur YouTube ne laisse passer aucun effet ; volume selon la distance seulement (sauf
+    -- RadioYouTubeAudio ci-dessous).
+    RadioMuffleHz = 380,
+    RadioBassBoost = 2.2,           -- force des basses qui traversent quand c'est fermé (x)
+    RadioLoudBass = 1.6,            -- basses en plus à fort volume (x, à 100 %)
+    RadioReverb = 1.0,              -- force de la réverbération (x ; 0 = aucune)
+    RadioEnvInterval = 2000,        -- ms entre deux mesures de l'endroit autour d'une source entendue
+    RadioBehindHz = 6000,           -- source derrière soi : un peu plus sourde
+    -- /musique : faire jouer un lien sur SOI (suit le joueur, aussi en véhicule), à un ENDROIT (là où l'on est) ou sur
+    -- un OBJET visé (le suit s'il bouge ; objet du décor : à sa place). Mêmes réglages et même son que la radio.
+    -- Une musique par joueur (une nouvelle remplace l'ancienne) ; réglable par son créateur, le joueur qui la porte,
+    -- ou quiconque à ControlDistance m (un policier peut la baisser / la couper).
+    Music = {
+        Enabled = true,
+        ControlDistance = 6.0,      -- m : distance pour régler la musique des autres
+        PlaceDistance = 8.0,        -- m : endroit / objet à 8 m au plus du joueur
+        MaxTotal = 30,              -- musiques en même temps sur le serveur
+        RemoveOnDrop = true,        -- créateur déconnecté : ses musiques posées (endroit, objet) s'arrêtent
+    },
     -- Facultatif : adresse d'un service à vous qui renvoie l'AUDIO d'une vidéo YouTube (avec l'en-tête CORS
     -- Access-Control-Allow-Origin), {id} = identifiant de la vidéo, ex. 'https://audio.mon-serveur.fr/yt/{id}'.
     -- Les liens YouTube ont alors le son 3D et l'effet étouffé. Vide : lecteur YouTube.
