@@ -4,7 +4,7 @@
     À pied, près d'une PORTIÈRE AVANT ou du COFFRE d'un véhicule équipé (type de config.lua) : proposition à
     l'écran, la touche (Key) ouvre le menu "Équipement". Le joueur peut marcher menu ouvert (souris pour
     cliquer, caméra et armes bloquées) ; au-delà de CloseDistance m du véhicule, le menu se ferme.
-      - Équipement : pièces EUP de la catégorie du véhicule (equipment.json : casque, gilet…), à mettre et
+      - Équipement : pièces EUP propres au véhicule (vehicle_equipment.json, au coffre : gilet…), à mettre et
         retirer de sa tenue ; en les retirant, ce qu'il portait avant revient.
       - Armes longues : "Ranger l'arme longue" range l'arme TENUE EN MAIN dans son emplacement (fusil à pompe /
         fusil d'assaut) avec ses accessoires et teintes ; "Sortir" la rend à l'identique.

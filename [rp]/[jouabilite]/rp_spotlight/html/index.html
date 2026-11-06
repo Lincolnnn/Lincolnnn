@@ -26,8 +26,8 @@
         .row span:first-child { color: var(--muted); font-size: 11px; letter-spacing: .6px; text-transform: uppercase; }
         .row b { font-weight: 600; }
         #hint { margin-top: 6px; font-size: 11px; color: var(--muted); line-height: 15px; }
-        /* Réglage (/spotreglage) */
-        #adjust { position: absolute; left: 50%; bottom: 8vh; transform: translateX(-50%); width: 460px; padding: 14px 16px; background: var(--bg);
+        /* Réglage (/editspotlight, /editspotlightside) : en haut au milieu */
+        #adjust { position: absolute; left: 50%; top: 3vh; transform: translateX(-50%); width: 460px; padding: 14px 16px; background: var(--bg);
             border: 1px solid var(--line); border-radius: 3px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
         #adjust h3 { margin: 0 0 2px; font: 700 13px var(--font); }
         #adjust p { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
@@ -56,7 +56,7 @@
 
     <div id="adjust" class="hidden">
         <h3>Position du projecteur — <span id="adjSide"></span></h3>
-        <p>Véhicule <b id="adjModel"></b> : réglage pour vous seulement (jusqu'à la déconnexion) ; copiez la ligne dans config.lua (Vehicles).</p>
+        <p>Véhicule <b id="adjModel"></b> : le <b style="color:#ff4040">point rouge</b> montre le départ de la lumière. Réglage pour vous seulement (jusqu'à la déconnexion) ; copiez la ligne dans config.lua (Vehicles).</p>
         <label>X (côté) <input type="range" id="x" min="-2" max="2" step="0.01"><span id="xv"></span></label>
         <label>Y (avant) <input type="range" id="y" min="-3" max="3" step="0.01"><span id="yv"></span></label>
         <label>Z (hauteur) <input type="range" id="z" min="-0.5" max="2" step="0.01"><span id="zv"></span></label>

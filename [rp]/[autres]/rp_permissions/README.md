@@ -142,6 +142,7 @@ lever un ban (les rôles Discord ne sont pas rendus automatiquement).
 | `rpperms_refresh [id]` | revérifie les rôles auprès de Discord (tous, ou un joueur) |
 | `bans` | liste des joueurs bannis (n°, raison, par qui, date) |
 | `unban <n°>` | lève un ban |
+| `rpnettest` | **console seulement** : le serveur joint-il en HTTPS le site des licences de Riven Systems, Discord et Google ? (aucune clé envoyée) — diagnostic de « License check failed: Could not reach license server (HTTP 0) » |
 
 ## Performance
 

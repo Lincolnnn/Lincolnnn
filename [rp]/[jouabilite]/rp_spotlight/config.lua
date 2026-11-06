@@ -12,22 +12,23 @@
       - en visant, CLIC DROIT : suivre le véhicule / la personne visé(e) (plaque affichée) ; à nouveau : manuel ;
       - Maj droite (StrobeKey) : stroboscope.
     QUI TIENT QUEL PROJECTEUR : le CONDUCTEUR celui de gauche (driver) ; le PASSAGER AVANT celui de droite (passenger),
-    s'il y en a un. Seul à bord d'un véhicule à deux projecteurs : /spotcote (SideCommand) fait passer le conducteur
-    d'un projecteur à l'autre.
+    s'il y en a un.
     Touches modifiables : Paramètres > Raccourcis clavier > FiveM.
 
     VÉHICULES : un modèle (nom de spawn) = ses projecteurs. driver = côté conducteur (gauche), passenger = côté
     passager avant (droit). offset = position sur le véhicule { x (gauche - / droite +), y (arrière - / avant +),
     z (bas - / haut +) } en mètres, depuis le centre du véhicule. Sans offset : DefaultDriver / DefaultPassenger.
-    Réglage en jeu : /spotreglage (à la place du projecteur) : curseurs X / Y / Z, la ligne à copier ici s'affiche.
+    Réglage en jeu (à bord du véhicule) : /editspotlight (projecteur conducteur), /editspotlightside (projecteur
+    passager) : un POINT ROUGE montre le départ de la lumière, curseurs X / Y / Z en haut au milieu de l'écran, la ligne
+    à copier ici s'affiche.
 ]]
 
 SpotlightConfig = {
     Key = 'LCONTROL',        -- appui court : allumer / éteindre ; maintenu : viser
     HoldMs = 220,            -- au-delà (ms), l'appui est une visée (pas un allumage)
     StrobeKey = 'RSHIFT',    -- stroboscope (projecteur allumé)
-    SideCommand = 'spotcote',      -- conducteur seul : changer de projecteur (véhicules à deux projecteurs)
-    AdjustCommand = 'spotreglage', -- régler la position du projecteur (ligne de configuration à copier)
+    AdjustCommand = 'editspotlight',         -- régler la position du projecteur CONDUCTEUR (ligne de config à copier)
+    AdjustSideCommand = 'editspotlightside', -- régler la position du projecteur PASSAGER
 
     -- ---------------------------------------------------------------------
     -- VÉHICULES : à modifier librement (nom de spawn en minuscules)

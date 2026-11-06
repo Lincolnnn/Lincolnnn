@@ -18,15 +18,14 @@ EquipConfig = {
                                   -- passager avant) ouverte, refermée à la fermeture ; jamais rouverte si déjà ouverte
 
     -- ---------------------------------------------------------------------
-    -- TYPES DE VÉHICULES : un type par police du MDC (son équipement : equipment.json)
+    -- TYPES DE VÉHICULES : un type par police du MDC
     -- Un véhicule est d'un type si son modèle est dans Models, sinon si rp_interact (data/vehicle.json) le
     -- range dans une police ("subCategory" : ServiceTypes), sinon si sa classe est dans Classes.
     -- ---------------------------------------------------------------------
     Types = {
         wsp    = { Label = 'Washington State Patrol',    Short = 'WSP',  Color = '#2d63b3', Models = {} },
         kcso   = { Label = 'King County Sheriff Office', Short = 'KCSO', Color = '#2f7a55', Models = {} },
-        -- Véhicules d'urgence (classe 18) qui ne sont dans aucune police : râtelier, et objets de la catégorie
-        -- "Police" d'equipment.json
+        -- Véhicules d'urgence (classe 18) qui ne sont dans aucune police : râtelier, coffre
         police = { Label = 'Véhicule de police',         Short = 'POLICE', Color = '#4d5d80', Models = {}, Classes = { 18 } },
     },
     -- Véhicules de rp_interact : data/vehicle.json ("subCategory") ; à défaut, l'ancien data/vehicles.json ("Service")
@@ -37,18 +36,12 @@ EquipConfig = {
     },
 
     -- ---------------------------------------------------------------------
-    -- ÉQUIPEMENT EUP (casque, gilet, casquette…) : fichier equipment.json de ce dossier, une liste par
-    -- police ("Washington State Patrol", "King County Sheriff Office" : la police du véhicule dans
-    -- rp_interact/data/vehicle.json, champ "subCategory"). Chaque pièce
-    -- s'écrit comme une tenue du /eup ("Name", "Gender", et seulement les parties qu'elle change, ex.
-    -- "Armor": "13:1") : le policier la met et la retire de sa tenue depuis le menu.
-    -- OBJETS : une entrée avec "Weapon" (et "Ammo") est un objet que le policier PREND et RANGE (sans limite). Le
-    -- jerrican d'essence n'est plus ici : il est dans le COFFRE (Stock.Jerrycans, un par véhicule, à prendre et ranger).
-    -- Catégorie "Police" : véhicules de police d'aucune de ces polices.
     -- ---------------------------------------------------------------------
-    EquipmentFile = 'equipment.json',
-    -- Équipement EUP propre à certains véhicules (nom de spawn), au COFFRE de ces modèles seulement, en plus de celui de
-    -- leur police, rangé par catégories : voir vehicle_equipment.json
+    -- ÉQUIPEMENT EUP (gilet, casquette…) : SEULEMENT celui propre à chaque véhicule (nom de spawn), au COFFRE de ces
+    -- modèles, rangé par catégories : voir vehicle_equipment.json. Chaque pièce s'écrit comme une tenue du /eup
+    -- ("Name", "Gender", et seulement les parties qu'elle change, ex. "Armor": "13:1") ; "Weapon" (et "Ammo") : un objet
+    -- que le policier prend et range. (L'équipement de base par police, equipment.json, est retiré.)
+    -- ---------------------------------------------------------------------
     VehicleEquipmentFile = 'vehicle_equipment.json',
     Eup = { OneBased = true },    -- numéros comptés à partir de 1, comme les tenues du /eup (rp_interact)
 

@@ -31,7 +31,7 @@ for name, def in pairs(C.Vehicles or {}) do
         }
     end
 end
-local override = {} -- [modèle][côté] = offset (réglage en jeu, /spotreglage : ce joueur seulement)
+local override = {} -- [modèle][côté] = offset (réglage en jeu, /editspotlight : ce joueur seulement)
 
 local function modelOf(vehicle) return MODELS[u32(GetEntityModel(vehicle))] end
 local function offsetOf(vehicle, side)
@@ -88,7 +88,6 @@ end
 -- PROJECTEUR TENU PAR CE JOUEUR
 -- =========================================================================
 local my = nil          -- { veh, side, on, yaw, pitch, mode, tx, ty, tz, net, strobe }
-local driverSide = 'd'  -- conducteur seul d'un véhicule à deux projecteurs : celui qu'il tient (/spotcote)
 local aiming = false
 local lastSend = 0
 local lit = {}          -- [véhicule] = true : projecteurs allumés publiés (état rpSpot)
@@ -107,11 +106,7 @@ end
 local function seatSide(ped, vehicle)
     local m = modelOf(vehicle)
     if not m then return nil end
-    if GetPedInVehicleSeat(vehicle, -1) == ped then
-        if GetPedInVehicleSeat(vehicle, 0) ~= 0 then driverSide = 'd' end -- un passager tient le projecteur de droite
-        if driverSide == 'p' and m.p then return 'p' end
-        return m.d and 'd' or (m.p and GetPedInVehicleSeat(vehicle, 0) == 0 and 'p' or nil)
-    end
+    if GetPedInVehicleSeat(vehicle, -1) == ped then return m.d and 'd' or nil end
     if GetPedInVehicleSeat(vehicle, 0) == ped and m.p then return 'p' end
     return nil
 end
@@ -342,18 +337,6 @@ RegisterCommand('rp_spotlight_strobe', function()
 end, false)
 RegisterKeyMapping('rp_spotlight_strobe', 'Projecteur : stroboscope', 'keyboard', C.StrobeKey or 'RSHIFT')
 
--- Conducteur seul d'un véhicule à deux projecteurs : passer de l'un à l'autre
-RegisterCommand(C.SideCommand or 'spotcote', function()
-    local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped, false)
-    local m = vehicle ~= 0 and modelOf(vehicle)
-    if not m or GetPedInVehicleSeat(vehicle, -1) ~= ped then return notify('Au volant d\'un véhicule équipé de projecteurs seulement.') end
-    if not (m.d and m.p) then return notify('Ce véhicule n\'a qu\'un projecteur.') end
-    if GetPedInVehicleSeat(vehicle, 0) ~= 0 then return notify('Le passager avant tient le projecteur de droite.') end
-    driverSide = driverSide == 'p' and 'd' or 'p'
-    notify(driverSide == 'p' and 'Vous tenez le projecteur côté passager (droite).' or 'Vous tenez le projecteur côté conducteur (gauche).')
-end, false)
-
 -- =========================================================================
 -- PLACE DU JOUEUR : quel projecteur il tient (toutes les 500 ms à bord d'un véhicule ; 1 s sinon)
 -- =========================================================================
@@ -364,7 +347,6 @@ CreateThread(function()
         local side = vehicle ~= 0 and seatSide(ped, vehicle) or nil
         if not side then
             if my then my = nil; aiming = false; sendUi() end
-            if vehicle == 0 then driverSide = 'd' end
         elseif not my or my.veh ~= vehicle or my.side ~= side then
             -- reprend l'état publié (projecteur déjà allumé par un collègue, ou laissé allumé)
             local p = published(vehicle, side) or {}
@@ -379,9 +361,10 @@ CreateThread(function()
 end)
 
 -- =========================================================================
--- RÉGLAGE EN JEU (/spotreglage) : position du projecteur tenu, ligne de config.lua à copier
+-- RÉGLAGE EN JEU : /editspotlight (projecteur conducteur), /editspotlightside (projecteur passager)
+-- Point rouge sur le départ de la lumière, faisceau d'essai, panneau en haut au milieu ; ligne de config.lua à copier
 -- =========================================================================
-local adjusting = false
+local editing = nil -- { veh, side }
 local function configLine(vehicle)
     local m = modelOf(vehicle)
     local parts = {}
@@ -394,33 +377,65 @@ local function configLine(vehicle)
     return ('%s = { %s },'):format(m.name, table.concat(parts, ', '))
 end
 
-RegisterCommand(C.AdjustCommand or 'spotreglage', function()
-    if not my then return notify('Asseyez-vous à la place qui tient un projecteur (véhicule de la liste).') end
-    if adjusting then return end
-    adjusting = true
-    if not my.on then setOn(true) end
-    local o = offsetOf(my.veh, my.side)
+--- Pendant le réglage, à chaque image : point rouge au départ de la lumière ; faisceau d'essai si ce projecteur est éteint
+local function editLoop()
+    CreateThread(function()
+        local color = L.Color or { 235, 240, 255 }
+        while editing do
+            local vehicle, side = editing.veh, editing.side
+            local offset = DoesEntityExist(vehicle) and offsetOf(vehicle, side)
+            if not offset then break end
+            local o = GetOffsetFromEntityInWorldCoords(vehicle, offset.x, offset.y, offset.z)
+            DrawMarker(28, o.x, o.y, o.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.07, 0.07, 0.07, 255, 20, 20, 230,
+                false, false, 2, false, nil, nil, false)
+            local s = (my and my.veh == vehicle and my.side == side) and my or published(vehicle, side)
+            if not (s and s.on) then
+                local dir = toWorld(vehicle, 0.0, -4.0)
+                DrawSpotLightWithShadow(o.x, o.y, o.z, dir.x, dir.y, dir.z, color[1], color[2], color[3],
+                    L.Distance or 90.0, L.Brightness or 22.0, L.Roundness or 4.0, L.Radius or 9.0, L.Falloff or 60.0, 4299)
+            end
+            Wait(0)
+        end
+        if editing then editing = nil; SetNuiFocus(false, false); SendNUIMessage({ action = 'adjust', data = { on = false } }) end
+    end)
+end
+
+local function startEdit(side)
+    local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+    local m = vehicle ~= 0 and modelOf(vehicle)
+    if not m then return notify('Montez dans un véhicule de la liste des projecteurs (config.lua : Vehicles).') end
+    if not m[side] then
+        return notify(side == 'p' and 'Ce véhicule n\'a pas de projecteur côté passager (config.lua : passenger).'
+            or 'Ce véhicule n\'a pas de projecteur côté conducteur (config.lua : driver).')
+    end
+    if editing then return end
+    editing = { veh = vehicle, side = side }
+    local o = offsetOf(vehicle, side)
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'adjust', data = { on = true, x = o.x, y = o.y, z = o.z, side = my.side == 'p' and 'passager (droite)' or 'conducteur (gauche)',
-        model = modelOf(my.veh).name, line = configLine(my.veh) } })
-end, false)
+    SendNUIMessage({ action = 'adjust', data = { on = true, x = o.x, y = o.y, z = o.z, side = side == 'p' and 'passager (droite)' or 'conducteur (gauche)',
+        model = m.name, line = configLine(vehicle) } })
+    editLoop()
+end
+RegisterCommand(C.AdjustCommand or 'editspotlight', function() startEdit('d') end, false)
+RegisterCommand(C.AdjustSideCommand or 'editspotlightside', function() startEdit('p') end, false)
 
 RegisterNUICallback('offset', function(d, cb)
     cb({ ok = true })
-    if not (adjusting and my and type(d) == 'table') then return end
-    local hash = u32(GetEntityModel(my.veh))
+    if not (editing and type(d) == 'table') then return end
+    local hash = u32(GetEntityModel(editing.veh))
     override[hash] = override[hash] or {}
-    override[hash][my.side] = vector3(math.max(-3.0, math.min(3.0, tonumber(d.x) or 0.0)),
+    override[hash][editing.side] = vector3(math.max(-3.0, math.min(3.0, tonumber(d.x) or 0.0)),
         math.max(-4.0, math.min(4.0, tonumber(d.y) or 0.0)), math.max(-1.0, math.min(3.0, tonumber(d.z) or 0.0)))
-    SendNUIMessage({ action = 'line', data = { line = configLine(my.veh) } })
+    SendNUIMessage({ action = 'line', data = { line = configLine(editing.veh) } })
 end)
 
 RegisterNUICallback('adjustDone', function(_, cb)
     cb({ ok = true })
-    adjusting = false
+    local vehicle = editing and editing.veh
+    editing = nil
     SetNuiFocus(false, false)
-    if my then
-        local line = configLine(my.veh)
+    if vehicle and DoesEntityExist(vehicle) then
+        local line = configLine(vehicle)
         print('[rp_spotlight] ligne pour config.lua (Vehicles) : ' .. line)
         notify('Réglage gardé pour vous jusqu\'à la déconnexion. Ligne pour config.lua (aussi dans la console F8) : ' .. line)
     end
@@ -428,9 +443,9 @@ end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= RESOURCE then return end
-    if adjusting then SetNuiFocus(false, false) end
+    if editing then SetNuiFocus(false, false) end
     if my and my.on then my.on = false; send(true) end
 end)
 
 RPSpotlight = { toWorld = toWorld, toRelative = toRelative, clampAngles = clampAngles, seatSide = seatSide, -- tests
-    my = function() return my end, lit = lit, setOn = setOn, models = MODELS, offsetOf = offsetOf }
+    my = function() return my end, lit = lit, setOn = setOn, models = MODELS, offsetOf = offsetOf, editing = function() return editing end }

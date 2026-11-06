@@ -34,47 +34,17 @@ serveur à chaque action. `PoliceOnly = false` pour l'ouvrir à tout le monde.
   ouverts restent ouverts pendant la session. Ordre :
   - **coffre** : **Arme longue** ; **Équipement** (seulement s'il y en a pour ce véhicule) ; puis **Affaires** (un
     titre, pas un onglet) avec deux onglets : **Matériel** (plots, fusées, pistolet radar, herse) et **Jerrycan** ;
-  - **portières avant** : **Arme longue** ; **Équipement** (s'il y en a) ; **Fusées de détresse** (celles de l'avant).
-- **Équipement** : les pièces EUP de la **catégorie du véhicule** (voir ci-dessous), à **mettre** et **retirer** de sa
-  tenue. Une pièce portée est cochée (bouton « Retirer »). En la retirant, ce que le policier portait avant revient.
+  - **portières avant** : **Arme longue** ; **Fusées de détresse** (celles de l'avant).
+- **Équipement** (au **coffre**) : les pièces EUP **propres au modèle du véhicule** (`vehicle_equipment.json`, voir
+  ci-dessous), à **mettre** et **retirer** de sa tenue. Il n'y a plus d'équipement de base par police. Une pièce portée est cochée (bouton « Retirer »). En la retirant, ce que le policier portait avant revient.
   Seules les pièces de son personnage (homme / femme) sont proposées.
-  **Objets** (bouton « Prendre » / « Ranger ») : armes du jeu ajoutées dans `equipment.json` (aucun par défaut ; le
-  **jerrican d'essence** est désormais dans le **coffre**, voir plus bas).
-
-## Équipement EUP par police : `equipment.json`
-
-Le fichier `equipment.json` (dans le dossier `rp_equipment`) a **une liste par police** (celles du MDC) :
-`"Washington State Patrol"` et `"King County Sheriff Office"` (ou `"WSP"` / `"KCSO"`). C'est la police des
-véhicules dans `rp_interact/data/vehicle.json` (champ `subCategory`).
-
-Chaque pièce s'écrit **comme une tenue du `/eup`** (`data/outfits.json` de rp_interact), avec **seulement les parties
-qu'elle change** :
-
-```json
-{
-    "Washington State Patrol": [
-        { "Name": "Gilet pare-balles WSP", "Gender": "Male", "Armor": "14:1" },
-        { "Name": "Chapeau de Trooper", "Gender": "Male", "Hat": "14:1" }
-    ]
-}
-```
-
-- Parties possibles : `Hat`, `Glasses`, `Ear`, `Watch`, `Bracelet` (accessoires), `Mask`, `UpperSkin`, `Pants`,
-  `Parachute`, `Shoes`, `Accessories`, `UnderCoat`, `Armor`, `Decal`, `Top`.
-- Numéros `"modèle:texture"` comptés **à partir de 1**, comme le `/eup` (`Eup.OneBased`).
-- `Gender` : `Male` / `Female` (absent : les deux).
-- **Objet** (arme du jeu que le policier prend et range) : `"Weapon"` et `"Ammo"` au lieu des parties, ex.
-  `{ "Name": "Extincteur", "Weapon": "WEAPON_FIREEXTINGUISHER", "Ammo": 2000 }` (aucun par défaut : le jerrican est
-  dans le coffre).
-- Catégorie `"Police"` : véhicules de police qui ne sont d'aucune de ces polices (râtelier, coffre, et les objets
-  que vous y ajoutez).
-
-Après une modification : tapez `rpequip_reload` dans la console serveur.
+  **Objets** (bouton « Prendre » / « Ranger ») : armes du jeu ajoutées dans `vehicle_equipment.json` (`"Weapon"`,
+  `"Ammo"` ; aucun par défaut).
 
 ## Équipement EUP propre à un véhicule : `vehicle_equipment.json`
 
-Au **coffre** de certains modèles seulement, des pièces **en plus** de celles de leur police, rangées par catégories
-(titre affiché dans l'onglet Équipement, « (ce véhicule) ») :
+**Seul équipement EUP du menu** (l'équipement de base par police, `equipment.json`, est retiré). Au **coffre** des
+modèles listés, des pièces rangées par catégories (titre affiché dans l'onglet Équipement, « (ce véhicule) ») :
 
 ```json
 {
@@ -87,8 +57,12 @@ Au **coffre** de certains modèles seulement, des pièces **en plus** de celles 
 }
 ```
 
-Clé = nom de spawn du véhicule ; chaque pièce s'écrit comme dans `equipment.json` (parties du /eup, ou `"Weapon"`).
-Plusieurs catégories par véhicule, autant de véhicules que voulu. `rpequip_reload` pour recharger.
+Clé = nom de spawn du véhicule ; chaque pièce s'écrit **comme une tenue du `/eup`**, avec **seulement les parties
+qu'elle change** : `Hat`, `Glasses`, `Ear`, `Watch`, `Bracelet` (accessoires), `Mask`, `UpperSkin`, `Pants`,
+`Parachute`, `Shoes`, `Accessories`, `UnderCoat`, `Armor`, `Decal`, `Top` ; numéros `"modèle:texture"` comptés **à
+partir de 1** (`Eup.OneBased`) ; `Gender` : `Male` / `Female` (absent : les deux). **Objet** : `"Weapon"` et `"Ammo"`
+au lieu des parties. Plusieurs catégories par véhicule, autant de véhicules que voulu. `rpequip_reload` (console du
+serveur) pour recharger.
 
 ## Types de véhicules
 
@@ -235,7 +209,7 @@ menu Équipement ne s'ouvre pas et sa proposition n'est pas affichée tant qu'el
 | `CloseDistance` | au-delà, le menu se ferme (4 m de la carrosserie) |
 | `OpenTrunk` | ouvrir le coffre pendant le menu |
 | `Types`, `InteractVehicles`, `ServiceTypes` | types de véhicules (catégories de rp_interact, modèles, classes) |
-| `EquipmentFile`, `Eup` | fichier de l'équipement EUP (`equipment.json`), numéros comptés à partir de 1 |
+| `Eup` | numéros des pièces EUP comptés à partir de 1 |
 | `VehicleEquipmentFile` | équipement EUP propre à certains véhicules, au coffre (`vehicle_equipment.json`) |
 | `OpenFrontDoor` | ouvrir la portière avant la plus proche pendant le menu |
 | `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` = 5 portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), jerrican (`Jerrycans` : 1 plein d'origine, 1 max, `Ammo` = plein), pistolet radar (`RadarGuns` : 1 d'origine, 1 max), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |

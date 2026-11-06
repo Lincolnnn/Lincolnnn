@@ -96,7 +96,7 @@ ChatConfig = {
                 { "/voiture · /autoradio", "Menu > Voiture ; radio du véhicule" }, { "/meteo", "météo et heure du serveur" },
                 { "/coffre · E", "police : équipement du véhicule (portière avant ou coffre)" },
                 { "/freecam", "mode photo : caméra libre, zoom, inclinaison 90°, interfaces masquées" },
-                { "Ctrl gauche", "à bord : projecteur (appui : allumer ; maintenu : viser, clic gauche verrouiller, clic droit suivre) ; /spotcote" },
+                { "Ctrl gauche", "à bord : projecteur (appui : allumer ; maintenu : viser, clic gauche verrouiller, clic droit suivre) ; /editspotlight : régler" },
                 { "/trafic · /scene", "gestion du trafic (police) ; scène à fouiller (civil)" },
                 { "/tuto · /aide", "cette page" },
             } },

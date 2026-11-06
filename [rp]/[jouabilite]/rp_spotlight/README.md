@@ -18,8 +18,8 @@
 | en visant : **clic gauche** | **verrouiller** sur le point visé (il y reste quand le véhicule bouge) ; à nouveau : manuel |
 | en visant : **clic droit** | **suivre** le véhicule / la personne visé(e) (plaque affichée) ; à nouveau : manuel |
 | **Maj droite** | stroboscope |
-| `/spotcote` | conducteur **seul** d'un véhicule à deux projecteurs : passer de l'un à l'autre |
-| `/spotreglage` | régler la position du projecteur (curseurs X / Y / Z, ligne de configuration à copier) |
+| `/editspotlight` | régler la position du projecteur **conducteur** (point rouge, curseurs X / Y / Z, ligne à copier) |
+| `/editspotlightside` | régler la position du projecteur **passager** (véhicules à deux projecteurs) |
 
 - **Qui tient quoi** : le **conducteur** tient le projecteur de gauche ; le **passager avant** celui de droite (s'il
   y en a un). Le serveur vérifie la place à chaque changement.
@@ -44,8 +44,10 @@ Vehicles = {
 
 `offset` = position de la lampe sur le véhicule `{ x (gauche - / droite +), y (arrière - / avant +), z (haut) }` en
 mètres. Les valeurs fournies sont des **points de départ** (Ford PIU / Tahoe) : réglez-les en jeu avec
-**`/spotreglage`** (assis à la place du projecteur), puis copiez la ligne affichée (aussi dans la console F8) dans
-`config.lua`. Le réglage en jeu ne vaut que pour vous jusqu'à la déconnexion.
+**`/editspotlight`** (projecteur conducteur) ou **`/editspotlightside`** (projecteur passager), à bord du véhicule
+(n'importe quelle place) : un **point rouge** montre le **départ de la lumière** (avec un faisceau d'essai si le
+projecteur est éteint), le panneau de réglage est **en haut au milieu de l'écran** ; copiez la ligne affichée (aussi
+dans la console F8) dans `config.lua`. Le réglage en jeu ne vaut que pour vous jusqu'à la déconnexion.
 
 ## Lumière
 

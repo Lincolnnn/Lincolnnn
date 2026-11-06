@@ -599,3 +599,29 @@ RegisterCommand(B.UnbanCommand or 'unban', function(src, args)
     reply(src, 'Usage : /unban <n°> (voir /bans).')
 end, false)
 
+
+-- =========================================================================
+-- rpnettest (CONSOLE du serveur seulement) : le serveur joint-il Internet en HTTPS ? Diagnostic quand un script payant
+-- dit « License check failed: Could not reach license server (HTTP 0) » (HTTP 0 = aucune réponse : DNS, pare-feu de
+-- l'hébergeur, panne du site). Aucune clé, aucun jeton n'est envoyé : une simple requête GET sur chaque adresse.
+-- =========================================================================
+local NET_TEST = {
+    { 'Riven Systems (licences riven-impact / riven_spikes)', 'https://rivensystems.harvestiq.life/' },
+    { 'Discord (rôles, rp_permissions)', 'https://discord.com/api/v10/gateway' },
+    { 'Google (Internet en général)', 'https://www.google.com/' },
+}
+RegisterCommand('rpnettest', function(src)
+    if src ~= 0 then return end
+    print('^5[rp_permissions]^7 test réseau du serveur (HTTPS, sans clé) :')
+    for _, t in ipairs(NET_TEST) do
+        local started = GetGameTimer()
+        PerformHttpRequest(t[2], function(code)
+            local ms = GetGameTimer() - started
+            if tonumber(code) and code > 0 then
+                print(('^2  OK^7  %s : HTTP %d (%d ms) — le serveur joint ce site'):format(t[1], code, ms))
+            else
+                print(('^1  ÉCHEC^7  %s : HTTP %s (%d ms) — aucune réponse : DNS, pare-feu de l\'hébergeur ou site en panne'):format(t[1], tostring(code), ms))
+            end
+        end, 'GET', '', { ['User-Agent'] = 'FiveM-server-nettest' })
+    end
+end, true)

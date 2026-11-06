@@ -5,7 +5,7 @@
       les clients (GlobalState.rpEquipModels : [hash du modèle] = type).
     - Vérifie chaque demande : policier en service (unité du MDC), près du véhicule, pièce / emplacement permis
       pour ce type de véhicule.
-    - Équipement EUP par catégorie de véhicule (equipment.json, même format que les tenues du /eup).
+    - Équipement EUP propre à chaque véhicule (vehicle_equipment.json, au coffre ; même format que les tenues du /eup).
     - Râtelier d'armes longues par plaque (data/racks.json) : rangé / ressorti à l'identique (modèle,
       accessoires, teintes). Une seule arme par emplacement, même si deux policiers cliquent ensemble.
     - Coffre comme un inventaire, par plaque (data/stock.json) : plots de circulation (6 au départ, 10 au maximum ; un
@@ -70,7 +70,7 @@ end
 local Models = buildModels()
 
 -- =========================================================================
--- ÉQUIPEMENT EUP PAR CATÉGORIE (equipment.json)
+-- ÉQUIPEMENT EUP : pièces lues dans vehicle_equipment.json (plus d'équipement par police : equipment.json retiré)
 -- =========================================================================
 local OUTFIT_PARTS = {
     Hat = { prop = 0 }, Glasses = { prop = 1 }, Ear = { prop = 2 }, Watch = { prop = 6 }, Bracelet = { prop = 7 },
@@ -78,14 +78,6 @@ local OUTFIT_PARTS = {
     Shoes = { component = 6 }, Accessories = { component = 7 }, UnderCoat = { component = 8 }, Armor = { component = 9 },
     Decal = { component = 10 }, Top = { component = 11 },
 }
-local Assets = {}   -- [type] = { { id, name, gender, components = { {n°, modèle, texture} }, props = {...} } }
-
---- Type d'une catégorie du fichier : "Washington State Patrol" (ServiceTypes) ou directement "wsp"
-local function typeOfCategory(name)
-    local key = trim(name):lower()
-    local kind = (Config.ServiceTypes or {})[key] or key
-    return Config.Types[kind] and kind or nil
-end
 
 local function parseAsset(o, oneBased)
     local name = trim(field(o, 'Name'))
@@ -112,42 +104,6 @@ local function parseAsset(o, oneBased)
     return { name = name:sub(1, 60), gender = gender, components = components, props = props }
 end
 
-local function loadAssets()
-    Assets = {}
-    local file = Config.EquipmentFile or 'equipment.json'
-    local raw = LoadResourceFile(GetCurrentResourceName(), file)
-    if not raw or raw == '' then
-        print(('^3[rp_equipment] %s introuvable : aucun équipement EUP^7'):format(file))
-        return
-    end
-    local ok, data = pcall(json.decode, raw)
-    if not ok or type(data) ~= 'table' then
-        print(('^1[rp_equipment] %s illisible (JSON invalide) : aucun équipement EUP^7'):format(file))
-        return
-    end
-    local oneBased = not (Config.Eup and Config.Eup.OneBased == false)
-    local count = 0
-    for category, list in pairs(data) do
-        local kind = typeOfCategory(category)
-        if not kind then
-            print(('^3[rp_equipment] %s : catégorie "%s" inconnue (ignorée)^7'):format(file, tostring(category)))
-        elseif type(list) == 'table' then
-            Assets[kind] = Assets[kind] or {}
-            for i, o in ipairs(list) do
-                local asset = parseAsset(o, oneBased)
-                if asset then
-                    asset.id = ('%s:%d'):format(kind, #Assets[kind] + 1)
-                    Assets[kind][#Assets[kind] + 1] = asset
-                    count = count + 1
-                else
-                    print(('^3[rp_equipment] %s : "%s" n°%d ignoré (Name ou pièce manquant)^7'):format(file, category, i))
-                end
-            end
-        end
-    end
-    print(('^5[rp_equipment]^7 %d pièce(s) d\'équipement EUP (%s)'):format(count, file))
-end
-loadAssets()
 
 -- =========================================================================
 -- ÉQUIPEMENT EUP PROPRE À CERTAINS VÉHICULES (vehicle_equipment.json) : dans le COFFRE de ces modèles seulement, en
@@ -194,10 +150,9 @@ local function loadVehicleAssets()
 end
 loadVehicleAssets()
 
---- Pièces offertes ici : celles de la police du véhicule, plus (au coffre) celles propres à son modèle
+--- Pièces offertes ici : (au coffre) celles propres au modèle du véhicule
 local function assetsFor(ctx)
     local list = {}
-    for _, a in ipairs(Assets[ctx.kind] or {}) do list[#list + 1] = a end
     if ctx.where == 'trunk' then
         for _, a in ipairs(VehicleAssets[GetEntityModel(ctx.vehicle) & 0xFFFFFFFF] or {}) do list[#list + 1] = a end
     end
@@ -207,7 +162,6 @@ end
 RegisterCommand('rpequip_reload', function(src)
     if src ~= 0 then return end
     Models = buildModels()
-    loadAssets()
     loadVehicleAssets()
     print('[rp_equipment] types de véhicules et équipement relus')
 end, true)
