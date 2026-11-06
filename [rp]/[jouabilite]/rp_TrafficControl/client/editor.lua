@@ -1,18 +1,22 @@
 --[[
-    RP TrafficControl - client : outil de pose d'un tronçon
-    -------------------------------------------------------
-    On vise la route (caméra, jusqu'à Editor.Range m). Le script lit la route du jeu à cet endroit : ligne de nœuds,
+    RP TrafficControl - client : choix de la ZONE du trafic, puis de l'action
+    -------------------------------------------------------------------------
+    1. ZONE : on choisit les nœuds du trafic concernés. On vise la route (caméra, jusqu'à Editor.Range m). Le script lit la route du jeu à cet endroit : ligne de nœuds,
     nombre de voies dans chaque sens, terre-plein. L'endroit visé choisit le SENS (côté de la route visé) et la VOIE
     (la plus proche du point visé) ; la portée se change ensuite :
       - VOIE : une voie de ce sens (ex. la voie de gauche d'une interstate), molette pour changer de voie ;
       - SENS : toutes les voies de ce sens ;
       - ROUTE : les deux sens (molette : largeur).
-    E au début du tronçon, E à la fin (dans un sens ou dans l'autre : le début est toujours là où arrive le trafic).
-    Aperçu : bande concernée (couleur de la mesure) avec une flèche du sens, et les NŒUDS du jeu :
+    E au début de la zone, E à la fin (dans un sens ou dans l'autre : le début est toujours là où arrive le trafic).
+    2. ACTION : la zone reste affichée dans le monde et le panneau (menu.lua) propose l'action sur ce trafic :
+       fermeture de voie (le trafic se réoriente vers une autre voie), ralentissement, arrêt du trafic ; puis la durée.
+       « Appliquer » envoie la mesure ; « Rechoisir la zone » revient à l'étape 1 ; Échap / « Annuler » abandonne.
+    Aperçu : bande concernée (bleue pendant le choix ; couleur de l'action choisie ensuite) avec une flèche du sens,
+    et les NŒUDS du jeu :
       vert = ouvert ; orange = concerné (sera fermé / ralenti) ; jaune = partagé avec l'autre sens (les PNJ sont
       dirigés à la place) ; rouge = déjà fermé.
-    Touches : E valider, ↑ ↓ portée, molette voie / largeur, ← → vitesse, R inverser le sens, Retour arrière /
-    clic droit / Échap annuler. Boucle à chaque image SEULEMENT pendant la pose ; nœuds relus toutes les 400 ms.
+    Touches : E valider, ↑ ↓ portée, molette voie / largeur, R inverser le sens, Retour arrière / clic droit / Échap
+    annuler. Boucle à chaque image SEULEMENT pendant le choix ; nœuds relus toutes les 400 ms.
 ]]
 
 TC = TC or {}
@@ -30,7 +34,7 @@ local CANCEL = { 177, 194, 202, 25 } -- Retour arrière, clic droit
 local PAUSE = { 200, 322 }           -- Échap
 local SCOPES = { 'lane', 'direction', 'road' }
 local SCOPE_LABEL = { lane = 'Voie', direction = 'Sens', road = 'Route entière' }
-local COLORS = { close = { 235, 60, 60 }, slow = { 255, 150, 40 }, stop = { 200, 30, 30 } }
+local COLORS = { close = { 235, 60, 60 }, slow = { 255, 150, 40 }, stop = { 200, 30, 30 }, zone = { 70, 150, 255 } }
 
 -- =========================================================================
 -- VISÉE ET LECTURE DE LA ROUTE
@@ -281,12 +285,11 @@ end
 
 local function helpLines(s)
     local lines = {
-        ('~INPUT_CONTEXT~ %s du tronçon'):format(editing.a and 'Fin' or 'Début'),
+        ('~INPUT_CONTEXT~ %s de la zone du trafic'):format(editing.a and 'Fin' or 'Début'),
         ('~INPUT_CELLPHONE_UP~~INPUT_CELLPHONE_DOWN~ %s'):format(scopeText(s)),
     }
     if editing.scope == 'lane' and s and s.n > 1 then lines[#lines + 1] = '~INPUT_WEAPON_WHEEL_NEXT~ Changer de voie' end
     if editing.scope == 'road' then lines[#lines + 1] = ('~INPUT_WEAPON_WHEEL_NEXT~ Élargir : +%d m'):format(math.floor(editing.extra + 0.5)) end
-    if editing.kind == 'slow' then lines[#lines + 1] = ('~INPUT_CELLPHONE_LEFT~~INPUT_CELLPHONE_RIGHT~ %d MPH'):format(editing.speed) end
     if s and s.twoWay then lines[#lines + 1] = '~INPUT_RELOAD~ Inverser le sens' end
     lines[#lines + 1] = '~INPUT_FRONTEND_CANCEL~ Annuler'
     return lines
@@ -316,25 +319,76 @@ end
 
 local function vec(p) return { x = p.x + 0.0, y = p.y + 0.0, z = p.z + 0.0 } end
 
-local function submit(seg)
+--- Voie vers laquelle le trafic se réoriente (fermeture d'une voie) : la plus proche du même sens ; nil s'il n'y en a pas
+local function redirectLane(s)
+    local best, bestDist
+    for i, off in ipairs(s.offsets) do
+        if i ~= s.lane then
+            local d = math.abs(off - s.offsets[s.lane])
+            if not best or d < bestDist then best, bestDist = i, d end
+        end
+    end
+    return best
+end
+
+--- Zone choisie : figée (toujours affichée dans le monde) et proposée au panneau des actions (menu.lua)
+local function choose(seg)
     local s = editing.setup
     local list = {}
     for _, node in ipairs(nodes) do
         if nodeState(node, seg) == 'take' then list[#list + 1] = vec(node.pos) end
     end
-    local payload = {
-        kind = editing.kind, scope = editing.scope, a = vec(seg.a), b = vec(seg.b),
+    local label = TC.locationText(TC.worldAt(seg.f, seg.f.length / 2, 0, (seg.a.z + seg.b.z) / 2))
+    editing.phase, editing.seg = 'chosen', seg
+    editing.zone = {
+        scope = editing.scope, a = vec(seg.a), b = vec(seg.b),
         vmin = seg.vmin, vmax = seg.vmax, lanes = s.offsets, closedLane = s.offsets[s.lane],
         laneIndex = s.lane, laneCount = s.n, oppositeLanes = s.nOpp, median = s.median, laneWidth = LW,
-        compass = TC.compass(s.dx, s.dy), nodes = list, speed = editing.speed, duration = editing.duration,
-        label = TC.locationText(TC.worldAt(seg.f, seg.f.length / 2, 0, (seg.a.z + seg.b.z) / 2)),
+        compass = TC.compass(s.dx, s.dy), nodes = list, label = label,
     }
+    local redirect = editing.scope == 'lane' and redirectLane(s) or nil
+    local info = {
+        scope = editing.scope, label = label, compass = editing.zone.compass, length = math.floor(seg.f.length + 0.5),
+        nodes = #list, laneIndex = s.lane, laneCount = s.n, oppositeLanes = s.nOpp,
+        redirect = redirect and TC.laneName(redirect, s.n) or nil, redirectIndex = redirect,
+        scopeText = scopeText(s),
+    }
+    if TC.onZoneChosen then TC.onZoneChosen(info) end
+end
+
+--- Couleur de la zone dans le monde selon l'action surlignée dans le panneau (nil : bleu du choix de zone)
+function TC.zonePreview(kind)
+    if editing and editing.phase == 'chosen' then editing.previewKind = COLORS[kind] and kind or nil end
+end
+
+--- Action choisie pour la zone : 'close' | 'slow' | 'stop' ; mesure envoyée au serveur
+function TC.applyZone(kind, speed, duration)
+    if not editing or editing.phase ~= 'chosen' or not editing.zone then return false end
+    if kind ~= 'close' and kind ~= 'slow' and kind ~= 'stop' then return false end
+    local payload = {}
+    for key, value in pairs(editing.zone) do payload[key] = value end
+    payload.kind = kind
+    payload.speed = math.floor(tonumber(speed) or editing.speed or SP.DefaultLimit or 25)
+    payload.duration = tonumber(duration) or editing.duration
     stop()
     TC.request('create', payload, function(res)
         if not res.ok then return TC.notify(res.error or 'Action impossible.') end
-        TC.notify(('Mesure posée : %s (%d nœud%s du jeu %s).'):format(payload.label ~= '' and payload.label or 'n°' .. tostring(res.id),
-            #list, #list > 1 and 's' or '', payload.kind == 'close' and 'fermés' or 'ralentis'))
+        local done = kind == 'close' and 'fermés' or (kind == 'slow' and 'ralentis' or 'arrêtés')
+        TC.notify(('Mesure posée : %s (%d nœud%s du trafic %s).'):format(payload.label ~= '' and payload.label or 'n°' .. tostring(res.id),
+            #payload.nodes, #payload.nodes > 1 and 's' or '', done))
     end)
+    return true
+end
+
+--- Retour au choix de la zone (même portée)
+function TC.reselectZone()
+    if not editing then return end
+    editing.phase, editing.a, editing.b, editing.seg, editing.zone, editing.previewKind = 'pick', nil, nil, nil, nil, nil
+    editing.laneDelta = 0
+end
+
+function TC.cancelZone()
+    if editing then stop('Choix de la zone annulé.') end
 end
 
 local function confirm(cur, r)
@@ -347,24 +401,40 @@ local function confirm(cur, r)
     local b = r and r.c or cur
     local dx, dy = b.x - editing.a.x, b.y - editing.a.y
     local length = math.sqrt(dx * dx + dy * dy)
-    if length < (SEG.MinLength or 6.0) then return TC.notify('Tronçon trop court.') end
-    if length > (SEG.MaxLength or 200.0) then return TC.notify(('Tronçon trop long (%d m au plus) : faites-en plusieurs.'):format(SEG.MaxLength or 200)) end
+    if length < (SEG.MinLength or 6.0) then return TC.notify('Zone trop courte.') end
+    if length > (SEG.MaxLength or 200.0) then return TC.notify(('Zone trop longue (%d m au plus) : faites-en plusieurs.'):format(SEG.MaxLength or 200)) end
     editing.b = b
     local seg = currentSegment(b)
-    if seg then submit(seg) end
+    if seg then choose(seg) end
 end
 
---- Démarre la pose : kind = 'close' | 'slow' | 'stop' ; opts = { scope, duration, speed }
-function TC.startEditor(kind, opts)
+--- Démarre le choix de la zone du trafic : opts = { scope, duration, speed } (l'action est choisie après la zone)
+function TC.startEditor(opts)
     if editing then return end
     opts = type(opts) == 'table' and opts or {}
     editing = {
-        kind = kind, scope = (opts.scope == 'direction' or opts.scope == 'road') and opts.scope or 'lane',
+        phase = 'pick', scope = (opts.scope == 'direction' or opts.scope == 'road') and opts.scope or 'lane',
         duration = tonumber(opts.duration) or Config.DefaultDuration or 30,
         speed = math.floor(tonumber(opts.speed) or SP.DefaultLimit or 25), extra = 0.0, flip = false, laneDelta = 0,
     }
     CreateThread(function()
         while editing do
+            if editing.phase == 'chosen' then
+                -- Zone choisie : affichée (bande + nœuds) pendant que le panneau propose l'action
+                local seg = editing.seg
+                local probe = TC.worldAt(seg.f, seg.f.length / 2, 0, seg.a.z)
+                local now = GetGameTimer()
+                if now - nodesAt > 400 then
+                    nodesAt = now
+                    readNodes(probe, seg.f.length / 2 + 40.0)
+                end
+                drawExisting(probe)
+                drawNodes(seg)
+                local kind = editing.previewKind
+                drawStrip(seg, COLORS[kind] or COLORS.zone, kind == 'close')
+                Wait(0)
+                goto continue
+            end
             for _, c in ipairs(DISABLED) do DisableControlAction(0, c, true) end
             local cur = aimedGround()
             local r = cur and roadAt(cur) or nil
@@ -390,10 +460,6 @@ function TC.startEditor(kind, opts)
                     editing.extra = math.max(0.0, math.min((SEG.MaxRoadWidth or 60.0), editing.extra + wheel * 2 * (SEG.RoadWidthStep or 1.0)))
                 end
             end
-            if editing.kind == 'slow' then
-                local dir = (IsDisabledControlJustPressed(0, KEY.right) and 1) or (IsDisabledControlJustPressed(0, KEY.left) and -1) or 0
-                if dir ~= 0 then editing.speed = math.max(SP.MinLimit or 5, math.min(SP.MaxLimit or 80, editing.speed + dir * (SP.Step or 5))) end
-            end
             if IsDisabledControlJustPressed(0, KEY.flip) and editing.setup and editing.setup.twoWay then
                 editing.flip = not editing.flip
                 if editing.a then editing.setup = flipSetup(editing.setup); applyLane(editing.setup) end
@@ -408,7 +474,7 @@ function TC.startEditor(kind, opts)
             end
             drawExisting(probe)
             drawNodes(seg)
-            if seg then drawStrip(seg, COLORS[editing.kind] or COLORS.close, editing.kind == 'close') end
+            if seg then drawStrip(seg, COLORS.zone, false) end
             if cur and not r then
                 DrawMarker(1, cur.x, cur.y, cur.z - 0.2, 0, 0, 0, 0, 0, 0, 0.6, 0.6, 1.2, 150, 150, 150, 160, false, false, 2, false, nil, nil, false)
             end
@@ -419,17 +485,19 @@ function TC.startEditor(kind, opts)
             else
                 -- Échap d'abord (le menu pause du jeu ne s'ouvre pas), puis Retour arrière / clic droit
                 for _, c in ipairs(PAUSE) do
-                    if IsDisabledControlJustPressed(0, c) then stop('Pose annulée.'); blockPauseAfter() break end
+                    if IsDisabledControlJustPressed(0, c) then stop('Choix de la zone annulé.'); blockPauseAfter() break end
                 end
                 if editing then
                     for _, c in ipairs(CANCEL) do
-                        if IsDisabledControlJustPressed(0, c) then stop('Pose annulée.') break end
+                        if IsDisabledControlJustPressed(0, c) then stop('Choix de la zone annulé.') break end
                     end
                 end
             end
             Wait(0)
+            ::continue::
         end
     end)
 end
 
 function TC.editing() return editing ~= nil end
+function TC.zoneChosen() return editing ~= nil and editing.phase == 'chosen' end

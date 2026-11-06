@@ -1,15 +1,15 @@
-// RP TrafficControl : menu "Gestion du trafic" (client/menu.lua envoie open / close / list / message)
+// RP TrafficControl : menu "Gestion du trafic" (client/menu.lua envoie open / zone / close / list / message)
+//   Accueil : 1. « Choisir la zone du trafic » (portée) ; mesures actives.
+//   Zone choisie : 2. l'action sur ce trafic (fermeture de voie, ralentissement, arrêt), vitesse, durée -> Appliquer.
 (() => {
     const $ = (id) => document.getElementById(id);
     const box = $('tc');
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_TrafficControl';
     const KIND = { close: 'Fermeture', slow: 'Ralentissement', stop: 'Trafic arrêté' };
-    const CLOSE_HINT = {
-        lane: 'Les PNJ se rabattent sur une voie du même sens',
-        direction: 'Ce sens est fermé : les PNJ font demi-tour / une déviation',
-        road: 'Route fermée : les PNJ prennent une déviation',
+    let state = {
+        measures: [], durations: [15, 30, 60, 120, 0], duration: 30, speed: 25, scope: 'lane',
+        limits: { min: 5, max: 80, step: 5 }, unit: '', view: 'home', zone: null, kind: null,
     };
-    let state = { measures: [], durations: [15, 30, 60, 120, 0], duration: 30, speed: 25, scope: 'lane', limits: { min: 5, max: 80, step: 5 }, unit: '' };
     let messageTimer = null;
     let tick = null;
 
@@ -27,6 +27,7 @@
 
     const toArray = (v) => (Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []));
     const durationLabel = (m) => (m === 0 ? 'Illimitée' : m >= 60 && m % 60 === 0 ? `${m / 60} h` : `${m} min`);
+    const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
 
     function timeLeft(m) {
         if (m.permanent) return 'jusqu\'à levée';
@@ -52,22 +53,64 @@
         return `${m.kind === 'slow' ? `${m.speed} MPH · ` : ''}${scope} · ${length}`;
     }
 
-    function renderSettings() {
+    // ------------------------------------------------------------------ vues
+    function showView(view) {
+        state.view = view;
+        $('tcHome').classList.toggle('hidden', view !== 'home');
+        $('tcZoneView').classList.toggle('hidden', view !== 'zone');
+        $('tcSub').textContent = view === 'zone'
+            ? `${state.unit ? `${state.unit} · ` : ''}Choisissez l'action sur ce trafic`
+            : `${state.unit ? `${state.unit} · ` : ''}${plural(state.measures.length, 'mesure')} active${state.measures.length > 1 ? 's' : ''}`;
+    }
+
+    function renderHome() {
+        box.querySelectorAll('[data-scope]').forEach((b) => b.classList.toggle('active', b.dataset.scope === state.scope));
+    }
+
+    // Texte de la fermeture selon la zone : une voie (vers quelle voie le trafic se réoriente), un sens, la route
+    function closeTexts(z) {
+        if (z.scope === 'lane') {
+            return {
+                title: 'Fermeture de voie',
+                hint: z.redirect ? `Le trafic se réoriente vers la ${z.redirect}`
+                    : 'Aucune autre voie dans ce sens : le trafic fait demi-tour',
+            };
+        }
+        if (z.scope === 'direction') return { title: 'Fermeture du sens', hint: 'Le trafic de ce sens est dévié (autre route / demi-tour)' };
+        return { title: 'Fermeture de la route', hint: 'Le trafic prend une déviation' };
+    }
+
+    function renderZone() {
+        const z = state.zone || {};
+        $('tcZoneLabel').textContent = z.label || 'Zone sans nom';
+        const parts = [];
+        if (z.scope === 'lane') parts.push(`${laneName(z.laneIndex, z.laneCount)} (${z.laneIndex}/${z.laneCount}), sens ${z.compass || ''}`);
+        else if (z.scope === 'direction') parts.push(`sens ${z.compass || ''} (${plural(z.laneCount || 1, 'voie')})`);
+        else parts.push('route entière (les deux sens)');
+        parts.push(`${z.length || 0} m`);
+        if (z.nodes > 0) parts.push(`${plural(z.nodes, 'nœud')} du trafic`);
+        else parts.push(z.scope === 'lane' ? 'trafic de cette voie (nœuds communs à toutes les voies)' : 'nœuds partagés avec l\'autre sens : trafic dirigé');
+        $('tcZoneMeta').textContent = parts.join(' · ');
+        const ct = closeTexts(z);
+        $('tcCloseTitle').textContent = ct.title;
+        $('tcCloseHint').textContent = ct.hint;
+        $('tcSlowHint').textContent = `Le trafic de la zone roule à ${state.speed} MPH`;
+        box.querySelectorAll('[data-kind]').forEach((b) => b.classList.toggle('active', b.dataset.kind === state.kind));
+        $('tcSpeedField').classList.toggle('hidden', state.kind !== 'slow');
         $('tcSpeed').textContent = `${state.speed} MPH`;
         $('tcSpeedIco').textContent = state.speed;
         box.querySelector('[data-speed="-1"]').disabled = state.speed <= state.limits.min;
         box.querySelector('[data-speed="1"]').disabled = state.speed >= state.limits.max;
-        box.querySelectorAll('[data-scope]').forEach((b) => b.classList.toggle('active', b.dataset.scope === state.scope));
-        $('tcCloseHint').textContent = CLOSE_HINT[state.scope] || '';
         $('tcDurations').innerHTML = state.durations.map((d) => `
             <button class="tc-chip${d === state.duration ? ' active' : ''}" data-duration="${d}">${durationLabel(d)}</button>`).join('');
+        $('tcApply').disabled = !state.kind;
+        $('tcApply').textContent = state.kind ? `Appliquer : ${(KIND[state.kind] || '').toLowerCase()}` : 'Appliquer';
     }
 
     function renderList() {
         const list = state.measures;
         const mine = list.filter((m) => m.mine).length;
         $('tcCount').textContent = list.length ? `(${list.length})` : '';
-        $('tcSub').textContent = `${state.unit ? `${state.unit} · ` : ''}${list.length} mesure${list.length > 1 ? 's' : ''} active${list.length > 1 ? 's' : ''}`;
         $('tcList').innerHTML = list.length ? list.map((m) => `
             <div class="tc-item ${esc(m.kind)}">
                 <div class="tc-item-info">
@@ -81,6 +124,7 @@
             </div>`).join('') : '<div class="tc-empty">Aucune mesure : le trafic circule normalement.</div>';
         $('tcClearMine').disabled = mine === 0;
         $('tcClearAll').disabled = list.length === 0;
+        if (state.view === 'home') showView('home');
     }
 
     function setMeasures(list) {
@@ -97,7 +141,7 @@
         if (text) messageTimer = setTimeout(() => { el.textContent = ''; }, 4000);
     }
 
-    function open(data) {
+    function settings(data) {
         const sp = data.speed || {};
         state.limits = { min: Number(sp.MinLimit) || 5, max: Number(sp.MaxLimit) || 80, step: Number(sp.Step) || 5 };
         state.durations = toArray(data.durations).map(Number);
@@ -107,9 +151,11 @@
             state.speed = Number(sp.DefaultLimit) || 25;
             state.opened = true;
         }
+        if (!state.durations.includes(state.duration)) state.duration = state.durations[0];
         state.unit = data.unit || '';
-        renderSettings();
-        setMeasures(data.measures);
+    }
+
+    function show() {
         message('');
         box.classList.remove('hidden');
         clearInterval(tick);
@@ -121,35 +167,73 @@
         }, 1000);
     }
 
+    function open(data) {
+        settings(data);
+        renderHome();
+        setMeasures(data.measures);
+        showView('home');
+        show();
+    }
+
+    // Zone du trafic choisie (editor.lua) : choix de l'action
+    function openZone(data) {
+        settings(data);
+        state.zone = data.zone || {};
+        state.kind = null;
+        renderZone();
+        showView('zone');
+        show();
+    }
+
     function close() {
         box.classList.add('hidden');
         clearInterval(tick);
     }
 
+    function pickKind(kind) {
+        state.kind = kind;
+        renderZone();
+        post('zoneKind', { kind });
+    }
+
     box.addEventListener('click', (e) => {
-        const kind = e.target.closest('[data-kind]');
-        if (kind) return post('pick', { kind: kind.dataset.kind, scope: state.scope, duration: state.duration, speed: state.speed });
-        const scope = e.target.closest('[data-scope]');
-        if (scope) { state.scope = scope.dataset.scope; return renderSettings(); }
-        const sp = e.target.closest('[data-speed]');
-        if (sp && !sp.disabled) {
-            state.speed = Math.max(state.limits.min, Math.min(state.limits.max, state.speed + Number(sp.dataset.speed) * state.limits.step));
-            return renderSettings();
+        if (e.target.closest('#tcClose')) return post('close');
+        if (state.view === 'zone') {
+            const kind = e.target.closest('[data-kind]');
+            if (kind) return pickKind(kind.dataset.kind);
+            const sp = e.target.closest('[data-speed]');
+            if (sp && !sp.disabled) {
+                state.speed = Math.max(state.limits.min, Math.min(state.limits.max, state.speed + Number(sp.dataset.speed) * state.limits.step));
+                return renderZone();
+            }
+            const d = e.target.closest('[data-duration]');
+            if (d) { state.duration = Number(d.dataset.duration); return renderZone(); }
+            if (e.target.closest('#tcApply') && state.kind) return post('apply', { kind: state.kind, speed: state.speed, duration: state.duration });
+            if (e.target.closest('#tcReselect')) return post('reselect');
+            if (e.target.closest('#tcCancelZone')) return post('close');
+            return null;
         }
-        const d = e.target.closest('[data-duration]');
-        if (d) { state.duration = Number(d.dataset.duration); return renderSettings(); }
+        if (e.target.closest('#tcPickZone')) return post('pickZone', { scope: state.scope });
+        const scope = e.target.closest('[data-scope]');
+        if (scope) { state.scope = scope.dataset.scope; return renderHome(); }
         const rm = e.target.closest('[data-remove]');
         if (rm) return post('remove', { id: Number(rm.dataset.remove) });
         const loc = e.target.closest('[data-locate]');
         if (loc) return post('locate', { id: Number(loc.dataset.locate) });
         if (e.target.closest('#tcClearMine')) return post('clear', { mine: true });
         if (e.target.closest('#tcClearAll')) return post('clear', { mine: false });
-        if (e.target.closest('#tcClose')) return post('close');
         return null;
     });
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !box.classList.contains('hidden')) post('close');
+        if (box.classList.contains('hidden')) return;
+        if (e.key === 'Escape') post('close');
+        // Zone choisie : 1 / 2 / 3 choisissent l'action, Entrée applique
+        if (state.view === 'zone') {
+            const keys = { 1: 'close', 2: 'slow', 3: 'stop' };
+            if (keys[e.key]) pickKind(keys[e.key]);
+            else if (e.key === 'Enter' && state.kind) post('apply', { kind: state.kind, speed: state.speed, duration: state.duration });
+        }
     });
 
     // Mode nuit des menus (MDC : Paramètres > MDC > Apparence), envoyé par client/theme.lua
@@ -164,6 +248,7 @@
         const msg = event.data || {};
         const data = msg.data || {};
         if (msg.action === 'open') open(data);
+        else if (msg.action === 'zone') openZone(data);
         else if (msg.action === 'close') close();
         else if (msg.action === 'list') setMeasures(data.measures);
         else if (msg.action === 'message') message(data.text, data.error);

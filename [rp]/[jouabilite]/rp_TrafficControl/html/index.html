@@ -18,57 +18,93 @@
             <button class="tc-close" id="tcClose" title="Fermer (Échap)">✕</button>
         </header>
 
-        <section class="tc-section">
-            <div class="tc-legend">Nouvelle mesure</div>
-            <div class="tc-field tc-scope-field">
-                <span class="tc-label">Portée</span>
-                <div class="tc-seg" id="tcScopes">
-                    <button class="tc-seg-btn" data-scope="lane" title="Une voie de circulation (ex. voie de gauche)">Voie</button>
-                    <button class="tc-seg-btn" data-scope="direction" title="Un sens de circulation (toutes ses voies)">Sens</button>
-                    <button class="tc-seg-btn" data-scope="road" title="La route entière (les deux sens)">Route entière</button>
-                </div>
-            </div>
-            <div class="tc-kinds">
-                <button class="tc-kind" data-kind="close">
-                    <span class="tc-ico ico-close">
-                        <svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="6" rx="1.5"/><path d="M6 8l-3 6M11 8l-3 6M16 8l-3 6M21 8l-3 6" /><path d="M5 14v6M19 14v6"/></svg>
-                    </span>
-                    <span class="tc-kind-text"><b>Fermeture</b><small id="tcCloseHint">Les PNJ changent de voie avant le tronçon</small></span>
-                </button>
-                <button class="tc-kind" data-kind="slow">
-                    <span class="tc-ico ico-speed"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><text x="12" y="15.5" id="tcSpeedIco">25</text></svg></span>
-                    <span class="tc-kind-text"><b>Ralentissement</b><small>Les PNJ du tronçon ralentissent</small></span>
-                </button>
-                <button class="tc-kind" data-kind="stop">
-                    <span class="tc-ico ico-stop"><svg viewBox="0 0 24 24"><path d="M8 2h8l6 6v8l-6 6H8l-6-6V8z"/><path d="M8 12h8"/></svg></span>
-                    <span class="tc-kind-text"><b>Arrêt du trafic</b><small>Les PNJ s'arrêtent avant le tronçon</small></span>
-                </button>
-            </div>
-            <div class="tc-settings">
-                <div class="tc-field">
-                    <span class="tc-label">Vitesse (ralentissement)</span>
-                    <div class="tc-qty">
-                        <button class="tc-qty-btn" data-speed="-1" aria-label="Moins vite">−</button>
-                        <span class="tc-qty-value" id="tcSpeed">25 MPH</span>
-                        <button class="tc-qty-btn" data-speed="1" aria-label="Plus vite">+</button>
+        <!-- Accueil : 1. la zone du trafic, ensuite l'action ; mesures actives -->
+        <div id="tcHome" class="tc-view">
+            <section class="tc-section">
+                <div class="tc-legend"><span class="tc-num">1</span>Nouvelle mesure : la zone du trafic</div>
+                <div class="tc-field tc-scope-field">
+                    <span class="tc-label">Portée</span>
+                    <div class="tc-seg" id="tcScopes">
+                        <button class="tc-seg-btn" data-scope="lane" title="Une voie de circulation (ex. voie de gauche)">Voie</button>
+                        <button class="tc-seg-btn" data-scope="direction" title="Un sens de circulation (toutes ses voies)">Sens</button>
+                        <button class="tc-seg-btn" data-scope="road" title="La route entière (les deux sens)">Route entière</button>
                     </div>
                 </div>
-                <div class="tc-field">
-                    <span class="tc-label">Durée</span>
-                    <div class="tc-chips" id="tcDurations"></div>
-                </div>
-            </div>
-            <div class="tc-hint">Choisissez la portée et la mesure, puis visez la route : <b>E</b> au début, <b>E</b> à la fin du tronçon.</div>
-        </section>
+                <button class="tc-kind tc-pick" id="tcPickZone">
+                    <span class="tc-ico ico-zone">
+                        <svg viewBox="0 0 24 24"><path d="M4 20L10 4M20 20L14 4"/><circle cx="7" cy="12" r="1.6"/><circle cx="17" cy="12" r="1.6"/><circle cx="12" cy="7" r="1.6"/><circle cx="12" cy="17" r="1.6"/></svg>
+                    </span>
+                    <span class="tc-kind-text"><b>Choisir la zone du trafic</b><small>Visez la route : <b>E</b> au début, <b>E</b> à la fin de la zone</small></span>
+                </button>
+                <div class="tc-hint">Les nœuds du trafic de la zone s'affichent (<span class="tc-dot take"></span> concernés).
+                    Ensuite, choisissez l'action : <b>fermeture de voie</b>, <b>ralentissement</b> ou <b>arrêt du trafic</b>.</div>
+            </section>
 
-        <section class="tc-section">
-            <div class="tc-legend">Mesures actives <span id="tcCount"></span></div>
-            <div class="tc-list" id="tcList"></div>
-            <div class="tc-row-actions">
-                <button class="tc-btn" id="tcClearMine">Lever mes mesures</button>
-                <button class="tc-btn tc-danger" id="tcClearAll">Tout lever</button>
+            <section class="tc-section">
+                <div class="tc-legend">Mesures actives <span id="tcCount"></span></div>
+                <div class="tc-list" id="tcList"></div>
+                <div class="tc-row-actions">
+                    <button class="tc-btn" id="tcClearMine">Lever mes mesures</button>
+                    <button class="tc-btn tc-danger" id="tcClearAll">Tout lever</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Zone choisie : 2. l'action sur ce trafic -->
+        <div id="tcZoneView" class="tc-view hidden">
+            <section class="tc-section">
+                <div class="tc-legend"><span class="tc-num done">1</span>Zone du trafic choisie</div>
+                <div class="tc-zone">
+                    <div class="tc-zone-info">
+                        <div class="tc-zone-title" id="tcZoneLabel"></div>
+                        <div class="tc-zone-meta" id="tcZoneMeta"></div>
+                    </div>
+                    <button class="tc-btn tc-small" id="tcReselect" title="Viser de nouveau la route">Rechoisir</button>
+                </div>
+            </section>
+
+            <section class="tc-section">
+                <div class="tc-legend"><span class="tc-num">2</span>Action sur ce trafic</div>
+                <div class="tc-kinds" id="tcKinds">
+                    <button class="tc-kind" data-kind="close">
+                        <span class="tc-ico ico-close">
+                            <svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="6" rx="1.5"/><path d="M6 8l-3 6M11 8l-3 6M16 8l-3 6M21 8l-3 6" /><path d="M5 14v6M19 14v6"/></svg>
+                        </span>
+                        <span class="tc-kind-text"><b id="tcCloseTitle">Fermeture de voie</b><small id="tcCloseHint"></small></span>
+                        <span class="tc-check"></span>
+                    </button>
+                    <button class="tc-kind" data-kind="slow">
+                        <span class="tc-ico ico-speed"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><text x="12" y="15.5" id="tcSpeedIco">25</text></svg></span>
+                        <span class="tc-kind-text"><b>Ralentissement</b><small id="tcSlowHint">Le trafic de la zone ralentit</small></span>
+                        <span class="tc-check"></span>
+                    </button>
+                    <button class="tc-kind" data-kind="stop">
+                        <span class="tc-ico ico-stop"><svg viewBox="0 0 24 24"><path d="M8 2h8l6 6v8l-6 6H8l-6-6V8z"/><path d="M8 12h8"/></svg></span>
+                        <span class="tc-kind-text"><b>Arrêt du trafic</b><small>Le trafic s'arrête avant la zone</small></span>
+                        <span class="tc-check"></span>
+                    </button>
+                </div>
+                <div class="tc-settings">
+                    <div class="tc-field hidden" id="tcSpeedField">
+                        <span class="tc-label">Vitesse</span>
+                        <div class="tc-qty">
+                            <button class="tc-qty-btn" data-speed="-1" aria-label="Moins vite">−</button>
+                            <span class="tc-qty-value" id="tcSpeed">25 MPH</span>
+                            <button class="tc-qty-btn" data-speed="1" aria-label="Plus vite">+</button>
+                        </div>
+                    </div>
+                    <div class="tc-field">
+                        <span class="tc-label">Durée</span>
+                        <div class="tc-chips" id="tcDurations"></div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="tc-row-actions tc-zone-actions">
+                <button class="tc-btn" id="tcCancelZone">Annuler</button>
+                <button class="tc-btn tc-primary" id="tcApply" disabled>Appliquer</button>
             </div>
-        </section>
+        </div>
 
         <div class="tc-message" id="tcMessage"></div>
         <div class="tc-foot">Commande <b>/trafic</b> · Échap pour fermer</div>

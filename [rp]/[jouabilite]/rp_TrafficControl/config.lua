@@ -81,7 +81,7 @@ TrafficConfig = {
         StopBefore = 20.0,      -- m avant le tronçon : les PNJ concernés s'arrêtent
     },
 
-    -- Outil de pose
+    -- Choix de la zone du trafic (visée de la route)
     Editor = {
         Range = 150.0,          -- m : portée de la visée au sol
         SnapDistance = 14.0,    -- m : distance max à la route visée

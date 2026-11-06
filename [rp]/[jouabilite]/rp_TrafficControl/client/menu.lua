@@ -1,8 +1,12 @@
 --[[
     RP TrafficControl - client : menu (NUI, style du MDC) et commande /trafic
     -------------------------------------------------------------------------
-    Nouvelle mesure (fermeture / ralentissement / arrêt ; portée : voie, sens ou route entière ; durée, vitesse)
-    -> l'outil de pose (editor.lua). Mesures actives : lieu, auteur, temps restant, « Repérer » (point GPS) et « Lever ».
+    Nouvelle mesure, dans cet ordre :
+      1. « Choisir la zone du trafic » (portée : voie, sens ou route entière) -> on vise la route (editor.lua) : les
+         nœuds du trafic concernés s'affichent ;
+      2. zone choisie : le panneau propose l'ACTION sur ce trafic : fermeture de voie (le trafic se réoriente vers une
+         autre voie), ralentissement (vitesse), arrêt du trafic ; puis la durée -> « Appliquer ».
+    Mesures actives : lieu, auteur, temps restant, « Repérer » (point GPS) et « Lever ».
     Aucune boucle : le menu se met à jour quand les mesures changent (GlobalState.rpTraffic).
 ]]
 
@@ -10,6 +14,7 @@ TC = TC or {}
 local Config = TrafficConfig
 
 local open = false
+local mode = nil -- 'home' (menu) | 'zone' (zone choisie : action à choisir)
 local pending, nextId = {}, 0
 
 -- =========================================================================
@@ -42,12 +47,15 @@ local function blockPauseAfterClose()
     end)
 end
 
-local function closeMenu()
+--- keepZone : la zone choisie reste (action appliquée / zone rechoisie) ; sinon fermer le panneau l'abandonne
+local function closeMenu(keepZone)
     if not open then return end
-    open = false
+    local wasZone = mode == 'zone'
+    open, mode = false, nil
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
     blockPauseAfterClose()
+    if wasZone and not keepZone then TC.cancelZone() end
 end
 
 local function refresh()
@@ -62,7 +70,7 @@ local function openMenu()
         if not res.ok or not res.allowed then
             return TC.notify(res.error or 'Gestion du trafic réservée aux policiers en service (unité du MDC).')
         end
-        open = true
+        open, mode = true, 'home'
         SetNuiFocus(true, true)
         SendNUIMessage({ action = 'open', data = {
             measures = res.measures or {}, durations = res.durations or Config.Durations,
@@ -73,7 +81,18 @@ local function openMenu()
 end
 
 -- Mesures changées (par lui ou un collègue) : menu ouvert mis à jour
-TC.onChange = function() if open then refresh() end end
+TC.onChange = function() if open and mode == 'home' then refresh() end end
+
+--- Zone du trafic choisie (editor.lua) : panneau des actions (fermeture de voie, ralentissement, arrêt), la zone
+--- restant affichée dans le monde
+TC.onZoneChosen = function(zone)
+    open, mode = true, 'zone'
+    SetNuiFocus(true, true)
+    SendNUIMessage({ action = 'zone', data = {
+        zone = zone, durations = Config.Durations, defaultDuration = Config.DefaultDuration, speed = Config.Speed,
+        unit = LocalPlayer.state.mdcUnit or '',
+    } })
+end
 
 RegisterCommand(Config.Command or 'trafic', function()
     if open then return closeMenu() end
@@ -93,12 +112,37 @@ RegisterNUICallback('close', function(_, cb)
     closeMenu()
 end)
 
--- Nouvelle mesure : { kind, scope, duration, speed } -> outil de pose
-RegisterNUICallback('pick', function(data, cb)
+-- 1. « Choisir la zone du trafic » : { scope } -> on vise la route (editor.lua)
+RegisterNUICallback('pickZone', function(data, cb)
     cb({ ok = true })
-    if type(data) ~= 'table' or (data.kind ~= 'close' and data.kind ~= 'slow' and data.kind ~= 'stop') then return end
+    if mode ~= 'home' then return end
     closeMenu()
-    TC.startEditor(data.kind, { scope = data.scope, duration = data.duration, speed = data.speed })
+    TC.startEditor({ scope = type(data) == 'table' and data.scope or 'lane' })
+end)
+
+-- 2. Action surlignée dans le panneau : couleur de la zone dans le monde
+RegisterNUICallback('zoneKind', function(data, cb)
+    cb({ ok = true })
+    if mode == 'zone' then TC.zonePreview(type(data) == 'table' and data.kind or nil) end
+end)
+
+-- « Appliquer » : { kind = 'close' | 'slow' | 'stop', speed, duration }
+RegisterNUICallback('apply', function(data, cb)
+    cb({ ok = true })
+    if mode ~= 'zone' or type(data) ~= 'table' then return end
+    if data.kind ~= 'close' and data.kind ~= 'slow' and data.kind ~= 'stop' then
+        return SendNUIMessage({ action = 'message', data = { text = 'Choisissez une action.', error = true } })
+    end
+    closeMenu(true)
+    TC.applyZone(data.kind, data.speed, data.duration)
+end)
+
+-- « Rechoisir la zone » : retour à la visée de la route
+RegisterNUICallback('reselect', function(_, cb)
+    cb({ ok = true })
+    if mode ~= 'zone' then return end
+    closeMenu(true)
+    TC.reselectZone()
 end)
 
 RegisterNUICallback('remove', function(data, cb)

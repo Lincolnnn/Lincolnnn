@@ -103,7 +103,7 @@ ChatConfig = {
             { title = "MDC & menus", items = {
                 { "K", "MDC : unités, appels, recherches, BOLO, rapports, messages entre unités" }, { "Y / N", "accepter / refuser un appel" },
                 { "F1", "Menu Interaction : civil, police, équipements, voiture" },
-                { "/trafic", "police : fermer une voie / un sens, ralentir, arrêter le trafic" },
+                { "/trafic", "police : choisir la zone du trafic, puis fermer la voie, ralentir ou arrêter le trafic" },
                 { "Verr. Maj", "police : œil d'aigle (ce qui est à fouiller, zone proche)" },
                 { "/scene", "civil : zone de recherche, lieu ou objet à fouiller" },
                 { "G", "civil, arme en main : jeter / poser son arme (molette)" },

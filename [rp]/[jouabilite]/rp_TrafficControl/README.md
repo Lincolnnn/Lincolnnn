@@ -34,21 +34,32 @@ réseau routier rendu **à l'original**, PNJ relâchés (route et vitesse normal
 
 ## Utilisation
 
-- **`/trafic`** (policier en service, unité du MDC) : menu **Gestion du trafic**.
-  - **Portée** : Voie / Sens / Route entière ; **mesure** : Fermeture / Ralentissement / Arrêt du trafic ; vitesse
-    (MPH) et **durée**.
+- **`/trafic`** (policier en service, unité du MDC) : menu **Gestion du trafic**. Une nouvelle mesure se fait **dans
+  cet ordre : d'abord la ZONE du trafic, ensuite l'ACTION** :
+  1. **« Choisir la zone du trafic »** (portée : Voie / Sens / Route entière, modifiable ensuite) : le menu se ferme et
+     on **vise la route** (jusqu'à 150 m, aide en haut à gauche). Le script lit la route du jeu à cet endroit (voies
+     par sens, terre-plein) :
+     - **le côté visé choisit le sens**, **le point visé choisit la voie** (« voie de gauche (1/3), sens nord-est ») ;
+     - **↑ ↓** : portée (voie / sens / route entière) ; **molette** : changer de voie (voie) ou élargir (route
+       entière) ; **R** : inverser le sens (route à double sens) ;
+     - **E** au début de la zone, **E** à la fin (dans n'importe quel ordre : le début est toujours placé du côté d'où
+       arrive le trafic) ; **Retour arrière**, clic droit ou **Échap** : annuler (Échap n'ouvre pas le menu pause).
+     - **Aperçu** : la zone en **bleu** avec une **flèche du sens**, et les **nœuds du trafic** du jeu : **vert**
+       ouvert, **orange** concerné, **jaune** partagé avec l'autre sens (les PNJ sont dirigés à la place), **rouge**
+       déjà fermé.
+  2. **Zone choisie** : elle **reste affichée dans le monde** et le panneau **« Action sur ce trafic »** s'ouvre, avec
+     le résumé de la zone (lieu, voie / sens, longueur, nœuds du trafic) :
+     - **Fermeture de voie** : **le trafic se réoriente vers une autre voie** (le panneau dit laquelle : « vers la
+       voie centrale » ; aucune autre voie dans ce sens : demi-tour). Pour un sens / la route : **Fermeture du
+       sens** / **de la route** (le trafic est dévié) ;
+     - **Ralentissement** : vitesse (**− / +**, MPH) ;
+     - **Arrêt du trafic** : le trafic s'arrête avant la zone ;
+     - **Durée** (15 min, 30 min, 1 h, 2 h, illimitée) ; **« Appliquer »** pose la mesure.
+     La zone prend dans le monde la couleur de l'action choisie (rouge : fermeture, orange : ralentissement, rouge
+     foncé : arrêt). Clavier : **1 / 2 / 3** choisissent l'action, **Entrée** applique. **« Rechoisir »** : retour à
+     la visée de la route ; **« Annuler »** / **Échap** : la zone est abandonnée, rien n'est posé.
   - **Mesures actives** : lieu (rues d'Atlanta du MDC), voie / sens, longueur, auteur, temps restant ; **Repérer**
     (point GPS), **Lever** ; « Lever mes mesures » / « Tout lever ».
-- **Outil de pose** (aide en haut à gauche) : on **vise la route** (jusqu'à 150 m) ; le script lit la route du jeu à
-  cet endroit (voies par sens, terre-plein) :
-  - **le côté visé choisit le sens**, **le point visé choisit la voie** (« voie de gauche (1/3), sens nord-est ») ;
-  - **↑ ↓** : portée (voie / sens / route entière) ; **molette** : changer de voie (voie) ou élargir (route
-    entière) ; **← →** : vitesse (ralentissement) ; **R** : inverser le sens (route à double sens) ;
-  - **E** au début du tronçon, **E** à la fin (dans n'importe quel ordre : le début est toujours placé du côté d'où
-    arrive le trafic) ; **Retour arrière**, clic droit ou **Échap** : annuler (Échap n'ouvre pas le menu pause).
-- **Aperçu** : la **bande concernée** (rouge : fermeture, orange : ralentissement, rouge foncé : arrêt) avec une
-  **flèche du sens**, et les **nœuds du jeu** : **vert** ouvert, **orange** concerné (sera fermé / ralenti),
-  **jaune** partagé avec l'autre sens (non fermé : les PNJ sont dirigés à la place), **rouge** déjà fermé.
 - **Carte** : bande de chaque mesure le long de la route, avec son nom (« Fermeture : voie de gauche »…).
 
 ## Configuration (`config.lua`)
@@ -106,5 +117,6 @@ Console : **`trafficclear`** lève toutes les mesures.
 - Mesure à moins de 400 m du joueur : une vérification toutes les 300 ms des PNJ qu'il contrôle près des tronçons ;
   plus loin, une simple distance toutes les 2 s. Obstacles invisibles : posés peu à peu (6 au plus par vérification),
   seulement près du joueur ; « pas de collision » réglé une seule fois par paire obstacle / joueur.
-- Outil de pose : boucle à chaque image **seulement pendant la pose** (nœuds relus toutes les 400 ms).
+- Choix de la zone : boucle à chaque image **seulement pendant le choix** et tant que la zone choisie est affichée
+  (nœuds relus toutes les 400 ms).
 - Menu : aucune boucle Lua. Serveur : aucune boucle (une minuterie par mesure).
