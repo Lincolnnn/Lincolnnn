@@ -280,11 +280,11 @@ exports('targetOptions', function(info)
     local options = {}
     -- arme / lampe tenue en main (client/held.lua) : la déposer sur le véhicule, la lampe au sol ; reprendre
     if VPHeld and VPHeld.options then VPHeld.options(info, vehicle, options) end
-    -- chapeau (client/lostprops.lua) : le déposer sur le véhicule, le reprendre ; au sol : le ramasser
+    -- chapeau / lunettes tombés (client/lostprops.lua) : au sol, les ramasser
     local before = #options
     if VPLost and VPLost.options then VPLost.options(info, vehicle, options) end
     if vehicle then
-        -- sous-menu « Poser un objet › » de l'œil (rp_interact) : déposer l'arme, déposer son chapeau, ajouter un objet…
+        -- sous-menu « Poser un objet › » de l'œil (rp_interact) : déposer l'arme, ajouter un objet…
         local count = #propsOf(vehicle)
         local P = 'Poser un objet'
         options[#options + 1] = { id = 'add', icon = 'hand', label = 'Ajouter un objet', sub = P }

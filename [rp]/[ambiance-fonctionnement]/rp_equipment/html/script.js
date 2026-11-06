@@ -35,12 +35,19 @@
             list.innerHTML = '<div class="eq-empty">Équipement disponible uniquement avec un personnage multijoueur.</div>';
             return;
         }
+        // Pièces de la police, puis (au coffre) celles propres au véhicule, sous le titre de leur catégorie
+        let lastGroup = null;
         list.innerHTML = assets.length
-            ? assets.map((a) => `
+            ? assets.map((a) => {
+                const group = a.group || null;
+                const head = group !== lastGroup && group ? `<div class="eq-subtitle">${esc(group)} <span class="eq-subtitle-note">(ce véhicule)</span></div>` : '';
+                lastGroup = group;
+                return `${head}
                 <div class="eq-item${a.worn ? ' worn' : ''}">
                     <span class="eq-item-label">${a.worn ? '<span class="eq-check">✓</span>' : ''}${esc(a.name)}</span>
                     <button class="eq-btn${a.worn ? '' : ' eq-primary'}" data-wear="${esc(a.id)}">${a.item ? (a.worn ? 'Ranger' : 'Prendre') : (a.worn ? 'Retirer' : 'Mettre')}</button>
-                </div>`).join('')
+                </div>`;
+            }).join('')
             : '<div class="eq-empty">Aucun équipement pour cette catégorie de véhicule.</div>';
     }
 
@@ -122,6 +129,13 @@
         $('eqRadarHeld').textContent = inv.radar ? 'Sur vous : 1' : 'Sur vous : aucun';
         $('eqRadarTake').disabled = radars <= 0 || !!inv.radar;
         $('eqRadarStore').disabled = !inv.radar || radars >= (st.maxRadars || 1);
+        // Sac médical : un par coffre ; porté à la main (pas avec des plots)
+        const bags = Number(st.medbags) || 0;
+        $('eqBagRow').classList.toggle('hidden', !(st.maxMedbags > 0));
+        $('eqBags').textContent = `${bags} / ${st.maxMedbags || 1} dans le coffre`;
+        $('eqBagHeld').textContent = inv.bag ? 'En main : le sac (G pour le poser au sol)' : 'En main : aucun';
+        $('eqBagTake').disabled = bags <= 0 || !!inv.bag || carrying > 0;
+        $('eqBagStore').disabled = !inv.bag || bags >= (st.maxMedbags || 1);
         // Herse (riven_spikes) : seulement si le script est là, dans le coffre ; en main ou non
         $('eqSpikeRow').classList.toggle('hidden', !inv.spikes);
         if (inv.spikes) {
@@ -136,7 +150,7 @@
         $('eqCansSum').textContent = cans ? (st.jerrycanFill >= 100 ? 'Plein' : `${st.jerrycanFill} %`) : 'Vide';
         $('eqCarry').textContent = carrying
             ? `Vous portez ${carrying > 1 ? `${carrying} plots` : 'un plot'} : G pour en poser un au sol, ou les ranger ici.`
-            : 'Plots posés : les reprendre avec le target (« Ramasser le plot » ou « Ramasser les plots autour »). Un plot pris et pas remis n\'est plus dans le coffre.';
+            : 'Plots et sac médical posés : les reprendre avec le target (« Ramasser le plot », « Ramasser le sac médical »). Pris et pas remis : ils ne sont plus dans le coffre (rangés dans n\'importe quel coffre, dans la limite).';
     }
 
     function message(text, error) {
@@ -192,6 +206,8 @@
         if (e.target.closest('#eqCanStore')) return post('jerrycan', { mode: 'store' });
         if (e.target.closest('#eqRadarTake')) return post('radarGun', { mode: 'take' });
         if (e.target.closest('#eqRadarStore')) return post('radarGun', { mode: 'store' });
+        if (e.target.closest('#eqBagTake')) return post('medbag', { mode: 'take' });
+        if (e.target.closest('#eqBagStore')) return post('medbag', { mode: 'store' });
         if (e.target.closest('#eqSpikeTake')) return post('spikes', { mode: 'take' });
         if (e.target.closest('#eqSpikeStore')) return post('spikes', { mode: 'store' });
         const flares = e.target.closest('[data-flares]');

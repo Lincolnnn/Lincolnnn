@@ -419,8 +419,8 @@ est affiché directement) et par **groupes**, séparés par un trait. Exemple, p
 **Inspections ›** (visuelle intérieure, extérieure, olfactive, détail notoire) · **Fouilles ›** (habitacle, banquette
 arrière, coffre) · **Conducteur ›** (ou la place de l'occupant le plus proche : inspection visuelle, olfactive) ·
 actions de police (placer / faire sortir) · **Ouvrir la portière…** · **Monter à…** (portière visée) · **Poser un
-objet ›** (déposer l'arme ici / sur le toit / sur le coffre, déposer son chapeau, ajouter / déplacer / retirer un objet)
-· **Reprendre ›** (arme, chapeau posés) · le reste · **Radio du véhicule** (avant visé, portière ouverte) · les
+objet ›** (déposer l'arme ici / sur le toit / sur le coffre, ajouter / déplacer / retirer un objet)
+· **Reprendre ›** (arme posée) · le reste · **Radio du véhicule** (avant visé, portière ouverte) · les
 options « en bas de liste » (`last = true` : **Pousser le véhicule**…) · **Supprimer**. En visant un individu :
 **Inspections ›** (visuelle, olfactive, détail notoire) · **Fouilles ›** (supérieure, inférieure) · Menotter ·
 Prendre par le bras · Faire s'asseoir · Saluer · Supprimer. Un script de l'œil range ses options avec `sub = 'Nom'`
@@ -468,8 +468,10 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
     de détresse** posée avec `rp_flares` (« Fusée de détresse » sous l'œil) : **Retirer la fusée** (à 2,5 m), et le
     **plot de circulation** posé avec `rp_equipment` : **Ramasser le plot** ou **Ramasser les plots autour** (tous
     ceux posés près de lui, d'un coup ; policiers en service), et l'**arme lâchée** avec `rp_RoleplayZone`
-    (« Arme au sol ») : **Ramasser l'arme** (à 2 m, avec ses munitions, tout le monde). Un objet peut avoir plusieurs
-    actions (`Options`). Ces objets sont aussi trouvés quand le rayon touche le **sol juste à côté** (`ExternalSnap`,
+    (« Arme au sol ») : **Ramasser l'arme** (à 2 m, avec ses munitions, tout le monde), et le **sac médical** posé
+    avec `rp_equipment` : **Ramasser le sac médical** (tout le monde). Un objet peut avoir plusieurs
+    actions (`Options`). **Jamais « Supprimer »** sur le sac médical (`NoDelete`) ni sur les herses / Stop Stick de
+    riven_spikes (`NoDeleteModelPrefixes`) : ils se laissent à l'abandon ou se reprennent. Ces objets sont aussi trouvés quand le rayon touche le **sol juste à côté** (`ExternalSnap`,
     0,7 m) : une arme couchée est très fine à viser.
   - **Herse de Riven en main** (`riven_spikes` : herse tenue, cordon tenu, lancer) : **priorité à Riven** (ses touches
     E, G, X, Q, molette). L'œil ne propose que les options passées par `ox_target` (ranger la herse au coffre…) ; le Menu

@@ -329,7 +329,7 @@ end
 local function assetsView()
     local ped = PlayerPedId()
     local list = {}
-    for _, a in ipairs(assets) do list[#list + 1] = { id = a.id, name = a.name, worn = isWorn(ped, a), item = a.item == true } end
+    for _, a in ipairs(assets) do list[#list + 1] = { id = a.id, name = a.name, worn = isWorn(ped, a), item = a.item == true, group = a.group } end
     return list
 end
 
@@ -577,11 +577,12 @@ sendInventory = function(force)
     local radar = HasPedGotWeapon(ped, RADARGUN, false)
     local spikes = RPSpikes ~= nil and RPSpikes.available(open) -- (client/spikes.lua)
     local spikeHeld = spikes and RPSpikes.held() or false
-    local key = ('%d:%d:%s:%s:%s:%s'):format(cones, flaresHeld(ped), tostring(can), tostring(radar), tostring(spikes), tostring(spikeHeld))
+    local bag = RPMedBag ~= nil and RPMedBag.held() or false
+    local key = ('%d:%d:%s:%s:%s:%s:%s'):format(cones, flaresHeld(ped), tostring(can), tostring(radar), tostring(spikes), tostring(spikeHeld), tostring(bag))
     if key == lastInventory and not force then return end
     lastInventory = key
     SendNUIMessage({ action = 'inventory', data = { carrying = cones, maxCarry = MAX_CARRY, flares = flaresHeld(ped),
-        maxHeld = MAX_FLARES_HELD, jerrycan = can, radar = radar, spikes = spikes, spikeHeld = spikeHeld } })
+        maxHeld = MAX_FLARES_HELD, jerrycan = can, radar = radar, spikes = spikes, spikeHeld = spikeHeld, bag = bag } })
 end
 
 local function loadAnim(dict)
@@ -761,8 +762,103 @@ local function setCarried(count)
     if sendInventory then sendInventory() end
 end
 
-RegisterCommand('rp_cone_place', function() if not spikesBusy() then placeCone(false) end end, false)
-RegisterKeyMapping('rp_cone_place', 'Plot de circulation : poser au sol (plot porté)', 'keyboard', S.PlaceKey or 'G')
+RegisterCommand('rp_cone_place', function()
+    if spikesBusy() then return end
+    if RPMedBag and RPMedBag.held() then return RPMedBag.place(false) end -- sac médical porté : posé au sol
+    placeCone(false)
+end, false)
+RegisterKeyMapping('rp_cone_place', 'Plot / sac médical : poser au sol (porté)', 'keyboard', S.PlaceKey or 'G')
+
+-- =========================================================================
+-- SAC MÉDICAL : porté à la main (pris dans un coffre ou ramassé avec l'œil), posé au sol (G), rangé dans un coffre
+-- Boucle à chaque image seulement pendant qu'il est porté (aide, armes bloquées) ; aucune sinon.
+-- =========================================================================
+local SB = S.MedBags or {}
+local BAG = GetHashKey(SB.Model or 'xm_prop_x17_bag_med_01a')
+local bag = nil -- { prop } : sac porté
+local placingBag = false
+RPMedBag = {}
+
+function RPMedBag.held() return bag ~= nil end
+
+local function dropBagProp()
+    if bag and bag.prop then deleteProp(bag.prop) end
+end
+
+local function bagLoop()
+    CreateThread(function()
+        local text = nil
+        while bag do
+            local ped = PlayerPedId()
+            if IsEntityDead(ped) then
+                RPMedBag.place(true) -- mort : le sac tombe à ses pieds
+            else
+                -- Sac à la main : ni monter dans un véhicule, ni frapper, ni viser, ni sortir une arme
+                for _, c in ipairs({ 23, 24, 25, 37, 140, 141, 142, 257 }) do DisableControlAction(0, c, true) end
+                if GetSelectedPedWeapon(ped) ~= UNARMED then SetCurrentPedWeapon(ped, UNARMED, true) end
+                if not open and not IsPauseMenuActive() then
+                    text = text or ('"%s" pour poser le sac médical au sol (le target pour le reprendre) ou rangez-le dans un coffre.'):format(placeKeyName())
+                    BeginTextCommandDisplayHelp('CELL_EMAIL_BCON')
+                    for _, part in ipairs(helpParts(text)) do AddTextComponentSubstringPlayerName(part) end
+                    EndTextCommandDisplayHelp(0, false, false, -1)
+                end
+            end
+            Wait(0)
+        end
+    end)
+end
+
+--- Sac porté ou non (donné par le serveur)
+local function setBag(on)
+    local ped = PlayerPedId()
+    if on and not bag then
+        bag = {}
+        SetCurrentPedWeapon(ped, UNARMED, true)
+        LocalPlayer.state:set('rpCarryingCone', true, false) -- (local) la touche G d'autres scripts ne réagit pas
+        RequestModel(BAG)
+        local timeout = GetGameTimer() + 2000
+        while not HasModelLoaded(BAG) and GetGameTimer() < timeout do Wait(10) end
+        local c = SB.Carry or {}
+        local o = c.Offset or { 0.42, 0.0, -0.05, 0.10, 270.0, 60.0 }
+        local pos = GetEntityCoords(ped)
+        local prop = CreateObject(BAG, pos.x, pos.y, pos.z + 0.5, true, true, false)
+        SetEntityCollision(prop, false, false)
+        AttachEntityToEntity(prop, ped, GetPedBoneIndex(ped, c.Bone or 57005), o[1], o[2], o[3], o[4], o[5], o[6],
+            true, true, false, true, 1, true)
+        SetModelAsNoLongerNeeded(BAG)
+        if bag then bag.prop = prop else deleteProp(prop) end
+        bagLoop()
+    elseif not on and bag then
+        dropBagProp()
+        bag = nil
+        if not carried then LocalPlayer.state:set('rpCarryingCone', false, false) end
+    end
+    if sendInventory then sendInventory() end
+end
+
+--- Sac posé au sol devant le joueur (créé par le serveur, visible par tous) ; mort : à ses pieds
+function RPMedBag.place(atFeet)
+    if not bag or placingBag then return end
+    local ped = PlayerPedId()
+    if not atFeet and (IsPauseMenuActive() or IsPedInAnyVehicle(ped, true)) then return end
+    placingBag = true
+    SetTimeout(2000, function() placingBag = false end)
+    local spot = GetOffsetFromEntityInWorldCoords(ped, 0.25, atFeet and 0.3 or (SB.PlaceDistance or 0.7), 0.0)
+    local found, ground = GetGroundZFor_3dCoord(spot.x, spot.y, spot.z + 1.0, false)
+    if not found then ground = GetEntityCoords(ped).z - 0.98 end
+    local min = GetModelDimensions(BAG)
+    TriggerServerEvent('rp_equipment:bag:place', { x = spot.x, y = spot.y, z = ground - (min and min.z or 0.0),
+        heading = GetEntityHeading(ped) + 90.0 })
+end
+
+-- Le serveur a changé le sac porté : `on` (pris / ramassé) ou non (posé) ; `anim` : geste de ramassage
+RegisterNetEvent('rp_equipment:bag:set', function(on, anim)
+    placingBag = false
+    if anim then playPickup() end
+    if on and anim then Wait(500) end
+    setBag(on == true)
+    if not on and anim then showHint('Utiliser le target pour reprendre le sac médical.', 6000) end
+end)
 
 -- Le serveur a posé le(s) plot(s) : reste `left` dans les mains
 RegisterNetEvent('rp_equipment:cone:placed', function(left)
@@ -867,6 +963,25 @@ RegisterNUICallback('jerrycan', function(data, cb)
         else
             RemoveWeaponFromPed(p, PETROLCAN)
             SendNUIMessage({ action = 'message', data = { text = 'Jerrican rangé dans le coffre.' } })
+        end
+        sendInventory(true)
+    end)
+end)
+
+-- Sac médical : { mode = 'take' | 'store' }
+RegisterNUICallback('medbag', function(data, cb)
+    cb({ ok = true })
+    if not open or type(data) ~= 'table' then return end
+    local payload = context()
+    payload.mode = data.mode == 'take' and 'take' or 'store'
+    request('medbag', payload, function(res)
+        if not stockResult(res) then return end
+        if res.mode == 'take' then
+            setBag(true)
+            SendNUIMessage({ action = 'message', data = { text = 'Sac médical pris : G pour le poser au sol.' } })
+        else
+            setBag(false)
+            SendNUIMessage({ action = 'message', data = { text = 'Sac médical rangé dans le coffre.' } })
         end
         sendInventory(true)
     end)
@@ -1003,4 +1118,5 @@ AddEventHandler('onResourceStop', function(resource)
     if resource ~= RESOURCE then return end
     if open then closeMenu() end
     if carried then for _, prop in ipairs(carried.props) do if DoesEntityExist(prop) then DeleteEntity(prop) end end end
+    if bag and bag.prop and DoesEntityExist(bag.prop) then DeleteEntity(bag.prop) end
 end)

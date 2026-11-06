@@ -84,6 +84,8 @@ html, body {
 .eq-legend { margin-bottom: 8px; font: 600 13px var(--font-display); color: var(--text); }
 
 .eq-items { display: flex; flex-direction: column; gap: 2px; }
+.eq-subtitle { margin: 10px 4px 4px; font: 700 11px var(--font); letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
+.eq-subtitle-note { font-weight: 400; text-transform: none; letter-spacing: 0; }
 .eq-item {
     position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px;
     padding: 5px 5px 5px 10px; border-radius: var(--radius-sm);

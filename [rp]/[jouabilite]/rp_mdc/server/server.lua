@@ -1618,7 +1618,7 @@ local function callSummary(call)
     return {
         id = call.id, number = call.number, kind = call.kind, title = call.title, priority = call.priority,
         address = call.address, crossStreet = call.crossStreet, block = call.block, unitName = call.unitName,
-        agency = call.agency, idealUnits = call.idealUnits,
+        agency = call.agency, idealUnits = call.idealUnits, backup = call.backup, sector = call.sector, requestedBy = call.requestedBy,
     }
 end
 
@@ -1828,6 +1828,17 @@ RegisterMDCCallback('createIncident', function(src, payload)
     if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
 
     call.unitName = unit.name -- nom de l'unité déclarante (automatique)
+    if payload.backup == true then
+        -- Demande de renforts : incident commun à toutes les polices, secteur obligatoire
+        if not isPoliceAgency(unit.agency) then return { ok = false, error = 'Les renforts sont demandés par une unité de police.' } end
+        call.sector = clean(payload.sector, 40)
+        if call.sector == '' then return { ok = false, error = 'Le secteur est obligatoire.' } end
+        call.backup = true
+        call.requestedBy = AGENCIES[unit.agency].short
+        call.agency = normalizeAgencies(POLICE_ORDER) or unit.agency
+        print(('^5[MDC]^0 Demande de renforts de %s (%s)'):format(unitLabel(unit), call.requestedBy))
+        return addCall(src, call, 'incident', unit)
+    end
     -- Police de l'unité déclarante, toujours ; l'autre police cochée en plus : incident commun
     local list = { unit.agency }
     for _, a in pairs(type(payload.agencies) == 'table' and payload.agencies or {}) do list[#list + 1] = a end

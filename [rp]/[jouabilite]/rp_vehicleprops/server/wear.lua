@@ -1,9 +1,8 @@
 --[[
-    RP VehicleProps - serveur : chapeaux / lunettes (tenue, EUP compris) au sol ou posés sur un véhicule
-    -----------------------------------------------------------------------------------------------------
-    Visibles et repris par TOUS les joueurs (aucune permission) :
-      - au sol : liste GlobalState "rpWearGround" (tombés d'un joueur bousculé, blessé, en chute…) ;
-      - sur un véhicule : liste dans l'état du véhicule "rpWear" (chapeaux posés avec l'œil), qui vit et disparaît avec lui.
+    RP VehicleProps - serveur : chapeaux / lunettes (tenue, EUP compris) tombés au sol
+    -------------------------------------------------------------------------------
+    Visibles et repris par TOUS les joueurs (aucune permission) : liste GlobalState "rpWearGround" (tombés d'un
+    joueur bousculé, blessé, en chute…). (Poser son chapeau sur un véhicule : retiré.)
     Chaque élément : { id, anchor (0 chapeau, 1 lunettes), drawable, texture, pedModel, x, y, z, rx, ry, rz, at }.
     Le reprendre : seulement par un personnage du même modèle (homme / femme : les modèles EUP diffèrent).
     Vérifié : distance, nombres, valeurs bornées ; au sol, les plus anciens disparaissent (Expire, GroundTotal).
@@ -14,7 +13,6 @@ local Config = VPConfig
 local LP = Config.LostProps or {}
 if LP.Enabled == false then return end
 
-local RANGE = (Config.Editor or {}).Range or 3.0
 local function u32(v) return (math.tointeger(tonumber(v) or 0) or 0) & 0xFFFFFFFF end
 local ANCHORS = { [0] = 'chapeau', [1] = 'lunettes' }
 
@@ -35,13 +33,6 @@ end
 local function near(src, coords, max)
     local ped = GetPlayerPed(src)
     return ped and ped ~= 0 and #(GetEntityCoords(ped) - coords) <= max
-end
-
-local function vehicleFromNet(netId)
-    if type(netId) ~= 'number' then return nil end
-    local entity = NetworkGetEntityFromNetworkId(netId)
-    if not entity or entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 2 then return nil end
-    return entity
 end
 
 local function reply(src, ok, text) TriggerClientEvent('rp_vehicleprops:wearResult', src, ok, text) end
@@ -73,12 +64,6 @@ local function groundList()
     return out
 end
 
-local function vehicleList(vehicle)
-    local list, out = Entity(vehicle).state.rpWear, {}
-    if type(list) == 'table' then for _, item in ipairs(list) do if type(item) == 'table' then out[#out + 1] = item end end end
-    return out
-end
-
 -- Tombé au sol (le client du joueur l'a vu tomber et donne l'endroit où il s'est arrêté)
 RegisterNetEvent('rp_vehicleprops:wearDrop', function(data)
     local src = source
@@ -93,25 +78,6 @@ RegisterNetEvent('rp_vehicleprops:wearDrop', function(data)
     while #list >= (LP.GroundTotal or 60) do table.remove(list, 1) end -- le plus ancien disparaît
     list[#list + 1] = item
     GlobalState.rpWearGround = list
-end)
-
--- Posé sur un véhicule (retiré de la tête par le joueur : tout refus le lui rend)
-RegisterNetEvent('rp_vehicleprops:wearPlaceVehicle', function(netId, data)
-    local src = source
-    local vehicle = vehicleFromNet(netId)
-    if not vehicle or throttled(src) or not near(src, GetEntityCoords(vehicle), Config.ServerDistance or 8.0) then
-        return reply(src, false, 'Action impossible.')
-    end
-    local item = cleanPiece(src, data)
-    if not item or item.anchor ~= 0 then return reply(src, false, 'Action impossible.') end -- le chapeau seulement
-    local list = vehicleList(vehicle)
-    if #list >= (LP.MaxPerVehicle or 6) then return reply(src, false, 'Plus de place sur ce véhicule.') end
-    local o = type(data.offsets) == 'table' and data.offsets or {}
-    item.x, item.y, item.z = num(o.x, -RANGE, RANGE), num(o.y, -RANGE, RANGE), num(o.z, -RANGE, RANGE)
-    item.rx, item.ry, item.rz = num(o.rx, -180, 180), num(o.ry, -180, 180), num(o.rz, -180, 180)
-    list[#list + 1] = item
-    Entity(vehicle).state:set('rpWear', list, true)
-    reply(src, true)
 end)
 
 --- Reprise : même modèle de personnage (homme / femme) ; n'importe quel joueur à côté
@@ -138,16 +104,6 @@ RegisterNetEvent('rp_vehicleprops:wearPickup', function(id)
     end
     if not taken then return reply(src, false, 'Il n\'est plus là.') end
     if give(src, taken) then GlobalState.rpWearGround = kept end
-end)
-
-RegisterNetEvent('rp_vehicleprops:wearTake', function(netId, id)
-    local src = source
-    local vehicle = vehicleFromNet(netId)
-    if not vehicle or type(id) ~= 'string' or throttled(src) or not near(src, GetEntityCoords(vehicle), Config.ServerDistance or 8.0) then return end
-    local list, kept, taken = vehicleList(vehicle), {}, nil
-    for _, item in ipairs(list) do if item.id == id and not taken then taken = item else kept[#kept + 1] = item end end
-    if not taken then return reply(src, false, 'Il n\'est plus sur le véhicule.') end
-    if give(src, taken) then Entity(vehicle).state:set('rpWear', #kept > 0 and kept or nil, true) end
 end)
 
 AddEventHandler('playerDropped', function() lastAt[source] = nil end)

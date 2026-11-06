@@ -496,6 +496,13 @@ body.dragging, body.dragging * { user-select: none !important; }
 .btn-default:active, .btn-default.active { background: rgba(var(--accent-rgb), .82); color: rgba(255, 255, 255, .85); }
 .btn-default:disabled { background: rgba(0, 0, 0, .08); color: var(--muted); }
 .btn-danger:hover, .btn-danger.confirm { background: rgba(var(--danger-rgb), .9); border-color: rgba(var(--danger-rgb), .9); color: #fff; }
+/* Demande de renforts : orange foncé */
+.btn-backup { background: #b54a00; border-color: rgba(0, 0, 0, .15); color: #fff; font-weight: 600; }
+.btn-backup:hover { background: #c95400; }
+.btn-backup:active { background: #9a3f00; color: rgba(255, 255, 255, .85); }
+.btn-backup:disabled { background: rgba(0, 0, 0, .08); color: var(--muted); }
+.flag.c-backup { background: #b54a00; color: #fff; }
+.backup-hint { border-left: 3px solid #b54a00; }
 .btn-small { height: 26px; padding: 0 10px; font-size: 12px; }
 .btn-icon { padding: 0 8px; flex-shrink: 0; }
 .btn-ghost { height: 26px; background: transparent; border-color: transparent; color: var(--muted); }
@@ -1177,6 +1184,7 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .call-toast.prio-p2        { --prio: 255, 140, 60; }
 .call-toast.prio-p3        { --prio: 252, 210, 70; }
 .call-toast.prio-incident  { --prio: var(--accent-rgb); }
+.call-toast.prio-backup    { --prio: 230, 110, 20; }
 .ct-head { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; font-weight: 700; letter-spacing: .7px; color: rgb(var(--prio)); }
 .ct-number { color: rgba(255, 255, 255, .7); white-space: nowrap; }
 .ct-title { margin: 3px 0 5px; font: 600 15px var(--font-display); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1358,6 +1366,8 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 [data-theme="night"] .btn:hover { background: var(--n-hover); }
 [data-theme="night"] .btn:active, [data-theme="night"] .btn.active { background: var(--n-press); color: var(--text); }
 [data-theme="night"] .btn-default { background: var(--n-primary); border-color: var(--n-primary-border); color: var(--n-pale); }
+[data-theme="night"] .btn-backup { background: #8a3a00; border-color: #b54a00; color: #ffe2cc; }
+[data-theme="night"] .flag.c-backup { background: #8a3a00; color: #ffe2cc; }
 [data-theme="night"] .btn-default:hover { background: var(--n-primary-hover); }
 [data-theme="night"] .btn-default:active, [data-theme="night"] .btn-default.active { background: var(--n-press-2); color: var(--n-pale); }
 [data-theme="night"] .btn-default:disabled { background: var(--n-btn); color: var(--faint); }

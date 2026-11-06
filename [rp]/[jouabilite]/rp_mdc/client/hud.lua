@@ -330,7 +330,7 @@ end)
 
 -- Son d'un événement de l'appel de l'unité (unité qui rejoint / quitte, observation / rapport / fiche liée).
 -- Le NUI applique le réglage "Sons" et le volume.
-local SOUND_EVENTS = { assign = true, deassign = true, link = true }
+local SOUND_EVENTS = { assign = true, deassign = true, link = true, status = true }
 RegisterNetEvent('mdc:client:sound', function(kind)
     if SOUND_EVENTS[kind] then SendNUIMessage({ action = 'sound', data = { kind = kind } }) end
 end)
@@ -379,7 +379,9 @@ end)
 
 -- Changement de statut de l'unité du joueur : notification en haut à droite
 RegisterNetEvent('mdc:client:statusNotify', function(unit)
-    if type(unit) ~= 'table' or not setting('notify', 'status') then return end
+    if type(unit) ~= 'table' then return end
+    -- notification désactivée : le son du changement de statut reste (réglage "Sons")
+    if not setting('notify', 'status') then return SendNUIMessage({ action = 'sound', data = { kind = 'status' } }) end
     SendNUIMessage({ action = 'statusNotify', data = unit })
 end)
 

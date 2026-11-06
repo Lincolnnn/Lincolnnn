@@ -1349,11 +1349,11 @@
         }
 
         return `
-            <div class="sheet-title"><span>${esc(c.number)} — ${esc(c.title)}</span>${callFlag(CALL_STATUS, c.status)}</div>
+            <div class="sheet-title"><span>${esc(c.number)} — ${esc(c.title)}</span>${c.backup ? flag('c-backup', 'Renforts') : ''}${callFlag(CALL_STATUS, c.status)}</div>
             ${actions}
             <dl class="sheet">
                 ${row('N° d\'incident', c.number)}
-                ${row('Catégorie', incident ? 'Incident (déclaré par une unité)' : 'Intervention (appel)')}
+                ${row('Catégorie', c.backup ? `Demande de renforts${c.requestedBy ? ` de ${c.requestedBy}` : ''} (incident commun)` : incident ? 'Incident (déclaré par une unité)' : 'Intervention (appel)')}
                 ${dd(callAgencies(c).length > 1 ? 'Polices (appel commun)' : 'Police', `${agenciesTags(c)} ${esc(agenciesLabel(c))}`)}
                 ${incident ? '' : row('Unités idéales', c.idealUnits ? `${c.idealUnits} (${toArray(c.units).length} sur l'appel)` : '-')}
                 ${dd('Déroulé', callFlag(CALL_STATUS, c.status))}
@@ -1363,6 +1363,7 @@
                     : row('Requérant', c.caller) + row('Téléphone du requérant', c.phone) + dd('Priorité de l\'urgence', callFlag(CALL_PRIORITY, c.priority))}
                 ${row('Adresse', c.address)}
                 ${row('Croisement', c.crossStreet)}
+                ${c.sector ? row('Secteur', c.sector) : ''}
                 ${row('Bloc', c.block)}
                 ${row(incident ? 'Description de l\'incident' : 'Description', c.description)}
                 ${row('Émise le', formatDate(c.createdAt))}
@@ -1441,15 +1442,51 @@
             </form>`;
     }
 
+    // Demande de renforts : intitulé, description et localisation complète (routes, secteur, bloc) ; envoyée aux deux
+    // polices (incident commun), votre unité est placée sur l'incident
+    function backupFormHtml() {
+        const unit = myUnit();
+        const other = policeAgencies().filter((a) => a.key !== state.agency).map((a) => a.short).join(' & ') || 'l\'autre police';
+        const sector = (hud.profile && hud.profile.sector) || '';
+        return `
+            <form id="callForm" class="call-form backup-form" autocomplete="off" novalidate>
+                <div class="hint-box backup-hint">Renforts demandés à <b>${esc(other)}</b> : l'incident est commun aux deux polices, leurs
+                    unités sont notifiées. Votre unité (${esc(unit ? unit.name : 'aucune')}) est placée sur l'incident.</div>
+                <div class="toolbar">
+                    <span class="hint-text">* champs obligatoires</span>
+                    <span class="grow"></span>
+                    <button type="button" class="btn btn-small" data-fill-location title="Remplit les routes et le bloc avec votre position actuelle">Position actuelle</button>
+                </div>
+                <div class="form-grid">
+                    <label class="lbl span-2">Intitulé *<input name="title" type="text" maxlength="60" placeholder="ex : Poursuite véhicule, renfort périmètre…"></label>
+                    <label class="lbl">Route *<input name="address" type="text" maxlength="80"></label>
+                    <label class="lbl">Croisement<input name="crossStreet" type="text" maxlength="80"></label>
+                    <label class="lbl">Secteur *<input name="sector" type="text" maxlength="40" value="${esc(sector)}" placeholder="ex : Downtown, I-5 Nord…"></label>
+                    <label class="lbl">Bloc *<input name="block" type="text" maxlength="40"></label>
+                    <label class="lbl span-2">Description *<textarea name="description" rows="6" maxlength="2000" placeholder="Situation, nombre d'unités souhaitées, point de rendez-vous…"></textarea></label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" data-call-action="cancelForm">Annuler</button>
+                    <button type="submit" class="btn btn-backup">Demander des renforts</button>
+                </div>
+            </form>`;
+    }
+
     function renderInterventionDetail() {
         const el = $('#interventionDetail');
         const panel = state.callPanel;
         const call = findCall(panel.id);
         const title = $('#interventionPanelTitle');
         // Aucun appel choisi (ni nouvel incident) : panneau des détails réduit, la liste prend la place
-        $('#interventionsSplit').classList.toggle('detail-min', panel.mode !== 'new' && !call);
-        $('#interventionDeselect').classList.toggle('hidden', panel.mode !== 'new' && !call);
+        const creating = panel.mode === 'new' || panel.mode === 'backup';
+        $('#interventionsSplit').classList.toggle('detail-min', !creating && !call);
+        $('#interventionDeselect').classList.toggle('hidden', !creating && !call);
 
+        if (panel.mode === 'backup') {
+            title.textContent = 'Demande de renforts';
+            el.innerHTML = backupFormHtml();
+            return;
+        }
         if (panel.mode === 'new') {
             title.textContent = 'Nouvel incident';
             el.innerHTML = callFormHtml(null);
@@ -1524,6 +1561,14 @@
     $('#newIncident').addEventListener('click', () => {
         if (!myUnit()) toast('Rejoignez une unité (onglet Unités) pour déclarer un incident.', 'error');
         state.callPanel = { mode: 'new', id: null };
+        renderInterventionList();
+        renderInterventionDetail();
+    });
+
+    // Demande de renforts à l'autre police : incident commun (intitulé, description, routes, secteur, bloc)
+    $('#newBackup').addEventListener('click', () => {
+        if (!myUnit()) toast('Rejoignez une unité (onglet Unités) pour demander des renforts.', 'error');
+        state.callPanel = { mode: 'backup', id: null };
         renderInterventionList();
         renderInterventionDetail();
     });
@@ -1690,7 +1735,10 @@
         submit.disabled = true;
 
         let res;
-        if (state.callPanel.mode === 'new') {
+        if (state.callPanel.mode === 'backup') {
+            res = await callRequest('createIncident', { ...payload, backup: true }, 'Renforts demandés : incident commun créé.');
+            if (res) state.callPanel = { mode: 'view', id: res.id };
+        } else if (state.callPanel.mode === 'new') {
             res = await callRequest('createIncident', payload, 'Incident déclaré.');
             if (res) state.callPanel = { mode: 'view', id: res.id };
         } else {
@@ -3432,10 +3480,10 @@
         const incident = c.kind === 'incident';
         const prio = CALL_PRIORITY[c.priority];
         const el = document.createElement('div');
-        el.className = `call-toast prio-${incident ? 'incident' : esc(c.priority)}`;
+        el.className = `call-toast prio-${c.backup ? 'backup' : incident ? 'incident' : esc(c.priority)}`;
         el.innerHTML = `
             <div class="ct-head">
-                <span>${incident ? 'NOUVEL INCIDENT' : 'NOUVELLE INTERVENTION'}</span>
+                <span>${c.backup ? 'DEMANDE DE RENFORTS' : incident ? 'NOUVEL INCIDENT' : 'NOUVELLE INTERVENTION'}</span>
                 <span class="ct-number">${esc(c.number)}</span>
             </div>
             <div class="ct-title">${esc(c.title)}</div>
@@ -3445,8 +3493,9 @@
                 : `<div class="ct-row"><span class="hud-label">PRIORITÉ</span>${prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-'}</div>`}
             <div class="ct-row"><span class="hud-label">ADRESSE</span>${esc(c.address)}</div>
             ${c.crossStreet ? `<div class="ct-row"><span class="hud-label">CROISEMENT</span>${esc(c.crossStreet)}</div>` : ''}
+            ${c.sector ? `<div class="ct-row"><span class="hud-label">SECTEUR</span>${esc(c.sector)}</div>` : ''}
             <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
-        pushNotification(el, 12000);
+        pushNotification(el, c.backup ? 20000 : 12000);
         if (hud.settings.notify.sound) playSound(incident ? 'incident' : 'call');
     }
 
@@ -3519,6 +3568,7 @@
         assign: ['assign.mp3', 1.0, 0],     // une unité rejoint l'appel
         deassign: ['deassign.mp3', 0.6, 0], // une unité quitte l'appel
         link: ['dsp.mp3', 0.9, 0],          // observation, rapport, identité ou véhicule lié à l'appel
+        status: ['status.mp3', 0.9, 0],     // changement de statut de son unité (disponible, indisponible…)
         result: ['result.mp3', 1.0, 0],     // recherche avec résultat
         noresult: ['nnul.mp3', 1.0, 0],     // recherche sans résultat
         click: ['click.mp3', 0.55, 0.08],   // clic de souris dans le MDC
@@ -3606,7 +3656,7 @@
     }
 
     // Sons d'événements envoyés par le serveur (client/hud.lua) : BOLO, unité qui rejoint / quitte l'appel, fiche liée
-    const SERVER_SOUNDS = new Set(['bolo', 'assign', 'deassign', 'link']);
+    const SERVER_SOUNDS = new Set(['bolo', 'assign', 'deassign', 'link', 'status']);
     function serverSound(kind) {
         if (SERVER_SOUNDS.has(kind) && hud.settings.notify.sound !== false) playSound(kind);
     }
@@ -3677,6 +3727,7 @@
             <div class="ct-status"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</div>`;
         el.dataset.status = u.status; // couleur du liseré
         pushNotification(el, 6000);
+        serverSound('status');
     }
 
     // =====================================================================

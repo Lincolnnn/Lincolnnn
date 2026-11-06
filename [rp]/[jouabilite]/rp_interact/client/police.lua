@@ -996,8 +996,35 @@ end
 
 --- Élément supprimable ? (jamais un joueur, ni un véhicule occupé par un joueur ; les véhicules et
 --- objets créés par des joueurs ou des scripts le sont)
+--- Modèles jamais supprimés (Config.NoDeleteModelPrefixes : herses de riven_spikes) : noms de modèles -> hachages,
+--- calculés une fois au premier besoin (les préfixes sont comparés aux modèles connus par leur nom)
+local noDeleteModels = nil
+local function protectedModel(entity)
+    if not noDeleteModels then
+        noDeleteModels = {}
+        local names = { 'riven_spikestrip', 'riven_stopstick_v2', 'riven_stopstick_v2_reel_hand', 'riven_stopstick_grip', 'riven_cord_white',
+            'riven_terminator', 'riven_terminator_red', 'riven_terminator_17', 'riven_terminator_xs' }
+        for i = 1, 9 do names[#names + 1] = 'riven_spikestrip_seg' .. i end
+        for _, base in ipairs({ 'riven_terminator', 'riven_terminator_red', 'riven_terminator_17', 'riven_terminator_xs', 'riven_stopstick_v2', 'riven_stopstick' }) do
+            for i = 1, 3 do names[#names + 1] = ('%s_seg%d'):format(base, i) end
+        end
+        for _, name in ipairs(names) do
+            for _, prefix in ipairs(Config.NoDeleteModelPrefixes or {}) do
+                if name:sub(1, #prefix) == prefix then noDeleteModels[GetHashKey(name) & 0xFFFFFFFF] = true end
+            end
+        end
+    end
+    return noDeleteModels[GetEntityModel(entity) & 0xFFFFFFFF] == true
+end
+
 function Police.deletable(ctx)
     if ctx.isSelf then return false end
+    if ctx.type == 'object' then
+        -- équipement à laisser à l'abandon ou à reprendre, jamais supprimé : sac médical, herses de Riven
+        local external = RPI.externalObject and RPI.externalObject(ctx.entity)
+        if external and external.NoDelete then return false end
+        if protectedModel(ctx.entity) then return false end
+    end
     if ctx.type == 'ped' then return not ctx.isPlayer end
     if ctx.type == 'vehicle' then return not playerInside(ctx.entity) end
     return ctx.type == 'object' and not isDoor(ctx.entity)

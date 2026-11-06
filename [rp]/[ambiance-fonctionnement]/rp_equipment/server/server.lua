@@ -149,10 +149,66 @@ local function loadAssets()
 end
 loadAssets()
 
+-- =========================================================================
+-- ÉQUIPEMENT EUP PROPRE À CERTAINS VÉHICULES (vehicle_equipment.json) : dans le COFFRE de ces modèles seulement, en
+-- plus de celui de leur police. Une liste par modèle (nom de spawn), rangée par catégories :
+--   "wsp20fpiu": [ { "Category": "Vêtements", "Items": [ { "Name": "...", "Gender": "Male", "Armor": "114:1" } ] } ]
+-- =========================================================================
+local VehicleAssets = {} -- [hachage du modèle] = { asset (avec .group), ... }
+
+local function loadVehicleAssets()
+    VehicleAssets = {}
+    local file = Config.VehicleEquipmentFile or 'vehicle_equipment.json'
+    local raw = LoadResourceFile(GetCurrentResourceName(), file)
+    if not raw or raw == '' then return end
+    local ok, data = pcall(json.decode, raw)
+    if not ok or type(data) ~= 'table' then
+        print(('^1[rp_equipment] %s illisible (JSON invalide) : aucun équipement par véhicule^7'):format(file))
+        return
+    end
+    local oneBased = not (Config.Eup and Config.Eup.OneBased == false)
+    local count, models = 0, 0
+    for model, groups in pairs(data) do
+        if type(model) == 'string' and model:sub(1, 1) ~= '_' and type(groups) == 'table' then
+            local hash = GetHashKey(trim(model):lower()) & 0xFFFFFFFF
+            local list = {}
+            for g, group in ipairs(groups) do
+                local category = trim(field(group, 'Category'))
+                if category == '' then category = 'Équipement' end
+                for i, o in ipairs(type(field(group, 'Items')) == 'table' and field(group, 'Items') or {}) do
+                    local asset = parseAsset(o, oneBased)
+                    if asset then
+                        asset.group = category:sub(1, 40)
+                        asset.id = ('veh:%s:%d'):format(trim(model):lower(), #list + 1)
+                        list[#list + 1] = asset
+                        count = count + 1
+                    else
+                        print(('^3[rp_equipment] %s : "%s" catégorie %d, n°%d ignoré (Name ou pièce manquant)^7'):format(file, model, g, i))
+                    end
+                end
+            end
+            if #list > 0 then VehicleAssets[hash] = list; models = models + 1 end
+        end
+    end
+    print(('^5[rp_equipment]^7 %d pièce(s) d\'équipement propres à %d véhicule(s) (%s)'):format(count, models, file))
+end
+loadVehicleAssets()
+
+--- Pièces offertes ici : celles de la police du véhicule, plus (au coffre) celles propres à son modèle
+local function assetsFor(ctx)
+    local list = {}
+    for _, a in ipairs(Assets[ctx.kind] or {}) do list[#list + 1] = a end
+    if ctx.where == 'trunk' then
+        for _, a in ipairs(VehicleAssets[GetEntityModel(ctx.vehicle) & 0xFFFFFFFF] or {}) do list[#list + 1] = a end
+    end
+    return list
+end
+
 RegisterCommand('rpequip_reload', function(src)
     if src ~= 0 then return end
     Models = buildModels()
     loadAssets()
+    loadVehicleAssets()
     print('[rp_equipment] types de véhicules et équipement relus')
 end, true)
 
@@ -333,6 +389,9 @@ end
 local SJ = S.Jerrycans or {}
 local CAN_AMMO = SJ.Ammo or 4500
 local SR = S.RadarGuns or {}
+local SB = S.MedBags or {}
+local bagCarry = {}   -- [joueur] = true : porte le sac médical (pris dans un coffre ou ramassé)
+local placedBags = {} -- [objet] = true : sacs médicaux posés au sol
 -- Fusées : dans le coffre (Default au départ, Max au plus) et à l'AVANT (FrontDefault, FrontMax : prises / rangées par
 -- les portières avant)
 local SF = S.Flares or {}
@@ -366,6 +425,8 @@ local function stockOf(plate)
     if type(st.jerrycans) ~= 'table' then st.jerrycans = fullCans(SJ.Default or 1) end
     -- Pistolet radar : coffre enregistré avant son arrivée : celui d'origine
     if type(st.radars) ~= 'number' then st.radars = SR.Default or 1 end
+    -- Sac médical : coffre enregistré avant son arrivée : celui d'origine
+    if type(st.medbags) ~= 'number' then st.medbags = SB.Default or 1 end
     return st
 end
 
@@ -375,7 +436,7 @@ local function stockView(plate)
     return { cones = st.cones, flares = st.flares, maxCones = S.Cones and S.Cones.Max or 0, maxFlares = TRUNK_FLARES,
         frontFlares = st.frontFlares, maxFrontFlares = FRONT_FLARES,
         jerrycans = #st.jerrycans, maxJerrycans = SJ.Max or 1, jerrycanFill = last and math.floor(last / CAN_AMMO * 100 + 0.5) or 0,
-        radars = st.radars, maxRadars = SR.Max or 1 }
+        radars = st.radars, maxRadars = SR.Max or 1, medbags = st.medbags, maxMedbags = SB.Max or 1 }
 end
 
 local function stockAllowed(ctx)
@@ -399,7 +460,7 @@ function Handlers.open(src, data)
     local ctx, err = context(src, data)
     if not ctx then return { ok = false, error = err } end
     return {
-        ok = true, type = ctx.kind, plate = ctx.plate, assets = Assets[ctx.kind] or {},
+        ok = true, type = ctx.kind, plate = ctx.plate, assets = assetsFor(ctx),
         rack = rackAllowed(ctx) and ctx.plate and rackSummary(ctx.plate) or false,
         stock = (stockAllowed(ctx) or flaresAllowed(ctx)) and stockView(ctx.plate) or false, carrying = carried(src), maxCarry = MAX_CARRY,
     }
@@ -416,6 +477,7 @@ function Handlers.restock(src, data)
     st.frontFlares = FRONT_FLARES
     st.jerrycans = fullCans(SJ.Max or 1)
     st.radars = SR.Max or 1
+    st.medbags = math.max(st.medbags, SB.Max or 1)
     stockChanged(ctx.plate)
     return { ok = true, plate = ctx.plate, stock = stockView(ctx.plate) }
 end
@@ -466,6 +528,7 @@ function Handlers.coneTake(src, data)
     local ctx, err = context(src, data)
     if not ctx then return { ok = false, error = err } end
     if not stockAllowed(ctx) then return { ok = false, error = 'Pas de coffre ici.' } end
+    if bagCarry[src] then return { ok = false, error = 'Vous portez le sac médical : posez-le ou rangez-le d\'abord.' } end
     local room = MAX_CARRY - carried(src)
     if room <= 0 then return { ok = false, error = ('Vous portez déjà %d plots (maximum).'):format(MAX_CARRY) } end
     local st = stockOf(ctx.plate)
@@ -491,6 +554,29 @@ function Handlers.coneStore(src, data)
     setCarried(src, carried(src) - count)
     stockChanged(ctx.plate)
     return { ok = true, count = count, carrying = carried(src), stock = stockView(ctx.plate) }
+end
+
+--- Sac médical : { mode = 'take' | 'store' } ; un par coffre (Max), rangé dans n'importe quel coffre de police
+function Handlers.medbag(src, data)
+    local ctx, err = context(src, data)
+    if not ctx then return { ok = false, error = err } end
+    if not stockAllowed(ctx) then return { ok = false, error = 'Pas de coffre ici.' } end
+    local st = stockOf(ctx.plate)
+    if data.mode == 'take' then
+        if bagCarry[src] then return { ok = false, error = 'Vous portez déjà le sac médical.' } end
+        if carried(src) > 0 then return { ok = false, error = 'Vous portez des plots : posez-les ou rangez-les d\'abord.' } end
+        if st.medbags <= 0 then return { ok = false, error = 'Plus de sac médical dans ce coffre.' } end
+        st.medbags = st.medbags - 1
+        bagCarry[src] = true
+        stockChanged(ctx.plate)
+        return { ok = true, mode = 'take', stock = stockView(ctx.plate) }
+    end
+    if not bagCarry[src] then return { ok = false, error = 'Vous ne portez pas de sac médical.' } end
+    if st.medbags >= (SB.Max or 1) then return { ok = false, error = 'Il y a déjà un sac médical dans ce coffre.' } end
+    st.medbags = st.medbags + 1
+    bagCarry[src] = nil
+    stockChanged(ctx.plate)
+    return { ok = true, mode = 'store', stock = stockView(ctx.plate) }
 end
 
 --- Fusées : prendre `count` / ranger `count` (celles que le joueur a sur lui) : à l'avant (portières avant, FrontMax)
@@ -586,6 +672,10 @@ local function pickupTarget(src, netId)
         TriggerClientEvent('rp_equipment:notify', src, 'Réservé aux policiers en service (unité du MDC).')
         return nil
     end
+    if bagCarry[src] then
+        TriggerClientEvent('rp_equipment:notify', src, 'Vous portez le sac médical : posez-le ou rangez-le d\'abord.')
+        return nil
+    end
     if carried(src) >= MAX_CARRY then
         TriggerClientEvent('rp_equipment:notify', src, ('Vous portez déjà %d plots (maximum).'):format(MAX_CARRY))
         return nil
@@ -625,14 +715,72 @@ RegisterNetEvent('rp_equipment:cone:pickupAll', function(netId)
     TriggerClientEvent('rp_equipment:cone:carry', src, carried(src), taken)
 end)
 
--- Plot porté perdu (mort : posé à ses pieds par le client ; déconnexion : perdu)
-AddEventHandler('playerDropped', function() carrying[source] = nil end)
+-- =========================================================================
+-- SAC MÉDICAL POSÉ AU SOL : créé ici (visible par tous), marqué "rpMedBag" (repris avec l'œil, jamais supprimé par
+-- l'œil : rp_interact ne propose pas « Supprimer » sur un objet marqué). Laissé à l'abandon, il reste.
+-- =========================================================================
+local function createBag(x, y, z, heading)
+    local object = CreateObjectNoOffset(GetHashKey(SB.Model or 'xm_prop_x17_bag_med_01a'), x, y, z, true, true, false)
+    local timeout = GetGameTimer() + 2000
+    while not DoesEntityExist(object) and GetGameTimer() < timeout do Wait(0) end
+    if not DoesEntityExist(object) then return false end
+    SetEntityHeading(object, heading or 0.0)
+    FreezeEntityPosition(object, true)
+    Entity(object).state:set('rpMedBag', true, true)
+    placedBags[object] = true
+    return true
+end
+
+-- Sac porté posé au sol (G ; mort : à ses pieds) : { x, y, z, heading }
+RegisterNetEvent('rp_equipment:bag:place', function(spot)
+    local src = source
+    if not bagCarry[src] or type(spot) ~= 'table' then return end
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 then return end
+    local x, y, z = tonumber(spot.x), tonumber(spot.y), tonumber(spot.z)
+    if not (x and y and z) or #(GetEntityCoords(ped) - vector3(x, y, z)) > 3.0 then return end
+    if not createBag(x, y, z, tonumber(spot.heading) or 0.0) then return end
+    bagCarry[src] = nil
+    TriggerClientEvent('rp_equipment:bag:set', src, false, true)
+end)
+
+-- Œil (rp_interact) : « Ramasser le sac médical » (n'importe quel joueur, mains libres)
+RegisterNetEvent('rp_equipment:bag:pickup', function(netId)
+    local src = source
+    local object = NetworkGetEntityFromNetworkId(tonumber(netId) or -1)
+    if not object or object == 0 or not DoesEntityExist(object) or Entity(object).state.rpMedBag ~= true then return end
+    local ped = GetPlayerPed(src)
+    if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(object)) > 4.0 then return end
+    if bagCarry[src] then return TriggerClientEvent('rp_equipment:notify', src, 'Vous portez déjà un sac médical.') end
+    if carried(src) > 0 then return TriggerClientEvent('rp_equipment:notify', src, 'Vous portez des plots : posez-les ou rangez-les d\'abord.') end
+    placedBags[object] = nil
+    Entity(object).state:set('rpMedBag', nil, true)
+    DeleteEntity(object)
+    bagCarry[src] = true
+    TriggerClientEvent('rp_equipment:bag:set', src, true, true)
+end)
+
+-- Plot porté perdu (mort : posé à ses pieds par le client ; déconnexion : perdu) ; sac porté : posé à ses pieds
+AddEventHandler('playerDropped', function()
+    local src = source
+    carrying[src] = nil
+    if bagCarry[src] then
+        bagCarry[src] = nil
+        local ped = GetPlayerPed(src)
+        local pos = ped and ped ~= 0 and GetEntityCoords(ped) or nil
+        if pos and #(pos) > 1.0 then CreateThread(function() createBag(pos.x, pos.y, pos.z - 0.95, 0.0) end) end
+    end
+end)
 AddEventHandler('entityRemoved', function(entity)
     if placedCones[entity] then placedCones[entity] = nil; publishCones() end
+    placedBags[entity] = nil
 end)
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     for object in pairs(placedCones) do
+        if DoesEntityExist(object) then DeleteEntity(object) end
+    end
+    for object in pairs(placedBags) do
         if DoesEntityExist(object) then DeleteEntity(object) end
     end
     GlobalState.rpCones = {}
@@ -643,7 +791,7 @@ GlobalState.rpCones = {} -- démarrage : aucun plot posé
 function Handlers.wear(src, data)
     local ctx, err = context(src, data)
     if not ctx then return { ok = false, error = err } end
-    for _, asset in ipairs(Assets[ctx.kind] or {}) do
+    for _, asset in ipairs(assetsFor(ctx)) do
         if asset.id == data.asset then return { ok = true, asset = asset } end
     end
     return { ok = false, error = 'Cet équipement n\'est pas dans ce véhicule.' }
@@ -716,4 +864,4 @@ RegisterNetEvent('rp_equipment:request', function(id, action, data)
     TriggerClientEvent('rp_equipment:response', src, id, result)
 end)
 
-RPEquipStock = { view = stockView } -- pour les tests
+RPEquipStock = { view = stockView, bagCarry = bagCarry } -- pour les tests

@@ -71,6 +71,25 @@ qu'elle change** :
 
 Après une modification : tapez `rpequip_reload` dans la console serveur.
 
+## Équipement EUP propre à un véhicule : `vehicle_equipment.json`
+
+Au **coffre** de certains modèles seulement, des pièces **en plus** de celles de leur police, rangées par catégories
+(titre affiché dans l'onglet Équipement, « (ce véhicule) ») :
+
+```json
+{
+    "wsp20fpiu": [
+        { "Category": "Vêtements", "Items": [
+            { "Name": "Gilet de Haute Visibilité 1", "Gender": "Male", "Armor": "114:1" },
+            { "Name": "Gilet de Haute Visibilité 2", "Gender": "Male", "Armor": "113:1" }
+        ] }
+    ]
+}
+```
+
+Clé = nom de spawn du véhicule ; chaque pièce s'écrit comme dans `equipment.json` (parties du /eup, ou `"Weapon"`).
+Plusieurs catégories par véhicule, autant de véhicules que voulu. `rpequip_reload` pour recharger.
+
 ## Types de véhicules
 
 Chaque véhicule a un type, qui décide de son équipement :
@@ -108,7 +127,7 @@ avoir modifié le fichier de rp_interact : tapez `rpequip_reload` dans la consol
   **avec ses accessoires** (viseur, chargeur, lampe…) et son nom (`Label`). En plus : `LongGuns.ExtraComponents`
   (accessoires), `LongGuns.Names` (noms).
 
-## Coffre : plots de circulation, jerrican, pistolet radar et fusées (inventaire)
+## Coffre : plots de circulation, sac médical, jerrican, pistolet radar et fusées (inventaire)
 
 Au **coffre** d'un véhicule de police, la partie **« Coffre »** du menu se gère **comme un inventaire**, sauvegardé
 **par plaque** dans `data/stock.json` (gardé au redémarrage du serveur et quand le véhicule réapparaît avec la même
@@ -159,6 +178,16 @@ menu** (jamais ceux du décor).
   (40 %) »). Un seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi.
 - **`/restock`** remet un jerrican **plein** dans le coffre.
 
+**Sac médical** (`Stock.MedBags`, objet `xm_prop_x17_bag_med_01a`)
+- **Un sac** dans le coffre de **chaque véhicule de police** (1 / 1) : **« Prendre »** : porté **à la main** (pas en même
+  temps que des plots ; ni arme, ni entrée dans un véhicule tant qu'on le porte).
+- **G** (touche des plots) : **posé au sol** devant soi, visible par tous. **L'œil** : **« Ramasser le sac médical »**
+  (n'importe quel joueur). **« Ranger »** : dans **n'importe quel coffre** de police qui n'en a pas déjà un (il peut
+  donc changer de véhicule).
+- **Jamais supprimé** : l'œil ne propose pas « Supprimer » dessus (même aux admins) ; laissé à l'abandon, il reste
+  au sol. Mort en le portant : il tombe à ses pieds ; déconnexion : posé à l'endroit où l'on était. Un sac pris et
+  jamais rangé n'est plus dans le coffre ; **`/restock`** en remet un.
+
 **Pistolet radar** (`WEAPON_RADARGUN`, `Stock.RadarGuns`)
 - **Un pistolet radar** dans le coffre de **chaque véhicule de police** (1 / 1) : **« Prendre »** / **« Ranger »**. Un
   seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi. **`/restock`** le remet.
@@ -177,6 +206,11 @@ menu Équipement ne s'ouvre pas et sa proposition n'est pas affichée tant qu'el
 - Herse en main : la touche **X** de Riven (« ranger dans la poche ») ne la fait plus disparaître : elle revient
   aussitôt dans les mains. On doit la **lancer / poser au sol** ou la **ranger dans le coffre** (œil). Mort, à bord d'un
   véhicule, à terre ou menotté : Riven la range lui-même. `Stock.Spikes.KeepInHands = false` : comportement de Riven.
+- **Une par véhicule** (`Trunk.stock = 1` dans la config de riven_spikes), posée au sol avec sa touche, reprise avec
+  l'œil, rangée dans un coffre. **Jamais supprimée par l'œil** (rp_interact ne propose pas « Supprimer » sur les objets
+  de Riven : `NoDeleteModelPrefixes`). **Laissée à l'abandon, elle reste** : dans la config de riven_spikes,
+  `Limits.autoRemoveMinutes = 0` et `Limits.replaceOldest = false` (fichier fourni à part). La ranger dans le coffre
+  d'**un autre** véhicule dépend de riven_spikes (code chiffré) : à vérifier en jeu.
 
 **Fusées de détresse** (`WEAPON_FLARE`, posées au sol avec `rp_flares`)
 - Rangeables **comme les armes longues** : **« Ranger 1 »** / **« Tout ranger »** (celles que le policier a sur lui) et
@@ -199,6 +233,7 @@ menu Équipement ne s'ouvre pas et sa proposition n'est pas affichée tant qu'el
 | `OpenTrunk` | ouvrir le coffre pendant le menu |
 | `Types`, `InteractVehicles`, `ServiceTypes` | types de véhicules (catégories de rp_interact, modèles, classes) |
 | `EquipmentFile`, `Eup` | fichier de l'équipement EUP (`equipment.json`), numéros comptés à partir de 1 |
+| `VehicleEquipmentFile` | équipement EUP propre à certains véhicules, au coffre (`vehicle_equipment.json`) |
 | `OpenFrontDoor` | ouvrir la portière avant la plus proche pendant le menu |
 | `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` = 5 portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), jerrican (`Jerrycans` : 1 plein d'origine, 1 max, `Ammo` = plein), pistolet radar (`RadarGuns` : 1 d'origine, 1 max), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |
 | `LongGuns` | râtelier : types concernés, armes longues acceptées (`Groups`), emplacements (`Slots` : avant / coffre, `Where`), munitions données (`GiveAmmo`), fichier de sauvegarde, accessoires et noms en plus |

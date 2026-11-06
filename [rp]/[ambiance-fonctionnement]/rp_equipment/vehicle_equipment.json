@@ -1,0 +1,9 @@
+{
+    "_aide": "Équipement EUP propre à un véhicule (nom de spawn), dans son COFFRE seulement, en plus de celui de sa police. Une pièce s'écrit comme une tenue du /eup (Name, Gender, parties : Armor, Accessories, Hat, Top...). Recharger : rpequip_reload (console du serveur).",
+    "wsp20fpiu": [
+        { "Category": "Vêtements", "Items": [
+            { "Name": "Gilet de Haute Visibilité 1", "Gender": "Male", "Armor": "114:1" },
+            { "Name": "Gilet de Haute Visibilité 2", "Gender": "Male", "Armor": "113:1" }
+        ] }
+    ]
+}

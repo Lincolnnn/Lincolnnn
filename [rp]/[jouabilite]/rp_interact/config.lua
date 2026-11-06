@@ -154,9 +154,16 @@ InteractConfig = {
             { Label = 'Ramasser le plot', Icon = 'hand', Event = 'rp_equipment:cone:pickup' },
             { Label = 'Ramasser les plots autour', Icon = 'hand', Event = 'rp_equipment:cone:pickupAll' },
         } },
+        -- Sac médical (rp_equipment) : repris par n'importe qui ; jamais supprimé (NoDelete)
+        rpMedBag = { Name = 'Sac médical', Label = 'Ramasser le sac médical', Icon = 'hand', Event = 'rp_equipment:bag:pickup', Distance = 2.5, NoDelete = true },
         rpDroppedWeapon = { Name = 'Arme au sol', Label = 'Ramasser l\'arme', Icon = 'hand', Event = 'rp_scene:weapon:pickup', Distance = 2.0 }, -- rp_RoleplayZone
         rpTaserDropped = { Name = 'Taser', Label = 'Reprendre le Taser', Icon = 'hand', Event = 'axon_taser10:pickupDropped', Distance = 2.5 }, -- rp_taser10
     },
+
+    -- Objets que « Supprimer » ne propose jamais (équipement qu'on peut seulement laisser à l'abandon ou reprendre) :
+    -- modèles commençant par ces préfixes (herses / Stop Stick de riven_spikes, créées chez chaque joueur) ; les objets
+    -- de ExternalObjects marqués NoDelete (sac médical)
+    NoDeleteModelPrefixes = { 'riven_spikestrip', 'riven_stopstick', 'riven_terminator', 'riven_cord' },
 
     Props = {
         Resource = 'props',

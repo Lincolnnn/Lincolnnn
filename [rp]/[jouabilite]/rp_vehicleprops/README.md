@@ -55,21 +55,18 @@ Lampe posée **au sol** : toujours le modèle **`prop_cs_police_torch_02`** (`Gr
 `Beam.Drawn = true` : faisceau dessiné en plus (`TorchBeamAxis` pour son axe). Le serveur vérifie : arme en main (ou
 mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est rendue.
 
-## Chapeau / lunettes : tombés ou posés sur un véhicule (`LostProps`)
+## Chapeau / lunettes tombés au sol (`LostProps`)
 
 **Visibles et repris par tous les joueurs** (synchronisés par le serveur, `server/wear.lua`), **sans permission** :
 
 - **Tombés** : quand le jeu fait tomber le chapeau (casquette, casque, chapeau **EUP**…) ou les lunettes d'un joueur
   (chute, bousculade, coup, balle, ragdoll de `rp_adrenaline`…), ils apparaissent **au sol chez tous** à l'endroit
   où ils se sont arrêtés.
-- **Posé sur un véhicule** : œil (Alt) sur un véhicule, chapeau sur la tête : **« Poser un objet › Déposer son
-  chapeau »** (au point visé, à plat sur la carrosserie, collé au véhicule chez tous, il le suit). Les lunettes ne se
-  posent pas sur un véhicule.
-- **Les reprendre** : œil sur l'objet ou à côté : **« Ramasser : chapeau »** (sol) / **« Reprendre : chapeau »**
-  (véhicule), par **n'importe quel joueur** dont le personnage a le même modèle (homme / femme : les numéros EUP
+- **Les ramasser** : œil sur l'objet ou à côté : **« Ramasser : chapeau »** / **« Ramasser : lunettes »**, par
+  **n'importe quel joueur** dont le personnage a le même modèle (homme / femme : les numéros EUP
   diffèrent) et qui n'en porte pas déjà un : remis **tels quels** (même modèle EUP, même texture), avec un petit geste.
-- Au sol : disparaissent après 15 min (`Expire`), 60 en tout (`GroundTotal`, le plus ancien disparaît) ; sur un
-  véhicule : 6 au plus (`MaxPerVehicle`), ils disparaissent avec le véhicule.
+- Au sol : disparaissent après 15 min (`Expire`), 60 en tout (`GroundTotal`, le plus ancien disparaît).
+- *Poser son chapeau sur un véhicule* : **retiré** (version 1.8.0), ça ne fonctionnait pas.
 - **Objet affiché : LE VRAI chapeau EUP** (le numéro et la texture exacts) : chez chaque joueur, un personnage local
   invisible du même modèle le porte un instant, le jeu le lui fait tomber (`KnockOffPedProp`) et cet objet est gardé,
   posé à plat (le bas de l'objet sur la surface). Si ça échoue (pièce introuvable : un message `^3` dans la console
@@ -86,7 +83,7 @@ mains déjà vides), distance, nombres, valeurs bornées ; refus : l'arme est re
 | `Restricted` | `true` : réservé à la permission ACE `rp_vehicleprops.use` |
 | `Editor` | portée de la position (±3 m), pas des curseurs, sensibilité |
 | `Held` | arme / lampe tenue : armes par véhicule, objets au sol (par joueur, en tout), distances, hauteur au-dessus de la surface, modèles des lampes, armes exclues, faisceau dessiné |
-| `LostProps` | chapeau / lunettes au sol / sur un véhicule (vus par tous) : activé, vérification (ms), distance pour ramasser, visée, durée au sol (s), nombres, geste, modèles affichés (`Models`, `Overrides`) |
+| `LostProps` | chapeau / lunettes tombés au sol (vus par tous) : activé, vérification (ms), distance pour ramasser, visée, durée au sol (s), nombres, geste, modèles affichés (`Models`, `Overrides`) |
 | `Props` | objets proposés : `id` unique, `label`, `category`, `model` (modèle du jeu). **Le serveur n'accepte que ces modèles.** |
 
 ## Fonctionnement

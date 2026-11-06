@@ -49,16 +49,15 @@ VPConfig = {
 
     -- CHAPEAU / LUNETTES (tenues EUP ou du jeu), VUS ET REPRIS PAR TOUS (serveur, aucune permission) :
     --   - tombés (chute, coup, balle, ragdoll de rp_adrenaline…) : posés au sol chez tous les joueurs ;
-    --   - œil sur un véhicule, chapeau / lunettes sur la tête : « Poser son chapeau sur le véhicule » ;
-    --   - « Ramasser : chapeau » (sol) / « Reprendre : chapeau » (véhicule) : n'importe quel joueur dont le personnage a
-    --     le même modèle (homme / femme) ; remis tels quels (même modèle EUP, même texture).
+    --   - œil : « Ramasser : chapeau » / « Ramasser : lunettes » : n'importe quel joueur dont le personnage a le même
+    --     modèle (homme / femme) ; remis tels quels (même modèle EUP, même texture).
+    --   (Poser son chapeau sur un véhicule : retiré, ça ne fonctionnait pas.)
     -- Objet affiché : le VRAI chapeau EUP (RealObject : un personnage local invisible le porte, le jeu le lui fait
     -- tomber, l'objet est gardé). Sinon (échec, ou RealObject = false) : Models (par ancre : 0 chapeau, 1 lunettes) ;
     -- Overrides : un modèle précis pour un numéro (compté comme dans outfits.json si OneBased), il remplace le vrai.
     --   CheckMs : vérification de la tenue (ms) | Distance : ramasser à moins de … m | Snap : œil à moins de … m de
-    --   l'objet | Expire : disparaît du sol après … s | GroundTotal : au sol en tout (le plus ancien disparaît) |
-    --   MaxPerVehicle : posés sur un même véhicule
-    LostProps = { Enabled = true, CheckMs = 300, Distance = 2.5, Snap = 1.2, Expire = 900, GroundTotal = 60, MaxPerVehicle = 6,
+    --   l'objet | Expire : disparaît du sol après … s | GroundTotal : au sol en tout (le plus ancien disparaît)
+    LostProps = { Enabled = true, CheckMs = 300, Distance = 2.5, Snap = 1.2, Expire = 900, GroundTotal = 60,
         Anim = { 'pickup_object', 'pickup_low', 900 },
         RealObject = true,
         Models = { [0] = 'prop_cap_01', [1] = 'prop_cs_sol_glasses' },

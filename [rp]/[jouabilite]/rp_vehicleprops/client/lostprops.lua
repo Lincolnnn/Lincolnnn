@@ -1,19 +1,18 @@
 --[[
-    RP VehicleProps - chapeaux / lunettes au sol ou sur un véhicule (client)
-    ------------------------------------------------------------------------
+    RP VehicleProps - chapeaux / lunettes tombés au sol (client)
+    -------------------------------------------------------------
     VISIBLES ET REPRIS PAR TOUS (synchronisés par le serveur, server/wear.lua ; aucune permission) :
       - TOMBÉS : le jeu fait tomber le chapeau (ancre 0 : casquette, casque, chapeau EUP…) ou les lunettes (ancre 1)
         d'un joueur qui chute, est bousculé, blessé, ragdoll (rp_adrenaline)… Son client le voit tomber, attend qu'il
         s'arrête, retire l'objet local du jeu et l'annonce au serveur : il apparaît chez tous à cet endroit ;
-      - POSÉS SUR UN VÉHICULE : œil (rp_interact) sur un véhicule, chapeau sur la tête : « Poser un objet › Déposer son
-        chapeau » (au point visé, sur la carrosserie ; pas les lunettes) ;
-      - œil : « Ramasser : chapeau » (au sol) / « Reprendre : chapeau » (sur le véhicule) : n'importe quel joueur dont
-        le personnage a le même modèle (homme / femme) ; remis tel quel (même modèle EUP, même texture).
+      - œil : « Ramasser : chapeau » / « Ramasser : lunettes » (au sol) : n'importe quel joueur dont le personnage a le
+        même modèle (homme / femme) ; remis tel quel (même modèle EUP, même texture).
+    (Poser son chapeau sur un véhicule : retiré, ça ne fonctionnait pas.)
     Objet affiché : LE VRAI chapeau EUP (même modèle, même texture) : un personnage local invisible du même modèle le
     porte un instant, le jeu le lui fait tomber (KnockOffPedProp) et l'objet ainsi créé est gardé, posé à l'endroit.
     Si ça échoue (pièce introuvable…) : un modèle du jeu (LostProps.Models, ou Overrides par numéro).
-    Performance : deux lectures de la tenue toutes les 300 ms ; objets mis à jour à chaque changement (états
-    "rpWearGround" / "rpWear") et toutes les 2,5 s (portée).
+    Performance : deux lectures de la tenue toutes les 300 ms ; objets mis à jour à chaque changement (état
+    "rpWearGround") et toutes les 2,5 s (portée).
 ]]
 
 local Config = VPConfig
@@ -22,7 +21,6 @@ VPLost = {}
 if LP.Enabled == false then return end
 
 local NAMES = { [0] = 'chapeau', [1] = 'lunettes' }
-local PLACE_LABEL = { [0] = 'Déposer son chapeau' } -- sur un véhicule : le chapeau seulement (pas les lunettes)
 local HEAD = 31086 -- SKEL_Head
 local RANGE = 80.0
 
@@ -169,23 +167,14 @@ end
 VPLost.bottomLift = bottomLift
 
 -- =========================================================================
--- AFFICHAGE (chez tous) : au sol (GlobalState "rpWearGround") et sur les véhicules (état "rpWear")
+-- AFFICHAGE (chez tous) : au sol (GlobalState "rpWearGround")
 -- =========================================================================
 local ground = {} -- [id] = { obj, item }
 local making = {} -- [id] = true : objet en cours de création (pas deux fois)
-local onVehicles = {} -- [véhicule] = { sig, objects = { [id] = { obj, item } } }
 
 local function groundItems()
     local list = GlobalState.rpWearGround
     return type(list) == 'table' and list or {}
-end
-
-local function vehicleItems(vehicle)
-    local list, out = Entity(vehicle).state.rpWear, {}
-    if type(list) == 'table' then
-        for _, item in ipairs(list) do if type(item) == 'table' and type(item.id) == 'string' then out[#out + 1] = item end end
-    end
-    return out
 end
 
 local function refreshGround()
@@ -222,63 +211,11 @@ local function refreshGround()
 end
 VPLost.refreshGround = refreshGround
 
-local function clearVehicle(vehicle)
-    local entry = onVehicles[vehicle]
-    if not entry then return end
-    for _, o in pairs(entry.objects) do if DoesEntityExist(o.obj) then DeleteObject(o.obj) end end
-    onVehicles[vehicle] = nil
-end
-
-local function refreshVehicle(vehicle)
-    if not DoesEntityExist(vehicle) then return clearVehicle(vehicle) end
-    local list = vehicleItems(vehicle)
-    local ids = {}
-    for _, item in ipairs(list) do ids[#ids + 1] = item.id end
-    local sig = table.concat(ids, '|')
-    if onVehicles[vehicle] and onVehicles[vehicle].sig == sig then return end
-    clearVehicle(vehicle)
-    if #list == 0 then return end
-    local entry = { sig = sig, objects = {} }
-    onVehicles[vehicle] = entry
-    local c = GetEntityCoords(vehicle)
-    for _, item in ipairs(list) do
-        local obj, base = spawn(item, c.x, c.y, c.z + 2.0)
-        if onVehicles[vehicle] ~= entry then -- liste changée entre-temps
-            if obj then DeleteObject(obj) end
-            return
-        end
-        if obj then
-            local x, y, z = (tonumber(item.x) or 0.0) + 0.0, (tonumber(item.y) or 0.0) + 0.0, (tonumber(item.z) or 0.0) + 0.0
-            local rx, ry, rz = base.x + (tonumber(item.rx) or 0.0), base.y + (tonumber(item.ry) or 0.0), base.z + (tonumber(item.rz) or 0.0)
-            -- posé à plat sur la carrosserie : le bas de l'objet au point choisi (repère du véhicule)
-            local lift = bottomLift(obj, rx, ry)
-            AttachEntityToEntity(obj, vehicle, 0, x, y, z + lift, rx, ry, rz, false, false, false, false, 2, true)
-            entry.objects[item.id] = { obj = obj, item = item }
-        end
-    end
-end
-VPLost.refreshVehicle = refreshVehicle
-
 AddStateBagChangeHandler('rpWearGround', 'global', function() CreateThread(refreshGround) end)
-AddStateBagChangeHandler('rpWear', nil, function(bagName)
-    CreateThread(function()
-        local untilTime = GetGameTimer() + 3000
-        local vehicle = GetEntityFromStateBagName(bagName)
-        while (vehicle == 0 or not DoesEntityExist(vehicle)) and GetGameTimer() < untilTime do
-            Wait(100)
-            vehicle = GetEntityFromStateBagName(bagName)
-        end
-        if vehicle ~= 0 then Wait(0); refreshVehicle(vehicle) end
-    end)
-end)
 
 CreateThread(function()
     while true do
         Wait(2500)
-        for vehicle in pairs(onVehicles) do if not DoesEntityExist(vehicle) then clearVehicle(vehicle) end end
-        for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-            if onVehicles[vehicle] or Entity(vehicle).state.rpWear then refreshVehicle(vehicle) end
-        end
         refreshGround()
     end
 end)
@@ -361,7 +298,7 @@ CreateThread(function()
 end)
 
 -- =========================================================================
--- ŒIL : poser sur un véhicule, ramasser au sol, reprendre sur un véhicule (tout le monde)
+-- ŒIL : ramasser au sol (tout le monde)
 -- =========================================================================
 local function playAnim()
     local anim = LP.Anim
@@ -375,13 +312,7 @@ local function playAnim()
     RemoveAnimDict(anim[1])
 end
 
-local pendingPlace = nil -- pièce retirée de la tête, rendue si le serveur refuse
-
 RegisterNetEvent('rp_vehicleprops:wearResult', function(ok, text)
-    if not ok and pendingPlace then
-        SetPedPropIndex(PlayerPedId(), pendingPlace.anchor, pendingPlace.drawable, pendingPlace.texture, true)
-    end
-    pendingPlace = nil
     if not ok and type(text) == 'string' then notify(text) end
 end)
 
@@ -408,57 +339,16 @@ end
 
 function VPLost.options(info, vehicle, out)
     local ped = PlayerPedId()
-    if IsPedInAnyVehicle(ped, false) or type(info) ~= 'table' then return end
-    if vehicle then
-        for anchor, label in pairs(PLACE_LABEL) do
-            if GetPedPropIndex(ped, anchor) >= 0 then
-                out[#out + 1] = { id = 'wear:place:' .. anchor, icon = 'hand', primary = true, label = label, sub = 'Poser un objet' }
-            end
-        end
-        for _, item in ipairs(vehicleItems(vehicle)) do
-            out[#out + 1] = { id = 'wear:take:' .. item.id, icon = 'hand', primary = true, sub = 'Reprendre',
-                label = 'Reprendre : ' .. (NAMES[item.anchor] or 'objet') }
-        end
-        return
-    end
+    if IsPedInAnyVehicle(ped, false) or type(info) ~= 'table' or vehicle then return end
     for _, item in ipairs(itemsNear(info)) do
         out[#out + 1] = { id = 'wear:pick:' .. item.id, icon = 'hand', primary = true,
             label = 'Ramasser : ' .. (NAMES[item.anchor] or 'objet') }
     end
 end
 
---- Poser la pièce portée sur la carrosserie, au point visé
-local function placeOnVehicle(info, vehicle, anchor)
-    local ped = PlayerPedId()
-    local drawable = GetPedPropIndex(ped, anchor)
-    if drawable < 0 then return end
-    local point = info.hit and vector3(info.hit.x + 0.0, info.hit.y + 0.0, info.hit.z + 0.0) or GetEntityCoords(vehicle)
-    if VPHeld and VPHeld.surfaceAt then
-        local hit = VPHeld.surfaceAt(point, 2, vehicle)
-        if hit then point = hit end
-    end
-    local o = GetOffsetFromEntityGivenWorldCoords(vehicle, point.x, point.y, point.z + 0.005)
-    local yaw = (GetEntityHeading(ped) - GetEntityHeading(vehicle)) + math.random(-30, 30)
-    yaw = ((yaw + 180.0) % 360.0) - 180.0
-    local piece = { anchor = anchor, drawable = drawable, texture = GetPedPropTextureIndex(ped, anchor),
-        offsets = { x = o.x, y = o.y, z = o.z, rx = 0.0, ry = 0.0, rz = yaw } }
-    CreateThread(function()
-        playAnim()
-        if GetPedPropIndex(PlayerPedId(), anchor) ~= drawable then return end
-        pendingPlace = piece
-        worn[anchor] = nil -- retiré par le joueur, pas tombé
-        ClearPedProp(PlayerPedId(), anchor)
-        TriggerServerEvent('rp_vehicleprops:wearPlaceVehicle', VehToNet(vehicle), piece)
-    end)
-end
-
 function VPLost.select(id, info, vehicle)
     if type(id) ~= 'string' or id:sub(1, 5) ~= 'wear:' then return false end
     local ped = PlayerPedId()
-    if id:sub(1, 11) == 'wear:place:' then
-        if vehicle then placeOnVehicle(info, vehicle, tonumber(id:sub(12)) or 0) end
-        return true
-    end
     -- reprendre : l'emplacement doit être libre (chapeau déjà porté : l'enlever d'abord)
     local function free(anchor)
         if GetPedPropIndex(ped, anchor) >= 0 then
@@ -467,12 +357,7 @@ function VPLost.select(id, info, vehicle)
         end
         return true
     end
-    if id:sub(1, 10) == 'wear:take:' and vehicle then
-        local wanted = id:sub(11)
-        for _, item in ipairs(vehicleItems(vehicle)) do
-            if item.id == wanted and free(item.anchor) then TriggerServerEvent('rp_vehicleprops:wearTake', VehToNet(vehicle), wanted) end
-        end
-    elseif id:sub(1, 10) == 'wear:pick:' then
+    if id:sub(1, 10) == 'wear:pick:' then
         local wanted = id:sub(11)
         local g = ground[wanted]
         if g and free(g.item.anchor) then TriggerServerEvent('rp_vehicleprops:wearPickup', wanted) end
@@ -483,7 +368,6 @@ end
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     for _, g in pairs(ground) do if DoesEntityExist(g.obj) then DeleteObject(g.obj) end end
-    for vehicle in pairs(onVehicles) do clearVehicle(vehicle) end
 end)
 
 VPLost.ground = function() return ground end -- tests

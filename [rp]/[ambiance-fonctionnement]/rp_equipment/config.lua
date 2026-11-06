@@ -47,6 +47,9 @@ EquipConfig = {
     -- Catégorie "Police" : véhicules de police d'aucune de ces polices.
     -- ---------------------------------------------------------------------
     EquipmentFile = 'equipment.json',
+    -- Équipement EUP propre à certains véhicules (nom de spawn), au COFFRE de ces modèles seulement, en plus de celui de
+    -- leur police, rangé par catégories : voir vehicle_equipment.json
+    VehicleEquipmentFile = 'vehicle_equipment.json',
     Eup = { OneBased = true },    -- numéros comptés à partir de 1, comme les tenues du /eup (rp_interact)
 
     -- ---------------------------------------------------------------------
@@ -122,13 +125,20 @@ EquipConfig = {
         Jerrycans = { Default = 1, Max = 1, Weapon = 'WEAPON_PETROLCAN', Ammo = 4500 },
         -- Pistolet radar (jumelles de vitesse) : un dans le coffre de chaque véhicule de police, à prendre et ranger
         RadarGuns = { Default = 1, Max = 1, Weapon = 'WEAPON_RADARGUN' },
+        -- Sac médical : un dans le coffre de chaque véhicule de police (Default / Max). Pris : porté à la main (pas avec
+        -- des plots) ; PlaceKey (G) : posé au sol, devant soi ; l'œil : « Ramasser le sac médical » (n'importe quel
+        -- joueur) ; menu du coffre : « Ranger » (n'importe quel coffre de police, dans la limite : il peut changer de
+        -- véhicule). Jamais supprimé (ni par l'œil, ni par un script) : laissé au sol, il y reste ; mort ou déconnexion
+        -- en le portant : posé à ses pieds. Carry : os (main droite), décalage x y z et rotation.
+        MedBags = { Default = 1, Max = 1, Model = 'xm_prop_x17_bag_med_01a', PlaceDistance = 0.7,
+            Carry = { Bone = 57005, Offset = { 0.42, 0.0, -0.05, 0.10, 270.0, 60.0 } } },
         -- Herse de riven_spikes (script payant, s'il est installé) : prise et rangée avec l'ŒIL sur le coffre (options de
         -- Riven). Menu = true : ligne « Herse » en plus dans ce menu (désactivée). KeepInHands : en main, la touche X de
         -- Riven ne la fait plus disparaître (elle revient en main) : la poser au sol ou la ranger dans le coffre (œil).
         -- Type : modèle de Riven pris au coffre (stopstick : le seul proposé au coffre, voir la config de riven_spikes).
         Spikes = { Enabled = true, Menu = false, KeepInHands = true, Resource = 'riven_spikes', Type = 'stopstick' },
         PlaceKey = 'G',
-        RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots, fusées, jerrican, pistolet radar), sauf armes longues
+        RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots, fusées, jerrican, pistolet radar, sac médical), sauf armes longues
         RestockDistance = 6.0,      -- m : véhicule de police le plus proche (ou celui où l'on est assis)
     },
 }

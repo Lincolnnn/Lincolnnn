@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>RP Spotlight</title>
+    <style>
+        :root { --bg: rgba(20, 25, 34, .92); --line: rgba(255, 255, 255, .12); --text: #f2f2f2; --muted: rgba(242, 242, 242, .6);
+            --accent: #d62839; --font: "Segoe UI", Arial, sans-serif; }
+        [data-theme="night"] { --bg: rgba(0, 0, 0, .9); --line: rgba(80, 255, 120, .25); --text: #7dff9a; --muted: rgba(125, 255, 154, .6); --accent: #2bd14a; }
+        [data-theme="night"][data-night-color="yellow"] { --line: rgba(255, 220, 80, .25); --text: #ffe27a; --muted: rgba(255, 226, 122, .6); --accent: #f0c419; }
+        [data-theme="night"][data-night-color="red"] { --line: rgba(255, 90, 90, .25); --text: #ff8a8a; --muted: rgba(255, 138, 138, .6); --accent: #e03b3b; }
+        [data-theme="night"][data-night-color="blue"] { --line: rgba(90, 170, 255, .25); --text: #8cc4ff; --muted: rgba(140, 196, 255, .6); --accent: #3d8bfd; }
+        html, body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; background: transparent; font: 13px var(--font); color: var(--text); user-select: none; }
+        .hidden { display: none !important; }
+        /* Réticule pendant la visée : quatre coins */
+        #crosshair { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; transform: translate(-50%, -50%); }
+        #crosshair svg { width: 100%; height: 100%; }
+        #crosshair path { fill: none; stroke: rgba(255, 255, 255, .9); stroke-width: 5; filter: drop-shadow(0 0 2px rgba(0, 0, 0, .8)); }
+        #crosshair.locked path { stroke: #ffcf4a; }
+        #crosshair.tracking path { stroke: #5fd4ff; }
+        /* État du projecteur : en bas à droite */
+        #status { position: absolute; right: 1.6vw; bottom: 22vh; min-width: 190px; padding: 9px 12px; background: var(--bg);
+            border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 3px; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
+        #status h3 { margin: 0 0 5px; font: 700 11px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+        .row { display: flex; justify-content: space-between; gap: 14px; line-height: 20px; }
+        .row span:first-child { color: var(--muted); font-size: 11px; letter-spacing: .6px; text-transform: uppercase; }
+        .row b { font-weight: 600; }
+        #hint { margin-top: 6px; font-size: 11px; color: var(--muted); line-height: 15px; }
+        /* Réglage (/spotreglage) */
+        #adjust { position: absolute; left: 50%; bottom: 8vh; transform: translateX(-50%); width: 460px; padding: 14px 16px; background: var(--bg);
+            border: 1px solid var(--line); border-radius: 3px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+        #adjust h3 { margin: 0 0 2px; font: 700 13px var(--font); }
+        #adjust p { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+        #adjust label { display: grid; grid-template-columns: 80px 1fr 60px; align-items: center; gap: 8px; margin: 6px 0; }
+        #adjust input[type=range] { accent-color: var(--accent); }
+        #adjust input[type=text] { width: 100%; box-sizing: border-box; padding: 6px 8px; background: rgba(255, 255, 255, .06); color: var(--text);
+            border: 1px solid var(--line); border-radius: 2px; font: 12px Consolas, monospace; }
+        .buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+        button { height: 30px; padding: 0 14px; border: 1px solid var(--line); border-radius: 2px; background: rgba(255, 255, 255, .08); color: var(--text);
+            font: 600 12px var(--font); cursor: pointer; }
+        button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    </style>
+</head>
+<body>
+    <div id="crosshair" class="hidden">
+        <svg viewBox="0 0 100 100"><path d="M28,4 L4,4 L4,28" /><path d="M4,72 L4,96 L28,96" /><path d="M72,96 L96,96 L96,72" /><path d="M96,28 L96,4 L72,4" /></svg>
+    </div>
+
+    <div id="status" class="hidden">
+        <h3>Projecteur <span id="side"></span></h3>
+        <div class="row"><span>Mode</span><b id="mode">Manuel</b></div>
+        <div class="row hidden" id="plateRow"><span>Plaque</span><b id="plate"></b></div>
+        <div class="row hidden" id="strobeRow"><span>Stroboscope</span><b>Actif</b></div>
+        <div id="hint"></div>
+    </div>
+
+    <div id="adjust" class="hidden">
+        <h3>Position du projecteur — <span id="adjSide"></span></h3>
+        <p>Véhicule <b id="adjModel"></b> : réglage pour vous seulement (jusqu'à la déconnexion) ; copiez la ligne dans config.lua (Vehicles).</p>
+        <label>X (côté) <input type="range" id="x" min="-2" max="2" step="0.01"><span id="xv"></span></label>
+        <label>Y (avant) <input type="range" id="y" min="-3" max="3" step="0.01"><span id="yv"></span></label>
+        <label>Z (hauteur) <input type="range" id="z" min="-0.5" max="2" step="0.01"><span id="zv"></span></label>
+        <input type="text" id="line" readonly>
+        <div class="buttons">
+            <button type="button" id="copy">Copier la ligne</button>
+            <button type="button" class="primary" id="done">Terminer</button>
+        </div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const resource = typeof GetParentResourceName === 'function' ? GetParentResourceName() : 'rp_spotlight';
+        const post = (name, body) => fetch(`https://${resource}/${name}`, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+            body: JSON.stringify(body || {}) }).catch(() => {});
+        const MODES = ['Manuel', 'Verrouillé', 'Suivi'];
+        let aiming = false, mode = 0;
+
+        function hint() {
+            $('hint').textContent = aiming
+                ? 'Clic gauche : verrouiller sur le point · Clic droit : suivre la cible'
+                : 'Ctrl maintenu : viser · Ctrl (appui) : éteindre · Maj droite : stroboscope';
+        }
+        function crosshair() {
+            $('crosshair').classList.toggle('hidden', !aiming);
+            $('crosshair').classList.toggle('locked', mode === 1);
+            $('crosshair').classList.toggle('tracking', mode === 2);
+        }
+
+        ['x', 'y', 'z'].forEach((k) => $(k).addEventListener('input', () => {
+            $(k + 'v').textContent = Number($(k).value).toFixed(2);
+            post('offset', { x: $('x').value, y: $('y').value, z: $('z').value });
+        }));
+        $('copy').addEventListener('click', () => { $('line').select(); try { document.execCommand('copy'); } catch (e) { /* copie manuelle */ } });
+        $('done').addEventListener('click', () => { $('adjust').classList.add('hidden'); post('adjustDone'); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('adjust').classList.contains('hidden')) $('done').click(); });
+
+        window.addEventListener('message', ({ data }) => {
+            if (!data || !data.action) return;
+            const d = data.data || {};
+            switch (data.action) {
+                case 'status':
+                    aiming = !!d.aim;
+                    $('status').classList.toggle('hidden', !d.show);
+                    if (d.show) {
+                        mode = Number(d.mode) || 0;
+                        $('side').textContent = d.side ? `(${d.side.toLowerCase()})` : '';
+                        $('mode').textContent = MODES[mode] || 'Manuel';
+                        $('plateRow').classList.toggle('hidden', !(mode === 2 && d.plate));
+                        $('plate').textContent = d.plate || '';
+                        $('strobeRow').classList.toggle('hidden', !d.strobe);
+                    }
+                    hint(); crosshair();
+                    break;
+                case 'aim': aiming = !!d.on; hint(); crosshair(); break;
+                case 'adjust':
+                    $('adjust').classList.toggle('hidden', !d.on);
+                    $('adjSide').textContent = d.side || '';
+                    $('adjModel').textContent = d.model || '';
+                    ['x', 'y', 'z'].forEach((k) => { $(k).value = d[k]; $(k + 'v').textContent = Number(d[k]).toFixed(2); });
+                    $('line').value = d.line || '';
+                    break;
+                case 'line': $('line').value = d.line || ''; break;
+                case 'uiTheme':
+                    document.documentElement.dataset.theme = d.theme === 'night' ? 'night' : 'day';
+                    document.documentElement.dataset.nightColor = d.color || 'green';
+                    break;
+                case 'rpHideUi': document.documentElement.style.opacity = d.hidden ? '0' : ''; break;
+            }
+        });
+    </script>
+</body>
+</html>
