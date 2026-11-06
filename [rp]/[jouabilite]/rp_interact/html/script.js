@@ -1260,11 +1260,13 @@
     // ---- Voiture > Radio et Musique (/musique) : réglages de la source (le son est joué plus bas) ----
     const RADIO_QUEUE_MAX = 5;
     // Volume et portée qui va avec (config.lua : RadioRanges, envoyée par client/radio.lua) : fermé / ouvert
-    const DEFAULT_RANGES = [{ Max: 9, Closed: 10, Open: 25 }, { Max: 29, Closed: 20, Open: 50 }, { Max: 49, Closed: 30, Open: 75 }, { Max: 100, Closed: 45, Open: 110 }];
+    const DEFAULT_RANGES = [{ Max: 10, Closed: 5, Open: 10 }, { Max: 20, Closed: 15, Open: 20 }, { Max: 40, Closed: 30, Open: 55 },
+        { Max: 60, Closed: 45, Open: 80 }, { Max: 80, Closed: 65, Open: 95 }, { Max: 100, Closed: 80, Open: 110 }];
     function volumeOptions(info) {
         const ranges = toArray(info && info.ranges).length ? toArray(info.ranges) : DEFAULT_RANGES;
         return Array.from({ length: 21 }, (_, i) => {
             const v = i * 5;
+            if (v === 0) return '0 % · coupé';
             const t = ranges.find((x) => v <= Number(x.Max)) || ranges[ranges.length - 1];
             return `${v} % · ${Math.round(t.Closed)} / ${Math.round(t.Open)} m`;
         });
@@ -1691,7 +1693,7 @@
             air.frequency.value = 20000;
             air.Q.value = 0.5;
             const panner = ctx.createPanner();
-            panner.panningModel = 'HRTF';
+            panner.panningModel = 'equalpower'; // réglé par client/radio.lua (RadioPanning)
             panner.distanceModel = 'linear';
             panner.rolloffFactor = 0; // la distance est dans le volume ; ici seulement la direction
             panner.refDistance = 1;
@@ -1701,12 +1703,18 @@
             reverb.buffer = impulse(ctx, 'open');
             const wet = ctx.createGain();
             wet.gain.value = 0;
+            // placé en 3D (dehors) / stéréo d'origine (à bord, tout près) : fondu entre les deux
+            const spatial = ctx.createGain();
+            const stereo = ctx.createGain();
+            stereo.gain.value = 0;
             source.connect(volume);
             volume.connect(muffle).connect(dry).connect(mix);
             volume.connect(bassLp).connect(bassPeak).connect(bass).connect(mix);
-            mix.connect(air).connect(panner).connect(radioOut);
+            mix.connect(air);
+            air.connect(spatial).connect(panner).connect(radioOut);
+            air.connect(stereo).connect(radioOut);
             mix.connect(reverb).connect(wet).connect(radioOut);
-            r.graph = { volume, muffle, dry, bassPeak, bass, air, panner, reverb, wet, env: 'open' };
+            r.graph = { volume, muffle, dry, bassPeak, bass, air, panner, reverb, wet, spatial, stereo, env: 'open' };
             r.audio.volume = 1;
             return true;
         } catch (err) {
@@ -1726,14 +1734,20 @@
         if (!g || !d) return;
         const num = (v, def) => (Number.isFinite(Number(v)) ? Number(v) : def);
         const p = g.panner;
+        const model = d.panning === 'HRTF' ? 'HRTF' : 'equalpower';
+        if (p.panningModel !== model) p.panningModel = model;
         const x = num(d.x, 0), y = num(d.y, 0), z = num(d.z, -1);
         if (p.positionX) {
-            setParam(p.positionX, x, 0.06);
-            setParam(p.positionY, y, 0.06);
-            setParam(p.positionZ, z, 0.06);
+            setParam(p.positionX, x, 0.08);
+            setParam(p.positionY, y, 0.08);
+            setParam(p.positionZ, z, 0.08);
         } else {
             p.setPosition(x, y, z);
         }
+        // à bord / tout près : stéréo d'origine ; plus loin : placé en 3D (fondu doux)
+        const st = Math.max(0, Math.min(1, num(d.stereo, 0)));
+        setParam(g.stereo.gain, st, 0.15);
+        setParam(g.spatial.gain, 1 - st, 0.15);
         const dist = Math.max(0, Math.min(1, num(d.dist, 0)));
         const loud = Math.max(0, Math.min(1, num(d.loud, 0.6)));
         const closed = !!d.closed, listener = !!d.listenerClosed;

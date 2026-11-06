@@ -264,7 +264,10 @@ local function drawBeam(key, vehicle, origin, dir, cam, now, air, col)
     local w0, full, segs = B.Start or 0.08, B.Length or 45.0, B.Segments or 4
     for i = 0, segs - 1 do
         local d0, d1 = len * i / segs, len * (i + 1) / segs
-        local h0, h1 = w0 + d0 * tanH, w0 + d1 * tanH
+        -- s'élargit avec la distance, et encore plus vers la fin (EndFlare) : rejoint la tache éclairée
+        local flare = B.EndFlare or 0.9
+        local h0 = w0 + d0 * tanH * (1.0 + flare * d0 / len)
+        local h1 = w0 + d1 * tanH * (1.0 + flare * d1 / len)
         local c0, c1 = origin + dir * d0, origin + dir * d1
         local v0, v1 = d0 / full, d1 / full
         local a, b, c, d = c0 - side * h0, c0 + side * h0, c1 + side * h1, c1 - side * h1

@@ -97,19 +97,30 @@ InteractConfig = {
     -- Radio du véhicule et /musique (lien YouTube ou lien direct vers un son / une radio en ligne)
     -- PORTÉE selon le VOLUME de la source (0 - 100 %) : `Closed` = véhicule fermé (vitres, portières, coffre, capot) /
     -- musique dans un intérieur et l'auditeur dehors ; `Open` = un élément ouvert / musique en plein air (m).
+    -- « Audible » ne veut pas dire tout entendre : le son baisse avec la distance jusqu'au bout de la portée
+    -- (RadioFalloff), plus vite quand c'est étouffé et quand on est soi-même dans un véhicule.
     RadioRanges = {
-        { Max = 9,   Closed = 10.0, Open = 25.0 },   -- 0 à 9 %
-        { Max = 29,  Closed = 20.0, Open = 50.0 },   -- 10 à 29 %
-        { Max = 49,  Closed = 30.0, Open = 75.0 },   -- 30 à 49 %
-        { Max = 100, Closed = 45.0, Open = 110.0 },  -- 50 % et plus
+        { Max = 10,  Closed = 5.0,  Open = 10.0 },   -- 1 à 10 %
+        { Max = 20,  Closed = 15.0, Open = 20.0 },   -- 11 à 20 %
+        { Max = 40,  Closed = 30.0, Open = 55.0 },   -- 21 à 40 %
+        { Max = 60,  Closed = 45.0, Open = 80.0 },   -- 41 à 60 %
+        { Max = 80,  Closed = 65.0, Open = 95.0 },   -- 61 à 80 %
+        { Max = 100, Closed = 80.0, Open = 110.0 },  -- 81 à 100 %
     },
+    -- Baisse avec la distance : volume = (1 - distance / portée) ^ pente, plein volume à Near m ; pente Open (ouvert),
+    -- Closed (étouffé), + InVehicle si l'auditeur est dans un véhicule ; ListenerClosed : auditeur dans un autre
+    -- véhicule fermé (x)
+    RadioFalloff = { Open = 1.5, Closed = 2.2, InVehicle = 0.6, Near = 1.5, ListenerClosed = 0.55 },
     RadioMaxRange = 150.0,          -- plus grande portée (RadioRanges et périmètres de /musique ; lecteur fermé au-delà, + 20 m)
     RadioInsulation = 0.35,         -- volume entendu dehors quand tout est fermé (le reste : basses qui traversent)
     RadioMaxVolume = 0.8,           -- volume maximal (radio à 100 %) pour tous les joueurs
     RadioHistory = 10,              -- morceaux précédents gardés (« Déjà écoutés », même quand tout est fini)
     RadioQueueMax = 10,             -- morceaux dans la file « Écouter ensuite » (la playlist)
     -- SON 3D (lecteur de ce script, liens audio directs : mp3, ogg, radio en ligne…) :
-    --  - direction (HRTF) : on entend de quel côté est la source (gauche, droite, derrière), selon la caméra ;
+    --  - direction : on entend de quel côté est la source (gauche, droite, derrière), selon la caméra, mise à jour toutes
+    --    les RadioUpdateMs ms avec un glissement doux ; RadioPanning : 'equalpower' (net et sans coloration, comme
+    --    ultra-3dsound) ou 'HRTF' (plus « casque », peut sonner creux) ;
+    --  - STÉRÉO d'origine à bord et tout près de la source (RadioStereoDistance m) : on est dans le son ;
     --  - FERMÉ (véhicule fermé, musique dans un intérieur vue de dehors, ou auditeur dans un véhicule fermé) : les aigus
     --    ne passent plus (au-dessus de RadioMuffleHz), les BASSES traversent et cognent (RadioBassBoost, résonance de
     --    l'habitacle / des murs vers 60 Hz) ;
@@ -119,10 +130,13 @@ InteractConfig = {
     --  - air : les aigus s'atténuent avec la distance.
     -- Lien YouTube : le lecteur YouTube ne laisse passer aucun effet ; volume selon la distance seulement (sauf
     -- RadioYouTubeAudio ci-dessous).
+    RadioPanning = 'equalpower',
+    RadioUpdateMs = 100,
+    RadioStereoDistance = 4.0,
     RadioMuffleHz = 380,
     RadioBassBoost = 2.2,           -- force des basses qui traversent quand c'est fermé (x)
     RadioLoudBass = 1.6,            -- basses en plus à fort volume (x, à 100 %)
-    RadioReverb = 1.0,              -- force de la réverbération (x ; 0 = aucune)
+    RadioReverb = 0.7,              -- force de la réverbération (x ; 0 = aucune)
     RadioEnvInterval = 2000,        -- ms entre deux mesures de l'endroit autour d'une source entendue
     RadioBehindHz = 6000,           -- source derrière soi : un peu plus sourde
     -- /musique : faire jouer un lien sur SOI (suit le joueur, aussi en véhicule), à un ENDROIT (là où l'on est) ou sur

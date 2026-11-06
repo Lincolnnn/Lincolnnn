@@ -70,8 +70,9 @@ SpotlightConfig = {
         Enabled = true,
         Alpha = 70,          -- opacité du rayon la nuit (0 - 255)
         Length = 45.0,       -- longueur maximale du rayon (m) ; il s'efface vers le bout
-        Spread = 9.0,        -- ouverture du rayon (degrés) ; nil = celle de Light.Radius
-        Start = 0.08,        -- demi-largeur au départ (m), taille de la lampe
+        Spread = 12.0,       -- ouverture du rayon (degrés) ; nil = celle de Light.Radius
+        EndFlare = 0.9,      -- élargissement en plus vers la fin du rayon (0 = cône simple ; 0.9 : presque 2 x plus large au bout)
+        Start = 0.1,         -- demi-largeur au départ (m), taille de la lampe
         Day = 0.0,           -- visibilité de jour (0 = invisible, 1 = comme la nuit)
         Rain = 0.6,          -- sous une forte pluie : x (1 + Rain)
         GlowAlpha = 220,     -- halo de la lampe vue de face (0 = aucun)

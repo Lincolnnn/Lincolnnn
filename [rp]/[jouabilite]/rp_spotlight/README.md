@@ -60,7 +60,8 @@ la lampe de face (`textures/glow.png`). Les deux textures ont été faites pour 
 - **Bien visible la nuit** (21 h - 5 h), s'estompe au lever et au coucher du soleil, **invisible de jour**
   (`Day = 0.0` ; mettre par ex. `0.15` pour un léger rayon de jour). Plus marqué sous la pluie (`Rain`).
 - **S'arrête sur l'obstacle** : mur, sol, véhicule (relu toutes les 100 ms).
-- Réglages : `Alpha` (opacité), `Length` (longueur max, 45 m), `Spread` (ouverture), `Start` (largeur à la lampe),
+- **S'élargit vers la fin** (`EndFlare` : presque 2 x plus large au bout) pour rejoindre la tache éclairée.
+- Réglages : `Alpha` (opacité), `Length` (longueur max, 45 m), `Spread` (ouverture, 12°), `EndFlare`, `Start` (largeur à la lampe),
   `GlowAlpha` / `GlowSize` (halo), `Color` (couleur, sinon celle de `Light`), `Enabled = false` pour le couper.
 
 ### Éblouissement (`Glare`)

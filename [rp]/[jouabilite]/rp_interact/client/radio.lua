@@ -83,8 +83,9 @@ function RPI.vehicleOpen(vehicle)
     return IsVehicleAConvertible(vehicle, false) and GetConvertibleRoofState(vehicle) ~= 0
 end
 
-local DEFAULT_RANGES = { { Max = 9, Closed = 10.0, Open = 25.0 }, { Max = 29, Closed = 20.0, Open = 50.0 },
-    { Max = 49, Closed = 30.0, Open = 75.0 }, { Max = 100, Closed = 45.0, Open = 110.0 } }
+local DEFAULT_RANGES = { { Max = 10, Closed = 5.0, Open = 10.0 }, { Max = 20, Closed = 15.0, Open = 20.0 },
+    { Max = 40, Closed = 30.0, Open = 55.0 }, { Max = 60, Closed = 45.0, Open = 80.0 }, { Max = 80, Closed = 65.0, Open = 95.0 },
+    { Max = 100, Closed = 80.0, Open = 110.0 } }
 
 --- Portée (m) selon le volume de la source (0-100) et fermé / ouvert ; `custom` : périmètre choisi pour /musique
 --- (ouvert = ce périmètre, fermé = x Music.ClosedRatio)
@@ -126,15 +127,24 @@ function RPI.radioSituation(src)
     return inside, closed, listenerClosed, #(GetEntityCoords(ped) - src.pos)
 end
 
---- Facteur de volume (0..1) pour ce joueur, et la portée utilisée (`custom` : périmètre choisi pour /musique)
+--- Facteur de volume (0..1) pour ce joueur, et la portée utilisée (`custom` : périmètre choisi pour /musique).
+--- « Audible » jusqu'au bout de la portée, mais de plus en plus bas avec la distance : (1 - d / portée) ^ pente ;
+--- la pente est plus forte quand c'est étouffé (fermé) et quand l'auditeur est dans un véhicule (RadioFalloff).
 function RPI.radioHearing(src, volume, custom)
     local inside, closed, listenerClosed, distance = RPI.radioSituation(src)
     local maxRange = RPI.radioRange(volume, closed, custom)
     if inside then return 1.0, maxRange, distance end
     if distance >= maxRange then return 0.0, maxRange, distance end
-    local factor = (1.0 - distance / maxRange) ^ 1.4
+    local F = Config.RadioFalloff or {}
+    local slope = closed and (F.Closed or 2.2) or (F.Open or 1.5)
+    local inVehicle = GetVehiclePedIsIn(PlayerPedId(), false) ~= 0
+    if inVehicle then slope = slope + (F.InVehicle or 0.6) end
+    -- tout près (NearDistance m) : plein volume, puis la pente jusqu'au bout de la portée
+    local near = math.min(F.Near or 1.5, maxRange * 0.5)
+    local t = math.max(0.0, (distance - near) / math.max(0.1, maxRange - near))
+    local factor = (1.0 - t) ^ slope
     if closed then factor = factor * (Config.RadioInsulation or 0.35) end
-    if listenerClosed then factor = factor * 0.6 end
+    if listenerClosed then factor = factor * (F.ListenerClosed or 0.55) end
     return factor, maxRange, distance
 end
 
@@ -224,16 +234,19 @@ local function sendPos(id, src, radio, maxRange, now)
     local x, y, z, behind = 0.0, 0.0, -1.0, false -- à bord : les haut-parleurs tout autour (devant)
     if not inside then x, y, z, behind = cameraRelative(src.pos) end
     local e = inside and src.vehicle and { preset = 'cabin', size = 2 } or RPI.radioEnv(id, src, now)
+    -- stéréo d'origine (sans placement 3D) : à bord, et un peu tout près de la source (on est « dans » le son)
+    local stereo = inside and 1.0 or math.max(0.0, 1.0 - distance / (Config.RadioStereoDistance or 4.0)) * 0.6
     local data = {
         id = id, x = x, y = y, z = z, inside = inside, closed = closed, listenerClosed = listenerClosed, behind = behind,
+        stereo = math.floor(stereo * 20 + 0.5) / 20, panning = Config.RadioPanning or 'equalpower',
         dist = inside and 0 or math.floor(math.min(1.0, distance / math.max(1.0, maxRange)) * 20 + 0.5) / 20,
         loud = math.floor((tonumber(radio.volume) or 0) / 5 + 0.5) * 5 / 100, env = e.preset, size = e.size,
         muffleHz = Config.RadioMuffleHz or 380, behindHz = Config.RadioBehindHz or 6000,
         bassBoost = Config.RadioBassBoost or 2.2, loudBass = Config.RadioLoudBass or 1.6, reverb = Config.RadioReverb or 1.0,
         intensity = intensityFactor(radio.intensity),
     }
-    local key = ('%.2f|%.2f|%.2f|%s|%s|%s|%s|%.2f|%.2f|%s|%d|%.2f'):format(x, y, z, tostring(inside), tostring(closed),
-        tostring(listenerClosed), tostring(behind), data.dist, data.loud, data.env, data.size, data.intensity)
+    local key = ('%.2f|%.2f|%.2f|%s|%s|%s|%s|%.2f|%.2f|%s|%d|%.2f|%.2f'):format(x, y, z, tostring(inside), tostring(closed),
+        tostring(listenerClosed), tostring(behind), data.dist, data.loud, data.env, data.size, data.intensity, data.stereo)
     if lastPos[id] == key then return end
     lastPos[id] = key
     SendNUIMessage({ action = 'radioPos', data = data })
@@ -367,7 +380,7 @@ local function startLoop()
                     end
                 end
             end
-            Wait(150)
+            Wait(Config.RadioUpdateMs or 100)
         end
         loopRunning = false
     end)

@@ -148,10 +148,17 @@ Page **Voiture** :
 
   | Volume | Tout fermé | Un élément ouvert |
   |---|---|---|
-  | 0 à 9 % | 10 m | 25 m |
-  | 10 à 29 % | 20 m | 50 m |
-  | 30 à 49 % | 30 m | 75 m |
-  | 50 % et plus | 45 m | 110 m |
+  | 1 à 10 % | 5 m | 10 m |
+  | 11 à 20 % | 15 m | 20 m |
+  | 21 à 40 % | 30 m | 55 m |
+  | 41 à 60 % | 45 m | 80 m |
+  | 61 à 80 % | 65 m | 95 m |
+  | 81 à 100 % | 80 m | 110 m |
+
+  « Audible » ne veut pas dire tout entendre : **plus on est loin, plus c'est bas** (plein volume à 1,5 m, puis
+  `(1 - distance / portée) ^ pente` jusqu'au bout de la portée). La baisse est **plus rapide quand c'est étouffé**
+  (fermé) et **quand on est soi-même dans un véhicule** (`RadioFalloff` : `Open` 1,5, `Closed` 2,2, `InVehicle` + 0,6,
+  `ListenerClosed` x 0,55 dans un autre véhicule fermé).
 
   « Ouvert » : une portière, le coffre, le capot, une vitre baissée ou cassée, un toit décapoté (seules les vitres que
   le véhicule possède comptent). La liste du volume affiche la portée qui va avec (ex. « 60 % · 45 / 110 m »).
@@ -171,7 +178,11 @@ Page **Voiture** :
   avant ouverte** (option « Radio du véhicule » : le menu s'ouvre, ou va, sur la page Radio).
   **Son 3D** (lien audio direct : mp3, ogg, m4a, radio en ligne…), joué par le navigateur du jeu avec le Web Audio :
   - **direction** : on entend **de quel côté** est la source, d'après la **caméra** (gauche, droite, devant,
-    **derrière** ; spatialisation HRTF ; derrière soi, un peu plus sourd : `RadioBehindHz`) ;
+    **derrière** ; derrière soi, un peu plus sourd : `RadioBehindHz`), mise à jour toutes les **100 ms**
+    (`RadioUpdateMs`) avec un glissement doux. Panoramique **`equalpower`** par défaut (`RadioPanning`), comme
+    *ultra-3dsound* : net, sans la coloration « creuse » du HRTF (`'HRTF'` reste possible) ;
+  - **stéréo d'origine à bord** (et en partie tout près de la source, à moins de 4 m : `RadioStereoDistance`) : la
+    musique n'est plus ramenée à un point devant soi quand on est dans le véhicule ;
   - **fermé** (véhicule fermé ; musique dans un intérieur entendue de dehors, ou l'inverse) : les **aigus ne passent
     plus** (au-dessus de `RadioMuffleHz`, 380 Hz) mais les **basses traversent et cognent** (renforcées : `RadioBassBoost`,
     résonance de l'habitacle / des murs vers 60 Hz) — l'effet « voiture qui fait boum-boum » ; l'auditeur lui-même
