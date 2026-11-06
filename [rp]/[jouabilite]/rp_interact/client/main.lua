@@ -469,6 +469,7 @@ local function openMenu(view)
 end
 
 RPI.openMenu = openMenu
+function RPI.menuIsOpen() return ui.menu == true end
 
 closeMenu = function()
     RPI.radioTarget = nil

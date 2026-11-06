@@ -274,6 +274,8 @@
 
         stop() {
             this.stopEditing(false);
+            if (this.highlight != null && this.opts.onHighlight) this.opts.onHighlight(null);
+            this.highlight = null;
             this.open = false;
             this.stack = [];
             this.el.classList.add('hidden');
@@ -372,6 +374,9 @@
             this.el.classList.toggle('more-up', p.top > 0);
             this.el.classList.toggle('more-down', p.top + KB_VISIBLE < items.length);
             const current = items[p.sel];
+            // Ligne qui montre quelque chose dans le jeu (ex. objet autour surligné) : prévenu à chaque changement
+            const hl = current && current.highlight != null ? current.highlight : null;
+            if (hl !== this.highlight) { this.highlight = hl; if (this.opts.onHighlight) this.opts.onHighlight(hl); }
             const desc = (current && current.desc) || p.desc || '';
             $('.kb-desc', this.el).innerHTML = desc ? esc(desc).replace(/\n/g, '<br>') : '';
             $('.kb-desc', this.el).classList.toggle('hidden', !desc);
@@ -519,6 +524,7 @@
         icon: KB_ICONS.menu,
         close: () => post('closeMenu'),
         onPage: (page) => post('menuView', { view: page.id }), // la page Police reçoit l'état des actions en direct
+        onHighlight: (index) => post('musicHighlight', { index }), // /musique : objet autour surligné dans le jeu
     });
     const rerender = () => interact.render();
 
@@ -1362,19 +1368,21 @@
                 desc: 'Entrée : coller / écrire le lien (Ctrl+V), puis Entrée.', onChange: (v) => { ui.url = v; rerender(); } },
         ];
         const needUrl = ui.url ? {} : { disabled: true, why: 'Écrivez d\'abord un lien.' };
-        const create = (where) => radioAction(ui, 'create', { where, url: ui.url, volume: ui.volume, intensity: ui.intensity,
-            range: ui.range, loop: ui.loop });
+        const create = (where, extra = {}) => radioAction(ui, 'create', { where, url: ui.url, volume: ui.volume, intensity: ui.intensity,
+            range: ui.range, loop: ui.loop, ...extra });
+        ui.create = create;
         if (music && (!exists || info.own)) {
             // Créer (ou déplacer : la nouvelle remplace l'ancienne)
-            const verb = exists ? 'Déplacer et lancer' : 'Lancer';
+            const moved = exists ? ' (la musique actuelle est déplacée)' : '';
             items.push(
                 { kind: 'section', label: exists ? 'Déplacer la musique' : 'Où jouer la musique' },
-                { kind: 'button', label: `${verb} sur moi`, ...needUrl, desc: 'La musique vous suit (aussi dans un véhicule).',
+                { kind: 'button', label: 'Sur le joueur (suivre)', ...needUrl, desc: `La musique vous suit, à pied comme en véhicule${moved}.`,
                     action: () => create('player') },
-                { kind: 'button', label: `${verb} ici`, ...needUrl, desc: 'La musique reste à cet endroit (fête, tapage…).',
+                { kind: 'button', label: 'Lancer ici', ...needUrl,
+                    desc: `La musique reste là où vous êtes, entendue dans le périmètre choisi dans les réglages${moved}.`,
                     action: () => create('place') },
-                { kind: 'button', label: `${verb} sur l'objet visé`, ...needUrl, desc: 'Visez un objet (enceinte, radio…) ou tenez-vous à 3 m de lui.',
-                    action: () => create('prop') },
+                { kind: 'menu', label: 'Lancer sur un objet', ...needUrl, open: () => musicObjectPage(ui),
+                    desc: `Un objet autour de vous, ou un objet à faire apparaître (enceinte, chaîne hi-fi, sac…)${moved}.` },
             );
         }
         if (!exists && music) {
@@ -1436,6 +1444,74 @@
                 action: () => radioAction(ui, 'replay', { index: i + 1 }) });
         }
         return items;
+    }
+
+    // ---- /musique > Lancer sur un objet : objet autour (surligné dans le jeu) ou objet à faire apparaître ----
+    const musicObjects = { list: null, spawnable: [] };
+
+    async function launchOnObject(ui, extra) {
+        const res = await ui.create('prop', extra);
+        if (res) interact.pop(); // retour à la page Musique (la musique joue)
+        if (res && interact.page && interact.page.id === 'musicObject') interact.pop();
+    }
+
+    function musicObjectPage(ui) {
+        return {
+            id: 'musicObject', title: 'Lancer sur un objet',
+            banner: { title: 'Lancer sur un objet', sub: 'Autour de vous, ou à faire apparaître', color: MENU_COLORS.car },
+            items: () => [
+                { kind: 'menu', label: 'Sélectionner un objet autour', open: () => musicNearbyPage(ui),
+                    desc: 'Les objets à quelques mètres de vous ; celui choisi dans la liste est surligné dans le jeu.' },
+                { kind: 'menu', label: 'Faire apparaître l\'objet', open: () => musicSpawnPage(ui),
+                    desc: 'Enceinte, chaîne hi-fi, poste radio, sac, sac à dos… posé devant vous ; il disparaît quand la musique est retirée.' },
+            ],
+        };
+    }
+
+    function musicNearbyPage(ui) {
+        return {
+            id: 'musicNearby', title: 'Objets autour',
+            banner: { title: 'Objets autour', sub: 'Entrée : lancer la musique dessus', color: MENU_COLORS.car },
+            onEnter: async () => {
+                musicObjects.list = null;
+                rerender();
+                const res = await post('musicNearby');
+                musicObjects.list = res && res.ok ? toArray(res.objects) : [];
+                rerender();
+            },
+            items: () => {
+                const list = musicObjects.list;
+                if (!list) return [{ kind: 'info', label: 'Recherche des objets…', tone: 'muted' }];
+                if (!list.length) return [{ kind: 'info', label: 'Aucun objet à proximité. Approchez-vous, ou faites-en apparaître un.', tone: 'muted' }];
+                return list.map((o) => ({ kind: 'button', label: o.label, right: `${o.dist} m`, highlight: o.index,
+                    desc: o.moving ? 'Objet déplaçable : la musique le suit s\'il bouge.' : 'Objet du décor : la musique reste à sa place.',
+                    action: () => launchOnObject(ui, { object: o.index }) }));
+            },
+        };
+    }
+
+    function musicSpawnPage(ui) {
+        return {
+            id: 'musicSpawn', title: 'Faire apparaître',
+            banner: { title: 'Faire apparaître', sub: 'Posé devant vous, la musique dessus', color: MENU_COLORS.car },
+            onEnter: async () => {
+                const res = await post('musicSpawnList');
+                musicObjects.spawnable = res && res.ok ? toArray(res.props) : [];
+                rerender();
+            },
+            items: () => {
+                const list = musicObjects.spawnable;
+                if (!list.length) return [{ kind: 'info', label: 'Aucun objet configuré (config.lua : Music.SpawnProps).', tone: 'muted' }];
+                const items = [];
+                let group = null;
+                list.forEach((o) => {
+                    if (o.group && o.group !== group) { group = o.group; items.push({ kind: 'section', label: group }); }
+                    items.push({ kind: 'button', label: o.label, desc: 'Entrée : le poser devant vous et lancer la musique dessus.',
+                        action: () => launchOnObject(ui, { spawn: o.index }) });
+                });
+                return items;
+            },
+        };
     }
 
     /** /musique : volume, intensité, périmètre (et boucle quand on prépare) ; live = source existante (envoyé au serveur) */

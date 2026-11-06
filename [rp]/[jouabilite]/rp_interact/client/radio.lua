@@ -492,31 +492,127 @@ RegisterNUICallback('radioInfo', function(data, cb)
     cb(radioInfo(type(data) == 'table' and data.page == 'music' and 'music' or 'radio'))
 end)
 
---- Objet visé (caméra, 8 m) ou le plus proche (3 m) : { kind = 'prop', netId } ou ses coordonnées (objet du décor)
-local function aimedObject()
-    local ped = PlayerPedId()
-    local cam = GetFinalRenderedCamCoord()
-    local rot = GetFinalRenderedCamRot(2)
-    local x, z = math.rad(rot.x), math.rad(rot.z)
-    local dir = vector3(-math.sin(z) * math.cos(x), math.cos(z) * math.cos(x), math.sin(x))
-    local to = cam + dir * 10.0
-    local handle = StartExpensiveSynchronousShapeTestLosProbe(cam.x, cam.y, cam.z, to.x, to.y, to.z, 16, ped, 4)
-    local _, hit, _, _, entity = GetShapeTestResult(handle)
-    local pos = GetEntityCoords(ped)
-    if not ((hit == 1 or hit == true) and entity and entity ~= 0 and GetEntityType(entity) == 3) then
-        entity = nil
-        local best = 3.0
-        for _, obj in ipairs(GetGamePool('CObject')) do
+-- =========================================================================
+-- /musique > LANCER SUR UN OBJET : objets autour (liste, celui choisi surligné dans le jeu) ou objet à faire apparaître
+-- (Music.SpawnProps : enceinte, chaîne hi-fi, sac… posé devant le joueur, supprimé quand la musique est retirée)
+-- =========================================================================
+local nearby = {}      -- [n°] = objet de la dernière recherche
+local highlighted = nil
+
+local function spawnLabels()
+    local out = {}
+    for _, p in ipairs(MUSIC.SpawnProps or {}) do
+        if p.model then out[GetHashKey(p.model)] = p.label end
+    end
+    return out
+end
+
+--- Nom lisible d'un objet : celui de la liste des objets à faire apparaître, sinon son nom de modèle
+local function objectLabel(entity, labels)
+    local label = labels[GetEntityModel(entity)]
+    if label then return label end
+    local name = GetEntityArchetypeName(entity)
+    if type(name) == 'string' and name ~= '' then
+        return (name:gsub('^prop_', ''):gsub('^v_res_', ''):gsub('^v_ret_', ''):gsub('_', ' '))
+    end
+    return 'Objet'
+end
+
+--- Objets visibles à Music.PlaceDistance m (pas portés, pas accrochés à un véhicule), du plus proche au plus loin
+local function scanNearby()
+    nearby = {}
+    local pos = GetEntityCoords(PlayerPedId())
+    local reach = MUSIC.PlaceDistance or 8.0
+    local found = {}
+    for _, obj in ipairs(GetGamePool('CObject')) do
+        if DoesEntityExist(obj) and IsEntityVisible(obj) and not IsEntityAttachedToAnyPed(obj) and not IsEntityAttachedToAnyVehicle(obj) then
             local d = #(GetEntityCoords(obj) - pos)
-            if d < best and not IsEntityAttachedToAnyPed(obj) and not IsEntityAttachedToAnyVehicle(obj) then
-                entity, best = obj, d
-            end
+            if d <= reach then found[#found + 1] = { entity = obj, dist = d } end
         end
     end
-    if not entity then return nil end
+    table.sort(found, function(a, b) return a.dist < b.dist end)
+    local labels = spawnLabels()
+    local out = {}
+    for i = 1, math.min(#found, MUSIC.NearbyMax or 15) do
+        local o = found[i]
+        nearby[i] = o.entity
+        out[i] = { index = i, label = objectLabel(o.entity, labels), dist = math.floor(o.dist * 10 + 0.5) / 10,
+            moving = NetworkGetEntityIsNetworked(o.entity) }
+    end
+    return out
+end
+
+local function setOutline(entity, on)
+    if not entity or not DoesEntityExist(entity) then return end
+    pcall(function()
+        if on then SetEntityDrawOutlineColor(255, 196, 40, 255) end
+        SetEntityDrawOutline(entity, on)
+    end)
+end
+
+--- Surligne l'objet choisi dans la liste (contour + flèche au-dessus) tant que le menu est ouvert
+local function highlight(index)
+    local entity = index and nearby[index] or nil
+    if highlighted == entity then return end
+    setOutline(highlighted, false)
+    highlighted = entity
+    if not entity then return end
+    setOutline(entity, true)
+    CreateThread(function()
+        local min, max = GetModelDimensions(GetEntityModel(entity))
+        local height = (max and min) and (max.z - min.z) or 0.5
+        while highlighted == entity and DoesEntityExist(entity) and (not RPI.menuIsOpen or RPI.menuIsOpen()) do
+            local p = GetEntityCoords(entity)
+            DrawMarker(2, p.x, p.y, p.z + height + 0.35, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0, 0.25, 0.25, 0.25,
+                255, 196, 40, 220, true, true, 2, false, nil, nil, false)
+            Wait(0)
+        end
+        if highlighted == entity then setOutline(entity, false); highlighted = nil end
+    end)
+end
+
+RegisterNUICallback('musicNearby', function(_, cb) cb({ ok = true, objects = scanNearby() }) end)
+RegisterNUICallback('musicHighlight', function(data, cb)
+    cb({ ok = true })
+    highlight(type(data) == 'table' and tonumber(data.index) or nil)
+end)
+RegisterNUICallback('musicSpawnList', function(_, cb)
+    local out = {}
+    for i, p in ipairs(MUSIC.SpawnProps or {}) do out[#out + 1] = { index = i, label = p.label, group = p.group } end
+    cb({ ok = true, props = out })
+end)
+
+--- Objet -> point d'ancrage pour le serveur : objet synchronisé (la musique le suit) ou sa place (objet du décor)
+local function anchorForObject(entity)
+    if not entity or not DoesEntityExist(entity) then return nil end
     if NetworkGetEntityIsNetworked(entity) then return { kind = 'prop', netId = ObjToNet(entity) } end
     local o = GetEntityCoords(entity)
     return { kind = 'prop', x = o.x, y = o.y, z = o.z }
+end
+
+--- Fait apparaître un objet de Music.SpawnProps devant le joueur (synchronisé) ; nil si impossible
+local function spawnObject(index)
+    local def = (MUSIC.SpawnProps or {})[index]
+    if not def or not def.model then return nil, 'Objet inconnu.' end
+    local hash = GetHashKey(def.model)
+    if not IsModelInCdimage(hash) then return nil, 'Cet objet n\'existe pas dans le jeu.' end
+    RequestModel(hash)
+    local stopAt = GetGameTimer() + 3000
+    while not HasModelLoaded(hash) and GetGameTimer() < stopAt do Wait(0) end
+    if not HasModelLoaded(hash) then return nil, 'Objet pas chargé, réessayez.' end
+    local ped = PlayerPedId()
+    local at = GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.9, 0.0)
+    local obj = CreateObject(hash, at.x, at.y, at.z, true, true, false)
+    SetModelAsNoLongerNeeded(hash)
+    if not obj or obj == 0 then return nil, 'Impossible de faire apparaître l\'objet.' end
+    SetEntityHeading(obj, GetEntityHeading(ped) + 180.0) -- tourné vers le joueur
+    PlaceObjectOnGroundProperly(obj)
+    FreezeEntityPosition(obj, def.freeze ~= false)
+    SetEntityAsMissionEntity(obj, true, true)
+    stopAt = GetGameTimer() + 2000
+    while not NetworkGetEntityIsNetworked(obj) and GetGameTimer() < stopAt do Wait(0) end
+    if not NetworkGetEntityIsNetworked(obj) then DeleteObject(obj); return nil, 'Objet non synchronisé, réessayez.' end
+    return obj
 end
 
 RegisterNUICallback('radioAction', function(data, cb)
@@ -524,6 +620,7 @@ RegisterNUICallback('radioAction', function(data, cb)
     local page = data.page == 'music' and 'music' or 'radio'
     local payload = { action = data.action, url = data.url, volume = data.volume, index = data.index, value = data.value,
         intensity = data.intensity, range = data.range, loop = data.loop }
+    if data.action == 'create' and type(RPI.menuIsOpen) == 'function' then highlight(nil) end
     if data.action == 'create' then
         if page ~= 'music' then return cb({ ok = false, error = 'Action inconnue.' }) end
         local where = data.where
@@ -532,9 +629,25 @@ RegisterNUICallback('radioAction', function(data, cb)
         elseif where == 'place' then
             local p = GetEntityCoords(PlayerPedId())
             payload.anchor = { kind = 'place', x = p.x, y = p.y, z = p.z }
+        elseif where == 'prop' and tonumber(data.spawn) then
+            -- objet à faire apparaître : créé ici, puis la musique dessus (supprimé si le serveur refuse)
+            local obj, err = spawnObject(math.tointeger(tonumber(data.spawn)))
+            if not obj then return cb({ ok = false, error = err }) end
+            payload.anchor = { kind = 'prop', netId = ObjToNet(obj), spawned = true }
+            return RPI.request('radio', payload, function(res)
+                if not res or not res.ok then
+                    if DoesEntityExist(obj) then DeleteObject(obj) end
+                    return cb(res or { ok = false })
+                end
+                if res.source then apply(res.source, res.radio) end
+                cb(radioInfo(page))
+            end)
         elseif where == 'prop' then
-            payload.anchor = aimedObject()
-            if not payload.anchor then return cb({ ok = false, error = 'Aucun objet visé (visez-le, ou approchez-vous à 3 m).' }) end
+            -- objet autour (choisi dans la liste)
+            local entity = tonumber(data.object) and nearby[math.tointeger(tonumber(data.object))] or nil
+            payload.anchor = anchorForObject(entity)
+            highlight(nil)
+            if not payload.anchor then return cb({ ok = false, error = 'Cet objet n\'est plus là.' }) end
         else
             return cb({ ok = false, error = 'Choisissez où jouer la musique.' })
         end
@@ -582,6 +695,7 @@ end
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
+    setOutline(highlighted, false)
     for id in pairs(playing) do SendNUIMessage({ action = 'radioStop', data = { id = id } }) end
     for id in pairs(oli) do oliStop(id) end
 end)

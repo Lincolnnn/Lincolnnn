@@ -203,12 +203,19 @@ pour les scènes de fête, de tapage, de chantier… entendues par tous ceux qui
     plein air ; fermé (dans un bâtiment entendu de dehors, véhicule fermé) : x 0,4 (ex. « 75 m · fermé 30 m »)
     (`Music.Ranges`, `ClosedRatio`, `MaxRange`) ;
   - **En boucle** : un morceau seul recommence ; avec « Écouter ensuite », toute la playlist tourne ;
-- puis :
-  - **Lancer sur moi** : la musique **vous suit** (à pied ; dans un véhicule, elle suit les règles du véhicule : fermé
-    = étouffé) ;
-  - **Lancer ici** : elle reste **à cet endroit** ;
-  - **Lancer sur l'objet visé** : visez un objet (enceinte, radio, poste…) ou tenez-vous à 3 m de lui ; un objet posé
-    par un script (synchronisé) **emporte la musique s'il bouge** ; un objet du décor la garde à sa place ;
+- puis choisir où :
+  - **Sur le joueur (suivre)** : la musique **vous suit** (à pied ; dans un véhicule, elle suit les règles du
+    véhicule : fermé = étouffé) ;
+  - **Lancer ici** : elle reste **là où vous êtes**, entendue dans le **périmètre** choisi dans les réglages ;
+  - **Lancer sur un objet** (sous-menu) :
+    - **Sélectionner un objet autour** : la liste des objets à 8 m (`Music.PlaceDistance`, 15 au plus : `NearbyMax`),
+      du plus proche au plus loin, avec leur distance ; **celui choisi dans la liste est surligné dans le jeu** (contour
+      jaune et flèche au-dessus). Entrée : la musique part de cet objet (un objet posé par un script la **suit** s'il
+      bouge ; un objet du décor la garde à sa place) ;
+    - **Faire apparaître l'objet** : choisir un objet (`Music.SpawnProps`) — **enceintes et radios** (boombox, ghetto
+      blaster, poste radio, lecteur de cassettes, station MP3, chaîne hi-fi, enceintes), **soirée** (enceinte de
+      soirée, platines DJ), **sacs** (sac de sport, gros sac, sac à dos, valise) : il est **posé devant vous** et la
+      musique part de lui ; il **disparaît** quand la musique est retirée ou déplacée (ou son créateur déconnecté) ;
 - **une musique par joueur** : en lancer une ailleurs **déplace** la vôtre ;
 - **dans un bâtiment** (intérieur du jeu) : entendue de dehors comme « fermée » (étouffée, basses à travers les murs,
   portée « fermé ») ;
@@ -644,7 +651,7 @@ Les modèles de bancs, chaises et poubelles se règlent dans `config.lua` (`Seat
 | `MaxCustomEquipment` | équipements modifiés (nommés, enregistrés) par joueur (10) |
 | `Eup` | menu des tenues : commande (`eup`), `PoliceOnly` (tenues de police réservées aux policiers en service, `false` par défaut), `OneBased` (numéros des tenues comptés à partir de 1) |
 | `RadioRanges`, `RadioMaxRange`, `RadioInsulation`, `RadioMaxVolume`, `RadioHistory`, `RadioQueueMax`, `RadioMuffleHz`, `RadioBassBoost`, `RadioLoudBass`, `RadioReverb`, `RadioEnvInterval`, `RadioBehindHz`, `RadioYouTubeAudio`, `RadioEngine` | radio et musique : portée selon le volume (fermé / ouvert), plus grande portée, volume quand c'est fermé, volume maximal, morceaux gardés (« Déjà écoutés »), son étouffé (aigus coupés), basses qui traversent quand c'est fermé, basses à fort volume, force de la réverbération, mesure de l'endroit (ms), son un peu plus sourd derrière soi, service audio pour YouTube (facultatif), moteur du son (`'nui'` : ce script ; `'olisound'` : véhicules seulement ; `'auto'`) |
-| `Music` | `/musique` : `Enabled`, `ControlDistance` (régler la musique des autres, 6 m), `PlaceDistance` (endroit / objet à 8 m au plus), `MaxTotal` (30), `RemoveOnDrop`, `Ranges` (périmètres proposés), `ClosedRatio` (fermé : x 0,4), `MaxRange` (150 m), `Intensities` (Douce / Normale / Forte / Très forte : force des basses) |
+| `Music` | `/musique` : `Enabled`, `ControlDistance` (régler la musique des autres, 6 m), `PlaceDistance` (endroit / objet à 8 m au plus), `MaxTotal` (30), `RemoveOnDrop`, `NearbyMax` (objets autour listés), `SpawnProps` (objets à faire apparaître : `group`, `label`, `model`, `freeze`), `Ranges` (périmètres proposés), `ClosedRatio` (fermé : x 0,4), `MaxRange` (150 m), `Intensities` (Douce / Normale / Forte / Très forte : force des basses) |
 | `ObserveDistance`, `SearchDistance`, `ActionDistance`, `DoorDistance`, `ObjectDistance`, `DeleteDistance` | distances : observations (10 m), fouilles (3 m), menottes / bras / assis (2 m), portières (3 m), bancs et poubelles (2,5 m), supprimer (50 m) |
 | `AllowSelfTarget` | viser son propre personnage (test) ; `false` en production si vous préférez |
 | `InspectCooldown`, `SearchDurations` | délai entre deux observations ; durée des fouilles (6 s par partie du corps, 35 s véhicule) |

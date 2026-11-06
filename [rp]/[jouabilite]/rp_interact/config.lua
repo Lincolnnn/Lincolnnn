@@ -141,6 +141,29 @@ InteractConfig = {
         Ranges = { 10, 25, 50, 75, 110, 150 },
         ClosedRatio = 0.4,
         MaxRange = 150.0,
+        -- LANCER SUR UN OBJET : « Sélectionner un objet autour » (les NearbyMax plus proches à PlaceDistance m, celui
+        -- choisi est surligné dans le jeu) ou « Faire apparaître l'objet » (posé devant le joueur, supprimé quand la
+        -- musique est retirée ou déplacée). group : titre de section ; freeze = false : l'objet peut tomber / bouger.
+        NearbyMax = 15,
+        SpawnProps = {
+            { group = 'Enceintes et radios', label = 'Enceinte portable (boombox)', model = 'prop_boombox_01' },
+            { group = 'Enceintes et radios', label = 'Ghetto blaster', model = 'prop_ghettoblast_02' },
+            { group = 'Enceintes et radios', label = 'Ghetto blaster (ancien)', model = 'prop_ghettoblast_01' },
+            { group = 'Enceintes et radios', label = 'Poste radio', model = 'prop_radio_01' },
+            { group = 'Enceintes et radios', label = 'Lecteur de cassettes', model = 'prop_tapeplayer_01' },
+            { group = 'Enceintes et radios', label = 'Station d\'accueil MP3', model = 'prop_mp3_dock' },
+            { group = 'Enceintes et radios', label = 'Chaîne hi-fi portable', model = 'prop_portable_hifi_01' },
+            { group = 'Enceintes et radios', label = 'Chaîne hi-fi', model = 'prop_hifi_01' },
+            { group = 'Enceintes et radios', label = 'Petite enceinte', model = 'prop_speaker_06' },
+            { group = 'Enceintes et radios', label = 'Enceinte colonne', model = 'prop_speaker_05' },
+            { group = 'Enceintes et radios', label = 'Grosse enceinte', model = 'prop_speaker_01' },
+            { group = 'Soirée', label = 'Enceinte de soirée', model = 'ba_prop_battle_dj_kit_speaker' },
+            { group = 'Soirée', label = 'Platines DJ', model = 'prop_dj_deck_02' },
+            { group = 'Sacs', label = 'Sac de sport', model = 'prop_cs_duffel_01' },
+            { group = 'Sacs', label = 'Gros sac', model = 'p_ld_heist_bag_s' },
+            { group = 'Sacs', label = 'Sac à dos', model = 'p_michael_backpack_s' },
+            { group = 'Sacs', label = 'Valise', model = 'prop_ld_suitcase_01' },
+        },
         -- INTENSITÉ : force des basses et de la résonance (x) : Douce, Normale, Forte, Très forte
         Intensities = { { label = 'Douce', factor = 0.5 }, { label = 'Normale', factor = 1.0 },
             { label = 'Forte', factor = 1.5 }, { label = 'Très forte', factor = 2.1 } },

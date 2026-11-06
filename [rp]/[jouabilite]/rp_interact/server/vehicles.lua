@@ -735,12 +735,26 @@ local function canControl(src, source, current)
     return near(src, source.pos(), MUSIC.ControlDistance or 6.0)
 end
 
---- Retire complètement une source /musique (plus de son, plus d'historique)
+--- Retire complètement une source /musique (plus de son, plus d'historique) ; objet apparu pour elle : supprimé
 local function removeMusic(source)
     local current = source.get()
-    local owner = current and current.music and current.music.owner
-    if owner and owners[owner] == source.id then owners[owner] = nil end
+    local music = current and current.music or {}
+    if music.owner and owners[music.owner] == source.id then owners[music.owner] = nil end
     source.set(false)
+    if music.spawned and source.entity and DoesEntityExist(source.entity) then DeleteEntity(source.entity) end
+end
+
+-- Objets que /musique peut faire apparaître (config.lua : Music.SpawnProps)
+local SPAWN_MODELS = {}
+for _, p in ipairs(MUSIC.SpawnProps or {}) do
+    if p.model then SPAWN_MODELS[GetHashKey(p.model) & 0xFFFFFFFF] = true end
+end
+
+--- Objet apparu à l'instant par ce joueur pour /musique (modèle de la liste, créé par lui) : supprimable avec la musique
+local function spawnedBy(src, entity)
+    if not SPAWN_MODELS[GetEntityModel(entity) & 0xFFFFFFFF] then return false end
+    local ok, first = pcall(NetworkGetFirstEntityOwner, entity)
+    return not ok or first == src
 end
 
 --- Lance `url` ; le morceau en cours passe dans l'historique (s'il y en a un)
@@ -821,7 +835,9 @@ local function createMusic(src, p)
         end
         if owners[src] and owners[src] ~= id then local old = sourceOf(owners[src]); if old then removeMusic(old) end end
         source = sourceOf(id)
-        music = { owner = src, kind = 'prop', label = 'sur un objet' }
+        local spawned = anchor.spawned == true and spawnedBy(src, entity)
+        music = { owner = src, kind = 'prop', label = spawned and 'sur un objet posé' or 'sur un objet', spawned = spawned or nil }
+        if spawned then SetEntityOrphanMode(entity, 2) end -- gardé si son joueur part (supprimé avec la musique)
     elseif anchor.kind == 'place' or anchor.kind == 'prop' then
         -- lieu (ou objet du décor, non synchronisé : à sa place)
         local pos = vector3(tonumber(anchor.x) or 0.0, tonumber(anchor.y) or 0.0, tonumber(anchor.z) or 0.0)
@@ -995,7 +1011,7 @@ AddEventHandler('playerDropped', function()
     owners[src] = nil
     if not id or MUSIC.RemoveOnDrop == false then return end
     local s = sourceOf(id)
-    if s and s.kind ~= 'player' then s.set(false) end
+    if s and s.kind ~= 'player' then removeMusic(s) end
 end)
 
 -- =========================================================================
