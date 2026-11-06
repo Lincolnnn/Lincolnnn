@@ -4,7 +4,9 @@
     Projecteur(s) de portière des véhicules de config.lua (Vehicles) : côté conducteur (d) et, s'il est configuré, côté
     passager avant (p). La lumière est dessinée chez TOUS les joueurs proches à partir de l'état du véhicule « rpSpot »
     (publié par le serveur) ; le joueur qui tient le projecteur le voit bouger sans délai (valeurs locales).
-    Modes : 0 manuel (direction par rapport au véhicule), 1 verrouillé (point du monde), 2 suivi (véhicule / personne).
+    Modes : 0 manuel (direction par rapport au véhicule), 1 verrouillé (point du monde).
+    Faisceau visible (Beam) : un rayon de lumière dessiné dans l'air (deux textures du dossier textures/, faites pour
+    ce script), plus visible la nuit et sous la pluie, coupé là où la lumière touche un mur / le sol ; halo sur la lampe.
     Performance : 0.00 ms hors d'un véhicule équipé et sans projecteur allumé à proximité ; une vérification de la
     place toutes les 500 ms à bord d'un véhicule ; boucle par image seulement pour dessiner un projecteur allumé
     (à moins de RenderDistance) ou pendant la visée.
@@ -87,7 +89,7 @@ end
 -- =========================================================================
 -- PROJECTEUR TENU PAR CE JOUEUR
 -- =========================================================================
-local my = nil          -- { veh, side, on, yaw, pitch, mode, tx, ty, tz, net, strobe }
+local my = nil          -- { veh, side, on, yaw, pitch, mode, tx, ty, tz }
 local aiming = false
 local lastSend = 0
 local lit = {}          -- [véhicule] = true : projecteurs allumés publiés (état rpSpot)
@@ -123,19 +125,19 @@ local function send(force)
     lastSend = now
     TriggerServerEvent('rp_spotlight:set', VehToNet(my.veh), my.side, {
         on = my.on, yaw = math.floor(my.yaw * 10 + 0.5) / 10, pitch = math.floor(my.pitch * 10 + 0.5) / 10,
-        mode = my.mode, tx = my.tx, ty = my.ty, tz = my.tz, net = my.net, strobe = my.strobe })
+        mode = my.mode, tx = my.tx, ty = my.ty, tz = my.tz })
 end
 
--- Panneau d'état (mode, plaque suivie, stroboscope) et réticule
+-- Panneau d'état (mode) et réticule
 local lastUi = nil
 local function sendUi()
-    local key = my and my.on and ('%d:%s:%s:%s:%s'):format(my.mode, tostring(my.plate), tostring(my.strobe), my.side, tostring(aiming)) or 'off'
+    local key = my and my.on and ('%d:%s:%s'):format(my.mode, my.side, tostring(aiming)) or 'off'
     if key == lastUi then return end
     lastUi = key
     if not (my and my.on) then
         SendNUIMessage({ action = 'status', data = { show = false, aim = aiming } })
     else
-        SendNUIMessage({ action = 'status', data = { show = true, mode = my.mode, plate = my.plate, strobe = my.strobe,
+        SendNUIMessage({ action = 'status', data = { show = true, mode = my.mode,
             side = my.side == 'p' and 'Passager' or 'Conducteur', aim = aiming } })
     end
 end
@@ -145,13 +147,13 @@ local startRender -- défini plus bas
 local function setOn(on)
     if not my then return end
     my.on = on
-    if not on then my.mode, my.net, my.plate = 0, nil, nil end
+    if not on then my.mode = 0 end
     send(true)
     sendUi()
     if on then lit[my.veh] = true; startRender() end
 end
 
---- Point / entité visés par la caméra (réticule au centre de l'écran)
+--- Point visé par la caméra (réticule au centre de l'écran)
 local function cameraAim(vehicle)
     local cam = GetFinalRenderedCamCoord()
     local rot = GetFinalRenderedCamRot(2)
@@ -160,28 +162,107 @@ local function cameraAim(vehicle)
     local dist = C.RaycastDistance or 120.0
     local to = cam + dir * dist
     local handle = StartExpensiveSynchronousShapeTestLosProbe(cam.x, cam.y, cam.z, to.x, to.y, to.z, -1, vehicle, 4)
-    local _, hit, point, _, entity = GetShapeTestResult(handle)
-    if hit == 1 or hit == true then return point, entity end
-    return to, 0
+    local _, hit, point = GetShapeTestResult(handle)
+    if hit == 1 or hit == true then return point end
+    return to
 end
 
---- Direction actuelle d'un projecteur (lumière, lissage) : selon son mode ; retourne aussi si la cible est perdue
+--- Direction actuelle d'un projecteur : manuelle, ou vers le point verrouillé
 local function aimOf(vehicle, side, s, origin)
     if s.mode == 1 and tonumber(s.tx) then
         local yaw, pitch = toRelative(vehicle, norm(vector3(s.tx, s.ty, s.tz) - origin))
         return clampAngles(side, yaw, pitch)
-    elseif s.mode == 2 and s.net then
-        local entity = NetworkDoesNetworkIdExist(s.net) and NetworkGetEntityFromNetworkId(s.net) or 0
-        if entity ~= 0 and DoesEntityExist(entity) then
-            local target = GetEntityCoords(entity) + vector3(0.0, 0.0, IsEntityAPed(entity) and 0.3 or 0.6)
-            if #(target - origin) <= (C.RaycastDistance or 120.0) * 1.5 then
-                local yaw, pitch = toRelative(vehicle, norm(target - origin))
-                return clampAngles(side, yaw, pitch)
-            end
-        end
-        return s.yaw or 0.0, s.pitch or 0.0, true -- cible perdue
     end
     return s.yaw or 0.0, s.pitch or 0.0
+end
+
+-- =========================================================================
+-- FAISCEAU VISIBLE (Beam) : rayon dans l'air + halo de la lampe, deux textures dessinées en 3D (DrawTexturedPoly)
+-- =========================================================================
+local B = C.Beam or {}
+local BEAM_TXD = 'rp_spotlight_fx'
+local beamReady = false
+if B.Enabled ~= false then
+    local txd = CreateRuntimeTxd(BEAM_TXD)
+    local a = CreateRuntimeTextureFromImage(txd, 'beam', 'textures/beam.png')
+    local g = CreateRuntimeTextureFromImage(txd, 'glow', 'textures/glow.png')
+    beamReady = a ~= nil and a ~= 0 and g ~= nil and g ~= 0
+end
+
+local function cross(a, b) return vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x) end
+
+--- Visibilité dans l'air selon l'heure (nuit 1, jour B.Day) et la pluie (x 1 + pluie x B.Rain)
+local function airFactor()
+    local h = GetClockHours() + GetClockMinutes() / 60.0
+    local day = B.Day or 0.0
+    local night
+    if h >= 21.0 or h < 5.0 then night = 1.0
+    elseif h >= 18.0 then night = (h - 18.0) / 3.0
+    elseif h < 8.0 then night = (8.0 - h) / 3.0
+    else night = 0.0 end
+    local f = day + (1.0 - day) * night
+    return f * (1.0 + (GetRainLevel() or 0.0) * (B.Rain or 0.6))
+end
+
+--- Triangle texturé visible depuis la caméra (le jeu n'en dessine qu'une face : l'ordre est inversé au besoin)
+local function tri(a, b, c, ua, va, ub, vb, uc, vc, cam, col, alpha, name)
+    if dot(cross(b - a, c - a), cam - a) < 0.0 then a, b, c, ua, va, ub, vb, uc, vc = a, c, b, ua, va, uc, vc, ub, vb end
+    DrawTexturedPoly(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, col[1], col[2], col[3], alpha, BEAM_TXD, name,
+        ua, va, 1.0, ub, vb, 1.0, uc, vc, 1.0)
+end
+
+local reach = {} -- [clé] = { at, dist } : longueur du faisceau jusqu'à l'obstacle (relue toutes les 100 ms)
+local function beamLength(key, vehicle, origin, dir, now)
+    local r = reach[key]
+    local max = B.Length or 45.0
+    if r and now - r.at < 100 then return r.dist end
+    local to = origin + dir * max
+    local handle = StartExpensiveSynchronousShapeTestLosProbe(origin.x, origin.y, origin.z, to.x, to.y, to.z, 1 + 2 + 16, vehicle, 4) -- décor, véhicules, objets
+    local _, hit, point = GetShapeTestResult(handle)
+    local dist = (hit == 1 or hit == true) and #(point - origin) or max
+    reach[key] = { at = now, dist = math.max(0.5, dist) }
+    return reach[key].dist
+end
+
+--- Rayon (bande tournée vers la caméra, élargie selon l'ouverture) + halo sur la lampe
+local function drawBeam(key, vehicle, origin, dir, cam, now, air, col)
+    local len = beamLength(key, vehicle, origin, dir, now)
+    local toCam = cam - origin
+    local camDist = #toCam
+    local view = camDist > 0.01 and toCam / camDist or vector3(0.0, 0.0, 1.0)
+    -- halo : fort quand on regarde la lampe de face (même de jour, plus discret)
+    local facing = math.max(0.0, dot(dir, view))
+    local glowA = math.floor((B.GlowAlpha or 220) * facing * facing * math.min(1.0, 0.35 + air) + 0.5)
+    if glowA > 4 and camDist > 0.6 then
+        local right = cross(view, vector3(0.0, 0.0, 1.0))
+        if #right < 1e-3 then right = vector3(1.0, 0.0, 0.0) else right = right / #right end
+        local up = cross(right, view)
+        local g = (B.GlowSize or 0.35) * (0.6 + 0.4 * facing)
+        local c = origin + dir * 0.06
+        local p1, p2, p3, p4 = c - right * g - up * g, c + right * g - up * g, c + right * g + up * g, c - right * g + up * g
+        tri(p1, p2, p3, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, cam, col, glowA, 'glow')
+        tri(p1, p3, p4, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, cam, col, glowA, 'glow')
+    end
+    local alpha = (B.Alpha or 70) * air
+    if alpha < 2 then return end
+    local mid = origin + dir * (len * 0.5)
+    local side = cross(dir, cam - mid)
+    local sl = #side
+    if sl < 1e-4 then return end
+    side = side / sl
+    -- vu dans l'axe, la bande est presque un trait : moins opaque (le halo prend le relais)
+    alpha = math.floor(alpha * (0.35 + 0.65 * #cross(dir, view)) + 0.5)
+    local tanH = math.tan(math.rad((B.Spread or L.Radius or 9.0) * 0.5))
+    local w0, full, segs = B.Start or 0.08, B.Length or 45.0, B.Segments or 4
+    for i = 0, segs - 1 do
+        local d0, d1 = len * i / segs, len * (i + 1) / segs
+        local h0, h1 = w0 + d0 * tanH, w0 + d1 * tanH
+        local c0, c1 = origin + dir * d0, origin + dir * d1
+        local v0, v1 = d0 / full, d1 / full
+        local a, b, c, d = c0 - side * h0, c0 + side * h0, c1 + side * h1, c1 - side * h1
+        tri(a, b, c, 0.0, v0, 1.0, v0, 1.0, v1, cam, col, alpha, 'beam')
+        tri(a, c, d, 0.0, v0, 1.0, v1, 0.0, v1, cam, col, alpha, 'beam')
+    end
 end
 
 -- =========================================================================
@@ -199,11 +280,13 @@ startRender = function()
             local dt = math.min(0.1, (now - lastFrame) / 1000.0)
             lastFrame = now
             local me = GetEntityCoords(PlayerPedId())
-            local strobeOff = math.floor(now / (C.StrobeMs or 75)) % 2 == 1
+            local cam = GetFinalRenderedCamCoord()
+            local air = beamReady and airFactor() or 0.0
             local index = 0
             for vehicle in pairs(lit) do
                 if not DoesEntityExist(vehicle) then
                     lit[vehicle] = nil
+                    reach[tostring(vehicle) .. 'd'], reach[tostring(vehicle) .. 'p'] = nil, nil
                 elseif #(GetEntityCoords(vehicle) - me) <= (C.RenderDistance or 160.0) then
                     for _, side in ipairs({ 'd', 'p' }) do
                         index = index + 1
@@ -212,12 +295,7 @@ startRender = function()
                         local offset = s and s.on and offsetOf(vehicle, side)
                         if offset then
                             local origin = GetOffsetFromEntityInWorldCoords(vehicle, offset.x, offset.y, offset.z)
-                            local yaw, pitch, lost = aimOf(vehicle, side, s, origin)
-                            if mine and lost then
-                                -- cible suivie perdue : retour en manuel, dans sa dernière direction
-                                my.mode, my.net, my.plate = 0, nil, nil
-                                send(true); sendUi()
-                            end
+                            local yaw, pitch = aimOf(vehicle, side, s, origin)
                             local key = tostring(vehicle) .. side
                             local sm = smooth[key]
                             if mine or not sm then
@@ -229,16 +307,15 @@ startRender = function()
                                 sm.pitch = sm.pitch + (pitch - sm.pitch) * k
                             end
                             if mine and my.mode ~= 0 then my.yaw, my.pitch = yaw, pitch end
-                            if not (s.strobe and strobeOff) then
-                                local dir = toWorld(vehicle, sm.yaw, sm.pitch)
-                                DrawSpotLightWithShadow(origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, color[1], color[2], color[3],
-                                    L.Distance or 90.0, L.Brightness or 22.0, L.Roundness or 4.0, L.Radius or 9.0, L.Falloff or 60.0,
-                                    SHADOW_BASE + index)
-                                if L.Lamp ~= false then
-                                    local glow = origin + dir * 0.12
-                                    DrawLightWithRange(glow.x, glow.y, glow.z, color[1], color[2], color[3], 0.6, 3.0)
-                                end
+                            local dir = toWorld(vehicle, sm.yaw, sm.pitch)
+                            DrawSpotLightWithShadow(origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, color[1], color[2], color[3],
+                                L.Distance or 90.0, L.Brightness or 22.0, L.Roundness or 4.0, L.Radius or 9.0, L.Falloff or 60.0,
+                                SHADOW_BASE + index)
+                            if L.Lamp ~= false then
+                                local glow = origin + dir * 0.12
+                                DrawLightWithRange(glow.x, glow.y, glow.z, color[1], color[2], color[3], 0.6, 3.0)
                             end
+                            if beamReady then drawBeam(key, vehicle, origin, dir, cam, now, air, B.Color or color) end
                         end
                     end
                 end
@@ -263,7 +340,7 @@ AddStateBagChangeHandler('rpSpot', nil, function(bagName, _, value)
 end)
 
 -- =========================================================================
--- VISÉE (touche maintenue) : le projecteur suit la caméra ; clic gauche verrouille, clic droit suit
+-- VISÉE (touche maintenue) : le projecteur suit la caméra ; clic gauche verrouille sur le point visé
 -- =========================================================================
 local function aimLoop()
     CreateThread(function()
@@ -274,24 +351,12 @@ local function aimLoop()
             for _, c in ipairs({ 24, 25, 68, 69, 70, 91, 92, 114, 140, 141, 142, 257, 263 }) do DisableControlAction(0, c, true) end
             local offset = offsetOf(my.veh, my.side)
             local origin = GetOffsetFromEntityInWorldCoords(my.veh, offset.x, offset.y, offset.z)
-            local point, entity = cameraAim(my.veh)
+            local point = cameraAim(my.veh)
             local yaw, pitch = clampAngles(my.side, toRelative(my.veh, norm(point - origin)))
             local lock = IsDisabledControlJustPressed(0, 24) or IsDisabledControlJustPressed(0, 69) or IsDisabledControlJustPressed(0, 92)
-            local track = IsDisabledControlJustPressed(0, 25) or IsDisabledControlJustPressed(0, 68) or IsDisabledControlJustPressed(0, 91)
             if lock then
                 if my.mode == 1 then my.mode = 0
-                else my.mode, my.tx, my.ty, my.tz, my.net, my.plate = 1, point.x, point.y, point.z, nil, nil end
-                send(true); sendUi()
-            elseif track then
-                if my.mode == 2 then
-                    my.mode, my.net, my.plate = 0, nil, nil
-                elseif entity ~= 0 and DoesEntityExist(entity) and (IsEntityAVehicle(entity) or IsEntityAPed(entity))
-                    and NetworkGetEntityIsNetworked(entity) then
-                    my.mode, my.net = 2, NetworkGetNetworkIdFromEntity(entity)
-                    my.plate = IsEntityAVehicle(entity) and GetVehicleNumberPlateText(entity):gsub('^%s+', ''):gsub('%s+$', '') or nil
-                else
-                    notify('Rien à suivre ici : visez un véhicule ou une personne.')
-                end
+                else my.mode, my.tx, my.ty, my.tz = 1, point.x, point.y, point.z end
                 send(true); sendUi()
             end
             if my.mode == 0 then
@@ -330,12 +395,6 @@ RegisterCommand('-rp_spotlight', function()
 end, false)
 RegisterKeyMapping('+rp_spotlight', 'Projecteur : allumer / éteindre (appui), viser (maintenir)', 'keyboard', C.Key or 'LCONTROL')
 
-RegisterCommand('rp_spotlight_strobe', function()
-    if not my or not my.on then return end
-    my.strobe = not my.strobe
-    send(true); sendUi()
-end, false)
-RegisterKeyMapping('rp_spotlight_strobe', 'Projecteur : stroboscope', 'keyboard', C.StrobeKey or 'RSHIFT')
 
 -- =========================================================================
 -- PLACE DU JOUEUR : quel projecteur il tient (toutes les 500 ms à bord d'un véhicule ; 1 s sinon)
@@ -351,8 +410,7 @@ CreateThread(function()
             -- reprend l'état publié (projecteur déjà allumé par un collègue, ou laissé allumé)
             local p = published(vehicle, side) or {}
             my = { veh = vehicle, side = side, on = p.on == true, yaw = tonumber(p.yaw) or 0.0, pitch = tonumber(p.pitch) or -2.0,
-                mode = tonumber(p.mode) or 0, tx = p.tx, ty = p.ty, tz = p.tz, net = p.net, strobe = p.strobe == true }
-            if my.mode == 2 and not (my.net and NetworkDoesNetworkIdExist(my.net)) then my.mode, my.net = 0, nil end
+                mode = tonumber(p.mode) == 1 and 1 or 0, tx = p.tx, ty = p.ty, tz = p.tz }
             sendUi()
             if my.on then lit[vehicle] = true; startRender() end
         end
@@ -448,4 +506,5 @@ AddEventHandler('onResourceStop', function(resource)
 end)
 
 RPSpotlight = { toWorld = toWorld, toRelative = toRelative, clampAngles = clampAngles, seatSide = seatSide, -- tests
-    my = function() return my end, lit = lit, setOn = setOn, models = MODELS, offsetOf = offsetOf, editing = function() return editing end }
+    my = function() return my end, lit = lit, setOn = setOn, models = MODELS, offsetOf = offsetOf, editing = function() return editing end,
+    airFactor = airFactor, drawBeam = drawBeam, beamReady = function() return beamReady end }

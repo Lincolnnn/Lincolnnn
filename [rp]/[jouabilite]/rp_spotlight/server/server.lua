@@ -4,7 +4,7 @@
     Seul le joueur à la bonne place change un projecteur : conducteur -> côté conducteur ; passager avant -> côté
     passager ; conducteur seul (place passager vide) -> les deux. L'état est publié sur le véhicule (état « rpSpot »,
     vu par tous) : { d = projecteur conducteur, p = projecteur passager }, chacun
-    { on, yaw, pitch, mode (0 manuel, 1 verrouillé, 2 suivi), tx, ty, tz (point verrouillé), net (cible suivie), strobe }.
+    { on, yaw, pitch, mode (0 manuel, 1 verrouillé), tx, ty, tz (point verrouillé) }.
     Valeurs bornées ; au plus une mise à jour toutes les 60 ms par joueur. Aucune boucle.
 ]]
 
@@ -46,14 +46,13 @@ RegisterNetEvent('rp_spotlight:set', function(netId, side, data)
     if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) or GetEntityType(vehicle) ~= 2 then return end
     if not allowed(src, vehicle, side) then return end
     local mode = math.tointeger(tonumber(data.mode)) or 0
-    if mode < 0 or mode > 2 then mode = 0 end
+    if mode ~= 1 then mode = 0 end
     local spot = {
         on = data.on == true,
         yaw = num(data.yaw, -180, 180), pitch = num(data.pitch, -90, 90),
-        mode = mode, strobe = data.strobe == true,
+        mode = mode,
     }
     if mode == 1 then spot.tx, spot.ty, spot.tz = num(data.tx, -20000, 20000), num(data.ty, -20000, 20000), num(data.tz, -500, 3000) end
-    if mode == 2 then spot.net = math.tointeger(tonumber(data.net)) or 0 end
     local state = Entity(vehicle).state
     local all = type(state.rpSpot) == 'table' and state.rpSpot or {}
     local copy = { d = all.d, p = all.p }

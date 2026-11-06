@@ -9,8 +9,6 @@
         cette direction (par rapport au véhicule) ;
       - en visant, CLIC GAUCHE : verrouiller sur le point visé (il reste dessus quand le véhicule bouge) ; à nouveau :
         retour en manuel ;
-      - en visant, CLIC DROIT : suivre le véhicule / la personne visé(e) (plaque affichée) ; à nouveau : manuel ;
-      - Maj droite (StrobeKey) : stroboscope.
     QUI TIENT QUEL PROJECTEUR : le CONDUCTEUR celui de gauche (driver) ; le PASSAGER AVANT celui de droite (passenger),
     s'il y en a un.
     Touches modifiables : Paramètres > Raccourcis clavier > FiveM.
@@ -26,7 +24,6 @@
 SpotlightConfig = {
     Key = 'LCONTROL',        -- appui court : allumer / éteindre ; maintenu : viser
     HoldMs = 220,            -- au-delà (ms), l'appui est une visée (pas un allumage)
-    StrobeKey = 'RSHIFT',    -- stroboscope (projecteur allumé)
     AdjustCommand = 'editspotlight',         -- régler la position du projecteur CONDUCTEUR (ligne de config à copier)
     AdjustSideCommand = 'editspotlightside', -- régler la position du projecteur PASSAGER
 
@@ -36,17 +33,17 @@ SpotlightConfig = {
     Vehicles = {
         -- Deux projecteurs : conducteur (gauche) et passager avant (droit)
         kcso20fpiu = {
-            driver    = { offset = { -0.93, 0.62, 0.60 } },
-            passenger = { offset = {  0.93, 0.62, 0.60 } },
+            driver    = { offset = { -0.89, 1.25, 0.81 } },
+            passenger = { offset = {  0.79, 1.20, 0.80 } },
         },
         -- Un seul projecteur, côté conducteur
-        wsp20fpiu   = { driver = { offset = { -0.93, 0.62, 0.60 } } },
-        wsp25fpiu   = { driver = { offset = { -0.93, 0.62, 0.60 } } },
-        wsp23tah    = { driver = { offset = { -1.00, 0.85, 0.75 } } },
+        wsp20fpiu   = { driver = { offset = { -0.89, 1.23, 0.81 } } },
+        wsp25fpiu   = { driver = { offset = { -0.89, 1.20, 0.79 } } },
+        wsp23tah    = { driver = { offset = { -0.85, 1.08, 0.61 } } },
         wsp20fpiuun = { driver = { offset = { -0.93, 0.62, 0.60 } } },
-        wsp19fpiu   = { driver = { offset = { -0.93, 0.62, 0.60 } } },
-        kcso19fpiu  = { driver = { offset = { -0.93, 0.62, 0.60 } } },
-        kcso19tah   = { driver = { offset = { -1.00, 0.85, 0.75 } } },
+        wsp19fpiu   = { driver = { offset = { -0.85, 0.97, 0.54 } } },
+        kcso19fpiu  = { driver = { offset = { -0.86, 1.04, 0.54 } } },
+        kcso19tah   = { driver = { offset = { -0.99, 1.31, 0.97 } } },
     },
     DefaultDriver = { -0.95, 0.80, 0.55 },    -- position si une ligne n'a pas d'offset
     DefaultPassenger = { 0.95, 0.80, 0.55 },
@@ -61,16 +58,34 @@ SpotlightConfig = {
         Roundness = 4.0,           -- netteté du bord du faisceau
         Radius = 9.0,              -- ouverture du faisceau (degrés)
         Falloff = 60.0,
-        Lamp = true,               -- petit halo sur la lampe elle-même
+        Lamp = true,               -- petite lumière sur la lampe elle-même
     },
-    StrobeMs = 75,                 -- rythme du stroboscope (ms)
+
+    -- ---------------------------------------------------------------------
+    -- FAISCEAU VISIBLE : rayon de lumière dans l'air (comme dans la brume) + halo quand on regarde la lampe de face.
+    -- Bien visible la nuit, s'estompe au lever / coucher du soleil, invisible de jour (Day = 0.0) ; plus marqué sous
+    -- la pluie (Rain). Il s'arrête là où la lumière touche un mur, le sol, un véhicule.
+    -- ---------------------------------------------------------------------
+    Beam = {
+        Enabled = true,
+        Alpha = 70,          -- opacité du rayon la nuit (0 - 255)
+        Length = 45.0,       -- longueur maximale du rayon (m) ; il s'efface vers le bout
+        Spread = 9.0,        -- ouverture du rayon (degrés) ; nil = celle de Light.Radius
+        Start = 0.08,        -- demi-largeur au départ (m), taille de la lampe
+        Day = 0.0,           -- visibilité de jour (0 = invisible, 1 = comme la nuit)
+        Rain = 0.6,          -- sous une forte pluie : x (1 + Rain)
+        GlowAlpha = 220,     -- halo de la lampe vue de face (0 = aucun)
+        GlowSize = 0.35,     -- taille du halo (m)
+        Segments = 4,        -- découpage du rayon (plus = plus lisse, un peu plus coûteux)
+        -- Color = { 255, 240, 210 }, -- couleur du rayon ; nil = celle de Light.Color
+    },
 
     -- Débattement, en degrés, pour le projecteur CONDUCTEUR (le passager : l'inverse gauche / droite).
     -- Yaw : 0 = droit devant, négatif = vers la gauche, positif = vers la droite ; Pitch : négatif = vers le bas.
     Yaw = { Min = -110.0, Max = 50.0 },
     Pitch = { Min = -35.0, Max = 25.0 },
 
-    RaycastDistance = 120.0,       -- portée de la visée / du verrouillage / du suivi (m)
+    RaycastDistance = 120.0,       -- portée de la visée / du verrouillage (m)
     RenderDistance = 160.0,        -- les projecteurs plus loin ne sont pas dessinés (m)
     SendMs = 100,                  -- en visant : envoi de la direction aux autres joueurs au plus toutes les 100 ms
 }

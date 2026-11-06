@@ -10,13 +10,15 @@ lua54 'yes'
 
 name 'rp_spotlight'
 author 'Lincolnnn'
-description 'Projecteurs de portière par véhicule (conducteur / passager avant), visée, verrouillage, suivi, stroboscope'
-version '1.1.0'
+description 'Projecteurs de portière par véhicule (conducteur / passager avant), faisceau visible, visée, verrouillage'
+version '1.2.0'
 
 ui_page 'html/index.html'
 
 files {
     'html/index.html',
+    'textures/beam.png', -- faisceau visible (dégradé fait pour ce script)
+    'textures/glow.png', -- halo de la lampe
 }
 
 shared_script 'config.lua'
