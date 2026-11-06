@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '3.28.0'
+version '3.29.0'
 
 ui_page 'html/index.html'
 
@@ -37,7 +37,8 @@ client_scripts {
     'client/civil.lua',    -- Mode civil (tips d'arrestation) et détection de la mise en joue (police)
     'client/police.lua',   -- Menottes, prendre par le bras, suppression d'éléments
     'client/garage.lua',   -- Menu > Voiture > Spawn (data/vehicle.json) et Équipements (data/loadouts.json)
-    'client/radio.lua',    -- Menu > Voiture > Radio : son synchronisé dans le véhicule
+    'client/placement.lua', -- placer un objet (fantôme qui suit le regard) : /musique
+    'client/radio.lua',    -- Menu > Voiture > Radio et /musique : son synchronisé (véhicule, joueur, endroit, objet)
     'client/props.lua',    -- props posés (script "props") : déplacer / supprimer avec l'œil
     'client/eup.lua',      -- /eup : menu des tenues au clavier (data/outfits.json, data/modifoutfits.json)
     'client/combat.lua',   -- arme à feu en main : ni coup de crosse / coup dans le vide, ni roulade

@@ -463,6 +463,9 @@ end
 RPI.externalObject = externalObject
 
 local function objectOptions(ctx)
+    -- Objet apparu pour /musique (client/radio.lua) : déplacer, régler la musique, supprimer
+    local music = RPI.musicObjectOptions and RPI.musicObjectOptions(ctx)
+    if music then return music end
     local out = {}
     -- Objet d'un autre script (fusée de détresse posée…) : son action, prévenue au serveur de ce script
     local external = externalObject(ctx.entity)

@@ -973,6 +973,19 @@ S.on('radio', function(src, p)
     elseif p.action == 'stop' then
         if not current then return { ok = true, radio = false } end
         source.set(stoppedState(current))
+    elseif p.action == 'moveObject' then
+        -- Objet apparu pour /musique, re-déplacé avec l'œil (n'importe quel joueur à côté) : la musique continue
+        local music = current and current.music or {}
+        if source.kind ~= 'prop' or not music.spawned or not source.entity then
+            return { ok = false, error = 'Seul un objet apparu pour la musique se déplace ainsi.' }
+        end
+        local to = vector3(tonumber(p.x) or 0.0, tonumber(p.y) or 0.0, tonumber(p.z) or 0.0)
+        if not near(src, to, (MUSIC.PlaceRange or 6.0) + 4.0) or not near(src, source.pos(), 15.0) then
+            return { ok = false, error = 'Trop loin.' }
+        end
+        SetEntityCoords(source.entity, to.x, to.y, to.z, false, false, false, false)
+        SetEntityHeading(source.entity, (tonumber(p.heading) or 0.0) % 360.0)
+        return { ok = true, radio = current }
     elseif p.action == 'remove' then
         -- /musique : retirer la source (plus de son, plus d'historique)
         if source.kind == 'vehicle' then return { ok = false, error = 'Action inconnue.' } end

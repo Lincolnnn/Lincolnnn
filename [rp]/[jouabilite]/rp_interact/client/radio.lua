@@ -590,29 +590,83 @@ local function anchorForObject(entity)
     return { kind = 'prop', x = o.x, y = o.y, z = o.z }
 end
 
---- Fait apparaître un objet de Music.SpawnProps devant le joueur (synchronisé) ; nil si impossible
-local function spawnObject(index)
-    local def = (MUSIC.SpawnProps or {})[index]
-    if not def or not def.model then return nil, 'Objet inconnu.' end
+--- Crée l'objet (synchronisé, posé, figé) à la place choisie avec le fantôme ; nil si impossible
+local function createPlaced(def, pos)
     local hash = GetHashKey(def.model)
-    if not IsModelInCdimage(hash) then return nil, 'Cet objet n\'existe pas dans le jeu.' end
     RequestModel(hash)
     local stopAt = GetGameTimer() + 3000
     while not HasModelLoaded(hash) and GetGameTimer() < stopAt do Wait(0) end
     if not HasModelLoaded(hash) then return nil, 'Objet pas chargé, réessayez.' end
-    local ped = PlayerPedId()
-    local at = GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.9, 0.0)
-    local obj = CreateObject(hash, at.x, at.y, at.z, true, true, false)
+    local obj = CreateObjectNoOffset(hash, pos.x, pos.y, pos.z, true, true, false)
     SetModelAsNoLongerNeeded(hash)
     if not obj or obj == 0 then return nil, 'Impossible de faire apparaître l\'objet.' end
-    SetEntityHeading(obj, GetEntityHeading(ped) + 180.0) -- tourné vers le joueur
-    PlaceObjectOnGroundProperly(obj)
+    SetEntityHeading(obj, pos.heading or 0.0)
     FreezeEntityPosition(obj, def.freeze ~= false)
     SetEntityAsMissionEntity(obj, true, true)
     stopAt = GetGameTimer() + 2000
     while not NetworkGetEntityIsNetworked(obj) and GetGameTimer() < stopAt do Wait(0) end
     if not NetworkGetEntityIsNetworked(obj) then DeleteObject(obj); return nil, 'Objet non synchronisé, réessayez.' end
     return obj
+end
+
+--- « Faire apparaître l'objet » : menu fermé, objet fantôme à placer (regard, molette, ↑ ↓), puis posé pour tous et
+--- la musique lancée dessus (objet supprimé si le serveur refuse)
+local function spawnAndPlay(index, payload)
+    local def = (MUSIC.SpawnProps or {})[index]
+    if not def or not def.model then return RPI.notify('Objet inconnu.', 'error') end
+    if RPI.closeMenu then RPI.closeMenu() end
+    RPI.placeObject(def.model, { label = ('Poser : %s'):format(def.label or 'objet') }, function(pos, err)
+        if not pos then return RPI.notify(err or 'Objet non posé : musique pas lancée.', err and 'error' or 'info') end
+        local obj, err2 = createPlaced(def, pos)
+        if not obj then return RPI.notify(err2, 'error') end
+        payload.anchor = { kind = 'prop', netId = ObjToNet(obj), spawned = true }
+        RPI.request('radio', payload, function(res)
+            if not res or not res.ok then
+                if DoesEntityExist(obj) then DeleteObject(obj) end
+                return RPI.notify(res and res.error or 'Musique pas lancée.', 'error')
+            end
+            if res.source then apply(res.source, res.radio) end
+            RPI.notify(('Musique lancée sur : %s.'):format(def.label or 'l\'objet'), 'success')
+        end)
+    end)
+end
+
+-- =========================================================================
+-- ŒIL sur un objet apparu pour /musique : le déplacer (la musique continue), le supprimer (la musique s'arrête),
+-- régler la musique. Tout le monde à côté.
+-- =========================================================================
+function RPI.musicObjectOptions(ctx)
+    local entity = ctx.entity
+    if not entity or not DoesEntityExist(entity) or not NetworkGetEntityIsNetworked(entity) then return nil end
+    local radio = Entity(entity).state.rpiRadio
+    local music = type(radio) == 'table' and radio.music or nil
+    if type(music) ~= 'table' or not music.spawned then return nil end
+    local out = {}
+    if (ctx.distance or 0) > (MUSIC.ObjectDistance or 3.0) then return out end
+    local id = 'entity:' .. ObjToNet(entity)
+    out[#out + 1] = { id = 'music:move', label = 'Déplacer l\'objet (la musique continue)', icon = 'move', primary = true,
+        run = function(c)
+            local target = c.entity
+            SetEntityAlpha(target, 60, false) -- l'objet réel reste là (chez soi : estompé) pendant le placement
+            RPI.placeObject(GetEntityModel(target), { heading = GetEntityHeading(target), label = 'Déplacer l\'objet' }, function(pos)
+                if DoesEntityExist(target) then ResetEntityAlpha(target) end
+                if not pos then return end
+                requestRadio(id, { action = 'moveObject', x = pos.x, y = pos.y, z = pos.z, heading = pos.heading }, function(res)
+                    if not res or not res.ok then return RPI.notify(res and res.error or 'Déplacement impossible.', 'error') end
+                    RPI.notify('Objet déplacé.', 'success')
+                end)
+            end)
+        end }
+    out[#out + 1] = { id = 'music:settings', label = 'Régler la musique', icon = 'music', run = function() RPI.openMenu('music') end }
+    out[#out + 1] = { id = 'music:delete', label = 'Supprimer l\'objet (la musique s\'arrête)', icon = 'trash',
+        run = function()
+            requestRadio(id, { action = 'remove' }, function(res)
+                if not res or not res.ok then return RPI.notify(res and res.error or 'Suppression impossible.', 'error') end
+                apply(id, nil)
+                RPI.notify('Objet supprimé, musique arrêtée.', 'success')
+            end)
+        end }
+    return out
 end
 
 RegisterNUICallback('radioAction', function(data, cb)
@@ -630,18 +684,11 @@ RegisterNUICallback('radioAction', function(data, cb)
             local p = GetEntityCoords(PlayerPedId())
             payload.anchor = { kind = 'place', x = p.x, y = p.y, z = p.z }
         elseif where == 'prop' and tonumber(data.spawn) then
-            -- objet à faire apparaître : créé ici, puis la musique dessus (supprimé si le serveur refuse)
-            local obj, err = spawnObject(math.tointeger(tonumber(data.spawn)))
-            if not obj then return cb({ ok = false, error = err }) end
-            payload.anchor = { kind = 'prop', netId = ObjToNet(obj), spawned = true }
-            return RPI.request('radio', payload, function(res)
-                if not res or not res.ok then
-                    if DoesEntityExist(obj) then DeleteObject(obj) end
-                    return cb(res or { ok = false })
-                end
-                if res.source then apply(res.source, res.radio) end
-                cb(radioInfo(page))
-            end)
+            -- objet à faire apparaître : menu fermé, placement de l'objet fantôme, puis la musique dessus
+            local info = radioInfo(page)
+            info.placing = true
+            cb(info)
+            return CreateThread(function() spawnAndPlay(math.tointeger(tonumber(data.spawn)), payload) end)
         elseif where == 'prop' then
             -- objet autour (choisi dans la liste)
             local entity = tonumber(data.object) and nearby[math.tointeger(tonumber(data.object))] or nil

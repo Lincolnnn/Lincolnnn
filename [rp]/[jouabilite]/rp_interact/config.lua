@@ -145,6 +145,13 @@ InteractConfig = {
         -- choisi est surligné dans le jeu) ou « Faire apparaître l'objet » (posé devant le joueur, supprimé quand la
         -- musique est retirée ou déplacée). group : titre de section ; freeze = false : l'objet peut tomber / bouger.
         NearbyMax = 15,
+        -- Placement de l'objet à faire apparaître (et déplacement avec l'œil) : objet fantôme (transparent, sans
+        -- collision, vu seulement par le joueur) qui suit le regard jusqu'à PlaceRange m ; molette ou ← / → : tourner,
+        -- ↑ / ↓ : lever / baisser (MaxLift m au plus), Maj : plus fin, clic gauche ou E : poser, clic droit ou Retour
+        -- arrière : annuler. ObjectDistance : distance de l'œil pour Déplacer / Régler / Supprimer l'objet.
+        PlaceRange = 6.0,
+        MaxLift = 2.5,
+        ObjectDistance = 3.0,
         SpawnProps = {
             { group = 'Enceintes et radios', label = 'Enceinte portable (boombox)', model = 'prop_boombox_01' },
             { group = 'Enceintes et radios', label = 'Ghetto blaster', model = 'prop_ghettoblast_02' },
