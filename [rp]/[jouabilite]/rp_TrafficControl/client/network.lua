@@ -10,8 +10,14 @@
     sur les autoroutes, chaque sens est une chaussée séparée, avec ses propres nœuds. D'où :
       - FERMETURE : les nœuds retenus à la pose (ceux qui ne servent qu'à la portée choisie) sont FERMÉS (les PNJ
         n'y passent plus, aucun véhicule n'y apparaît). Et pour ce que les nœuds ne permettent pas :
-          * une voie : les PNJ de cette voie se rabattent AVANT le tronçon sur la voie la plus proche DU MÊME SENS,
-            la dépassent, puis reprennent leur route ; aucune voie du même sens : demi-tour ;
+          * une voie : il n'existe pas de nœud par voie. Deux moyens, ensemble :
+              - OBSTACLES INVISIBLES : des véhicules du jeu de base, invisibles, figés, sans conducteur, posés le long
+                de la voie fermée (seulement près du joueur, locaux). Les PNJ du jeu contournent d'eux-mêmes un
+                véhicule arrêté (comportement d'origine : « changer de voie autour d'un obstacle ») et, avec la
+                collision, ne peuvent pas passer au travers ; les joueurs, eux, ne les touchent jamais ;
+              - les PNJ que ce joueur contrôle sont conduits EN LIGNE DROITE (style « ForceStraightLine ») sur la
+                voie ouverte la plus proche DU MÊME SENS avant le tronçon, la longent, puis reprennent leur route ;
+            aucune voie du même sens : demi-tour ;
           * un sens / la route : route recalculée à l'approche, puis demi-tour s'ils continuent vers le tronçon.
       - RALENTISSEMENT / ARRÊT : zone de vitesse du jeu sur les nœuds retenus, et les PNJ de la bande choisie
         (voie / sens / route) ralentissent ou s'arrêtent avant le tronçon ; les autres voies circulent normalement.
@@ -160,7 +166,7 @@ local function clearApplied()
     applied = { nodesOff = {}, zones = {}, blips = {} }
 end
 
-local releaseAll, startLoop -- (plus bas)
+local releaseAll, startLoop, clearObstacles -- (plus bas)
 
 --- Mesures publiées -> réseau routier de ce jeu. Tout est retiré puis redonné (deux mesures qui se chevauchent
 --- restent appliquées quand on lève l'une des deux) ; changements rares : aucun coût en continu.
@@ -188,6 +194,7 @@ function TC.applyAll(list)
         end
     end
     releaseAll(true)
+    clearObstacles() -- reposés à la prochaine vérification (mesures changées)
     if TC.onChange then TC.onChange() end
     startLoop()
 end
@@ -201,6 +208,171 @@ AddStateBagChangeHandler('mdcUnit', ('player:%d'):format(GetPlayerServerId(Playe
 end)
 
 CreateThread(function() TC.applyAll(GlobalState.rpTraffic) end)
+
+-- =========================================================================
+-- OBSTACLES INVISIBLES (fermeture) : véhicules du jeu de base, invisibles, figés, sans conducteur, LOCAUX (propres à ce
+-- jeu : chaque joueur pose les siens près de lui). Les PNJ du jeu contournent un véhicule arrêté (changement de voie
+-- d'origine) ; avec la collision, ils ne passent pas au travers. Les joueurs ne les touchent jamais (pas de
+-- collision avec eux), l'œil (rp_interact) les traverse.
+-- =========================================================================
+local OB = Config.Obstacles or {}
+local OB_MODEL = GetHashKey(OB.Model or 'blista')
+local obstacles = {}     -- [id de mesure] = { points = { { p, h } }, vehicles = { [i] = véhicule } }
+local obstacleCount = 0
+
+--- Où poser les obstacles d'une mesure : le long de la voie fermée ; sens / route : une rangée en travers au début
+local function obstaclePoints(e)
+    local m, f = e.m, e.f
+    local pts, max = {}, OB.MaxPerMeasure or 30
+    if m.kind ~= 'close' then return pts end
+    local heading = GetHeadingFromVector_2d(f.ax, f.ay)
+    local function z(u) return m.a.z + (m.b.z - m.a.z) * math.max(0.0, math.min(1.0, u / f.length)) end
+    if m.scope == 'lane' then
+        local v = m.closedLane or (m.vmin + m.vmax) / 2
+        local spacing = math.max(4.5, OB.Spacing or 7.0)
+        local u = math.min(OB.StartOffset or 2.5, f.length / 2)
+        while u <= f.length - 1.0 and #pts < max do
+            pts[#pts + 1] = { p = TC.worldAt(f, u, v, z(u)), h = heading }
+            u = u + spacing
+        end
+    elseif OB.Barrier ~= false then
+        local w = m.laneWidth or SEG.LaneWidth or 5.4
+        for _, u in ipairs(m.scope == 'road' and { 1.5, f.length - 1.5 } or { 1.5 }) do
+            local v = m.vmin + w / 2
+            while v <= m.vmax - w / 2 + 0.01 and #pts < max do
+                pts[#pts + 1] = { p = TC.worldAt(f, u, v, z(u)), h = heading + 90.0 } -- en travers de la voie
+                v = v + w
+            end
+        end
+    end
+    return pts
+end
+
+local function deleteObstacle(vehicle)
+    if vehicle and DoesEntityExist(vehicle) then
+        SetEntityAsMissionEntity(vehicle, true, true)
+        DeleteVehicle(vehicle)
+    end
+    obstacleCount = math.max(0, obstacleCount - 1)
+end
+
+clearObstacles = function(id)
+    for key, set in pairs(obstacles) do
+        if id == nil or key == id then
+            for _, vehicle in pairs(set.vehicles) do deleteObstacle(vehicle) end
+            obstacles[key] = nil
+        end
+    end
+end
+
+--- Un obstacle : nil (rien posé : place prise, limite) ; un véhicule déjà là (police garée…) : on n'en pose pas
+local function spawnObstacle(pt)
+    if obstacleCount >= (OB.MaxTotal or 80) then return nil end
+    local p = pt.p
+    local found, ground = GetGroundZFor_3dCoord(p.x, p.y, p.z + 3.0, false)
+    local z = found and ground or p.z
+    if IsAnyVehicleNearPoint(p.x, p.y, z, OB.FreeRadius or 2.6) then return nil end
+    local vehicle = CreateVehicle(OB_MODEL, p.x, p.y, z + 0.3, pt.h % 360.0, false, false)
+    if not vehicle or vehicle == 0 then return nil end
+    obstacleCount = obstacleCount + 1
+    SetEntityAsMissionEntity(vehicle, true, true)
+    SetVehicleOnGroundProperly(vehicle)
+    FreezeEntityPosition(vehicle, true)
+    SetEntityInvincible(vehicle, true)
+    SetVehicleCanBeVisiblyDamaged(vehicle, false)
+    SetVehicleDoorsLocked(vehicle, 2)
+    SetVehicleUndriveable(vehicle, true)
+    SetVehicleEngineOn(vehicle, false, true, true)
+    SetVehicleLights(vehicle, 1)
+    SetVehicleIsConsideredByPlayer(vehicle, false)
+    SetEntityCollision(vehicle, OB.Collision ~= false, true)
+    if OB.Debug then
+        SetEntityAlpha(vehicle, 110, false) -- réglage : visibles en transparence
+    else
+        SetEntityVisible(vehicle, false, false)
+    end
+    return vehicle
+end
+
+--- Obstacles des mesures proches posés peu à peu (quelques-uns par vérification), ceux des mesures lointaines retirés ;
+--- les joueurs (soi et les autres) ne les touchent jamais
+local function updateObstacles(near, here)
+    if OB.Enabled == false then return end
+    local keep = {}
+    local range = OB.Range or 220.0
+    for _, e in ipairs(near) do
+        local mid = TC.worldAt(e.f, e.f.length / 2, 0, 0)
+        local dx, dy = mid.x - here.x, mid.y - here.y
+        if e.m.kind == 'close' and math.sqrt(dx * dx + dy * dy) < range + e.f.length / 2 then
+            keep[e.m.id] = true
+            local set = obstacles[e.m.id]
+            if not set then
+                set = { points = obstaclePoints(e), vehicles = {} }
+                obstacles[e.m.id] = set
+            end
+            if #set.points > 0 then
+                if not HasModelLoaded(OB_MODEL) then
+                    RequestModel(OB_MODEL)
+                else
+                    local budget, now = OB.PerTick or 6, GetGameTimer()
+                    set.retry = set.retry or {}
+                    for i, pt in ipairs(set.points) do
+                        if budget <= 0 then break end
+                        local vehicle = set.vehicles[i]
+                        if (not vehicle or not DoesEntityExist(vehicle)) and (set.retry[i] or 0) <= now then
+                            if vehicle then obstacleCount = math.max(0, obstacleCount - 1) end
+                            set.vehicles[i] = spawnObstacle(pt)
+                            -- place prise (véhicule garé là…) : réessayé plus tard, les suivants passent avant
+                            if not set.vehicles[i] then set.retry[i] = now + 3000 end
+                            budget = budget - 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+    for id in pairs(obstacles) do if not keep[id] then clearObstacles(id) end end
+    if next(obstacles) == nil then
+        SetModelAsNoLongerNeeded(OB_MODEL)
+        return
+    end
+    -- Joueurs (soi compris, et leurs véhicules) à portée : jamais de collision avec les obstacles. Réglé une fois par
+    -- paire (durable) : seules les nouvelles paires coûtent quelque chose.
+    local others = {}
+    local last = GetVehiclePedIsIn(PlayerPedId(), true)
+    if last ~= 0 then others[#others + 1] = last end
+    for _, player in ipairs(GetActivePlayers()) do
+        local ped = GetPlayerPed(player)
+        if ped ~= 0 and #(GetEntityCoords(ped) - here) < range then
+            others[#others + 1] = ped
+            local vehicle = GetVehiclePedIsIn(ped, false)
+            if vehicle ~= 0 then others[#others + 1] = vehicle end
+        end
+    end
+    for _, set in pairs(obstacles) do
+        for _, vehicle in pairs(set.vehicles) do
+            if vehicle and DoesEntityExist(vehicle) then
+                set.noCol = set.noCol or {}
+                local done = set.noCol[vehicle]
+                if not done then done = {} set.noCol[vehicle] = done end
+                for _, other in ipairs(others) do
+                    if not done[other] then
+                        SetEntityNoCollisionEntity(vehicle, other, false)
+                        done[other] = true
+                    end
+                end
+            end
+        end
+    end
+end
+
+function TC.isObstacle(entity)
+    for _, set in pairs(obstacles) do
+        for _, vehicle in pairs(set.vehicles) do if vehicle == entity then return true end end
+    end
+    return false
+end
+exports('isObstacle', TC.isObstacle)
 
 -- =========================================================================
 -- PNJ : changement de voie, demi-tour, ralentissement, arrêt
@@ -232,6 +404,14 @@ end
 --- Vers où envoyer un PNJ (u, v dans le repère du tronçon, sens du tronçon)
 local function driveTo(driver, vehicle, p, speed)
     TaskVehicleDriveToCoord(driver, vehicle, p.x, p.y, p.z, speed, 0, GetEntityModel(vehicle), CL.DrivingStyle or 786603, 3.0, true)
+end
+
+--- Changement de voie : EN LIGNE DROITE vers le point (le suivi de route du jeu garderait sa voie jusqu'au point) ;
+--- le style garde l'arrêt pour les véhicules / piétons et le contournement des véhicules arrêtés et des objets
+local STRAIGHT = 16777216 -- « ForceStraightLine » (style de conduite du jeu)
+local function steerTo(driver, vehicle, p, speed)
+    local style = CL.MergeStyle or (STRAIGHT + 1 + 2 + 8 + 32)
+    TaskVehicleDriveToCoord(driver, vehicle, p.x, p.y, p.z, speed, 0, GetEntityModel(vehicle), style, 2.0, true)
 end
 
 --- Demi-tour : vers l'arrière, sur une voie de l'autre sens (route à double sens), sinon un point loin derrière
@@ -278,10 +458,9 @@ local function handle(e, vehicle, driver, pos, fwd, speed, now)
 
     if m.kind == 'slow' then
         if u >= -(SP.SlowFrom or 25.0) and u <= f.length then
-            if not info then
-                SetDriveTaskCruiseSpeed(driver, (m.speed or 25) * MPH)
-                tracked[vehicle] = { id = m.id, phase = 'slow', driver = driver, at = now }
-            end
+            -- redonnée à chaque vérification (une autre tâche du jeu la remettrait sinon à la vitesse normale)
+            SetDriveTaskCruiseSpeed(driver, (m.speed or 25) * MPH)
+            if not info then tracked[vehicle] = { id = m.id, phase = 'slow', driver = driver, at = now } end
             return true
         end
         return false
@@ -310,18 +489,24 @@ local function handle(e, vehicle, driver, pos, fwd, speed, now)
             end
             return true
         end
+        -- Rabattement EN LIGNE DROITE sur la voie ouverte (point qui avance avec le PNJ), puis il longe le tronçon
+        -- sur cette voie jusqu'après la fin, et reprend sa route. Nouvelle consigne seulement quand il approche du
+        -- point visé (pas à chaque vérification).
         local z = pos.z
-        if u < -2 then
-            -- se rabat AVANT le tronçon sur la voie ouverte du même sens
-            if not info or info.phase ~= 'merge' then
-                driveTo(driver, vehicle, TC.worldAt(f, 2, target, z), math.max(8.0, math.min(speed, CL.RedirectSpeed or 14.0)))
-                tracked[vehicle] = { id = m.id, phase = 'merge', driver = driver, at = now }
-            end
-        elseif not info or info.phase ~= 'pass' then
-            -- longe le tronçon sur cette voie, puis reprend sa route
-            driveTo(driver, vehicle, TC.worldAt(f, f.length + 15, target, z), math.max(8.0, math.min(speed, CL.RedirectSpeed or 14.0)))
-            tracked[vehicle] = { id = m.id, phase = 'pass', driver = driver, at = now }
+        local spd = math.max(8.0, math.min(math.max(speed, 8.0), CL.RedirectSpeed or 18.0))
+        local inLane = math.abs(v - target) < (CL.InLaneTolerance or 1.3)
+        local phase = (info and info.phase == 'pass' or inLane) and 'pass' or 'merge'
+        if phase == 'pass' and u > f.length + 6 then return false end -- tronçon dépassé : relâché (reprend sa route)
+        local lead = phase == 'merge' and math.max(CL.MergeLead or 22.0, speed * 1.6) or math.max(CL.PassLead or 25.0, speed * 1.8)
+        local wantU = math.min(u + lead, f.length + 15)
+        local stale = not info or info.phase ~= phase or not info.wpU or (info.wpU - u) < math.max(8.0, speed * 0.9)
+            or now - (info.at or 0) > (CL.Refresh or 4000)
+        if stale then
+            steerTo(driver, vehicle, TC.worldAt(f, wantU, target, z), spd)
+            tracked[vehicle] = { id = m.id, phase = phase, driver = driver, at = now, wpU = wantU, since = info and info.since or now }
         end
+        local t = tracked[vehicle]
+        if t and now - (t.since or now) > (CL.PhaseTimeout or 25000) then return false end -- bloqué : relâché
         return true
     end
 
@@ -350,6 +535,7 @@ local function tick()
         if math.sqrt(dx * dx + dy * dy) < (Config.Range or 400.0) + e.f.length / 2 then near[#near + 1] = e end
     end
     local now = GetGameTimer()
+    updateObstacles(near, here)
     if #near > 0 then
         for _, vehicle in ipairs(GetGamePool('CVehicle')) do
             local driver = GetPedInVehicleSeat(vehicle, -1)
@@ -373,14 +559,14 @@ local function tick()
             resume(vehicle, info)
         end
     end
-    return #near > 0 or next(tracked) ~= nil
+    return #near > 0 or next(tracked) ~= nil or next(obstacles) ~= nil
 end
 
 startLoop = function()
     if running or #active == 0 then return end
     running = true
     CreateThread(function()
-        while #active > 0 or next(tracked) ~= nil do
+        while #active > 0 or next(tracked) ~= nil or next(obstacles) ~= nil do
             local busy = tick()
             Wait(busy and (Config.Interval or 300) or 2000)
         end
@@ -392,5 +578,6 @@ AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     active = {}
     releaseAll(false)
+    clearObstacles()
     clearApplied() -- réseau routier rendu tel qu'il était
 end)

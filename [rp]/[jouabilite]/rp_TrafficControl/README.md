@@ -16,7 +16,7 @@ Le script en tient compte :
 
 | Portée | Fermeture | Ralentissement / arrêt |
 |---|---|---|
-| **Voie** (ex. voie de gauche d'une interstate) | les PNJ de cette voie se **rabattent avant le tronçon sur la voie la plus proche du même sens**, la longent, puis reprennent leur route. **Aucune voie du même sens** : **demi-tour** | seuls les PNJ de cette voie ralentissent / s'arrêtent, les autres voies circulent |
+| **Voie** (ex. voie de gauche d'une interstate) | **obstacles invisibles** le long de la voie fermée (que les PNJ du jeu contournent et ne peuvent pas traverser) **et** les PNJ de cette voie **conduits en ligne droite sur la voie la plus proche du même sens** avant le tronçon, qu'ils longent, puis reprennent leur route. **Aucune voie du même sens** : **demi-tour** | seuls les PNJ de cette voie ralentissent / s'arrêtent, les autres voies circulent |
 | **Sens** | chaussée séparée (autoroute) : **ses nœuds sont fermés** (l'autre sens n'est pas touché) ; route à double sens (nœuds partagés) : les PNJ de ce sens **recalculent leur route**, puis **font demi-tour** | zones de vitesse du jeu sur les nœuds de la chaussée + PNJ de ce sens |
 | **Route entière** | **tous les nœuds du tronçon fermés** (déviation par le jeu) + PNJ qui arrivent : route recalculée, puis demi-tour | zones de vitesse sur les nœuds + PNJ des deux sens |
 
@@ -60,6 +60,7 @@ réseau routier rendu **à l'original**, PNJ relâchés (route et vitesse normal
 | `MaxMeasures`, `MaxPerPlayer`, `Durations`, `DefaultDuration`, `RemoveOnDisconnect` | limites et durées |
 | `Segment` | longueur min / max, **`LaneWidth`** (largeur d'une voie du jeu, à ajuster avec l'aperçu), hauteur, marge et nombre max de nœuds, largeur ajoutable (route entière) |
 | `Closure` | zone fermée autour de chaque nœud, distances d'approche / de recalcul, vitesse et style de conduite pendant le changement de voie / le demi-tour, vitesse rendue |
+| `Obstacles` | obstacles invisibles des fermetures : modèle, espacement, place laissée libre, nombre max (par mesure, en tout, par vérification), portée, collision, rangée en travers (sens / route), `Debug` |
 | `Speed` | limites MPH, rayon des zones de vitesse sur les nœuds, distances de ralentissement / d'arrêt avant le tronçon |
 | `Editor` | portée de la visée, distance à la route, aperçu des nœuds |
 | `Blips`, `BlipColors` | qui voit les mesures sur la carte, couleurs |
@@ -74,7 +75,25 @@ Console : **`trafficclear`** lève toutes les mesures.
 - Natives : `SetRoadsInArea` / `SetRoadsBackToOriginal` (une petite zone par nœud retenu), `AddRoadNodeSpeedZone` /
   `RemoveRoadNodeSpeedZone`, et les tâches de conduite des PNJ (`TaskVehicleDriveToCoord`, `…Longrange`,
   `TaskVehicleTempAction`, `SetDriveTaskCruiseSpeed`, `TaskVehicleDriveWander`).
-- **Voie** : il n'y a pas de nœud par voie dans le jeu ; la fermeture d'une voie se fait donc en **rabattant les PNJ**.
+- **Voie** : il n'y a pas de nœud par voie dans le jeu. La fermeture d'une voie se fait donc par deux moyens, ensemble :
+  - **Obstacles invisibles** (`Obstacles`) : des **véhicules du jeu de base** (`blista`), **invisibles, figés, sans
+    conducteur, portes verrouillées**, posés **tous les 7 m le long de la voie fermée** (sens / route fermés : une rangée
+    **en travers** au début du tronçon). C'est un comportement d'**origine** du jeu : un PNJ qui arrive sur un véhicule
+    arrêté **change de voie pour le contourner** (style de conduite normal du trafic : « changer de voie autour d'un
+    obstacle », « contourner les véhicules arrêtés ») ; et avec la **collision**, il **ne peut pas passer au travers**.
+    Ça marche aussi pour les PNJ que ce script ne dirige pas (contrôlés par un autre joueur, apparus en route). Ils sont
+    **locaux** (chaque joueur pose les siens, seulement à moins de 220 m du tronçon, quelques-uns par vérification) ; une
+    place déjà prise (voiture de police garée dans la voie…) est laissée libre. **Les joueurs ne les touchent jamais**
+    (ni à pied ni en véhicule : pas de collision avec eux), l'**œil** de rp_interact **passe au travers**, et `/dv`,
+    l'inspection, la pompe à essence, « véhicule le plus proche » de rp_interact les ignorent (véhicules invisibles).
+    `Obstacles.Debug = true` : visibles en transparence, pour régler `LaneWidth` / `Spacing`.
+  - **PNJ dirigés** : ceux que ce joueur contrôle sont conduits **en ligne droite** (style du jeu « ForceStraightLine »,
+    `Closure.MergeStyle`) vers un point de la voie ouverte **qui avance avec eux** (`MergeLead`, `PassLead`) : sinon le
+    suivi de route du jeu les garde sur leur voie jusqu'au point visé (c'est pour ça que la fermeture de voie ne
+    marchait pas). Ils s'arrêtent toujours pour un véhicule ou un piéton devant eux ; après le tronçon, ils reprennent
+    leur route. Bloqués plus de 25 s : relâchés (`PhaseTimeout`).
+- **Ralentissement** : la vitesse limite est redonnée au PNJ **à chaque vérification** (une autre tâche du jeu la
+  remettait à la vitesse normale), en plus des zones de vitesse du jeu.
   La position des voies vient du nombre de voies du jeu et de `LaneWidth` : vérifiez avec l'aperçu que la bande tombe
   bien sur la voie, et ajustez `LaneWidth` si besoin.
 - Sur une route **en courbe**, faites plusieurs tronçons courts (la bande suit la ligne droite début → fin).
@@ -85,6 +104,7 @@ Console : **`trafficclear`** lève toutes les mesures.
 
 - Aucune mesure : **aucune boucle** (0.00 ms).
 - Mesure à moins de 400 m du joueur : une vérification toutes les 300 ms des PNJ qu'il contrôle près des tronçons ;
-  plus loin, une simple distance toutes les 2 s.
+  plus loin, une simple distance toutes les 2 s. Obstacles invisibles : posés peu à peu (6 au plus par vérification),
+  seulement près du joueur ; « pas de collision » réglé une seule fois par paire obstacle / joueur.
 - Outil de pose : boucle à chaque image **seulement pendant la pose** (nœuds relus toutes les 400 ms).
 - Menu : aucune boucle Lua. Serveur : aucune boucle (une minuterie par mesure).

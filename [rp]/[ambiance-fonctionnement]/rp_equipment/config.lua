@@ -118,7 +118,10 @@ EquipConfig = {
         Jerrycans = { Default = 1, Max = 1, Weapon = 'WEAPON_PETROLCAN', Ammo = 4500 },
         -- Pistolet radar (jumelles de vitesse) : un À L'AVANT de chaque véhicule de police (portières avant), à prendre
         -- et ranger (Where = 'trunk' : dans le coffre)
-        RadarGuns = { Default = 1, Max = 1, Weapon = 'WEAPON_RADARGUN', Where = 'front' },
+        -- Assis à l'avant (conducteur / passager avant) d'un véhicule de police : /radargun (Seat.Command, touche
+        -- Seat.Key, modifiable dans Paramètres > Raccourcis clavier > FiveM) le prend ou le range sans descendre.
+        RadarGuns = { Default = 1, Max = 1, Weapon = 'WEAPON_RADARGUN', Where = 'front',
+            Seat = { Enabled = true, Command = 'radargun', Key = '' } },
         -- Extincteur : un dans le COFFRE de chaque véhicule de police (plus dans les équipements du Menu Interaction),
         -- donné plein (Ammo), à prendre et ranger
         Extinguishers = { Default = 1, Max = 1, Weapon = 'WEAPON_FIREEXTINGUISHER', Ammo = 2000, Where = 'trunk' },
@@ -130,7 +133,9 @@ EquipConfig = {
         -- Anim : tenu comme un jerrican (bras le long du corps), haut du corps seulement (on marche, on court).
         MedBags = { Default = 1, Max = 1, Model = 'xm_prop_x17_bag_med_01a', PlaceDistance = 0.7,
             Carry = { Bone = 57005, Offset = { 0.42, 0.0, -0.05, 0.10, 270.0, 60.0 } },
-            Anim = { Dict = 'move_weapon@jerrycan@generic', Clip = 'idle', Flag = 49 } },
+            -- Tenu comme un jerrican : Clipset = marche du jeu avec le jerrican (move_weapon@jerrycan@generic :
+            -- idle / walk / run ; false = sans) + le bras qui tient (Dict / Clip, haut du corps, Flag 49)
+            Anim = { Dict = 'move_weapon@jerrycan@generic', Clip = 'idle', Flag = 49, Clipset = 'move_ped_wpn_jerrycan_generic' } },
         -- Herse de riven_spikes (script payant, s'il est installé) : prise et rangée avec l'ŒIL sur le coffre (options de
         -- Riven). Menu = true : ligne « Herse » en plus dans ce menu (désactivée). KeepInHands : en main, la touche X de
         -- Riven ne la fait plus disparaître (elle revient en main) : la poser au sol ou la ranger dans le coffre (œil).

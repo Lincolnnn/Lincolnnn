@@ -33,9 +33,17 @@ function RPI.targetActive() return active end
 -- VISÉE (rayon depuis la caméra)
 -- =========================================================================
 local function cast(from, to, ignore)
-    local handle = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, -1, ignore, 7)
-    local _, hit, coords, _, entity = GetShapeTestResult(handle)
-    return hit == 1 or hit == true, coords, entity
+    for _ = 1, 4 do
+        local handle = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, -1, ignore, 7)
+        local _, hit, coords, _, entity = GetShapeTestResult(handle)
+        local touched = hit == 1 or hit == true
+        -- Véhicule invisible (obstacle d'une voie fermée de rp_TrafficControl…) : le rayon passe au travers
+        if not (touched and entity and entity ~= 0 and GetEntityType(entity) == 2 and not IsEntityVisible(entity)) then
+            return touched, coords, entity
+        end
+        from, ignore = coords, entity
+    end
+    return false, to, 0
 end
 
 --- Ce que vise la caméra : (point, entité) ou nil

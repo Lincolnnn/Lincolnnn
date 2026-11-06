@@ -131,7 +131,7 @@ function Police.closestVehicle(range)
     local best, bestDistance = nil, range
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
         local d = #(GetEntityCoords(vehicle) - origin)
-        if d <= bestDistance then best, bestDistance = vehicle, d end
+        if d <= bestDistance and IsEntityVisible(vehicle) then best, bestDistance = vehicle, d end -- (invisible : obstacle)
     end
     return best
 end

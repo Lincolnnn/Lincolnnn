@@ -787,20 +787,54 @@ local function dropBagProp()
     if bag and bag.prop then deleteProp(bag.prop) end
 end
 
---- Sac tenu comme un jerrican (MedBags.Anim) : haut du corps seulement, relancée si une autre animation la coupe
-local BAG_ANIM = SB.Anim or { Dict = 'move_weapon@jerrycan@generic', Clip = 'idle', Flag = 49 }
+--- Sac tenu comme un jerrican (MedBags.Anim) :
+---  1. la marche du jeu avec un jerrican (Clipset, `move_ped_wpn_jerrycan_generic` = dictionnaire
+---     move_weapon@jerrycan@generic : idle / walk / run), comme quand on tient le vrai jerrican ;
+---  2. le bras qui tient (Dict / Clip, haut du corps seulement : on marche et court normalement), relancé si
+---     une autre animation le coupe. Un dictionnaire / clip introuvable est signalé une fois en console (F8).
+local BAG_ANIM = SB.Anim or {}
+local ANIM_DICT = BAG_ANIM.Dict or 'move_weapon@jerrycan@generic'
+local ANIM_CLIP = BAG_ANIM.Clip or 'idle'
+local ANIM_FLAG = BAG_ANIM.Flag or 49
+local ANIM_CLIPSET = BAG_ANIM.Clipset == nil and 'move_ped_wpn_jerrycan_generic' or BAG_ANIM.Clipset
+local animAsked, clipsetOn, animWarned = 0, false, false
+
 local function holdAnim(ped)
-    if not BAG_ANIM or not BAG_ANIM.Dict then return end
-    if IsEntityPlayingAnim(ped, BAG_ANIM.Dict, BAG_ANIM.Clip, 3) or IsPedInAnyVehicle(ped, true) or IsPedRagdoll(ped) then return end
-    if not HasAnimDictLoaded(BAG_ANIM.Dict) then
-        RequestAnimDict(BAG_ANIM.Dict)
+    if BAG_ANIM.Enabled == false then return end
+    -- 1. marche avec le jerrican (mouvement du jeu)
+    if ANIM_CLIPSET and ANIM_CLIPSET ~= '' and not clipsetOn then
+        if HasClipSetLoaded(ANIM_CLIPSET) then
+            SetPedWeaponMovementClipset(ped, ANIM_CLIPSET)
+            clipsetOn = true
+        else
+            RequestClipSet(ANIM_CLIPSET)
+        end
+    end
+    -- 2. bras qui tient le sac
+    if IsPedInAnyVehicle(ped, true) or IsPedRagdoll(ped) or IsPedFalling(ped) then return end
+    if IsEntityPlayingAnim(ped, ANIM_DICT, ANIM_CLIP, 3) then return end
+    if not HasAnimDictLoaded(ANIM_DICT) then
+        if animAsked == 0 then animAsked = GetGameTimer() end
+        if not DoesAnimDictExist(ANIM_DICT) or GetGameTimer() - animAsked > 4000 then
+            if not animWarned then
+                animWarned = true
+                print(('^3[rp_equipment]^7 sac médical : animation "%s" introuvable ou pas chargée (Stock.MedBags.Anim)'):format(ANIM_DICT))
+            end
+            return
+        end
+        RequestAnimDict(ANIM_DICT)
         return -- chargée aux images suivantes
     end
-    TaskPlayAnim(ped, BAG_ANIM.Dict, BAG_ANIM.Clip, 8.0, -8.0, -1, BAG_ANIM.Flag or 49, 0.0, false, false, false)
+    TaskPlayAnim(ped, ANIM_DICT, ANIM_CLIP, 4.0, -4.0, -1, ANIM_FLAG, 0.0, false, false, false)
 end
 
 local function stopHoldAnim()
-    if BAG_ANIM and BAG_ANIM.Dict then StopAnimTask(PlayerPedId(), BAG_ANIM.Dict, BAG_ANIM.Clip, 2.0) end
+    local ped = PlayerPedId()
+    StopAnimTask(ped, ANIM_DICT, ANIM_CLIP, 2.0)
+    if clipsetOn then ResetPedWeaponMovementClipset(ped) end
+    clipsetOn, animAsked = false, 0
+    if ANIM_CLIPSET and ANIM_CLIPSET ~= '' then RemoveClipSet(ANIM_CLIPSET) end
+    RemoveAnimDict(ANIM_DICT)
 end
 
 local function bagLoop()
@@ -1117,6 +1151,51 @@ RegisterCommand(Config.Command or 'coffre', function()
     end
     openMenu(near)
 end, false)
+
+-- Pistolet radar À L'AVANT, sans descendre : assis à la place conducteur ou passager avant d'un véhicule de police
+-- (ou à pied à une portière avant), /radargun le prend ou le range (RadarGuns.Seat)
+do
+    local SR = S.RadarGuns or {}
+    local seat = SR.Seat or {}
+    if seat.Enabled ~= false and (SR.Where or 'front') == 'front' then
+        local busy = false
+        local command = seat.Command or 'radargun'
+        RegisterCommand(command, function()
+            if busy or open or IsPauseMenuActive() then return end
+            if not onDuty() then return notify('Réservé aux policiers en service (unité du MDC).') end
+            local ped = PlayerPedId()
+            local vehicle = nil
+            if IsPedInAnyVehicle(ped, false) then
+                vehicle = GetVehiclePedIsIn(ped, false)
+                if GetPedInVehicleSeat(vehicle, -1) ~= ped and GetPedInVehicleSeat(vehicle, 0) ~= ped then
+                    return notify('Le pistolet radar est à l\'avant : place conducteur ou passager avant.')
+                end
+            elseif near and near.where == 'front' then
+                vehicle = near.vehicle
+            end
+            local kind = vehicle and vehicleType(vehicle)
+            if not kind then
+                return notify('Pistolet radar : asseyez-vous à l\'avant d\'un véhicule de police (ou placez-vous à une portière avant).')
+            end
+            local held = HasPedGotWeapon(ped, RADARGUN, false)
+            busy = true
+            request('radarGun', { net = VehToNet(vehicle), type = kind, where = 'front', mode = held and 'store' or 'take', held = held }, function(res)
+                busy = false
+                if not res.ok then return notify(res.error or 'Impossible pour le moment.') end
+                local p = PlayerPedId()
+                if res.mode == 'take' then
+                    GiveWeaponToPed(p, RADARGUN, 1, false, true)
+                    notify('Pistolet radar pris (avant du véhicule).')
+                else
+                    RemoveWeaponFromPed(p, RADARGUN)
+                    notify('Pistolet radar rangé à l\'avant du véhicule.')
+                end
+                if sendInventory then sendInventory() end
+            end)
+        end, false)
+        RegisterKeyMapping(command, 'Véhicule de police : prendre / ranger le pistolet radar (à l\'avant)', 'keyboard', seat.Key or '')
+    end
+end
 
 local HELP = {
     front = 'Équipement du véhicule (portière)',

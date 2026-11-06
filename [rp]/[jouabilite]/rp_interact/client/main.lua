@@ -376,7 +376,7 @@ local function findVehicle()
         local best = 6.0
         for _, candidate in ipairs(GetGamePool('CVehicle')) do
             local d = #(GetEntityCoords(candidate) - coords)
-            if d < best then vehicle, best = candidate, d end
+            if d < best and IsEntityVisible(candidate) then vehicle, best = candidate, d end -- (invisible : obstacle)
         end
     end
     if vehicle == 0 then return nil, 'Montez dans le véhicule ou placez-vous juste à côté.' end

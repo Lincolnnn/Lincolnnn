@@ -154,9 +154,12 @@ menu** (jamais ceux du décor).
 
 **Sac médical** (`Stock.MedBags`, objet `xm_prop_x17_bag_med_01a`)
 - **Un sac** dans le coffre de **chaque véhicule de police** (1 / 1) : **« Prendre »** : porté **à la main** (pas en même
-  temps que des plots ; ni arme, ni entrée dans un véhicule tant qu'on le porte), **tenu comme un jerrican**
-  (animation `move_weapon@jerrycan@generic` / `idle`, haut du corps seulement : on marche et on court normalement ;
-  `Stock.MedBags.Anim`, et la position du sac dans la main : `Stock.MedBags.Carry.Offset`).
+  temps que des plots ; ni arme, ni entrée dans un véhicule tant qu'on le porte), **tenu comme un jerrican**,
+  comme le vrai jerrican du jeu : **la marche du jeu avec un jerrican** (`move_ped_wpn_jerrycan_generic`, qui joue le
+  dictionnaire `move_weapon@jerrycan@generic` : idle / walk / run) **et** le bras qui tient (`move_weapon@jerrycan@generic`
+  / `idle`, haut du corps seulement, relancé si une autre animation le coupe). Un dictionnaire introuvable est signalé
+  une fois dans la console F8. Réglages : `Stock.MedBags.Anim` (`Clipset = false` : sans la marche), position du sac
+  dans la main : `Stock.MedBags.Carry.Offset`).
 - **G** (touche des plots) : **posé au sol** devant soi, visible par tous. **L'œil** : **« Ramasser le sac médical »**
   (n'importe quel joueur). **« Ranger »** : dans **n'importe quel coffre** de police qui n'en a pas déjà un (il peut
   donc changer de véhicule).
@@ -168,6 +171,9 @@ menu** (jamais ceux du décor).
 - **Un pistolet radar à l'avant** (portières avant, onglet **Pistolet radar**) de **chaque véhicule de police** (1 / 1) :
   **« Prendre »** / **« Ranger »**. Il n'est **plus au coffre** (refusé au coffre). On ne peut pas en prendre un deuxième
   si l'on en a déjà un sur soi. **`/restock`** le remet. Un coffre déjà enregistré garde son compte (désormais à l'avant).
+- **Sans descendre** : **assis à la place conducteur ou passager avant** d'un véhicule de police (ou à pied à une
+  portière avant), **`/radargun`** le **prend** ou le **range** (touche à choisir : Paramètres > Raccourcis clavier >
+  FiveM, « prendre / ranger le pistolet radar » ; `RadarGuns.Seat`). Places arrière : refusé.
 
 **Extincteur** (`WEAPON_FIREEXTINGUISHER`, `Stock.Extinguishers`, `Where = 'trunk'`)
 - **Un extincteur** dans le **coffre** de **chaque véhicule de police** (1 / 1, onglet **Matériel**) : **« Prendre »**

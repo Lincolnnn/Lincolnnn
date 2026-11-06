@@ -209,7 +209,7 @@ local function closestVehicle(ped)
     local pos, best, bestDistance = GetEntityCoords(ped), nil, Config.DvDistance
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
         local d = #(GetEntityCoords(vehicle) - pos)
-        if d <= bestDistance then best, bestDistance = vehicle, d end
+        if d <= bestDistance and IsEntityVisible(vehicle) then best, bestDistance = vehicle, d end -- (invisible : obstacle de rp_TrafficControl)
     end
     return best
 end

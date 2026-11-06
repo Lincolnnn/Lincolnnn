@@ -94,7 +94,7 @@ ChatConfig = {
                 { "/equipements · /mestenues", "Menu > Équipements ; vos tenues enregistrées" },
                 { "/eup", "tenues (Modifier ma tenue, Enregistrer ma tenue)" }, { "/fichecivil", "fiche civile (profils, véhicule)" },
                 { "/voiture", "Menu > Voiture : faire apparaître un véhicule" }, { "/radio", "radio du véhicule (Menu > Musique)" }, { "/musique", "musique sur soi, à un endroit ou sur un objet (tapage, fête)" }, { "/meteo", "météo et heure du serveur" },
-                { "/coffre · E", "police : équipement du véhicule (portière avant ou coffre)" },
+                { "/coffre · E", "police : équipement du véhicule (portière avant ou coffre)" }, { "/radargun", "police : prendre / ranger le pistolet radar, assis à l'avant" },
                 { "/freecam", "mode photo : caméra libre, zoom, inclinaison 90°, interfaces masquées" },
                 { "Ctrl gauche", "à bord : projecteur (appui : allumer ; maintenu : viser, clic gauche verrouiller, clic droit suivre) ; /editspotlight : régler" },
                 { "/trafic · /scene", "gestion du trafic (police) ; scène à fouiller (civil)" },

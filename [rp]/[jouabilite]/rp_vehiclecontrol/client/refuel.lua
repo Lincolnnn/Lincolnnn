@@ -103,7 +103,7 @@ end
 local function vehicleAtFlap(pos, range)
     local best, bestDistance = nil, range
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-        if #(GetEntityCoords(vehicle) - pos) < 8.0 and VC.hasTank(vehicle) then
+        if #(GetEntityCoords(vehicle) - pos) < 8.0 and IsEntityVisible(vehicle) and VC.hasTank(vehicle) then
             local d = #(VC.flapPosition(vehicle) - pos)
             if d <= bestDistance then best, bestDistance = vehicle, d end
         end

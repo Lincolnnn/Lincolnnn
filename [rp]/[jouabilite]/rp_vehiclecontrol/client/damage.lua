@@ -394,7 +394,7 @@ function VC.nearestVehicle(distance)
     local pos, best, bestDistance = GetEntityCoords(ped), nil, distance or 5.0
     for _, v in ipairs(GetGamePool('CVehicle')) do
         local d = #(GetEntityCoords(v) - pos)
-        if d <= bestDistance then best, bestDistance = v, d end
+        if d <= bestDistance and IsEntityVisible(v) then best, bestDistance = v, d end -- (invisible : obstacle de rp_TrafficControl)
     end
     return best
 end
