@@ -11,9 +11,10 @@ InteractConfig = {
         { command = 'joueurs', view = 'players', label = 'Menu > Joueurs (se téléporter ; admins : kick, ban)' },
         { command = 'equipements', view = 'equipment', label = 'Menu > Équipements (tenues, armes)' },
         { command = 'mestenues', view = 'outfits', label = 'Menu > Équipements > Mes tenues' },
-        { command = 'voiture', view = 'car', label = 'Menu > Voiture (faire apparaître un véhicule, radio)' },
-        { command = 'autoradio', view = 'radio', label = 'Menu > Voiture > Radio du véhicule' },
-        { command = 'musique', view = 'music', label = 'Menu > Musique (sur soi, à un endroit, sur un objet)' },
+        { command = 'voiture', view = 'car', label = 'Menu > Voiture (faire apparaître un véhicule)' },
+        { command = 'radio', view = 'radio', label = 'Menu > Musique > Radio du véhicule' },
+        { command = 'autoradio', view = 'radio', label = 'Menu > Musique > Radio du véhicule (ancien nom)' },
+        { command = 'musique', view = 'music', label = 'Menu > Musique (radio du véhicule, sur soi, à un endroit, sur un objet)' },
         { command = 'meteo', view = 'weather', label = 'Menu > Météo (météo et heure du serveur)' },
     },
     TargetKey = 'LMENU',          -- Alt gauche
@@ -196,6 +197,9 @@ InteractConfig = {
     -- Moteur du son : 'nui' = le lecteur de ce script (son 3D ci-dessus) ; 'olisound' = la ressource olisound
     -- (séparée) ; 'auto' = olisound s'il est démarré, sinon ce script.
     RadioEngine = 'nui',
+
+    -- Œil > inspections d'un véhicule > « Numéro VIN » : celui du véhicule enregistré au MDC avec cette plaque ; sinon :
+    VinUnreadable = 'Illisible',
 
     -- Ressources liées (nom des dossiers)
     MdcResource = 'rp_mdc', -- "policier" = joueur dans une unité du MDC

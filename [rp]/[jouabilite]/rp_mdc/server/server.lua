@@ -3175,6 +3175,16 @@ exports('getPlayerUnit', function(src)
     return { id = unit.id, name = unit.name, tag = unit.tag, agency = unit.agency, agencyLabel = a.label, agencyShort = a.short }
 end)
 
+--   exports.rp_mdc:getVehicleVin(plaque) -> numéro VIN du véhicule enregistré au MDC avec cette plaque, ou nil
+--   (non enregistré, ou sans VIN) : inspection « Numéro VIN » de l'œil (rp_interact)
+exports('getVehicleVin', function(plate)
+    local key = normalizePlate(plate)
+    if key == '' then return nil end
+    local record = findBy('vehicles', 'plate', key)
+    if not record or type(record.vin) ~= 'string' or record.vin == '' then return nil end
+    return record.vin
+end)
+
 --   exports.rp_mdc:getPlayerAgency(source) -> clé du MDC choisi ('generic', 'wsp', 'kcso'…) ou nil
 exports('getPlayerAgency', function(src) return PlayerAgency[tonumber(src)] end)
 

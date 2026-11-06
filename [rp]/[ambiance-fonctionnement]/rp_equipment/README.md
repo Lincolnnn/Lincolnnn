@@ -33,8 +33,8 @@ serveur à chaque action. `PoliceOnly = false` pour l'ouvrir à tout le monde.
   droite (arme rangée, nombre de plots / fusées, jerrican plein…). **Arme longue** est ouvert par défaut ; les onglets
   ouverts restent ouverts pendant la session. Ordre :
   - **coffre** : **Arme longue** ; **Équipement** (seulement s'il y en a pour ce véhicule) ; puis **Affaires** (un
-    titre, pas un onglet) avec deux onglets : **Matériel** (plots, fusées, pistolet radar, herse) et **Jerrycan** ;
-  - **portières avant** : **Arme longue** ; **Fusées de détresse** (celles de l'avant).
+    titre, pas un onglet) avec deux onglets : **Matériel** (plots, fusées, extincteur, herse) et **Jerrycan** ;
+  - **portières avant** : **Arme longue** ; **Fusées de détresse** (celles de l'avant) ; **Pistolet radar**.
 - **Équipement** (au **coffre**) : les pièces EUP **propres au modèle du véhicule** (`vehicle_equipment.json`, voir
   ci-dessous), à **mettre** et **retirer** de sa tenue. Il n'y a plus d'équipement de base par police. Une pièce portée est cochée (bouton « Retirer »). En la retirant, ce que le policier portait avant revient.
   Seules les pièces de son personnage (homme / femme) sont proposées.
@@ -101,7 +101,7 @@ avoir modifié le fichier de rp_interact : tapez `rpequip_reload` dans la consol
   **avec ses accessoires** (viseur, chargeur, lampe…) et son nom (`Label`). En plus : `LongGuns.ExtraComponents`
   (accessoires), `LongGuns.Names` (noms).
 
-## Coffre : plots de circulation, sac médical, jerrican, pistolet radar et fusées (inventaire)
+## Coffre : plots de circulation, sac médical, jerrican, extincteur et fusées (inventaire) ; pistolet radar à l'avant
 
 Au **coffre** d'un véhicule de police, la partie **« Coffre »** du menu se gère **comme un inventaire**, sauvegardé
 **par plaque** dans `data/stock.json` (gardé au redémarrage du serveur et quand le véhicule réapparaît avec la même
@@ -110,7 +110,7 @@ plaque). C'est le **même coffre pour tous** les policiers.
 **Plots de circulation** (cône orange à bandes blanches, `prop_roadcone02a`)
 - **7 plots d'origine** dans chaque véhicule de police (`Stock.Cones.Default`), **10 au maximum** (`Stock.Cones.Max`).
 - **`/restock`** (policier en service, assis dans le véhicule de police ou à 6 m de lui) : coffre rempli à **100 %** :
-  **10 / 10 plots**, **20 / 20 fusées**, un **jerrican plein** et le **pistolet radar**. Les **armes longues** ne sont pas touchées (à ranger soi-même).
+  **10 / 10 plots**, **20 / 20 fusées**, un **jerrican plein**, l'**extincteur**, le **sac médical** et le **pistolet radar** (à l'avant). Les **armes longues** ne sont pas touchées (à ranger soi-même).
 - **Prendre** : le policier **choisit le nombre** avec **− / +** (de 1 à ce que le coffre contient et ce qu'il peut
   encore porter : **5 plots au plus** à la fois, `Stock.Cones.MaxCarry`), puis **« Prendre N plots »**. Il les **porte en pile dans les mains**.
   Plots en main : pas d'arme, pas de coup, pas de visée, pas de montée en véhicule.
@@ -154,7 +154,9 @@ menu** (jamais ceux du décor).
 
 **Sac médical** (`Stock.MedBags`, objet `xm_prop_x17_bag_med_01a`)
 - **Un sac** dans le coffre de **chaque véhicule de police** (1 / 1) : **« Prendre »** : porté **à la main** (pas en même
-  temps que des plots ; ni arme, ni entrée dans un véhicule tant qu'on le porte).
+  temps que des plots ; ni arme, ni entrée dans un véhicule tant qu'on le porte), **tenu comme un jerrican**
+  (animation `move_weapon@jerrycan@generic` / `idle`, haut du corps seulement : on marche et on court normalement ;
+  `Stock.MedBags.Anim`, et la position du sac dans la main : `Stock.MedBags.Carry.Offset`).
 - **G** (touche des plots) : **posé au sol** devant soi, visible par tous. **L'œil** : **« Ramasser le sac médical »**
   (n'importe quel joueur). **« Ranger »** : dans **n'importe quel coffre** de police qui n'en a pas déjà un (il peut
   donc changer de véhicule).
@@ -162,9 +164,15 @@ menu** (jamais ceux du décor).
   au sol. Mort en le portant : il tombe à ses pieds ; déconnexion : posé à l'endroit où l'on était. Un sac pris et
   jamais rangé n'est plus dans le coffre ; **`/restock`** en remet un.
 
-**Pistolet radar** (`WEAPON_RADARGUN`, `Stock.RadarGuns`)
-- **Un pistolet radar** dans le coffre de **chaque véhicule de police** (1 / 1) : **« Prendre »** / **« Ranger »**. Un
-  seul par coffre ; on ne peut pas en prendre un deuxième si l'on en a déjà un sur soi. **`/restock`** le remet.
+**Pistolet radar** (`WEAPON_RADARGUN`, `Stock.RadarGuns`, `Where = 'front'`)
+- **Un pistolet radar à l'avant** (portières avant, onglet **Pistolet radar**) de **chaque véhicule de police** (1 / 1) :
+  **« Prendre »** / **« Ranger »**. Il n'est **plus au coffre** (refusé au coffre). On ne peut pas en prendre un deuxième
+  si l'on en a déjà un sur soi. **`/restock`** le remet. Un coffre déjà enregistré garde son compte (désormais à l'avant).
+
+**Extincteur** (`WEAPON_FIREEXTINGUISHER`, `Stock.Extinguishers`, `Where = 'trunk'`)
+- **Un extincteur** dans le **coffre** de **chaque véhicule de police** (1 / 1, onglet **Matériel**) : **« Prendre »**
+  (plein, `Ammo` = 2000) / **« Ranger »**. Il ne fait **plus partie des équipements** du menu Interaction (rp_interact).
+  Pas à l'avant. **`/restock`** le remet.
 
 **`/coffre`** : ouvre le même menu par commande (à une portière avant ou au coffre d'un véhicule de police, en
 service) ; sinon un message dit où se placer.
@@ -212,7 +220,7 @@ menu Équipement ne s'ouvre pas et sa proposition n'est pas affichée tant qu'el
 | `Eup` | numéros des pièces EUP comptés à partir de 1 |
 | `VehicleEquipmentFile` | équipement EUP propre à certains véhicules, au coffre (`vehicle_equipment.json`) |
 | `OpenFrontDoor` | ouvrir la portière avant la plus proche pendant le menu |
-| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` = 5 portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), jerrican (`Jerrycans` : 1 plein d'origine, 1 max, `Ammo` = plein), pistolet radar (`RadarGuns` : 1 d'origine, 1 max), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |
+| `Stock` | coffre-inventaire : où (`Where`), fichier (`SaveFile`), plots (`Cones` : 7 d'origine, 10 max, `MaxCarry` = 5 portés, `PickupRadius` du ramassage groupé, modèle, distance de pose, port : os, décalage, animation, pile `MaxProps` / `StackStep`), fusées (`Flares` : 20 max), jerrican (`Jerrycans` : 1 plein d'origine, 1 max, `Ammo` = plein), pistolet radar (`RadarGuns` : 1 d'origine, 1 max, `Where` = `front`), extincteur (`Extinguishers` : 1, 1 max, `Ammo`, `Where` = `trunk`), sac médical (`MedBags` : port `Carry`, animation `Anim`), touche de pose (`PlaceKey`, G), commande `/restock` (`RestockCommand`, `RestockDistance`), trafic PNJ (`Cones.Traffic` : distance d'anticipation 10 m, regroupement, marge, décalage max, vitesses, zone de ralentissement, portée) |
 | `LongGuns` | râtelier : types concernés, armes longues acceptées (`Groups`), emplacements (`Slots` : avant / coffre, `Where`), munitions données (`GiveAmmo`), fichier de sauvegarde, accessoires et noms en plus |
 
 ## Performance

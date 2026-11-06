@@ -136,7 +136,7 @@ end
 --- Conducteur ›, Poser un objet ›…) : inspections, fouilles, occupant, police, portière, poser / reprendre,
 --- le reste, radio, les options « en bas » (pousser le véhicule…), puis Supprimer.
 local NOT_PRIMARY = { ['police:seat'] = true, ['door:enter'] = true }
-local INSPECT = { visual = true, olfactory = true, visualInterior = true, visualExterior = true, notable = true }
+local INSPECT = { visual = true, olfactory = true, visualInterior = true, visualExterior = true, notable = true, vin = true }
 local SEARCH = { upper = true, lower = true, cabin = true, rear = true, trunk = true }
 -- part : options d'autres scripts liées à la partie visée (coffre : prendre / ranger la herse de Riven) : en tête
 local GROUP_ORDER = { part = 0, inspect = 1, search = 2, occupant = 3, police = 4, door = 5, place = 6, other = 7, radio = 8, last = 9, delete = 10 }

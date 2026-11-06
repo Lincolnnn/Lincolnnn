@@ -3,7 +3,7 @@
     const $ = (id) => document.getElementById(id);
     const box = $('equip');
     const resource = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'rp_equipment';
-    let state = { slots: [], rack: {}, held: false, stock: false, where: 'trunk', inv: { carrying: 0, maxCarry: 5, flares: 0, maxHeld: 25, jerrycan: false, radar: false }, coneQty: 1 };
+    let state = { slots: [], rack: {}, held: false, stock: false, where: 'trunk', inv: { carrying: 0, maxCarry: 5, flares: 0, maxHeld: 25, jerrycan: false, radar: false, ext: false }, coneQty: 1 };
     // Onglets ouverts (gardés pendant la session, d'un véhicule à l'autre) : Arme longue ouvert par défaut
     const openFolds = { rack: true };
     let messageTimer = null;
@@ -90,6 +90,18 @@
         const front = state.where !== 'trunk';
         $('eqStockSection').classList.toggle('hidden', !st || front);
         $('eqFrontFlaresSection').classList.toggle('hidden', !st || !front || !(st.maxFrontFlares > 0));
+        // Pistolet radar : à l'avant (radarWhere = 'front') ou dans le coffre
+        const radarFront = !st || st.radarWhere !== 'trunk';
+        $('eqFrontRadarSection').classList.toggle('hidden', !st || front !== radarFront || !(st.maxRadars > 0));
+        if (st) {
+            const radars = Number(st.radars) || 0;
+            const place = radarFront ? 'à l\'avant' : 'dans le coffre';
+            $('eqRadars').textContent = `${radars} / ${st.maxRadars || 1} ${place}`;
+            $('eqRadarSum').textContent = `${radars} / ${st.maxRadars || 1}`;
+            $('eqRadarHeld').textContent = inv.radar ? 'Sur vous : 1' : 'Sur vous : aucun';
+            $('eqRadarTake').disabled = radars <= 0 || !!inv.radar;
+            $('eqRadarStore').disabled = !inv.radar || radars >= (st.maxRadars || 1);
+        }
         box.querySelectorAll('[data-flares-held]').forEach((el) => { el.textContent = `Sur vous : ${inv.flares}`; });
         if (!st) return;
         if (front) {
@@ -123,12 +135,13 @@
         $('eqCanHeld').textContent = held ? `Sur vous : 1 (${inv.jerrycan} %)` : 'Sur vous : aucun';
         $('eqCanTake').disabled = cans <= 0 || held;
         $('eqCanStore').disabled = !held || cans >= (st.maxJerrycans || 1);
-        // Pistolet radar : un par coffre
-        const radars = Number(st.radars) || 0;
-        $('eqRadars').textContent = `${radars} / ${st.maxRadars || 1} dans le coffre`;
-        $('eqRadarHeld').textContent = inv.radar ? 'Sur vous : 1' : 'Sur vous : aucun';
-        $('eqRadarTake').disabled = radars <= 0 || !!inv.radar;
-        $('eqRadarStore').disabled = !inv.radar || radars >= (st.maxRadars || 1);
+        // Extincteur : un par coffre
+        const exts = Number(st.extinguishers) || 0;
+        $('eqExtRow').classList.toggle('hidden', !(st.maxExtinguishers > 0) || st.extWhere === 'front');
+        $('eqExts').textContent = `${exts} / ${st.maxExtinguishers || 1} dans le coffre`;
+        $('eqExtHeld').textContent = inv.ext ? 'Sur vous : 1' : 'Sur vous : aucun';
+        $('eqExtTake').disabled = exts <= 0 || !!inv.ext;
+        $('eqExtStore').disabled = !inv.ext || exts >= (st.maxExtinguishers || 1);
         // Sac médical : un par coffre ; porté à la main (pas avec des plots)
         const bags = Number(st.medbags) || 0;
         $('eqBagRow').classList.toggle('hidden', !(st.maxMedbags > 0));
@@ -206,6 +219,8 @@
         if (e.target.closest('#eqCanStore')) return post('jerrycan', { mode: 'store' });
         if (e.target.closest('#eqRadarTake')) return post('radarGun', { mode: 'take' });
         if (e.target.closest('#eqRadarStore')) return post('radarGun', { mode: 'store' });
+        if (e.target.closest('#eqExtTake')) return post('extinguisher', { mode: 'take' });
+        if (e.target.closest('#eqExtStore')) return post('extinguisher', { mode: 'store' });
         if (e.target.closest('#eqBagTake')) return post('medbag', { mode: 'take' });
         if (e.target.closest('#eqBagStore')) return post('medbag', { mode: 'store' });
         if (e.target.closest('#eqSpikeTake')) return post('spikes', { mode: 'take' });

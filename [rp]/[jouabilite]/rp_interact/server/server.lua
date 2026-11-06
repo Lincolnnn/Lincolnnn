@@ -283,6 +283,7 @@ local VEHICLE_FIELDS = {
     visualInterior = { title = 'Inspection visuelle intérieure', defaults = 'vehicleVisual', me = 'inspecte visuellement l\'intérieur du véhicule' },
     visualExterior = { title = 'Inspection visuelle extérieure', defaults = 'vehicleVisual', me = 'fait le tour du véhicule pour l\'inspecter' },
     olfactory      = { title = 'Inspection olfactive', defaults = 'vehicleOlfactory', me = 'sent l\'odeur qui se dégage du véhicule' },
+    vin            = { title = 'Numéro VIN', defaults = 'vehicleVisual', me = 'relève le numéro VIN du véhicule' },
     notable        = { title = 'Détail notoire', defaults = 'notable', police = true },
     cabin          = { title = 'Fouille de l\'habitacle', defaults = 'vehicleSearch', police = true, search = 'vehicle', me = 'fouille l\'habitacle du véhicule' },
     rear           = { title = 'Fouille de la banquette arrière', defaults = 'vehicleSearch', police = true, search = 'vehicle', me = 'fouille la banquette arrière du véhicule' },
@@ -658,6 +659,17 @@ local SEARCH_RANGE = Config.SearchDistance + 1.5
 local SEARCH_EARLY = 1500                           -- ms de tolérance sur la durée d'une fouille
 local Searches = {}                                 -- [joueur] = { key, ready (GetGameTimer) }
 
+--- Numéro VIN du véhicule (n° réseau) : enregistré au MDC (plaque) -> son VIN ; sinon « Illisible »
+local function vinOf(netId)
+    local entity = netId and vehicleEntity(netId)
+    if not entity then return Config.VinUnreadable or 'Illisible' end
+    local plate = GetVehicleNumberPlateText(entity)
+    local resource = mdcResource()
+    local ok, vin = pcall(function() return exports[resource]:getVehicleVin(plate) end)
+    if ok and type(vin) == 'string' and vin ~= '' then return vin end
+    return Config.VinUnreadable or 'Illisible'
+end
+
 local function fieldSpec(p)
     local fields = (p.kind == 'vehicle') and VEHICLE_FIELDS or PERSON_FIELDS
     local spec = fields[p.field]
@@ -733,6 +745,9 @@ on('inspect', function(src, p)
         -- Personnage non joueur : pas de profil, réponses par défaut (présenté comme un individu)
         text = personValue(nil, p.field, 'npc:' .. tostring(target or p.label or ''))
         subject = 'Individu'
+    elseif p.field == 'vin' then
+        -- Numéro VIN : celui du véhicule enregistré au MDC avec cette plaque ; sinon « Illisible »
+        text = vinOf(target)
     else
         local profile = target and vehicleProfile(target) or nil
         text = vehicleValue(profile, p.field, 'vehicle:' .. tostring(target or p.label or ''))

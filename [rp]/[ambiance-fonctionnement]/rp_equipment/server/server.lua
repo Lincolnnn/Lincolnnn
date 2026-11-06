@@ -343,6 +343,7 @@ end
 local SJ = S.Jerrycans or {}
 local CAN_AMMO = SJ.Ammo or 4500
 local SR = S.RadarGuns or {}
+local SE = S.Extinguishers or {}
 local SB = S.MedBags or {}
 local bagCarry = {}   -- [joueur] = true : porte le sac médical (pris dans un coffre ou ramassé)
 local placedBags = {} -- [objet] = true : sacs médicaux posés au sol
@@ -379,6 +380,8 @@ local function stockOf(plate)
     if type(st.jerrycans) ~= 'table' then st.jerrycans = fullCans(SJ.Default or 1) end
     -- Pistolet radar : coffre enregistré avant son arrivée : celui d'origine
     if type(st.radars) ~= 'number' then st.radars = SR.Default or 1 end
+    -- Extincteur : coffre enregistré avant son arrivée : celui d'origine
+    if type(st.extinguishers) ~= 'number' then st.extinguishers = SE.Default or 1 end
     -- Sac médical : coffre enregistré avant son arrivée : celui d'origine
     if type(st.medbags) ~= 'number' then st.medbags = SB.Default or 1 end
     return st
@@ -390,7 +393,9 @@ local function stockView(plate)
     return { cones = st.cones, flares = st.flares, maxCones = S.Cones and S.Cones.Max or 0, maxFlares = TRUNK_FLARES,
         frontFlares = st.frontFlares, maxFrontFlares = FRONT_FLARES,
         jerrycans = #st.jerrycans, maxJerrycans = SJ.Max or 1, jerrycanFill = last and math.floor(last / CAN_AMMO * 100 + 0.5) or 0,
-        radars = st.radars, maxRadars = SR.Max or 1, medbags = st.medbags, maxMedbags = SB.Max or 1 }
+        radars = st.radars, maxRadars = SR.Max or 1, radarWhere = SR.Where or 'front',
+        extinguishers = st.extinguishers, maxExtinguishers = SE.Max or 1, extWhere = SE.Where or 'trunk',
+        medbags = st.medbags, maxMedbags = SB.Max or 1 }
 end
 
 local function stockAllowed(ctx)
@@ -401,6 +406,13 @@ end
 local function flaresAllowed(ctx)
     if S.Enabled == false or ctx.plate == nil then return false end
     if ctx.where == 'front' then return FRONT_FLARES > 0 end
+    return stockAllowed(ctx)
+end
+
+--- Objet rangé à un endroit précis du véhicule (Where : 'front' = portières avant, 'trunk' = coffre)
+local function toolAllowed(ctx, where)
+    if S.Enabled == false or ctx.plate == nil then return false end
+    if where == 'front' then return ctx.where == 'front' end
     return stockAllowed(ctx)
 end
 
@@ -416,7 +428,8 @@ function Handlers.open(src, data)
     return {
         ok = true, type = ctx.kind, plate = ctx.plate, assets = assetsFor(ctx),
         rack = rackAllowed(ctx) and ctx.plate and rackSummary(ctx.plate) or false,
-        stock = (stockAllowed(ctx) or flaresAllowed(ctx)) and stockView(ctx.plate) or false, carrying = carried(src), maxCarry = MAX_CARRY,
+        stock = (stockAllowed(ctx) or flaresAllowed(ctx) or toolAllowed(ctx, SR.Where or 'front')
+            or toolAllowed(ctx, SE.Where or 'trunk')) and stockView(ctx.plate) or false, carrying = carried(src), maxCarry = MAX_CARRY,
     }
 end
 
@@ -431,16 +444,19 @@ function Handlers.restock(src, data)
     st.frontFlares = FRONT_FLARES
     st.jerrycans = fullCans(SJ.Max or 1)
     st.radars = SR.Max or 1
+    st.extinguishers = SE.Max or 1
     st.medbags = math.max(st.medbags, SB.Max or 1)
     stockChanged(ctx.plate)
     return { ok = true, plate = ctx.plate, stock = stockView(ctx.plate) }
 end
 
---- Pistolet radar : { mode = 'take' | 'store', held (le joueur en a déjà un) }
+--- Pistolet radar : { mode = 'take' | 'store', held (le joueur en a déjà un) } ; à l'avant (RadarGuns.Where)
 function Handlers.radarGun(src, data)
     local ctx, err = context(src, data)
     if not ctx then return { ok = false, error = err } end
-    if not stockAllowed(ctx) then return { ok = false, error = 'Pas de coffre ici.' } end
+    if not toolAllowed(ctx, SR.Where or 'front') then
+        return { ok = false, error = (SR.Where or 'front') == 'front' and 'Le pistolet radar est à l\'avant (portière avant).' or 'Pas de coffre ici.' }
+    end
     local st = stockOf(ctx.plate)
     if data.mode == 'take' then
         if data.held then return { ok = false, error = 'Vous avez déjà un pistolet radar.' } end
@@ -450,8 +466,30 @@ function Handlers.radarGun(src, data)
         return { ok = true, mode = 'take', stock = stockView(ctx.plate) }
     end
     if not data.held then return { ok = false, error = 'Vous n\'avez pas de pistolet radar.' } end
-    if st.radars >= (SR.Max or 1) then return { ok = false, error = 'Il y a déjà un pistolet radar dans ce coffre.' } end
+    if st.radars >= (SR.Max or 1) then return { ok = false, error = 'Il y a déjà un pistolet radar dans ce véhicule.' } end
     st.radars = st.radars + 1
+    stockChanged(ctx.plate)
+    return { ok = true, mode = 'store', stock = stockView(ctx.plate) }
+end
+
+--- Extincteur : { mode = 'take' | 'store', held } ; dans le coffre (Extinguishers.Where)
+function Handlers.extinguisher(src, data)
+    local ctx, err = context(src, data)
+    if not ctx then return { ok = false, error = err } end
+    if not toolAllowed(ctx, SE.Where or 'trunk') then
+        return { ok = false, error = (SE.Where or 'trunk') == 'front' and 'L\'extincteur est à l\'avant (portière avant).' or 'L\'extincteur est dans le coffre.' }
+    end
+    local st = stockOf(ctx.plate)
+    if data.mode == 'take' then
+        if data.held then return { ok = false, error = 'Vous avez déjà un extincteur.' } end
+        if st.extinguishers <= 0 then return { ok = false, error = 'Plus d\'extincteur dans ce véhicule.' } end
+        st.extinguishers = st.extinguishers - 1
+        stockChanged(ctx.plate)
+        return { ok = true, mode = 'take', ammo = SE.Ammo or 2000, stock = stockView(ctx.plate) }
+    end
+    if not data.held then return { ok = false, error = 'Vous n\'avez pas d\'extincteur.' } end
+    if st.extinguishers >= (SE.Max or 1) then return { ok = false, error = 'Il y a déjà un extincteur dans ce véhicule.' } end
+    st.extinguishers = st.extinguishers + 1
     stockChanged(ctx.plate)
     return { ok = true, mode = 'store', stock = stockView(ctx.plate) }
 end

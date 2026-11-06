@@ -27,7 +27,7 @@ Le but : limiter les échanges écrits entre civils et policiers. Le civil prép
 ## Menu Interaction (touche F1)
 
 **Commandes** (config.lua : `MenuCommands`) : **`/menu`** (ouvrir / fermer), et directement sur une page : **`/joueurs`**,
-**`/equipements`**, **`/mestenues`**, **`/voiture`**, **`/autoradio`** (radio du véhicule), **`/musique`**, **`/meteo`** (pages
+**`/equipements`**, **`/mestenues`**, **`/voiture`**, **`/radio`** ou **`/autoradio`** (radio du véhicule, rangée dans Musique), **`/musique`**, **`/meteo`** (pages
 réservées : même règle que dans le menu). Retour arrière remonte aux pages au-dessus.
 
 Un **vrai menu de jeu, au clavier** (comme `/eup`, même apparence), **sans souris** : vous continuez de bouger
@@ -141,7 +141,8 @@ Page **Voiture** :
   chaque joueur) : le véhicule est marqué `rpiSpawned` par le serveur et chaque joueur qui le contrôle le garde « de
   mission » (vérifié toutes les 2 s et au moment du nettoyage) ; il reste aussi si son joueur se déconnecte (supprimé
   par `/dv`, l'œil ou un nouveau spawn).
-- **Radio** : **Lien** (Entrée, collez le lien d'une vidéo / musique YouTube, ou un lien direct vers un fichier audio,
+- **Radio du véhicule** (désormais dans **Musique** : Menu > Musique > **Radio du véhicule**, ou directement **`/radio`**) :
+  **Lien** (Entrée, collez le lien d'une vidéo / musique YouTube, ou un lien direct vers un fichier audio,
   un podcast, une radio en ligne, Entrée) puis **Lancer ce lien** : le son est joué **dans le véhicule**. Tout le monde
   l'entend **au même moment et au même volume de base**. À bord : normalement. Dehors, **plus loin quand c'est fort**
   (`RadioRanges`, selon le **volume** de la radio) :
@@ -204,6 +205,14 @@ Page **Voiture** :
   script.
 
 ### Musique (`/musique`, Menu Interaction > Musique)
+**Page rangée** : en haut **Radio du véhicule** (sa page, aussi par **`/radio`**), puis la musique. Tout n'est **plus
+ouvert d'un coup** : les parties sont des **onglets repliés** (Entrée : ouvrir / fermer, un seul ouvert à la fois) qui
+apparaissent **au fur et à mesure** :
+- rien en cours : seulement le **Lien** ; une fois un lien écrit : **Où jouer la musique** et l'onglet **Réglages** ;
+- en cours (ou arrêtée avec un historique) : **Morceau en cours** (ouvert pendant la lecture), **Nouveau lien** (ouvert
+  quand c'est arrêté), **Réglages / volume**, **Écouter ensuite** et **Déjà écoutés** (seulement s'ils ne sont pas
+  vides), **Déplacer** (créateur), puis **Retirer la musique**. La page Radio du véhicule est rangée de la même façon.
+
 Même lecteur et mêmes réglages que la radio, mais la musique part d'**un joueur**, d'**un endroit** ou d'**un objet** —
 pour les scènes de fête, de tapage, de chantier… entendues par tous ceux qui sont autour :
 - écrire le **Lien**, **préparer** les réglages (section « Réglages ») :
@@ -484,6 +493,9 @@ peut le modifier ou le supprimer.
 | ☐ **Inspection visuelle** → Intérieur, Extérieur | « Rien d'anormal » / « Tout semble normal » / « Rien de suspect » / « Rien à signaler » |
 | **Inspection olfactive** (texte) + **odeurs détectées automatiquement** (sans limite) | « Rien d'anormal » / « Rien de suspect » |
 | **Détail notoire** | « Aucun détail notoire » |
+
+**Numéro VIN** (œil, **Inspections ›**, policier en service) : relevé dans le **MDC** (registre des véhicules, par la
+plaque, export `getVehicleVin` de rp_mdc) ; véhicule non enregistré ou sans VIN : **« Illisible »** (`VinUnreadable`).
 | **Fouille** : Habitacle, Banquette arrière, Coffre | « Rien à signaler » / « Aucun élément » / « Rien d'illégal » |
 
 ## Eye Target (maintenir Alt)
@@ -493,7 +505,7 @@ Un œil apparaît au centre de l'écran ; il s'allume (bleu) quand la cible prop
 
 Options rangées en **sous-menus** (clic : ses options, « ‹ Retour » pour revenir ; un sous-menu d'une seule option
 est affiché directement) et par **groupes**, séparés par un trait. Exemple, policier visant un véhicule :
-**Inspections ›** (visuelle intérieure, extérieure, olfactive, détail notoire) · **Fouilles ›** (habitacle, banquette
+**Inspections ›** (visuelle intérieure, extérieure, olfactive, **numéro VIN**, détail notoire) · **Fouilles ›** (habitacle, banquette
 arrière, coffre) · **Conducteur ›** (ou la place de l'occupant le plus proche : inspection visuelle, olfactive) ·
 actions de police (placer / faire sortir) · **Ouvrir la portière…** · **Monter à…** (portière visée) · **Poser un
 objet ›** (déposer l'arme ici / sur le toit / sur le coffre, ajouter / déplacer / retirer un objet)
@@ -735,7 +747,7 @@ Un objet par bouton « Équipement … », dans l'ordre d'affichage :
             ],
             "Tints": true
         },
-        { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": false }
+        { "Weapon": "WEAPON_PEPPERSPRAY", "Label": "Spray au poivre", "Default": false }
     ]
 }
 ```

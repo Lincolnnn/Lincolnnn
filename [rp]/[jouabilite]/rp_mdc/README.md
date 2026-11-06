@@ -469,6 +469,9 @@ VIN\* (généré), dernier contrôle technique\* (jamais après aujourd'hui) ; a
 véhicule volé / abandonné / commercial ; **Historique** (infraction administrative ou de stationnement).
 **Véhicule actuel** : reprend modèle, marque, couleur et plaque du véhicule où vous êtes.
 **Remplissage aléatoire** : statut d'immatriculation, contrôle technique et assurance.
+**VIN relevé sur le véhicule** : l'œil de rp_interact (**Inspections › Numéro VIN**) lit le VIN enregistré ici pour la
+plaque du véhicule (export serveur `getVehicleVin(plaque)` : le VIN, ou `nil` si la plaque n'est pas enregistrée ;
+rp_interact affiche alors « Illisible »).
 
 Les listes du générateur (noms, adresses, emplois…) se modifient dans `html/script.js`, section « GÉNÉRATEURS ALÉATOIRES ».
 Adresses générées : adresses réelles de Géorgie au format « 225 Baker Street NW, Atlanta, Fulton Co., GA » — 80 % Atlanta,

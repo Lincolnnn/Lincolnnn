@@ -120,6 +120,7 @@ local VEHICLE_OPTIONS = {
     { field = 'visualInterior', label = 'Inspection visuelle intérieure', icon = 'eye', range = Config.ObserveDistance },
     { field = 'visualExterior', label = 'Inspection visuelle extérieure', icon = 'eye', range = Config.ObserveDistance },
     { field = 'olfactory', label = 'Inspection olfactive', icon = 'nose', range = Config.ObserveDistance },
+    { field = 'vin', label = 'Numéro VIN', icon = 'note', range = Config.SearchDistance },
     { field = 'notable', label = 'Détail notoire', icon = 'note', police = true, range = Config.ObserveDistance },
     { field = 'cabin', label = 'Fouille de l\'habitacle', icon = 'search', police = true, search = true, range = Config.SearchDistance },
     { field = 'rear', label = 'Fouille de la banquette arrière', icon = 'search', police = true, search = true, range = Config.SearchDistance },

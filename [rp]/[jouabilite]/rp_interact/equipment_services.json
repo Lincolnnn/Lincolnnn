@@ -28,8 +28,7 @@
             { "Weapon": "WEAPON_STUNGUN", "Label": "Taser", "Ammo": 1, "Required": true },
             { "Weapon": "WEAPON_FLASHLIGHT", "Label": "Lampe torche", "Ammo": 1 },
             { "Weapon": "WEAPON_COLBATON", "Label": "Matraque telescopique", "Ammo": 1 },
-            { "Weapon": "WEAPON_PEPPERSPRAY", "Label": "Spray au poivre" },
-            { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": true }
+            { "Weapon": "WEAPON_PEPPERSPRAY", "Label": "Spray au poivre" }
         ]
     },
     {
@@ -137,8 +136,7 @@
             { "Weapon": "WEAPON_STUNGUN", "Label": "Taser", "Ammo": 1, "Required": true },
             { "Weapon": "WEAPON_FLASHLIGHT", "Label": "Lampe torche", "Ammo": 1 },
             { "Weapon": "WEAPON_COLBATON", "Label": "Matraque telescopique", "Ammo": 1 },
-            { "Weapon": "WEAPON_PEPPERSPRAY", "Label": "Spray au poivre" },
-            { "Weapon": "WEAPON_FIREEXTINGUISHER", "Label": "Extincteur", "Ammo": 2000, "Default": true }
+            { "Weapon": "WEAPON_PEPPERSPRAY", "Label": "Spray au poivre" }
         ]
     }
 ]

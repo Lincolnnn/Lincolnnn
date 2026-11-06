@@ -547,8 +547,8 @@
                         desc: 'Mode civil, profils, véhicule et tips d\'arrestation.' },
                     { kind: 'section', label: 'Configuration' },
                     { kind: 'menu', label: 'Équipements', open: equipmentPage, desc: 'Tenues (/eup) et armes.', ...locked('equipment') },
-                    { kind: 'menu', label: 'Voiture', open: carPage, desc: 'Faire apparaître un véhicule, radio du véhicule.', ...locked('car') },
-                    { kind: 'menu', label: 'Musique', open: musicPage, desc: 'Faire jouer de la musique sur soi, à un endroit ou sur un objet (/musique).', ...locked('music') },
+                    { kind: 'menu', label: 'Voiture', open: carPage, desc: 'Faire apparaître un véhicule.', ...locked('car') },
+                    { kind: 'menu', label: 'Musique', open: musicPage, desc: 'Radio du véhicule (/radio), musique sur soi, à un endroit ou sur un objet (/musique).', ...locked('music') },
                     { kind: 'menu', label: 'Météo', open: weatherPage, desc: 'Météo et heure du serveur (pour tout le monde), et leur défilement.', ...locked('weather') },
                     { kind: 'section', label: 'Joueurs' },
                     { kind: 'menu', label: 'Joueurs', right: players.loaded ? `${players.list.length}` : '', open: playersPage,
@@ -1068,10 +1068,9 @@
     function carPage() {
         return {
             id: 'car', title: 'Voiture',
-            banner: { title: 'Voiture', sub: 'Spawn et radio', color: MENU_COLORS.car },
+            banner: { title: 'Voiture', sub: 'Faire apparaître un véhicule', color: MENU_COLORS.car },
             items: [
                 { kind: 'menu', label: 'Spawn', open: spawnPage, desc: 'Faire apparaître un véhicule (data/vehicle.json).' },
-                { kind: 'menu', label: 'Radio', open: radioPage, desc: 'Musique, vidéo, podcast dans le véhicule, pour tout le monde.' },
             ],
         };
     }
@@ -1339,6 +1338,17 @@
     const RADIO_DOUBLE_MS = 2500;
     let radioRestartAt = 0;
 
+    /** Onglets repliables de la radio / musique : un seul ouvert à la fois ; ils s'ouvrent selon ce que l'on fait */
+    function radioFold(ui, items, key, label, right, children, desc) {
+        const open = ui.fold === key;
+        const close = () => { ui.fold = null; ui.reselect = key; rerender(); };
+        if (ui.reselect === key && interact.page) { interact.page.sel = items.length; ui.reselect = null; }
+        items.push({ kind: 'fold', label, open, right, desc: desc || (open ? 'Entrée / ← : refermer.' : 'Entrée / → : ouvrir.'),
+            onBack: open ? close : undefined, action: () => { ui.fold = open ? null : key; rerender(); } });
+        if (!open) return;
+        children.filter(Boolean).forEach((it) => items.push({ ...it, sub: true, onLeft: close, onBack: close }));
+    }
+
     function radioItems(ui) {
         const info = ui.info;
         const music = ui.page === 'music';
@@ -1360,50 +1370,45 @@
         const state = !radio ? (music ? 'aucune musique à proximité' : 'radio éteinte')
             : radio.stopped ? `${what} arrêtée` : (radio.paused ? `${what} en pause` : `${what} allumée`);
         const head = music ? (radio && radio.label ? `Musique ${radio.label}` : 'Musique') : (info.vehicle || 'Radio');
+        const needUrl = ui.url ? {} : { disabled: true, why: 'Écrivez d\'abord un lien.' };
+        const create = (where, extra = {}) => radioAction(ui, 'create', { where, url: ui.url || (radio && radio.url) || '', volume: ui.volume,
+            intensity: ui.intensity, range: ui.range, loop: ui.loop, ...extra });
+        ui.create = create;
+        const urlInput = { kind: 'input', key: 'url', label: 'Lien', value: ui.url, placeholder: 'YouTube, musique, podcast, radio…', max: 400, ...ctl(),
+            desc: 'Entrée : coller / écrire le lien (Ctrl+V), puis Entrée.', onChange: (v) => { ui.url = v; rerender(); } };
         const items = [
             { kind: 'info', label: `${head} — ${state}`, tone: on ? 'ok' : 'muted' },
             on && { kind: 'info', label: radio.url, tone: 'muted' },
             on && youtubeId(radio.url) && !info.ytAudio && { kind: 'info', tone: 'muted',
-                label: 'Lien YouTube : volume selon la distance seulement (le lecteur YouTube ne laisse passer aucun effet). Lien audio direct (mp3, radio en ligne) : son 3D complet (étouffé, basses, réverbération).' },
+                label: 'Lien YouTube : volume selon la distance seulement. Lien audio direct (mp3, radio en ligne) : son 3D complet.' },
             !can && { kind: 'info', label: deny, tone: 'warn' },
-            { kind: 'input', key: 'url', label: 'Lien', value: ui.url, placeholder: 'YouTube, musique, podcast, radio…', max: 400, ...ctl(),
-                desc: 'Entrée : coller / écrire le lien (Ctrl+V), puis Entrée.', onChange: (v) => { ui.url = v; rerender(); } },
+        ].filter(Boolean);
+        const whereButtons = (moved) => [
+            { kind: 'button', label: 'Sur le joueur (suivre)', ...(ui.url || moved ? {} : needUrl), desc: `La musique vous suit, à pied comme en véhicule${moved ? ' (déplacée)' : ''}.`,
+                action: () => create('player') },
+            { kind: 'button', label: 'Lancer ici', ...(ui.url || moved ? {} : needUrl),
+                desc: `La musique reste là où vous êtes, entendue dans le périmètre choisi dans les réglages${moved ? ' (déplacée)' : ''}.`,
+                action: () => create('place') },
+            { kind: 'menu', label: 'Lancer sur un objet', ...(ui.url || moved ? {} : needUrl), open: () => musicObjectPage(ui),
+                desc: `Un objet autour de vous, ou un objet à faire apparaître (enceinte, chaîne hi-fi, sac…)${moved ? ' (déplacée)' : ''}.` },
         ];
-        const needUrl = ui.url ? {} : { disabled: true, why: 'Écrivez d\'abord un lien.' };
-        const create = (where, extra = {}) => radioAction(ui, 'create', { where, url: ui.url, volume: ui.volume, intensity: ui.intensity,
-            range: ui.range, loop: ui.loop, ...extra });
-        ui.create = create;
-        if (music && (!exists || info.own)) {
-            // Créer (ou déplacer : la nouvelle remplace l'ancienne)
-            const moved = exists ? ' (la musique actuelle est déplacée)' : '';
-            items.push(
-                { kind: 'section', label: exists ? 'Déplacer la musique' : 'Où jouer la musique' },
-                { kind: 'button', label: 'Sur le joueur (suivre)', ...needUrl, desc: `La musique vous suit, à pied comme en véhicule${moved}.`,
-                    action: () => create('player') },
-                { kind: 'button', label: 'Lancer ici', ...needUrl,
-                    desc: `La musique reste là où vous êtes, entendue dans le périmètre choisi dans les réglages${moved}.`,
-                    action: () => create('place') },
-                { kind: 'menu', label: 'Lancer sur un objet', ...needUrl, open: () => musicObjectPage(ui),
-                    desc: `Un objet autour de vous, ou un objet à faire apparaître (enceinte, chaîne hi-fi, sac…)${moved}.` },
-            );
-        }
-        if (!exists && music) {
-            // Préparer : volume, intensité, périmètre, boucle (envoyés avec « Lancer… »)
-            items.push(
-                { kind: 'section', label: 'Réglages' },
-                ...musicSettings(ui, info, false),
-            );
+        // /musique, rien à proximité : 1. le lien ; 2. une fois écrit, où la jouer ; réglages repliés
+        if (music && !exists) {
+            items.push(urlInput);
+            if (!ui.url) {
+                items.push({ kind: 'info', label: 'Collez un lien pour commencer.', tone: 'muted' });
+                return items;
+            }
+            items.push({ kind: 'section', label: 'Où jouer la musique' }, ...whereButtons(false));
+            const intensities = intensityOptions(info);
+            radioFold(ui, items, 'settings', 'Réglages',
+                `${ui.volume} % · ${intensities[ui.intensity] || ''}${ui.range ? ` · ${ui.range} m` : ''}${ui.loop ? ' · boucle' : ''}`,
+                musicSettings(ui, info, false));
             return items;
         }
-        items.push(
-            { kind: 'button', label: 'Lancer ce lien', ...ctl(needUrl),
-                desc: 'Tout le monde l\'entend au même moment, selon la distance (plus loin quand c\'est fort ; étouffé quand c\'est fermé).',
-                action: () => radioAction(ui, 'play', { url: ui.url, volume: ui.volume }) },
-            { kind: 'button', label: 'Ajouter à « Écouter ensuite »', right: `${queue.length} / ${queueMax}`,
-                ...ctl(!ui.url ? needUrl : (on && queue.length >= queueMax ? { disabled: true, why: `File pleine (${queueMax} max).` } : {})),
-                desc: 'Lu à la suite du morceau en cours.',
-                action: async () => { if (await radioAction(ui, 'queue', { url: ui.url, volume: ui.volume })) { ui.url = ''; rerender(); } } },
-            { kind: 'section', label: 'Morceau en cours' },
+        // Onglet ouvert par défaut : le morceau en cours s'il y en a un, sinon « Nouveau lien »
+        if (ui.fold === undefined) ui.fold = on ? 'now' : 'link';
+        radioFold(ui, items, 'now', 'Morceau en cours', on ? (radio.paused ? 'En pause' : 'En lecture') : 'Arrêté', [
             { kind: 'button', label: radio && radio.paused ? 'Reprendre' : 'Pause', ...ctl(off(on, 'Aucun morceau en cours.')), action: () => radioAction(ui, 'pause') },
             { kind: 'button', label: 'Début du morceau', ...ctl(off(on, 'Aucun morceau en cours.')),
                 desc: 'Appuyez deux fois : morceau précédent.',
@@ -1422,28 +1427,49 @@
                 onChange: (v) => radioAction(ui, 'loop', { value: v }) },
             { kind: 'button', label: music ? 'Arrêter la musique' : 'Arrêter la radio', danger: true, ...ctl(off(on, 'Aucun morceau en cours.')),
                 desc: 'Vide la file « Écouter ensuite » ; les morceaux restent dans « Déjà écoutés ».', action: () => radioAction(ui, 'stop') },
-            music && { kind: 'button', label: 'Retirer la musique', danger: true, ...ctl(),
-                desc: 'Plus de son ni d\'historique à cet endroit.', action: () => radioAction(ui, 'remove') },
-            ...(music ? musicSettings(ui, info, true, ctl) : []),
-            !music && { kind: 'list', label: 'Volume du véhicule', options: volumeOptions(info), index: Math.round(ui.volume / 5), clamp: true, ...ctl(),
-                desc: '← → : régler (pour tout le monde). Entendu jusqu\'à la 1re distance quand c\'est fermé (vitres, portières, murs), la 2de quand c\'est ouvert.',
-                onChange: (i) => {
-                    ui.volume = i * 5;
-                    clearTimeout(ui.volumeTimer);
-                    if (radio) ui.volumeTimer = setTimeout(() => radioAction(ui, 'volume', { volume: ui.volume }), 350);
-                } },
-            { kind: 'section', label: `Écouter ensuite (${queue.length} / ${queueMax})${radio && radio.loop && queue.length ? ' · playlist en boucle' : ''}` },
-        );
-        if (!queue.length) items.push({ kind: 'info', label: 'Aucun morceau en attente.', tone: 'muted' });
-        queue.forEach((url, i) => items.push({ kind: 'button', label: url, right: `${i + 1}`, ...ctl(),
-            desc: 'Entrée : retirer de la file.', action: () => radioAction(ui, 'unqueue', { index: i + 1 }) }));
-        items.push({ kind: 'section', label: `Déjà écoutés (${history.length})` });
-        if (!history.length) items.push({ kind: 'info', label: 'Aucun morceau précédent.', tone: 'muted' });
-        // le plus récent en premier
-        for (let i = history.length - 1; i >= 0; i--) {
-            const url = history[i];
-            items.push({ kind: 'button', label: url, right: '↺', ...ctl(), desc: 'Entrée : relancer ce morceau (même fini).',
-                action: () => radioAction(ui, 'replay', { index: i + 1 }) });
+        ]);
+        radioFold(ui, items, 'link', 'Nouveau lien', ui.url ? 'prêt' : '', [
+            urlInput,
+            ui.url && { kind: 'button', label: 'Lancer ce lien', ...ctl(),
+                desc: 'Tout le monde l\'entend au même moment, selon la distance (plus loin quand c\'est fort ; étouffé quand c\'est fermé).',
+                action: async () => { if (await radioAction(ui, 'play', { url: ui.url, volume: ui.volume })) { ui.url = ''; ui.fold = 'now'; rerender(); } } },
+            ui.url && { kind: 'button', label: 'Ajouter à « Écouter ensuite »', right: `${queue.length} / ${queueMax}`,
+                ...ctl(on && queue.length >= queueMax ? { disabled: true, why: `File pleine (${queueMax} max).` } : {}),
+                desc: 'Lu à la suite du morceau en cours.',
+                action: async () => { if (await radioAction(ui, 'queue', { url: ui.url, volume: ui.volume })) { ui.url = ''; ui.fold = 'queue'; rerender(); } } },
+        ]);
+        if (music) {
+            const intensities = intensityOptions(info);
+            radioFold(ui, items, 'settings', 'Réglages', `${ui.volume} % · ${intensities[ui.intensity] || ''}${ui.range ? ` · ${ui.range} m` : ''}`,
+                musicSettings(ui, info, true, ctl));
+        } else {
+            radioFold(ui, items, 'settings', 'Volume', `${ui.volume} %`, [
+                { kind: 'list', label: 'Volume du véhicule', options: volumeOptions(info), index: Math.round(ui.volume / 5), clamp: true, ...ctl(),
+                    desc: '← → : régler (pour tout le monde). Entendu jusqu\'à la 1re distance quand c\'est fermé (vitres, portières, murs), la 2de quand c\'est ouvert.',
+                    onChange: (i) => {
+                        ui.volume = i * 5;
+                        clearTimeout(ui.volumeTimer);
+                        if (radio) ui.volumeTimer = setTimeout(() => radioAction(ui, 'volume', { volume: ui.volume }), 350);
+                    } },
+            ]);
+        }
+        if (queue.length) {
+            radioFold(ui, items, 'queue', 'Écouter ensuite', `${queue.length} / ${queueMax}${radio && radio.loop ? ' · en boucle' : ''}`,
+                queue.map((url, i) => ({ kind: 'button', label: url, right: `${i + 1}`, ...ctl(),
+                    desc: 'Entrée : retirer de la file.', action: () => radioAction(ui, 'unqueue', { index: i + 1 }) })));
+        }
+        if (history.length) {
+            const done = [];
+            for (let i = history.length - 1; i >= 0; i--) { // le plus récent en premier
+                done.push({ kind: 'button', label: history[i], right: '↺', ...ctl(), desc: 'Entrée : relancer ce morceau (même fini).',
+                    action: () => radioAction(ui, 'replay', { index: i + 1 }) });
+            }
+            radioFold(ui, items, 'history', 'Déjà écoutés', `${history.length}`, done);
+        }
+        if (music && info.own) radioFold(ui, items, 'move', 'Déplacer la musique', '', whereButtons(true));
+        if (music) {
+            items.push({ kind: 'button', label: 'Retirer la musique', danger: true, ...ctl(),
+                desc: 'Plus de son ni d\'historique à cet endroit.', action: () => radioAction(ui, 'remove') });
         }
         return items;
     }
@@ -1541,7 +1567,7 @@
         return {
             id: 'radio', title: 'Radio',
             banner: () => ({ title: 'Radio', sub: (ui.info && ui.info.vehicle) || 'Radio du véhicule', color: MENU_COLORS.car }),
-            onEnter: () => { ui.info = null; loadRadio('radio'); },
+            onEnter: () => { ui.info = null; ui.fold = undefined; loadRadio('radio'); },
             items: () => radioItems(ui),
         };
     }
@@ -1550,14 +1576,20 @@
         const ui = radioUis.music;
         return {
             id: 'music', title: 'Musique',
-            banner: () => ({ title: 'Musique', sub: 'Sur soi, à un endroit, sur un objet', color: MENU_COLORS.car }),
-            onEnter: () => { ui.info = null; loadRadio('music'); },
-            items: () => radioItems(ui),
+            banner: () => ({ title: 'Musique', sub: 'Radio du véhicule, sur soi, à un endroit, sur un objet', color: MENU_COLORS.car }),
+            onEnter: () => { ui.info = null; ui.fold = undefined; loadRadio('music'); },
+            items: () => [
+                { kind: 'menu', label: 'Radio du véhicule', open: radioPage,
+                    ...(isLocked('car') ? { disabled: true, why: LOCKED_TEXT, right: 'Réservé' } : {}),
+                    desc: 'La radio du véhicule où vous êtes (ou de celui visé avec l\'œil, portière avant ouverte). Aussi : /radio.' },
+                { kind: 'section', label: 'Sur soi, à un endroit, sur un objet' },
+                ...radioItems(ui),
+            ],
         };
     }
 
     // Pages ouvertes directement (ex. 'radio' depuis l'œil) : le chemin, pour que Retour arrière remonte
-    const MENU_PATHS = { radio: [carPage, radioPage], music: [musicPage], spawn: [carPage, spawnPage], police: [policePage], civil: [civilPage], equipment: [equipmentPage],
+    const MENU_PATHS = { radio: [musicPage, radioPage], music: [musicPage], spawn: [carPage, spawnPage], police: [policePage], civil: [civilPage], equipment: [equipmentPage],
         car: [carPage], weather: [weatherPage], players: [playersPage], outfits: [equipmentPage, myOutfitsPage] };
     const SECTION_OF = { radio: 'car', music: 'music', spawn: 'car', car: 'car', equipment: 'equipment', outfits: 'equipment', weather: 'weather' };
 

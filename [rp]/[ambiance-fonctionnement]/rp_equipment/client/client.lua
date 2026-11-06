@@ -562,6 +562,7 @@ end
 local PETROLCAN = GetHashKey(S.Jerrycans and S.Jerrycans.Weapon or 'WEAPON_PETROLCAN')
 local CAN_AMMO = S.Jerrycans and S.Jerrycans.Ammo or 4500
 local RADARGUN = GetHashKey(S.RadarGuns and S.RadarGuns.Weapon or 'WEAPON_RADARGUN')
+local EXTINGUISHER = GetHashKey(S.Extinguishers and S.Extinguishers.Weapon or 'WEAPON_FIREEXTINGUISHER')
 
 --- Jerrican sur soi : essence restante (en % d'un jerrican plein), false s'il n'en a pas
 local function canHeld(ped)
@@ -575,14 +576,15 @@ sendInventory = function(force)
     local cones = carried and carried.count or 0
     local can = canHeld(ped)
     local radar = HasPedGotWeapon(ped, RADARGUN, false)
+    local ext = HasPedGotWeapon(ped, EXTINGUISHER, false)
     local spikes = RPSpikes ~= nil and RPSpikes.available(open) -- (client/spikes.lua)
     local spikeHeld = spikes and RPSpikes.held() or false
     local bag = RPMedBag ~= nil and RPMedBag.held() or false
-    local key = ('%d:%d:%s:%s:%s:%s:%s'):format(cones, flaresHeld(ped), tostring(can), tostring(radar), tostring(spikes), tostring(spikeHeld), tostring(bag))
+    local key = ('%d:%d:%s:%s:%s:%s:%s:%s'):format(cones, flaresHeld(ped), tostring(can), tostring(radar), tostring(spikes), tostring(spikeHeld), tostring(bag), tostring(ext))
     if key == lastInventory and not force then return end
     lastInventory = key
     SendNUIMessage({ action = 'inventory', data = { carrying = cones, maxCarry = MAX_CARRY, flares = flaresHeld(ped),
-        maxHeld = MAX_FLARES_HELD, jerrycan = can, radar = radar, spikes = spikes, spikeHeld = spikeHeld, bag = bag } })
+        maxHeld = MAX_FLARES_HELD, jerrycan = can, radar = radar, ext = ext, spikes = spikes, spikeHeld = spikeHeld, bag = bag } })
 end
 
 local function loadAnim(dict)
@@ -785,6 +787,22 @@ local function dropBagProp()
     if bag and bag.prop then deleteProp(bag.prop) end
 end
 
+--- Sac tenu comme un jerrican (MedBags.Anim) : haut du corps seulement, relancée si une autre animation la coupe
+local BAG_ANIM = SB.Anim or { Dict = 'move_weapon@jerrycan@generic', Clip = 'idle', Flag = 49 }
+local function holdAnim(ped)
+    if not BAG_ANIM or not BAG_ANIM.Dict then return end
+    if IsEntityPlayingAnim(ped, BAG_ANIM.Dict, BAG_ANIM.Clip, 3) or IsPedInAnyVehicle(ped, true) or IsPedRagdoll(ped) then return end
+    if not HasAnimDictLoaded(BAG_ANIM.Dict) then
+        RequestAnimDict(BAG_ANIM.Dict)
+        return -- chargée aux images suivantes
+    end
+    TaskPlayAnim(ped, BAG_ANIM.Dict, BAG_ANIM.Clip, 8.0, -8.0, -1, BAG_ANIM.Flag or 49, 0.0, false, false, false)
+end
+
+local function stopHoldAnim()
+    if BAG_ANIM and BAG_ANIM.Dict then StopAnimTask(PlayerPedId(), BAG_ANIM.Dict, BAG_ANIM.Clip, 2.0) end
+end
+
 local function bagLoop()
     CreateThread(function()
         local text = nil
@@ -793,6 +811,7 @@ local function bagLoop()
             if IsEntityDead(ped) then
                 RPMedBag.place(true) -- mort : le sac tombe à ses pieds
             else
+                holdAnim(ped)
                 -- Sac à la main : ni monter dans un véhicule, ni frapper, ni viser, ni sortir une arme
                 for _, c in ipairs({ 23, 24, 25, 37, 140, 141, 142, 257 }) do DisableControlAction(0, c, true) end
                 if GetSelectedPedWeapon(ped) ~= UNARMED then SetCurrentPedWeapon(ped, UNARMED, true) end
@@ -831,6 +850,7 @@ local function setBag(on)
     elseif not on and bag then
         dropBagProp()
         bag = nil
+        stopHoldAnim()
         if not carried then LocalPlayer.state:set('rpCarryingCone', false, false) end
     end
     if sendInventory then sendInventory() end
@@ -909,7 +929,7 @@ RegisterCommand(S.RestockCommand or 'restock', function()
     if not vehicle then return notify('Aucun véhicule de police à côté de vous.') end
     request('restock', { net = VehToNet(vehicle), type = kind, where = 'trunk' }, function(res)
         if not res.ok then return notify(res.error or 'Action impossible.') end
-        notify(('Véhicule %s réapprovisionné : %d / %d plots, %d / %d fusées au coffre, %d / %d à l\'avant, jerrican et pistolet radar (armes longues : à ranger vous-même).'):format(
+        notify(('Véhicule %s réapprovisionné : %d / %d plots, %d / %d fusées au coffre, %d / %d à l\'avant, jerrican, pistolet radar et extincteur (armes longues : à ranger vous-même).'):format(
             res.plate or '', res.stock.cones, res.stock.maxCones, res.stock.flares, res.stock.maxFlares,
             res.stock.frontFlares or 0, res.stock.maxFrontFlares or 0))
     end)
@@ -1002,7 +1022,28 @@ RegisterNUICallback('radarGun', function(data, cb)
             SendNUIMessage({ action = 'message', data = { text = 'Pistolet radar pris.' } })
         else
             RemoveWeaponFromPed(p, RADARGUN)
-            SendNUIMessage({ action = 'message', data = { text = 'Pistolet radar rangé dans le coffre.' } })
+            SendNUIMessage({ action = 'message', data = { text = 'Pistolet radar rangé.' } })
+        end
+        sendInventory(true)
+    end)
+end)
+
+-- Extincteur : { mode = 'take' | 'store' } (coffre) ; donné plein
+RegisterNUICallback('extinguisher', function(data, cb)
+    cb({ ok = true })
+    if not open or type(data) ~= 'table' then return end
+    local payload = context()
+    payload.mode = data.mode == 'take' and 'take' or 'store'
+    payload.held = HasPedGotWeapon(PlayerPedId(), EXTINGUISHER, false)
+    request('extinguisher', payload, function(res)
+        if not stockResult(res) then return end
+        local p = PlayerPedId()
+        if res.mode == 'take' then
+            GiveWeaponToPed(p, EXTINGUISHER, tonumber(res.ammo) or 2000, false, true)
+            SendNUIMessage({ action = 'message', data = { text = 'Extincteur pris.' } })
+        else
+            RemoveWeaponFromPed(p, EXTINGUISHER)
+            SendNUIMessage({ action = 'message', data = { text = 'Extincteur rangé dans le coffre.' } })
         end
         sendInventory(true)
     end)

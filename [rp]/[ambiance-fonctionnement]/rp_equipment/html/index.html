@@ -54,6 +54,23 @@
             </div>
         </section>
 
+        <!-- Avant (portières avant) : pistolet radar -->
+        <section class="eq-fold hidden" data-fold="frontRadar" id="eqFrontRadarSection">
+            <button class="eq-fold-head" type="button"><span class="eq-fold-mark"></span><span class="eq-fold-title">Pistolet radar</span><span class="eq-fold-sum" id="eqRadarSum"></span></button>
+            <div class="eq-fold-body">
+                <div class="eq-stock-row">
+                    <div class="eq-stock-info">
+                        <div class="eq-stock-count" id="eqRadars"></div>
+                        <div class="eq-stock-held" id="eqRadarHeld"></div>
+                    </div>
+                    <div class="eq-stock-actions">
+                        <button class="eq-btn eq-primary" id="eqRadarTake">Prendre</button>
+                        <button class="eq-btn" id="eqRadarStore">Ranger</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Coffre comme un inventaire : ce qui est pris n'y est plus, ce qui est rangé y revient -->
         <div class="eq-group hidden" id="eqStockSection">
             <div class="eq-group-title">Affaires</div>
@@ -90,15 +107,16 @@
                                 <button class="eq-btn" data-flares="store" data-all="1">Tout ranger</button>
                             </div>
                         </div>
-                        <div class="eq-stock-row">
+                        <!-- Extincteur : un par véhicule, dans le coffre -->
+                        <div class="eq-stock-row" id="eqExtRow">
                             <div class="eq-stock-info">
-                                <div class="eq-stock-name">Pistolet radar</div>
-                                <div class="eq-stock-count" id="eqRadars"></div>
-                                <div class="eq-stock-held" id="eqRadarHeld"></div>
+                                <div class="eq-stock-name">Extincteur</div>
+                                <div class="eq-stock-count" id="eqExts"></div>
+                                <div class="eq-stock-held" id="eqExtHeld"></div>
                             </div>
                             <div class="eq-stock-actions">
-                                <button class="eq-btn eq-primary" id="eqRadarTake">Prendre</button>
-                                <button class="eq-btn" id="eqRadarStore">Ranger</button>
+                                <button class="eq-btn eq-primary" id="eqExtTake">Prendre</button>
+                                <button class="eq-btn" id="eqExtStore">Ranger</button>
                             </div>
                         </div>
                         <!-- Sac médical : un par véhicule ; porté à la main, posé au sol (G), repris avec l'œil -->

@@ -116,22 +116,28 @@ EquipConfig = {
         -- Jerrican d'essence : PLEIN dans le coffre de chaque véhicule de police (Default), à prendre et ranger ; il garde
         -- l'essence qui lui reste (plein = Ammo = 2/5 d'un réservoir avec rp_vehiclecontrol). /restock le remet plein.
         Jerrycans = { Default = 1, Max = 1, Weapon = 'WEAPON_PETROLCAN', Ammo = 4500 },
-        -- Pistolet radar (jumelles de vitesse) : un dans le coffre de chaque véhicule de police, à prendre et ranger
-        RadarGuns = { Default = 1, Max = 1, Weapon = 'WEAPON_RADARGUN' },
+        -- Pistolet radar (jumelles de vitesse) : un À L'AVANT de chaque véhicule de police (portières avant), à prendre
+        -- et ranger (Where = 'trunk' : dans le coffre)
+        RadarGuns = { Default = 1, Max = 1, Weapon = 'WEAPON_RADARGUN', Where = 'front' },
+        -- Extincteur : un dans le COFFRE de chaque véhicule de police (plus dans les équipements du Menu Interaction),
+        -- donné plein (Ammo), à prendre et ranger
+        Extinguishers = { Default = 1, Max = 1, Weapon = 'WEAPON_FIREEXTINGUISHER', Ammo = 2000, Where = 'trunk' },
         -- Sac médical : un dans le coffre de chaque véhicule de police (Default / Max). Pris : porté à la main (pas avec
         -- des plots) ; PlaceKey (G) : posé au sol, devant soi ; l'œil : « Ramasser le sac médical » (n'importe quel
         -- joueur) ; menu du coffre : « Ranger » (n'importe quel coffre de police, dans la limite : il peut changer de
         -- véhicule). Jamais supprimé (ni par l'œil, ni par un script) : laissé au sol, il y reste ; mort ou déconnexion
         -- en le portant : posé à ses pieds. Carry : os (main droite), décalage x y z et rotation.
+        -- Anim : tenu comme un jerrican (bras le long du corps), haut du corps seulement (on marche, on court).
         MedBags = { Default = 1, Max = 1, Model = 'xm_prop_x17_bag_med_01a', PlaceDistance = 0.7,
-            Carry = { Bone = 57005, Offset = { 0.42, 0.0, -0.05, 0.10, 270.0, 60.0 } } },
+            Carry = { Bone = 57005, Offset = { 0.42, 0.0, -0.05, 0.10, 270.0, 60.0 } },
+            Anim = { Dict = 'move_weapon@jerrycan@generic', Clip = 'idle', Flag = 49 } },
         -- Herse de riven_spikes (script payant, s'il est installé) : prise et rangée avec l'ŒIL sur le coffre (options de
         -- Riven). Menu = true : ligne « Herse » en plus dans ce menu (désactivée). KeepInHands : en main, la touche X de
         -- Riven ne la fait plus disparaître (elle revient en main) : la poser au sol ou la ranger dans le coffre (œil).
         -- Type : modèle de Riven pris au coffre (stopstick : le seul proposé au coffre, voir la config de riven_spikes).
         Spikes = { Enabled = true, Menu = false, KeepInHands = true, Resource = 'riven_spikes', Type = 'stopstick' },
         PlaceKey = 'G',
-        RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots, fusées, jerrican, pistolet radar, sac médical), sauf armes longues
+        RestockCommand = 'restock', -- /restock : coffre rempli à 100 % (plots, fusées, jerrican, pistolet radar, extincteur, sac médical), sauf armes longues
         RestockDistance = 6.0,      -- m : véhicule de police le plus proche (ou celui où l'on est assis)
     },
 }
