@@ -80,6 +80,25 @@ SpotlightConfig = {
         -- Color = { 255, 240, 210 }, -- couleur du rayon ; nil = celle de Light.Color
     },
 
+    -- ---------------------------------------------------------------------
+    -- ÉBLOUISSEMENT : un joueur DANS le faisceau (ou tout près, jusqu'à NearAngle degrés de son axe), la lampe en vue
+    -- (rien entre les deux), voit un voile blanc et un gros halo sur la lampe. Plus fort en regardant la lampe en face,
+    -- de près et la nuit ; s'efface en ~1 s après (persistance rétinienne). Pas pour les occupants du véhicule du
+    -- projecteur.
+    -- ---------------------------------------------------------------------
+    Glare = {
+        Enabled = true,
+        NearAngle = 15.0,    -- au-delà de cet angle avec l'axe du faisceau (degrés) : plus d'éblouissement
+        Range = 90.0,        -- distance maximale (m) ; diminue avec la distance
+        Strength = 1.0,      -- force générale (x)
+        Veil = 170,          -- voile blanc sur l'écran au plus fort (0 - 255)
+        Size = 0.9,          -- taille du halo sur la lampe au plus fort (fraction de la hauteur de l'écran)
+        Away = 0.12,         -- part restante en regardant ailleurs (0 = aucun effet sans regarder la lampe)
+        Day = 0.35,          -- de jour (x) ; la nuit : 1
+        Rise = 10.0,         -- vitesse d'apparition
+        Fall = 2.5,          -- vitesse de disparition (plus petit = dure plus longtemps)
+    },
+
     -- Débattement, en degrés, pour le projecteur CONDUCTEUR (le passager : l'inverse gauche / droite).
     -- Yaw : 0 = droit devant, négatif = vers la gauche, positif = vers la droite ; Pitch : négatif = vers le bas.
     Yaw = { Min = -110.0, Max = 50.0 },

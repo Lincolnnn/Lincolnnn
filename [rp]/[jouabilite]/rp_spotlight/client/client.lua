@@ -7,6 +7,9 @@
     Modes : 0 manuel (direction par rapport au véhicule), 1 verrouillé (point du monde).
     Faisceau visible (Beam) : un rayon de lumière dessiné dans l'air (deux textures du dossier textures/, faites pour
     ce script), plus visible la nuit et sous la pluie, coupé là où la lumière touche un mur / le sol ; halo sur la lampe.
+    Éblouissement (Glare) : joueur dans le faisceau ou tout près, la lampe en vue (rien entre les deux) : voile blanc
+    et halo sur la lampe à l'écran, d'autant plus forts qu'on la regarde en face, de près, la nuit ; s'efface en
+    ~1 s après (persistance rétinienne).
     Performance : 0.00 ms hors d'un véhicule équipé et sans projecteur allumé à proximité ; une vérification de la
     place toutes les 500 ms à bord d'un véhicule ; boucle par image seulement pour dessiner un projecteur allumé
     (à moins de RenderDistance) ou pendant la visée.
@@ -180,27 +183,32 @@ end
 -- FAISCEAU VISIBLE (Beam) : rayon dans l'air + halo de la lampe, deux textures dessinées en 3D (DrawTexturedPoly)
 -- =========================================================================
 local B = C.Beam or {}
+local G = C.Glare or {}
 local BEAM_TXD = 'rp_spotlight_fx'
-local beamReady = false
-if B.Enabled ~= false then
+local texReady = false
+if B.Enabled ~= false or G.Enabled ~= false then
     local txd = CreateRuntimeTxd(BEAM_TXD)
     local a = CreateRuntimeTextureFromImage(txd, 'beam', 'textures/beam.png')
     local g = CreateRuntimeTextureFromImage(txd, 'glow', 'textures/glow.png')
-    beamReady = a ~= nil and a ~= 0 and g ~= nil and g ~= 0
+    texReady = a ~= nil and a ~= 0 and g ~= nil and g ~= 0
 end
+local beamReady = texReady and B.Enabled ~= false
 
 local function cross(a, b) return vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x) end
 
+--- Nuit : 1 de 21 h à 5 h, 0 de 8 h à 18 h, entre les deux au lever / coucher du soleil
+local function nightAmount()
+    local h = GetClockHours() + GetClockMinutes() / 60.0
+    if h >= 21.0 or h < 5.0 then return 1.0 end
+    if h >= 18.0 then return (h - 18.0) / 3.0 end
+    if h < 8.0 then return (8.0 - h) / 3.0 end
+    return 0.0
+end
+
 --- Visibilité dans l'air selon l'heure (nuit 1, jour B.Day) et la pluie (x 1 + pluie x B.Rain)
 local function airFactor()
-    local h = GetClockHours() + GetClockMinutes() / 60.0
     local day = B.Day or 0.0
-    local night
-    if h >= 21.0 or h < 5.0 then night = 1.0
-    elseif h >= 18.0 then night = (h - 18.0) / 3.0
-    elseif h < 8.0 then night = (8.0 - h) / 3.0
-    else night = 0.0 end
-    local f = day + (1.0 - day) * night
+    local f = day + (1.0 - day) * nightAmount()
     return f * (1.0 + (GetRainLevel() or 0.0) * (B.Rain or 0.6))
 end
 
@@ -266,6 +274,66 @@ local function drawBeam(key, vehicle, origin, dir, cam, now, air, col)
 end
 
 -- =========================================================================
+-- ÉBLOUISSEMENT (Glare) : ce joueur dans le faisceau d'un projecteur (ou tout près), la lampe en vue
+-- =========================================================================
+local glare = 0.0        -- éblouissement affiché (lissé : monte vite, redescend lentement)
+local glareSpot = nil    -- { x, y } : position à l'écran de la lampe la plus éblouissante
+local sight = {}         -- [clé] = { at, clear } : rien entre la lampe et la caméra (relu toutes les 150 ms)
+
+--- Rien entre la caméra et la lampe (ni mur, ni véhicule, ni objet ; son propre véhicule ne compte pas : pare-brise)
+local function inSight(key, origin, cam, now)
+    local v = sight[key]
+    if v and now - v.at < 150 then return v.clear end
+    local back = cam - origin
+    local l = #back
+    local stop = l > 0.7 and origin + back / l * 0.6 or origin -- s'arrête juste avant la lampe (et son véhicule)
+    local ped = PlayerPedId()
+    local own = GetVehiclePedIsIn(ped, false)
+    local handle = StartExpensiveSynchronousShapeTestLosProbe(cam.x, cam.y, cam.z, stop.x, stop.y, stop.z, 1 + 2 + 16,
+        own ~= 0 and own or ped, 4)
+    local _, hit = GetShapeTestResult(handle)
+    local clear = not (hit == 1 or hit == true)
+    sight[key] = { at = now, clear = clear }
+    return clear
+end
+
+--- Éblouissement causé par ce projecteur (0 - 1)
+local function glareFrom(key, origin, dir, cam, camFwd, night, now)
+    local toCam = cam - origin
+    local dist = #toCam
+    local range = G.Range or L.Distance or 90.0
+    if dist < 0.3 or dist > range then return 0.0 end
+    local v = toCam / dist
+    -- dans le faisceau (Spread / 2) : plein ; à côté : diminue jusqu'à NearAngle
+    local angle = math.deg(math.acos(math.max(-1.0, math.min(1.0, dot(dir, v)))))
+    local inner = (B.Spread or L.Radius or 9.0) * 0.5
+    local outer = math.max(inner + 0.1, G.NearAngle or 15.0)
+    local cone = angle <= inner and 1.0 or math.max(0.0, 1.0 - (angle - inner) / (outer - inner))
+    if cone <= 0.0 then return 0.0 end
+    -- regard : en face de la lampe = plein ; détourné = un peu (lumière tout autour)
+    local look = math.max(0.0, -dot(camFwd, v))
+    local facing = (G.Away or 0.12) + (1.0 - (G.Away or 0.12)) * look ^ 6
+    local near = 1.0 - (dist / range) ^ 2
+    local day = G.Day or 0.35
+    local f = cone * cone * facing * near * (day + (1.0 - day) * night)
+    if f < 0.01 or not inSight(key, origin, cam, now) then return 0.0 end
+    return math.min(1.0, f * (G.Strength or 1.0))
+end
+
+--- Voile blanc sur tout l'écran + halo sur la lampe (texture du halo, à l'endroit de la lampe à l'écran)
+local function drawGlare(color)
+    if glare < 0.01 then return end
+    local veil = math.floor(glare * (G.Veil or 170) + 0.5)
+    if veil > 0 then DrawRect(0.5, 0.5, 1.0, 1.0, color[1], color[2], color[3], veil) end
+    if texReady and glareSpot then
+        local size = (G.Size or 0.9) * (0.4 + 0.6 * glare)
+        local ratio = GetAspectRatio(false)
+        DrawSprite(BEAM_TXD, 'glow', glareSpot.x, glareSpot.y, size / ratio, size, 0.0, color[1], color[2], color[3],
+            math.floor(math.min(255, glare * 300) + 0.5))
+    end
+end
+
+-- =========================================================================
 -- DESSIN (chez tous) : chaque projecteur allumé à portée, à chaque image
 -- =========================================================================
 local SHADOW_BASE = 4200
@@ -275,18 +343,30 @@ startRender = function()
     CreateThread(function()
         local color = L.Color or { 235, 240, 255 }
         local lastFrame = GetGameTimer()
-        while next(lit) ~= nil or (my and my.on) do
+        while next(lit) ~= nil or (my and my.on) or glare > 0.01 do
             local now = GetGameTimer()
             local dt = math.min(0.1, (now - lastFrame) / 1000.0)
             lastFrame = now
-            local me = GetEntityCoords(PlayerPedId())
+            local ped = PlayerPedId()
+            local me = GetEntityCoords(ped)
+            local myVeh = GetVehiclePedIsIn(ped, false)
             local cam = GetFinalRenderedCamCoord()
             local air = beamReady and airFactor() or 0.0
+            local glareOn = G.Enabled ~= false and not IsPauseMenuActive()
+            local camFwd, night
+            if glareOn then
+                local rot = GetFinalRenderedCamRot(2)
+                local rx, rz = math.rad(rot.x), math.rad(rot.z)
+                camFwd = vector3(-math.sin(rz) * math.cos(rx), math.cos(rz) * math.cos(rx), math.sin(rx))
+                night = nightAmount()
+            end
+            local target, spot = 0.0, nil
             local index = 0
             for vehicle in pairs(lit) do
                 if not DoesEntityExist(vehicle) then
                     lit[vehicle] = nil
                     reach[tostring(vehicle) .. 'd'], reach[tostring(vehicle) .. 'p'] = nil, nil
+                    sight[tostring(vehicle) .. 'd'], sight[tostring(vehicle) .. 'p'] = nil, nil
                 elseif #(GetEntityCoords(vehicle) - me) <= (C.RenderDistance or 160.0) then
                     for _, side in ipairs({ 'd', 'p' }) do
                         index = index + 1
@@ -316,12 +396,27 @@ startRender = function()
                                 DrawLightWithRange(glow.x, glow.y, glow.z, color[1], color[2], color[3], 0.6, 3.0)
                             end
                             if beamReady then drawBeam(key, vehicle, origin, dir, cam, now, air, B.Color or color) end
+                            -- éblouissement : pas pour les occupants du véhicule de ce projecteur
+                            if glareOn and vehicle ~= myVeh then
+                                local g = glareFrom(key, origin, dir, cam, camFwd, night, now)
+                                if g > target then
+                                    target = g
+                                    local onScreen, sx, sy = GetScreenCoordFromWorldCoord(origin.x, origin.y, origin.z)
+                                    spot = onScreen and { x = sx, y = sy } or nil
+                                end
+                            end
                         end
                     end
                 end
             end
             -- le sien, pas encore publié (ou éteint chez les autres) : dessiné quand même
             if my and my.on and not lit[my.veh] then lit[my.veh] = true end
+            -- éblouissement : monte vite (Rise), redescend lentement (Fall : persistance rétinienne)
+            local speed = target > glare and (G.Rise or 10.0) or (G.Fall or 2.5)
+            glare = glare + (target - glare) * math.min(1.0, dt * speed)
+            if target > 0.0 then glareSpot = spot end
+            if glare < 0.01 then glare, glareSpot = 0.0, nil end
+            drawGlare(L.Color or color)
             Wait(0)
         end
         renderRunning = false
@@ -507,4 +602,5 @@ end)
 
 RPSpotlight = { toWorld = toWorld, toRelative = toRelative, clampAngles = clampAngles, seatSide = seatSide, -- tests
     my = function() return my end, lit = lit, setOn = setOn, models = MODELS, offsetOf = offsetOf, editing = function() return editing end,
-    airFactor = airFactor, drawBeam = drawBeam, beamReady = function() return beamReady end }
+    airFactor = airFactor, drawBeam = drawBeam, beamReady = function() return beamReady end,
+    glare = function() return glare end, glareFrom = glareFrom }

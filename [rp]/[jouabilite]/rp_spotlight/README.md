@@ -63,12 +63,24 @@ la lampe de face (`textures/glow.png`). Les deux textures ont été faites pour 
 - Réglages : `Alpha` (opacité), `Length` (longueur max, 45 m), `Spread` (ouverture), `Start` (largeur à la lampe),
   `GlowAlpha` / `GlowSize` (halo), `Color` (couleur, sinon celle de `Light`), `Enabled = false` pour le couper.
 
+### Éblouissement (`Glare`)
+Un joueur **dans le faisceau** d'un projecteur (ou **tout près** : jusqu'à 15° de son axe, `NearAngle`), **la lampe en
+vue** (rien entre les deux : mur, véhicule, objet ; son propre pare-brise ne protège pas), est **ébloui** :
+- **voile blanc** sur tout l'écran et **gros halo** sur la lampe, à l'endroit où elle est à l'écran ;
+- **plus fort** en regardant la lampe **en face**, **de près** (jusqu'à 90 m, `Range`) et **la nuit** (de jour :
+  x 0.35, `Day`) ; en regardant ailleurs, il en reste un peu (`Away`) ;
+- apparaît vite, **s'efface en ~1 s** une fois sorti du faisceau (persistance rétinienne, `Fall`) ;
+- jamais pour les occupants du véhicule qui porte le projecteur ; rien pendant le menu pause.
+Réglages : `Strength` (force générale), `Veil` (voile), `Size` (halo), `Rise` / `Fall`, `Enabled = false` pour le
+couper.
+
 ## Performance
 
 0.00 ms hors d'un véhicule équipé et sans projecteur allumé à proximité. À bord : une vérification de la place toutes
 les 500 ms. Boucle par image seulement pour **dessiner** un projecteur allumé à moins de `RenderDistance` (160 m) ou
 **pendant la visée** ; le faisceau visible ajoute une dizaine de triangles par projecteur et un rayon de test toutes
-les 100 ms. La direction est envoyée aux autres au plus toutes les 100 ms en visant ; chez eux, elle est
+les 100 ms ; l'éblouissement, un calcul d'angle par projecteur et un rayon de test toutes les 150 ms seulement si
+l'on est dans (ou près) d'un faisceau. La direction est envoyée aux autres au plus toutes les 100 ms en visant ; chez eux, elle est
 lissée.
 
 ## Installation

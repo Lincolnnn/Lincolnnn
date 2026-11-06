@@ -10,8 +10,8 @@ lua54 'yes'
 
 name 'rp_spotlight'
 author 'Lincolnnn'
-description 'Projecteurs de portière par véhicule (conducteur / passager avant), faisceau visible, visée, verrouillage'
-version '1.2.0'
+description 'Projecteurs de portière par véhicule (conducteur / passager avant), faisceau visible, éblouissement, visée, verrouillage'
+version '1.3.0'
 
 ui_page 'html/index.html'
 
