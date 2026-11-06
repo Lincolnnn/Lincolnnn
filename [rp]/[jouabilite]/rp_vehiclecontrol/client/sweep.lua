@@ -7,7 +7,7 @@
     du premier) chez TOUS les joueurs, et chez ceux qui arrivent ensuite (Riven leur renverrait l'accident).
     Débris reconnus : modèles de la config de Riven Impact Dynamics (lue dans sa ressource), ceux de ce script
     (Debris / Glass) et DebrisCleanup.ExtraModels ; uniquement des objets posés par un script (jamais un objet de la
-    carte) et jamais un objet accroché à un véhicule (airbags, pneus sur la jante).
+    carte) et jamais un objet accroché à un véhicule (pneus sur la jante).
     Performance : rien en dehors de l'œil ou d'un nettoyage ; près d'une zone nettoyée depuis moins de
     RememberSeconds s : une vérification toutes les 2 s.
 ]]

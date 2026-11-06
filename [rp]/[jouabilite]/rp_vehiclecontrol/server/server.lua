@@ -272,10 +272,6 @@ RegisterNetEvent('rp_vehiclecontrol:fieldRepair', function(netId)
     local D = Config.Damage or {}
     if (F.Engine or 450.0) > (D.Broken or 100.0) and state.vcBroken == true then state:set('vcBroken', false, true) end
     if (F.Engine or 450.0) >= (D.Critical or 300.0) and state.vcDamaged == true then state:set('vcDamaged', false, true) end
-    if (Config.Airbags or {}).ClearOnFieldRepair == true then
-        local l = GlobalState.vcAirbags
-        if type(l) == 'table' and l[tostring(netId)] then l[tostring(netId)] = nil; GlobalState.vcAirbags = l end
-    end
     TriggerClientEvent('rp_vehiclecontrol:fieldRepair', src, netId, true, done + 1)
 end)
 
@@ -302,78 +298,17 @@ local function rivenCall(fn, ...)
     return pcall(function() return exports[res][fn](exports[res], table.unpack(args)) end)
 end
 
--- ---- Airbags : liste des véhicules aux airbags sortis (GlobalState.vcAirbags, clé = numéro réseau) ----
--- Déclenchés par un occupant (dans le véhicule, ou à 15 m : éjecté par le choc) ; retirés à la réparation.
-local AB = Config.Airbags or {}
-local airbagAt = {} -- [joueur] = dernier déclenchement (ms)
-
-local function airbagList()
-    local l = GlobalState.vcAirbags
-    return type(l) == 'table' and l or {}
-end
-
-local function clearAirbags(netId)
-    local l = airbagList()
-    local key = tostring(netId)
-    if l[key] == nil then return false end
-    l[key] = nil
-    GlobalState.vcAirbags = l
-    return true
-end
-
-RegisterNetEvent('rp_vehiclecontrol:airbags', function(netId, flags, health)
-    local src = source
-    if AB.Enabled == false or type(flags) ~= 'table' then return end
-    local vehicle = vehicleFromNet(netId)
-    if not vehicle then return end
-    local ped = GetPlayerPed(src)
-    if GetVehiclePedIsIn(ped, false) ~= vehicle and not near(src, vehicle, 15.0) then return end
-    local now = GetGameTimer()
-    if airbagAt[src] and now - airbagAt[src] < 300 then return end
-    airbagAt[src] = now
-    local l = airbagList()
-    local key = tostring(netId)
-    local info = type(l[key]) == 'table' and l[key] or {}
-    local changed = false
-    for _, flag in ipairs({ 'f', 'p', 'L', 'R' }) do
-        if flags[flag] == true and not info[flag] then info[flag], changed = true, true end
-    end
-    if not changed then return end
-    health = tonumber(health)
-    if health and health == health then info.h = math.min(tonumber(info.h) or 1000.0, math.max(0.0, math.min(1000.0, health))) end
-    info.at = os.time()
-    l[key] = info
-    GlobalState.vcAirbags = l
-end)
-
--- Véhicule vu réparé par un joueur proche (moteur et carrosserie remis à neuf)
-RegisterNetEvent('rp_vehiclecontrol:airbagsRepaired', function(netId)
-    local src = source
-    if type(netId) ~= 'number' then return end
-    local vehicle = vehicleFromNet(netId)
-    if vehicle and not near(src, vehicle, (AB.Range or 100.0) + 10.0) then return end
-    clearAirbags(netId) -- véhicule déjà supprimé : retiré de la liste aussi
-end)
-
-AddEventHandler('entityRemoved', function(entity)
-    if GetEntityType(entity) ~= 2 or not next(airbagList()) then return end
-    local ok, netId = pcall(NetworkGetNetworkIdFromEntity, entity)
-    if ok and netId then clearAirbags(netId) end
-end)
-AddEventHandler('playerDropped', function() airbagAt[source] = nil end)
-
 -- Vraie réparation (/repair, mécanicien) : compte des réparations de fortune remis à zéro ; Riven : son moteur aussi
 RegisterNetEvent('rp_vehiclecontrol:engineRepaired', function(netId)
     local vehicle = vehicleFromNet(netId)
     if vehicle and near(source, vehicle, 10.0) then
         Entity(vehicle).state:set('vcFieldRepairs', 0, true)
-        if AB.ClearOnRepair ~= false then clearAirbags(netId) end
         rivenCall('RepairComponents', netId, { 'engine' })
     end
 end)
 
 -- Réparation complète vue par le client (vMenu « Repair », mécanicien, SetVehicleFixed…) : Riven remet aussi à zéro
--- tous ses dégâts (direction, suspension, freins, radiateur, réservoir, carrosserie déformée, airbags…) tout de suite.
+-- tous ses dégâts (direction, suspension, freins, radiateur, réservoir, carrosserie déformée…) tout de suite.
 -- Joueur à 10 m au plus ; une fois toutes les 5 s au plus par véhicule (sa propre réparation remet la santé à 1000).
 local fullRepairAt = {}
 RegisterNetEvent('rp_vehiclecontrol:fullRepair', function(netId)
@@ -384,7 +319,6 @@ RegisterNetEvent('rp_vehiclecontrol:fullRepair', function(netId)
     if (fullRepairAt[vehicle] or 0) > now then return end
     fullRepairAt[vehicle] = now + 5000
     Entity(vehicle).state:set('vcFieldRepairs', 0, true)
-    clearAirbags(netId)
     rivenCall('RepairVehicle', netId)
 end)
 AddEventHandler('entityRemoved', function(entity) fullRepairAt[entity] = nil end)

@@ -501,7 +501,7 @@ fois toutes les 5 s par véhicule. `/repair` (moteur seul) répare aussi le **mo
 |---|---|
 | chocs, déformation, carrosserie, portières / capot / coffre, roues | essence, plein, jerrican |
 | verre (pare-brise feuilleté, vitres trempées) | moteur (O), démarrage |
-| débris, flaques | **airbags** (Riven 9.9.4 n'en a plus), portières (U / I), clignotants, warnings (aussi après un accident), **nettoyage des débris à l'œil** |
+| débris, flaques | portières (U / I), clignotants, warnings (aussi après un accident), **nettoyage des débris à l'œil** |
 | pneus (crevaison, perte d'air, `/tyregauge`, `/plugtyre`) | marche avant / arrière (↑), poussée (K), feux stop |
 | tonneaux, terrain, neige, chaînes, pluie | éjection des **motos** |
 | organes mécaniques (moteur, radiateur, boîte, freins…) : puissance, calages | tirs dans le moteur / le réservoir |
@@ -533,7 +533,7 @@ Avec ou sans Riven : **œil (Alt) sur le sol près des débris > « Nettoyer les
 - **Aucune notification générale** (le « débris retirés par … » de Riven est supprimé par le pont).
 - Débris reconnus : les modèles de la **config de Riven** (lue dans sa ressource : pièces peintes de toutes les
   couleurs, verre, tapis de débris, morceaux de pneu…), ceux de ce script sans Riven et `ExtraModels`. Jamais un objet
-  de la carte, jamais un objet accroché à un véhicule (**airbags**, pneu sur la jante).
+  de la carte, jamais un objet accroché à un véhicule (pneu sur la jante).
 
 **La touche de Riven (F9) / `/cleardebrisall`** effaçait **tous les débris de tous les accidents du serveur, chez tout
 le monde** (pas seulement l'accident le plus proche). Dans la config Riven fournie, elle est **coupée**
@@ -544,36 +544,6 @@ le monde** (pas seulement l'accident le plus proche). Dans la config Riven fourn
   113 / 72 / 72). Ce n'était pas seulement le plafond : Riven freinait aussi la voiture **en continu** (`Drag` 22 % de la
   vitesse par seconde et par pneu, plus `PowerLoss`), d'où ~30 MPH avec un pneu et ~5 MPH avec quatre ; baissés à
   2 % / 5 %.
-### Airbags (`Airbags`, avec ou sans Riven)
-Riven Impact Dynamics **9.9.4 a retiré ses airbags** (« 9.9.4-noairbags » : section `Config.CrashProps.Airbags`,
-`/crashpropstest airbags` et ses trois modèles supprimés). **Ce script les gère lui-même**, avec ou sans Riven :
-- **Déclenchement** : un occupant (joueur) ressent un gros choc :
-  - **de face** (au moins **25 MPH** de vitesse perdue vers l'avant, `Front`) : **volant** + **tableau de bord
-    passager** (`Passenger` : `true` toujours, `'occupied'` seulement si quelqu'un est assis à côté, `false` jamais) ;
-  - **de côté** (poussé de côté d'au moins **18 MPH**, `Side`) : **rideau du côté touché** ;
-  - **tonneau** (`Rollover`) : les deux rideaux.
-  Un piéton percuté ne les déclenche jamais ; un objet ou un véhicule léger (cône, moto…) demande un choc 1,6 fois
-  plus fort (`Light`). Choc par l'arrière : rien. Pas d'airbags sur les motos, vélos, bateaux, hélicos, avions, trains
-  (`SkipClasses`). Poussière au déclenchement (`Effect`) et petite secousse de la caméra des occupants (`Shake`).
-- **Vus par tous** les joueurs à 100 m (`Range`), aussi ceux qui arrivent après l'accident (liste tenue par le
-  serveur : `GlobalState.vcAirbags`).
-- **Retirés quand le véhicule est réparé** : réparation complète (moteur **et** carrosserie remis à neuf alors qu'ils
-  étaient abîmés : vMenu « Repair », mécanicien, `SetVehicleFixed`, réparation de Riven), **`/repair`**
-  (`ClearOnRepair = true`), `/fieldrepair` seulement si `ClearOnFieldRepair = true` (réparation de fortune : non par
-  défaut). Véhicule supprimé : retirés aussi.
-
-**Modèles** (`Specs`) : ceux de Riven, **`riven_crash_airbag_driver` / `_passenger` / `_curtain`** + leur texture
-`riven_crash_airbag_txd.ytd`. Ils ne sont plus dans la version 9.9.4 ; ils sont dans tes anciens fichiers
-(`rivenimpactstream02` : les trois `.ydr` + le `.ytd`). Un `.ydr` seul ne suffit pas : le jeu doit aussi lire leur
-**archétype**, déclaré dans le `riven_crash_props.ytyp` **de l'ancienne version** (celle d'avant 9.9.4) avec une ligne
-`data_file 'DLC_ITYP_REQUEST' '…ytyp'`. Ces fichiers sont à Riven : à garder sur ton serveur, jamais dans le dépôt.
-Sans eux, le modèle de secours `fallback` (coussin blanc du jeu de base) est accroché au volant et au tableau de bord
-(les rideaux n'en ont pas) ; `fallback = nil` : rien d'accroché (poussière seulement).
-
-Points d'attache du véhicule : os `steeringwheel` (sinon siège conducteur), `seat_pside_f`, `door_dside_f` /
-`door_pside_f` (sinon sièges avant). **`/airbagtest`** (à bord) fait le point dans le chat : modèle utilisé pour
-chaque pièce (celui de Riven, de secours ou aucun), points d'attache, airbags sortis et accrochés.
-**`/airbagtest on`** (conducteur) les déclenche pour essayer ; réparer le véhicule pour les retirer.
 
 ## Configuration (`config.lua`)
 

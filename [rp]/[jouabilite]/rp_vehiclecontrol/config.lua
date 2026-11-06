@@ -254,7 +254,7 @@ VCConfig = {
     -- arrêter l'emote (X) interrompt. Une zone nettoyée l'est aussi chez les joueurs qui arrivent ensuite (Riven leur
     -- renverrait l'accident) pendant RememberSeconds s. Modèles reconnus : ceux de la config de Riven (lue dans sa
     -- ressource : RivenConfigFile), ceux de Debris / Glass ci-dessus et ExtraModels ; seulement des objets posés par
-    -- un script (jamais un objet de la carte), jamais un objet accroché à un véhicule (airbags…).
+    -- un script (jamais un objet de la carte), jamais un objet accroché à un véhicule (pneu sur la jante…).
     DebrisCleanup = {
         Enabled = true,
         Radius = 6.0, JoinDistance = 6.0, Leave = 2.5,
@@ -264,37 +264,6 @@ VCConfig = {
         RivenConfigFile = 'riven_impact_config.lua',
         RivenPrefixes = { 'k3_', 'riven_crash_', 'prop_rub_carpart_' },
         ExtraModels = {},
-    },
-
-    -- AIRBAGS (ce script, avec ou sans Riven : Riven Impact Dynamics 9.9.4 n'en a plus). Un occupant (joueur) ressent
-    -- un gros choc : AVANT (perte de vitesse vers l'avant d'au moins Front MPH) -> volant + tableau de bord passager
-    -- (Passenger : true = toujours avec celui du conducteur, 'occupied' = seulement si quelqu'un y est assis,
-    -- false = jamais) ; CÔTÉ (poussé de côté d'au moins Side MPH) -> rideau du côté touché ; TONNEAU (Rollover) ->
-    -- les deux rideaux. Piéton percuté : jamais ; objet / véhicule léger (cône, moto…) : seuils x Light. Pas sur les
-    -- classes SkipClasses (motos, vélos, bateaux, hélicos, avions, trains). Vus par tous les joueurs à Range m.
-    -- Retirés quand le véhicule est RÉPARÉ : réparation complète (moteur ET carrosserie remis à neuf : vMenu,
-    -- mécanicien, SetVehicleFixed, Riven), /repair si ClearOnRepair, /fieldrepair si ClearOnFieldRepair.
-    -- Modèles (Specs) : ceux de Riven (riven_crash_airbag_*, à streamer : voir README) ; absents du jeu -> modèle de
-    -- secours `fallback` (jeu de base), sinon rien n'est accroché (poussière seulement). Effect : poussière au
-    -- déclenchement ; Shake : secousse de la caméra des occupants (0 = aucune). /airbagtest (on) : vérification.
-    Airbags = {
-        Enabled = true, Command = 'airbagtest', Front = 25.0, Side = 18.0, Light = 1.6, Rollover = true,
-        Passenger = true, Range = 100.0, Interval = 2000, ClearOnRepair = true, ClearOnFieldRepair = false,
-        SkipClasses = { [8] = true, [13] = true, [14] = true, [15] = true, [16] = true, [21] = true },
-        Effect = { asset = 'core', name = 'ent_dst_dust', scale = 0.6 }, Shake = 0.25,
-        Specs = {
-            driver = { model = 'riven_crash_airbag_driver', fallback = 'v_med_pillow', bones = {
-                { name = 'steeringwheel', offset = { 0.0, 0.0, 0.0 }, follow = true },
-                { name = 'seat_dside_f', offset = { 0.0, 0.55, 0.52 } } } },
-            passenger = { model = 'riven_crash_airbag_passenger', fallback = 'v_med_pillow', bones = {
-                { name = 'seat_pside_f', offset = { 0.0, 0.62, 0.50 } } } },
-            curtainL = { model = 'riven_crash_airbag_curtain', bones = {
-                { name = 'door_dside_f', offset = { 0.05, -0.30, 0.55 }, rot = { 0.0, 0.0, 90.0 } },
-                { name = 'seat_dside_f', offset = { -0.45, -0.30, 0.55 }, rot = { 0.0, 0.0, 90.0 } } } },
-            curtainR = { model = 'riven_crash_airbag_curtain', bones = {
-                { name = 'door_pside_f', offset = { -0.05, -0.30, 0.55 }, rot = { 0.0, 0.0, -90.0 } },
-                { name = 'seat_pside_f', offset = { 0.45, -0.30, 0.55 }, rot = { 0.0, 0.0, -90.0 } } } },
-        },
     },
 
     -- TERRAIN : sol sous le véhicule (lu toutes les Interval ms en roulant). Sur l'herbe, la terre, le gravier, le
