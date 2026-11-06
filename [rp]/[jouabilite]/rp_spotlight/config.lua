@@ -4,8 +4,8 @@
     Projecteur de portière (« spotlight ») monté sur le montant de pare-brise des véhicules de la liste.
 
     UTILISATION (à bord, à la place qui tient le projecteur) :
-      - Ctrl gauche (Key), APPUI COURT : allumer / éteindre son projecteur ;
-      - Ctrl gauche MAINTENU : viser (le projecteur suit la caméra, un réticule s'affiche) ; relâché : il reste dans
+      - Ctrl gauche (Key) : allumer / éteindre son projecteur ;
+      - CLIC DROIT MAINTENU (AimButton) + souris : viser (le projecteur suit la caméra, un réticule s'affiche) ; relâché : il reste dans
         cette direction (par rapport au véhicule) ;
       - en visant, CLIC GAUCHE : verrouiller sur le point visé (il reste dessus quand le véhicule bouge) ; à nouveau :
         retour en manuel ;
@@ -22,8 +22,8 @@
 ]]
 
 SpotlightConfig = {
-    Key = 'LCONTROL',        -- appui court : allumer / éteindre ; maintenu : viser
-    HoldMs = 220,            -- au-delà (ms), l'appui est une visée (pas un allumage)
+    Key = 'LCONTROL',        -- allumer / éteindre
+    AimButton = 'MOUSE_RIGHT', -- maintenu (projecteur allumé) : viser avec la souris
     AdjustCommand = 'editspotlight',         -- régler la position du projecteur CONDUCTEUR (ligne de config à copier)
     AdjustSideCommand = 'editspotlightside', -- régler la position du projecteur PASSAGER
 

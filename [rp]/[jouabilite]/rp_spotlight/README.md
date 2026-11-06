@@ -13,9 +13,9 @@
 
 | Touche | Effet |
 |---|---|
-| **Ctrl gauche** (appui court) | allumer / éteindre son projecteur |
-| **Ctrl gauche** (maintenu) | **viser** : le projecteur suit la caméra (réticule) ; relâché, il garde cette direction par rapport au véhicule |
-| en visant : **clic gauche** | **verrouiller** sur le point visé (il y reste quand le véhicule bouge) ; à nouveau : manuel |
+| **Ctrl gauche** | allumer / éteindre son projecteur |
+| **clic droit maintenu** + souris | **viser** : le projecteur suit la caméra (réticule) ; relâché, il garde cette direction par rapport au véhicule |
+| en visant (clic droit maintenu) : **clic gauche** | **verrouiller** sur le point visé (il y reste quand le véhicule bouge) ; à nouveau : manuel |
 | `/editspotlight` | régler la position du projecteur **conducteur** (point rouge, curseurs X / Y / Z, ligne à copier) |
 | `/editspotlightside` | régler la position du projecteur **passager** (véhicules à deux projecteurs) |
 

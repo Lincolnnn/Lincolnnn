@@ -412,6 +412,8 @@ startRender = function()
                     end
                 end
             end
+            -- projecteur allumé tenu par ce joueur : le clic droit sert à viser le projecteur (pas l'arme / la visée du véhicule)
+            if my and my.on then for _, c in ipairs({ 25, 68, 91 }) do DisableControlAction(0, c, true) end end
             -- le sien, pas encore publié (ou éteint chez les autres) : dessiné quand même
             if my and my.on and not lit[my.veh] then lit[my.veh] = true end
             -- éblouissement : monte vite (Rise), redescend lentement (Fall : persistance rétinienne)
@@ -438,7 +440,7 @@ AddStateBagChangeHandler('rpSpot', nil, function(bagName, _, value)
 end)
 
 -- =========================================================================
--- VISÉE (touche maintenue) : le projecteur suit la caméra ; clic gauche verrouille sur le point visé
+-- VISÉE (clic droit maintenu) : le projecteur suit la caméra (la souris) ; clic gauche verrouille sur le point visé
 -- =========================================================================
 local function aimLoop()
     CreateThread(function()
@@ -470,29 +472,24 @@ local function aimLoop()
     end)
 end
 
-local pressAt, holding = 0, false
+-- Ctrl (Key) : allumer / éteindre ; clic droit MAINTENU (AimButton) : viser avec la souris ; relâché : il garde la direction
 RegisterCommand('+rp_spotlight', function()
     if not my or IsPauseMenuActive() then return end
-    pressAt, holding = GetGameTimer(), true
-    local pressed = pressAt
-    SetTimeout(C.HoldMs or 220, function()
-        if holding and pressAt == pressed and my and not aiming then
-            if not my.on then setOn(true) end
-            aiming = true
-            SendNUIMessage({ action = 'aim', data = { on = true } })
-            sendUi()
-            aimLoop()
-        end
-    end)
+    if aiming then aiming = false end
+    setOn(not my.on)
 end, false)
-RegisterCommand('-rp_spotlight', function()
-    if not holding then return end
-    holding = false
-    if aiming then aiming = false return end
-    if my and GetGameTimer() - pressAt < (C.HoldMs or 220) then setOn(not my.on) end -- appui court : allumer / éteindre
-end, false)
-RegisterKeyMapping('+rp_spotlight', 'Projecteur : allumer / éteindre (appui), viser (maintenir)', 'keyboard', C.Key or 'LCONTROL')
+RegisterCommand('-rp_spotlight', function() end, false)
+RegisterKeyMapping('+rp_spotlight', 'Projecteur : allumer / éteindre', 'keyboard', C.Key or 'LCONTROL')
 
+RegisterCommand('+rp_spotlight_aim', function()
+    if not my or not my.on or aiming or IsPauseMenuActive() then return end
+    aiming = true
+    SendNUIMessage({ action = 'aim', data = { on = true } })
+    sendUi()
+    aimLoop()
+end, false)
+RegisterCommand('-rp_spotlight_aim', function() aiming = false end, false)
+RegisterKeyMapping('+rp_spotlight_aim', 'Projecteur : viser (maintenir, puis bouger la souris)', 'mouse_button', C.AimButton or 'MOUSE_RIGHT')
 
 -- =========================================================================
 -- PLACE DU JOUEUR : quel projecteur il tient (toutes les 500 ms à bord d'un véhicule ; 1 s sinon)
