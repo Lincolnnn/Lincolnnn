@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_policecards'
 author 'Lincolnnn'
 description 'Carte Miranda et alphabet phonétique de la police à l\'écran (non bloquant) - standalone'
-version '1.0.0'
+version '1.1.0'
 
 ui_page 'html/index.html'
 

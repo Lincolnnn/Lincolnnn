@@ -4,6 +4,8 @@
     Cartes affichées SANS focus NUI : le joueur garde les commandes du jeu et peut ouvrir ses autres menus.
     /cartes : focus le temps d'ajuster (déplacer, taille) ; place et taille gardées (KVP du client).
     Boucle : seulement quand une carte est affichée (menu pause, 250 ms) ; 0.00 ms sinon.
+    Emote (card.emote, ex. carte Miranda : « e id3 ») : jouée à l'affichage, arrêtée au masquage si le joueur la
+    joue toujours (une autre emote lancée entre-temps n'est jamais coupée).
     Exports : toggle(id), show(id), hide(id), isShown(id), cards().
 ]]
 
@@ -66,10 +68,50 @@ local function watchPause()
     end)
 end
 
+-- =========================================================================
+-- EMOTE DE LA CARTE (mode d'emotes : RPEMOTES ou autre, « /e nom »)
+-- =========================================================================
+local emoteOf = {} -- [id] = commande lancée par l'affichage de cette carte
+
+local function emoteName(command)
+    return type(command) == 'string' and (command:match('^%s*/?e%s+(%S+)') or command):lower() or nil
+end
+
+--- Mode d'emotes et animation exacte de l'emote (lus par rp_interact dans GlobalState.rpiEmotes s'il est là)
+local function emoteInfo(command)
+    local data = GlobalState.rpiEmotes
+    if type(data) ~= 'table' then return nil, nil end
+    local list = type(data.list) == 'table' and data.list or {}
+    return data.resource, list[emoteName(command)]
+end
+
+local function startEmote(id)
+    local card = CARDS[id]
+    if type(card.emote) ~= 'string' or card.emote == '' then return end
+    ExecuteCommand((card.emote:gsub('^%s*/', '')))
+    emoteOf[id] = card.emote
+end
+
+--- Arrêtée seulement si elle est toujours jouée (animation connue) : jamais une autre emote du joueur
+local function stopEmote(id)
+    local command = emoteOf[id]
+    emoteOf[id] = nil
+    if not command then return end
+    local resource, anim = emoteInfo(command)
+    local ped = PlayerPedId()
+    if anim then
+        local playing = anim.scenario and IsPedUsingScenario(ped, anim.clip) or (anim.dict and IsEntityPlayingAnim(ped, anim.dict, anim.clip, 3))
+        if not playing then return end
+    end
+    if resource and pcall(function() exports[resource]:EmoteCancel() end) then return end
+    ExecuteCommand(C.EmoteCancel or 'e c')
+end
+
 local function show(id)
     local card = CARDS[id]
     if not card or shown[id] then return false end
     shown[id] = true
+    startEmote(id)
     local l = layoutOf(card)
     SendNUIMessage({ action = 'show', data = { id = id, image = card.image, label = card.label, x = l.x, y = l.y, width = l.width,
         minWidth = C.MinWidth or 0.12, maxWidth = C.MaxWidth or 0.6 } })
@@ -81,6 +123,7 @@ local function hide(id)
     if not shown[id] then return false end
     shown[id] = nil
     SendNUIMessage({ action = 'hide', data = { id = id } })
+    stopEmote(id)
     if not anyShown() then stopAdjust() end
     return true
 end
@@ -165,4 +208,4 @@ exports('cards', function()
     return list
 end)
 
-RPPoliceCards = { toggle = toggle, show = show, hide = hide, shown = shown, layoutOf = layoutOf } -- tests
+RPPoliceCards = { toggle = toggle, show = show, hide = hide, shown = shown, layoutOf = layoutOf, emoteOf = emoteOf } -- tests

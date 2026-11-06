@@ -18,12 +18,18 @@ autres menus** (MDC, bloc-notes, Menu Interaction…). Les deux cartes peuvent �
 taille sont **gardées chez le joueur** (KVP) après `/cartes`. Cartes masquées pendant le menu pause et en mode photo
 (`rp_freecam`, « Masquer les interfaces »).
 
+**Carte Miranda : animation.** À l'affichage, le joueur lit la carte (emote `/e id3` du mode d'emotes) ; quand la
+carte est masquée, l'animation s'arrête (seulement si elle est toujours jouée : une autre emote lancée entre-temps
+n'est jamais coupée). Réglage : `emote` de la carte dans `config.lua` (`nil` = aucune).
+
 Aucune touche par défaut : chaque joueur peut en choisir une (*Paramètres > Raccourcis clavier > FiveM* > « Carte : … »).
 
 ## Configuration (`config.lua`)
 
 - `Cards` : `id`, `command`, `aliases`, `label`, `image` (dans `html/`), place par défaut `x`, `y` et largeur `width`
   (fractions de l'écran). Ajouter une carte = une ligne + une image `.webp` dans `html/img/`.
+- `emote` (par carte) : commande d'emote jouée à l'affichage (`'e id3'` pour la carte Miranda), arrêtée au masquage
+  (export `EmoteCancel` du mode d'emotes, sinon `EmoteCancel` de la config : `'e c'`).
 - `AdjustCommand` (`cartes`), `MinWidth` / `MaxWidth`, `HideInPauseMenu`.
 
 ## Images
