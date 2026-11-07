@@ -27,7 +27,9 @@ TrafficConfig = {
     -- ---------------------------------------------------------------------
     Segment = {
         MinLength = 6.0, MaxLength = 200.0,
-        LaneWidth = 5.4,        -- m : largeur d'une voie dans le jeu (aperçu, voie visée) ; à ajuster avec l'aperçu
+        LaneWidth = 5.4,        -- m : largeur d'une voie au départ (aperçu, voie visée) ; Maj + ← → pendant le choix
+        MinLaneWidth = 2.5, MaxLaneWidth = 7.0,
+        MaxShift = 8.0,         -- m : décalage latéral au plus (← → pendant le choix : aligner sur les voies peintes)
         Height = 4.0,           -- m au-dessus / au-dessous des nœuds (ponts, routes superposées)
         NodeMargin = 1.5,       -- m : nœuds retenus jusqu'à cette distance hors de la bande choisie
         MaxNodes = 80,
@@ -50,45 +52,58 @@ TrafficConfig = {
         InLaneTolerance = 1.3,  -- m : sur la voie ouverte
         Refresh = 4000,         -- ms : consigne redonnée au plus tard
         PhaseTimeout = 25000,   -- ms : PNJ bloqué plus longtemps : relâché
-        -- Fermeture d'une VOIE : les autres voies du même sens ralentissent à SideSlow MPH (0 = non) de SideSlowFrom m
-        -- avant la zone jusqu'à sa fin (zones de vitesse du jeu sur la chaussée d'une autoroute + PNJ ralentis), pour que
+        -- Fermeture d'une VOIE : les autres voies du même sens ralentissent à SideSlow MPH (0 = non), progressivement
+        -- depuis l'amont (Speed.Upstream) jusqu'à la fin de la zone (zones de vitesse du jeu + PNJ ralentis), pour que
         -- le rabattement ne se fasse pas à pleine vitesse ; le rabattement lui-même se fait à cette vitesse
         SideSlow = 20,
-        SideSlowFrom = 60.0,
         DrivingStyle = 786603,  -- style de conduite pendant le changement de voie / le demi-tour
         WanderStyle = 786603,   -- style redonné ensuite (circulation normale)
         ResumeSpeed = 17.0,     -- m/s : vitesse de croisière redonnée
     },
 
     -- FAUX OBSTACLES : RIEN DE PHYSIQUE (pas de collision, invisibles : ni joueur ni PNJ ne heurte quoi que ce soit),
-    -- mais l'IA du jeu les voit comme des véhicules arrêtés et les contourne (changement de voie d'origine). Locaux
-    -- (chaque joueur pose les siens, seulement à moins de Range m). Deux sources :
-    --   - fermetures (/trafic) : EN TRAVERS de la voie fermée, centrés sur elle (toute la largeur couverte : les PNJ ne
-    --     peuvent pas se serrer à côté et continuer sur la voie) ; sens / route fermés : une rangée au début (Barrier) ;
-    --   - plots posés par la police (rp_equipment) : le long de la ligne de chaque dispositif (Cones).
-    -- Debug = true : visibles en transparence (réglage) ; Collision = true : redevenir un vrai obstacle (déconseillé).
+    -- mais l'IA du jeu les voit comme des véhicules arrêtés et les contourne. Posés sur les plots VIRTUELS des mesures
+    -- (VirtualCones) et le long des plots posés par la police (rp_equipment, Cones). Locaux (chaque joueur pose les
+    -- siens, seulement à moins de Range m). Debug = true : visibles en transparence ; Collision = true : physiques.
     Obstacles = {
         Enabled = true,
-        Model = 'blista',       -- petite voiture du jeu de base (en travers : ~4 m, presque la largeur d'une voie)
-        Spacing = 6.0,          -- m entre deux obstacles le long de la voie fermée
-        StartOffset = 2.5,      -- m après le début du tronçon
+        Model = 'blista',       -- petite voiture du jeu de base
         FreeRadius = 2.6,       -- m : un véhicule déjà là (police garée…) : pas d'obstacle à cet endroit
-        MaxPerMeasure = 35, MaxTotal = 100, PerTick = 6,
+        MaxPerMeasure = 60, MaxTotal = 150, PerTick = 8,
         Range = 220.0,          -- m du tronçon / du dispositif de plots
         Collision = false,
-        Barrier = true,
         Debug = false,
         -- Plots de la police (GlobalState.rpCones) : plots à moins de GroupDistance m = un dispositif ; un obstacle tous
         -- les Spacing m le long de sa ligne (un plot seul : un obstacle dans le sens de la route)
         Cones = { Enabled = true, GroupDistance = 6.0, Spacing = 3.5, MaxPerGroup = 20 },
     },
 
-    -- RALENTISSEMENT et ARRÊT
+    -- RALENTISSEMENT et ARRÊT : sur TOUT LE SENS (la voie choisie et les autres voies de ce sens ; route entière : les
+    -- deux sens), avec un PÉRIMÈTRE EN AMONT : la vitesse baisse progressivement de UpstreamStart MPH (Upstream m avant
+    -- la zone) jusqu'à la limite au début de la zone (zones de vitesse du jeu sur les nœuds de ce sens, pour tous les
+    -- PNJ, et PNJ dirigés) : ils freinent en arrivant, ils ne pilent pas. Ex. interstate à 65 MPH, limite 10 MPH.
     Speed = {
         DefaultLimit = 25, MinLimit = 5, MaxLimit = 80, Step = 5, -- MPH
-        NodeZoneRadius = 4.0,   -- m : zone de vitesse du jeu autour de chaque nœud retenu
-        SlowFrom = 25.0,        -- m avant le tronçon : les PNJ concernés ralentissent
-        StopBefore = 20.0,      -- m avant le tronçon : les PNJ concernés s'arrêtent
+        NodeZoneRadius = 4.0,   -- m : zone de vitesse du jeu autour de chaque nœud
+        Upstream = 150.0,       -- m : longueur du périmètre en amont
+        UpstreamStart = 70,     -- MPH au début du périmètre (une route plus lente n'est pas accélérée)
+        StopBefore = 8.0,       -- m avant la zone : arrêt (Arrêt du trafic)
+        BandMargin = 1.5,       -- m de marge de chaque côté du sens (PNJ un peu à cheval sur la ligne)
+    },
+
+    -- PLOTS VIRTUELS : invisibles, sans collision (rien dans le monde), traités comme les plots de la police :
+    --   - fermeture d'une voie : biseau en amont (Taper m) puis ligne le long de la voie ouverte : les PNJ CONTOURNENT ;
+    --   - arrêt du trafic, sens / route fermés : une ligne en travers du sens au début de la zone : ils S'ARRÊTENT.
+    -- Chaque ligne reçoit des faux obstacles (Obstacles) ; les PNJ que ce joueur contrôle : même logique que les plots
+    -- de la police (passage le plus proche sur la route à moins de Detect m, sinon arrêt devant).
+    VirtualCones = {
+        Enabled = true,
+        Taper = 30.0,           -- m : biseau avant une voie fermée
+        Spacing = 3.0,          -- m entre deux plots le long de la voie
+        LineSpacing = 2.0,      -- m entre deux plots d'une ligne en travers
+        Inset = 0.3,            -- m à l'intérieur de la bande
+        Detect = 12.0, Margin = 0.8, MaxShift = 9.0, PassBeyond = 8.0, PassSpeed = 7.0, DrivingStyle = 820,
+        MaxDeviateTime = 15000,
     },
 
     -- Choix de la zone du trafic (visée de la route)
@@ -96,7 +111,7 @@ TrafficConfig = {
         Range = 150.0,          -- m : portée de la visée au sol
         SnapDistance = 14.0,    -- m : distance max à la route visée
         NodePreview = true,     -- nœuds affichés autour de la visée (vert : ouvert, orange : concerné, rouge : fermé)
-        NodeCount = 80,
+        NodeCount = 120,        -- nœuds lus autour de la zone (zone + périmètre en amont)
         FillLanes = true,       -- voies remplies au sol (cases transparentes : zone, autres voies du sens, autre sens)
         -- Vues pour choisir la zone (menu ; V pendant le choix) : joueur, dessus, libre
         CameraRange = 100.0,    -- m : les caméras du dessus / libre restent à moins de 100 m du joueur

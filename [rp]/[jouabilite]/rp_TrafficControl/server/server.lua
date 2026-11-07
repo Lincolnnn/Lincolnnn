@@ -22,7 +22,7 @@ local function publicView(m)
     return { id = m.id, kind = m.kind, scope = m.scope, a = m.a, b = m.b, vmin = m.vmin, vmax = m.vmax,
         lanes = m.lanes, closedLane = m.closedLane, laneIndex = m.laneIndex, laneCount = m.laneCount,
         oppositeLanes = m.oppositeLanes, median = m.median, laneWidth = m.laneWidth, compass = m.compass,
-        nodes = m.nodes, sideNodes = m.sideNodes, speed = m.speed, label = m.label }
+        nodes = m.nodes, dirNodes = m.dirNodes, speed = m.speed, label = m.label }
 end
 
 local function publish()
@@ -179,13 +179,17 @@ function Handlers.create(src, data)
         local p = point(n)
         if p and dist(p, mid) <= length / 2 + 25.0 then m.nodes[#m.nodes + 1] = p end
     end
-    -- Fermeture d'une voie : nœuds de la chaussée de ce sens (autoroute), ralentis pour les autres voies du sens
-    m.sideNodes = {}
-    if m.kind == 'close' and m.scope == 'lane' then
-        for _, n in ipairs(type(data.sideNodes) == 'table' and data.sideNodes or {}) do
-            if #m.sideNodes >= (SEG.MaxNodes or 80) then break end
-            local p = point(n)
-            if p and dist(p, mid) <= length / 2 + 25.0 + ((Config.Closure or {}).SideSlowFrom or 60.0) then m.sideNodes[#m.sideNodes + 1] = p end
+    -- Nœuds du trafic de ce sens dans la zone et en amont (u : distance le long de la zone, négative en amont) :
+    -- ralentissement progressif (ralentissement, arrêt, autres voies d'une voie fermée)
+    m.dirNodes = {}
+    local upstream = (Config.Speed or {}).Upstream or 120.0
+    for _, n in ipairs(type(data.dirNodes) == 'table' and data.dirNodes or {}) do
+        if #m.dirNodes >= (SEG.MaxNodes or 80) * 2 then break end
+        local p = point(n)
+        local u = type(n) == 'table' and num(n.u, -upstream - 5, length + 10) or nil
+        if p and u and dist(p, mid) <= length / 2 + upstream + 30.0 then
+            p.u = u
+            m.dirNodes[#m.dirNodes + 1] = p
         end
     end
     if data.kind == 'slow' then

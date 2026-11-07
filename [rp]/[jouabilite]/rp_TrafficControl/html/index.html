@@ -6,6 +6,11 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Aide pendant le choix de la zone (sans curseur, en haut à gauche) : remplace l'aide du jeu -->
+    <div id="tcHint" class="tc-hintbox hidden" aria-live="polite">
+        <div class="tc-hintbox-title" id="tcHintTitle"></div>
+        <div class="tc-hintbox-rows" id="tcHintRows"></div>
+    </div>
     <div id="tc" class="tc hidden" role="dialog" aria-label="Gestion du trafic">
         <header class="tc-head">
             <div class="tc-title">
@@ -83,12 +88,12 @@
                     </button>
                     <button class="tc-kind" data-kind="slow">
                         <span class="tc-ico ico-speed"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><text x="12" y="15.5" id="tcSpeedIco">25</text></svg></span>
-                        <span class="tc-kind-text"><b>Ralentissement</b><small id="tcSlowHint">Le trafic de la zone ralentit</small></span>
+                        <span class="tc-kind-text"><b>Ralentissement</b><small id="tcSlowHint">Le trafic du sens ralentit progressivement</small></span>
                         <span class="tc-check"></span>
                     </button>
                     <button class="tc-kind" data-kind="stop">
                         <span class="tc-ico ico-stop"><svg viewBox="0 0 24 24"><path d="M8 2h8l6 6v8l-6 6H8l-6-6V8z"/><path d="M8 12h8"/></svg></span>
-                        <span class="tc-kind-text"><b>Arrêt du trafic</b><small>Le trafic s'arrête avant la zone</small></span>
+                        <span class="tc-kind-text"><b>Arrêt du trafic</b><small id="tcStopHint">Le trafic freine progressivement et s'arrête à la ligne de plots virtuels</small></span>
                         <span class="tc-check"></span>
                     </button>
                 </div>

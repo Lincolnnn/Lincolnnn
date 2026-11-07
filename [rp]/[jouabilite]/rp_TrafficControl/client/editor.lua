@@ -33,6 +33,9 @@ local E = Config.Editor or {}
 local SEG = Config.Segment or {}
 local SP = Config.Speed or {}
 local LW = SEG.LaneWidth or 5.4
+-- Largeur des voies (Maj + ← →) gardée d'une pose à l'autre ; décalage latéral (← →) remis à zéro à chaque pose
+local calib = { lw = LW }
+local function laneW() return calib.lw end
 
 local editing = nil
 
@@ -165,7 +168,7 @@ local function roadAt(p)
     local t = math.max(0.0, math.min(1.0, ((p.x - n1.x) * dx + (p.y - n1.y) * dy) / (len * len)))
     local c = vector3(n1.x + dx * t, n1.y + dy * t, n1.z + (n2.z - n1.z) * t)
     local vL = (p.x - c.x) * ly + (p.y - c.y) * -lx -- + à droite de la liaison
-    if math.abs(vL) > (E.SnapDistance or 14.0) + 3 * LW then return nil end
+    if math.abs(vL) > (E.SnapDistance or 14.0) + 3 * laneW() then return nil end
     return { c = c, lx = lx, ly = ly, vL = vL, l1 = math.floor(tonumber(l1) or 0), l2 = math.floor(tonumber(l2) or 0),
         median = tonumber(median) or 0.0 }
 end
@@ -186,10 +189,14 @@ local function setupFrom(r, flip)
         s.nOpp = 0
     end
     local vD = (r.vL) * ((s.dx * r.lx + s.dy * r.ly) > 0 and 1 or -1)
-    s.offsets = {}
+    -- Voies (à droite du sens D : +), décalées de `shift` (← → : aligner la bande sur les voies peintes)
+    local lw, shift = laneW(), editing and editing.shift or 0.0
+    s.lw = lw
+    s.offsets, s.opp = {}, {}
     for i = 1, s.n do
-        s.offsets[i] = twoWay and (s.median / 2 + (i - 0.5) * LW) or ((i - (s.n + 1) / 2) * LW)
+        s.offsets[i] = shift + (twoWay and (s.median / 2 + (i - 0.5) * lw) or ((i - (s.n + 1) / 2) * lw))
     end
+    for i = 1, s.nOpp do s.opp[i] = shift - (s.median / 2 + (i - 0.5) * lw) end
     local best, bestDist = 1, math.huge
     for i, off in ipairs(s.offsets) do
         local d = math.abs(off - vD)
@@ -199,34 +206,28 @@ local function setupFrom(r, flip)
     return s
 end
 
---- Autre sens d'une route à double sens (même endroit)
-local function flipSetup(s)
-    if not s.twoWay then return s end
-    local f = { twoWay = true, median = s.median, dx = -s.dx, dy = -s.dy, n = s.nOpp, nOpp = s.n, offsets = {} }
-    for i = 1, f.n do f.offsets[i] = f.median / 2 + (i - 0.5) * LW end
-    f.baseLane = math.min(s.baseLane, f.n)
-    f.lane = f.baseLane
-    return f
-end
 
 --- Voie choisie : voie visée + décalage à la molette
 local function applyLane(s)
-    if s then s.lane = math.max(1, math.min(s.n, s.baseLane + (editing.laneDelta or 0))) end
+    if not s then return end
+    -- après le début de la zone, la voie visée reste celle du début (même si on décale la bande)
+    if editing.a and editing.lockBase then s.baseLane = math.min(editing.lockBase, s.n) end
+    s.lane = math.max(1, math.min(s.n, s.baseLane + (editing.laneDelta or 0)))
 end
 
 --- Bande concernée (à droite du sens D : + ; - à gauche), selon la portée
 local function strip(s, scope, extra)
+    local half = s.lw / 2
     if scope == 'lane' then
         local off = s.offsets[s.lane]
-        return off - LW / 2, off + LW / 2
+        return off - half, off + half
     end
-    local vmin, vmax
-    if s.twoWay then
-        vmin, vmax = s.median / 2, s.median / 2 + s.n * LW
-        if scope == 'road' then vmin = -(s.median / 2 + s.nOpp * LW) end
-    else
-        vmin, vmax = -s.n * LW / 2, s.n * LW / 2
+    local lo, hi = math.huge, -math.huge
+    for _, off in ipairs(s.offsets) do lo, hi = math.min(lo, off), math.max(hi, off) end
+    if scope == 'road' then
+        for _, off in ipairs(s.opp) do lo = math.min(lo, off) end
     end
+    local vmin, vmax = lo - half, hi + half
     if scope == 'road' and (extra or 0) > 0 then vmin, vmax = vmin - extra / 2, vmax + extra / 2 end
     return vmin, vmax
 end
@@ -350,7 +351,7 @@ local function drawCells(seg, s, scope, kind)
     if E.FillLanes == false or not seg or not s then return end
     local f, z0, z1 = seg.f, seg.a.z + 0.3, seg.b.z + 0.3
     local main = COLORS[kind] or COLORS.zone
-    local half = LW / 2
+    local half = s.lw / 2
     for i, off in ipairs(s.offsets) do
         local chosen = scope ~= 'lane' or i == s.lane
         if chosen then
@@ -359,11 +360,8 @@ local function drawCells(seg, s, scope, kind)
             cell(f, 0, f.length, off - half, off + half, z0, z1, (kind == 'close' and scope == 'lane') and CELL.sideSlow or CELL.side, 45)
         end
     end
-    if s.twoWay then
-        for i = 1, s.nOpp do
-            local off = -(s.median / 2 + (i - 0.5) * LW)
-            cell(f, 0, f.length, off - half, off + half, z0, z1, scope == 'road' and main or CELL.opposite, scope == 'road' and 85 or 30)
-        end
+    for _, off in ipairs(s.opp or {}) do
+        cell(f, 0, f.length, off - half, off + half, z0, z1, scope == 'road' and main or CELL.opposite, scope == 'road' and 85 or 30)
     end
 end
 
@@ -392,19 +390,17 @@ local function drawExisting(p)
 end
 
 -- =========================================================================
--- AIDE EN HAUT À GAUCHE (morceaux de moins de 99 caractères : CELL_EMAIL_BCON)
+-- AIDE EN HAUT À GAUCHE : petit panneau de l'interface (NUI, sans curseur), PAS l'aide du jeu. Envoyé seulement quand
+-- il change. (L'aide du jeu, trop longue en plusieurs morceaux, sortait coupée et gênait celle des autres scripts.)
 -- =========================================================================
-local function help(lines)
-    local parts, current = {}, ''
-    for i, l in ipairs(lines) do
-        local piece = (i > 1 and '~n~' or '') .. l
-        if #current + #piece > 90 and current ~= '' then parts[#parts + 1] = current; current = '' end
-        current = current .. piece
-    end
-    if current ~= '' then parts[#parts + 1] = current end
-    BeginTextCommandDisplayHelp('CELL_EMAIL_BCON')
-    for _, part in ipairs(parts) do AddTextComponentSubstringPlayerName(part) end
-    EndTextCommandDisplayHelp(0, false, false, -1)
+local lastHint = nil
+local function hint(data)
+    local key = data and (data.title or '') or ''
+    if data then for _, row in ipairs(data.rows) do key = key .. '|' .. table.concat(row.keys, '+') .. ':' .. row.text end end
+    if data == nil then key = nil end
+    if key == lastHint then return end
+    lastHint = key
+    SendNUIMessage({ action = 'hint', data = data or { hidden = true } })
 end
 
 local function scopeText(s)
@@ -417,19 +413,24 @@ local function scopeText(s)
     return 'Route entière (les deux sens)'
 end
 
-local function helpLines(s)
-    local lines = {
-        ('~INPUT_CONTEXT~ %s de la zone du trafic'):format(editing.a and 'Fin' or 'Début'),
-        ('~INPUT_CELLPHONE_UP~~INPUT_CELLPHONE_DOWN~ %s'):format(scopeText(s)),
+local function fmt(m) return (('%+.2f'):format(m)):gsub('%.', ',') end
+
+--- Lignes de l'aide : { keys = { touches }, text }
+local function hintData(s)
+    local rows = {
+        { keys = { 'E' }, text = editing.a and 'Fin de la zone du trafic' or 'Début de la zone du trafic' },
+        { keys = { '↑', '↓' }, text = 'Portée : voie, sens ou route entière' },
     }
-    if editing.scope == 'lane' and s and s.n > 1 then lines[#lines + 1] = '~INPUT_WEAPON_WHEEL_NEXT~ Changer de voie' end
-    if editing.scope == 'road' then lines[#lines + 1] = ('~INPUT_WEAPON_WHEEL_NEXT~ Élargir : +%d m'):format(math.floor(editing.extra + 0.5)) end
-    if s and s.twoWay then lines[#lines + 1] = '~INPUT_RELOAD~ Inverser le sens' end
-    lines[#lines + 1] = ('~INPUT_NEXT_CAMERA~ %s'):format(VIEW_LABEL[view.mode] or VIEW_LABEL.player)
-    if view.mode == 'top' then lines[#lines + 1] = 'ZQSD glisser, souris tourner, Espace / Ctrl hauteur'
-    elseif view.mode == 'free' then lines[#lines + 1] = 'ZQSD, souris, Espace / Ctrl (Maj : vite)' end
-    lines[#lines + 1] = '~INPUT_FRONTEND_CANCEL~ Annuler'
-    return lines
+    if editing.scope == 'lane' and s and s.n > 1 then rows[#rows + 1] = { keys = { 'Molette' }, text = 'Changer de voie' } end
+    if editing.scope == 'road' then rows[#rows + 1] = { keys = { 'Molette' }, text = ('Élargir : +%d m'):format(math.floor(editing.extra + 0.5)) } end
+    rows[#rows + 1] = { keys = { '←', '→' }, text = ('Aligner sur les voies peintes (%s m)'):format(fmt(editing.shift or 0)) }
+    rows[#rows + 1] = { keys = { 'Maj', '←', '→' }, text = ('Largeur des voies : %s m'):format((('%.1f'):format(laneW())):gsub('%.', ',')) }
+    if s and s.twoWay then rows[#rows + 1] = { keys = { 'R' }, text = 'Inverser le sens' } end
+    rows[#rows + 1] = { keys = { 'V' }, text = VIEW_LABEL[view.mode] or VIEW_LABEL.player }
+    if view.mode == 'top' then rows[#rows + 1] = { keys = { 'ZQSD', 'Souris' }, text = 'Glisser, tourner ; Espace / Ctrl : hauteur' }
+    elseif view.mode == 'free' then rows[#rows + 1] = { keys = { 'ZQSD', 'Souris' }, text = 'Se déplacer ; Espace / Ctrl ; Maj : vite' } end
+    rows[#rows + 1] = { keys = { 'Échap' }, text = 'Annuler' }
+    return { title = scopeText(s), rows = rows }
 end
 
 -- =========================================================================
@@ -450,6 +451,7 @@ end
 local function stop(message)
     editing = nil
     stopView()
+    hint(nil)
     nodes = {}
     nodeCache = {}
     if message then TC.notify(message) end
@@ -476,20 +478,33 @@ local function choose(seg)
     for _, node in ipairs(nodes) do
         if nodeState(node, seg) == 'take' then list[#list + 1] = vec(node.pos) end
     end
-    -- Fermeture d'une voie : nœuds de la chaussée de ce sens (autoroute) autour de la zone, pour ralentir les autres
-    -- voies du même sens (20 MPH)
-    local side = {}
-    if editing.scope == 'lane' and s.n > 1 and not s.twoWay then
-        local dmin, dmax = strip(s, 'direction')
-        local from = (Config.Closure or {}).SideSlowFrom or 60.0
-        for _, node in ipairs(nodes) do
-            if not node.off then
-                local u, v = TC.localUV(seg.f, node.pos.x, node.pos.y)
+    -- Nœuds du trafic de CE SENS dans la zone et EN AMONT (Speed.Upstream m avant) : ralentissement progressif (zones
+    -- de vitesse du jeu, pour tous les PNJ), u = distance le long de la zone (négative en amont). Chaussée à sens
+    -- unique (autoroute) : ses nœuds ; route entière : aussi l'autre sens et les nœuds partagés. Une route à double
+    -- sens (nœuds partagés) ne peut pas être ralentie dans un seul sens par les nœuds : PNJ dirigés seulement.
+    local upstream = SP.Upstream or 120.0
+    readNodes(TC.worldAt(seg.f, seg.f.length / 2, 0, seg.a.z), seg.f.length / 2 + upstream + 10.0)
+    local dirNodes = {}
+    local dmin, dmax = strip(s, editing.scope == 'road' and 'road' or 'direction', editing.extra)
+    local zMid, L = (seg.a.z + seg.b.z) / 2, seg.f.length
+    for _, node in ipairs(nodes) do
+        if not node.off and math.abs(node.pos.z - zMid) <= (SEG.Height or 4.0) + 6 then
+            local u, v = TC.localUV(seg.f, node.pos.x, node.pos.y)
+            if v >= dmin - 2 and v <= dmax + 2 then
                 local t = nodeTraffic(node.id, node.pos)
-                if u >= -from and u <= seg.f.length + 5 and v >= dmin - 2 and v <= dmax + 2
-                    and math.abs(node.pos.z - (seg.a.z + seg.b.z) / 2) <= (SEG.Height or 4.0) + 6
-                    and t.oneWay and (t.tx * s.dx + t.ty * s.dy) > 0.5 then
-                    side[#side + 1] = vec(node.pos)
+                local dot = t.tx * s.dx + t.ty * s.dy
+                local du = nil
+                if t.oneWay and dot > 0.5 then
+                    du = u                                         -- ce sens
+                elseif editing.scope == 'road' and t.oneWay and dot < -0.5 then
+                    du = L - u                                     -- l'autre sens : son amont est après la fin
+                elseif editing.scope == 'road' and not t.oneWay then
+                    du = u < 0 and u or (u > L and (L - u) or 0.0) -- partagé : amont des deux côtés
+                end
+                if du and du >= -upstream and du <= L + 5 then
+                    local p = vec(node.pos)
+                    p.u = math.floor(du * 10 + 0.5) / 10
+                    dirNodes[#dirNodes + 1] = p
                 end
             end
         end
@@ -499,8 +514,8 @@ local function choose(seg)
     editing.zone = {
         scope = editing.scope, a = vec(seg.a), b = vec(seg.b),
         vmin = seg.vmin, vmax = seg.vmax, lanes = s.offsets, closedLane = s.offsets[s.lane],
-        laneIndex = s.lane, laneCount = s.n, oppositeLanes = s.nOpp, median = s.median, laneWidth = LW,
-        compass = TC.compass(s.dx, s.dy), nodes = list, sideNodes = side, label = label,
+        laneIndex = s.lane, laneCount = s.n, oppositeLanes = s.nOpp, median = s.median, laneWidth = s.lw,
+        compass = TC.compass(s.dx, s.dy), nodes = list, dirNodes = dirNodes, label = label,
     }
     local redirect = editing.scope == 'lane' and redirectLane(s) or nil
     local info = {
@@ -508,6 +523,7 @@ local function choose(seg)
         nodes = #list, laneIndex = s.lane, laneCount = s.n, oppositeLanes = s.nOpp,
         redirect = redirect and TC.laneName(redirect, s.n) or nil, redirectIndex = redirect,
         sideSlow = (editing.scope == 'lane' and s.n > 1) and ((Config.Closure or {}).SideSlow or 20) or 0,
+        dirNodes = #dirNodes,
         scopeText = scopeText(s),
     }
     if TC.onZoneChosen then TC.onZoneChosen(info) end
@@ -541,6 +557,7 @@ end
 function TC.reselectZone()
     if not editing then return end
     editing.phase, editing.a, editing.b, editing.seg, editing.zone, editing.previewKind = 'pick', nil, nil, nil, nil, nil
+    editing.road = nil
     editing.laneDelta = 0
 end
 
@@ -551,8 +568,9 @@ end
 local function confirm(cur, r)
     if not editing.a then
         if not r then return TC.notify('Visez une route.') end
-        editing.a = r.c
+        editing.a, editing.road = r.c, r
         editing.setup = setupFrom(r, editing.flip)
+        editing.lockBase = editing.setup.baseLane
         return
     end
     local b = r and r.c or cur
@@ -574,6 +592,7 @@ function TC.startEditor(opts)
         viewMode = (opts.view == 'top' or opts.view == 'free') and opts.view or 'player',
         duration = tonumber(opts.duration) or Config.DefaultDuration or 30,
         speed = math.floor(tonumber(opts.speed) or SP.DefaultLimit or 25), extra = 0.0, flip = false, laneDelta = 0,
+        shift = 0.0,
     }
     setView(editing.viewMode)
     CreateThread(function()
@@ -581,6 +600,7 @@ function TC.startEditor(opts)
         while editing do
             if editing.phase == 'chosen' then
                 -- Zone choisie : affichée (bande + nœuds) pendant que le panneau propose l'action
+                hint(nil)
                 local seg = editing.seg
                 local probe = TC.worldAt(seg.f, seg.f.length / 2, 0, seg.a.z)
                 local now = GetGameTimer()
@@ -608,7 +628,9 @@ function TC.startEditor(opts)
             end
             local cur = aimedGround()
             local r = cur and roadAt(cur) or nil
-            if not editing.a then editing.setup = r and setupFrom(r, editing.flip) or nil end
+            -- Voies recalculées à chaque image (alignement ← →, largeur Maj + ← →) ; après le début : route du début
+            if editing.a then editing.setup = setupFrom(editing.road, editing.flip)
+            else editing.setup = r and setupFrom(r, editing.flip) or nil end
             applyLane(editing.setup)
             local now = GetGameTimer()
 
@@ -632,7 +654,20 @@ function TC.startEditor(opts)
             end
             if IsDisabledControlJustPressed(0, KEY.flip) and editing.setup and editing.setup.twoWay then
                 editing.flip = not editing.flip
-                if editing.a then editing.setup = flipSetup(editing.setup); applyLane(editing.setup) end
+                editing.lockBase = nil
+                editing.shift = -(editing.shift or 0) -- même place dans le monde (le sens s'inverse)
+                if editing.a then editing.setup = setupFrom(editing.road, editing.flip); applyLane(editing.setup) end
+            end
+            -- ← → : décaler la bande (aligner sur les voies peintes) ; Maj + ← → : largeur des voies
+            local nudge = (IsDisabledControlJustPressed(0, KEY.right) and 1) or (IsDisabledControlJustPressed(0, KEY.left) and -1) or 0
+            if nudge ~= 0 then
+                if IsDisabledControlPressed(0, 21) then
+                    calib.lw = math.max(SEG.MinLaneWidth or 2.5, math.min(SEG.MaxLaneWidth or 7.0, calib.lw + nudge * 0.1))
+                else
+                    editing.shift = math.max(-(SEG.MaxShift or 8.0), math.min(SEG.MaxShift or 8.0, (editing.shift or 0) + nudge * 0.25))
+                end
+                local base = editing.a and editing.road or r
+                if base then editing.setup = setupFrom(base, editing.flip); applyLane(editing.setup) end
             end
 
             -- Aperçu
@@ -650,7 +685,7 @@ function TC.startEditor(opts)
             if cur and not r then
                 DrawMarker(1, cur.x, cur.y, cur.z - 0.2, 0, 0, 0, 0, 0, 0, 0.6, 0.6, 1.2, 150, 150, 150, 160, false, false, 2, false, nil, nil, false)
             end
-            if not IsPauseMenuActive() then help(helpLines(editing.setup)) end
+            hint(not IsPauseMenuActive() and hintData(editing.setup) or nil)
 
             if IsDisabledControlJustPressed(0, KEY.confirm) and cur then
                 confirm(cur, r)

@@ -16,9 +16,9 @@ Le script en tient compte :
 
 | Portée | Fermeture | Ralentissement / arrêt |
 |---|---|---|
-| **Voie** (ex. voie de gauche d'une interstate) | **faux obstacles** en travers de la voie fermée (rien de physique, mais les PNJ du jeu agissent comme s'il y avait un véhicule arrêté) **et** les PNJ de cette voie **conduits en ligne droite sur la voie la plus proche du même sens** avant le tronçon, qu'ils longent, puis reprennent leur route ; **les autres voies du même sens ralentissent à 20 MPH**. **Aucune voie du même sens** : **demi-tour** | seuls les PNJ de cette voie ralentissent / s'arrêtent, les autres voies circulent |
-| **Sens** | chaussée séparée (autoroute) : **ses nœuds sont fermés** (l'autre sens n'est pas touché) ; route à double sens (nœuds partagés) : les PNJ de ce sens **recalculent leur route**, puis **font demi-tour** | zones de vitesse du jeu sur les nœuds de la chaussée + PNJ de ce sens |
-| **Route entière** | **tous les nœuds du tronçon fermés** (déviation par le jeu) + PNJ qui arrivent : route recalculée, puis demi-tour | zones de vitesse sur les nœuds + PNJ des deux sens |
+| **Voie** (ex. voie de gauche d'une interstate) | **plots virtuels** (invisibles, sans collision) : un **biseau** en amont puis une ligne le long de la voie ouverte, que les PNJ **contournent** ; les PNJ de cette voie **conduits en ligne droite sur la voie la plus proche du même sens** avant la zone ; **les autres voies du même sens ralentissent à 20 MPH**, progressivement. **Aucune voie du même sens** : ligne de plots en travers (arrêt) et **demi-tour** | **tout le sens** (la voie choisie **et** les autres voies de ce sens) : **périmètre en amont**, freinage **progressif** jusqu'à la limite / l'arrêt |
+| **Sens** | chaussée séparée (autoroute) : **ses nœuds sont fermés** (l'autre sens n'est pas touché) ; route à double sens (nœuds partagés) : les PNJ de ce sens **recalculent leur route**, puis **font demi-tour** ; ligne de plots virtuels en travers au début | tout le sens, progressif depuis l'amont |
+| **Route entière** | **tous les nœuds du tronçon fermés** (déviation par le jeu) + PNJ qui arrivent : route recalculée, puis demi-tour ; lignes de plots virtuels aux deux bouts | les deux sens, progressif depuis l'amont |
 
 Les nœuds fermés ne sont plus empruntés par les PNJ (ni par le trafic qui apparaît). Les PNJ qui avaient déjà choisi
 leur route sont dirigés à l'approche. Tout est **temporaire** (15 min, 30 min, 1 h, 2 h ou illimité) ; mesure levée :
@@ -37,7 +37,9 @@ réseau routier rendu **à l'original**, PNJ relâchés (route et vitesse normal
 - **`/trafic`** (policier en service, unité du MDC) : menu **Gestion du trafic**. Une nouvelle mesure se fait **dans
   cet ordre : d'abord la ZONE du trafic, ensuite l'ACTION** :
   1. **« Choisir la zone du trafic »** (portée : Voie / Sens / Route entière, modifiable ensuite ; **vue**) : le menu se
-     ferme et on **vise la route** (jusqu'à 150 m, aide en haut à gauche). **Trois vues** (choisies dans le menu,
+     ferme et on **vise la route** (jusqu'à 150 m). L'**aide** s'affiche **en haut à gauche dans un petit panneau de
+     l'interface** (sans curseur), plus avec l'aide du jeu : celle-ci, trop longue, sortait coupée et empêchait l'aide des
+     autres scripts de s'afficher (proposition du menu Équipement du véhicule…). **Trois vues** (choisies dans le menu,
      **V** pour changer pendant le choix) :
      - **Joueur** : la vue du jeu ; le personnage se déplace normalement ;
      - **Dessus** : caméra **50 m au-dessus** du joueur, regard vers le sol ; **ZQSD / WASD** : glisser, **souris** :
@@ -49,6 +51,10 @@ réseau routier rendu **à l'original**, PNJ relâchés (route et vitesse normal
      - **le côté visé choisit le sens**, **le point visé choisit la voie** (« voie de gauche (1/3), sens nord-est ») ;
      - **↑ ↓** : portée (voie / sens / route entière) ; **molette** : changer de voie (voie) ou élargir (route
        entière) ; **R** : inverser le sens (route à double sens) ;
+     - **← →** : **décaler la bande** (par 0,25 m) pour l'**aligner sur les voies peintes** ; **Maj + ← →** : **largeur
+       des voies** (par 0,1 m, gardée d'une pose à l'autre). La position des voies est calculée depuis la ligne de nœuds
+       du jeu et une largeur de voie théorique : sur certaines routes elle ne tombe pas pile sur les voies peintes,
+       d'où ce réglage, visible en direct grâce aux voies remplies. Après le premier E, la voie choisie ne change plus ;
      - **E** au début de la zone, **E** à la fin (dans n'importe quel ordre : le début est toujours placé du côté d'où
        arrive le trafic) ; **Retour arrière**, clic droit ou **Échap** : annuler (Échap n'ouvre pas le menu pause).
      - **Aperçu** : les **voies remplies au sol** (cases transparentes, `Editor.FillLanes`) : **bleu** la zone,
@@ -63,7 +69,11 @@ réseau routier rendu **à l'original**, PNJ relâchés (route et vitesse normal
        voies passent en **orange**). Pour un sens / la route : **Fermeture du
        sens** / **de la route** (le trafic est dévié) ;
      - **Ralentissement** : vitesse (**− / +**, MPH) ;
-     - **Arrêt du trafic** : le trafic s'arrête avant la zone ;
+     - **Ralentissement** et **Arrêt** portent sur **tout le sens** (voie choisie et autres voies du même sens ; route
+       entière : les deux sens), avec un **périmètre en amont** : le trafic **freine progressivement** en arrivant
+       (de 70 MPH 150 m avant jusqu'à la limite au début de la zone), il ne pile pas ;
+     - **Arrêt du trafic** : le trafic freine progressivement et **s'arrête à une ligne de plots virtuels** en travers du
+       sens, au début de la zone ;
      - **Durée** (15 min, 30 min, 1 h, 2 h, illimitée) ; **« Appliquer »** pose la mesure.
      La zone prend dans le monde la couleur de l'action choisie (rouge : fermeture, orange : ralentissement, rouge
      foncé : arrêt). Clavier : **1 / 2 / 3** choisissent l'action, **Entrée** applique. **« Rechoisir »** : retour à
@@ -79,10 +89,11 @@ réseau routier rendu **à l'original**, PNJ relâchés (route et vitesse normal
 | `Command`, `Key` | commande (`trafic`), touche (aucune par défaut) |
 | `PoliceOnly`, `AdminAce`, `MdcResource` | droits : policiers en service (unité du MDC) ou permission ACE |
 | `MaxMeasures`, `MaxPerPlayer`, `Durations`, `DefaultDuration`, `RemoveOnDisconnect` | limites et durées |
-| `Segment` | longueur min / max, **`LaneWidth`** (largeur d'une voie du jeu, à ajuster avec l'aperçu), hauteur, marge et nombre max de nœuds, largeur ajoutable (route entière) |
-| `Closure` | zone fermée autour de chaque nœud, distances d'approche / de recalcul, vitesse et style de conduite pendant le changement de voie / le demi-tour, vitesse rendue, ralentissement des autres voies du sens (`SideSlow` 20 MPH, `SideSlowFrom` 60 m) |
+| `Segment` | longueur min / max, **`LaneWidth`** (largeur de voie au départ ; Maj + ← → pendant le choix), `MinLaneWidth` / `MaxLaneWidth`, décalage max (`MaxShift`, ← →), hauteur, marge et nombre max de nœuds, largeur ajoutable (route entière) |
+| `Closure` | zone fermée autour de chaque nœud, distances d'approche / de recalcul, vitesse et style de conduite pendant le changement de voie / le demi-tour, vitesse rendue, ralentissement des autres voies du sens (`SideSlow` 20 MPH) |
 | `Obstacles` | faux obstacles (fermetures et plots) : modèle, espacement, place laissée libre, nombre max (par mesure, en tout, par vérification), portée, collision (non), rangée en travers (sens / route), `Debug`, plots (`Cones` : regroupement, espacement, nombre max) |
-| `Speed` | limites MPH, rayon des zones de vitesse sur les nœuds, distances de ralentissement / d'arrêt avant le tronçon |
+| `Speed` | limites MPH, rayon des zones de vitesse sur les nœuds, périmètre en amont (`Upstream` 150 m, `UpstreamStart` 70 MPH), arrêt avant la zone (`StopBefore`), marge du sens (`BandMargin`) |
+| `VirtualCones` | plots virtuels : biseau, espacements, détection (12 m), marge, décalage max du passage, vitesse et style du contournement |
 | `Editor` | portée de la visée, distance à la route, aperçu des nœuds, voies remplies (`FillLanes`), vues : portée des caméras (`CameraRange`, 100 m), vue du dessus (hauteur 50 m, min / max, champ, vitesse), caméra libre (vitesse) |
 | `Blips`, `BlipColors` | qui voit les mesures sur la carte, couleurs |
 | `Range`, `Interval` | PNJ gérés près des tronçons à moins de 400 m du joueur, toutes les 300 ms |
@@ -96,32 +107,38 @@ Console : **`trafficclear`** lève toutes les mesures.
 - Natives : `SetRoadsInArea` / `SetRoadsBackToOriginal` (une petite zone par nœud retenu), `AddRoadNodeSpeedZone` /
   `RemoveRoadNodeSpeedZone`, et les tâches de conduite des PNJ (`TaskVehicleDriveToCoord`, `…Longrange`,
   `TaskVehicleTempAction`, `SetDriveTaskCruiseSpeed`, `TaskVehicleDriveWander`).
-- **Voie** : il n'y a pas de nœud par voie dans le jeu. La fermeture d'une voie se fait donc par deux moyens, ensemble :
-  - **Faux obstacles** (`Obstacles`) : **rien de physique** (pas de collision, invisibles : ni joueur ni PNJ ne heurte
-    quoi que ce soit, l'œil et les tirs passent au travers), mais l'**IA du jeu** voit des **véhicules arrêtés** et
-    les contourne (comportement d'origine : « changer de voie autour d'un obstacle »). Ce sont des véhicules du jeu de
-    base (`blista`), figés, sans conducteur, posés **en travers de la voie fermée, centrés sur elle**, tous les 6 m :
-    ils couvrent **toute la largeur** de la voie (avant, posés dans le sens de la route, ils ne la couvraient qu'à
-    moitié et les PNJ se serraient à côté pour continuer sur la voie). Sens / route fermés : une rangée au début du
-    tronçon. Ils sont **locaux** (chaque joueur pose les siens, seulement à moins de 220 m) ; une place déjà prise
-    (voiture de police garée dans la voie…) est laissée libre. `Obstacles.Debug = true` : visibles en transparence ;
-    `Collision = true` : redevenir un vrai obstacle physique (déconseillé).
-  - **PNJ dirigés** : ceux que ce joueur contrôle sont conduits **en ligne droite** (style du jeu « ForceStraightLine »,
-    `Closure.MergeStyle`) vers un point de la voie ouverte **qui avance avec eux** (`MergeLead`, `PassLead`) : sinon le
-    suivi de route du jeu les garde sur leur voie jusqu'au point visé (c'est pour ça que la fermeture de voie ne
-    marchait pas). Ils s'arrêtent toujours pour un véhicule ou un piéton devant eux ; après le tronçon, ils reprennent
-    leur route. Bloqués plus de 25 s : relâchés (`PhaseTimeout`).
-- **Fermeture d'une voie, autres voies** : les nœuds de la chaussée de ce sens (autoroute) autour de la zone, de 60 m
-  avant à la fin, reçoivent une **zone de vitesse du jeu à 20 MPH**, et les PNJ des autres voies du sens sont ralentis
-  à 20 MPH ; le rabattement se fait aussi à cette vitesse (`Closure.SideSlow`, `SideSlowFrom`).
+- **Plots virtuels** (`VirtualCones`) : **invisibles, sans collision** (rien dans le monde), traités **comme les plots de
+  la police** (qui marchent bien) : **les PNJ doivent les contourner ou s'arrêter devant, selon l'action** :
+  - **fermeture d'une voie** (avec une voie ouverte à côté) : **biseau** de 30 m en amont (du bord extérieur de la voie
+    fermée vers le bord de la voie ouverte), puis **ligne** le long de ce bord jusqu'à la fin : les PNJ **contournent** ;
+  - **arrêt du trafic**, **sens / route fermés**, voie sans autre voie : **ligne en travers** du sens au début de la
+    zone (route entière : aussi à la fin) : les PNJ **s'arrêtent** devant.
+  Chaque plot virtuel porte un **faux obstacle** (`Obstacles` : véhicule du jeu de base, invisible, figé, **sans
+  collision** : ni joueur ni PNJ ne heurte quoi que ce soit, l'œil et les tirs passent au travers) que l'**IA du jeu**
+  contourne, pour tous les PNJ. Les PNJ que ce joueur contrôle suivent en plus **la logique des plots de la police** :
+  un plot dans leur trajectoire à moins de 12 m -> passage le plus proche **sur la route** (voie voisine) s'il y en a
+  un, sinon **arrêt** devant. Locaux (chaque joueur pose les siens, à moins de 220 m) ; une place prise par un vrai
+  véhicule (police garée dans la voie…) est laissée libre. `Obstacles.Debug = true` : visibles en transparence.
+- **Fermeture d'une voie, PNJ dirigés** : ceux que ce joueur contrôle sont conduits **en ligne droite** (style du jeu
+  « ForceStraightLine », `Closure.MergeStyle`) vers un point de la voie ouverte **qui avance avec eux** (`MergeLead`,
+  `PassLead`), jamais plus vite que les voies ralenties ; après la zone, ils reprennent leur route. Bloqués plus de
+  25 s : relâchés (`PhaseTimeout`).
+- **Fermeture d'une voie, autres voies** : les nœuds de la chaussée de ce sens (autoroute), dans la zone et 150 m en
+  amont, reçoivent des **zones de vitesse du jeu progressives** (de 70 MPH à 20 MPH), et les PNJ des autres voies du
+  sens sont ralentis de la même façon (`Closure.SideSlow`, `Speed.Upstream`).
+- **Ralentissement / arrêt** (`Speed`) : **tout le sens** (bande de toutes ses voies, +1,5 m de marge : `BandMargin`),
+  **périmètre en amont** de 150 m (`Upstream`) : la vitesse visée baisse **progressivement** de 70 MPH
+  (`UpstreamStart`) jusqu'à la limite au début de la zone. Pour **tous les PNJ** : zones de vitesse du jeu sur les
+  nœuds de ce sens (zone et amont, chacune à sa vitesse) ; pour les PNJ que ce joueur contrôle : vitesse redonnée à
+  chaque vérification, **jamais au-dessus de leur vitesse à l'entrée** du périmètre (ils freinent, n'accélèrent pas).
+  Arrêt : freinage progressif, arrêt 8 m avant la zone (`StopBefore`) et ligne de plots virtuels. (Avant, seuls les
+  PNJ de la bande exacte et des 25 derniers mètres étaient ralentis, d'où un effet aléatoire selon la voie et la
+  vitesse.) Une route à double sens (nœuds communs aux deux sens) ne peut pas être ralentie dans un seul sens par les
+  nœuds : seuls les PNJ dirigés y ralentissent.
 - **Plots de la police** (rp_equipment, posés depuis le coffre) : chaque **dispositif** (plots à moins de 6 m les uns
   des autres) reçoit des **faux obstacles tout le long de sa ligne** (tous les 3,5 m, dans l'axe de la ligne ; un plot
   seul : un obstacle dans le sens de la route) : les PNJ le traitent comme **infranchissable**, comme les zones du
   `/trafic` (`Obstacles.Cones`). La déviation des PNJ autour des plots reste celle de rp_equipment.
-- **Ralentissement** : la vitesse limite est redonnée au PNJ **à chaque vérification** (une autre tâche du jeu la
-  remettait à la vitesse normale), en plus des zones de vitesse du jeu.
-  La position des voies vient du nombre de voies du jeu et de `LaneWidth` : vérifiez avec l'aperçu que la bande tombe
-  bien sur la voie, et ajustez `LaneWidth` si besoin.
 - Sur une route **en courbe**, faites plusieurs tronçons courts (la bande suit la ligne droite début → fin).
 - Un demi-tour sur autoroute dépend du jeu (un PNJ ne traverse pas le terre-plein) : il repart vers l'arrière par le
   réseau routier.

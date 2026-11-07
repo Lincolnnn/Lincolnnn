@@ -95,7 +95,9 @@
         const ct = closeTexts(z);
         $('tcCloseTitle').textContent = ct.title;
         $('tcCloseHint').textContent = ct.hint;
-        $('tcSlowHint').textContent = `Le trafic de la zone roule à ${state.speed} MPH`;
+        const dirText = z.scope === 'road' ? 'des deux sens' : 'de ce sens (toutes ses voies)';
+        $('tcSlowHint').textContent = `Le trafic ${dirText} freine progressivement en amont, puis roule à ${state.speed} MPH dans la zone`;
+        $('tcStopHint').textContent = `Le trafic ${dirText} freine progressivement et s'arrête à la ligne de plots virtuels, avant la zone`;
         box.querySelectorAll('[data-kind]').forEach((b) => b.classList.toggle('active', b.dataset.kind === state.kind));
         $('tcSpeedField').classList.toggle('hidden', state.kind !== 'slow');
         $('tcSpeed').textContent = `${state.speed} MPH`;
@@ -191,6 +193,16 @@
         clearInterval(tick);
     }
 
+    // Aide pendant le choix de la zone (editor.lua) : { title, rows = { { keys = { ... }, text } } } ou { hidden }
+    function hint(d) {
+        const el = $('tcHint');
+        if (!d || d.hidden) { el.classList.add('hidden'); return; }
+        $('tcHintTitle').textContent = d.title || '';
+        $('tcHintRows').innerHTML = toArray(d.rows).map((r) => `
+            <div class="tc-hintbox-row"><span class="tc-hintbox-keys">${toArray(r.keys).map((k) => `<kbd>${esc(k)}</kbd>`).join('')}</span><span>${esc(r.text)}</span></div>`).join('');
+        el.classList.remove('hidden');
+    }
+
     function pickKind(kind) {
         state.kind = kind;
         renderZone();
@@ -250,7 +262,8 @@
     window.addEventListener('message', (event) => {
         const msg = event.data || {};
         const data = msg.data || {};
-        if (msg.action === 'open') open(data);
+        if (msg.action === 'hint') hint(msg.data);
+        else if (msg.action === 'open') open(data);
         else if (msg.action === 'zone') openZone(data);
         else if (msg.action === 'close') close();
         else if (msg.action === 'list') setMeasures(data.measures);
