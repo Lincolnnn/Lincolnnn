@@ -64,16 +64,20 @@ autres et le serveur refuse leurs demandes ; `false` : ouverte à tous (par déf
 (`Weather.Ace` = admins, sauf « Accès public ») ; le **secteur de jeu** aussi (`SectorAce` = admins). Les règles
 « police en service » (`SpawnPoliceOnly`, `EquipmentPoliceOnly`) s'appliquent en plus.
 
-Page **Police** : en service ou non (unité et police du MDC choisi : **Washington State Patrol** ou **King County
-Sheriff Office**), puis les actions **Menotter**, **Prendre par le bras**, **Placer l'individu à l'arrière du
-véhicule** et **Faire s'asseoir l'individu** : toujours affichées, **grisées** tant que personne (joueur ou PNJ) n'est
-assez près (2 m ; véhicule à 6 m pour placer), mises à jour en direct. Elles agissent sur l'individu le plus proche (le
-menu se ferme). En bas, **Display MDC > Secteur** (zone de jeu, saisi à la main) : choisi par les **admins**
-seulement (`SectorAce`, grisé pour les autres), publié par le serveur, gardé chez l'admin et affiché sur le display du
-MDC. Il n'y a plus de « service principal » : la police est celle du MDC choisi.
-Tout en bas, **Aide-mémoire** (avec la ressource `rp_policecards`) : **Carte Miranda** et **Alphabet phonétique
-(police)** : affichées / masquées (le menu reste ouvert), à l'écran **sans curseur** : on marche, on conduit, on ouvre
-ses autres menus. Aussi `/miranda`, `/alphabet` ; `/cartes` pour les déplacer et changer leur taille.
+Page **Police**, dans cet ordre :
+1. en service ou non (unité et police du MDC choisi : **Washington State Patrol** ou **King County Sheriff Office**) ;
+2. **Interactions** : **Menotter**, **Prendre par le bras**, **Placer l'individu à l'arrière du véhicule** et **Faire
+   s'asseoir l'individu** : toujours affichées, **grisées** tant que personne (joueur ou PNJ) n'est assez près (2 m ;
+   véhicule à 6 m pour placer), mises à jour en direct. Elles agissent sur l'individu le plus proche (le menu se ferme) ;
+3. **Trafic** : **Gestion du trafic** (`/trafic`, rp_TrafficControl) : ferme ce menu et ouvre celui du trafic (choisir
+   une zone du trafic, puis fermer une voie, ralentir ou arrêter le trafic). Grisé hors service ou sans la ressource
+   (`TrafficResource`, `TrafficCommand`) ;
+4. **Aide-mémoire** (avec la ressource `rp_policecards`) : **Carte Miranda** et **Alphabet phonétique (police)** :
+   affichées / masquées (le menu reste ouvert), à l'écran **sans curseur** : on marche, on conduit, on ouvre ses
+   autres menus. Aussi `/miranda`, `/alphabet` ; `/cartes` pour les déplacer et changer leur taille ;
+5. **Display MDC > Secteur** (zone de jeu, saisi à la main) : choisi par les **admins** seulement (`SectorAce`, grisé
+   pour les autres), publié par le serveur, gardé chez l'admin et affiché sur le display du MDC. Il n'y a plus de
+   « service principal » : la police est celle du MDC choisi.
 Page **Civil** : rappel du **profil actif**, la case **Mode civil**, puis **Créer un profil** et **Créer un véhicule**
 (ouvrent la **fiche civile** et ferment le menu) et, en mode civil, **Tips arrestation**.
 Page **Équipements** : **Tenues** → **Accéder aux tenues** (ferme ce menu et ouvre le menu `/eup`, ci-dessous) ;

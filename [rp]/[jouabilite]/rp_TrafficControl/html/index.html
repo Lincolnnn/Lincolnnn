@@ -30,13 +30,21 @@
                         <button class="tc-seg-btn" data-scope="road" title="La route entière (les deux sens)">Route entière</button>
                     </div>
                 </div>
+                <div class="tc-field tc-scope-field">
+                    <span class="tc-label">Vue</span>
+                    <div class="tc-seg" id="tcViews">
+                        <button class="tc-seg-btn" data-view="player" title="La vue du jeu, autour de votre personnage">Joueur</button>
+                        <button class="tc-seg-btn" data-view="top" title="Caméra à 50 m au-dessus de vous, regard vers le sol">Dessus</button>
+                        <button class="tc-seg-btn" data-view="free" title="Caméra libre (comme /scene et /freecam), jusqu'à 100 m de vous">Libre</button>
+                    </div>
+                </div>
                 <button class="tc-kind tc-pick" id="tcPickZone">
                     <span class="tc-ico ico-zone">
                         <svg viewBox="0 0 24 24"><path d="M4 20L10 4M20 20L14 4"/><circle cx="7" cy="12" r="1.6"/><circle cx="17" cy="12" r="1.6"/><circle cx="12" cy="7" r="1.6"/><circle cx="12" cy="17" r="1.6"/></svg>
                     </span>
-                    <span class="tc-kind-text"><b>Choisir la zone du trafic</b><small>Visez la route : <b>E</b> au début, <b>E</b> à la fin de la zone</small></span>
+                    <span class="tc-kind-text"><b>Choisir la zone du trafic</b><small>Visez la route : <b>E</b> au début, <b>E</b> à la fin · <b>V</b> change de vue</small></span>
                 </button>
-                <div class="tc-hint">Les nœuds du trafic de la zone s'affichent (<span class="tc-dot take"></span> concernés).
+                <div class="tc-hint">Les voies se remplissent au sol (<span class="tc-dot zone"></span> la zone) et les nœuds du trafic s'affichent (<span class="tc-dot take"></span> concernés).
                     Ensuite, choisissez l'action : <b>fermeture de voie</b>, <b>ralentissement</b> ou <b>arrêt du trafic</b>.</div>
             </section>
 

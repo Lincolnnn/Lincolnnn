@@ -112,12 +112,12 @@ RegisterNUICallback('close', function(_, cb)
     closeMenu()
 end)
 
--- 1. « Choisir la zone du trafic » : { scope } -> on vise la route (editor.lua)
+-- 1. « Choisir la zone du trafic » : { scope, view = 'player' | 'top' | 'free' } -> on vise la route (editor.lua)
 RegisterNUICallback('pickZone', function(data, cb)
     cb({ ok = true })
     if mode ~= 'home' then return end
     closeMenu()
-    TC.startEditor({ scope = type(data) == 'table' and data.scope or 'lane' })
+    TC.startEditor({ scope = type(data) == 'table' and data.scope or 'lane', view = type(data) == 'table' and data.view or 'player' })
 end)
 
 -- 2. Action surlignée dans le panneau : couleur de la zone dans le monde

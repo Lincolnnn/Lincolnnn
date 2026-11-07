@@ -8,7 +8,7 @@
     const KIND = { close: 'Fermeture', slow: 'Ralentissement', stop: 'Trafic arrêté' };
     let state = {
         measures: [], durations: [15, 30, 60, 120, 0], duration: 30, speed: 25, scope: 'lane',
-        limits: { min: 5, max: 80, step: 5 }, unit: '', view: 'home', zone: null, kind: null,
+        limits: { min: 5, max: 80, step: 5 }, unit: '', view: 'home', zone: null, kind: null, camera: 'player',
     };
     let messageTimer = null;
     let tick = null;
@@ -65,6 +65,7 @@
 
     function renderHome() {
         box.querySelectorAll('[data-scope]').forEach((b) => b.classList.toggle('active', b.dataset.scope === state.scope));
+        box.querySelectorAll('[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === state.camera));
     }
 
     // Texte de la fermeture selon la zone : une voie (vers quelle voie le trafic se réoriente), un sens, la route
@@ -72,7 +73,7 @@
         if (z.scope === 'lane') {
             return {
                 title: 'Fermeture de voie',
-                hint: z.redirect ? `Le trafic se réoriente vers la ${z.redirect}`
+                hint: z.redirect ? `Le trafic se réoriente vers la ${z.redirect}${z.sideSlow > 0 ? ` ; les autres voies du sens ralentissent à ${z.sideSlow} MPH` : ''}`
                     : 'Aucune autre voie dans ce sens : le trafic fait demi-tour',
             };
         }
@@ -213,9 +214,11 @@
             if (e.target.closest('#tcCancelZone')) return post('close');
             return null;
         }
-        if (e.target.closest('#tcPickZone')) return post('pickZone', { scope: state.scope });
+        if (e.target.closest('#tcPickZone')) return post('pickZone', { scope: state.scope, view: state.camera });
         const scope = e.target.closest('[data-scope]');
         if (scope) { state.scope = scope.dataset.scope; return renderHome(); }
+        const cam = e.target.closest('[data-view]');
+        if (cam) { state.camera = cam.dataset.view; return renderHome(); }
         const rm = e.target.closest('[data-remove]');
         if (rm) return post('remove', { id: Number(rm.dataset.remove) });
         const loc = e.target.closest('[data-locate]');

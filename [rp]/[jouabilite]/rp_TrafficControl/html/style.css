@@ -308,3 +308,6 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 [data-theme="night"] .tc-kind.active { background: rgba(var(--n-rgb), .16); border-color: rgba(var(--n-rgb), .6); }
 [data-theme="night"] .tc-kind .tc-check { border-color: rgba(var(--n-rgb), .45); }
 [data-theme="night"] .tc-kind.active .tc-check { border-color: var(--n-light); background: var(--n-light); box-shadow: inset 0 0 0 3px var(--n-ink); }
+
+.tc-dot.zone { background: #4696ff; }
+[data-theme="night"] .tc-dot.zone { background: var(--n-pale); }

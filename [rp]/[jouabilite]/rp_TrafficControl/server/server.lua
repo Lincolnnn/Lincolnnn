@@ -22,7 +22,7 @@ local function publicView(m)
     return { id = m.id, kind = m.kind, scope = m.scope, a = m.a, b = m.b, vmin = m.vmin, vmax = m.vmax,
         lanes = m.lanes, closedLane = m.closedLane, laneIndex = m.laneIndex, laneCount = m.laneCount,
         oppositeLanes = m.oppositeLanes, median = m.median, laneWidth = m.laneWidth, compass = m.compass,
-        nodes = m.nodes, speed = m.speed, label = m.label }
+        nodes = m.nodes, sideNodes = m.sideNodes, speed = m.speed, label = m.label }
 end
 
 local function publish()
@@ -139,7 +139,8 @@ function Handlers.create(src, data)
     end
     local here = GetEntityCoords(GetPlayerPed(src))
     here = { x = here.x, y = here.y, z = here.z }
-    local reach = ((Config.Editor and Config.Editor.Range) or 150.0) + 60.0
+    -- visée jusqu'à Editor.Range m de la caméra, qui peut être à CameraRange m du joueur (vue du dessus / libre)
+    local reach = ((Config.Editor and Config.Editor.Range) or 150.0) + ((Config.Editor and Config.Editor.CameraRange) or 100.0) + 60.0
 
     local SEG = Config.Segment or {}
     local m = { kind = data.kind, scope = SCOPES[data.scope] and data.scope or 'lane', owner = src, by = by,
@@ -177,6 +178,15 @@ function Handlers.create(src, data)
         if #m.nodes >= (SEG.MaxNodes or 80) then break end
         local p = point(n)
         if p and dist(p, mid) <= length / 2 + 25.0 then m.nodes[#m.nodes + 1] = p end
+    end
+    -- Fermeture d'une voie : nœuds de la chaussée de ce sens (autoroute), ralentis pour les autres voies du sens
+    m.sideNodes = {}
+    if m.kind == 'close' and m.scope == 'lane' then
+        for _, n in ipairs(type(data.sideNodes) == 'table' and data.sideNodes or {}) do
+            if #m.sideNodes >= (SEG.MaxNodes or 80) then break end
+            local p = point(n)
+            if p and dist(p, mid) <= length / 2 + 25.0 + ((Config.Closure or {}).SideSlowFrom or 60.0) then m.sideNodes[#m.sideNodes + 1] = p end
+        end
     end
     if data.kind == 'slow' then
         local S = Config.Speed or {}

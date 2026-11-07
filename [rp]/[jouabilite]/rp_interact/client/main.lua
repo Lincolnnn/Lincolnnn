@@ -440,6 +440,17 @@ RegisterNUICallback('policeCard', function(data, cb)
     cb({ ok = true, shown = shown == true, cards = policeCards() })
 end)
 
+-- Menu Interaction > Police > « Gestion du trafic » : ferme ce menu et ouvre celui de rp_TrafficControl (/trafic)
+RegisterNUICallback('openTraffic', function(_, cb)
+    if GetResourceState(Config.TrafficResource or 'rp_TrafficControl') ~= 'started' then
+        return cb({ ok = false, error = 'Gestion du trafic indisponible (ressource rp_TrafficControl arrêtée).' })
+    end
+    if not RPI.isPolice() then return cb({ ok = false, error = 'Réservé à la police : rejoignez une unité dans le MDC.' }) end
+    cb({ ok = true })
+    if closeMenu then closeMenu() end
+    SetTimeout(150, function() ExecuteCommand(Config.TrafficCommand or 'trafic') end)
+end)
+
 --- Ouvre le menu (sur la page `view` si elle est donnée, ex. 'radio' depuis l'œil)
 local function openMenu(view)
     if ui.menu and view then -- déjà ouvert (ex. œil > Radio) : le menu va sur cette page
@@ -463,6 +474,7 @@ local function openMenu(view)
             policeProfile = policeProfile(),
             sectorAllowed = res and res.sectorAllowed or false, -- secteur de jeu : admins (Config.SectorAce)
             cards = policeCards(), -- carte Miranda, alphabet phonétique (rp_policecards)
+            traffic = GetResourceState(Config.TrafficResource or 'rp_TrafficControl') == 'started', -- /trafic
             locked = res and res.locked or {},  -- catégories réservées (config.lua : Permissions)
         } })
     end)

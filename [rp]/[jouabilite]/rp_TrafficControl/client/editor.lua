@@ -15,8 +15,16 @@
     et les NŒUDS du jeu :
       vert = ouvert ; orange = concerné (sera fermé / ralenti) ; jaune = partagé avec l'autre sens (les PNJ sont
       dirigés à la place) ; rouge = déjà fermé.
-    Touches : E valider, ↑ ↓ portée, molette voie / largeur, R inverser le sens, Retour arrière / clic droit / Échap
-    annuler. Boucle à chaque image SEULEMENT pendant le choix ; nœuds relus toutes les 400 ms.
+    VUES (choisie dans le menu, V pour changer pendant le choix) :
+      - joueur : la vue du jeu (le personnage se déplace normalement) ;
+      - dessus : caméra à 50 m au-dessus du joueur, regard vers le sol (ZQSD / WASD : glisser, souris : tourner,
+        Espace / Ctrl : monter / descendre, Maj : plus vite) ;
+      - libre : caméra libre comme /scene et /freecam (souris : regarder, ZQSD / WASD, Espace / Ctrl, Maj) ;
+      dessus et libre restent à moins de 100 m du joueur (Editor.CameraRange) ; le personnage ne bouge pas.
+    Les VOIES de la route visée sont REMPLIES au sol (cases transparentes) : bleu la zone choisie, vert les autres
+    voies du même sens (orange une fois la fermeture choisie : elles ralentiront à 20 MPH), gris l'autre sens.
+    Touches : E valider, ↑ ↓ portée, molette voie / largeur, R inverser le sens, V vue, Retour arrière / clic droit /
+    Échap annuler. Boucle à chaque image SEULEMENT pendant le choix ; nœuds relus toutes les 400 ms.
 ]]
 
 TC = TC or {}
@@ -28,7 +36,7 @@ local LW = SEG.LaneWidth or 5.4
 
 local editing = nil
 
-local DISABLED = { 14, 15, 16, 17, 24, 25, 37, 44, 45, 140, 141, 142, 172, 173, 174, 175, 199, 200, 257, 263, 264, 322, 99, 100, 115, 116 }
+local DISABLED = { 0, 14, 15, 16, 17, 24, 25, 37, 44, 45, 140, 141, 142, 172, 173, 174, 175, 199, 200, 257, 263, 264, 322, 99, 100, 115, 116 }
 local KEY = { confirm = 38, wheelUp = 15, wheelDown = 14, up = 172, down = 173, left = 174, right = 175, flip = 45 }
 local CANCEL = { 177, 194, 202, 25 } -- Retour arrière, clic droit
 local PAUSE = { 200, 322 }           -- Échap
@@ -46,9 +54,100 @@ local function camDirection()
     return vector3(-math.sin(z) * cosX, math.cos(z) * cosX, math.sin(x))
 end
 
+-- =========================================================================
+-- VUES : joueur (vue du jeu), dessus (50 m au-dessus du joueur), libre (comme /scene et /freecam)
+-- =========================================================================
+local VIEWS = { 'player', 'top', 'free' }
+local VIEW_LABEL = { player = 'Vue du joueur', top = 'Vue du dessus', free = 'Vue libre' }
+local FREE_BLOCKED = { 1, 2, 21, 22, 30, 31, 32, 33, 34, 35, 36, 44, 0, 26, 79 }
+local view = { mode = 'player' } -- + cam, pos, rot (dessus / libre)
+
+local function rotDirection(rot)
+    local z, x = math.rad(rot.z), math.rad(rot.x)
+    local cosX = math.abs(math.cos(x))
+    return vector3(-math.sin(z) * cosX, math.cos(z) * cosX, math.sin(x))
+end
+
+local function stopView()
+    if view.cam then
+        RenderScriptCams(false, true, 300, true, true)
+        DestroyCam(view.cam, false)
+        ClearFocus()
+    end
+    view = { mode = 'player' }
+end
+
+local function setView(mode)
+    stopView()
+    if mode ~= 'top' and mode ~= 'free' then return end
+    local ped = PlayerPedId()
+    local me = GetEntityCoords(ped)
+    local grot = GetGameplayCamRot(2)
+    local pos, rot
+    if mode == 'top' then
+        pos = vector3(me.x, me.y, me.z + (E.TopHeight or 50.0))
+        rot = vector3(-89.0, 0.0, grot.z)
+    else
+        pos, rot = GetGameplayCamCoord(), vector3(grot.x, 0.0, grot.z)
+    end
+    local cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    SetCamCoord(cam, pos.x, pos.y, pos.z)
+    SetCamRot(cam, rot.x, 0.0, rot.z, 2)
+    SetCamFov(cam, mode == 'top' and (E.TopFov or 60.0) or GetGameplayCamFov())
+    RenderScriptCams(true, true, 350, true, true)
+    view = { mode = mode, cam = cam, pos = pos, rot = rot }
+end
+
+--- Caméra du dessus / libre : déplacement (une image) ; reste à moins de CameraRange m du joueur
+local function updateView(dt)
+    if not view.cam then return end
+    for _, c in ipairs(FREE_BLOCKED) do DisableControlAction(0, c, true) end
+    local lookX, lookY = GetDisabledControlNormal(0, 1), GetDisabledControlNormal(0, 2)
+    local rz = (view.rot.z - lookX * 8.0) % 360.0
+    local rx = view.mode == 'top' and -89.0 or math.max(-85.0, math.min(85.0, view.rot.x - lookY * 8.0))
+    view.rot = vector3(rx, 0.0, rz)
+    local forward = view.mode == 'top' and vector3(-math.sin(math.rad(rz)), math.cos(math.rad(rz)), 0.0) or rotDirection(view.rot)
+    local right = vector3(math.cos(math.rad(rz)), math.sin(math.rad(rz)), 0.0)
+    local move = vector3(0.0, 0.0, 0.0)
+    if IsDisabledControlPressed(0, 32) then move = move + forward end
+    if IsDisabledControlPressed(0, 33) then move = move - forward end
+    if IsDisabledControlPressed(0, 35) then move = move + right end
+    if IsDisabledControlPressed(0, 34) then move = move - right end
+    if IsDisabledControlPressed(0, 22) then move = move + vector3(0.0, 0.0, 1.0) end
+    if IsDisabledControlPressed(0, 36) then move = move - vector3(0.0, 0.0, 1.0) end
+    local speed = (view.mode == 'top' and (E.TopSpeed or 18.0) or (E.FreeSpeed or 8.0)) * (IsDisabledControlPressed(0, 21) and 3.0 or 1.0)
+    local pos = view.pos + move * (speed * dt)
+    local me = GetEntityCoords(PlayerPedId())
+    local max = E.CameraRange or 100.0
+    local dx, dy = pos.x - me.x, pos.y - me.y
+    local flat = math.sqrt(dx * dx + dy * dy)
+    if flat > max then pos = vector3(me.x + dx / flat * max, me.y + dy / flat * max, pos.z) end
+    if view.mode == 'top' then
+        pos = vector3(pos.x, pos.y, math.max(me.z + (E.TopMin or 15.0), math.min(me.z + (E.TopMax or 120.0), pos.z)))
+    elseif pos.z > me.z + max then
+        pos = vector3(pos.x, pos.y, me.z + max)
+    end
+    view.pos = pos
+    SetCamCoord(view.cam, pos.x, pos.y, pos.z)
+    SetCamRot(view.cam, rx, 0.0, rz, 2)
+    SetFocusPosAndVel(pos.x, pos.y, pos.z, 0.0, 0.0, 0.0) -- le monde se charge autour de la caméra
+end
+
+--- Petite croix au centre de l'écran (vues dessus / libre : c'est elle qui vise)
+local function crosshair()
+    DrawRect(0.5, 0.5, 0.012, 0.0022, 255, 255, 255, 220)
+    DrawRect(0.5, 0.5, 0.0012, 0.02, 255, 255, 255, 220)
+end
+
 local function aimedGround()
-    local cam = GetGameplayCamCoord()
-    local to = cam + camDirection() * (E.Range or 150.0)
+    local cam, dir, range
+    if view.cam then
+        cam, dir = view.pos, rotDirection(view.rot)
+        range = math.max(E.Range or 150.0, (view.pos.z - GetEntityCoords(PlayerPedId()).z) + 60.0)
+    else
+        cam, dir, range = GetGameplayCamCoord(), camDirection(), E.Range or 150.0
+    end
+    local to = cam + dir * range
     local ray = StartExpensiveSynchronousShapeTestLosProbe(cam.x, cam.y, cam.z, to.x, to.y, to.z, 1, PlayerPedId(), 7)
     local _, hit, coords = GetShapeTestResult(ray)
     if hit ~= 1 then return nil end
@@ -233,6 +332,41 @@ local function drawStrip(seg, color, cross)
     line(TC.worldAt(f, u - 1.0, mid + 1.4, zc), tip, color)
 end
 
+--- Case remplie au sol (transparente, visible de dessus comme de dessous) entre u0..u1 et v0..v1 du repère f
+local function cell(f, u0, u1, v0, v1, z0, z1, c, alpha)
+    local p1, p2 = TC.worldAt(f, u0, v0, z0), TC.worldAt(f, u0, v1, z0)
+    local p3, p4 = TC.worldAt(f, u1, v1, z1), TC.worldAt(f, u1, v0, z1)
+    DrawPoly(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, c[1], c[2], c[3], alpha)
+    DrawPoly(p1.x, p1.y, p1.z, p3.x, p3.y, p3.z, p4.x, p4.y, p4.z, c[1], c[2], c[3], alpha)
+    DrawPoly(p3.x, p3.y, p3.z, p2.x, p2.y, p2.z, p1.x, p1.y, p1.z, c[1], c[2], c[3], alpha)
+    DrawPoly(p4.x, p4.y, p4.z, p3.x, p3.y, p3.z, p1.x, p1.y, p1.z, c[1], c[2], c[3], alpha)
+end
+
+local CELL = { side = { 70, 210, 120 }, sideSlow = { 255, 150, 40 }, opposite = { 200, 200, 210 } }
+
+--- Voies de la route REMPLIES : la zone (couleur de la zone / de l'action), les autres voies du même sens (vert ;
+--- orange pour une fermeture de voie : elles ralentiront), l'autre sens (gris)
+local function drawCells(seg, s, scope, kind)
+    if E.FillLanes == false or not seg or not s then return end
+    local f, z0, z1 = seg.f, seg.a.z + 0.3, seg.b.z + 0.3
+    local main = COLORS[kind] or COLORS.zone
+    local half = LW / 2
+    for i, off in ipairs(s.offsets) do
+        local chosen = scope ~= 'lane' or i == s.lane
+        if chosen then
+            cell(f, 0, f.length, off - half, off + half, z0, z1, main, 85)
+        else
+            cell(f, 0, f.length, off - half, off + half, z0, z1, (kind == 'close' and scope == 'lane') and CELL.sideSlow or CELL.side, 45)
+        end
+    end
+    if s.twoWay then
+        for i = 1, s.nOpp do
+            local off = -(s.median / 2 + (i - 0.5) * LW)
+            cell(f, 0, f.length, off - half, off + half, z0, z1, scope == 'road' and main or CELL.opposite, scope == 'road' and 85 or 30)
+        end
+    end
+end
+
 local NODE_COLOR = { off = { 235, 60, 60 }, take = { 255, 150, 40 }, shared = { 245, 215, 60 } }
 
 local function drawNodes(seg)
@@ -291,6 +425,9 @@ local function helpLines(s)
     if editing.scope == 'lane' and s and s.n > 1 then lines[#lines + 1] = '~INPUT_WEAPON_WHEEL_NEXT~ Changer de voie' end
     if editing.scope == 'road' then lines[#lines + 1] = ('~INPUT_WEAPON_WHEEL_NEXT~ Élargir : +%d m'):format(math.floor(editing.extra + 0.5)) end
     if s and s.twoWay then lines[#lines + 1] = '~INPUT_RELOAD~ Inverser le sens' end
+    lines[#lines + 1] = ('~INPUT_NEXT_CAMERA~ %s'):format(VIEW_LABEL[view.mode] or VIEW_LABEL.player)
+    if view.mode == 'top' then lines[#lines + 1] = 'ZQSD glisser, souris tourner, Espace / Ctrl hauteur'
+    elseif view.mode == 'free' then lines[#lines + 1] = 'ZQSD, souris, Espace / Ctrl (Maj : vite)' end
     lines[#lines + 1] = '~INPUT_FRONTEND_CANCEL~ Annuler'
     return lines
 end
@@ -312,6 +449,7 @@ end
 
 local function stop(message)
     editing = nil
+    stopView()
     nodes = {}
     nodeCache = {}
     if message then TC.notify(message) end
@@ -338,19 +476,38 @@ local function choose(seg)
     for _, node in ipairs(nodes) do
         if nodeState(node, seg) == 'take' then list[#list + 1] = vec(node.pos) end
     end
+    -- Fermeture d'une voie : nœuds de la chaussée de ce sens (autoroute) autour de la zone, pour ralentir les autres
+    -- voies du même sens (20 MPH)
+    local side = {}
+    if editing.scope == 'lane' and s.n > 1 and not s.twoWay then
+        local dmin, dmax = strip(s, 'direction')
+        local from = (Config.Closure or {}).SideSlowFrom or 60.0
+        for _, node in ipairs(nodes) do
+            if not node.off then
+                local u, v = TC.localUV(seg.f, node.pos.x, node.pos.y)
+                local t = nodeTraffic(node.id, node.pos)
+                if u >= -from and u <= seg.f.length + 5 and v >= dmin - 2 and v <= dmax + 2
+                    and math.abs(node.pos.z - (seg.a.z + seg.b.z) / 2) <= (SEG.Height or 4.0) + 6
+                    and t.oneWay and (t.tx * s.dx + t.ty * s.dy) > 0.5 then
+                    side[#side + 1] = vec(node.pos)
+                end
+            end
+        end
+    end
     local label = TC.locationText(TC.worldAt(seg.f, seg.f.length / 2, 0, (seg.a.z + seg.b.z) / 2))
     editing.phase, editing.seg = 'chosen', seg
     editing.zone = {
         scope = editing.scope, a = vec(seg.a), b = vec(seg.b),
         vmin = seg.vmin, vmax = seg.vmax, lanes = s.offsets, closedLane = s.offsets[s.lane],
         laneIndex = s.lane, laneCount = s.n, oppositeLanes = s.nOpp, median = s.median, laneWidth = LW,
-        compass = TC.compass(s.dx, s.dy), nodes = list, label = label,
+        compass = TC.compass(s.dx, s.dy), nodes = list, sideNodes = side, label = label,
     }
     local redirect = editing.scope == 'lane' and redirectLane(s) or nil
     local info = {
         scope = editing.scope, label = label, compass = editing.zone.compass, length = math.floor(seg.f.length + 0.5),
         nodes = #list, laneIndex = s.lane, laneCount = s.n, oppositeLanes = s.nOpp,
         redirect = redirect and TC.laneName(redirect, s.n) or nil, redirectIndex = redirect,
+        sideSlow = (editing.scope == 'lane' and s.n > 1) and ((Config.Closure or {}).SideSlow or 20) or 0,
         scopeText = scopeText(s),
     }
     if TC.onZoneChosen then TC.onZoneChosen(info) end
@@ -414,10 +571,13 @@ function TC.startEditor(opts)
     opts = type(opts) == 'table' and opts or {}
     editing = {
         phase = 'pick', scope = (opts.scope == 'direction' or opts.scope == 'road') and opts.scope or 'lane',
+        viewMode = (opts.view == 'top' or opts.view == 'free') and opts.view or 'player',
         duration = tonumber(opts.duration) or Config.DefaultDuration or 30,
         speed = math.floor(tonumber(opts.speed) or SP.DefaultLimit or 25), extra = 0.0, flip = false, laneDelta = 0,
     }
+    setView(editing.viewMode)
     CreateThread(function()
+        local last = GetGameTimer()
         while editing do
             if editing.phase == 'chosen' then
                 -- Zone choisie : affichée (bande + nœuds) pendant que le panneau propose l'action
@@ -426,9 +586,10 @@ function TC.startEditor(opts)
                 local now = GetGameTimer()
                 if now - nodesAt > 400 then
                     nodesAt = now
-                    readNodes(probe, seg.f.length / 2 + 40.0)
+                    readNodes(probe, seg.f.length / 2 + 70.0)
                 end
                 drawExisting(probe)
+                drawCells(seg, editing.setup, editing.scope, editing.previewKind)
                 drawNodes(seg)
                 local kind = editing.previewKind
                 drawStrip(seg, COLORS[kind] or COLORS.zone, kind == 'close')
@@ -436,6 +597,15 @@ function TC.startEditor(opts)
                 goto continue
             end
             for _, c in ipairs(DISABLED) do DisableControlAction(0, c, true) end
+            local tnow = GetGameTimer()
+            updateView(math.min(0.1, (tnow - last) / 1000.0))
+            last = tnow
+            if IsDisabledControlJustPressed(0, 0) then -- V : vue suivante
+                local idx = 1
+                for i, v in ipairs(VIEWS) do if v == view.mode then idx = i end end
+                editing.viewMode = VIEWS[idx % #VIEWS + 1]
+                setView(editing.viewMode)
+            end
             local cur = aimedGround()
             local r = cur and roadAt(cur) or nil
             if not editing.a then editing.setup = r and setupFrom(r, editing.flip) or nil end
@@ -470,10 +640,12 @@ function TC.startEditor(opts)
             local probe = seg and TC.worldAt(seg.f, seg.f.length / 2, 0, seg.a.z) or cur or GetEntityCoords(PlayerPedId())
             if now - nodesAt > 400 then
                 nodesAt = now
-                readNodes(probe, seg and (seg.f.length / 2 + 40.0) or 80.0)
+                readNodes(probe, seg and (seg.f.length / 2 + 70.0) or 80.0)
             end
             drawExisting(probe)
+            drawCells(seg, editing.setup, editing.scope, nil)
             drawNodes(seg)
+            if view.cam then crosshair() end
             if seg then drawStrip(seg, COLORS.zone, false) end
             if cur and not r then
                 DrawMarker(1, cur.x, cur.y, cur.z - 0.2, 0, 0, 0, 0, 0, 0, 0.6, 0.6, 1.2, 150, 150, 150, 160, false, false, 2, false, nil, nil, false)

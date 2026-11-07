@@ -686,12 +686,24 @@
                         action: () => post('policeAction', { action: key }) };
                 };
                 const targetKey = d.targetKey || 'Alt';
+                // Ordre : interactions, trafic, aide-mémoire, display du MDC (admins)
                 return [
                     { kind: 'info', label: d.police ? `En service — unité ${d.police}` : 'Hors service', tone: d.police ? 'ok' : 'muted' },
+                    { kind: 'section', label: 'Interactions' },
                     action('cuff', 'Menotter', 'Personne à moins de 2 m.'),
                     action('drag', 'Prendre par le bras', 'Personne à moins de 2 m.'),
                     action('place', 'Placer l\'individu à l\'arrière du véhicule', 'Lâchez le bras : un civil à moins de 4 m d\'une portière arrière libre.'),
                     action('seat', 'Faire s\'asseoir l\'individu', 'Individu menotté à moins de 2 m (pas tenu par le bras).'),
+                    { kind: 'section', label: 'Trafic' },
+                    { kind: 'button', label: 'Gestion du trafic', right: '/trafic',
+                        disabled: !d.police || !d.traffic,
+                        why: !d.police ? 'Réservé à la police : rejoignez une unité dans le MDC.' : 'Ressource rp_TrafficControl arrêtée.',
+                        desc: 'Choisir une zone du trafic, puis fermer une voie, ralentir ou arrêter le trafic (le menu se ferme).',
+                        action: async () => {
+                            const res = await post('openTraffic', {});
+                            if (!res || !res.ok) toast(res?.error || 'Ouverture impossible.', 'error');
+                        } },
+                    ...cardItems(d),
                     { kind: 'section', label: 'Display MDC' },
                     { kind: 'input', key: 'sector', label: 'Secteur', value: (d.policeProfile || {}).sector || '', max: 40,
                         placeholder: 'ex : Downtown, I-5 Nord…',
@@ -705,7 +717,6 @@
                         } },
                     { kind: 'info', label: d.police ? `Œil (${targetKey}) : inspections, fouilles, détails notoires.`
                         : `Œil (${targetKey}) : inspections visuelles et olfactives seulement.`, tone: 'muted' },
-                    ...cardItems(d),
                 ];
             },
         };

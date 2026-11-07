@@ -144,6 +144,10 @@ menu** (jamais ceux du décor).
   **infranchissable**, les véhicules s'arrêtent devant ; ils repartent quand les plots sont retirés.
 - Chaque joueur ne dirige que les PNJ que son jeu contrôle (réseau). Aucune boucle sans plot posé ; plot à plus de
   200 m (`Range`) : rien n'est fait.
+- **Avec rp_TrafficControl** : chaque dispositif de plots est aussi **infranchissable pour tous les PNJ**, comme les
+  zones du `/trafic` : des **faux obstacles** (rien de physique : ni joueur ni PNJ ne heurte quoi que ce soit) sont posés
+  tout le long de la ligne des plots, et l'IA du jeu les contourne (y compris les PNJ que votre jeu ne contrôle pas).
+  Voir le README de rp_TrafficControl (`Obstacles.Cones`).
 
 **Jerrican d'essence** (`WEAPON_PETROLCAN`, `Stock.Jerrycans`)
 - **Un jerrican plein** dans le coffre de **chaque véhicule de police** (1 / 1). **« Prendre »** : il est donné plein

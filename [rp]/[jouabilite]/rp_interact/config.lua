@@ -340,6 +340,10 @@ InteractConfig = {
     -- (admins : rp.admin, rôle Discord via rp_permissions) ; false = tout le monde
     SectorAce = 'rp.admin',
 
+    -- Police > Trafic > « Gestion du trafic » : ouvre le menu de rp_TrafficControl (sa commande)
+    TrafficResource = 'rp_TrafficControl',
+    TrafficCommand = 'trafic',
+
     -- ARME À FEU EN MAIN (client/combat.lua)
     NoFirearmMelee = true,          -- plus de coup de crosse ni de coup donné dans le vide (corps à corps léger / lourd)
     NoCombatRoll = true,            -- plus de roulade (saut pendant la visée)

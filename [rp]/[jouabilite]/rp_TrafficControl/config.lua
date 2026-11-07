@@ -50,27 +50,37 @@ TrafficConfig = {
         InLaneTolerance = 1.3,  -- m : sur la voie ouverte
         Refresh = 4000,         -- ms : consigne redonnée au plus tard
         PhaseTimeout = 25000,   -- ms : PNJ bloqué plus longtemps : relâché
+        -- Fermeture d'une VOIE : les autres voies du même sens ralentissent à SideSlow MPH (0 = non) de SideSlowFrom m
+        -- avant la zone jusqu'à sa fin (zones de vitesse du jeu sur la chaussée d'une autoroute + PNJ ralentis), pour que
+        -- le rabattement ne se fasse pas à pleine vitesse ; le rabattement lui-même se fait à cette vitesse
+        SideSlow = 20,
+        SideSlowFrom = 60.0,
         DrivingStyle = 786603,  -- style de conduite pendant le changement de voie / le demi-tour
         WanderStyle = 786603,   -- style redonné ensuite (circulation normale)
         ResumeSpeed = 17.0,     -- m/s : vitesse de croisière redonnée
     },
 
-    -- OBSTACLES INVISIBLES (fermeture) : véhicules du jeu de base, invisibles, figés, sans conducteur, posés le long
-    -- de la VOIE fermée (sens / route fermés : une rangée en travers au début, Barrier). Les PNJ du jeu contournent
-    -- d'eux-mêmes un véhicule arrêté (changement de voie d'origine) et, avec la collision, ne passent pas au travers.
-    -- Locaux (chaque joueur pose les siens, seulement à moins de Range m) ; jamais de collision avec les joueurs et
-    -- leurs véhicules ; l'œil de rp_interact les traverse. Debug = true : visibles en transparence (réglage).
+    -- FAUX OBSTACLES : RIEN DE PHYSIQUE (pas de collision, invisibles : ni joueur ni PNJ ne heurte quoi que ce soit),
+    -- mais l'IA du jeu les voit comme des véhicules arrêtés et les contourne (changement de voie d'origine). Locaux
+    -- (chaque joueur pose les siens, seulement à moins de Range m). Deux sources :
+    --   - fermetures (/trafic) : EN TRAVERS de la voie fermée, centrés sur elle (toute la largeur couverte : les PNJ ne
+    --     peuvent pas se serrer à côté et continuer sur la voie) ; sens / route fermés : une rangée au début (Barrier) ;
+    --   - plots posés par la police (rp_equipment) : le long de la ligne de chaque dispositif (Cones).
+    -- Debug = true : visibles en transparence (réglage) ; Collision = true : redevenir un vrai obstacle (déconseillé).
     Obstacles = {
         Enabled = true,
-        Model = 'blista',       -- petite voiture du jeu de base
-        Spacing = 7.0,          -- m entre deux obstacles le long de la voie
+        Model = 'blista',       -- petite voiture du jeu de base (en travers : ~4 m, presque la largeur d'une voie)
+        Spacing = 6.0,          -- m entre deux obstacles le long de la voie fermée
         StartOffset = 2.5,      -- m après le début du tronçon
         FreeRadius = 2.6,       -- m : un véhicule déjà là (police garée…) : pas d'obstacle à cet endroit
-        MaxPerMeasure = 30, MaxTotal = 80, PerTick = 6,
-        Range = 220.0,          -- m du tronçon
-        Collision = true,
+        MaxPerMeasure = 35, MaxTotal = 100, PerTick = 6,
+        Range = 220.0,          -- m du tronçon / du dispositif de plots
+        Collision = false,
         Barrier = true,
         Debug = false,
+        -- Plots de la police (GlobalState.rpCones) : plots à moins de GroupDistance m = un dispositif ; un obstacle tous
+        -- les Spacing m le long de sa ligne (un plot seul : un obstacle dans le sens de la route)
+        Cones = { Enabled = true, GroupDistance = 6.0, Spacing = 3.5, MaxPerGroup = 20 },
     },
 
     -- RALENTISSEMENT et ARRÊT
@@ -87,6 +97,11 @@ TrafficConfig = {
         SnapDistance = 14.0,    -- m : distance max à la route visée
         NodePreview = true,     -- nœuds affichés autour de la visée (vert : ouvert, orange : concerné, rouge : fermé)
         NodeCount = 80,
+        FillLanes = true,       -- voies remplies au sol (cases transparentes : zone, autres voies du sens, autre sens)
+        -- Vues pour choisir la zone (menu ; V pendant le choix) : joueur, dessus, libre
+        CameraRange = 100.0,    -- m : les caméras du dessus / libre restent à moins de 100 m du joueur
+        TopHeight = 50.0, TopMin = 15.0, TopMax = 120.0, TopFov = 60.0, TopSpeed = 18.0, -- vue du dessus
+        FreeSpeed = 8.0,        -- m/s, caméra libre (Maj : x3)
     },
 
     -- Cartes (carte du menu pause / mini-carte) : 'everyone', 'police' ou 'none'
