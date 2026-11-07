@@ -73,12 +73,12 @@
         if (z.scope === 'lane') {
             return {
                 title: 'Fermeture de voie',
-                hint: z.redirect ? `Le trafic se réoriente vers la ${z.redirect}${z.sideSlow > 0 ? ` ; les autres voies du sens ralentissent à ${z.sideSlow} MPH` : ''}`
-                    : 'Aucune autre voie dans ce sens : le trafic fait demi-tour',
+                hint: z.redirect ? `Corridor de sécurité : le trafic se rabat sur la ${z.redirect} (même sens)${z.sideSlow > 0 ? ` ; les autres voies du sens ralentissent à ${z.sideSlow} MPH` : ''}`
+                    : 'Aucune autre voie dans ce sens : le trafic fait demi-tour avant la zone (jamais par la voie d\'en face)',
             };
         }
-        if (z.scope === 'direction') return { title: 'Fermeture du sens', hint: 'Le trafic de ce sens est dévié (autre route / demi-tour)' };
-        return { title: 'Fermeture de la route', hint: 'Le trafic prend une déviation' };
+        if (z.scope === 'direction') return { title: 'Fermeture du sens', hint: 'Le trafic de ce sens cherche une autre issue : autre route ou demi-tour' };
+        return { title: 'Fermeture de la route', hint: 'Le trafic cherche une autre issue : déviation ou demi-tour' };
     }
 
     function renderZone() {
@@ -97,7 +97,7 @@
         $('tcCloseHint').textContent = ct.hint;
         const dirText = z.scope === 'road' ? 'des deux sens' : 'de ce sens (toutes ses voies)';
         $('tcSlowHint').textContent = `Le trafic ${dirText} freine progressivement en amont, puis roule à ${state.speed} MPH dans la zone`;
-        $('tcStopHint').textContent = `Le trafic ${dirText} freine progressivement et s'arrête à la ligne de plots virtuels, avant la zone`;
+        $('tcStopHint').textContent = `Route bloquée : le trafic ${dirText} freine, s'arrête au début de la zone et attend la levée (aucun contournement)`;
         box.querySelectorAll('[data-kind]').forEach((b) => b.classList.toggle('active', b.dataset.kind === state.kind));
         $('tcSpeedField').classList.toggle('hidden', state.kind !== 'slow');
         $('tcSpeed').textContent = `${state.speed} MPH`;

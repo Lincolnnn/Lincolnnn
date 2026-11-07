@@ -158,16 +158,24 @@ local function addBlips(m, f)
     SetBlipColour(area, color)
     SetBlipAlpha(area, 130)
     SetBlipDisplay(area, 3)
-    local icon = AddBlipForCoord(mid.x, mid.y, mid.z)
-    SetBlipSprite(icon, 1)
-    SetBlipColour(icon, color)
-    SetBlipScale(icon, 0.75)
-    SetBlipAsShortRange(icon, true)
-    BeginTextCommandSetBlipName('STRING')
-    AddTextComponentSubstringPlayerName(TC.describe(m))
-    EndTextCommandSetBlipName(icon)
     applied.blips[#applied.blips + 1] = area
-    applied.blips[#applied.blips + 1] = icon
+    -- Points le long de la zone, du début à la fin (Blip.Spacing m ; au moins le début et la fin)
+    local BL = Config.Blip or {}
+    local count = math.max(2, math.min(BL.Max or 10, math.floor(f.length / (BL.Spacing or 25.0)) + 1))
+    local vmid = (m.vmin + m.vmax) / 2
+    for i = 0, count - 1 do
+        local u = f.length * i / (count - 1)
+        local p = TC.worldAt(f, u, vmid, m.a.z + (m.b.z - m.a.z) * (u / f.length))
+        local icon = AddBlipForCoord(p.x, p.y, p.z)
+        SetBlipSprite(icon, BL.Sprite or 1)
+        SetBlipColour(icon, color)
+        SetBlipScale(icon, (i == 0 or i == count - 1) and (BL.EndScale or 0.7) or (BL.Scale or 0.5))
+        SetBlipAsShortRange(icon, true)
+        BeginTextCommandSetBlipName('STRING')
+        AddTextComponentSubstringPlayerName(TC.describe(m))
+        EndTextCommandSetBlipName(icon)
+        applied.blips[#applied.blips + 1] = icon
+    end
 end
 
 local function clearApplied()
@@ -192,32 +200,16 @@ function TC.applyAll(list)
     for _, m in ipairs(TC.measures) do
         local f = m.a and m.b and TC.frame(m)
         if f then
-            local function zone(n, mph)
-                applied.zones[#applied.zones + 1] = AddRoadNodeSpeedZone(n.x + 0.0, n.y + 0.0, n.z + 0.0,
-                    (SP.NodeZoneRadius or 4.0) + 0.0, mph * MPH, false)
-            end
             if m.kind == 'close' then
                 for _, n in ipairs(m.nodes or {}) do
                     local x1, y1, z1, x2, y2, z2 = nodeBox(n)
                     SetRoadsInArea(x1, y1, z1, x2, y2, z2, false, false) -- nœud fermé : plus aucun PNJ ne passe
                     applied.nodesOff[#applied.nodesOff + 1] = n
                 end
-                -- Fermeture d'une voie : les autres voies du même sens ralentissent, progressivement depuis l'amont
-                if m.scope == 'lane' and (CL.SideSlow or 20) > 0 then
-                    for _, n in ipairs(m.dirNodes or {}) do zone(n, TC.rampMph(n.u or 0, CL.SideSlow or 20)) end
-                end
-            else
-                -- Ralentissement / arrêt : tout le sens (toutes ses voies), progressif depuis l'amont (les PNJ freinent
-                -- en arrivant, ils ne pilent pas) ; anciennes mesures sans ces nœuds : nœuds de la zone
-                local limit = m.kind == 'stop' and 0 or (m.speed or 25)
-                if m.dirNodes and #m.dirNodes > 0 then
-                    for _, n in ipairs(m.dirNodes) do zone(n, TC.rampMph(n.u or 0, limit)) end
-                else
-                    for _, n in ipairs(m.nodes or {}) do zone(n, limit) end
-                end
             end
             local e = { m = m, f = f }
-            e.vc = TC.virtualCones and TC.virtualCones(e) or nil
+            e.vc = TC.virtualCones(e)          -- plots virtuels (plus bas)
+            TC.speedZones(e, applied.zones) -- zones de vitesse du jeu (plus bas)
             active[#active + 1] = e
             if showBlips then addBlips(m, f) end
         end
@@ -301,14 +293,18 @@ local function virtualCones(e)
     end
     local target = m.kind == 'close' and m.scope == 'lane' and openLane(m) or nil
     if target then
-        -- biseau puis ligne le long du bord de la voie ouverte
+        -- CORRIDOR : biseau en amont puis ligne le long du bord de la voie ouverte ; les PNJ CONTOURNENT par une voie
+        -- du même sens (jamais par l'autre sens) ; faux obstacles le long de la ligne
         local openRight = target > (m.closedLane or (m.vmin + m.vmax) / 2)
         local vNear = openRight and (m.vmax - inset) or (m.vmin + inset)
         local vFar = openRight and (m.vmin + inset) or (m.vmax - inset)
         addLine(-(VC.Taper or 30.0), vFar, 0.0, vNear, VC.Spacing or 3.0)
         addLine(0.0, vNear, f.length, vNear, VC.Spacing or 3.0)
-        return { mode = 'deviate', cones = cones }
+        local side = dirBand(m)
+        local open = openRight and { m.vmax, side[2] } or { side[1], m.vmin }
+        return { mode = 'deviate', cones = cones, obstacles = true, open = open }
     end
+    local twoWay = (m.oppositeLanes or 0) > 0 and m.scope ~= 'road'
     local band = m.kind == 'close' and { m.vmin, m.vmax } or dirBand(m)
     addLine(0.0, band[1] + inset, 0.0, band[2] - inset, VC.LineSpacing or 2.0)
     if m.scope == 'road' then
@@ -316,7 +312,13 @@ local function virtualCones(e)
         addLine(f.length, band[1] + inset, f.length, band[2] - inset, VC.LineSpacing or 2.0)
         if #cones == first then cones[#cones + 1] = TC.worldAt(f, f.length, band[1] + inset, z(f.length)) end
     end
-    return { mode = 'stop', cones = cones }
+    if m.kind == 'stop' then
+        -- ARRÊT : ligne d'attente ; jamais de faux obstacle (l'IA du jeu chercherait à doubler par l'autre sens)
+        return { mode = 'hold', cones = cones, obstacles = false }
+    end
+    -- FERMETURE sans autre voie du même sens : demi-tour ; route à double sens : pas de faux obstacle (l'IA
+    -- doublerait par la voie d'en face), la voie est gardée par une zone de vitesse à 0 (plus bas)
+    return { mode = twoWay and 'uturn' or 'block', cones = cones, obstacles = not twoWay }
 end
 
 --- Plots virtuels d'une mesure, avec leur centre et leur rayon (pour ne regarder que les PNJ proches)
@@ -335,7 +337,7 @@ end
 local function obstaclePoints(e)
     local set = e.vc
     local pts, max = {}, OB.MaxPerMeasure or 60
-    if not set then return pts end
+    if not set or not set.obstacles then return pts end
     for i, c in ipairs(set.cones) do
         if #pts >= max then break end
         local nxt, prv = set.cones[i + 1], set.cones[i - 1]
@@ -344,6 +346,84 @@ local function obstaclePoints(e)
         pts[#pts + 1] = { p = c, h = GetHeadingFromVector_2d(dx, dy) }
     end
     return pts
+end
+
+-- =========================================================================
+-- ZONES DE VITESSE DU JEU (pour TOUS les PNJ) : des SPHÈRES qui se chevauchent le long de la bande, au centre de la
+-- bande, assez grandes pour la couvrir (rayon = demi-largeur + marge), chacune à sa vitesse (progressive en amont).
+-- (Avant : de petites zones de 4 m autour des nœuds, que les voitures traversaient en un instant.) En complément, les
+-- nœuds de ce sens envoyés à la pose.
+-- =========================================================================
+local zonesWarned = false
+local function sphereBand(e, out, lo, hi, u1, u2, speedAt, margin)
+    local m, f = e.m, e.f
+    if hi <= lo or u2 < u1 then return end
+    local R = math.max(SP.MinSphere or 3.0, (hi - lo) / 2 + (margin or SP.SphereMargin or 1.0))
+    -- réparties régulièrement, les deux bouts compris (au plus MaxSpheres ; espacement <= rayon x SphereStep)
+    local maxN = SP.MaxSpheres or 20
+    local n = math.max(2, math.min(maxN, math.ceil((u2 - u1) / (R * (SP.SphereStep or 1.3))) + 1))
+    -- trop de sphères pour la longueur : rayon un peu plus grand (jamais de trou), sans déborder de plus de 3 m
+    local spacing = (u2 - u1) / (n - 1)
+    if spacing > R * 1.6 then R = math.min(spacing / 1.6, (hi - lo) / 2 + (margin or SP.SphereMargin or 1.0) + 3.0) end
+    local vmid = (lo + hi) / 2
+    for i = 0, n - 1 do
+        if #out >= (SP.MaxZonesTotal or 120) then
+            if not zonesWarned then
+                zonesWarned = true
+                print('^3[rp_TrafficControl]^7 trop de zones de vitesse en même temps (Speed.MaxZonesTotal) : certaines ne sont pas posées')
+            end
+            return
+        end
+        local u = u1 + (u2 - u1) * i / (n - 1)
+        local z = m.a.z + (m.b.z - m.a.z) * math.max(0.0, math.min(1.0, u / f.length))
+        local p = TC.worldAt(f, u, vmid, z)
+        local id = AddRoadNodeSpeedZone(p.x + 0.0, p.y + 0.0, p.z + 0.0, R + 0.0, math.max(0.0, speedAt(u)) * MPH, false)
+        if not id or id < 0 then return end -- le jeu n'en accepte plus
+        out[#out + 1] = id
+    end
+end
+
+function TC.speedZones(e, out)
+    local m, f = e.m, e.f
+    local L, up = f.length, SP.Upstream or 150.0
+    if m.kind == 'slow' or m.kind == 'stop' then
+        local limit = m.kind == 'stop' and 0 or (m.speed or 25)
+        local b = dirBand(m)
+        if m.scope == 'road' then
+            -- route entière : les deux sens, chacun avec son amont (avant le début / après la fin)
+            sphereBand(e, out, b[1], b[2], -up, L + up, function(u)
+                return TC.rampMph(u < 0 and u or (u > L and (L - u) or 0.0), limit)
+            end)
+        else
+            -- arrêt : jusqu'au début de la zone (le trafic attend devant ; ceux déjà dedans en sortent)
+            sphereBand(e, out, b[1], b[2], -up, m.kind == 'stop' and 0.0 or L, function(u) return TC.rampMph(u, limit) end)
+        end
+        for _, n in ipairs(m.dirNodes or {}) do
+            if not (m.kind == 'stop' and m.scope ~= 'road' and (n.u or 0) > 0) then
+                out[#out + 1] = AddRoadNodeSpeedZone(n.x + 0.0, n.y + 0.0, n.z + 0.0, (SP.NodeZoneRadius or 4.0) + 0.0,
+                    TC.rampMph(n.u or 0, limit) * MPH, false)
+            end
+        end
+        return
+    end
+    if m.kind ~= 'close' then return end
+    if m.scope == 'lane' and openLane(m) then
+        -- autres voies du même sens : SideSlow MPH, progressif depuis l'amont
+        local vc = e.vc or {}
+        local open = vc.open
+        if not open then
+            local side = dirBand(m)
+            open = openLane(m) > (m.closedLane or 0) and { m.vmax, side[2] } or { side[1], m.vmin }
+        end
+        if (CL.SideSlow or 20) > 0 then
+            sphereBand(e, out, open[1], open[2], -up, L, function(u) return TC.rampMph(u, CL.SideSlow or 20) end)
+        end
+        -- CORRIDOR : la voie fermée, dans la zone, à 0 (un PNJ qui y entrerait s'y arrête au lieu d'y rouler)
+        if CL.Corridor ~= false then sphereBand(e, out, m.vmin, m.vmax, 2.0, L, function() return 0 end, 0.3) end
+        return
+    end
+    -- Fermeture sans autre voie du même sens (ou sens / route) : la bande fermée gardée à 0, du début à la fin
+    if CL.Corridor ~= false then sphereBand(e, out, m.vmin, m.vmax, -2.0, L, function() return 0 end, 0.3) end
 end
 
 -- =========================================================================
@@ -552,6 +632,7 @@ end
 local function resume(vehicle, info)
     tracked[vehicle] = nil
     local driver = info.driver
+    if info.capped and DoesEntityExist(vehicle) then SetEntityMaxSpeed(vehicle, 500.0) end -- vitesse max rendue
     if not DoesEntityExist(vehicle) or not DoesEntityExist(driver) or not NetworkHasControlOfEntity(driver)
         or GetPedInVehicleSeat(vehicle, -1) ~= driver then return end
     if info.phase == 'slow' then
@@ -614,22 +695,45 @@ local function handle(e, vehicle, driver, pos, fwd, speed, now)
     if info and info.id ~= m.id then return false end
     local up = SP.Upstream or 150.0
 
+    -- GARDE ANTI CONTRESENS (route à double sens) : un PNJ de ce sens sur la voie d'en face, près de la zone (il
+    -- double) : fermeture -> demi-tour ; arrêt -> il s'arrête et attend
+    local approach = CL.ApproachDistance or 60.0
+    if (m.oppositeLanes or 0) > 0 and m.scope ~= 'road' and sign == 1 and m.kind ~= 'slow' then
+        local oppWidth = m.oppositeLanes * (m.laneWidth or SEG.LaneWidth or 5.4) + 2.5
+        if v < band[1] - 0.8 and v > band[1] - oppWidth and u >= -approach and u <= f.length + 5 then
+            if m.kind == 'stop' then
+                TaskVehicleTempAction(driver, vehicle, 6, (Config.Interval or 300) + 900)
+                tracked[vehicle] = { id = m.id, phase = 'stop', driver = driver, at = now }
+            elseif not info or info.phase ~= 'uturn' then
+                tracked[vehicle] = { id = m.id, driver = driver }
+                uturn(e, vehicle, driver, tracked[vehicle], 1, pos)
+            end
+            return true
+        end
+    end
+
     -- RALENTISSEMENT / ARRÊT : TOUT LE SENS (toutes ses voies, la voie choisie et les autres), progressif depuis
     -- l'amont : la vitesse visée baisse de UpstreamStart jusqu'à la limite au début de la zone, jamais au-dessus de la
     -- vitesse du PNJ quand il est entré dans le périmètre (il freine, il n'accélère jamais) ; redonnée à chaque
-    -- vérification. Arrêt : il freine et s'arrête StopBefore m avant la zone.
+    -- vérification, et vitesse max du véhicule bridée d'autant (SetEntityMaxSpeed, rendue à la sortie).
+    -- ARRÊT : la route est bloquée. Le PNJ freine progressivement, s'arrête au début de la zone et ATTEND jusqu'à la
+    -- levée ; il ne cherche jamais à contourner. File d'attente : un PNJ presque arrêté derrière attend aussi (il ne
+    -- double pas). Ceux déjà dans la zone en sortent.
     if m.kind == 'slow' or m.kind == 'stop' then
         local margin = SP.BandMargin or 1.5
-        if v < band[1] - margin or v > band[2] + margin or u < -up or u > f.length then return false end
+        local uMax = (m.kind == 'stop' and m.scope ~= 'road') and 0.0 or f.length
+        if v < band[1] - margin or v > band[2] + margin or u < -up or u > uMax then return false end
         local start = info and info.startSpeed or math.max(speed, 6.0)
-        if m.kind == 'stop' and u >= -(SP.StopBefore or 8.0) then
+        local hold = m.kind == 'stop' and (u >= -(SP.StopBefore or 8.0) or (speed < 1.5 and u >= -(SP.QueueLength or 150.0)))
+        if hold then
             TaskVehicleTempAction(driver, vehicle, 6, (Config.Interval or 300) + 900) -- freine et reste arrêté
-            tracked[vehicle] = { id = m.id, phase = 'stop', driver = driver, at = now, startSpeed = start }
+            tracked[vehicle] = { id = m.id, phase = 'stop', driver = driver, at = now, startSpeed = start, capped = info and info.capped }
         else
             local limit = m.kind == 'stop' and 0 or (m.speed or 25)
-            local target = math.min(start, TC.rampMph(u, limit) * MPH)
-            SetDriveTaskCruiseSpeed(driver, math.max(target, m.kind == 'stop' and 1.5 or 1.0))
-            tracked[vehicle] = { id = m.id, phase = 'slow', driver = driver, at = now, startSpeed = start }
+            local target = math.max(math.min(start, TC.rampMph(u, limit) * MPH), m.kind == 'stop' and 1.5 or 1.0)
+            SetDriveTaskCruiseSpeed(driver, target)
+            if SP.CapSpeed ~= false then SetEntityMaxSpeed(vehicle, target + (SP.CapMargin or 1.0)) end
+            tracked[vehicle] = { id = m.id, phase = 'slow', driver = driver, at = now, startSpeed = start, capped = SP.CapSpeed ~= false }
         end
         return true
     end
@@ -639,30 +743,22 @@ local function handle(e, vehicle, driver, pos, fwd, speed, now)
     local outside = v < vmin - 0.8 or v > vmax + 0.8
     if outside and not merging then
         -- Fermeture d'une voie : les AUTRES voies du même sens ralentissent (20 MPH), progressivement depuis l'amont
-        if m.scope == 'lane' and (CL.SideSlow or 20) > 0 and #(m.lanes or {}) > 1
+        if m.scope == 'lane' and (CL.SideSlow or 20) > 0 and openLane(m)
             and v >= band[1] - 1.0 and v <= band[2] + 1.0 and u >= -up and u <= f.length + 5 then
             local start = info and info.startSpeed or math.max(speed, 6.0)
-            SetDriveTaskCruiseSpeed(driver, math.min(start, TC.rampMph(u, CL.SideSlow or 20) * MPH))
-            tracked[vehicle] = { id = m.id, phase = 'slow', driver = driver, at = now, startSpeed = start }
+            local target = math.min(start, TC.rampMph(u, CL.SideSlow or 20) * MPH)
+            SetDriveTaskCruiseSpeed(driver, target)
+            if SP.CapSpeed ~= false then SetEntityMaxSpeed(vehicle, target + (SP.CapMargin or 1.0)) end
+            tracked[vehicle] = { id = m.id, phase = 'slow', driver = driver, at = now, startSpeed = start, capped = SP.CapSpeed ~= false }
             return true
         end
         return false
     end
 
-    -- FERMETURE
-    local approach = CL.ApproachDistance or 60.0
-    if m.scope == 'lane' then
+    -- FERMETURE D'UNE VOIE avec une autre voie du même sens : rabattement sur cette voie (jamais sur l'autre sens)
+    local target = m.scope == 'lane' and openLane(m) or nil
+    if target then
         if u < -approach or u > f.length + 5 then return false end
-        local target = openLane(m)
-        if not target then
-            -- aucune voie ouverte dans ce sens : demi-tour
-            if not info or info.phase ~= 'uturn' then
-                local new = { id = m.id, driver = driver }
-                tracked[vehicle] = new
-                uturn(e, vehicle, driver, new, 1, pos)
-            end
-            return true
-        end
         -- Rabattement EN LIGNE DROITE sur la voie ouverte (point qui avance avec le PNJ), puis il longe le tronçon
         -- sur cette voie jusqu'après la fin, et reprend sa route. Nouvelle consigne seulement quand il approche du
         -- point visé (pas à chaque vérification).
@@ -686,7 +782,8 @@ local function handle(e, vehicle, driver, pos, fwd, speed, now)
         return true
     end
 
-    -- Sens / route fermés : route recalculée à l'approche, demi-tour s'il continue vers le tronçon
+    -- Voie sans autre voie du même sens, sens / route fermés : route recalculée à l'approche, puis DEMI-TOUR s'il
+    -- continue vers la zone (jamais par la voie d'en face)
     if u > -1 or u < -approach then return false end
     if not info then
         if u < -(CL.ReplanDistance or 45.0) * 0.5 then
@@ -718,7 +815,8 @@ local function coneResume(vehicle, info)
     end
 end
 
-local function findPassage(cones, halfWidth, farY, toWorld, vehicle)
+--- Passage le plus proche ; `allowed(point)` : le point doit être dans une voie ouverte DU MÊME SENS (jamais l'autre sens)
+local function findPassage(cones, halfWidth, farY, toWorld, vehicle, allowed)
     local needed = halfWidth + (VC.Margin or 0.8)
     for i = 0, math.floor((VC.MaxShift or 9.0) / 0.5) do
         for _, sgn in ipairs(i == 0 and { 1 } or { -1, 1 }) do
@@ -729,14 +827,15 @@ local function findPassage(cones, halfWidth, farY, toWorld, vehicle)
             end
             if clear then
                 local a, b = toWorld(x, math.max(1.0, farY * 0.5)), toWorld(x, farY + 2.0)
-                if IsPointOnRoad(a.x, a.y, a.z, vehicle) and IsPointOnRoad(b.x, b.y, b.z, vehicle) then return x end
+                if IsPointOnRoad(a.x, a.y, a.z, vehicle) and IsPointOnRoad(b.x, b.y, b.z, vehicle)
+                    and (not allowed or (allowed(a) and allowed(b))) then return x end
             end
         end
     end
     return nil
 end
 
-local function coneHandle(vc, vehicle, driver, pos, fwd)
+local function coneHandle(e, vc, vehicle, driver, pos, fwd)
     local right = vector3(fwd.y, -fwd.x, 0.0)
     local min, max = GetModelDimensions(GetEntityModel(vehicle))
     local halfWidth, front = math.max(-min.x, max.x), max.y
@@ -756,10 +855,15 @@ local function coneHandle(vc, vehicle, driver, pos, fwd)
         if info and farY < -2.0 then coneResume(vehicle, info) end
         return false
     end
-    if info and info.mode == 'deviate' then return true end
+    if info and (info.mode == 'deviate' or info.mode == 'uturn') then return true end
     if vc.mode == 'deviate' then
         local function toWorld(x, y) return pos + fwd * (y + front) + right * x end
-        local shift = findPassage(list, halfWidth, farY, toWorld, vehicle)
+        local open = vc.open
+        local allowed = open and function(p)
+            local _, pv = TC.localUV(e.f, p.x, p.y)
+            return pv >= open[1] - 0.3 and pv <= open[2] + 0.3
+        end or nil
+        local shift = findPassage(list, halfWidth, farY, toWorld, vehicle, allowed)
         if shift then
             local target = toWorld(shift, farY + (VC.PassBeyond or 8.0))
             TaskVehicleDriveToCoord(driver, vehicle, target.x, target.y, target.z, VC.PassSpeed or 7.0, 0,
@@ -768,7 +872,16 @@ local function coneHandle(vc, vehicle, driver, pos, fwd)
             return true
         end
     end
-    TaskVehicleTempAction(driver, vehicle, 6, (Config.Interval or 300) + 500) -- infranchissable : il s'arrête devant
+    if vc.mode == 'deviate' or vc.mode == 'uturn' then
+        -- fermeture : aucune voie du même sens pour passer -> DEMI-TOUR (jamais par la voie d'en face)
+        local t = { id = e.m.id, driver = driver }
+        tracked[vehicle] = t
+        uturn(e, vehicle, driver, t, 1, pos)
+        coneTracked[vehicle] = { mode = 'uturn', driver = driver, since = GetGameTimer() }
+        return true
+    end
+    -- arrêt (attente) / route fermée : il s'arrête devant la ligne et attend
+    TaskVehicleTempAction(driver, vehicle, 6, (Config.Interval or 300) + 500)
     coneTracked[vehicle] = { mode = 'blocked', driver = driver }
     return true
 end
@@ -798,7 +911,7 @@ local function tick()
                 for _, e in ipairs(near) do
                     local vc = e.vc
                     if vc and not (merging and vc.mode == 'deviate') and #(pos - vc.center) <= vc.radius + (VC.Detect or 12.0) + 12.0 then
-                        if coneHandle(vc, vehicle, driver, pos, fwd) then break end
+                        if coneHandle(e, vc, vehicle, driver, pos, fwd) then break end
                     end
                 end
                 local info = tracked[vehicle]

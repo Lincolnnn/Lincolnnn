@@ -173,6 +173,55 @@ local function roadAt(p)
         median = tonumber(median) or 0.0 }
 end
 
+-- =========================================================================
+-- SENS DE CIRCULATION d'une chaussée à sens unique (autoroute) : +1 = sens de la liaison n1 -> n2, -1 = l'inverse.
+-- Sources, dans l'ordre (Editor.DirectionOrder) : le TRAFIC observé (véhicules en mouvement sur cette chaussée, autour
+-- du point visé), le CAP du nœud du jeu (celui qui sert à faire apparaître les voitures dans le bon sens), les VOIES
+-- du jeu (nombre de voies « avant / arrière » ; convention inversable : Editor.SwapOneWayLanes). R inverse à la main.
+-- =========================================================================
+local DIR_SOURCE = { traffic = 'trafic observé', node = 'nœud du jeu', lanes = 'voies du jeu', manual = 'inversé à la main' }
+local dirCache = { key = nil, at = 0 }
+
+local function oneWaySign(r)
+    local key = ('%d:%d:%d'):format(math.floor(r.c.x / 8), math.floor(r.c.y / 8), math.floor(math.deg(math.atan(r.ly, r.lx)) / 10))
+    local now = GetGameTimer()
+    if dirCache.key == key and now - dirCache.at < 800 then return dirCache.sign, dirCache.source end
+    local sign, source
+    for _, method in ipairs(E.DirectionOrder or { 'traffic', 'node', 'lanes' }) do
+        if method == 'traffic' then
+            local vote, range = 0, E.TrafficVoteRange or 60.0
+            local half = math.max(r.l1, r.l2, 1) * laneW() / 2 + 2.0
+            for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+                if IsEntityVisible(vehicle) then -- (pas nos faux obstacles)
+                    local p = GetEntityCoords(vehicle)
+                    local dx, dy = p.x - r.c.x, p.y - r.c.y
+                    if math.abs(dx * r.lx + dy * r.ly) < range and math.abs(dx * r.ly - dy * r.lx) < half and math.abs(p.z - r.c.z) < 6.0 then
+                        local vel = GetEntityVelocity(vehicle)
+                        if vel.x * vel.x + vel.y * vel.y > 6.0 then -- > 2,5 m/s
+                            vote = vote + ((vel.x * r.lx + vel.y * r.ly) > 0 and 1 or -1)
+                        end
+                    end
+                end
+            end
+            if vote ~= 0 then sign, source = vote > 0 and 1 or -1, 'traffic' end
+        elseif method == 'node' then
+            local ok, _, heading = GetClosestVehicleNodeWithHeading(r.c.x, r.c.y, r.c.z, 1, 3.0, 0)
+            if ok and heading then
+                local hx, hy = -math.sin(math.rad(heading)), math.cos(math.rad(heading))
+                sign, source = (hx * r.lx + hy * r.ly) >= 0 and 1 or -1, 'node'
+                if E.SwapNodeHeading then sign = -sign end
+            end
+        elseif method == 'lanes' then
+            sign, source = (r.l1 > 0 or r.l2 == 0) and 1 or -1, 'lanes'
+            if E.SwapOneWayLanes then sign = -sign end
+        end
+        if sign then break end
+    end
+    sign = sign or 1
+    dirCache = { key = key, at = now, sign = sign, source = source or 'lanes' }
+    return sign, dirCache.source
+end
+
 --- Sens et voies depuis le côté visé : D (sens de circulation), n (voies dans ce sens), nOpp (voies en face),
 --- décalages des voies (à droite de D ; 1 = voie de gauche), voie visée
 local function setupFrom(r, flip)
@@ -183,11 +232,13 @@ local function setupFrom(r, flip)
         if side >= 0 then s.dx, s.dy, s.n, s.nOpp = r.lx, r.ly, r.l1, r.l2
         else s.dx, s.dy, s.n, s.nOpp = -r.lx, -r.ly, r.l2, r.l1 end
     else
-        -- chaussée à sens unique (ex. un sens d'une autoroute) : le sens est celui de la liaison
-        if r.l1 > 0 or r.l2 == 0 then s.dx, s.dy, s.n = r.lx, r.ly, math.max(r.l1, 1)
-        else s.dx, s.dy, s.n = -r.lx, -r.ly, r.l2 end
-        s.nOpp = 0
+        -- chaussée à sens unique (ex. un sens d'une autoroute) : sens détecté (trafic, nœud, voies), R l'inverse
+        local sgn, source = oneWaySign(r)
+        if flip then sgn, source = -sgn, 'manual' end
+        s.dx, s.dy, s.n = r.lx * sgn, r.ly * sgn, math.max(r.l1, r.l2, 1)
+        s.nOpp, s.source = 0, source
     end
+    if twoWay then s.source = flip and 'manual' or 'side' end
     local vD = (r.vL) * ((s.dx * r.lx + s.dy * r.ly) > 0 and 1 or -1)
     -- Voies (à droite du sens D : +), décalées de `shift` (← → : aligner la bande sur les voies peintes)
     local lw, shift = laneW(), editing and editing.shift or 0.0
@@ -303,10 +354,11 @@ local function nodeState(node, seg)
     if math.abs(node.pos.z - (seg.a.z + seg.b.z) / 2) > (SEG.Height or 4.0) + 6 then return nil end
     if editing.scope == 'road' then return 'take' end
     local t = nodeTraffic(node.id, node.pos)
-    local s = editing.setup
-    local same = t.oneWay and (t.tx * s.dx + t.ty * s.dy) > 0.5
+    -- nœud d'une chaussée à sens unique DANS la bande : c'est la chaussée de ce sens (l'autre chaussée est à côté,
+    -- hors de la bande) ; le sens se lit ainsi sans dépendre de la convention des voies du jeu
+    local same = t.oneWay
     if editing.scope == 'direction' and same then return 'take' end
-    if editing.scope == 'lane' and same and s.n == 1 then return 'take' end -- seule voie de ce sens
+    if editing.scope == 'lane' and same and editing.setup.n == 1 then return 'take' end -- seule voie de ce sens
     return 'shared'
 end
 
@@ -325,12 +377,29 @@ local function drawStrip(seg, color, cross)
     local c4 = TC.worldAt(f, f.length, seg.vmin, z2)
     line(c1, c2, color); line(c2, c3, color); line(c3, c4, color); line(c4, c1, color)
     if cross then line(c1, c3, color); line(c2, c4, color) end
-    -- flèche du sens de circulation concerné
-    local mid, zc = (seg.vmin + seg.vmax) / 2, (z1 + z2) / 2
-    local u = f.length / 2
-    local tip = TC.worldAt(f, u + 2.0, mid, zc)
-    line(TC.worldAt(f, u - 1.0, mid - 1.4, zc), tip, color)
-    line(TC.worldAt(f, u - 1.0, mid + 1.4, zc), tip, color)
+    -- FLÈCHES DU SENS DE CIRCULATION : pleines, d'une autre couleur (Editor.ArrowColor), tout le long de la zone
+    local ac = E.ArrowColor or { 255, 220, 0 }
+    local alpha = E.ArrowAlpha or 235
+    local mid = (seg.vmin + seg.vmax) / 2
+    local half = math.min(1.6, math.max(0.6, (seg.vmax - seg.vmin) * 0.32))
+    local len = E.ArrowLength or 2.8
+    local spacing = math.max(4.0, E.ArrowSpacing or 9.0)
+    local count = math.max(1, math.floor(f.length / spacing))
+    for i = 1, count do
+        local u = f.length * (i - 0.5) / count
+        local zc = z1 + (z2 - z1) * (u / f.length) + 0.1
+        local tip = TC.worldAt(f, u + len / 2, mid, zc)
+        local l = TC.worldAt(f, u - len / 2, mid - half, zc)
+        local r = TC.worldAt(f, u - len / 2, mid + half, zc)
+        local back = TC.worldAt(f, u - len / 4, mid, zc)
+        -- pointe de flèche (deux triangles, visibles des deux côtés)
+        for _, tri in ipairs({ { tip, l, back }, { tip, back, r } }) do
+            local p1, p2, p3 = tri[1], tri[2], tri[3]
+            DrawPoly(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, ac[1], ac[2], ac[3], alpha)
+            DrawPoly(p3.x, p3.y, p3.z, p2.x, p2.y, p2.z, p1.x, p1.y, p1.z, ac[1], ac[2], ac[3], alpha)
+        end
+        line(l, tip, ac); line(r, tip, ac)
+    end
 end
 
 --- Case remplie au sol (transparente, visible de dessus comme de dessous) entre u0..u1 et v0..v1 du repère f
@@ -425,7 +494,10 @@ local function hintData(s)
     if editing.scope == 'road' then rows[#rows + 1] = { keys = { 'Molette' }, text = ('Élargir : +%d m'):format(math.floor(editing.extra + 0.5)) } end
     rows[#rows + 1] = { keys = { '←', '→' }, text = ('Aligner sur les voies peintes (%s m)'):format(fmt(editing.shift or 0)) }
     rows[#rows + 1] = { keys = { 'Maj', '←', '→' }, text = ('Largeur des voies : %s m'):format((('%.1f'):format(laneW())):gsub('%.', ',')) }
-    if s and s.twoWay then rows[#rows + 1] = { keys = { 'R' }, text = 'Inverser le sens' } end
+    if s then
+        rows[#rows + 1] = { keys = { 'R' }, text = s.twoWay and 'Inverser le sens (l\'autre côté de la route)'
+            or ('Inverser le sens (sens détecté : %s)'):format(DIR_SOURCE[s.source] or DIR_SOURCE.lanes) }
+    end
     rows[#rows + 1] = { keys = { 'V' }, text = VIEW_LABEL[view.mode] or VIEW_LABEL.player }
     if view.mode == 'top' then rows[#rows + 1] = { keys = { 'ZQSD', 'Souris' }, text = 'Glisser, tourner ; Espace / Ctrl : hauteur' }
     elseif view.mode == 'free' then rows[#rows + 1] = { keys = { 'ZQSD', 'Souris' }, text = 'Se déplacer ; Espace / Ctrl ; Maj : vite' } end
@@ -492,12 +564,9 @@ local function choose(seg)
             local u, v = TC.localUV(seg.f, node.pos.x, node.pos.y)
             if v >= dmin - 2 and v <= dmax + 2 then
                 local t = nodeTraffic(node.id, node.pos)
-                local dot = t.tx * s.dx + t.ty * s.dy
                 local du = nil
-                if t.oneWay and dot > 0.5 then
-                    du = u                                         -- ce sens
-                elseif editing.scope == 'road' and t.oneWay and dot < -0.5 then
-                    du = L - u                                     -- l'autre sens : son amont est après la fin
+                if t.oneWay and (editing.scope ~= 'road' or not s.twoWay) then
+                    du = u                                         -- chaussée de ce sens (dans la bande)
                 elseif editing.scope == 'road' and not t.oneWay then
                     du = u < 0 and u or (u > L and (L - u) or 0.0) -- partagé : amont des deux côtés
                 end
@@ -652,7 +721,7 @@ function TC.startEditor(opts)
                     editing.extra = math.max(0.0, math.min((SEG.MaxRoadWidth or 60.0), editing.extra + wheel * 2 * (SEG.RoadWidthStep or 1.0)))
                 end
             end
-            if IsDisabledControlJustPressed(0, KEY.flip) and editing.setup and editing.setup.twoWay then
+            if IsDisabledControlJustPressed(0, KEY.flip) and editing.setup then -- R : inverser le sens (toute route)
                 editing.flip = not editing.flip
                 editing.lockBase = nil
                 editing.shift = -(editing.shift or 0) -- même place dans le monde (le sens s'inverse)

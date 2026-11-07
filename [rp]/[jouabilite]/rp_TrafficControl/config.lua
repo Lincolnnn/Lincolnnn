@@ -56,6 +56,9 @@ TrafficConfig = {
         -- depuis l'amont (Speed.Upstream) jusqu'à la fin de la zone (zones de vitesse du jeu + PNJ ralentis), pour que
         -- le rabattement ne se fasse pas à pleine vitesse ; le rabattement lui-même se fait à cette vitesse
         SideSlow = 20,
+        -- Fermeture : la bande fermée gardée par une zone de vitesse à 0 (voie d'une autoroute : dans la zone ; route à
+        -- double sens : du début à la fin) : un PNJ qui y entrerait s'arrête au lieu d'y rouler (corridor de sécurité)
+        Corridor = true,
         DrivingStyle = 786603,  -- style de conduite pendant le changement de voie / le demi-tour
         WanderStyle = 786603,   -- style redonné ensuite (circulation normale)
         ResumeSpeed = 17.0,     -- m/s : vitesse de croisière redonnée
@@ -88,7 +91,14 @@ TrafficConfig = {
         Upstream = 150.0,       -- m : longueur du périmètre en amont
         UpstreamStart = 70,     -- MPH au début du périmètre (une route plus lente n'est pas accélérée)
         StopBefore = 8.0,       -- m avant la zone : arrêt (Arrêt du trafic)
+        QueueLength = 150.0,    -- m : file d'attente d'un arrêt (un PNJ presque arrêté y attend, il ne double pas)
         BandMargin = 1.5,       -- m de marge de chaque côté du sens (PNJ un peu à cheval sur la ligne)
+        -- Zones de vitesse du jeu (pour TOUS les PNJ) : sphères qui se chevauchent au centre de la bande, rayon =
+        -- demi-largeur + SphereMargin, tous les rayon x SphereStep m, au plus MaxSpheres par bande
+        -- (trop de sphères pour la longueur : rayon un peu agrandi) ; MaxZonesTotal : budget de ce joueur, toutes mesures
+        MinSphere = 3.0, SphereMargin = 1.0, SphereStep = 1.3, MaxSpheres = 20, MaxZonesTotal = 120,
+        -- PNJ dirigés : vitesse max du véhicule bridée à la vitesse visée (+ CapMargin m/s), rendue à la sortie
+        CapSpeed = true, CapMargin = 1.0,
     },
 
     -- PLOTS VIRTUELS : invisibles, sans collision (rien dans le monde), traités comme les plots de la police :
@@ -117,11 +127,25 @@ TrafficConfig = {
         CameraRange = 100.0,    -- m : les caméras du dessus / libre restent à moins de 100 m du joueur
         TopHeight = 50.0, TopMin = 15.0, TopMax = 120.0, TopFov = 60.0, TopSpeed = 18.0, -- vue du dessus
         FreeSpeed = 8.0,        -- m/s, caméra libre (Maj : x3)
+        -- SENS DE CIRCULATION d'une chaussée à sens unique (autoroute) : sources essayées dans cet ordre
+        --   'traffic' : véhicules en mouvement sur cette chaussée (TrafficVoteRange m autour du point visé) ;
+        --   'node'    : cap du nœud du jeu (celui qui sert à faire apparaître les voitures dans le bon sens) ;
+        --   'lanes'   : nombre de voies « avant / arrière » du jeu.
+        -- En cas de problème : changer l'ordre, ou inverser une source (SwapNodeHeading, SwapOneWayLanes). R pendant le
+        -- choix inverse toujours le sens à la main ; la source utilisée est affichée dans l'aide.
+        DirectionOrder = { 'traffic', 'node', 'lanes' },
+        TrafficVoteRange = 60.0,
+        SwapNodeHeading = false,
+        SwapOneWayLanes = true,  -- les voies du jeu donnaient le mauvais sens sur les interstates
+        -- Flèches du sens : pleines, d'une autre couleur que la zone, tous les ArrowSpacing m
+        ArrowColor = { 255, 220, 0 }, ArrowAlpha = 235, ArrowLength = 2.8, ArrowSpacing = 9.0,
     },
 
     -- Cartes (carte du menu pause / mini-carte) : 'everyone', 'police' ou 'none'
     Blips = 'everyone',
     BlipColors = { close = 1, slow = 47, stop = 49 }, -- rouge, orange, rouge foncé
+    -- Points sur la carte le long de la zone, du début à la fin : tous les Spacing m (Max au plus)
+    Blip = { Sprite = 1, Spacing = 25.0, Max = 10, Scale = 0.5, EndScale = 0.7 },
 
     Range = 400.0,              -- m : PNJ gérés seulement pour les tronçons à moins de 400 m du joueur
     Interval = 300,             -- ms entre deux vérifications des PNJ (tronçon à portée)
