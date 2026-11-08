@@ -609,6 +609,12 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
 - Véhicule observé : seul le **modèle** est affiché (jamais la plaque d'immatriculation).
 - Le serveur revérifie tout : police (unité du MDC), distances (10 m / 3 m / 2 m), durée des fouilles, délais.
 
+### Crever un pneu (couteau en main)
+Couteau en main (`Puncture.Knives`), en visant une **roue** d'un véhicule (à moins de `Distance` = 2,2 m) : option
+**« Crever le pneu (avant gauche…) »**. Le personnage se tourne vers la roue et donne un coup de couteau (1,2 s) ; le
+pneu se dégonfle ensuite lentement jusqu'à être à plat (voir le README de `rp_vehiclecontrol`, `Tyres`). Option grisée
+si le pneu fuit déjà ou est crevé. Réglages : `Puncture` dans `config.lua`.
+
 ### Police : menottes, prendre par le bras, véhicule (joueurs ET PNJ, pour tester seul)
 
 - **Menotter** (2 m, **7 s** de barre) : **comportement de base de GTA 5**, sans emote : menottes du jeu

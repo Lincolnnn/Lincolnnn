@@ -1065,6 +1065,8 @@ input.invalid, select.invalid, textarea.invalid { border-color: rgba(255, 99, 99
 .car-belt.belt-blink { animation: hud-blink 1s steps(1, end) infinite; }
 .car-park { color: var(--hud-danger); animation: hud-light-in .2s ease-out; }
 .car-broken { color: var(--hud-danger); }
+.car-tyre { color: var(--hud-warn); }
+.hud-car.car-passenger .car-tyre { display: none !important; }
 .car-broken.car-damaged { color: var(--hud-warn); }
 /* Compte-tours : une seule barre (blanche, puis zone rouge au bout : JS CAR_RPM_RED), séparées par un trait fin */
 .car-rpm { display: flex; gap: 2px; height: 6px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .75)); }

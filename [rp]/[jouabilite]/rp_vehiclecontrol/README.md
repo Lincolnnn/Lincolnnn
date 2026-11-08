@@ -38,6 +38,7 @@ En voiture, aucun rappel des touches à l'écran (seule la notification du moteu
   **Passagers** : uniquement le **logo de la ceinture**.
 - **Logo de la ceinture** : contour noir ; **transparent, sans couleur** quand elle n'est pas mise, **rempli de
   blanc** quand elle est mise, **clignote en rouge pâle** quand le véhicule roule sans ceinture.
+- **Voyant de pression des pneus** (conducteur) : orange tant qu'un pneu fuit (crevé au couteau) ou est à plat.
 
 ## Clignotants et warnings
 
@@ -340,6 +341,16 @@ Une balle **bien placée** abîme vraiment le véhicule :
 Ailleurs (portières, vitres, pneus) : le jeu, comme avant. C'est le **tireur** qui voit où sa balle a touché : il
 l'envoie au serveur (20 balles / s au plus, à moins de 300 m), qui la transmet au joueur qui **contrôle le véhicule**
 (lui seul peut changer sa santé). Aucune boucle : événement de dégâts du jeu.
+
+### Pneu crevé au couteau (`Tyres`)
+Avec un **couteau** en main (`Tyres.Knives`), en visant une roue avec l'œil (`rp_interact`, Alt) : **« Crever le
+pneu »**. Le pneu **n'éclate pas d'un coup** : il **se dégonfle lentement** (le pneu s'affaisse peu à peu, la voiture
+tire de ce côté) pendant 60 à 90 s (`LeakDurationMin` / `LeakDurationMax`), puis il est **à plat** (crevé, pas sur la
+jante). Pendant la fuite et pneu à plat, le **voyant de pression des pneus** s'allume sur le car HUD (conducteur ;
+`Lamp`, `LampOnFlat`). Réparé (réparation complète, mécanicien) : la fuite s'arrête. Le serveur vérifie la distance
+(`Reach` = 4 m) et le couteau en main ; la fuite est gardée dans l'état du véhicule (`rpLeaks`, temps réseau : même
+avancement chez tous) et appliquée par le joueur qui contrôle le véhicule. Performance : aucune boucle sans fuite ;
+sinon une vérification toutes les 500 ms (`Interval`) des seuls véhicules qui fuient.
 
 ## Ceinture de sécurité
 

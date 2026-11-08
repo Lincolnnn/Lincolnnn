@@ -266,11 +266,18 @@
         clearTimeout(sessionTimer); clearTimeout(sessionHideTimer);
         $('sessionTitle').textContent = data.title || 'SESSION';
         $('sessionText').textContent = data.text || '';
+        // Connexion pendant une session : sous-titre, plusieurs paragraphes, reste affiché (Échap : client/session.lua)
+        $('sessionSub').textContent = data.subtitle ? `• ${data.subtitle}` : '';
+        $('sessionSub').classList.toggle('hidden', !data.subtitle);
+        $('sessionHint').textContent = data.hint || '';
+        $('sessionHint').classList.toggle('hidden', !data.sticky || !data.hint);
+        session.classList.toggle('sticky', !!data.sticky);
         session.classList.remove('on', 'off', 'out', 'hidden');
         if (data.kind === 'on' || data.kind === 'off') session.classList.add(data.kind);
         const zoneShown = !zone.classList.contains('hidden');
         session.classList.toggle('below', zoneShown);
         if (zoneShown) session.style.setProperty('--zone-h', `${zone.offsetHeight}px`);
+        if (data.sticky) return; // ne disparaît pas tout seul
         sessionTimer = setTimeout(() => {
             session.classList.add('out');
             sessionHideTimer = setTimeout(() => session.classList.add('hidden'), 360);
@@ -476,6 +483,11 @@
         case 'result': addResult(data); break;
         case 'sound': play(data); break;
         case 'session': setSession(data); break;
+        case 'sessionHide':
+            clearTimeout(sessionTimer); clearTimeout(sessionHideTimer);
+            session.classList.add('out');
+            sessionHideTimer = setTimeout(() => session.classList.add('hidden'), 360);
+            break;
         case 'weaponHint': setWeaponHint(data); break;
         default: break;
         }

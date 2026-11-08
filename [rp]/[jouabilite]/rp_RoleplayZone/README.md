@@ -121,6 +121,15 @@ recherche, en dessous si une zone est déjà affichée), avec un **son de messag
 Réservé à la permission ACE **`rpsession`** (ex. `add_ace group.admin rpsession allow`) ou à `AdminAce` ; la console du
 serveur peut aussi. Textes, titres et commandes : `Session` dans `config.lua`.
 
+### Connexion pendant une session
+Tant qu'une session est en cours (après `/sessionon`, jusqu'au `/sessionoff` ; gardé même après un redémarrage du
+serveur), un joueur **qui se connecte** reçoit, une fois l'écran de chargement fini, un message dans le même style :
+**« SESSION EN COURS »** • « Débute ton jeu dans le calme et applique des règles de roleplay dès que possible. » puis le
+texte complet (rejoindre son rôle, s'adresser au comité central ou à un gestionnaire, s'entraîner avant si c'est la
+première connexion). Ce message **ne disparaît pas tout seul** : **Échap** le ferme (sans ouvrir le menu pause). Un
+`/sessionon` / `/sessionoff` le remplace. Textes : `Session.Join` dans `config.lua` (`Enabled = false` : désactivé).
+Seuls les joueurs qui viennent de se connecter le reçoivent (pas après un restart de la ressource).
+
 ## Configuration (`config.lua`)
 
 | Clé | Rôle |

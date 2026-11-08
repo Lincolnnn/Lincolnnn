@@ -240,6 +240,62 @@ local DOORS = {
 local DOOR_RANGE = 1.8 -- m entre le point visé et la portière
 
 --- Portière (ou capot / coffre) la plus proche du point visé
+-- =========================================================================
+-- PNEU AU COUTEAU : couteau en main, pneu visé -> « Crever le pneu » (fuite lente : rp_vehiclecontrol)
+-- =========================================================================
+local PU = Config.Puncture or {}
+local KNIVES = {}
+for _, w in ipairs(PU.Knives or { 'WEAPON_KNIFE', 'WEAPON_SWITCHBLADE', 'WEAPON_DAGGER', 'WEAPON_MACHETE' }) do KNIVES[GetHashKey(w)] = true end
+local WHEELS = {
+    { bone = 'wheel_lf', tyre = 0, name = 'avant gauche' }, { bone = 'wheel_rf', tyre = 1, name = 'avant droit' },
+    { bone = 'wheel_lm1', tyre = 2, name = 'milieu gauche' }, { bone = 'wheel_rm1', tyre = 3, name = 'milieu droit' },
+    { bone = 'wheel_lr', tyre = 4, name = 'arrière gauche' }, { bone = 'wheel_rr', tyre = 5, name = 'arrière droit' },
+}
+
+local function knifeInHand()
+    return KNIVES[GetSelectedPedWeapon(PlayerPedId())] == true
+end
+
+--- Pneu visé (point visé à moins de BoneDistance m du centre de la roue) : { bone, tyre, name, pos } ou nil
+local function aimedTyre(vehicle, hit)
+    local best, bestD = nil, PU.BoneDistance or 0.9
+    for _, w in ipairs(WHEELS) do
+        local bone = GetEntityBoneIndexByName(vehicle, w.bone)
+        if bone ~= -1 then
+            local pos = GetWorldPositionOfEntityBone(vehicle, bone)
+            local d = #(pos - hit)
+            if d < bestD then best, bestD = { bone = w.bone, tyre = w.tyre, name = w.name, pos = pos }, d end
+        end
+    end
+    return best
+end
+
+local puncturing = false
+local function puncture(vehicle, tyre)
+    if puncturing then return end
+    if GetResourceState(PU.Resource or 'rp_vehiclecontrol') ~= 'started' then
+        return RPI.notify('Impossible : la ressource rp_vehiclecontrol n\'est pas démarrée.', 'error')
+    end
+    puncturing = true
+    CreateThread(function()
+        local ped = PlayerPedId()
+        TaskTurnPedToFaceCoord(ped, tyre.pos.x, tyre.pos.y, tyre.pos.z, 600)
+        Wait(600)
+        local anim = PU.Anim or { 'melee@knife@streamed_core', 'low_attack_0' }
+        RequestAnimDict(anim[1])
+        local untilTime = GetGameTimer() + 1500
+        while not HasAnimDictLoaded(anim[1]) and GetGameTimer() < untilTime do Wait(0) end
+        if HasAnimDictLoaded(anim[1]) then TaskPlayAnim(ped, anim[1], anim[2], 8.0, -8.0, PU.Time or 1200, 0, 0.0, false, false, false) end
+        Wait(PU.Time or 1200)
+        if knifeInHand() and DoesEntityExist(vehicle) and #(GetEntityCoords(ped) - tyre.pos) < (PU.Distance or 2.2) + 1.0 then
+            TriggerServerEvent('rp_vehiclecontrol:puncture', VehToNet(vehicle), tyre.tyre, GetNetworkTime())
+            RPI.notify(('Pneu %s percé : il se dégonfle.'):format(tyre.name))
+        end
+        if anim then RemoveAnimDict(anim[1]) end
+        puncturing = false
+    end)
+end
+
 local function nearestDoor(vehicle, hit)
     local best, bestDistance = nil, DOOR_RANGE
     for _, door in ipairs(DOORS) do
@@ -304,6 +360,18 @@ local function vehicleOptions(ctx)
     for _, option in ipairs(inspectionOptions(VEHICLE_POLICE, ctx, 'vehicle')) do out[#out + 1] = option end
     local vehicle = ctx.entity
     local Police = RPI.Police
+
+    -- Couteau en main, pneu visé : le crever (il se dégonfle lentement : rp_vehiclecontrol)
+    if PU.Enabled ~= false and within(ctx, PU.Distance or 2.2) and not IsPedInAnyVehicle(PlayerPedId(), false) and knifeInHand() then
+        local tyre = aimedTyre(vehicle, ctx.hit)
+        if tyre then
+            local leaks = NetworkGetEntityIsNetworked(vehicle) and Entity(vehicle).state.rpLeaks or nil
+            local done = IsVehicleTyreBurst(vehicle, tyre.tyre, false) or (type(leaks) == 'table' and leaks[tostring(tyre.tyre)] ~= nil)
+            out[#out + 1] = { id = 'tyre:puncture', label = ('Crever le pneu %s'):format(tyre.name), icon = 'knife', primary = true,
+                disabled = done or nil, why = done and 'Ce pneu est déjà percé.' or nil,
+                run = function(c) puncture(c.entity, tyre) end }
+        end
+    end
 
     -- Police : placer un civil à l'arrière / faire sortir les passagers arrière
     if ctx.police then

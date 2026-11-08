@@ -65,6 +65,20 @@ SceneConfig = {
             Text = 'Début de la session : départ des patrouilles et début des interventions.' },
         Off = { Command = 'sessionoff', Title = 'FIN DE SESSION',
             Text = 'Fin de session : terminez vos interactions dans le calme, les patrouilles rentrent aux stations.' },
+        -- Un joueur qui SE CONNECTE pendant une session (après /sessionon, avant /sessionoff) : ce message, même style,
+        -- qui ne disparaît pas tout seul (Échap pour le fermer). Session en cours gardée au redémarrage du serveur.
+        -- (\n : retour à la ligne ; \n\n : nouveau paragraphe)
+        Join = {
+            Enabled = true,
+            Title = 'SESSION EN COURS',
+            Subtitle = 'Débute ton jeu dans le calme et applique des règles de roleplay dès que possible.',
+            Text = 'Une session est actuellement en cours, rejoins dès que possible le rôle que tu dois avoir lors de cette '
+                .. 'session afin de commencer ton jeu ! Si tu ne connais pas ton rôle ou qu\'il ne t\'a pas été attribué, '
+                .. 'tourne-toi vers un membre du comité central ou un gestionnaire en vocal, dans un ticket, ou en DM '
+                .. 'afin de savoir quoi faire.\n\nSi c\'est ta première connexion et que tu ne connais pas encore le '
+                .. 'serveur, nous t\'invitons à t\'entraîner avant de venir en session !',
+            Hint = 'Échap pour fermer',
+        },
     },
 
     -- DESCRIPTION VISUELLE (périmètre / objet) : affichée au-dessus aux policiers à moins de Distance m qui la voient

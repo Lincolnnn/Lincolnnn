@@ -307,6 +307,44 @@ RegisterNetEvent('rp_vehiclecontrol:engineRepaired', function(netId)
     end
 end)
 
+-- =========================================================================
+-- PNEU CREVÉ AU COUTEAU (œil de rp_interact) : fuite lente gardée dans l'état du véhicule (rpLeaks), appliquée par le
+-- joueur qui contrôle le véhicule (client/tyres.lua). Vérifié : joueur à moins de Tyres.Reach m, couteau en main, pneu
+-- valable, pas déjà en fuite.
+-- =========================================================================
+local TY = Config.Tyres or {}
+local TYRES_OK = { [0] = 0, [1] = 1, [2] = 2, [3] = 3, [4] = 2, [5] = 3 }
+local knives = {}
+for _, w in ipairs(TY.Knives or { 'WEAPON_KNIFE', 'WEAPON_SWITCHBLADE', 'WEAPON_DAGGER', 'WEAPON_MACHETE' }) do
+    knives[GetHashKey(w)] = true
+end
+
+RegisterNetEvent('rp_vehiclecontrol:puncture', function(netId, tyre, at)
+    local src = source
+    if TY.Enabled == false then return end
+    local vehicle = vehicleFromNet(netId)
+    tyre = math.floor(tonumber(tyre) or -1)
+    if not vehicle or TYRES_OK[tyre] == nil or not near(src, vehicle, TY.Reach or 4.0) then return end
+    local weapon = GetSelectedPedWeapon(GetPlayerPed(src))
+    if next(knives) and weapon and weapon ~= 0 and not knives[weapon] then return end
+    local leaks = Entity(vehicle).state.rpLeaks
+    leaks = type(leaks) == 'table' and leaks or {}
+    if leaks[tostring(tyre)] then return end
+    local min, max = TY.LeakDurationMin or TY.LeakDuration or 60, TY.LeakDurationMax or TY.LeakDuration or 90
+    leaks[tostring(tyre)] = { wheel = TYRES_OK[tyre], at = math.floor(tonumber(at) or 0), dur = math.random(math.floor(min), math.floor(max)) }
+    Entity(vehicle).state:set('rpLeaks', leaks, true)
+end)
+
+-- Fuite terminée (pneu à plat, ou réparé) : retirée de l'état du véhicule
+RegisterNetEvent('rp_vehiclecontrol:leakEnd', function(netId, tyre)
+    local vehicle = vehicleFromNet(netId)
+    if not vehicle or not near(source, vehicle, 300.0) then return end
+    local leaks = Entity(vehicle).state.rpLeaks
+    if type(leaks) ~= 'table' or not leaks[tostring(tyre)] then return end
+    leaks[tostring(tyre)] = nil
+    Entity(vehicle).state:set('rpLeaks', next(leaks) and leaks or nil, true)
+end)
+
 -- Réparation complète vue par le client (vMenu « Repair », mécanicien, SetVehicleFixed…) : Riven remet aussi à zéro
 -- tous ses dégâts (direction, suspension, freins, radiateur, réservoir, carrosserie déformée…) tout de suite.
 -- Joueur à 10 m au plus ; une fois toutes les 5 s au plus par véhicule (sa propre réparation remet la santé à 1000).

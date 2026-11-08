@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_vehiclecontrol'
 author 'Lincolnnn'
 description 'Vehicle Control : essence, dégâts, accidents réalistes, terrain, ceinture, motos (projection), moteur, portières, clignotants et poussée - standalone'
-version '1.49.1'
+version '1.50.0'
 
 ui_page 'html/index.html' -- message "pousser le véhicule", sons du véhicule, fiche /inspectvehicle, réparation de fortune (le car HUD est dessiné par le MDC)
 
@@ -40,6 +40,7 @@ client_scripts {
     'client/debris.lua',    -- débris de carrosserie sur la route après un gros choc, /cleardebris
     'client/rollover.lua',  -- tonneaux : départ plus facile (dérapage, virage mal engagé, PIT) et accentués
     'client/wheels.lua',    -- roues qui se détachent : virage beaucoup trop violent, trottoir percuté très fort
+    'client/tyres.lua',     -- pneu crevé au couteau (œil de rp_interact) : fuite lente, voyant, puis à plat
     'client/terrain.lua',   -- sol : herbe, terre, gravier, sable, boue (puissance, vitesse, adhérence)
     'client/occupants.lua', -- occupants : blessures, vue troublée, sonnés, tête qui part (1re personne)
     'client/inspect.lua',   -- /inspectvehicle (état du véhicule), /fieldrepair (réparation de fortune)

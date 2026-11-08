@@ -85,22 +85,38 @@ WeaponsConfig = {
     -- et se rallume quand l'arme revient en main (rangée puis ressortie, reprise dans l'équipement…). Lampes de poche
     -- simples (WEAPON_FLASHLIGHT, WEAPON_POCKETLIGHT…) : pareil. Toutes les armes sont concernées (une arme sans lampe
     -- n'a rien à rallumer). Éteinte par le joueur : elle reste éteinte.
-    -- Lampe de CartoonFlashlight (ressource à part : lampe tenue en main, animations) : ses armes (Weapons) sont
-    -- gérées par elle ; ce script ne les rallume pas lui-même mais garde leur état (allumée / éteinte) d'un usage à
-    -- l'autre et le lui donne (exports flashlightWanted / setFlashlight, événement rp_weaponscontrol:flashlight).
-    -- Boost : lampe RENFORCÉE (plus puissante, porte plus loin) : un faisceau en plus part de la lampe de l'arme, dans
-    -- l'axe du canon, tant que la lampe du jeu est allumée ; vu sur soi et sur les joueurs à moins de OthersRange m.
-    --   Range : portée (m) | Intensity : puissance | Radius : largeur du faisceau (degrés) | Falloff : atténuation
-    --   (plus petit = porte plus loin, plus doux) | Roundness : netteté du bord | Shadows : nb de faisceaux avec ombres
-    --   (les plus proches ; les autres sans ombre, plus légers) | Color : blanc légèrement chaud.
-    -- Texture plus réaliste (Realistic_Flashlight) : voir le README (fichier graphics.ytd, non fourni dans le dépôt).
-
+    -- Lampe de CartoonFlashlight (ressource à part, seulement si Flashlight.Cartoon.Enabled) : ses armes sont gérées
+    -- par elle ; ce script garde leur état (exports flashlightWanted / setFlashlight, rp_weaponscontrol:flashlight).
+    -- Texture plus réaliste du jeu (Realistic_Flashlight) : voir le README (fichier graphics.ytd, non fourni).
+    --
+    -- LAMPES REFAITES (client/flashlight.lua, sur la base des projecteurs rp_spotlight), vues par tous :
+    --   Light  : la lumière, séparément pour la LAMPE TENUE (Object : WEAPON_FLASHLIGHT, de poche…) et les LAMPES DES
+    --            ARMES (Weapon) : Range = DISTANCE (m), Intensity = PUISSANCE, Radius = largeur du faisceau (degrés),
+    --            Falloff = atténuation (plus petit : porte plus loin, plus doux), Roundness = netteté du bord,
+    --            GlowRange / GlowIntensity = lueur autour de la lampe, GlowSize = halo vu de face (m), BeamLength =
+    --            longueur du faisceau visible (nil : Range x Beam.LengthRatio), BeamAlpha, GlareRange (m), GlareStrength.
+    --            Shadows : nombre de lampes avec ombres (les plus proches) ; Others / OthersRange : celles des autres.
+    --   Beam   : faisceau visible dans l'air (surtout la nuit ; sous la pluie : plus) et halo de la lampe.
+    --   Glare  : éblouissement d'un joueur dans le faisceau d'une autre lampe (voile blanc + halo sur la lampe).
+    --   Strobe : stroboscope (touche Key, lampe allumée en main) : Hz clignotements par seconde, Duty = part allumée,
+    --            Power = puissance en plus, GlareBoost = éblouissement en plus ; vu par tous.
     Flashlight = { Enabled = true, KeepOnWhileMoving = true,
-        Cartoon = { Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },
+        -- CartoonFlashlight (ressource à part) : Enabled = true pour lui laisser la lampe tenue (sa propre lumière, sans
+        -- les effets ni le stroboscope d'ici) ; false (défaut) : la lampe tenue est gérée ici comme les autres
+        Cartoon = { Enabled = false, Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },
         -- Lampes tenues en main : leurs touches (E, O) passent avant le menu Équipement du véhicule, le pistolet d'essence…
         HandLights = { 'WEAPON_FLASHLIGHT', 'WEAPON_POCKETLIGHT' },
-        Boost = { Enabled = true, Range = 45.0, Intensity = 6.0, Radius = 16.0, Falloff = 18.0, Roundness = 4.0,
-            Color = { 255, 247, 235 }, Ahead = 0.12, Shadows = 2, Others = true, OthersRange = 80.0, CheckMs = 300 } },
+        Light = { Enabled = true, Shadows = 2, Others = true, OthersRange = 80.0, CheckMs = 250, Color = { 255, 247, 235 },
+            Object = { Range = 35.0, Intensity = 7.0, Radius = 24.0, Falloff = 16.0, Roundness = 3.0, Ahead = 0.14,
+                GlowRange = 1.2, GlowIntensity = 1.6, GlowSize = 0.14, GlareRange = 25.0, GlareStrength = 1.0 },
+            Weapon = { Range = 55.0, Intensity = 9.0, Radius = 15.0, Falloff = 22.0, Roundness = 4.0, Ahead = 0.12,
+                GlowRange = 1.0, GlowIntensity = 1.4, GlowSize = 0.12, GlareRange = 35.0, GlareStrength = 1.2 } },
+        Beam = { Enabled = true, Alpha = 45, LengthRatio = 0.6, SpreadRatio = 0.8, Start = 0.04, EndFlare = 0.6, Segments = 3,
+            Day = 0.0, Rain = 0.6, GlowAlpha = 200 },
+        Glare = { Enabled = true, NearAngle = 22.0, Range = 30.0, Strength = 1.0, Veil = 150, Size = 0.7, Away = 0.12, Day = 0.3,
+            Rise = 12.0, Fall = 3.0 },
+        Strobe = { Enabled = true, Key = 'F7', Hz = 10.0, Duty = 0.5, Power = 1.4, GlareBoost = 1.6 }, -- (L : s'allonger)
+    },
 
     -- Sélecteur de tir (coup par coup / automatique) : armes automatiques des groupes Groups et armes Weapons (sauf
     -- Excluded). Touche Key (Raccourcis clavier > FiveM) : petit clic (Volume) et logo en bas au milieu de l'écran

@@ -548,16 +548,42 @@ GlobalState.rpScenes = {} -- démarrage : aucune scène
 -- SESSIONS : /sessionon, /sessionoff -> message pour TOUS les joueurs (en haut au milieu, son de message reçu)
 -- =========================================================================
 local SESSION = Config.Session or {}
+-- Session en cours (entre /sessionon et /sessionoff), gardée au redémarrage du serveur (KVP)
+local sessionActive = GetResourceKvpInt('rpSessionActive') == 1
+GlobalState.rpSessionActive = sessionActive
+
+local function setSessionActive(on)
+    sessionActive = on == true
+    SetResourceKvpInt('rpSessionActive', sessionActive and 1 or 0)
+    GlobalState.rpSessionActive = sessionActive
+end
+
 local function sessionCommand(def, kind)
     if not def or not def.Command or def.Command == '' then return end
     RegisterCommand(def.Command, function(src)
         if src ~= 0 and not IsPlayerAceAllowed(src, SESSION.Ace or 'rpsession') and not isAdmin(src) then
             return TriggerClientEvent('rp_scene:session', src, { denied = true })
         end
+        setSessionActive(kind == 'on')
         TriggerClientEvent('rp_scene:session', -1, { kind = kind, title = def.Title, text = def.Text,
             duration = SESSION.Duration or 12000 })
         print(('[RoleplayZone] %s : %s'):format(def.Command, def.Text or ''))
     end, false)
 end
+
+-- Joueur qui SE CONNECTE pendant une session : message « session en cours » (reste affiché, Échap pour le fermer).
+-- Seulement les vraies connexions (pas un redémarrage de la ressource) : marqué à l'arrivée, envoyé quand son jeu est prêt.
+local joining = {}
+AddEventHandler('playerJoining', function() joining[source] = true end)
+RegisterNetEvent('rp_scene:sessionReady', function()
+    local src = source
+    if not joining[src] then return end
+    joining[src] = nil
+    local J = SESSION.Join or {}
+    if not sessionActive or J.Enabled == false then return end
+    TriggerClientEvent('rp_scene:session', src, { kind = 'on', sticky = true, title = J.Title or 'SESSION EN COURS',
+        subtitle = J.Subtitle, text = J.Text, hint = J.Hint or 'Échap pour fermer' })
+end)
+AddEventHandler('playerDropped', function() joining[source] = nil end)
 sessionCommand(SESSION.On, 'on')
 sessionCommand(SESSION.Off, 'off')

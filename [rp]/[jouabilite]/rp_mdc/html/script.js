@@ -3951,7 +3951,7 @@
     // Exemple affiché en mode placement quand il n'y a pas encore de données
     const PLD_SAMPLE = { street: 'Nom de la rue', zone: 'Zone', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
     const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', agency: 'wsp', agencyShort: 'WSP', status: 'available', callNumber: '00-0000' };
-    const CAR_SAMPLE = { inVehicle: true, show: true, mode: 'driver', speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true, gear: 'D', park: true };
+    const CAR_SAMPLE = { inVehicle: true, show: true, mode: 'driver', speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true, gear: 'D', park: true, tyre: true };
 
     function placeHud(el, cfg) {
         el.style.left = `${Math.round(cfg.x * innerWidth)}px`;
@@ -4058,6 +4058,8 @@
         // rouge vif clignotant (même moteur coupé)
         // Moteur très abîmé (palier 1 : il roule lentement, cale, fume) : le même logo, en orange
         $('#carBroken').classList.toggle('part-empty', !car.broken && !car.damaged);
+        // Voyant de pression des pneus : pneu qui se dégonfle (couteau) ou crevé (rp_vehiclecontrol)
+        $('#carTyre').classList.toggle('part-empty', !car.tyre);
         $('#carBroken').classList.toggle('car-damaged', !car.broken && !!car.damaged);
         $('#carBroken').title = car.broken ? 'Moteur détruit : véhicule hors d\'usage' : 'Moteur très abîmé';
         el.classList.toggle('car-is-broken', !!car.broken && car.mode !== 'passenger');

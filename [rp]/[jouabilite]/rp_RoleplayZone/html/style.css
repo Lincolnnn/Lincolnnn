@@ -179,6 +179,11 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; f
 .zbanner.session.off .zone-head { color: #f0a36b; }
 .zbanner.session.off .zone-dot { background: #f0a36b; box-shadow: 0 0 8px #f0a36b; }
 .zbanner.session .zone-text { font-size: 14px; }
+/* Connexion pendant une session : plus large, paragraphes, reste affiché jusqu'à Échap */
+.zbanner.session.sticky { max-width: min(680px, 60vw); padding: 12px 20px 12px; }
+.zbanner.session.sticky .zone-text { white-space: pre-line; font-size: 13.5px; line-height: 1.5; text-align: center; margin-top: 4px; }
+.session-sub { font-weight: 600; letter-spacing: .2px; text-transform: none; color: #e6e6e6; font-size: 12px; }
+.session-hint { margin-top: 8px; font-size: 11px; color: rgba(230, 230, 230, .6); letter-spacing: .4px; }
 
 /* ===================== ŒIL D'AIGLE : flèche ===================== */
 .arrow {

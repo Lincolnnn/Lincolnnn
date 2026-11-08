@@ -223,6 +223,20 @@ VCConfig = {
     -- détacher (Chance toutes les 100 ms x l'excès). Trottoir percuté très fort (Curb) : à au moins MinSpeed MPH,
     -- secousse vers le haut d'au moins Jolt m/s d'un coup avec un coup sur le côté / vers l'arrière d'au moins Kick m/s,
     -- roues au sol juste avant : la roue qui a tapé éclate (Burst) ou se détache (Detach), x la violence.
+    -- PNEU CREVÉ AU COUTEAU (œil de rp_interact : couteau en main, viser un pneu, « Crever le pneu ») : il n'éclate pas
+    -- d'un coup ; le voyant de pression des pneus s'allume (car HUD du MDC), le pneu se dégonfle lentement (santé qui
+    -- baisse, pneu qui s'affaisse à partir de SagFrom) et il est à plat au bout de LeakDurationMin à LeakDurationMax s.
+    -- Réparé (réparation complète, mécanicien…) : la fuite s'arrête. Knives : armes acceptées (vérifié par le serveur).
+    Tyres = {
+        Enabled = true, Reach = 4.0,
+        LeakDurationMin = 60, LeakDurationMax = 90,
+        Sag = true, SagFrom = 0.15, MinHealth = 50.0,
+        Lamp = true, LampOnFlat = true, -- voyant : fuite en cours, et aussi pneu crevé
+        Interval = 500, RepairDetect = 80.0,
+        Knives = { 'WEAPON_KNIFE', 'WEAPON_SWITCHBLADE', 'WEAPON_DAGGER', 'WEAPON_MACHETE', 'WEAPON_BOTTLE', 'WEAPON_HATCHET',
+            'WEAPON_STONE_HATCHET' },
+    },
+
     Wheels = {
         Enabled = true,
         Turn = { Enabled = true, MinSpeed = 60.0, Accel = 16.0, Slide = 12.0, Chance = 0.03 },
