@@ -106,6 +106,13 @@ WeaponsConfig = {
     --   Strobe : stroboscope (touche Key, lampe allumée en main) : Hz clignotements par seconde, Duty = part allumée,
     --            Power = puissance en plus, GlareBoost = éblouissement en plus ; vu par tous.
     Flashlight = { Enabled = true, KeepOnWhileMoving = true,
+        -- LE SCRIPT PREND LE DESSUS : true (défaut) : la lampe du JEU n'est jamais affichée, seule celle du script (Light,
+        -- Beam, Glare ci-dessous) ; la touche de la lampe du jeu (E) l'allume / l'éteint, gardée pour chaque arme.
+        -- false : la lampe du jeu reste allumée, celle du script s'ajoute. Components : accessoires « lampe » des armes
+        -- (une arme ajoutée dont le jeu allume la lampe est reconnue toute seule).
+        Override = true,
+        Components = { 'COMPONENT_AT_PI_FLSH', 'COMPONENT_AT_PI_FLSH_02', 'COMPONENT_AT_PI_FLSH_03', 'COMPONENT_AT_AR_FLSH',
+            'COMPONENT_AT_AR_FLSH_REH' },
         -- CartoonFlashlight (ressource à part) : Enabled = true (défaut) : la lampe tenue est à elle quand elle est
         -- démarrée (sa lumière et son stroboscope, réglés dans son config.lua ; faisceau, lueur, éblouissement : ici) ;
         -- false, ou CartoonFlashlight arrêtée : la lampe tenue est gérée entièrement ici comme les autres

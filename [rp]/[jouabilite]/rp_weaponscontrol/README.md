@@ -85,6 +85,14 @@ reprise dans l'équipement), elle se rallume toute seule. Éteinte par le joueur
 visant » (CartoonFlashlight à chaque fois que sa lampe démarre ou s'arrête) : il est réappliqué en permanence tant
 qu'une arme est en main.
 
+**Le script prend le dessus sur la lampe du jeu** (`Flashlight.Override = true`, défaut) : la lampe d'origine du jeu
+(accessoire « lampe » des armes, lampe torche / de poche) **n'est plus jamais affichée** ; seule la lampe du script
+(ci-dessous) l'est. La touche de la lampe du jeu (**E**) allume / éteint la lampe du script ; elle est gardée pour
+chaque arme (rangée puis ressortie : comme elle était) et vue par tous (état `rpLamp`). Armes avec lampe : les
+accessoires `Flashlight.Components` et les lampes tenues ; une arme ajoutée dont le jeu allume la lampe est reconnue
+toute seule (sa lampe du jeu est coupée aussitôt). `Override = false` : la lampe du jeu reste, celle du script s'ajoute.
+Ressource arrêtée : la lampe du jeu reprend (rallumée si la nôtre l'était).
+
 **Nouveau système de lampe** (`Flashlight.Light`, `Beam`, `Glare`, `Strobe` ; repris de la base de `rp_spotlight`) :
 tant que la lampe est allumée (lampe sur une arme **ou** lampe tenue en main), le script ajoute :
 - **la lumière** : faisceau projeté avec ombres (les `Shadows` = 2 lampes les plus proches, pour ne pas éclairer à

@@ -8,7 +8,9 @@
     JOUEURS AUTOUR : flash au canon du tireur, fumée, petite secousse s'ils sont proches (Shake.Range).
     (Plus d'acouphène : le sifflement a été retiré.) Silencieux : pas de flash.
     LAMPE EN MAIN : état local « flashlightHand » (menus en conflit avec ses touches E / O bloqués ailleurs).
-    LAMPE TOUJOURS ALLUMÉE (Flashlight) : allumée par le joueur, elle le reste (même arme baissée, en courant ; réglage
+    LAMPE DU SCRIPT (Flashlight.Override, défaut) : la lampe du jeu n'est jamais affichée ; la touche E allume /
+    éteint la lampe du script (client/flashlight.lua), gardée pour chaque arme, état rpLamp vu par tous.
+    Sans Override : LAMPE TOUJOURS ALLUMÉE (Flashlight) : allumée par le joueur, elle le reste (même arme baissée, en courant ; réglage
     du jeu réappliqué en permanence, d'autres scripts le remettant à false) et se rallume quand
     l'arme revient en main ; éteinte par le joueur, elle reste éteinte. Lampes de CartoonFlashlight : gérées par elle,
     leur état est gardé ici (exports flashlightWanted / setFlashlight).
@@ -493,41 +495,107 @@ if FL.Enabled ~= false then
     end
     RPWeapons.flashlightHand = function() return inHand == true end
 
-    CreateThread(function()
-        while true do
-            local ped = PlayerPedId()
-            local weapon = u32(GetSelectedPedWeapon(ped))
-            local armed = weapon ~= 0 and weapon ~= UNARMED
-            local now = GetGameTimer()
-            setHand(HANDLIGHTS[weapon] == true)
-            if weapon ~= current then
-                current, since, restoring = weapon, now, armed and lit[weapon] == true
-            end
-            if armed and cartoon(weapon) then
-                -- lampe de CartoonFlashlight : sa propre lumière (jamais celle du jeu, qui doublerait)
-            elseif armed and RPWeapons.strobing and RPWeapons.strobing() then
-                since = now -- stroboscope : la lampe du jeu est coupée exprès (client/flashlight.lua), pas par le joueur
-            elseif armed then
-                -- lampe allumée même arme baissée : réglage GLOBAL du jeu, remis à false par d'autres scripts
-                -- (CartoonFlashlight le fait à chaque fois que sa lampe démarre / s'arrête) -> réappliqué ici
-                if FL.KeepOnWhileMoving ~= false then SetFlashLightKeepOnWhileMoving(true) end
-                local on = IsFlashLightOn(ped)
-                if unusual(ped) then
-                    since, restoring = now, lit[weapon] == true -- à la sortie : elle revient si elle était allumée
-                elseif restoring then
-                    if on then
-                        restoring = false
-                    elseif now - since > 300 then
-                        SetFlashLightEnabled(ped, true)
-                        if now - since > 3000 then restoring = false end -- arme sans lampe (accessoire retiré)
+    -- LE SCRIPT PREND LE DESSUS (Flashlight.Override, défaut) : la lampe du JEU n'est jamais affichée ; seule celle du
+    -- script (client/flashlight.lua : distance, puissance, faisceau, éblouissement) l'est. La touche de la lampe du jeu
+    -- (E, « arme : spécial 2 ») est lue ici : elle allume / éteint la lampe du script, gardée pour chaque arme (rangée
+    -- puis ressortie : elle revient comme elle était). État publié pour tous : LocalPlayer.state.rpLamp = arme (ou
+    -- false). Armes avec lampe : accessoires Flashlight.Components, lampes tenues, et toute arme dont le jeu a allumé
+    -- la lampe une fois (armes ajoutées). Performance : arme avec lampe en main : lecture de la touche à chaque image ;
+    -- autre arme : toutes les 100 ms ; sans arme : 500 ms.
+    local OVERRIDE = FL.Override ~= false
+    RPWeapons.override = OVERRIDE
+    local COMPONENTS = {}
+    for _, name in ipairs(FL.Components or { 'COMPONENT_AT_PI_FLSH', 'COMPONENT_AT_PI_FLSH_02', 'COMPONENT_AT_PI_FLSH_03',
+        'COMPONENT_AT_AR_FLSH', 'COMPONENT_AT_AR_FLSH_REH' }) do COMPONENTS[#COMPONENTS + 1] = GetHashKey(name) end
+    local learned = {}   -- [arme] = true : le jeu a allumé sa lampe (arme ajoutée, accessoire inconnu)
+    local published = nil
+    local function publish(value)
+        if value == published then return end
+        published = value
+        RPWeapons.lampOn = value or nil
+        LocalPlayer.state:set('rpLamp', value, true)
+    end
+    RPWeapons.publishLamp = publish
+    local function hasLamp(ped, weapon)
+        if HANDLIGHTS[weapon] or learned[weapon] then return true end
+        for _, c in ipairs(COMPONENTS) do
+            if HasPedGotWeaponComponent(ped, weapon, c) then return true end
+        end
+        return false
+    end
+    RPWeapons.hasLamp = hasLamp
+
+    if OVERRIDE then
+        CreateThread(function()
+            local lamp, checkAt = false, 0
+            while true do
+                local ped = PlayerPedId()
+                local weapon = u32(GetSelectedPedWeapon(ped))
+                local armed = weapon ~= 0 and weapon ~= UNARMED
+                local now = GetGameTimer()
+                setHand(HANDLIGHTS[weapon] == true)
+                if not armed or cartoon(weapon) then
+                    current = weapon
+                    publish(false)
+                    Wait(armed and 200 or 500)
+                else
+                    if weapon ~= current then current, since, checkAt = weapon, now, 0 end
+                    if now >= checkAt then lamp, checkAt = hasLamp(ped, weapon), now + 1000 end -- accessoire ajouté / retiré
+                    local busy = IsPedInAnyVehicle(ped, true) or IsEntityDead(ped) or IsPauseMenuActive()
+                    if lamp then
+                        DisableControlAction(0, 54, true) -- la lampe du jeu ne s'allume plus : c'est nous qui la gérons
+                        if not busy and IsDisabledControlJustPressed(0, 54) then lit[weapon] = not (lit[weapon] == true) end
                     end
-                elseif now - since > 800 then
-                    lit[weapon] = on -- allumée ou éteinte par le joueur
+                    if IsFlashLightOn(ped) then
+                        SetFlashLightEnabled(ped, false) -- jamais la lampe du jeu
+                        -- allumée par le jeu (arme ajoutée, touche pas encore lue) ou par un autre script : c'est
+                        -- une demande d'allumage (sauf juste après la prise en main : le jeu la remet tout seul)
+                        if not lamp then learned[weapon], lamp = true, true end
+                        if now - since > 500 then lit[weapon] = true end
+                    end
+                    publish(lamp and lit[weapon] == true and not busy and weapon or false)
+                    Wait(lamp and 0 or 100)
                 end
             end
-            Wait(armed and 200 or 500)
-        end
-    end)
+        end)
+    else
+
+        CreateThread(function()
+            while true do
+                local ped = PlayerPedId()
+                local weapon = u32(GetSelectedPedWeapon(ped))
+                local armed = weapon ~= 0 and weapon ~= UNARMED
+                local now = GetGameTimer()
+                setHand(HANDLIGHTS[weapon] == true)
+                if weapon ~= current then
+                    current, since, restoring = weapon, now, armed and lit[weapon] == true
+                end
+                if armed and cartoon(weapon) then
+                    -- lampe de CartoonFlashlight : sa propre lumière (jamais celle du jeu, qui doublerait)
+                elseif armed and RPWeapons.strobing and RPWeapons.strobing() then
+                    since = now -- stroboscope : la lampe du jeu est coupée exprès (client/flashlight.lua), pas par le joueur
+                elseif armed then
+                    -- lampe allumée même arme baissée : réglage GLOBAL du jeu, remis à false par d'autres scripts
+                    -- (CartoonFlashlight le fait à chaque fois que sa lampe démarre / s'arrête) -> réappliqué ici
+                    if FL.KeepOnWhileMoving ~= false then SetFlashLightKeepOnWhileMoving(true) end
+                    local on = IsFlashLightOn(ped)
+                    if unusual(ped) then
+                        since, restoring = now, lit[weapon] == true -- à la sortie : elle revient si elle était allumée
+                    elseif restoring then
+                        if on then
+                            restoring = false
+                        elseif now - since > 300 then
+                            SetFlashLightEnabled(ped, true)
+                            if now - since > 3000 then restoring = false end -- arme sans lampe (accessoire retiré)
+                        end
+                    elseif now - since > 800 then
+                        lit[weapon] = on -- allumée ou éteinte par le joueur
+                    end
+                end
+                Wait(armed and 200 or 500)
+            end
+        end)
+    end
     RPWeapons.flashlights = lit -- pour les tests
 
     -- (Lumière, faisceau visible, lueur, éblouissement et stroboscope des lampes : client/flashlight.lua)

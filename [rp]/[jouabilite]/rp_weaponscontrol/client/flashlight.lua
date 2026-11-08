@@ -11,8 +11,9 @@
       - STROBOSCOPE (Strobe) : touche F7 (Raccourcis clavier > FiveM), lampe allumée en main : la lampe clignote très vite
         (Hz) ; vu par tous (état rpStrobe du joueur), plus éblouissant. Rappuyer, changer d'arme, monter en véhicule :
         arrêté, la lampe redevient normale.
-    La lampe du jeu (lumière d'origine) reste allumée en plus, sauf pendant le stroboscope (sinon elle ne clignoterait
-    pas). Lampes de CartoonFlashlight (si Flashlight.Cartoon.Enabled et la ressource démarrée) : sa lumière (distance,
+    LE SCRIPT PREND LE DESSUS (Flashlight.Override, défaut) : la lampe du jeu n'est jamais affichée, seule celle d'ici ;
+    allumée / éteinte avec la touche de la lampe du jeu (E), lue par client/client.lua (état rpLamp, vu par tous).
+    Override = false : la lampe du jeu reste allumée en plus, sauf pendant le stroboscope. Lampes de CartoonFlashlight (si Flashlight.Cartoon.Enabled et la ressource démarrée) : sa lumière (distance,
     puissance) et son stroboscope sont réglés dans SON config.lua (Config.Light, Config.Strobe) ; ici : faisceau
     visible, lueur et éblouissement pour ses lampes aussi (liste lue par son export « lamps »).
     Performance : aucune lampe allumée : une lecture toutes les Light.CheckMs ms ; sinon dessin à chaque image tant
@@ -31,6 +32,7 @@ local BE = FL.Beam or {}
 local GL = FL.Glare or {}
 local ST = FL.Strobe or {}
 local CARTOON = FL.Cartoon or {}
+local OVERRIDE = FL.Override ~= false
 local UNARMED = u32(GetHashKey('WEAPON_UNARMED'))
 
 local HANDLIGHTS = {}
@@ -168,9 +170,9 @@ local function setStrobe(on)
     LocalPlayer.state:set('rpStrobe', on, true)
     if on then
         strobeWeapon = u32(GetSelectedPedWeapon(ped))
-        SetFlashLightEnabled(ped, false) -- la lampe du jeu ne clignoterait pas : c'est la nôtre qui clignote
+        if not OVERRIDE then SetFlashLightEnabled(ped, false) end -- la lampe du jeu ne clignoterait pas
     else
-        if strobeWeapon and strobeWeapon == u32(GetSelectedPedWeapon(ped)) then SetFlashLightEnabled(ped, true) end
+        if not OVERRIDE and strobeWeapon and strobeWeapon == u32(GetSelectedPedWeapon(ped)) then SetFlashLightEnabled(ped, true) end
         strobeWeapon = nil
     end
 end
@@ -184,7 +186,9 @@ if ST.Enabled ~= false then
         local ped = PlayerPedId()
         local weapon = u32(GetSelectedPedWeapon(ped))
         if weapon == 0 or weapon == UNARMED or cartoon(weapon) or IsPedInAnyVehicle(ped, false) then return end
-        if not IsFlashLightOn(ped) then return end -- lampe éteinte (ou arme sans lampe) : rien
+        local on
+        if OVERRIDE then on = RPWeapons.lampOn == weapon else on = IsFlashLightOn(ped) end
+        if not on then return end -- lampe éteinte (ou arme sans lampe) : rien
         setStrobe(true)
     end, false)
     RegisterKeyMapping('rp_flashlight_strobe', 'Lampe : stroboscope (lampe allumée en main)', 'keyboard', ST.Key or 'F7')
@@ -200,7 +204,15 @@ local function lampOf(ped, isMe, serverId)
     local weapon = u32(GetSelectedPedWeapon(ped))
     if weapon == 0 or weapon == UNARMED or cartoon(weapon) then return nil end
     local strobing = isMe and strobe or (not isMe and serverId and Player(serverId).state.rpStrobe == true)
-    if not strobing and IsFlashLightOn(ped) ~= true then return nil end
+    local on
+    if isMe and OVERRIDE then
+        on = RPWeapons.lampOn == weapon
+    else
+        -- lampe du script (état rpLamp = arme en main) ; sinon lampe du jeu (Override = false)
+        local state = not isMe and serverId and Player(serverId).state.rpLamp
+        on = (state and u32(state) == weapon) or IsFlashLightOn(ped) == true
+    end
+    if not strobing and not on then return nil end
     return { ped = ped, hand = HANDLIGHTS[weapon] == true, strobe = strobing == true, key = tostring(ped) }
 end
 
@@ -403,7 +415,8 @@ CreateThread(function()
         -- stroboscope arrêté : arme changée / rangée, véhicule, mort
         if strobe then
             local weapon = u32(GetSelectedPedWeapon(me))
-            if weapon ~= strobeWeapon or IsPedInAnyVehicle(me, true) or IsEntityDead(me) then setStrobe(false) end
+            if weapon ~= strobeWeapon or IsPedInAnyVehicle(me, true) or IsEntityDead(me)
+                or (OVERRIDE and RPWeapons.lampOn ~= weapon) then setStrobe(false) end -- lampe éteinte (E) : arrêté
         end
         local list = {}
         local mine = lampOf(me, true)
@@ -441,8 +454,13 @@ CreateThread(function()
 end)
 
 AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() and strobe then
-        LocalPlayer.state:set('rpStrobe', false, true)
+    if resource ~= GetCurrentResourceName() then return end
+    if strobe then LocalPlayer.state:set('rpStrobe', false, true) end
+    if OVERRIDE then
+        -- la lampe du script disparaît : la lampe du jeu reprend, allumée si la nôtre l'était
+        if RPWeapons.lampOn then SetFlashLightEnabled(PlayerPedId(), true) end
+        LocalPlayer.state:set('rpLamp', false, true)
+    elseif strobe then
         SetFlashLightEnabled(PlayerPedId(), true)
     end
 end)

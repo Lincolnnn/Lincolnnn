@@ -45,12 +45,15 @@ end
 
 local function isTorch(hash) return FLASHLIGHTS[hash & 0xFFFFFFFF] == true end
 
---- Lampe allumée : lampe de CartoonFlashlight (son état publié) ou lampe du jeu
+--- Lampe allumée : lampe de CartoonFlashlight (son état publié), lampe de rp_weaponscontrol (rpLamp) ou lampe du jeu
 local function lightOn(ped, hash)
     local cartoon = LocalPlayer.state.cartoonFlashlight
     if type(cartoon) == 'table' and (tonumber(cartoon.weapon) or 0) & 0xFFFFFFFF == hash & 0xFFFFFFFF then
         return cartoon.light == true
     end
+    -- lampe du script (rp_weaponscontrol : la lampe du jeu n'est plus affichée) : état rpLamp = arme en main
+    local lamp = LocalPlayer.state.rpLamp
+    if lamp and (tonumber(lamp) or 0) & 0xFFFFFFFF == hash & 0xFFFFFFFF then return true end
     return IsFlashLightOn(ped)
 end
 
