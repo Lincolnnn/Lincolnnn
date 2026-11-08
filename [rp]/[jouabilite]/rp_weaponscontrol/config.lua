@@ -85,8 +85,10 @@ WeaponsConfig = {
     -- et se rallume quand l'arme revient en main (rangée puis ressortie, reprise dans l'équipement…). Lampes de poche
     -- simples (WEAPON_FLASHLIGHT, WEAPON_POCKETLIGHT…) : pareil. Toutes les armes sont concernées (une arme sans lampe
     -- n'a rien à rallumer). Éteinte par le joueur : elle reste éteinte.
-    -- Lampe de CartoonFlashlight (ressource à part, seulement si Flashlight.Cartoon.Enabled) : ses armes sont gérées
-    -- par elle ; ce script garde leur état (exports flashlightWanted / setFlashlight, rp_weaponscontrol:flashlight).
+    -- Lampe de CartoonFlashlight (ressource à part, si Flashlight.Cartoon.Enabled et la ressource démarrée) : la lampe
+    -- tenue, ses animations, SA lumière (distance / puissance : Config.Light de CartoonFlashlight) et son stroboscope
+    -- sont gérés par elle ; ce script garde leur état (exports flashlightWanted / setFlashlight) et ajoute à ses lampes
+    -- le faisceau visible, la lueur et l'éblouissement (réglages Light.Object, Beam, Glare ci-dessous).
     -- Texture plus réaliste du jeu (Realistic_Flashlight) : voir le README (fichier graphics.ytd, non fourni).
     --
     -- LAMPES REFAITES (client/flashlight.lua, sur la base des projecteurs rp_spotlight), vues par tous :
@@ -97,13 +99,17 @@ WeaponsConfig = {
     --            longueur du faisceau visible (nil : Range x Beam.LengthRatio), BeamAlpha, GlareRange (m), GlareStrength.
     --            Shadows : nombre de lampes avec ombres (les plus proches) ; Others / OthersRange : celles des autres.
     --   Beam   : faisceau visible dans l'air (surtout la nuit ; sous la pluie : plus) et halo de la lampe.
-    --   Glare  : éblouissement d'un joueur dans le faisceau d'une autre lampe (voile blanc + halo sur la lampe).
+    --   Glare  : éblouissement d'un joueur visé par une lampe d'arme ou pointé par une lampe torche (voile blanc + halo
+    --            sur la lampe), MOINS FORT que celui des projecteurs (rp_spotlight : Veil 170, Size 0.9, portée 90 m) ;
+    --            Strength = force générale, Veil = voile blanc au plus fort (0-255), Size = halo, NearAngle = angle
+    --            autour de l'axe du faisceau (degrés), Range = portée max (m ; GlareRange de chaque catégorie avant).
     --   Strobe : stroboscope (touche Key, lampe allumée en main) : Hz clignotements par seconde, Duty = part allumée,
     --            Power = puissance en plus, GlareBoost = éblouissement en plus ; vu par tous.
     Flashlight = { Enabled = true, KeepOnWhileMoving = true,
-        -- CartoonFlashlight (ressource à part) : Enabled = true pour lui laisser la lampe tenue (sa propre lumière, sans
-        -- les effets ni le stroboscope d'ici) ; false (défaut) : la lampe tenue est gérée ici comme les autres
-        Cartoon = { Enabled = false, Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },
+        -- CartoonFlashlight (ressource à part) : Enabled = true (défaut) : la lampe tenue est à elle quand elle est
+        -- démarrée (sa lumière et son stroboscope, réglés dans son config.lua ; faisceau, lueur, éblouissement : ici) ;
+        -- false, ou CartoonFlashlight arrêtée : la lampe tenue est gérée entièrement ici comme les autres
+        Cartoon = { Enabled = true, Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },
         -- Lampes tenues en main : leurs touches (E, O) passent avant le menu Équipement du véhicule, le pistolet d'essence…
         HandLights = { 'WEAPON_FLASHLIGHT', 'WEAPON_POCKETLIGHT' },
         Light = { Enabled = true, Shadows = 2, Others = true, OthersRange = 80.0, CheckMs = 250, Color = { 255, 247, 235 },
@@ -113,7 +119,7 @@ WeaponsConfig = {
                 GlowRange = 1.0, GlowIntensity = 1.4, GlowSize = 0.12, GlareRange = 35.0, GlareStrength = 1.2 } },
         Beam = { Enabled = true, Alpha = 45, LengthRatio = 0.6, SpreadRatio = 0.8, Start = 0.04, EndFlare = 0.6, Segments = 3,
             Day = 0.0, Rain = 0.6, GlowAlpha = 200 },
-        Glare = { Enabled = true, NearAngle = 22.0, Range = 30.0, Strength = 1.0, Veil = 150, Size = 0.7, Away = 0.12, Day = 0.3,
+        Glare = { Enabled = true, NearAngle = 18.0, Range = 30.0, Strength = 0.75, Veil = 110, Size = 0.55, Away = 0.12, Day = 0.3,
             Rise = 12.0, Fall = 3.0 },
         Strobe = { Enabled = true, Key = 'F7', Hz = 10.0, Duty = 0.5, Power = 1.4, GlareBoost = 1.6 }, -- (L : s'allonger)
     },

@@ -215,10 +215,11 @@ InteractConfig = {
     ActionDistance = 2.0,           -- menotter, prendre par le bras (autour du policier)
     DoorDistance = 3.0,             -- portières, capot, coffre, monter
     -- Pneu au couteau : couteau en main (Knives), viser un pneu à moins de Distance m -> « Crever le pneu » : il se
-    -- dégonfle lentement puis est à plat, voyant allumé (rp_vehiclecontrol : Tyres)
+    -- dégonfle lentement puis est à plat (rp_vehiclecontrol : Tyres ; voyant : celui de Riven)
     Puncture = {
-        Enabled = true, Distance = 2.2, BoneDistance = 0.9, Time = 1200,
-        Anim = { 'melee@knife@streamed_core', 'low_attack_0' },
+        Enabled = true, Distance = 2.2, BoneDistance = 0.9, Time = 1500,
+        -- coup de couteau : accroupi, frappe vers le bas, dans le pneu (dictionnaire, animation)
+        Anim = { 'melee@knife@streamed_core_fps', 'ground_attack_on_spot' },
         Knives = { 'WEAPON_KNIFE', 'WEAPON_SWITCHBLADE', 'WEAPON_DAGGER', 'WEAPON_MACHETE', 'WEAPON_BOTTLE', 'WEAPON_HATCHET',
             'WEAPON_STONE_HATCHET' },
         Resource = 'rp_vehiclecontrol',

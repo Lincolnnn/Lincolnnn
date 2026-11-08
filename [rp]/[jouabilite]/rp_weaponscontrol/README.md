@@ -94,8 +94,10 @@ tant que la lampe est allumée (lampe sur une arme **ou** lampe tenue en main), 
 - **le faisceau visible** (`Beam`) : le cône de lumière dessiné dans l'air (textures `textures/beam.png` / `glow.png`),
   plus visible la nuit et sous la pluie (`Day`, `Rain`), opacité `Alpha` ;
 - **la lueur de la lampe** : petit halo à la sortie de la lampe (`GlowRange`, `GlowIntensity`, `GlowSize`) ;
-- **l'éblouissement** (`Glare`) : regarder une lampe allumée qui vous vise (à moins de `GlareRange` m, dans l'axe)
-  blanchit l'écran, plus ou moins fort selon `GlareStrength` (par catégorie) et `Glare.Strength` ;
+- **l'éblouissement** (`Glare`) : visé par une lampe d'arme ou pointé par une lampe torche (à moins de `GlareRange` m,
+  dans l'axe), la lampe en vue : voile blanc et halo sur la lampe, plus fort de près, en la regardant en face et la
+  nuit. **Moins fort que celui des projecteurs** (`rp_spotlight`) : voile 110 au plus (`Veil`, projecteur : 170), halo
+  plus petit (`Size`), force `Strength` = 0,75 ; par catégorie : `GlareStrength`, `GlareRange` ;
 - **le stroboscope** (`Strobe`) : touche **F7** (Raccourcis clavier > FiveM > « Lampe : stroboscope » ; pas L, qui
   sert à s'allonger) avec une lampe en main ou sur l'arme : la lampe clignote (`Hz` = 10 éclats/s, `Duty`), plus fort
   (`Power`) et plus éblouissante (`GlareBoost`). Vu par tous les joueurs proches. S'arrête en changeant d'arme, en
@@ -111,11 +113,15 @@ le dépôt** (aucune licence fournie). Pour l'utiliser : créez le dossier `rp_w
 `Realistic_Flashlight`** de `server.cfg` (deux ressources qui remplacent `graphics.ytd` se gênent). Le dossier
 `stream/` de ce script est ignoré par git : le fichier reste chez vous.
 
-**CartoonFlashlight** (ressource à part ; `Flashlight.Cartoon`) : **désactivée par défaut** (`Cartoon.Enabled =
-false`) : la lampe tenue (`WEAPON_FLASHLIGHT`) est gérée ici, avec les effets et le stroboscope ci-dessus. Arrêtez
-alors la ressource `CartoonFlashlight` dans `server.cfg` (sinon deux lumières). `Cartoon.Enabled = true` : ses armes
-lui sont laissées (sa propre lumière, sans les effets ni le stroboscope d'ici). États gardés :
-`exports.rp_weaponscontrol:flashlightWanted(arme)` / `setFlashlight(arme, allumée)` / événement client
+**CartoonFlashlight** (ressource à part, version modifiée pour le serveur, fournie à part ; `Flashlight.Cartoon`) :
+**utilisée par défaut** (`Cartoon.Enabled = true`) quand elle est démarrée : la lampe tenue (`WEAPON_FLASHLIGHT`), ses
+animations, **sa lumière** et **son stroboscope** (F7) sont à elle, réglés dans **son** `config.lua` :
+`Config.Light` (**`Range` = distance**, **`Intensity` = puissance**, `Radius`, `Falloff`, `Roundness`, `Color`,
+`Shadows`, `OthersRange` ; `Enabled = false` : lumière d'origine du modèle) et `Config.Strobe`. Ce script ajoute à ses
+lampes (la vôtre et celles des joueurs autour, lues par son export `lamps`) le **faisceau visible**, la **lueur** et
+l'**éblouissement** (réglages `Light.Object`, `Beam`, `Glare` d'ici), sans seconde lumière. CartoonFlashlight
+arrêtée, ou `Cartoon.Enabled = false` : la lampe tenue est gérée entièrement ici (`Light.Object`, stroboscope F7).
+États gardés : `exports.rp_weaponscontrol:flashlightWanted(arme)` / `setFlashlight(arme, allumée)` / événement client
 `rp_weaponscontrol:flashlight` (utilisé par `rp_vehicleprops` quand on reprend une arme posée avec sa lampe allumée).
 
 **Aide au style du serveur** pour une autre ressource : `exports.rp_weaponscontrol:showHint(id, { title, lines })`

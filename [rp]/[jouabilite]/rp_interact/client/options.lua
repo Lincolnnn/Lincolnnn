@@ -281,12 +281,12 @@ local function puncture(vehicle, tyre)
         local ped = PlayerPedId()
         TaskTurnPedToFaceCoord(ped, tyre.pos.x, tyre.pos.y, tyre.pos.z, 600)
         Wait(600)
-        local anim = PU.Anim or { 'melee@knife@streamed_core', 'low_attack_0' }
+        local anim = PU.Anim or { 'melee@knife@streamed_core_fps', 'ground_attack_on_spot' } -- accroupi, coup vers le bas
         RequestAnimDict(anim[1])
         local untilTime = GetGameTimer() + 1500
         while not HasAnimDictLoaded(anim[1]) and GetGameTimer() < untilTime do Wait(0) end
-        if HasAnimDictLoaded(anim[1]) then TaskPlayAnim(ped, anim[1], anim[2], 8.0, -8.0, PU.Time or 1200, 0, 0.0, false, false, false) end
-        Wait(PU.Time or 1200)
+        if HasAnimDictLoaded(anim[1]) then TaskPlayAnim(ped, anim[1], anim[2], 8.0, -8.0, PU.Time or 1500, 0, 0.0, false, false, false) end
+        Wait(PU.Time or 1500)
         if knifeInHand() and DoesEntityExist(vehicle) and #(GetEntityCoords(ped) - tyre.pos) < (PU.Distance or 2.2) + 1.0 then
             TriggerServerEvent('rp_vehiclecontrol:puncture', VehToNet(vehicle), tyre.tyre, GetNetworkTime())
             RPI.notify(('Pneu %s percé : il se dégonfle.'):format(tyre.name))

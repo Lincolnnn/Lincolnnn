@@ -12,7 +12,9 @@
         (Hz) ; vu par tous (état rpStrobe du joueur), plus éblouissant. Rappuyer, changer d'arme, monter en véhicule :
         arrêté, la lampe redevient normale.
     La lampe du jeu (lumière d'origine) reste allumée en plus, sauf pendant le stroboscope (sinon elle ne clignoterait
-    pas). Lampes de CartoonFlashlight (si Flashlight.Cartoon.Enabled) : gérées par elle, rien ici.
+    pas). Lampes de CartoonFlashlight (si Flashlight.Cartoon.Enabled et la ressource démarrée) : sa lumière (distance,
+    puissance) et son stroboscope sont réglés dans SON config.lua (Config.Light, Config.Strobe) ; ici : faisceau
+    visible, lueur et éblouissement pour ses lampes aussi (liste lue par son export « lamps »).
     Performance : aucune lampe allumée : une lecture toutes les Light.CheckMs ms ; sinon dessin à chaque image tant
     qu'une lampe est allumée à portée (ou qu'un éblouissement s'efface).
 ]]
@@ -28,6 +30,7 @@ local WPN = L.Weapon or FL.Boost or {} -- (ancien réglage Boost : lampes des ar
 local BE = FL.Beam or {}
 local GL = FL.Glare or {}
 local ST = FL.Strobe or {}
+local CARTOON = FL.Cartoon or {}
 local UNARMED = u32(GetHashKey('WEAPON_UNARMED'))
 
 local HANDLIGHTS = {}
@@ -124,6 +127,33 @@ local function beamOf(ped, handLight)
     return vector3(p.x + f.x * 0.4, p.y + f.y * 0.4, p.z + 0.4), f
 end
 RPWeapons.beamOf = beamOf
+
+--- Lampe de CartoonFlashlight (objet tenu en main) : axe long du modèle, bout tourné vers où regarde le personnage
+local propAxes = {}
+local function along(i, v)
+    if i == 1 then return v, 0.0, 0.0 elseif i == 2 then return 0.0, v, 0.0 end
+    return 0.0, 0.0, v
+end
+local function propBeam(lamp)
+    local object = lamp.torch
+    local m = GetEntityModel(object)
+    local a = propAxes[m]
+    if not a then
+        local mn, mx = GetModelDimensions(m)
+        local lo, hi = { mn.x, mn.y, mn.z }, { mx.x, mx.y, mx.z }
+        local i = 1
+        for k = 2, 3 do if hi[k] - lo[k] > hi[i] - lo[i] then i = k end end
+        a = { i = i, lo = lo[i], hi = hi[i] }
+        propAxes[m] = a
+    end
+    local h, p = math.rad(GetEntityHeading(lamp.ped) + (lamp.yaw or 0.0)), math.rad(lamp.pitch or 0.0)
+    local want = vector3(-math.sin(h) * math.cos(p), math.cos(h) * math.cos(p), math.sin(p))
+    local dir = norm(GetOffsetFromEntityInWorldCoords(object, along(a.i, 1.0)) - GetEntityCoords(object))
+    if not dir then return nil end
+    local sign = dot(dir, want) >= 0.0 and 1.0 or -1.0
+    local pos = GetOffsetFromEntityInWorldCoords(object, along(a.i, (sign > 0 and a.hi or a.lo) + sign * (lamp.ahead or 0.03)))
+    return pos, dir * sign
+end
 
 -- =========================================================================
 -- STROBOSCOPE (lampe allumée en main) : touche L ; vu par tous (état rpStrobe)
@@ -288,9 +318,9 @@ end
 
 --- Stroboscope : allumé pendant la première partie de chaque période (Hz, Duty) ; décalé d'une lampe à l'autre
 local function strobeOn(lamp, now)
-    local period = 1000.0 / math.max(1.0, ST.Hz or 10.0)
+    local period = 1000.0 / math.max(1.0, lamp.hz or ST.Hz or 10.0)
     local offset = (lamp.ped % 7) * 13
-    return ((now + offset) % period) < period * (ST.Duty or 0.5)
+    return ((now + offset) % period) < period * (lamp.duty or ST.Duty or 0.5)
 end
 
 local SHADOW_BASE = 5200
@@ -318,14 +348,20 @@ local function render()
             local target, spot = 0.0, nil
             local shadows = L.Shadows or 2
             for i, lamp in ipairs(lamps) do
-                if DoesEntityExist(lamp.ped) then
-                    local cat = lamp.hand and OBJ or WPN
+                if DoesEntityExist(lamp.ped) and (not lamp.cartoon or DoesEntityExist(lamp.torch)) then
+                    local cat = lamp.cat or (lamp.hand and OBJ or WPN)
                     local col = cat.Color or L.Color or { 255, 247, 235 }
                     local visible = not lamp.strobe or strobeOn(lamp, now)
+                    local pos, dir
                     if visible then
-                        local pos, dir = beamOf(lamp.ped, lamp.hand)
+                        if lamp.cartoon then pos, dir = propBeam(lamp) else pos, dir = beamOf(lamp.ped, lamp.hand) end
+                        visible = pos ~= nil
+                    end
+                    if visible then
                         local range, power = (cat.Range or 40.0) + 0.0, (cat.Intensity or 8.0) * (lamp.strobe and (ST.Power or 1.4) or 1.0)
-                        if i <= shadows then
+                        if lamp.cartoon then
+                            -- lumière dessinée par CartoonFlashlight (Config.Light) : rien ici
+                        elseif i <= shadows then
                             DrawSpotLightWithShadow(pos.x, pos.y, pos.z, dir.x, dir.y, dir.z, col[1], col[2], col[3], range,
                                 power + 0.0, (cat.Roundness or 3.0) + 0.0, (cat.Radius or 16.0) + 0.0, (cat.Falloff or 20.0) + 0.0,
                                 SHADOW_BASE + i)
@@ -379,6 +415,21 @@ CreateThread(function()
                 if ped ~= me and ped ~= 0 and #(GetEntityCoords(ped) - myPos) < range then
                     local lamp = lampOf(ped, false, GetPlayerServerId(player))
                     if lamp then list[#list + 1] = lamp end
+                end
+            end
+        end
+        -- lampes de CartoonFlashlight (soi et joueurs autour) : faisceau visible, lueur, éblouissement
+        if CARTOON.Enabled ~= false and CARTOON.Resource and GetResourceState(CARTOON.Resource) == 'started' then
+            local ok, cl = pcall(function() return exports[CARTOON.Resource]:lamps() end)
+            if ok and type(cl) == 'table' then
+                local myPos, range = GetEntityCoords(me), L.OthersRange or 80.0
+                for _, c in ipairs(cl) do
+                    if type(c) == 'table' and c.ped and c.torch and DoesEntityExist(c.torch)
+                        and (c.ped == me or (L.Others ~= false and #(GetEntityCoords(c.ped) - myPos) < range)) then
+                        list[#list + 1] = { ped = c.ped, torch = c.torch, cartoon = true, hand = true, strobe = c.strobe == true,
+                            key = 'c' .. tostring(c.torch), yaw = c.yaw, pitch = c.pitch, ahead = c.ahead, hz = c.hz, duty = c.duty,
+                            cat = setmetatable({ Range = c.range, Radius = c.radius }, { __index = OBJ }) }
+                    end
                 end
             end
         end

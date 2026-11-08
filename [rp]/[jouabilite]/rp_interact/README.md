@@ -611,7 +611,7 @@ Fonctionne partout : **tous les joueurs**, **les PNJ**, **vous-même** (test : v
 
 ### Crever un pneu (couteau en main)
 Couteau en main (`Puncture.Knives`), en visant une **roue** d'un véhicule (à moins de `Distance` = 2,2 m) : option
-**« Crever le pneu (avant gauche…) »**. Le personnage se tourne vers la roue et donne un coup de couteau (1,2 s) ; le
+**« Crever le pneu (avant gauche…) »**. Le personnage se tourne vers la roue, s'accroupit et plante le couteau dans le pneu (1,5 s, `Puncture.Anim`) ; le
 pneu se dégonfle ensuite lentement jusqu'à être à plat (voir le README de `rp_vehiclecontrol`, `Tyres`). Option grisée
 si le pneu fuit déjà ou est crevé. Réglages : `Puncture` dans `config.lua`.
 

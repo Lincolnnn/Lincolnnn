@@ -535,7 +535,6 @@ function VC.sendHud(vehicle)
     if driver and h.gear then data.gear = h.gear end -- 'D' / 'R' (client/gear.lua) ; absent : pas de rapport
     if driver and h.park then data.park = true end   -- frein de parking de Riven serré : « P » (client/riven.lua)
     -- voyant de pression des pneus : fuite en cours (couteau) ou pneu crevé (client/tyres.lua)
-    if driver and VC.tyreWarning and (VCConfig.Tyres or {}).Lamp ~= false and VC.tyreWarning(vehicle) then data.tyre = true end
     sendHud(data)
 end
 

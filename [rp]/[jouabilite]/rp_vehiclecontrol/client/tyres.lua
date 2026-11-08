@@ -4,8 +4,8 @@
     Un joueur qui tient un couteau crève un pneu visé avec l'œil (rp_interact). Le serveur garde la fuite dans l'état du
     véhicule (rpLeaks : { [pneu] = { wheel, at = temps réseau du coup de couteau, dur } }) ; le joueur qui CONTRÔLE le
     véhicule applique la fuite : le pneu se DÉGONFLE LENTEMENT (santé du pneu qui baisse, pneu qui s'affaisse peu à peu),
-    puis il est à plat (crevé) au bout de Tyres.LeakDuration secondes. Pendant ce temps, le VOYANT de pression des pneus
-    s'allume sur le car HUD du MDC (le conducteur). Réparé (réparation complète, mécanicien…) : la fuite s'arrête.
+    puis il est à plat (crevé) au bout de Tyres.LeakDuration secondes (voyant : celui de Riven Impact Dynamics).
+    Réparé (réparation complète, mécanicien…) : la fuite s'arrête.
     Performance : aucune boucle sans fuite ; sinon une vérification toutes les Tyres.Interval ms des véhicules qui fuient.
 ]]
 
@@ -28,19 +28,6 @@ end
 local function progress(leak)
     local dur = (tonumber(leak.dur) or T.LeakDuration or 75) * 1000
     return math.max(0.0, math.min(1.0, (GetNetworkTime() - (tonumber(leak.at) or 0)) / dur))
-end
-
---- Le véhicule a-t-il une fuite en cours (pneu pas encore à plat) ou un pneu crevé ? (voyant du car HUD)
-function VC.tyreWarning(vehicle)
-    local net = NetworkGetEntityIsNetworked(vehicle) and VehToNet(vehicle) or nil
-    local leaks = net and Entity(vehicle).state.rpLeaks or nil
-    if type(leaks) == 'table' and next(leaks) then return true end
-    if T.LampOnFlat ~= false then
-        for _, tyre in ipairs({ 0, 1, 4, 5 }) do
-            if IsVehicleTyreBurst(vehicle, tyre, false) then return true end
-        end
-    end
-    return false
 end
 
 local function tick()
