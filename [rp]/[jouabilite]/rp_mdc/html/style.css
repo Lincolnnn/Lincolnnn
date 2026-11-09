@@ -1461,3 +1461,38 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 [data-theme="night"] .off-badge.off-M, [data-theme="night"] .off-badge.off-GM { background: rgba(var(--n-rgb), .38); }
 [data-theme="night"] .off-badge.off-FC, [data-theme="night"] .off-badge.off-FB,
 [data-theme="night"] .off-badge.off-FA { background: rgba(var(--n-rgb), .6); color: #000; }
+
+/* =========================================================================
+   CASIER JUDICIAIRE ET REGISTRE DES DÉLINQUANTS
+   ========================================================================= */
+.subtabs-justice { margin-top: -4px; padding-top: 6px; border-top: 1px dashed var(--stroke); }
+.subtabs-justice .hint-text { margin-right: 2px; }
+.inline-top { align-items: flex-start; }
+.inline-top textarea { flex: 1; min-width: 0; }
+.conviction-box .entry-title, .reg-box .entry-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reg-editor + .reg-editor { margin-top: 10px; }
+.reg-toggle { font-weight: 600; }
+.reg-box { margin-top: 8px; border-left: 3px solid #6b3fa0; }
+.reg-box .entry-head { gap: 8px; }
+.reg-box .sheet-alert { margin: 10px 0 0; }
+.reg-months { display: block; min-height: 16px; font-size: 11px; }
+.justice-summary { margin: 2px 0 6px; }
+.justice-summary b { color: var(--text); }
+.linked-records, .legacy-records { margin-bottom: 8px; }
+.sheet-alert.purple { background: #efe6fa; color: #4b2380; border-color: rgba(107, 63, 160, .45); }
+.conviction-view .entry-view-title .flag, .reg-view .entry-view-title .flag { margin-right: 2px; }
+.conviction-view .entry-view-text, .reg-view .entry-view-text { margin-top: 4px; font-size: 12px; }
+.btn-offenders { font-weight: 600; color: #4b2380; }
+.segmented { display: inline-flex; border: 1px solid var(--stroke); border-radius: var(--radius-sm); overflow: hidden; }
+.segmented .seg-btn { border: 0; border-radius: 0; background: transparent; color: var(--text-2); }
+.segmented .seg-btn + .seg-btn { border-left: 1px solid var(--stroke); }
+.segmented .seg-btn.active { background: var(--card-2); color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+.offenders-query { flex: 1 1 200px; width: auto; }
+#offendersLevel { width: auto; }
+tr.row-ended td { opacity: .55; }
+[data-theme="night"] .sheet-alert.purple { background: rgba(var(--n-rgb), .14); color: var(--n-bright); border-color: rgba(var(--n-rgb), .45); }
+[data-theme="night"] .btn-offenders { color: inherit; }
+[data-theme="night"] .reg-box { border-left-color: rgba(var(--n-rgb), .6); }
+#page-offenders .grid { width: 100%; }
+#page-offenders .grid td { white-space: normal; vertical-align: top; }
+#page-offenders .grid td .muted { font-size: 11px; }

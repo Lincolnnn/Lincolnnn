@@ -37,6 +37,7 @@ local CIVIL = 'Infractions civiles (hors route)'
 local CTRAFFIC, DUI = 'Délits routiers', 'Alcool / drogue au volant (DUI)'
 local PERSONS, PROPERTY, WEAPONS = 'Atteintes aux personnes', 'Atteintes aux biens', 'Armes'
 local DRUGS, ORDER = 'Stupéfiants et alcool', 'Ordre public, entrave et ordonnances'
+local SEX = 'Infractions sexuelles (registre)'
 
 MDC_OFFENSES = {
     -- =====================================================================
@@ -225,7 +226,102 @@ MDC_OFFENSES = {
     { id = 'robbery1', rcw = 'RCW 9A.56.200', t = 'Vol avec violence — 1er degré', c = 'FA', g = PROPERTY },
     { id = 'burglary1', rcw = 'RCW 9A.52.020', t = 'Cambriolage — 1er degré', c = 'FA', g = PROPERTY },
     { id = 'arson1', rcw = 'RCW 9A.48.020', t = 'Incendie volontaire — 1er degré', c = 'FA', g = PROPERTY },
+
+    -- =====================================================================
+    -- INFRACTIONS SEXUELLES (RCW 9A.44, 9.68A, 9A.64, 9A.88) : inscription au registre des délinquants sexuels
+    -- (RCW 9A.44.130). Toutes classifications confondues (GM, FC, FB, FA).
+    -- =====================================================================
+    { id = 'rape1', rcw = 'RCW 9A.44.040', t = 'Viol — 1er degré', c = 'FA', g = SEX },
+    { id = 'rape2', rcw = 'RCW 9A.44.050', t = 'Viol — 2e degré', c = 'FA', g = SEX },
+    { id = 'rape3', rcw = 'RCW 9A.44.060', t = 'Viol — 3e degré', c = 'FC', g = SEX },
+    { id = 'rapechild1', rcw = 'RCW 9A.44.073', t = 'Viol sur mineur — 1er degré (victime de moins de 12 ans)', c = 'FA', g = SEX },
+    { id = 'rapechild2', rcw = 'RCW 9A.44.076', t = 'Viol sur mineur — 2e degré (victime de 12 ou 13 ans)', c = 'FA', g = SEX },
+    { id = 'rapechild3', rcw = 'RCW 9A.44.079', t = 'Viol sur mineur — 3e degré (victime de 14 ou 15 ans)', c = 'FC', g = SEX },
+    { id = 'molest1', rcw = 'RCW 9A.44.083', t = 'Agression sexuelle sur mineur (child molestation) — 1er degré', c = 'FA', g = SEX },
+    { id = 'molest2', rcw = 'RCW 9A.44.086', t = 'Agression sexuelle sur mineur (child molestation) — 2e degré', c = 'FB', g = SEX },
+    { id = 'molest3', rcw = 'RCW 9A.44.089', t = 'Agression sexuelle sur mineur (child molestation) — 3e degré', c = 'FC', g = SEX },
+    { id = 'indecentforce', rcw = 'RCW 9A.44.100(1)(a)', t = 'Attentat à la pudeur avec contrainte (indecent liberties)', c = 'FA', g = SEX },
+    { id = 'indecentlib', rcw = 'RCW 9A.44.100', t = 'Attentat à la pudeur (indecent liberties)', c = 'FB', g = SEX },
+    { id = 'smm1', rcw = 'RCW 9A.44.093', t = 'Inconduite sexuelle avec un mineur — 1er degré', c = 'FC', g = SEX },
+    { id = 'smm2', rcw = 'RCW 9A.44.096', t = 'Inconduite sexuelle avec un mineur — 2e degré', c = 'GM', g = SEX },
+    { id = 'custodial1', rcw = 'RCW 9A.44.160', t = 'Inconduite sexuelle en détention (custodial) — 1er degré', c = 'FC', g = SEX },
+    { id = 'voyeur1', rcw = 'RCW 9A.44.115', t = 'Voyeurisme — 1er degré', c = 'FC', g = SEX },
+    { id = 'commminor', rcw = 'RCW 9.68A.090(1)', t = 'Communication avec un mineur à des fins immorales', c = 'GM', g = SEX },
+    { id = 'commminorfel', rcw = 'RCW 9.68A.090(2)', t = 'Communication avec un mineur à des fins immorales (en ligne / récidive)', c = 'FC', g = SEX },
+    { id = 'depict1', rcw = 'RCW 9.68A.070(1)', t = 'Détention d\'images pédopornographiques — 1er degré', c = 'FB', g = SEX },
+    { id = 'depict2', rcw = 'RCW 9.68A.070(2)', t = 'Détention d\'images pédopornographiques — 2e degré', c = 'FC', g = SEX },
+    { id = 'dealdepict1', rcw = 'RCW 9.68A.050(1)', t = 'Diffusion d\'images pédopornographiques — 1er degré', c = 'FB', g = SEX },
+    { id = 'exploitminor', rcw = 'RCW 9.68A.040', t = 'Exploitation sexuelle d\'un mineur', c = 'FB', g = SEX },
+    { id = 'csam', rcw = 'RCW 9.68A.100', t = 'Abus sexuel commercial d\'un mineur', c = 'FB', g = SEX },
+    { id = 'promotecsam', rcw = 'RCW 9.68A.101', t = 'Proxénétisme sur mineur (promoting commercial sexual abuse of a minor)', c = 'FA', g = SEX },
+    { id = 'incest1', rcw = 'RCW 9A.64.020(1)', t = 'Inceste — 1er degré', c = 'FB', g = SEX },
+    { id = 'incest2', rcw = 'RCW 9A.64.020(2)', t = 'Inceste — 2e degré', c = 'FC', g = SEX },
+    { id = 'exposurefel', rcw = 'RCW 9A.88.010(2)(c)', t = 'Exhibition sexuelle aggravée (récidive)', c = 'FC', g = SEX },
+    { id = 'failreg', rcw = 'RCW 9A.44.132', t = 'Défaut d\'inscription au registre des délinquants sexuels / d\'enlèvement', c = 'FC', g = SEX },
 }
+
+-- =========================================================================
+-- REGISTRE DES DÉLINQUANTS SEXUELS ET DES AUTEURS D'ENLÈVEMENT (RCW 9A.44.128 à 9A.44.145)
+-- Pour chaque infraction qui oblige à s'inscrire :
+--   reg   = 'sex' (Sex Offender) ou 'kidnap' (Kidnapping Offender)
+--   sl    = niveau de gravité (seriousness level, RCW 9.94A.515) ; range = fourchette standard en MOIS pour un
+--           casier vierge (offender score 0, grille RCW 9.94A.510) ; sans sl : fourchette selon la classification
+--   indet = peine indéterminée (RCW 9.94A.507 : minimum dans la fourchette, maximum à perpétuité, libération par l'ISRB)
+--   ssosa = peut bénéficier de l'alternative SSOSA (RCW 9.94A.670 : peine suspendue + traitement)
+--   minor = la victime doit être mineure (enlèvement : auteur qui n'est pas un parent)
+-- Durée d'inscription (RCW 9A.44.140) : Class A -> à vie ; Class B -> 15 ans ; Class C / GM -> 10 ans (après la
+-- libération). Inscription dans les 3 jours ouvrables après la libération (RCW 9A.44.130).
+-- =========================================================================
+local GRID = { -- offender score 0 (mois)
+    XII = { 93, 123 }, XI = { 78, 102 }, X = { 51, 68 }, IX = { 31, 41 }, VIII = { 21, 27 }, VII = { 15, 20 },
+    VI = { 12, 14 }, V = { 6, 12 }, IV = { 3, 9 }, III = { 1, 3 }, II = { 0, 3 }, I = { 0, 2 },
+}
+local REGISTRY = {
+    rape1 = { reg = 'sex', sl = 'XII', indet = true },
+    rape2 = { reg = 'sex', sl = 'XI', indet = true },
+    rape3 = { reg = 'sex', sl = 'V' },
+    rapechild1 = { reg = 'sex', sl = 'XII', indet = true },
+    rapechild2 = { reg = 'sex', sl = 'XI', indet = true },
+    rapechild3 = { reg = 'sex', sl = 'VI', ssosa = true },
+    molest1 = { reg = 'sex', sl = 'X', indet = true },
+    molest2 = { reg = 'sex', sl = 'VII', ssosa = true },
+    molest3 = { reg = 'sex', sl = 'V', ssosa = true },
+    indecentforce = { reg = 'sex', sl = 'X', indet = true },
+    indecentlib = { reg = 'sex', sl = 'VII' },
+    smm1 = { reg = 'sex', sl = 'III', ssosa = true },
+    smm2 = { reg = 'sex', ssosa = true },
+    custodial1 = { reg = 'sex', sl = 'V' },
+    voyeur1 = { reg = 'sex', sl = 'II' },
+    commminor = { reg = 'sex' },
+    commminorfel = { reg = 'sex', sl = 'III', ssosa = true },
+    depict1 = { reg = 'sex', sl = 'VI', ssosa = true },
+    depict2 = { reg = 'sex', sl = 'IV', ssosa = true },
+    dealdepict1 = { reg = 'sex', sl = 'VII' },
+    exploitminor = { reg = 'sex', sl = 'IX' },
+    csam = { reg = 'sex', sl = 'VIII' },
+    promotecsam = { reg = 'sex', sl = 'XII' },
+    incest1 = { reg = 'sex', sl = 'VI', ssosa = true },
+    incest2 = { reg = 'sex', sl = 'IV', ssosa = true },
+    exposurefel = { reg = 'sex' },
+    failreg = { reg = 'sex', sl = 'II' },
+    kidnap1 = { reg = 'kidnap', sl = 'X', minor = true },
+    kidnap2 = { reg = 'kidnap', sl = 'V', minor = true },
+    unlawimp = { reg = 'kidnap', sl = 'III', minor = true },
+}
+for _, offense in ipairs(MDC_OFFENSES) do
+    local info = REGISTRY[offense.id]
+    if info then
+        offense.reg, offense.sl, offense.indet, offense.ssosa, offense.minor = info.reg, info.sl, info.indet, info.ssosa, info.minor
+        offense.range = info.sl and GRID[info.sl] or nil
+    end
+end
+
+-- Registres (types d'inscription) : libellés et durée d'inscription par classification
+MDC_REGISTRIES = {
+    sex = { id = 'sex', label = 'Sex Offender', full = 'Registre des délinquants sexuels (Sex Offender)' },
+    kidnap = { id = 'kidnap', label = 'Kidnapping Offender', full = 'Registre des auteurs d\'enlèvement (Kidnapping Offender)' },
+}
+MDC_REGISTRY_YEARS = { FA = false, FB = 15, FC = 10, GM = 10, M = 10 } -- false : à vie
 
 -- Groupes de classifications utilisés par les rapports
 MDC_CLASS_SETS = {

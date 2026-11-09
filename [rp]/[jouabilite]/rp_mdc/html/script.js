@@ -32,6 +32,7 @@
         interventions: ['Interventions', 'Appels des civils et incidents déclarés par les unités'],
         search: ['Recherches', 'Identités et immatriculations'],
         bolos: ['BOLOs', 'Avis de recherche actifs de votre police'],
+        offenders: ['Registre des délinquants', 'Sex Offenders et Kidnapping Offenders — liste commune WSP & KCSO'],
         reports: ['Rapports', 'Communs à tous les MDC'],
         create: ['Créations', 'Identités, véhicules et appels'],
         settings: ['Paramètres', 'MDC, HUD, chat écrit'],
@@ -319,7 +320,8 @@
     const isPolice = () => !!(agencyInfo(state.agency) || {}).police;
     const policeAgencies = () => state.agencies.filter((a) => a.police);
     const allowedPages = () => (state.agency ? PAGES[isPolice() ? 'police' : 'generic'] : []);
-    const pageAllowed = (page) => allowedPages().includes(page === 'bolos' ? 'search' : page);
+    const SEARCH_SUBPAGES = { bolos: true, offenders: true }; // pages ouvertes depuis les Recherches
+    const pageAllowed = (page) => allowedPages().includes(SEARCH_SUBPAGES[page] ? 'search' : page);
 
     async function loadAgencies() {
         if (state.agencies.length) return true;
@@ -493,7 +495,7 @@
         if (!pageAllowed(page)) page = allowedPages()[0]; // page absente de ce MDC
         state.page = page;
         hideSuggest();
-        const tab = page === 'bolos' ? 'search' : page; // la page des BOLOs fait partie des Recherches
+        const tab = SEARCH_SUBPAGES[page] ? 'search' : page; // BOLOs, registre des délinquants : partie des Recherches
         $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.page === tab));
         $$('.page').forEach((p) => p.classList.toggle('active', p.id === `page-${page}`));
         const [title, sub] = PAGE_TITLES[page] || [page, ''];
@@ -510,6 +512,7 @@
         else if (page === 'create') loadCreateView(state.createView);
         else if (page === 'settings') renderSettings();
         else if (page === 'search' || page === 'bolos') refreshBolos();
+        else if (page === 'offenders') refreshOffenders();
     }
 
     $$('.tab').forEach((tab) => tab.addEventListener('click', () => showPage(tab.dataset.page)));
@@ -903,15 +906,74 @@
         return `<li>${regFlag(v.regStatus)} <b>${esc(v.plate)}</b> — ${esc([v.make, v.model].filter(Boolean).join(' '))}${v.color ? ` (${esc(v.color)})` : ''} ${alerts}</li>`;
     }
 
+    // ---- Casier judiciaire et registre dans une fiche ----
+    const CLASS_TAG = { M: ['c-blue', 'M'], GM: ['c-blue', 'GM'], FC: ['c-yellow', 'C FEL'], FB: ['c-orange', 'B FEL'], FA: ['c-red', 'A FEL'] };
+    const registrationActive = (reg) => reg.endDate === 'life' || (parseDate(reg.endDate) || 0) >= new Date(new Date().toDateString());
+    const registryEndText = (reg) => reg.endDate === 'life' ? 'À vie' : (reg.endDate || '-');
+
+    function convictionViewHtml(c) {
+        const [color, short] = CLASS_TAG[c.class] || ['', c.class || ''];
+        const meta = [
+            `Faits le ${esc(c.offenseDate || '-')}`, `jugement le ${esc(c.convictionDate || '-')}`,
+            esc(COURT_LABELS[c.court] || c.court || ''), `dossier ${esc(c.caseNumber || '-')}`,
+            esc(DISPOSITION_LABELS[c.disposition] || c.disposition || ''),
+            c.releaseDate ? `libéré le ${esc(c.releaseDate)}` : '',
+        ].filter(Boolean).join(' — ');
+        return `
+            <div class="entry-view conviction-view">
+                <div class="entry-view-title">${flag(color, short)} ${esc(c.label || c.offense)} <span class="muted">${esc(c.rcw || '')}</span>
+                    ${c.registry ? flag('c-purple', `Registre ${REGISTRY_LABELS[c.registry] || c.registry}`) : ''}</div>
+                <div class="entry-view-meta">${meta}</div>
+                ${c.sentence ? `<div class="entry-view-text">${esc(c.sentence)}</div>` : ''}
+                ${c.notes ? `<div class="entry-view-meta">${esc(c.notes)}</div>` : ''}
+            </div>`;
+    }
+
+    function registrationViewHtml(reg) {
+        const active = registrationActive(reg);
+        return `
+            <div class="entry-view reg-view">
+                <div class="entry-view-title">${flag('c-purple', REGISTRY_LABELS[reg.type] || reg.type)} ${flag(reg.level === '3' ? 'c-red' : reg.level === '2' ? 'c-orange' : 'c-yellow', `Niveau ${RISK_SHORT[reg.level] || reg.level}`)}
+                    ${esc(reg.label || reg.offense)} <span class="muted">${esc(reg.rcw || '')}</span></div>
+                <dl class="sheet">
+                    ${dd('Statut', active ? flag(REG_STATE_COLOR[reg.status], REG_STATE_LABELS[reg.status] || reg.status) : flag('', 'Inscription terminée'))}
+                    ${row('Adresse déclarée', reg.address)}
+                    ${row('Niveau de risque', RISK_LABELS[reg.level] || reg.level)}
+                    ${row('Inscrit le', reg.registeredDate)}
+                    ${row('Fin de l\'inscription', registryEndText(reg))}
+                    ${row('Libéré le', reg.releaseDate)}
+                    ${row('Incarcération purgée', reg.prisonMonths != null ? `${reg.prisonMonths} mois` : '')}
+                    ${row('Jugement', `${reg.convictionDate || '-'} — ${COURT_LABELS[reg.court] || reg.court || ''} — dossier ${reg.caseNumber || '-'}`)}
+                    ${row('Faits le', reg.offenseDate)}
+                </dl>
+                ${reg.sentence ? `<div class="entry-view-text">${esc(reg.sentence)}</div>` : ''}
+                ${reg.notes ? `<div class="entry-view-meta">${esc(reg.notes)}</div>` : ''}
+            </div>`;
+    }
+
+    function registryAlerts(r) {
+        return toArray(r.registrations).filter(registrationActive).map((reg) => `
+            <div class="sheet-alert purple">&#9888; ${esc(String(REGISTRY_LABELS[reg.type] || reg.type).toUpperCase())} — NIVEAU ${esc(RISK_SHORT[reg.level] || reg.level)}
+                — inscription ${reg.endDate === 'life' ? 'à vie' : `jusqu'au ${esc(reg.endDate)}`}${reg.status === 'absconded' ? ' — EN FUITE' : reg.status === 'noncompliant' ? ' — NON CONFORME' : ''}</div>`).join('');
+    }
+
+    function registryFlags(r) {
+        return toArray(r.registrations).filter(registrationActive)
+            .map((reg) => ` ${flag(reg.status === 'absconded' ? 'c-red' : 'c-purple', reg.type === 'sex' ? 'SO' : 'KO')}`).join('');
+    }
+
     function renderIdentity(r, editable) {
         const vehicles = toArray(r.vehicles);
         const records = toArray(r.records);
+        const convictions = toArray(r.convictions);
+        const registrations = toArray(r.registrations);
         const reports = toArray(r.reports); // rapports où la personne apparaît (ajoutés par le serveur)
         const hasLicense = r.licenseClass && r.licenseClass !== 'N/A';
 
         return `
             ${sheetHead(`FICHE D'IDENTITÉ — ${fullName(r)}`, r, editable)}
             ${conditionAlert(r)}
+            ${registryAlerts(r)}
             ${boloAlerts(r)}
             <dl class="sheet">
                 ${row('Prénom', r.firstname)}
@@ -940,9 +1002,13 @@
                     ${dd('Condition', conditionFlag(r.condition))}
                     ${r.condition === 'wanted' ? row('Raison de la recherche', r.wantedReason) + row('Date de début', r.wantedSince) : ''}
                 </dl>`)}
-            ${fold('Antécédents', records.length || reports.length
-                ? entriesHtml(records, (e) => e.offense) + reportEntriesHtml(reports)
-                : foldEmpty('Aucun antécédent connu.'), records.length + reports.length)}
+            ${fold('Registre des délinquants', registrations.length
+                ? registrations.map(registrationViewHtml).join('')
+                : foldEmpty('Non inscrit au registre (Sex Offender / Kidnapping Offender).'), registrations.length)}
+            ${fold('Casier judiciaire', convictions.length || records.length
+                ? convictions.map(convictionViewHtml).join('') + entriesHtml(records, (e) => `${e.offense} (ancien antécédent)`)
+                : foldEmpty('Casier judiciaire vierge.'), convictions.length + records.length)}
+            ${fold('Rapports', reports.length ? reportEntriesHtml(reports) : foldEmpty('Aucun rapport.'), reports.length)}
             `;
     }
 
@@ -1030,7 +1096,7 @@
                     <td>Identité</td>
                     <td><b>${esc(String(r.lastname).toUpperCase())}</b> ${esc([r.firstname, r.middlename].filter(Boolean).join(' '))}</td>
                     <td>${esc(r.dob)}${r.sex ? ` (${esc(r.sex)})` : ''} — SSN ${esc(r.ssn || '-')}</td>
-                    <td>${conditionFlag(r.condition)}${boloFlag(r)}</td>
+                    <td>${conditionFlag(r.condition)}${registryFlags(r)}${boloFlag(r)}</td>
                 </tr>`;
         }
         const owner = r.ownerIdentity ? fullName(r.ownerIdentity) : (r.ownerName || 'Propriétaire inconnu');
@@ -1966,7 +2032,7 @@
     // =====================================================================
     // LISTES D'ENTRÉES (Antécédents d'une identité / Historique d'un véhicule)
     // =====================================================================
-    const ENTRY_TEMPLATES = { identityRecords: '#tplIdentityRecord', vehicleHistory: '#tplVehicleHistory' };
+    const ENTRY_TEMPLATES = { vehicleHistory: '#tplVehicleHistory' }; // (identité : casier judiciaire, plus bas)
 
     function refreshEntries(container) {
         const boxes = container.querySelectorAll('.entry-box');
@@ -2108,7 +2174,14 @@
 
     function resetIdentityForm() {
         identityForm.reset();
-        clearEntries($('#identityRecords'));
+        state.identityRecords = null; // anciens antécédents (texte libre) de la fiche modifiée
+        identityForm.querySelector('.legacy-records').classList.add('hidden');
+        if (typeof setConvictions === 'function' && justiceBuilt) {
+            setConvictions(identityJustice.record, []);
+            setRegistrations(identityJustice.registry, []);
+        } else {
+            identityForm.querySelector('[data-convictions] .conviction-list').innerHTML = '';
+        }
         setRestrictions([]);
         updateWantedFields();
         updateLicenseClasses();
@@ -2133,7 +2206,16 @@
         setRestrictions(toArray(r.restrictions));
         updateLicenseFields();
         updateWantedFields();
-        toArray(r.records).forEach((entry) => addEntry('identityRecords', entry));
+        // Casier judiciaire et registre (catalogue chargé d'abord) ; anciens antécédents gardés tels quels
+        const legacy = toArray(r.records);
+        const note = identityForm.querySelector('.legacy-records');
+        note.classList.toggle('hidden', !legacy.length);
+        note.textContent = legacy.length ? `${legacy.length} ancien(s) antécédent(s) en texte libre, gardé(s) sur la fiche : ${legacy.map((e) => e.offense).join(' ; ')}.` : '';
+        justiceReady().then((ok) => {
+            if (!ok) return;
+            setConvictions(identityJustice.record, r.convictions);
+            setRegistrations(identityJustice.registry, r.registrations);
+        });
     }
 
     function collectIdentity() {
@@ -2141,7 +2223,8 @@
         const payload = Object.fromEntries(formData.entries());
         payload.restrictions = formData.getAll('restrictions').filter((v) => v !== 'none');
         payload.hasLicense = formData.has('hasLicense');
-        payload.records = collectEntries($('#identityRecords'));
+        payload.convictions = collectConvictions(identityJustice.record);
+        payload.registrations = collectRegistrations(identityJustice.registry);
         return payload;
     }
 
@@ -2149,6 +2232,535 @@
     $('#randomIdentity').addEventListener('click', () => {
         Object.entries(Random.identity()).forEach(([name, value]) => { idField(name).value = value; });
     });
+
+    // =====================================================================
+    // CASIER JUDICIAIRE ET REGISTRE DES DÉLINQUANTS (MDC civil : Créations)
+    //   - formulaire Identité : casier judiciaire (condamnations) + registre (Sex / Kidnapping Offender) ;
+    //   - boutons « Casier judiciaire » / « Registre » : les mêmes, pour une identité DÉJÀ créée.
+    // Charges : catalogue RCW (server/offenses.lua) ; peine AUTOMATIQUE selon la charge (fourchette standard de la
+    // grille de Washington, peine indéterminée, SSOSA, surveillance, amendes, conditions, durée d'inscription), avec
+    // un bouton « autre version » (dé). Inscription au registre : dates cohérentes automatiques (faits, jugement,
+    // libération = jugement + incarcération, inscription sous 3 jours, fin selon la classification) et condamnation
+    // ajoutée au casier par le serveur.
+    // =====================================================================
+    const COURT_LABELS = { superior: 'King County Superior Court', district: 'King County District Court', municipal: 'Seattle Municipal Court', other: 'Autre juridiction' };
+    const DISPOSITION_LABELS = { guilty: 'Coupable (procès)', plea: 'Plaidé coupable', alford: 'Plaidoyer Alford (sans reconnaissance)', deferred: 'Peine différée (deferred sentence)', dismissed: 'Classé sans suite / rejeté', acquitted: 'Acquitté' };
+    const NO_SENTENCE = { dismissed: true, acquitted: true };
+    const REGISTRY_LABELS = { sex: 'Sex Offender', kidnap: 'Kidnapping Offender' };
+    const REGISTRY_FULL = { sex: 'registre des délinquants sexuels (Sex Offender)', kidnap: 'registre des auteurs d\'enlèvement (Kidnapping Offender)' };
+    const RISK_LABELS = { 1: 'Niveau I — risque faible', 2: 'Niveau II — risque modéré', 3: 'Niveau III — risque élevé' };
+    const RISK_SHORT = { 1: 'I', 2: 'II', 3: 'III' };
+    const REG_STATE_LABELS = { compliant: 'En règle', noncompliant: 'Non conforme (adresse non vérifiée)', absconded: 'En fuite (absconder)' };
+    const REG_STATE_COLOR = { compliant: 'c-green', noncompliant: 'c-orange', absconded: 'c-red' };
+    const REG_YEARS = { FA: null, FB: 15, FC: 10, GM: 10, M: 10 }; // null : à vie (RCW 9A.44.140)
+    const CRIMINAL_CLASSES = ['M', 'GM', 'FC', 'FB', 'FA'];
+    const DAY_MS = 86400000;
+
+    const Sentence = (() => {
+        const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+        const pick = (list) => list[Math.floor(Math.random() * list.length)];
+        const pickSome = (list, n) => [...list].sort(() => Math.random() - 0.5).slice(0, n);
+        const usd = (n) => `${String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} $`;
+        const UNRANKED = { FC: [0, 12], FB: [12, 60], FA: [60, 240] }; // charges sans niveau de gravité
+        const FINES = { M: [150, 250, 500, 750, 1000], GM: [250, 500, 1000, 2500, 5000], FC: [0, 500, 1000, 2500, 5000],
+            FB: [0, 1000, 2500, 5000, 10000], FA: [0, 2500, 5000, 10000, 25000] };
+        const COND = {
+            sex: ['aucun contact, direct ou indirect, avec la victime ni sa famille',
+                'aucun contact avec des mineurs sans un adulte approuvé par le DOC',
+                'évaluation et traitement de délinquant sexuel (prestataire certifié)',
+                'interdiction d\'approcher des écoles, garderies et parcs (880 pieds)',
+                'internet et appareils connectés contrôlés par l\'agent du DOC',
+                'tests polygraphiques à la demande de l\'agent du DOC',
+                'interdiction de détenir des contenus pornographiques',
+                'couvre-feu de 22 h à 6 h'],
+            kidnap: ['aucun contact, direct ou indirect, avec la victime ni sa famille',
+                'évaluation psychologique et suivi du traitement recommandé',
+                'interdiction d\'approcher le domicile, l\'école ou le travail de la victime',
+                'aucun contact avec des mineurs sans un adulte approuvé par le DOC',
+                'pointage hebdomadaire auprès de l\'agent du DOC'],
+            other: ['aucun contact avec la victime',
+                'évaluation de dépendance (alcool / stupéfiants) et traitement',
+                'interdiction de consommer de l\'alcool et des stupéfiants',
+                'travaux d\'intérêt général : {n} heures',
+                'interdiction de quitter l\'État de Washington sans autorisation'],
+        };
+        const FELONY_COND = ['interdiction de détenir une arme à feu (RCW 9.41.040)', 'prélèvement ADN (RCW 43.43.754)'];
+
+        function custody(o) {
+            if (o.indet) return 'à vie, sous l\'autorité de l\'ISRB (Indeterminate Sentence Review Board)';
+            if (o.reg === 'sex') return '36 mois (RCW 9.94A.701)';
+            if (o.id === 'kidnap1') return '36 mois (infraction violente grave, RCW 9.94A.701)';
+            if (o.id === 'kidnap2') return '18 mois (infraction violente, RCW 9.94A.701)';
+            return '12 mois (RCW 9.94A.701)';
+        }
+
+        /** Peine pour une charge et une décision : { text, months (incarcération réellement purgée) } ; version au hasard */
+        function make(o, disposition) {
+            if (!o) return { text: '', months: 0 };
+            if (NO_SENTENCE[disposition]) {
+                return { text: disposition === 'acquitted' ? 'Aucune peine : acquitté.' : 'Aucune peine : poursuites abandonnées.', months: 0 };
+            }
+            const lines = [];
+            let months = 0;
+            const felony = o.c.startsWith('F');
+            if (!felony) {
+                if (disposition === 'deferred') {
+                    lines.push(`Peine différée (deferred sentence) : ${rnd(12, 24)} mois de probation ; condamnation effacée si les conditions sont respectées.`);
+                } else {
+                    const days = rnd(0, 4) === 0 ? 0 : rnd(1, o.c === 'M' ? 90 : 364);
+                    const suspended = days ? Math.floor(days * pick([0, 0.5, 0.75, 0.9])) : 0;
+                    lines.push(days ? `Peine : ${days} jours de prison du comté${suspended ? `, dont ${suspended} avec sursis (${days - suspended} à purger)` : ''}.` : 'Peine : aucune incarcération.');
+                    months = Math.ceil((days - suspended) / 30);
+                    lines.push(`Probation : ${rnd(6, o.c === 'M' ? 12 : 24)} mois.`);
+                }
+                lines.push(`Amende : ${usd(pick(FINES[o.c]))} ; frais de justice : 43 $.`);
+            } else {
+                const [min, max] = o.range || UNRANKED[o.c];
+                const grid = o.range ? `fourchette standard ${min} à ${max} mois (niveau de gravité ${o.sl}, RCW 9.94A.510, casier vierge)` : 'peine hors grille (RCW 9.94A.505)';
+                const variant = o.ssosa && rnd(1, 4) === 1 ? 'ssosa' : pick(['standard', 'standard', 'standard', 'low', 'high', 'exceptional']);
+                const third = Math.floor((max - min) / 3);
+                const m = variant === 'low' ? rnd(min, min + third)
+                    : variant === 'high' ? rnd(max - third, max)
+                    : variant === 'exceptional' ? rnd(max + 1, Math.max(max + 2, Math.round(max * 1.5)))
+                    : rnd(min, max);
+                const where = m > 12 ? 'Department of Corrections (prison d\'État)' : 'prison du comté';
+                if (variant === 'ssosa') {
+                    months = rnd(6, 12);
+                    lines.push(`Alternative SSOSA (RCW 9.94A.670) : peine de ${m} mois suspendue (${grid}) ; ${months} mois en prison du comté ; traitement de délinquant sexuel pendant ${rnd(3, 5)} ans.`);
+                } else if (o.indet) {
+                    months = m;
+                    lines.push(`Peine indéterminée (RCW 9.94A.507) : minimum ${m} mois (${grid}), maximum à perpétuité ; libération décidée par l'ISRB.`);
+                } else if (variant === 'exceptional') {
+                    months = m;
+                    lines.push(`Peine exceptionnelle au-dessus de la fourchette (RCW 9.94A.535, circonstances aggravantes) : ${m} mois, ${where} ; ${grid}.`);
+                } else {
+                    months = m;
+                    lines.push(m ? `Peine : ${m} mois, ${where} — ${grid}.` : `Peine : aucune incarcération — ${grid}.`);
+                }
+                lines.push(`Surveillance (community custody) : ${custody(o)}.`);
+                const fine = pick(FINES[o.c]);
+                lines.push(`${fine ? `Amende : ${usd(fine)} ; ` : ''}contribution aux victimes (VPA) : 500 $ ; prélèvement ADN : 100 $.`);
+                if (rnd(1, 3) === 1) lines.push(`Dédommagement de la victime (restitution) : ${usd(rnd(5, 120) * 100)}.`);
+            }
+            if (o.reg) {
+                const years = REG_YEARS[o.c];
+                lines.push(`Inscription obligatoire au ${REGISTRY_FULL[o.reg]} : ${years ? `${years} ans après la libération` : 'à vie'} (RCW 9A.44.140), dans les 3 jours ouvrables suivant la libération (RCW 9A.44.130).`);
+            }
+            const conds = pickSome(COND[o.reg] || COND.other, rnd(2, 3)).map((c) => c.replace('{n}', rnd(2, 24) * 10));
+            if (felony) conds.push(...FELONY_COND);
+            lines.push(`Conditions : ${conds.join(' ; ')}.`);
+            return { text: lines.join('\n'), months };
+        }
+        return { make, rnd };
+    })();
+
+    // ---- Dates cohérentes ----
+    const addDaysD = (d, n) => new Date(d.getTime() + n * DAY_MS);
+    const addYearsD = (d, n) => { const c = new Date(d.getTime()); c.setFullYear(c.getFullYear() + n); return c; };
+    const randBetween = (a, b) => new Date(a.getTime() + Math.random() * Math.max(0, b.getTime() - a.getTime()));
+    const maxD = (...list) => new Date(Math.max(...list.map((d) => d.getTime())));
+    const minD = (...list) => new Date(Math.min(...list.map((d) => d.getTime())));
+
+    /** Condamnation simple : faits ces 15 dernières années (majeur), jugement 1 à 10 mois après */
+    function convictionDates(dobStr) {
+        const today = new Date();
+        const dob = parseDate(dobStr);
+        const to = addDaysD(today, -60);
+        let from = maxD(dob ? addYearsD(dob, 18) : addYearsD(today, -15), addYearsD(today, -15));
+        if (from > to) from = maxD(dob ? addYearsD(dob, 12) : to, addDaysD(to, -365));
+        const offense = minD(randBetween(from, to), to);
+        const conviction = minD(addDaysD(offense, Sentence.rnd(45, 300)), addDaysD(today, -1));
+        return { offenseDate: dateString(offense), convictionDate: dateString(maxD(conviction, offense)) };
+    }
+
+    /** Inscription au registre : libération récente (inscription toujours en cours), jugement = libération -
+     *  incarcération, faits 3 à 14 mois avant le jugement (majeur si possible), inscription 0 à 3 jours après */
+    function registryDates(o, months, dobStr) {
+        const today = new Date();
+        const dob = parseDate(dobStr);
+        const years = REG_YEARS[o.c];
+        const jail = Math.round((Number(months) || 0) * 30.44);
+        const latest = addDaysD(today, -Sentence.rnd(15, 90));
+        let earliest = years ? addDaysD(addYearsD(today, -years), 90) : addYearsD(today, -10);
+        let warning = '';
+        if (dob) earliest = maxD(earliest, addDaysD(addYearsD(dob, 18), jail + 120));
+        if (earliest > latest) {
+            earliest = latest;
+            warning = 'Incarcération longue pour l\'âge de cette personne : faits commis avant ses 18 ans (vérifiez les dates ou choisissez une autre version de la peine).';
+        }
+        const release = randBetween(earliest, latest);
+        const conviction = addDaysD(release, -jail);
+        let offense = addDaysD(conviction, -Sentence.rnd(90, 420));
+        if (dob && offense < addYearsD(dob, 13)) offense = minD(addYearsD(dob, 13), conviction);
+        const registered = minD(addDaysD(release, Sentence.rnd(0, 3)), today);
+        return { offenseDate: dateString(offense), convictionDate: dateString(conviction), releaseDate: dateString(release),
+            registeredDate: dateString(registered), warning };
+    }
+
+    function registryEnd(o, releaseDate) {
+        if (!o) return '';
+        const years = REG_YEARS[o.c];
+        if (!years) return 'À vie';
+        const d = parseDate(releaseDate);
+        return d ? dateString(addYearsD(d, years)) : '';
+    }
+
+    function caseNumber(court, dateStr) {
+        const d = parseDate(dateStr) || new Date();
+        const yy = String(d.getFullYear()).slice(-2);
+        const digits = (n) => String(Math.floor(Math.random() * 10 ** n)).padStart(n, '0');
+        if (court === 'district') return `KCDC-${yy}-${digits(6)}`;
+        if (court === 'municipal') return `SMC-${yy}-${digits(6)}`;
+        return `${yy}-1-${digits(5)}-${digits(1)} ${court === 'other' ? 'KNT' : 'SEA'}`;
+    }
+
+    // ---- Éditeurs ----
+    const classShort = (c) => (offenses.classById[c] || {}).short || c;
+    const optionsOf = (labels, selected) => Object.entries(labels).map(([k, v]) =>
+        `<option value="${esc(k)}"${String(k) === String(selected) ? ' selected' : ''}>${esc(v)}</option>`).join('');
+    function offenseOptions(filter) {
+        const groups = new Map();
+        offenses.list.filter(filter).forEach((o) => {
+            if (!groups.has(o.g)) groups.set(o.g, []);
+            groups.get(o.g).push(o);
+        });
+        return '<option value="">— Choisir la charge retenue —</option>' + [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list
+            .map((o) => `<option value="${esc(o.id)}">${esc(o.t)} — ${esc(o.rcw)} (${esc(classShort(o.c))})</option>`).join('')}</optgroup>`).join('');
+    }
+    const dateField = (key, label) => `<label class="lbl">${label}<input data-j="${key}" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>`;
+    const sentenceField = (rows) => `
+        <label class="lbl span-3">Peine prononcée * <small class="muted">(automatique selon la charge ; &#9858; : une autre version)</small>
+            <span class="inline inline-top"><textarea data-j="sentence" rows="${rows}" maxlength="1500"></textarea>
+            <button type="button" class="btn btn-icon j-sentence" title="Autre version de la peine">&#9858;</button></span>
+        </label>`;
+    const caseField = () => `
+        <label class="lbl">N° de dossier *<span class="inline"><input data-j="caseNumber" type="text" maxlength="30">
+            <button type="button" class="btn btn-icon j-case" title="Nouveau numéro de dossier">&#8635;</button></span></label>`;
+
+    function convictionBoxHtml() {
+        return `
+            <div class="entry-box conviction-box">
+                <div class="entry-head">
+                    <span class="entry-title">Nouvelle condamnation</span>
+                    <button type="button" class="win-btn entry-remove" title="Retirer cette condamnation">&#10005;</button>
+                </div>
+                <div class="form-grid cols-3">
+                    <label class="lbl span-2">Charge retenue *<select data-j="offense">${offenseOptions((o) => CRIMINAL_CLASSES.includes(o.c))}</select></label>
+                    <label class="lbl">Classification<input data-j-class type="text" readonly tabindex="-1"></label>
+                    ${dateField('offenseDate', 'Date des faits *')}
+                    <label class="lbl">Date du jugement *<span class="inline"><input data-j="convictionDate" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input">
+                        <button type="button" class="btn btn-icon j-dates" title="Dates cohérentes au hasard (selon la date de naissance)">&#128197;</button></span></label>
+                    <label class="lbl">Décision<select data-j="disposition">${optionsOf(DISPOSITION_LABELS, 'guilty')}</select></label>
+                    <label class="lbl">Tribunal<select data-j="court">${optionsOf(COURT_LABELS, 'superior')}</select></label>
+                    ${caseField()}
+                    <span></span>
+                    ${sentenceField(4)}
+                    <label class="lbl span-3">Notes<textarea data-j="notes" rows="2" maxlength="600"></textarea></label>
+                </div>
+            </div>`;
+    }
+
+    function registryEditorHtml(kind) {
+        return `
+            <div class="reg-editor" data-reg="${kind}">
+                <label class="check reg-toggle"><input type="checkbox" data-reg-on> Inscrit au ${esc(REGISTRY_FULL[kind])}</label>
+                <div class="entry-box reg-box hidden">
+                    <div class="entry-head">
+                        <span class="entry-title">${esc(REGISTRY_LABELS[kind])}</span>
+                        <span class="reg-end-badge"></span>
+                    </div>
+                    <div class="form-grid cols-3">
+                        <label class="lbl span-2">Charge retenue *<select data-j="offense">${offenseOptions((o) => o.reg === kind)}</select></label>
+                        <label class="lbl">Niveau de risque *<select data-j="level">${optionsOf(RISK_LABELS, '1')}</select></label>
+                        <label class="lbl span-2">Adresse déclarée<input data-j="address" type="text" maxlength="80"></label>
+                        <label class="lbl">Statut<select data-j="status">${optionsOf(REG_STATE_LABELS, 'compliant')}</select></label>
+                        ${sentenceField(5)}
+                        <input type="hidden" data-j="prisonMonths">
+                        ${dateField('offenseDate', 'Date des faits *')}
+                        ${dateField('convictionDate', 'Date du jugement *')}
+                        ${dateField('releaseDate', 'Date de libération *')}
+                        ${dateField('registeredDate', 'Date d\'inscription *')}
+                        <label class="lbl">Fin de l'inscription<input data-j-end type="text" readonly tabindex="-1"></label>
+                        <div class="lbl"><span class="reg-months muted"></span><button type="button" class="btn j-dates" title="Dates cohérentes : faits, jugement, libération (selon l'incarcération), inscription">&#128197; Dates automatiques</button></div>
+                        <label class="lbl">Tribunal<select data-j="court">${optionsOf(COURT_LABELS, 'superior')}</select></label>
+                        ${caseField()}
+                        <span></span>
+                        <label class="lbl span-3">Notes<textarea data-j="notes" rows="2" maxlength="600"></textarea></label>
+                    </div>
+                    <div class="sheet-alert yellow reg-warning hidden"></div>
+                </div>
+            </div>`;
+    }
+
+    const jField = (box, key) => box.querySelector(`[data-j="${key}"]`);
+    const jValues = (box) => Object.fromEntries([...box.querySelectorAll('[data-j]')].map((el) => [el.dataset.j, el.value.trim()]));
+    function jFill(box, values) {
+        box.querySelectorAll('[data-j]').forEach((el) => { if (values[el.dataset.j] != null) el.value = values[el.dataset.j]; });
+    }
+    const offenseOf = (box) => offenses.byId[jField(box, 'offense').value];
+
+    // Contexte d'un éditeur : date de naissance et adresse de la personne (formulaire Identité ou identité choisie)
+    const justiceContexts = new Map(); // élément racine -> { dob(), address() }
+
+    function convictionChanged(box, ctx, what) {
+        const o = offenseOf(box);
+        const title = box.querySelector('.entry-title');
+        title.textContent = o ? `${o.t} (${classShort(o.c)})` : 'Nouvelle condamnation';
+        box.querySelector('[data-j-class]').value = o ? `${(offenses.classById[o.c] || {}).label || o.c}` : '';
+        if (!o) return;
+        if (what === 'offense') {
+            jField(box, 'court').value = o.c.startsWith('F') ? 'superior' : 'district';
+            if (!jField(box, 'offenseDate').value || !jField(box, 'convictionDate').value) jFill(box, convictionDates(ctx.dob()));
+            jField(box, 'caseNumber').value = caseNumber(jField(box, 'court').value, jField(box, 'convictionDate').value);
+        }
+        if (what === 'offense' || what === 'disposition' || what === 'sentence') {
+            jField(box, 'sentence').value = Sentence.make(o, jField(box, 'disposition').value).text;
+        }
+    }
+
+    function updateRegistryEnd(box) {
+        const o = offenseOf(box);
+        const end = registryEnd(o, jField(box, 'releaseDate').value);
+        box.querySelector('[data-j-end]').value = end;
+        const badge = box.querySelector('.reg-end-badge');
+        badge.innerHTML = o ? flag(end === 'À vie' ? 'c-red' : 'c-purple', end === 'À vie' ? 'Inscription à vie' : `Jusqu'au ${end || '?'}`) : '';
+        const months = Number(jField(box, 'prisonMonths').value) || 0;
+        box.querySelector('.reg-months').textContent = o ? `Incarcération purgée : ${months} mois` : '';
+    }
+
+    function registryDatesFill(box, ctx) {
+        const o = offenseOf(box);
+        if (!o) return;
+        const dates = registryDates(o, jField(box, 'prisonMonths').value, ctx.dob());
+        jFill(box, dates);
+        box.dataset.manualDates = '';
+        const warn = box.querySelector('.reg-warning');
+        warn.textContent = dates.warning;
+        warn.classList.toggle('hidden', !dates.warning);
+        if (!jField(box, 'caseNumber').value || box.dataset.autoCase === '1') {
+            jField(box, 'caseNumber').value = caseNumber(jField(box, 'court').value, dates.convictionDate);
+            box.dataset.autoCase = '1';
+        }
+        updateRegistryEnd(box);
+    }
+
+    function registrySentence(box, ctx) {
+        const o = offenseOf(box);
+        if (!o) return;
+        const s = Sentence.make(o, 'guilty');
+        jField(box, 'sentence').value = s.text;
+        jField(box, 'prisonMonths').value = s.months;
+        if (box.dataset.manualDates !== '1') registryDatesFill(box, ctx);
+        else updateRegistryEnd(box);
+    }
+
+    function registryOffenseChanged(box, ctx) {
+        const o = offenseOf(box);
+        if (!o) { updateRegistryEnd(box); return; }
+        jField(box, 'level').value = o.c === 'FA' ? (o.indet ? '3' : '2') : o.c === 'FB' ? '2' : '1';
+        if (!jField(box, 'address').value) jField(box, 'address').value = ctx.address();
+        jField(box, 'court').value = o.c.startsWith('F') ? 'superior' : 'district';
+        box.dataset.manualDates = '';
+        box.dataset.autoCase = '1';
+        registrySentence(box, ctx);
+    }
+
+    /** Relie les événements d'une racine (casier et / ou registre) ; ctx = { dob(), address() } */
+    function bindJustice(root, ctx) {
+        justiceContexts.set(root, ctx);
+        root.addEventListener('click', async (e) => {
+            const conviction = e.target.closest('.conviction-box');
+            const reg = e.target.closest('.reg-box');
+            if (e.target.closest('.add-conviction')) {
+                if (!await justiceReady()) return;
+                const box = addConviction(root);
+                jField(box, 'offense').focus();
+            } else if (conviction && e.target.closest('.entry-remove')) {
+                conviction.remove();
+                refreshConvictions(root);
+            } else if (conviction && e.target.closest('.j-sentence')) {
+                convictionChanged(conviction, ctx, 'sentence');
+            } else if (conviction && e.target.closest('.j-dates')) {
+                jFill(conviction, convictionDates(ctx.dob()));
+            } else if (conviction && e.target.closest('.j-case')) {
+                jField(conviction, 'caseNumber').value = caseNumber(jField(conviction, 'court').value, jField(conviction, 'convictionDate').value);
+            } else if (reg && e.target.closest('.j-sentence')) {
+                registrySentence(reg, ctx);
+            } else if (reg && e.target.closest('.j-dates')) {
+                registryDatesFill(reg, ctx);
+            } else if (reg && e.target.closest('.j-case')) {
+                jField(reg, 'caseNumber').value = caseNumber(jField(reg, 'court').value, jField(reg, 'convictionDate').value);
+                reg.dataset.autoCase = '';
+            }
+        });
+        root.addEventListener('change', (e) => {
+            const conviction = e.target.closest('.conviction-box');
+            const reg = e.target.closest('.reg-box');
+            const key = e.target.dataset.j;
+            if (e.target.matches('[data-reg-on]')) {
+                const editor = e.target.closest('.reg-editor');
+                editor.querySelector('.reg-box').classList.toggle('hidden', !e.target.checked);
+            } else if (conviction && (key === 'offense' || key === 'disposition')) {
+                convictionChanged(conviction, ctx, key);
+            } else if (reg && key === 'offense') {
+                registryOffenseChanged(reg, ctx);
+            }
+        });
+        root.addEventListener('input', (e) => {
+            const reg = e.target.closest('.reg-box');
+            const key = e.target.dataset.j;
+            if (reg && /Date$/.test(key || '')) {
+                reg.dataset.manualDates = '1'; // dates changées à la main : plus recalculées par le dé de la peine
+                if (key === 'releaseDate') updateRegistryEnd(reg);
+            }
+            if (reg && key === 'caseNumber') reg.dataset.autoCase = '';
+        });
+    }
+
+    function refreshConvictions(root) {
+        const count = root.querySelectorAll('.conviction-box').length;
+        const empty = root.querySelector('.conviction-empty');
+        if (empty) empty.classList.toggle('hidden', count > 0);
+    }
+
+    function addConviction(root, values) {
+        const list = root.querySelector('.conviction-list');
+        list.insertAdjacentHTML('beforeend', convictionBoxHtml());
+        const box = list.lastElementChild;
+        if (values) {
+            jFill(box, values);
+            convictionChanged(box, justiceContexts.get(root), 'load');
+        }
+        refreshConvictions(root);
+        return box;
+    }
+
+    function setConvictions(root, list) {
+        root.querySelector('.conviction-list').innerHTML = '';
+        toArray(list).filter((c) => !c.registry).forEach((c) => addConviction(root, c));
+        refreshConvictions(root);
+    }
+    const collectConvictions = (root) => [...root.querySelectorAll('.conviction-box')].map(jValues);
+
+    function setRegistrations(root, list) {
+        const regs = toArray(list);
+        root.querySelectorAll('.reg-editor').forEach((editor) => {
+            const kind = editor.dataset.reg;
+            const reg = regs.find((r) => r.type === kind);
+            const box = editor.querySelector('.reg-box');
+            box.querySelectorAll('[data-j]').forEach((el) => { el.value = el.tagName === 'SELECT' ? el.options[0].value : ''; });
+            jField(box, 'level').value = '1';
+            jField(box, 'status').value = 'compliant';
+            jField(box, 'court').value = 'superior';
+            box.dataset.manualDates = reg ? '1' : ''; // inscription enregistrée : ses dates sont gardées
+            box.dataset.autoCase = reg ? '' : '1';
+            box.querySelector('.reg-warning').classList.add('hidden');
+            editor.querySelector('[data-reg-on]').checked = !!reg;
+            box.classList.toggle('hidden', !reg);
+            if (reg) jFill(box, reg);
+            updateRegistryEnd(box);
+        });
+    }
+    function collectRegistrations(root) {
+        const out = {};
+        root.querySelectorAll('.reg-editor').forEach((editor) => {
+            if (editor.querySelector('[data-reg-on]').checked) out[editor.dataset.reg] = jValues(editor.querySelector('.reg-box'));
+        });
+        return out;
+    }
+
+    // Catalogue des charges (server/offenses.lua) chargé, éditeurs du registre construits (une fois)
+    let justiceBuilt = false;
+    async function justiceReady() {
+        if (!await loadReportTypes()) { toast('Catalogue des charges indisponible.', 'error'); return false; }
+        if (!justiceBuilt) {
+            justiceBuilt = true;
+            $$('[data-registry] .registry-editors').forEach((el) => {
+                el.innerHTML = ['sex', 'kidnap'].map(registryEditorHtml).join('');
+                el.querySelectorAll('.reg-box').forEach(updateRegistryEnd);
+            });
+        }
+        return true;
+    }
+
+    // ---- Formulaire Identité : casier + registre ----
+    const identityJustice = { record: $('[data-convictions="identity"]'), registry: $('[data-registry="identity"]') };
+    const identityCtx = { dob: () => idField('dob').value, address: () => idField('address').value };
+    bindJustice(identityJustice.record, identityCtx);
+    bindJustice(identityJustice.registry, identityCtx);
+
+    // ---- Vues « Casier judiciaire » et « Registre » d'une identité existante ----
+    const justiceViews = {
+        record: { form: $('#view-record'), part: 'record', identity: null },
+        offender: { form: $('#view-offender'), part: 'registry', identity: null },
+    };
+    Object.values(justiceViews).forEach((view) => {
+        const root = view.form.querySelector('[data-convictions], [data-registry]');
+        view.root = root;
+        bindJustice(root, { dob: () => (view.identity || {}).dob || '', address: () => (view.identity || {}).address || '' });
+        view.form.querySelector('.justice-identity').addEventListener('change', (e) => loadJusticeIdentity(view, e.target.value));
+        view.form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveJustice(view);
+        });
+    });
+
+    function showJusticeIdentity(view, identity) {
+        view.identity = identity;
+        view.form.querySelectorAll('.justice-body').forEach((el) => el.classList.toggle('hidden', !identity));
+        const summary = view.form.querySelector('.justice-summary');
+        if (!identity) { summary.textContent = ''; return; }
+        const regs = toArray(identity.registrations);
+        const convictions = toArray(identity.convictions);
+        summary.innerHTML = `<b>${esc(fullName(identity))}</b> — né(e) le ${esc(identity.dob)} — ${esc(identity.address || '')}
+            — casier : ${convictions.length ? `${convictions.length} condamnation(s)` : 'vierge'}
+            ${regs.map((r) => ` ${flag('c-purple', `${REGISTRY_LABELS[r.type]} niv. ${RISK_SHORT[r.level] || r.level}`)}`).join('')}`;
+        if (view.part === 'record') {
+            setConvictions(view.root, convictions);
+            const linked = convictions.filter((c) => c.registry);
+            const note = view.root.querySelector('.linked-records');
+            note.classList.toggle('hidden', !linked.length);
+            note.textContent = linked.length ? `Liées au registre (modifiables dans « Registre ») : ${linked.map((c) => `${c.label || c.offense} (${c.convictionDate})`).join(' ; ')}.` : '';
+        } else {
+            setRegistrations(view.root, regs);
+        }
+    }
+
+    async function loadJusticeIdentity(view, id) {
+        if (!id) { showJusticeIdentity(view, null); return; }
+        if (!await justiceReady()) return;
+        const res = await post('getMyIdentity', { id: Number(id) });
+        if (!res || !res.ok) { toast(res?.error || 'Identité introuvable.', 'error'); showJusticeIdentity(view, null); return; }
+        showJusticeIdentity(view, res.identity);
+    }
+
+    async function loadJusticeView(viewName) {
+        const view = justiceViews[viewName];
+        if (!await justiceReady()) return;
+        const select = view.form.querySelector('.justice-identity');
+        const current = select.value;
+        const res = await post('getMyIdentities');
+        const list = res && res.ok ? toArray(res.identities) : [];
+        select.innerHTML = `<option value="">${list.length ? '— Choisir une de vos identités —' : '— Aucune identité (créez-en une d\'abord) —'}</option>`
+            + list.map((i) => `<option value="${esc(i.id)}">${esc(i.label)}</option>`).join('');
+        select.value = list.some((i) => String(i.id) === String(current)) ? String(current) : '';
+        if (select.value) loadJusticeIdentity(view, select.value);
+        else showJusticeIdentity(view, null);
+    }
+
+    async function saveJustice(view) {
+        if (!view.identity) { toast('Choisissez une identité.', 'error'); return; }
+        const payload = { id: view.identity.id, part: view.part };
+        if (view.part === 'record') payload.convictions = collectConvictions(view.root);
+        else payload.registrations = collectRegistrations(view.root);
+        const submit = view.form.querySelector('button[type="submit"]');
+        submit.disabled = true;
+        const res = await post('updateJustice', payload);
+        submit.disabled = false;
+        if (!res || !res.ok) { toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error'); return; }
+        toast(view.part === 'record' ? `Casier judiciaire enregistré (identité n°${res.id}).` : `Registre enregistré (identité n°${res.id}) : condamnation(s) ajoutée(s) au casier.`, 'success');
+        showJusticeIdentity(view, res.identity);
+    }
 
     // =====================================================================
     // FORMULAIRE VÉHICULE
@@ -2244,6 +2856,8 @@
     }
 
     function loadCreateView(view) {
+        if (view === 'identity') justiceReady();
+        else if (view === 'record' || view === 'offender') loadJusticeView(view);
         if (view === 'registry') refreshRegistry();
         else if (view === 'vehicle' && !(state.editing && state.editing.kind === 'vehicle')) loadOwners();
     }
@@ -4670,6 +5284,66 @@
     $('#boloFilter').addEventListener('change', renderBoloList);
     $('#refreshBolos').addEventListener('click', refreshBolos);
     $('#openBolos').addEventListener('click', () => showPage('bolos'));
+
+    // =====================================================================
+    // REGISTRE DES DÉLINQUANTS (polices) : boutons « Sex Offenders » / « Kidnapping Offenders » des Recherches.
+    // Même liste pour la WSP et le KCSO (identités inscrites par le MDC civil) ; inscriptions terminées masquées.
+    // =====================================================================
+    const offendersState = { type: 'sex', list: [], view: [] };
+    const normalizeText = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    function renderOffenders() {
+        const q = normalizeText($('#offendersQuery').value);
+        const level = $('#offendersLevel').value;
+        const ended = $('#offendersEnded').checked;
+        const list = offendersState.list.filter((e) => (ended || e.active)
+            && (!level || String(e.registration.level) === level)
+            && (!q || normalizeText([fullName(e.identity), e.registration.address, e.registration.label, e.identity.dob].join(' ')).includes(q)));
+        offendersState.view = list;
+        $('#offendersTitle').textContent = REGISTRY_LABELS[offendersState.type] + 's';
+        $$('[data-offenders-type]').forEach((b) => b.classList.toggle('active', b.dataset.offendersType === offendersState.type));
+        $('#offendersCount').textContent = `(${list.length})`;
+        $('#offendersEmpty').classList.toggle('hidden', list.length > 0);
+        $('#offendersDetail').innerHTML = '<div class="empty">Sélectionnez une personne inscrite.</div>';
+        $('#offendersBody').innerHTML = list.map((e, i) => {
+            const reg = e.registration;
+            const lvl = RISK_SHORT[reg.level] || reg.level;
+            return `
+                <tr data-index="${i}" class="${reg.status === 'absconded' ? 'row-wanted' : ''}${e.active ? '' : ' row-ended'}">
+                    <td><b>${esc(String(e.identity.lastname || '').toUpperCase())}</b> ${esc([e.identity.firstname, e.identity.middlename].filter(Boolean).join(' '))}
+                        <div class="muted">${esc(e.identity.dob)}${e.identity.sex ? ` (${esc(e.identity.sex)})` : ''}</div></td>
+                    <td>${flag(reg.level === '3' ? 'c-red' : reg.level === '2' ? 'c-orange' : 'c-yellow', lvl)}</td>
+                    <td>${esc(reg.label || reg.offense)}</td>
+                    <td>${esc(reg.address || '-')}</td>
+                    <td>${e.active ? flag(REG_STATE_COLOR[reg.status], REG_STATE_LABELS[reg.status] || reg.status) : flag('', 'Terminée')}</td>
+                </tr>`;
+        }).join('');
+    }
+
+    async function refreshOffenders() {
+        const res = await post('getOffenders', { type: offendersState.type });
+        if (!res || !res.ok) {
+            toast(res?.error || 'Impossible de charger le registre.', 'error');
+            offendersState.list = [];
+        } else {
+            offendersState.list = toArray(res.list);
+        }
+        renderOffenders();
+    }
+
+    $$('[data-open-offenders]').forEach((btn) => btn.addEventListener('click', () => {
+        offendersState.type = btn.dataset.openOffenders;
+        showPage('offenders');
+    }));
+    $$('[data-offenders-type]').forEach((btn) => btn.addEventListener('click', () => {
+        if (offendersState.type === btn.dataset.offendersType) return;
+        offendersState.type = btn.dataset.offendersType;
+        refreshOffenders();
+    }));
+    $('#offendersBack').addEventListener('click', () => showPage('search'));
+    $('#refreshOffenders').addEventListener('click', refreshOffenders);
+    ['#offendersQuery', '#offendersLevel', '#offendersEnded'].forEach((sel) => $(sel).addEventListener(sel === '#offendersQuery' ? 'input' : 'change', renderOffenders));
+    bindSelectable($('#offendersBody'), () => offendersState.view.map((e) => e.identity), $('#offendersDetail'), false);
     $('#bolosBack').addEventListener('click', () => showPage('search'));
     $('#newBolo').addEventListener('click', () => {
         bolos.mode = 'choose';

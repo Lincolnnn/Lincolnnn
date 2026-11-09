@@ -264,6 +264,8 @@ Migrations.identities = function(r)
     r.condition = r.condition or 'none'
     if type(r.restrictions) ~= 'table' then r.restrictions = {} end
     if type(r.records) ~= 'table' then r.records = {} end
+    if type(r.convictions) ~= 'table' then r.convictions = {} end     -- v2.19 : casier judiciaire
+    if type(r.registrations) ~= 'table' then r.registrations = {} end -- v2.19 : registre (sex / kidnapping offender)
 end
 
 Migrations.vehicles = function(r)
@@ -659,6 +661,140 @@ local INSURERS = {
 }
 local HISTORY_TYPES = { administrative = true, parking = true }
 
+
+-- =========================================================================
+-- CASIER JUDICIAIRE ET REGISTRE DES DÉLINQUANTS (identités)
+--   convictions   : casier judiciaire, une entrée par condamnation (charge du catalogue RCW, dates des faits et du
+--                   jugement, tribunal, n° de dossier, décision, peine, notes). Les entrées « registry » sont créées
+--                   automatiquement par une inscription au registre (même charge, mêmes dates, même peine).
+--   registrations : inscriptions au registre (au plus une Sex Offender et une Kidnapping Offender) : charge retenue
+--                   (une infraction de ce registre), niveau de risque (I à III), dates des faits / du jugement / de la
+--                   libération / de l'inscription, fin de l'inscription (RCW 9A.44.140 : à vie, 15 ou 10 ans après la
+--                   libération), adresse déclarée, statut, tribunal, n° de dossier, peine, durée d'incarcération.
+-- Dates cohérentes vérifiées : faits <= jugement <= libération <= inscription <= aujourd'hui ; faits après 12 ans.
+-- =========================================================================
+local Justice = {} -- (bloc : limite de 200 variables locales du fichier)
+do
+    local CRIMINAL_CLASSES = { M = true, GM = true, FC = true, FB = true, FA = true }
+    local JUSTICE_OFFENSES = {}
+    for _, o in ipairs(MDC_OFFENSES or {}) do
+        if CRIMINAL_CLASSES[o.c] then JUSTICE_OFFENSES[o.id] = o end
+    end
+    local COURTS = { superior = true, district = true, municipal = true, other = true }
+    local DISPOSITIONS = { guilty = true, plea = true, alford = true, deferred = true, dismissed = true, acquitted = true }
+    local NO_SENTENCE = { dismissed = true, acquitted = true }
+    local RISK_LEVELS = { ['1'] = true, ['2'] = true, ['3'] = true }
+    local REGISTRY_STATUSES = { compliant = true, noncompliant = true, absconded = true }
+    local REGISTRY_KINDS = { 'sex', 'kidnap' }
+    local MAX_CONVICTIONS = 30
+
+    local function addYears(key, years) return key + years * 10000 end
+    local function keyToDate(key) return ('%02d/%02d/%04d'):format(key % 100, (key // 100) % 100, key // 10000) end
+
+    --- Champs communs (charge, dates des faits / du jugement, tribunal, dossier, peine) ; retourne (entrée, clés de dates)
+    local function justiceBase(e, name, dobKey, offenseCheck)
+        if type(e) ~= 'table' then return nil, name .. ' : entrée invalide.' end
+        local o = JUSTICE_OFFENSES[e.offense]
+        if not o or (offenseCheck and not offenseCheck(o)) then return nil, name .. ' : choisissez la charge retenue.' end
+        local c = {
+            offense = o.id, class = o.c, rcw = o.rcw, label = o.t,
+            offenseDate = clean(e.offenseDate, 10), convictionDate = clean(e.convictionDate, 10),
+            court = COURTS[e.court] and e.court or 'superior',
+            caseNumber = clean(e.caseNumber, 30):upper(),
+            sentence = cleanMultiline(e.sentence, 1500),
+            notes = cleanMultiline(e.notes, 600),
+        }
+        local ok, ck = dateKey(c.offenseDate), dateKey(c.convictionDate)
+        if not ok then return nil, name .. ' : date des faits invalide (JJ/MM/AAAA).' end
+        if not ck then return nil, name .. ' : date du jugement invalide (JJ/MM/AAAA).' end
+        if ok > todayKey() or ck > todayKey() then return nil, name .. ' : les dates ne peuvent pas être dans le futur.' end
+        if ck < ok then return nil, name .. ' : le jugement ne peut pas précéder les faits.' end
+        if dobKey and ok < addYears(dobKey, 12) then return nil, name .. ' : la personne avait moins de 12 ans à la date des faits.' end
+        if c.caseNumber == '' then return nil, name .. ' : le n° de dossier est obligatoire.' end
+        return c, ok, ck
+    end
+
+    --- Casier judiciaire saisi à la main (les entrées liées au registre sont ignorées : recréées depuis le registre)
+    function Justice.buildConvictions(list, dobKey)
+        local out = {}
+        if type(list) ~= 'table' then return out end
+        if #list > MAX_CONVICTIONS then return nil, ('Casier judiciaire : %d entrées maximum.'):format(MAX_CONVICTIONS) end
+        for i, e in ipairs(list) do
+            if not (type(e) == 'table' and e.registry) then
+                local c, err = justiceBase(e, ('Casier judiciaire, entrée n°%d'):format(i), dobKey)
+                if not c then return nil, err end
+                c.disposition = DISPOSITIONS[e.disposition] and e.disposition or 'guilty'
+                if c.sentence == '' and not NO_SENTENCE[c.disposition] then
+                    return nil, ('Casier judiciaire, entrée n°%d : la peine est obligatoire.'):format(i)
+                end
+                out[#out + 1] = c
+            end
+        end
+        return out
+    end
+
+    --- Inscriptions au registre ({ sex = {...}, kidnap = {...} }) -> (inscriptions, entrées du casier liées)
+    function Justice.buildRegistrations(regs, dobKey, address)
+        local out, linked = {}, {}
+        if type(regs) ~= 'table' then return out, linked end
+        for _, kind in ipairs(REGISTRY_KINDS) do
+            local e = regs[kind]
+            if type(e) == 'table' then
+                local info = MDC_REGISTRIES[kind]
+                local name = 'Registre ' .. info.label
+                local r, ok, ck = justiceBase(e, name, dobKey, function(o) return o.reg == kind end)
+                if not r then return nil, ok end
+                r.type = kind
+                r.level = RISK_LEVELS[tostring(e.level)] and tostring(e.level) or '1'
+                r.status = REGISTRY_STATUSES[e.status] and e.status or 'compliant'
+                r.address = clean(e.address, 80)
+                if r.address == '' then r.address = address or '' end
+                r.prisonMonths = math.max(0, math.min(1200, math.floor(tonumber(e.prisonMonths) or 0)))
+                r.releaseDate, r.registeredDate = clean(e.releaseDate, 10), clean(e.registeredDate, 10)
+                local rk, gk = dateKey(r.releaseDate), dateKey(r.registeredDate)
+                if not rk then return nil, name .. ' : date de libération invalide (JJ/MM/AAAA).' end
+                if not gk then return nil, name .. ' : date d\'inscription invalide (JJ/MM/AAAA).' end
+                if rk < ck then return nil, name .. ' : la libération ne peut pas précéder le jugement.' end
+                if gk < rk then return nil, name .. ' : l\'inscription se fait après la libération.' end
+                if rk > todayKey() or gk > todayKey() then return nil, name .. ' : la libération et l\'inscription doivent être passées.' end
+                if r.sentence == '' then return nil, name .. ' : la peine est obligatoire.' end
+                local years = (MDC_REGISTRY_YEARS or {})[r.class]
+                r.endDate = years and keyToDate(addYears(rk, years)) or 'life'
+                out[#out + 1] = r
+                linked[#linked + 1] = {
+                    offense = r.offense, class = r.class, rcw = r.rcw, label = r.label,
+                    offenseDate = r.offenseDate, convictionDate = r.convictionDate, releaseDate = r.releaseDate,
+                    court = r.court, caseNumber = r.caseNumber, disposition = 'guilty', sentence = r.sentence,
+                    notes = ('Inscription au registre %s le %s (niveau %s).'):format(info.label, r.registeredDate, r.level),
+                    registry = kind,
+                }
+            end
+        end
+        return out, linked
+    end
+
+    --- Casier complet : entrées à la main + entrées liées au registre, les plus récentes d'abord
+    function Justice.merge(manual, linked)
+        local all = {}
+        for _, c in ipairs(manual) do all[#all + 1] = c end
+        for _, c in ipairs(linked) do all[#all + 1] = c end
+        table.sort(all, function(a, b) return (dateKey(a.convictionDate) or 0) > (dateKey(b.convictionDate) or 0) end)
+        return all
+    end
+
+    function Justice.linkedOf(convictions)
+        local list = {}
+        for _, c in ipairs(convictions or {}) do if c.registry then list[#list + 1] = c end end
+        return list
+    end
+    function Justice.manualOf(convictions)
+        local list = {}
+        for _, c in ipairs(convictions or {}) do if not c.registry then list[#list + 1] = c end end
+        return list
+    end
+
+end
+
 -- =========================================================================
 -- CONSTRUCTION / VALIDATION DES FICHES
 -- Chaque builder retourne (fiche) ou (nil, message d'erreur).
@@ -746,10 +882,27 @@ Builders.identities = function(p, selfId)
         end
     end
 
-    -- Antécédents
-    local records, err = buildEntries(p.records, 'Antécédent')
-    if not records then return nil, err end
-    r.records = records
+    -- Anciens antécédents (texte libre, avant le casier judiciaire) : gardés tels quels s'ils ne sont pas renvoyés
+    local previous = selfId and findBy('identities', 'id', selfId)
+    if p.records == nil then
+        r.records = previous and previous.records or {}
+    else
+        local records, err = buildEntries(p.records, 'Antécédent')
+        if not records then return nil, err end
+        r.records = records
+    end
+
+    -- Casier judiciaire et registre (sex / kidnapping offender) ; non renvoyés (modification) : gardés
+    local dobKey = dateKey(r.dob)
+    if p.convictions == nil and p.registrations == nil and previous then
+        r.convictions, r.registrations = previous.convictions or {}, previous.registrations or {}
+    else
+        local manual, err = Justice.buildConvictions(p.convictions, dobKey)
+        if not manual then return nil, err end
+        local registrations, linked = Justice.buildRegistrations(p.registrations, dobKey, r.address)
+        if not registrations then return nil, linked end
+        r.convictions, r.registrations = Justice.merge(manual, linked), registrations
+    end
 
     local fullName = normalizeName(r.firstname .. ' ' .. r.lastname)
     for _, identity in ipairs(Store.identities) do
@@ -938,6 +1091,74 @@ RegisterMDCCallback('getRegistry', function(src)
     table.sort(records, function(a, b) return (a.createdAt or 0) > (b.createdAt or 0) end)
     return { ok = true, records = records }
 end)
+
+-- Casier judiciaire / registre d'une de ses identités (boutons « Casier judiciaire » et « Registre » des Créations) :
+--   part = 'record'   : remplace le casier saisi à la main (les entrées liées au registre restent) ;
+--   part = 'registry' : remplace les inscriptions au registre (et leurs entrées du casier) ; le reste du casier reste.
+RegisterMDCCallback('updateJustice', function(src, payload)
+    local id = tonumber(payload.id)
+    if not id then return { ok = false, error = 'Choisissez une identité.' } end
+    if Locked.identities then
+        return { ok = false, error = 'Modification bloquée : fichier de données corrompu (voir console serveur).' }
+    end
+    local identity = findBy('identities', 'id', id)
+    if not identity then return { ok = false, error = 'Fiche introuvable.' } end
+    if identity.createdBy ~= getIdentifier(src) then return { ok = false, error = 'Vous ne pouvez modifier que vos propres identités.' } end
+
+    local dobKey = dateKey(identity.dob)
+    local convictions, registrations
+    if payload.part == 'record' then
+        local manual, err = Justice.buildConvictions(payload.convictions, dobKey)
+        if not manual then return { ok = false, error = err } end
+        convictions, registrations = Justice.merge(manual, Justice.linkedOf(identity.convictions)), identity.registrations or {}
+    elseif payload.part == 'registry' then
+        local regs, linked = Justice.buildRegistrations(payload.registrations, dobKey, identity.address)
+        if not regs then return { ok = false, error = linked } end
+        convictions, registrations = Justice.merge(Justice.manualOf(identity.convictions), linked), regs
+    else
+        return { ok = false, error = 'Modification invalide.' }
+    end
+    if not checkWriteCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
+
+    local oldC, oldR, oldAt, oldBy = identity.convictions, identity.registrations, identity.updatedAt, identity.updatedByName
+    identity.convictions, identity.registrations = convictions, registrations
+    identity.updatedAt, identity.updatedByName = os.time(), agentName(src)
+    if not saveStore('identities') then
+        identity.convictions, identity.registrations, identity.updatedAt, identity.updatedByName = oldC, oldR, oldAt, oldBy
+        return { ok = false, error = 'Erreur d\'écriture sur le serveur : modification annulée (voir console).' }
+    end
+    print(('^5[MDC]^0 %s de l\'identité n°%d modifié par %s [%s]'):format(payload.part == 'record' and 'Casier' or 'Registre',
+        id, identity.updatedByName, GetPlayerName(src) or '?'))
+    return { ok = true, id = id, identity = identityView(identity) }
+end)
+
+-- Une de ses identités, complète (casier, registre) : pour les boutons « Casier judiciaire » et « Registre »
+RegisterMDCCallback('getMyIdentity', function(src, payload)
+    local identity = findBy('identities', 'id', tonumber(payload.id) or -1)
+    if not identity or identity.createdBy ~= getIdentifier(src) then return { ok = false, error = 'Fiche introuvable.' } end
+    return { ok = true, identity = identityView(identity) }
+end)
+
+-- REGISTRE DES DÉLINQUANTS (polices : Recherches > Sex Offenders / Kidnapping Offenders) : même liste pour la WSP et
+-- le KCSO ; inscriptions en cours (et terminées, signalées comme telles)
+RegisterMDCCallback('getOffenders', function(src, payload)
+    if not isPoliceAgency(agencyOf(src)) then return { ok = false, error = 'Réservé aux MDC des polices.' } end
+    local kind = payload.type == 'kidnap' and 'kidnap' or 'sex'
+    local today, list = todayKey(), {}
+    for _, identity in ipairs(Store.identities) do
+        for _, reg in ipairs(identity.registrations or {}) do
+            if reg.type == kind then
+                local active = reg.endDate == 'life' or (dateKey(reg.endDate) or 0) >= today
+                list[#list + 1] = { identity = identityView(identity), registration = reg, active = active }
+            end
+        end
+    end
+    table.sort(list, function(a, b)
+        if a.active ~= b.active then return a.active end
+        return normalizeName(a.identity.lastname .. ' ' .. a.identity.firstname) < normalizeName(b.identity.lastname .. ' ' .. b.identity.firstname)
+    end)
+    return { ok = true, type = kind, list = list }
+end, true)
 
 -- Propriétaires possibles d'un véhicule : les identités créées par le joueur
 RegisterMDCCallback('getMyIdentities', function(src)

@@ -159,6 +159,8 @@
                             <label class="radio"><input type="radio" name="searchType" value="identity" checked> Identité</label>
                             <label class="radio"><input type="radio" name="searchType" value="vehicle"> Immatriculation</label>
                             <span class="grow"></span>
+                            <button type="button" class="btn btn-offenders" data-open-offenders="sex" title="Registre des délinquants sexuels (commun WSP & KCSO)">Sex Offenders</button>
+                            <button type="button" class="btn btn-offenders" data-open-offenders="kidnap" title="Registre des auteurs d'enlèvement (commun WSP & KCSO)">Kidnapping Offenders</button>
                             <button type="button" class="btn btn-bolos" id="openBolos">BOLOs <span class="bolo-count" id="bolosBadge"></span></button>
                         </div>
 
@@ -232,6 +234,46 @@
                             <span class="legend" id="boloPanelTitle">Détails</span>
                             <div class="well detail" id="boloDetail">
                                 <div class="empty">Sélectionnez un BOLO dans la liste.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ============ REGISTRE DES DÉLINQUANTS (boutons « Sex Offenders » / « Kidnapping Offenders » des Recherches) ============ -->
+                <section class="page" id="page-offenders">
+                    <div class="split">
+                        <div class="group">
+                            <span class="legend"><span id="offendersTitle">Sex Offenders</span> <span id="offendersCount"></span></span>
+                            <div class="toolbar">
+                                <button type="button" class="btn" id="offendersBack">&larr; Recherches</button>
+                                <span class="segmented">
+                                    <button type="button" class="btn seg-btn" data-offenders-type="sex">Sex Offenders</button>
+                                    <button type="button" class="btn seg-btn" data-offenders-type="kidnap">Kidnapping Offenders</button>
+                                </span>
+                            </div>
+                            <div class="toolbar">
+                                <input type="text" id="offendersQuery" maxlength="40" placeholder="Nom, adresse, charge…" class="offenders-query">
+                                <select id="offendersLevel">
+                                    <option value="">Tous niveaux</option>
+                                    <option value="3">Niveau III</option>
+                                    <option value="2">Niveau II</option>
+                                    <option value="1">Niveau I</option>
+                                </select>
+                                <label class="check"><input type="checkbox" id="offendersEnded"> Inscriptions terminées</label>
+                                <button type="button" class="btn" id="refreshOffenders">Actualiser</button>
+                            </div>
+                            <div class="well">
+                                <table class="grid selectable">
+                                    <thead><tr><th>Nom / DoB</th><th>Niv.</th><th>Charge retenue</th><th>Adresse déclarée</th><th>Statut</th></tr></thead>
+                                    <tbody id="offendersBody"></tbody>
+                                </table>
+                                <div class="empty" id="offendersEmpty">Aucune personne inscrite.</div>
+                            </div>
+                        </div>
+                        <div class="group">
+                            <span class="legend">Fiche</span>
+                            <div class="well detail" id="offendersDetail">
+                                <div class="empty">Sélectionnez une personne inscrite.</div>
                             </div>
                         </div>
                     </div>
@@ -332,7 +374,13 @@
                         <button class="btn subtab" data-view="vehicle">Véhicule</button>
                         <button class="btn subtab" data-view="intervention">Intervention</button>
                         <span class="grow"></span>
-                        <button class="btn subtab registry-btn" data-view="registry">Registre</button>
+                        <button class="btn subtab registry-btn" data-view="registry">Mes créations</button>
+                    </div>
+                    <!-- Casier judiciaire / registre des délinquants d'une identité DÉJÀ créée -->
+                    <div class="toolbar subtabs subtabs-justice">
+                        <span class="hint-text">Identité existante :</span>
+                        <button class="btn subtab" data-view="record">&#9878; Casier judiciaire</button>
+                        <button class="btn subtab" data-view="offender">&#9888; Registre Sex / Kidnapping Offender</button>
                     </div>
 
                     <!-- ================= IDENTITÉ ================= -->
@@ -441,15 +489,22 @@
                                 </div>
                             </div>
 
-                            <!-- Antécédents : liste d'infractions déjà connues -->
-                            <div class="subgroup">
-                                <span class="subgroup-title">Antécédents</span>
-                                <div class="entries" id="identityRecords"></div>
+                            <!-- Casier judiciaire : condamnations (charges du catalogue RCW, peine automatique) -->
+                            <div class="subgroup" data-convictions="identity">
+                                <span class="subgroup-title">Casier judiciaire</span>
+                                <div class="hint-text legacy-records hidden"></div>
+                                <div class="entries conviction-list"></div>
                                 <div class="toolbar entries-toolbar">
-                                    <span class="hint-text entries-empty">Aucun antécédent.</span>
+                                    <span class="hint-text conviction-empty">Casier vierge. Les inscriptions au registre ci-dessous y ajoutent leur condamnation automatiquement.</span>
                                     <span class="grow"></span>
-                                    <button type="button" class="btn add-entry" data-target="identityRecords">+ Ajouter</button>
+                                    <button type="button" class="btn add-conviction">+ Ajouter une condamnation</button>
                                 </div>
+                            </div>
+
+                            <!-- Registre des délinquants (Sex Offender / Kidnapping Offender) -->
+                            <div class="subgroup" data-registry="identity">
+                                <span class="subgroup-title">Registre des délinquants</span>
+                                <div class="registry-editors"></div>
                             </div>
 
                             <div class="form-actions">
@@ -620,10 +675,58 @@
                         </div>
                     </form>
 
+                    <!-- ================= CASIER JUDICIAIRE d'une identité existante ================= -->
+                    <form class="view" id="view-record" autocomplete="off" novalidate>
+                        <div class="group">
+                            <span class="legend">Casier judiciaire — identité existante</span>
+                            <div class="toolbar">
+                                <label class="lbl-inline">Identité :</label>
+                                <select class="justice-identity"><option value="">— Choisir —</option></select>
+                                <span class="grow"></span>
+                                <span class="hint-text">Vos identités seulement. Les condamnations liées au registre se modifient dans « Registre ».</span>
+                            </div>
+                            <div class="justice-summary hint-text"></div>
+                            <div class="subgroup justice-body hidden" data-convictions="record">
+                                <span class="subgroup-title">Casier judiciaire</span>
+                                <div class="hint-text linked-records hidden"></div>
+                                <div class="entries conviction-list"></div>
+                                <div class="toolbar entries-toolbar">
+                                    <span class="hint-text conviction-empty">Aucune condamnation saisie.</span>
+                                    <span class="grow"></span>
+                                    <button type="button" class="btn add-conviction">+ Ajouter une condamnation</button>
+                                </div>
+                            </div>
+                            <div class="form-actions justice-body hidden">
+                                <button type="submit" class="btn btn-default">Enregistrer le casier</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- ================= REGISTRE (SEX / KIDNAPPING OFFENDER) d'une identité existante ================= -->
+                    <form class="view" id="view-offender" autocomplete="off" novalidate>
+                        <div class="group">
+                            <span class="legend">Registre des délinquants — identité existante</span>
+                            <div class="toolbar">
+                                <label class="lbl-inline">Identité :</label>
+                                <select class="justice-identity"><option value="">— Choisir —</option></select>
+                                <span class="grow"></span>
+                                <span class="hint-text">L'inscription ajoute automatiquement la condamnation au casier judiciaire.</span>
+                            </div>
+                            <div class="justice-summary hint-text"></div>
+                            <div class="subgroup justice-body hidden" data-registry="offender">
+                                <span class="subgroup-title">Inscriptions</span>
+                                <div class="registry-editors"></div>
+                            </div>
+                            <div class="form-actions justice-body hidden">
+                                <button type="submit" class="btn btn-default">Enregistrer le registre</button>
+                            </div>
+                        </div>
+                    </form>
+
                     <!-- ================= REGISTRE : mes identités et véhicules ================= -->
                     <div class="view" id="view-registry">
                         <div class="group">
-                            <span class="legend">Registre — mes créations</span>
+                            <span class="legend">Mes créations</span>
                             <div class="toolbar">
                                 <label class="lbl-inline" for="registryFilter">Afficher :</label>
                                 <select id="registryFilter">
@@ -970,22 +1073,6 @@
     </div>
 
     <!-- Modèles des entrées ajoutées avec "+ Ajouter" -->
-    <template id="tplIdentityRecord">
-        <div class="entry-box">
-            <div class="entry-head">
-                <span class="entry-title" data-default="Nouvel antécédent">Nouvel antécédent</span>
-                <button type="button" class="win-btn entry-remove" title="Retirer cet antécédent">&#10005;</button>
-            </div>
-            <div class="form-grid cols-3">
-                <label class="lbl span-3">Infraction *<input data-f="offense" data-title type="text" maxlength="80"></label>
-                <label class="lbl">Date d'émission *<input data-f="date" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
-                <label class="lbl">Horaire *<input data-f="time" type="text" maxlength="5" placeholder="HH:MM" class="time-input"></label>
-                <label class="lbl">Adresse *<input data-f="address" type="text" maxlength="80"></label>
-                <label class="lbl span-3">Explication de l'infraction *<textarea data-f="details" rows="3" maxlength="1000"></textarea></label>
-            </div>
-        </div>
-    </template>
-
     <template id="tplVehicleHistory">
         <div class="entry-box">
             <div class="entry-head">

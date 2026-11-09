@@ -245,10 +245,10 @@ plus de flou de l'arrière-plan.
 |---|---|
 | Unités | (polices) Une liste : les unités **de votre police** seulement. Bouton **Créer une unité** (nom, **tag** au menu déroulant : Aucun, **SUP.** (superviseur) ou **Autre** à saisir, couleur) ; l'unité appartient à la police du MDC (pastille **WSP** bleue / **KCSO** verte). Chacun peut rejoindre une unité de sa police (4 joueurs max par unité) ; **une seule unité à la fois** : dans une unité, le bouton « Rejoindre » des autres disparaît, il faut d'abord **quitter** la sienne (le serveur refuse aussi). **Modifier** et **Supprimer** : réservés aux **membres** de l'unité. Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
 | Interventions | **Police** : les appels de **sa police** (toujours ouverts), puis les **appels communs** (WSP & KCSO) ; les appels de l'autre police ne sont **pas** visibles. Seules les polices visées peuvent rejoindre un appel (vérifié par le serveur). Incident : police de l'unité déclarante toujours cochée, **case** pour y ajouter l'autre police (incident commun). **Générique** : les listes de **chaque police** et les appels communs, **en lecture** (pas de « Rejoindre ») ; bouton **Modifier** sur les **interventions** (appels des civils) pour les corriger directement. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer (ou **✕** en haut du panneau) pour le masquer : **sans appel choisi, le panneau des détails est réduit à une fine colonne** et la liste prend toute la place. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités ; à côté, bouton **orange foncé « Demande de renforts »** : intitulé, description et localisation complète (route, croisement, **secteur** — prérempli avec celui du Menu Interaction —, bloc ; bouton « Position actuelle ») ; il crée un **incident commun aux deux polices** (étiquette « Renforts », notification « DEMANDE DE RENFORTS » chez toutes leurs unités), l'unité qui demande est placée dessus |
-| Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. Bouton **BOLOs** (en haut à droite) : voir plus bas |
+| Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. En haut à droite : boutons **Sex Offenders** et **Kidnapping Offenders** (registre des délinquants, **même liste pour la WSP et le KCSO** : voir « Casier judiciaire et registre ») et **BOLOs** (voir plus bas). Résultat d'une personne inscrite : étiquettes **SO** / **KO** |
 | Rapports | **Communs à tous les MDC**. Formulaires de l'**État de Washington** : Notice of Infraction (NOI), Criminal Citation and Notice to Appear, Written Warning, Arrest Report, DUI Arrest Report, Police Traffic Collision Report (PTCR), Incident Report, Vehicle Impound / Inventory Report. Infractions choisies dans le **catalogue RCW** (classification + infraction liées, pénalité automatique). Les anciens modèles (DOT-523, Citation, Traffic Citation, Convocation, Warning, Ticket) restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
 | Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, **apparence jour / nuit**, couleur du mode nuit et où il s'applique, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : taille et position seulement, tous leurs éléments sont toujours affichés ; volume des sons du véhicule ; le Menu Interaction de `rp_interact` n'est plus réglable : il est toujours en haut à gauche, comme les menus du jeu) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
-| Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, priorité, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Registre** : vos identités et véhicules, modifiables |
+| Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, priorité, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Mes créations** : vos identités et véhicules, modifiables. En dessous, pour une identité **déjà créée** : **Casier judiciaire** et **Registre Sex / Kidnapping Offender** (voir « Casier judiciaire et registre ») |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
 
@@ -389,8 +389,8 @@ intervention, avec les notes, d'où il peut être ouvert, modifié et ré-enregi
 affiché sur le rapport (intervention « archivée »).
 
 **Antécédents** : un rapport (écrit depuis la page « Rapports » ou depuis une intervention) qui mentionne une
-personne enregistrée aux fichiers apparaît automatiquement dans le pli « Antécédents » de sa fiche d'identité
-(Recherches et Registre), sous les antécédents saisis à la main : type et n° du rapport, rôle (victime, suspect,
+personne enregistrée aux fichiers apparaît automatiquement dans le pli « Rapports » de sa fiche d'identité
+(Recherches et Mes créations) : type et n° du rapport, rôle (victime, suspect,
 témoin…) s'il y en a un, date, auteur, intervention et résumé. Cliquer dessus ouvre le rapport. Correspondance :
 nom de famille + prénom, et date de naissance quand le rapport en donne une (un homonyme né un autre jour n'est pas
 concerné). Modifier le rapport met la fiche à jour (une personne retirée du rapport n'a plus ce rapport).
@@ -459,7 +459,46 @@ Class F - Lourd, Class E - Combiné, Class M - Moto, CDL A/B/C, Probatoire - Cla
 CDL A/B/C (+ Class G - Cyclomoteur en Caroline du Sud) ; n° généré ; condition : Valide / Suspension / Révocation / Annulation /
 Disqualification pour les CDL) ;
 interdictions cumulables (Port d'arme, Conduite de jour uniquement, Interdiction de rouler sur Interstate),
-condition (Recherché + raison et date de début) ; **Antécédents** (infraction, date, horaire, adresse, explication).
+condition (Recherché + raison et date de début) ; **Casier judiciaire** et **Registre des délinquants** (ci-dessous).
+Les anciens antécédents en texte libre restent affichés sur les fiches (pli « Casier judiciaire », « ancien antécédent »).
+
+### Casier judiciaire et registre (Sex Offender / Kidnapping Offender)
+
+**MDC civil (Créations)** : dans le formulaire **Identité** (à la création ou en modification), ou pour une identité
+**déjà créée** avec les boutons sous les onglets : **Casier judiciaire** et **Registre Sex / Kidnapping Offender**
+(choisir une de vos identités, puis enregistrer).
+
+- **Casier judiciaire** (« + Ajouter une condamnation ») : **charge retenue** dans le catalogue RCW
+  (`server/offenses.lua`, Misdemeanor à Class A Felony ; pas les infractions civiles), classification, date des faits,
+  date du jugement (📅 : dates cohérentes au hasard selon la date de naissance), **décision** (coupable, plaidé
+  coupable, Alford, peine différée, classé, acquitté), tribunal (King County Superior / District Court, Seattle
+  Municipal Court…), n° de dossier (généré, ↻), **peine prononcée automatique** selon la charge et un bouton **dé**
+  pour **une autre version**, notes.
+- **Registre** : case **Sex Offender** et / ou **Kidnapping Offender**. **Charge retenue** parmi les vraies charges du
+  registre : infractions sexuelles (RCW 9A.44 : viols, viols sur mineur, child molestation, indecent liberties,
+  inconduite sexuelle avec un mineur, voyeurisme ; RCW 9.68A : communication avec un mineur, images
+  pédopornographiques, exploitation sexuelle, abus sexuel commercial ; inceste, exhibition aggravée, défaut
+  d'inscription) ou d'enlèvement (enlèvement 1er / 2e degré, séquestration d'un mineur). **Niveau de risque** (I à
+  III, proposé selon la charge), **statut** (en règle, non conforme, en fuite), **adresse déclarée** (celle de
+  l'identité par défaut), **peine automatique** (dé : autre version), tribunal et n° de dossier.
+- **Peine automatique** : fourchette standard de la grille de Washington pour un casier vierge (niveau de gravité,
+  RCW 9.94A.510), peine **indéterminée** (minimum / perpétuité, ISRB) pour les crimes sexuels les plus graves,
+  alternative **SSOSA** quand elle est possible, peine exceptionnelle, peine des Misdemeanors (jours de prison,
+  sursis, probation), surveillance (community custody), amende et frais, dédommagement, conditions (contact,
+  mineurs, traitement, arme à feu, ADN…), et **durée d'inscription** (RCW 9A.44.140 : Class A **à vie**, Class B
+  **15 ans**, Class C / GM **10 ans** après la libération). Le texte reste modifiable.
+- **Dates cohérentes** (📅 « Dates automatiques », et à chaque nouvelle version de la peine tant que les dates n'ont
+  pas été changées à la main) : faits, jugement 3 à 14 mois après, **libération = jugement + incarcération purgée**,
+  inscription 0 à 3 jours après la libération (RCW 9A.44.130), fin de l'inscription calculée ; la personne est
+  majeure aux faits quand c'est possible et l'inscription est encore en cours. Le serveur vérifie l'ordre des dates.
+- **L'inscription crée automatiquement la condamnation au casier** (même charge, dates, tribunal, dossier, peine,
+  « Inscription au registre … le … (niveau …) »). Elle se modifie depuis le registre ; le bouton « Casier judiciaire »
+  la montre à part.
+
+**Polices (WSP, KCSO)** : **Recherches > Sex Offenders / Kidnapping Offenders** : liste **commune aux deux polices**
+(nom, date de naissance, niveau, charge, adresse déclarée, statut), filtres (texte, niveau, inscriptions terminées),
+fiche complète à droite. Fiche d'une personne inscrite : bandeau violet **SEX OFFENDER / KIDNAPPING OFFENDER — NIVEAU
+… — inscription à vie / jusqu'au …** (EN FUITE, NON CONFORME), plis **Registre des délinquants** et **Casier judiciaire**.
 **Remplissage aléatoire** : prénom, middle name, nom, DoB, adresse, SSN et emploi.
 
 ### Véhicules

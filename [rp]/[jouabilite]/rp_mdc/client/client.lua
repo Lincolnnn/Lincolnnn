@@ -391,6 +391,9 @@ end)
 relay('update',            'update')            -- Modification d'une identité / d'un véhicule
 relay('getRegistry',       'getRegistry')       -- Bouton "Registre" (mes créations)
 relay('getMyIdentities',   'getMyIdentities')   -- Liste des propriétaires possibles (véhicule)
+relay('getMyIdentity',     'getMyIdentity')     -- Une de ses identités, complète (casier judiciaire, registre)
+relay('updateJustice',     'updateJustice', true) -- Casier judiciaire / registre d'une identité existante
+relay('getOffenders',      'getOffenders')      -- Recherches : Sex Offenders / Kidnapping Offenders (polices)
 
 -- Rapports (DOT-523, Arrest Report, Incident Report, Citation, Traffic Ticket, Ticket, Warning)
 relay('getReportTypes',    'getReportTypes')    -- Modèles des formulaires (définis dans server/reports.lua)
