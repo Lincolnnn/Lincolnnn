@@ -501,7 +501,9 @@ CreateThread(function()
                         and (c.ped == me or (L.Others ~= false and #(GetEntityCoords(c.ped) - myPos) < range)) then
                         list[#list + 1] = { ped = c.ped, torch = c.torch, cartoon = true, hand = true, strobe = c.strobe == true,
                             key = 'c' .. tostring(c.torch), yaw = c.yaw, pitch = c.pitch, ahead = c.ahead, hz = c.hz, duty = c.duty,
-                            cat = setmetatable({ Range = c.range, Radius = c.radius }, { __index = OBJ }) }
+                            -- mode d'intensité de la lampe torche (Bas / De base / Fort) : éblouissement à proportion
+                            cat = setmetatable({ Range = c.range, Radius = c.radius,
+                                GlareStrength = (OBJ.GlareStrength or 1.0) * math.sqrt(tonumber(c.power) or 1.0) }, { __index = OBJ }) }
                     end
                 end
             end

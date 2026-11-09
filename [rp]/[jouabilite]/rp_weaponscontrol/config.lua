@@ -121,8 +121,11 @@ WeaponsConfig = {
         -- « Enregistrer pour tous » : gardé par le serveur, prioritaire sur ces lignes) ; permission ACE EditAce
         -- (server.cfg : add_ace group.admin rp_weaponscontrol.admin allow). Ligne à copier ici : affichée au réglage.
         EditCommand = 'editflashlight', EditAce = 'rp_weaponscontrol.admin',
-        Positions = {
-            -- ['WEAPON_PM4'] = { 0.000, 0.000, 0.000 },  ou  [0x12345678] = { x, y, z },
+        Positions = {  -- ['WEAPON_NOM'] = { x, y, z }  ou  [0x12345678] = { x, y, z }
+            ['WEAPON_PM4'] = { 0.336, -0.066, 0.012 },
+            ['WEAPON_GLOCK19'] = { 0.102, -0.002, -0.006 },
+            ['WEAPON_FM1_P226'] = { 0.110, -0.002, -0.002 },
+            ['WEAPON_MP92'] = { 0.116, -0.002, -0.002 },
         },
         -- CartoonFlashlight (ressource à part) : Enabled = true (défaut) : la lampe tenue est à elle quand elle est
         -- démarrée (sa lumière et son stroboscope, réglés dans son config.lua ; faisceau, lueur, éblouissement : ici) ;

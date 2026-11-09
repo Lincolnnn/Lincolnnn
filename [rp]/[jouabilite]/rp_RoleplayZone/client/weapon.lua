@@ -132,6 +132,13 @@ local function stillHolding(ped, weapon)
     return canUse(ped) and GetSelectedPedWeapon(ped) == weapon and HasPedGotWeapon(ped, weapon, false)
 end
 
+--- Lampe allumée sur l'arme (rp_weaponscontrol : état rpLamp ; sinon lampe du jeu) : gardée au sol, rendue au ramassage
+local function lampOn(ped, weapon)
+    local lamp = LocalPlayer.state.rpLamp
+    if lamp then return ((tonumber(lamp) or 0) & 0xFFFFFFFF) == (weapon & 0xFFFFFFFF) end
+    return IsFlashLightOn(ped) == true
+end
+
 local function place(ped, weapon, model)
     loadAnim('pickup_object')
     TaskPlayAnim(ped, 'pickup_object', 'putdown_low', 8.0, -8.0, 900, 0, 0.0, false, false, false)
@@ -142,9 +149,10 @@ local function place(ped, weapon, model)
     if not found then ground = spot.z - 0.98 end
     local heading = (GetEntityHeading(ped) + 90.0) % 360.0
     local pos, rx, ry = lyingPlacement(model, spot.x, spot.y, ground, heading)
+    local light = lampOn(ped, weapon)
     local ammo = releaseWeapon(ped, weapon)
     TriggerServerEvent('rp_scene:weapon:drop', {
-        mode = 'place', weapon = weapon, model = model, ammo = ammo, civil = RZ.civilMode(),
+        mode = 'place', weapon = weapon, model = model, ammo = ammo, civil = RZ.civilMode(), light = light,
         x = pos.x, y = pos.y, z = pos.z, rx = rx, ry = ry, rz = heading,
     })
 end
@@ -166,9 +174,10 @@ local function throw(ped, weapon, model)
     local speed = W.ThrowSpeed or 7.5
     local velocity = { x = dir.x / flat * speed, y = dir.y / flat * speed, z = W.ThrowUp or 3.0 }
     local start = { x = hand.x + dir.x / flat * 0.35, y = hand.y + dir.y / flat * 0.35, z = hand.z + 0.1 }
+    local light = lampOn(ped, weapon)
     local ammo = releaseWeapon(ped, weapon)
     TriggerServerEvent('rp_scene:weapon:drop', {
-        mode = 'throw', weapon = weapon, model = model, ammo = ammo, civil = RZ.civilMode(),
+        mode = 'throw', weapon = weapon, model = model, ammo = ammo, civil = RZ.civilMode(), light = light,
         x = start.x, y = start.y, z = start.z, rx = 0.0, ry = 0.0, rz = GetEntityHeading(ped), velocity = velocity,
     })
 end
@@ -361,7 +370,7 @@ RegisterNetEvent('rp_scene:weapon:refused', function(message)
 end)
 
 -- Ramassée (œil de rp_interact) : l'arme et ses munitions
-RegisterNetEvent('rp_scene:weapon:pickedUp', function(weapon, ammo)
+RegisterNetEvent('rp_scene:weapon:pickedUp', function(weapon, ammo, light)
     local ped = PlayerPedId()
     if loadAnim('pickup_object') then
         TaskPlayAnim(ped, 'pickup_object', 'pickup_low', 8.0, -8.0, 900, 0, 0.0, false, false, false)
@@ -371,6 +380,8 @@ RegisterNetEvent('rp_scene:weapon:pickedUp', function(weapon, ammo)
     else
         GiveWeaponToPed(ped, weapon, tonumber(ammo) or 0, false, false)
     end
+    -- lampe allumée au moment de la poser : rallumée (rp_weaponscontrol), éteinte sinon
+    TriggerEvent('rp_weaponscontrol:flashlight', weapon, light == true)
     RZ.notify('Arme ramassée.')
 end)
 

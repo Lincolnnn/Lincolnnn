@@ -92,6 +92,11 @@ chaque arme (rangée puis ressortie : comme elle était) et vue par tous (état 
 accessoires `Flashlight.Components` et les lampes tenues ; une arme ajoutée dont le jeu allume la lampe est reconnue
 toute seule (sa lampe du jeu est coupée aussitôt). `Override = false` : la lampe du jeu reste, celle du script s'ajoute.
 Ressource arrêtée : la lampe du jeu reprend (rallumée si la nôtre l'était).
+**Chaque arme a sa propre lampe** : allumée sur le pistolet, elle ne l'est pas sur l'AR-15. Elle **reste allumée tant
+que l'arme est en main**, ou **posée** (au sol ou sur un véhicule, puis reprise : elle revient allumée) ; **arme rangée**
+(ou changée) : sa lampe **s'éteint**, à rallumer à la main (E). Le jeu qui rallume sa propre lampe en changeant d'arme
+n'est jamais pris pour un allumage.
+
 La touche E est prise sur **toutes les armes à feu** : la lampe du jeu ne s'allume jamais, même à la première
 utilisation (arme ajoutée : un essai invisible vérifie qu'elle a une lampe). **Son** en allumant / éteignant (clic du
 bouton, plus grave à l'extinction ; entendu plus bas par les joueurs à moins de 10 m ; `Flashlight.Sound`).
@@ -106,6 +111,10 @@ d'essai), curseurs **X / Y / Z** (axes de l'arme, m) en haut au milieu, à la so
 par le serveur pour tous les joueurs, même après un redémarrage ; **Par défaut** : retiré ; **Terminer** (ou Échap) :
 gardé pour vous jusqu'à la déconnexion. La ligne pour `config.lua` (`Flashlight.Positions`) s'affiche (et dans F8).
 Permission : `add_ace group.admin rp_weaponscontrol.admin allow` (`Flashlight.EditAce`), ou la permission `command`.
+Réglées dans `config.lua` : **PM4**, **Glock 19**, **P226** (`WEAPON_FM1_P226`), **MP92**.
+
+**Modes d'intensité** (Bas / De base / Fort) : **lampe torche de CartoonFlashlight seulement** (touche **B**, son
+`Config.Modes`) ; pas les lampes des armes. L'éblouissement suit le mode choisi.
 
 **Nouveau système de lampe** (`Flashlight.Light`, `Beam`, `Glare`, `Strobe` ; repris de la base de `rp_spotlight`) :
 tant que la lampe est allumée (lampe sur une arme **ou** lampe tenue en main), le script ajoute :

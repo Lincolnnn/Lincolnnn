@@ -51,6 +51,7 @@ description** sur son propre périmètre / objet, **Modifier la zone de recherch
 alentours (ouvre directement la scène). Le civil est prévenu (message privé) quand sa scène est fouillée.
 
 ### Lâcher son arme (mode civil, touche G)
+Lampe allumée sur l'arme au moment de la lâcher : gardée, elle revient allumée quand l'arme est ramassée (rp_weaponscontrol).
 
 Réservé aux joueurs en **mode civil** (hors unité du MDC ; `Weapons.CivilOnly = false` : tout le monde).
 

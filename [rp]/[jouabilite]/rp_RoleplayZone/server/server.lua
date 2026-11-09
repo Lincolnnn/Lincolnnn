@@ -440,7 +440,8 @@ RegisterNetEvent('rp_scene:weapon:drop', function(data)
     while not DoesEntityExist(object) and GetGameTimer() < timeout do Wait(0) end
     if not DoesEntityExist(object) then return refuse('Impossible de lâcher cette arme ici.') end
     SetEntityRotation(object, num(data.rx, -360, 360) or 0.0, num(data.ry, -360, 360) or 0.0, num(data.rz, -360, 360) or 0.0, 2, true)
-    local w = { id = nextWeapon, weapon = weapon, ammo = math.floor(num(data.ammo, 0, 9999) or 0), owner = src, flying = throw }
+    local w = { id = nextWeapon, weapon = weapon, ammo = math.floor(num(data.ammo, 0, 9999) or 0), owner = src, flying = throw,
+        light = data.light == true } -- lampe allumée : rendue au ramassage
     nextWeapon = nextWeapon + 1
     Weapons[object] = w
     Entity(object).state:set('rpDroppedWeapon', { id = w.id, weapon = weapon, at = os.time() }, true)
@@ -493,7 +494,7 @@ RegisterNetEvent('rp_scene:weapon:pickup', function(netId)
     local ped = GetPlayerPed(src)
     if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(object)) > (W.PickupDistance or 2.0) + 1.5 then return end
     removeWeapon(object)
-    TriggerClientEvent('rp_scene:weapon:pickedUp', src, w.weapon, w.ammo)
+    TriggerClientEvent('rp_scene:weapon:pickedUp', src, w.weapon, w.ammo, w.light == true)
 end)
 
 AddEventHandler('entityRemoved', function(entity)

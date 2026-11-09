@@ -559,6 +559,10 @@ if FL.Enabled ~= false then
                 local armed = weapon ~= 0 and weapon ~= UNARMED
                 local now = GetGameTimer()
                 setHand(HANDLIGHTS[weapon] == true)
+                -- Arme rangée / changée : sa lampe s'ÉTEINT (à rallumer à la main) ; chaque arme a sa propre lampe (celle
+                -- du pistolet n'allume pas celle du fusil). Arme posée au sol / sur un véhicule puis reprise : sa lampe
+                -- revient (rp_interact : événement rp_weaponscontrol:flashlight, reçu avant ou après la prise en main).
+                if weapon ~= current and current and lit[current] then lit[current] = false end
                 if not armed or cartoon(weapon) then
                     current, probe = weapon, nil
                     publish(false)
@@ -577,12 +581,10 @@ if FL.Enabled ~= false then
                             -- essai de la touche sur une arme inconnue : elle a une lampe -> la nôtre s'allume
                             learned[weapon], lamp, probe = true, true, nil
                             toggled(weapon, true)
-                        else
-                            -- allumée par le jeu ou par un autre script : demande d'allumage (sauf juste après la
-                            -- prise en main : le jeu la remet tout seul)
-                            if not lamp then learned[weapon], lamp = true, true end
-                            if now - since > 500 and lit[weapon] ~= true then toggled(weapon, true) end
+                        elseif not lamp then
+                            learned[weapon], lamp = true, true -- arme ajoutée : elle a une lampe (rien n'est allumé)
                         end
+                        -- (le jeu rallume sa lampe tout seul en changeant d'arme : jamais pris pour un allumage)
                     elseif probe == weapon and now > probeUntil then
                         probe = nil -- pas de lampe sur cette arme
                     end
