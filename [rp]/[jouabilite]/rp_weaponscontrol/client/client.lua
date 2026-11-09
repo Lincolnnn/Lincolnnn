@@ -525,9 +525,34 @@ if FL.Enabled ~= false then
     end
     RPWeapons.hasLamp = hasLamp
 
+    -- Son de la lampe (allumer / éteindre) : chez soi (NUI) et chez les joueurs proches (état rpLampClick)
+    local SOUND = FL.Sound or {}
+    local clicks = 0
+    local function toggled(weapon, on)
+        lit[weapon] = on == true
+        if SOUND.Enabled == false then return end
+        SendNUIMessage({ action = 'lampclick', data = { on = on == true, volume = SOUND.Volume or 0.45 } })
+        clicks = clicks + 1
+        LocalPlayer.state:set('rpLampClick', { n = clicks, on = on == true }, true)
+    end
+    RPWeapons.lampToggled = toggled
+    if SOUND.Enabled ~= false and (SOUND.Range or 10.0) > 0 then
+        AddStateBagChangeHandler('rpLampClick', nil, function(bagName, _, value)
+            local sid = tonumber(bagName:match('^player:(%d+)$'))
+            if not sid or type(value) ~= 'table' or sid == GetPlayerServerId(PlayerId()) then return end
+            local player = GetPlayerFromServerId(sid)
+            if not player or player == -1 then return end
+            local d = #(GetEntityCoords(GetPlayerPed(player)) - GetEntityCoords(PlayerPedId()))
+            local range = SOUND.Range or 10.0
+            if d > range then return end
+            SendNUIMessage({ action = 'lampclick', data = { on = value.on == true,
+                volume = (SOUND.Volume or 0.45) * (1.0 - d / range) * (SOUND.Others or 0.8) } })
+        end)
+    end
+
     if OVERRIDE then
         CreateThread(function()
-            local lamp, checkAt = false, 0
+            local lamp, checkAt, probe, probeUntil = false, 0, nil, 0
             while true do
                 local ped = PlayerPedId()
                 local weapon = u32(GetSelectedPedWeapon(ped))
@@ -535,26 +560,50 @@ if FL.Enabled ~= false then
                 local now = GetGameTimer()
                 setHand(HANDLIGHTS[weapon] == true)
                 if not armed or cartoon(weapon) then
-                    current = weapon
+                    current, probe = weapon, nil
                     publish(false)
                     Wait(armed and 200 or 500)
                 else
-                    if weapon ~= current then current, since, checkAt = weapon, now, 0 end
+                    if weapon ~= current then current, since, checkAt, probe = weapon, now, 0, nil end
                     if now >= checkAt then lamp, checkAt = hasLamp(ped, weapon), now + 1000 end -- accessoire ajouté / retiré
+                    local gun = lamp or IsPedArmed(ped, 4) -- arme à feu (avec ou sans lampe connue) ou lampe tenue
                     local busy = IsPedInAnyVehicle(ped, true) or IsEntityDead(ped) or IsPauseMenuActive()
-                    if lamp then
-                        DisableControlAction(0, 54, true) -- la lampe du jeu ne s'allume plus : c'est nous qui la gérons
-                        if not busy and IsDisabledControlJustPressed(0, 54) then lit[weapon] = not (lit[weapon] == true) end
-                    end
+                    -- La touche de la lampe du jeu (E) est TOUJOURS prise, sur toutes les armes à feu : le jeu n'allume
+                    -- donc jamais sa lampe (même à la première utilisation) ; c'est nous qui la lisons.
+                    if gun then DisableControlAction(0, 54, true) end
                     if IsFlashLightOn(ped) then
                         SetFlashLightEnabled(ped, false) -- jamais la lampe du jeu
-                        -- allumée par le jeu (arme ajoutée, touche pas encore lue) ou par un autre script : c'est
-                        -- une demande d'allumage (sauf juste après la prise en main : le jeu la remet tout seul)
-                        if not lamp then learned[weapon], lamp = true, true end
-                        if now - since > 500 then lit[weapon] = true end
+                        if probe == weapon then
+                            -- essai de la touche sur une arme inconnue : elle a une lampe -> la nôtre s'allume
+                            learned[weapon], lamp, probe = true, true, nil
+                            toggled(weapon, true)
+                        else
+                            -- allumée par le jeu ou par un autre script : demande d'allumage (sauf juste après la
+                            -- prise en main : le jeu la remet tout seul)
+                            if not lamp then learned[weapon], lamp = true, true end
+                            if now - since > 500 and lit[weapon] ~= true then toggled(weapon, true) end
+                        end
+                    elseif probe == weapon and now > probeUntil then
+                        probe = nil -- pas de lampe sur cette arme
+                    end
+                    if gun and not busy and IsDisabledControlJustPressed(0, 54) then
+                        if lamp then
+                            toggled(weapon, not (lit[weapon] == true))
+                        else
+                            -- arme ajoutée / accessoire inconnu : a-t-elle une lampe ? essai (allumée puis coupée tout
+                            -- de suite ; au plus une image visible, une seule fois par arme)
+                            SetFlashLightEnabled(ped, true)
+                            if IsFlashLightOn(ped) then
+                                SetFlashLightEnabled(ped, false)
+                                learned[weapon], lamp = true, true
+                                toggled(weapon, true)
+                            else
+                                probe, probeUntil = weapon, now + 300
+                            end
+                        end
                     end
                     publish(lamp and lit[weapon] == true and not busy and weapon or false)
-                    Wait(lamp and 0 or 100)
+                    Wait(gun and 0 or 200)
                 end
             end
         end)

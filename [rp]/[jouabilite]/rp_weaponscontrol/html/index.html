@@ -68,6 +68,25 @@
             background: rgba(178, 20, 31, .28); border: 1px solid rgba(220, 60, 70, .55); border-bottom-width: 2px;
             border-radius: 3px; font: 700 13px 'Segoe UI', Roboto, Arial, sans-serif;
         }
+        /* Réglage de l'emplacement de la lampe (/editflashlight, admins) : en haut au milieu, style des menus du serveur */
+        #flashEdit {
+            position: fixed; left: 50%; top: 3vh; transform: translateX(-50%); width: 540px; z-index: 40; overflow: hidden;
+            background: rgba(12, 12, 14, .95); border: 1px solid rgba(255, 255, 255, .08); border-radius: 4px;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, .5); font: 13px/1.35 'Segoe UI', Roboto, Arial, sans-serif; color: #ececec;
+        }
+        #flashEdit.hidden { display: none; }
+        #flashEdit .fe-head { padding: 9px 14px; font-weight: 700; font-size: 14px; letter-spacing: .06em; text-transform: uppercase;
+            background-color: #8a121b; border-bottom: 1px solid rgba(255, 255, 255, .12); }
+        #flashEdit .fe-body { padding: 10px 14px 12px; }
+        #flashEdit p { margin: 0 0 8px; color: #b9b9b9; font-size: 12px; }
+        #flashEdit label { display: grid; grid-template-columns: 24px 1fr 58px; align-items: center; gap: 8px; margin: 5px 0; }
+        #flashEdit input[type=range] { accent-color: #c81d2b; }
+        #flashEdit input[type=text] { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 6px 8px; color: #ececec;
+            background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12); border-radius: 2px; font: 12px Consolas, monospace; }
+        #flashEdit .fe-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+        #flashEdit button { height: 30px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 2px;
+            background: rgba(255, 255, 255, .08); color: #ececec; font: 600 12px 'Segoe UI', Roboto, Arial, sans-serif; cursor: pointer; }
+        #flashEdit button.primary { background: #b2141f; border-color: #b2141f; color: #fff; }
         #suppressHit { inset: -24px; background: rgb(var(--hit)); filter: blur(10px); }
         /* Mode « light » (défaut) : simple dégradé sur les bords, sans flou ni masque (aucun coût) */
         #suppress.light, #suppressHit.light { -webkit-mask-image: none; mask-image: none; filter: none; inset: 0; will-change: opacity; }
@@ -81,6 +100,22 @@
         <span class="bullets"><i></i><i></i><i></i></span><span class="label">Auto</span>
     </div>
     <div id="hint" aria-hidden="true"><div class="hint-head" id="hintTitle"></div><div class="hint-rows" id="hintRows"></div></div>
+    <div id="flashEdit" class="hidden">
+        <div class="fe-head">Emplacement de la lampe — arme <span id="feWeapon"></span></div>
+        <div class="fe-body">
+            <p>Le <b style="color:#ff4040">point rouge</b> montre le départ de la lumière (trait : sa direction). Axes de l'arme, en mètres.</p>
+            <label>X <input type="range" id="feX" min="-0.5" max="0.5" step="0.002"><span id="feXv"></span></label>
+            <label>Y <input type="range" id="feY" min="-0.5" max="0.5" step="0.002"><span id="feYv"></span></label>
+            <label>Z <input type="range" id="feZ" min="-0.5" max="0.5" step="0.002"><span id="feZv"></span></label>
+            <input type="text" id="feLine" readonly>
+            <div class="fe-buttons">
+                <button type="button" id="feCopy">Copier la ligne</button>
+                <button type="button" id="feReset">Par défaut</button>
+                <button type="button" id="feSave">Enregistrer pour tous</button>
+                <button type="button" class="primary" id="feDone">Terminer</button>
+            </div>
+        </div>
+    </div>
     <div id="suppress" aria-hidden="true">
         <div class="sp sp-haze"></div>
         <div class="sp sp-streaks" id="spStreaks"></div>

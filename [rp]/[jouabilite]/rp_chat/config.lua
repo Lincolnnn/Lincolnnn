@@ -110,7 +110,7 @@ ChatConfig = {
                 { "Alt", "œil (maintenir) : inspecter, fouiller, portières, s'asseoir, objets sur un véhicule…" },
                 { "Alt + arme", "œil, arme / lampe / Taser en main : la poser sur un véhicule ou au sol, la reprendre" },
                 { "Alt + couteau", "œil, couteau en main, en visant une roue : crever le pneu (il se dégonfle lentement)" },
-                { "F7", "lampe allumée (en main ou sur l'arme) : stroboscope" },
+                { "E · F7", "arme à feu ou lampe en main : allumer / éteindre la lampe · stroboscope" },
             } },
             { title = "Véhicule", items = {
                 { "O", "moteur" }, { "G", "ceinture" }, { "U / I", "sa portière / les deux avant" },

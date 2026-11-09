@@ -180,7 +180,60 @@
         hintEl.classList.add('show');
     }
 
+    // ---- Son de la lampe : clic du bouton (appui puis relâché) ; plus grave à l'extinction ----
+    function lampClick(d) {
+        const ac = setup();
+        if (!ac) return;
+        if (ac.state === 'suspended') ac.resume();
+        const v = Math.max(0, Math.min(1, Number(d.volume) || 0.45));
+        if (v <= 0.01) return;
+        const base = d.on ? 3200 : 2300;
+        [0, 0.055].forEach((delay, i) => {
+            const t = ac.currentTime + delay;
+            const len = Math.floor(ac.sampleRate * 0.018);
+            const buf = ac.createBuffer(1, len, ac.sampleRate);
+            const ch = buf.getChannelData(0);
+            for (let n = 0; n < len; n++) ch[n] = (Math.random() * 2 - 1) * Math.pow(1 - n / len, 8);
+            const src = ac.createBufferSource(); src.buffer = buf;
+            const band = ac.createBiquadFilter(); band.type = 'bandpass'; band.frequency.value = i ? base * 0.8 : base; band.Q.value = 2.5;
+            const g = ac.createGain(); g.gain.value = v * (i ? 0.55 : 1);
+            src.connect(band).connect(g).connect(ac.destination);
+            src.start(t);
+        });
+    }
+
+    // ---- Réglage de l'emplacement de la lampe (/editflashlight) ----
+    const fe = document.getElementById('flashEdit');
+    const post = (name, body) => fetch(`https://${typeof GetParentResourceName === 'function' ? GetParentResourceName() : 'rp_weaponscontrol'}/${name}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify(body || {}) }).catch(() => {});
+    const axes = ['X', 'Y', 'Z'];
+    const el = (id) => document.getElementById(id);
+    axes.forEach((a) => el('fe' + a).addEventListener('input', () => {
+        el('fe' + a + 'v').textContent = Number(el('fe' + a).value).toFixed(3);
+        post('flashOffset', { x: el('feX').value, y: el('feY').value, z: el('feZ').value });
+    }));
+    el('feCopy').addEventListener('click', () => { el('feLine').select(); try { document.execCommand('copy'); } catch (e) { /* copie manuelle */ } });
+    el('feSave').addEventListener('click', () => post('flashSave'));
+    el('feReset').addEventListener('click', () => { fe.classList.add('hidden'); post('flashReset'); });
+    el('feDone').addEventListener('click', () => { fe.classList.add('hidden'); post('flashDone'); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !fe.classList.contains('hidden')) el('feDone').click(); });
+    function flashEdit(d) {
+        fe.classList.toggle('hidden', !d.on);
+        if (!d.on) return;
+        el('feWeapon').textContent = d.weapon || '';
+        axes.forEach((a) => {
+            const v = Number(d[a.toLowerCase()]) || 0;
+            const input = el('fe' + a);
+            input.min = Math.min(-0.5, v - 0.2).toFixed(3); input.max = Math.max(0.5, v + 0.2).toFixed(3);
+            input.value = v; el('fe' + a + 'v').textContent = v.toFixed(3);
+        });
+        el('feLine').value = d.line || '';
+    }
+
     window.addEventListener('message', ({ data }) => {
+        if (data && data.action === 'lampclick') lampClick(data.data || {});
+        if (data && data.action === 'flashEdit') flashEdit(data.data || {});
+        if (data && data.action === 'flashLine') el('feLine').value = (data.data || {}).line || '';
         if (data && data.action === 'firemode') fireMode(data.data || {});
         if (data && data.action === 'suppress') suppress(data.data || {});
         if (data && data.action === 'hint') hint(data.data || {});

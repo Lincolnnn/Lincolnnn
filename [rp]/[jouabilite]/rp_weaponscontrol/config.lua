@@ -95,7 +95,7 @@ WeaponsConfig = {
     --   Light  : la lumière, séparément pour la LAMPE TENUE (Object : WEAPON_FLASHLIGHT, de poche…) et les LAMPES DES
     --            ARMES (Weapon) : Range = DISTANCE (m), Intensity = PUISSANCE, Radius = largeur du faisceau (degrés),
     --            Falloff = atténuation (plus petit : porte plus loin, plus doux), Roundness = netteté du bord,
-    --            GlowRange / GlowIntensity = lueur autour de la lampe, GlowSize = halo vu de face (m), BeamLength =
+    --            GlowRange / GlowIntensity = lueur autour de la lampe, GlowSize = halo (orbe) vu de face (m), BeamLength =
     --            longueur du faisceau visible (nil : Range x Beam.LengthRatio), BeamAlpha, GlareRange (m), GlareStrength.
     --            Shadows : nombre de lampes avec ombres (les plus proches) ; Others / OthersRange : celles des autres.
     --   Beam   : faisceau visible dans l'air (surtout la nuit ; sous la pluie : plus) et halo de la lampe.
@@ -110,22 +110,36 @@ WeaponsConfig = {
         -- Beam, Glare ci-dessous) ; la touche de la lampe du jeu (E) l'allume / l'éteint, gardée pour chaque arme.
         -- false : la lampe du jeu reste allumée, celle du script s'ajoute. Components : accessoires « lampe » des armes
         -- (une arme ajoutée dont le jeu allume la lampe est reconnue toute seule).
+        -- (La touche E est prise sur toutes les armes à feu : la lampe du jeu ne s'allume jamais, même à la 1re fois.)
         Override = true,
         Components = { 'COMPONENT_AT_PI_FLSH', 'COMPONENT_AT_PI_FLSH_02', 'COMPONENT_AT_PI_FLSH_03', 'COMPONENT_AT_AR_FLSH',
             'COMPONENT_AT_AR_FLSH_REH' },
+        -- Son en allumant / éteignant (clic du bouton) : Volume chez soi ; joueurs à moins de Range m : plus bas (Others)
+        Sound = { Enabled = true, Volume = 0.45, Range = 10.0, Others = 0.8 },
+        -- EMPLACEMENT DE LA LAMPE par arme (départ de la lumière, m, axes de l'arme) : armes ajoutées dont la lampe est mal
+        -- placée. Réglage en jeu par un admin : /editflashlight (arme en main ; point rouge, curseurs X / Y / Z,
+        -- « Enregistrer pour tous » : gardé par le serveur, prioritaire sur ces lignes) ; permission ACE EditAce
+        -- (server.cfg : add_ace group.admin rp_weaponscontrol.admin allow). Ligne à copier ici : affichée au réglage.
+        EditCommand = 'editflashlight', EditAce = 'rp_weaponscontrol.admin',
+        Positions = {
+            -- ['WEAPON_PM4'] = { 0.000, 0.000, 0.000 },  ou  [0x12345678] = { x, y, z },
+        },
         -- CartoonFlashlight (ressource à part) : Enabled = true (défaut) : la lampe tenue est à elle quand elle est
         -- démarrée (sa lumière et son stroboscope, réglés dans son config.lua ; faisceau, lueur, éblouissement : ici) ;
         -- false, ou CartoonFlashlight arrêtée : la lampe tenue est gérée entièrement ici comme les autres
         Cartoon = { Enabled = true, Resource = 'CartoonFlashlight', Weapons = { 'WEAPON_FLASHLIGHT' } },
         -- Lampes tenues en main : leurs touches (E, O) passent avant le menu Équipement du véhicule, le pistolet d'essence…
         HandLights = { 'WEAPON_FLASHLIGHT', 'WEAPON_POCKETLIGHT' },
+        -- Tache de lumière : CENTRE PUISSANT (Core = part du cône, 0.6 = 60 % de sa largeur ; à Intensity ; bord net
+        -- CoreRoundness) et BORDS MOINS ÉCLAIRÉS (cône entier à Intensity x Edge, bord doux Roundness)
         Light = { Enabled = true, Shadows = 2, Others = true, OthersRange = 80.0, CheckMs = 250, Color = { 255, 247, 235 },
-            Object = { Range = 35.0, Intensity = 7.0, Radius = 24.0, Falloff = 16.0, Roundness = 3.0, Ahead = 0.14,
-                GlowRange = 1.2, GlowIntensity = 1.6, GlowSize = 0.14, GlareRange = 25.0, GlareStrength = 1.0 },
-            Weapon = { Range = 55.0, Intensity = 9.0, Radius = 15.0, Falloff = 22.0, Roundness = 4.0, Ahead = 0.12,
-                GlowRange = 1.0, GlowIntensity = 1.4, GlowSize = 0.12, GlareRange = 35.0, GlareStrength = 1.2 } },
-        Beam = { Enabled = true, Alpha = 45, LengthRatio = 0.6, SpreadRatio = 0.8, Start = 0.04, EndFlare = 0.6, Segments = 3,
-            Day = 0.0, Rain = 0.6, GlowAlpha = 200 },
+            Core = 0.6, Edge = 0.3, CoreRoundness = 8.0,
+            Object = { Range = 35.0, Intensity = 7.0, Radius = 24.0, Falloff = 16.0, Roundness = 2.0, Ahead = 0.14,
+                GlowRange = 0.5, GlowIntensity = 0.9, GlowSize = 0.06, GlareRange = 25.0, GlareStrength = 1.0 },
+            Weapon = { Range = 55.0, Intensity = 9.0, Radius = 15.0, Falloff = 22.0, Roundness = 2.0, Ahead = 0.12,
+                GlowRange = 0.4, GlowIntensity = 0.8, GlowSize = 0.05, GlareRange = 35.0, GlareStrength = 1.2 } },
+        Beam = { Enabled = true, Alpha = 45, LengthRatio = 0.6, SpreadRatio = 0.8, Start = 0.03, EndFlare = 0.6, Segments = 3,
+            Day = 0.0, Rain = 0.6, GlowAlpha = 160 },
         Glare = { Enabled = true, NearAngle = 18.0, Range = 30.0, Strength = 0.75, Veil = 110, Size = 0.55, Away = 0.12, Day = 0.3,
             Rise = 12.0, Fall = 3.0 },
         Strobe = { Enabled = true, Key = 'F7', Hz = 10.0, Duty = 0.5, Power = 1.4, GlareBoost = 1.6 }, -- (L : s'allonger)

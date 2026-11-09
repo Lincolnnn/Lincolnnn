@@ -48,3 +48,56 @@ RegisterNetEvent('rp_weaponscontrol:shots', function(data)
 end)
 
 AddEventHandler('playerDropped', function() window[source] = nil end)
+
+-- =========================================================================
+-- EMPLACEMENT DE LA LAMPE PAR ARME (admins) : /editflashlight (Flashlight.EditCommand) ouvre le réglage chez l'admin
+-- (permission ACE Flashlight.EditAce, ex. add_ace group.admin rp_weaponscontrol.admin allow) ; « Enregistrer pour
+-- tous » : gardé ici (KVP rpFlashPos, même après un redémarrage) et publié pour tous (état global rpFlashPos =
+-- { ["hachage"] = { x, y, z } }). Aucune boucle.
+-- =========================================================================
+local FL = W.Flashlight or {}
+local EDIT_ACE = FL.EditAce or 'rp_weaponscontrol.admin'
+
+local function canEdit(src)
+    return src ~= 0 and (IsPlayerAceAllowed(src, EDIT_ACE) or IsPlayerAceAllowed(src, 'command'))
+end
+
+local positions = {}
+do
+    local raw = GetResourceKvpString('rpFlashPos')
+    local ok, data = pcall(json.decode, raw or '{}')
+    if ok and type(data) == 'table' then positions = data end
+    GlobalState.rpFlashPos = positions
+end
+
+RegisterCommand(FL.EditCommand or 'editflashlight', function(src)
+    if src == 0 then return print('[rp_weaponscontrol] /' .. (FL.EditCommand or 'editflashlight') .. ' : en jeu seulement, arme en main.') end
+    if not canEdit(src) then
+        return TriggerClientEvent('rp_weaponscontrol:notify', src, 'Réservé aux admins (permission ' .. EDIT_ACE .. ').')
+    end
+    TriggerClientEvent('rp_weaponscontrol:editFlash', src)
+end, false)
+
+RegisterNetEvent('rp_weaponscontrol:saveFlashPos', function(weapon, pos)
+    local src = source
+    if not canEdit(src) then return end
+    local h = math.tointeger(tonumber(weapon))
+    if not h or h < 0 or h > 0xFFFFFFFF then return end
+    local key = tostring(h)
+    if pos == false then
+        positions[key] = nil
+    else
+        if type(pos) ~= 'table' then return end
+        local p = {}
+        for i = 1, 3 do
+            local v = tonumber(pos[i])
+            if not v or v ~= v then return end
+            p[i] = math.floor(math.max(-0.8, math.min(0.8, v)) * 1000 + 0.5) / 1000
+        end
+        positions[key] = p
+    end
+    SetResourceKvp('rpFlashPos', json.encode(positions))
+    GlobalState.rpFlashPos = positions
+    TriggerClientEvent('rp_weaponscontrol:notify', src, pos == false and 'Emplacement de la lampe remis par défaut pour tous.'
+        or ('Emplacement de la lampe enregistré pour tous (arme 0x%08X).'):format(h))
+end)

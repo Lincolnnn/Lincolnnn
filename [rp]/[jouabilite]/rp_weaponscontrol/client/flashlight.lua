@@ -78,6 +78,35 @@ end
 -- =========================================================================
 local BONES = { 'WAPFlshLasr', 'WAPFlshLasr_2', 'Gun_FLMuzzle', 'gun_muzzle', 'Gun_Muzzle' }
 
+-- EMPLACEMENT DE LA LAMPE PAR ARME (armes ajoutées : PM4…) : départ de la lumière, en mètres, dans les axes de l'arme.
+-- Config (Flashlight.Positions), puis réglages enregistrés en jeu par un admin (/editflashlight : état global
+-- rpFlashPos, gardé par le serveur), puis réglage en cours (pour soi, jusqu'à la déconnexion).
+local function vec(p)
+    if type(p) ~= 'table' then return nil end
+    local x, y, z = tonumber(p[1] or p.x), tonumber(p[2] or p.y), tonumber(p[3] or p.z)
+    if not (x and y and z) then return nil end
+    return vector3(x + 0.0, y + 0.0, z + 0.0)
+end
+local POS = {}
+for name, p in pairs(FL.Positions or {}) do
+    local h = type(name) == 'number' and u32(name) or u32(GetHashKey(tostring(name)))
+    POS[h] = vec(p)
+end
+local saved, mine = {}, {}
+local function readSaved(value)
+    saved = {}
+    if type(value) ~= 'table' then return end
+    for k, p in pairs(value) do
+        local h = tonumber(k)
+        if h then saved[u32(h)] = vec(p) end
+    end
+end
+readSaved(GlobalState.rpFlashPos)
+AddStateBagChangeHandler('rpFlashPos', 'global', function(_, _, value) readSaved(value) end)
+local function positionOf(weapon)
+    return mine[weapon] or saved[weapon] or POS[weapon]
+end
+
 --- Axe de l'objet (parmi ses trois axes, dans les deux sens) le plus proche de `want`
 local function closestAxis(entity, want)
     local a, b, c = GetEntityMatrix(entity)
@@ -105,6 +134,21 @@ local function beamOf(ped, handLight)
     local weapon = GetCurrentPedWeaponEntityIndex(ped)
     if weapon and weapon ~= 0 and DoesEntityExist(weapon) then
         local origin = GetEntityCoords(weapon)
+        local fixed = positionOf(u32(GetSelectedPedWeapon(ped)))
+        if fixed then
+            -- emplacement réglé pour cette arme : départ exact de la lumière ; direction : axe du canon / de la lampe
+            local from = GetOffsetFromEntityInWorldCoords(weapon, fixed.x, fixed.y, fixed.z)
+            local dir
+            if handLight then
+                dir = closestAxis(weapon, lookOf(ped))
+            else
+                local muzzle = GetEntityBoneIndexByName(weapon, 'gun_muzzle')
+                local tip = (muzzle and muzzle ~= -1) and GetWorldPositionOfEntityBone(weapon, muzzle)
+                local along = tip and norm(tip - origin)
+                dir = along and closestAxis(weapon, along) or closestAxis(weapon, lookOf(ped))
+            end
+            return from, dir
+        end
         if handLight then
             local dir = closestAxis(weapon, lookOf(ped))
             local ahead = OBJ.Ahead or 0.14
@@ -336,6 +380,29 @@ local function strobeOn(lamp, now)
 end
 
 local SHADOW_BASE = 5200
+
+--- Lumière d'une lampe : CENTRE PUISSANT (Core : part du cône, à Intensity) + BORDS MOINS ÉCLAIRÉS (cône entier, à
+--- Intensity x Edge, bord doux) : la tache est nettement plus forte au milieu, sur une bonne largeur
+local function drawLight(pos, dir, col, range, power, cat, shadowId)
+    local radius = (cat.Radius or 16.0) + 0.0
+    local core = math.max(0.1, math.min(1.0, cat.Core or L.Core or 0.6))
+    local edge = math.max(0.0, cat.Edge or L.Edge or 0.3)
+    local falloff = (cat.Falloff or 20.0) + 0.0
+    local layers = {
+        { power * edge, (cat.Roundness or 3.0) + 0.0, radius },                           -- bords
+        { power, (cat.CoreRoundness or L.CoreRoundness or 8.0) + 0.0, radius * core },    -- centre
+    }
+    for n, l in ipairs(layers) do
+        if l[1] > 0.0 then
+            if shadowId then
+                DrawSpotLightWithShadow(pos.x, pos.y, pos.z, dir.x, dir.y, dir.z, col[1], col[2], col[3], range, l[1] + 0.0, l[2],
+                    l[3], falloff, shadowId + n - 1)
+            else
+                DrawSpotLight(pos.x, pos.y, pos.z, dir.x, dir.y, dir.z, col[1], col[2], col[3], range, l[1] + 0.0, l[2], l[3], falloff)
+            end
+        end
+    end
+end
 local rendering = false
 local function render()
     if rendering then return end
@@ -371,15 +438,8 @@ local function render()
                     end
                     if visible then
                         local range, power = (cat.Range or 40.0) + 0.0, (cat.Intensity or 8.0) * (lamp.strobe and (ST.Power or 1.4) or 1.0)
-                        if lamp.cartoon then
-                            -- lumière dessinée par CartoonFlashlight (Config.Light) : rien ici
-                        elseif i <= shadows then
-                            DrawSpotLightWithShadow(pos.x, pos.y, pos.z, dir.x, dir.y, dir.z, col[1], col[2], col[3], range,
-                                power + 0.0, (cat.Roundness or 3.0) + 0.0, (cat.Radius or 16.0) + 0.0, (cat.Falloff or 20.0) + 0.0,
-                                SHADOW_BASE + i)
-                        else
-                            DrawSpotLight(pos.x, pos.y, pos.z, dir.x, dir.y, dir.z, col[1], col[2], col[3], range,
-                                power + 0.0, (cat.Roundness or 3.0) + 0.0, (cat.Radius or 16.0) + 0.0, (cat.Falloff or 20.0) + 0.0)
+                        if not lamp.cartoon then -- (CartoonFlashlight dessine sa lumière elle-même : Config.Light)
+                            drawLight(pos, dir, col, range, power, cat, i <= shadows and SHADOW_BASE + i * 2 or nil)
                         end
                         -- lueur : petite lumière autour de la lampe
                         if (cat.GlowRange or 1.2) > 0 then
@@ -453,8 +513,111 @@ CreateThread(function()
     end
 end)
 
+-- =========================================================================
+-- RÉGLAGE DE L'EMPLACEMENT DE LA LAMPE (admins : /editflashlight, comme /editspotlight) : arme en main, un POINT
+-- ROUGE montre le départ de la lumière, curseurs X / Y / Z (axes de l'arme) en haut au milieu ; « Enregistrer pour
+-- tous » : gardé par le serveur pour tous les joueurs (même après un redémarrage) ; la ligne pour config.lua
+-- (Flashlight.Positions) s'affiche aussi. Le serveur vérifie la permission (Flashlight.EditAce).
+-- =========================================================================
+local editing = nil -- { weapon, entity }
+
+local function notify(text)
+    local chat = GlobalState.rpChatResource or 'rp_chat'
+    if GetResourceState(chat) == 'started' and pcall(function() exports[chat]:addPrivate({ title = 'Lampe', text = text }) end) then return end
+    BeginTextCommandThefeedPost('STRING')
+    AddTextComponentSubstringPlayerName(text)
+    EndTextCommandThefeedPostTicker(false, false)
+end
+RegisterNetEvent('rp_weaponscontrol:notify', function(text) notify(tostring(text)) end)
+
+local function configLine(weapon, p)
+    return ('[0x%08X] = { %.3f, %.3f, %.3f },'):format(weapon, p.x, p.y, p.z)
+end
+
+local function closeEdit()
+    if not editing then return end
+    editing = nil
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'flashEdit', data = { on = false } })
+end
+
+RegisterNetEvent('rp_weaponscontrol:editFlash', function()
+    if editing then return end
+    local ped = PlayerPedId()
+    local weapon = u32(GetSelectedPedWeapon(ped))
+    local entity = GetCurrentPedWeaponEntityIndex(ped)
+    if weapon == 0 or weapon == UNARMED or not entity or entity == 0 or not DoesEntityExist(entity) then
+        return notify('Prenez en main l\'arme (ou la lampe) dont il faut régler la lampe, puis refaites /' .. (FL.EditCommand or 'editflashlight') .. '.')
+    end
+    if cartoon(weapon) then return notify('Lampe de CartoonFlashlight : sa position dépend de ses animations (son script).') end
+    local p = positionOf(weapon)
+    if not p then
+        local pos = beamOf(ped, HANDLIGHTS[weapon] == true)
+        p = GetOffsetFromEntityGivenWorldCoords(entity, pos.x, pos.y, pos.z)
+    end
+    editing = { weapon = weapon, entity = entity }
+    mine[weapon] = vector3(p.x, p.y, p.z)
+    SetNuiFocus(true, true)
+    SendNUIMessage({ action = 'flashEdit', data = { on = true, x = p.x, y = p.y, z = p.z, weapon = ('0x%08X'):format(weapon),
+        line = configLine(weapon, mine[weapon]) } })
+    CreateThread(function()
+        local col = L.Color or { 255, 247, 235 }
+        local cat = HANDLIGHTS[weapon] and OBJ or WPN
+        while editing do
+            local me = PlayerPedId()
+            if u32(GetSelectedPedWeapon(me)) ~= editing.weapon or not DoesEntityExist(editing.entity) then closeEdit() break end
+            local pos, dir = beamOf(me, HANDLIGHTS[weapon] == true)
+            DrawMarker(28, pos.x, pos.y, pos.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.012, 0.012, 0.012, 255, 20, 20, 235,
+                false, false, 2, false, nil, nil, false)
+            DrawLine(pos.x, pos.y, pos.z, pos.x + dir.x * 0.5, pos.y + dir.y * 0.5, pos.z + dir.z * 0.5, 255, 40, 40, 220)
+            if RPWeapons.lampOn ~= weapon and not IsFlashLightOn(me) then -- lampe éteinte : lumière d'essai
+                drawLight(pos, dir, col, (cat.Range or 40.0) + 0.0, (cat.Intensity or 8.0) + 0.0, cat, SHADOW_BASE + 90)
+            end
+            Wait(0)
+        end
+    end)
+end)
+
+RegisterNUICallback('flashOffset', function(d, cb)
+    cb({ ok = true })
+    if not (editing and type(d) == 'table') then return end
+    local function c(v) return math.max(-0.8, math.min(0.8, tonumber(v) or 0.0)) + 0.0 end
+    mine[editing.weapon] = vector3(c(d.x), c(d.y), c(d.z))
+    SendNUIMessage({ action = 'flashLine', data = { line = configLine(editing.weapon, mine[editing.weapon]) } })
+end)
+
+RegisterNUICallback('flashSave', function(_, cb)
+    cb({ ok = true })
+    if not editing then return end
+    local p = mine[editing.weapon]
+    TriggerServerEvent('rp_weaponscontrol:saveFlashPos', editing.weapon, { p.x, p.y, p.z })
+end)
+
+RegisterNUICallback('flashReset', function(_, cb)
+    cb({ ok = true })
+    if not editing then return end
+    local weapon = editing.weapon
+    mine[weapon] = nil
+    TriggerServerEvent('rp_weaponscontrol:saveFlashPos', weapon, false)
+    closeEdit()
+    notify('Emplacement de la lampe remis par défaut (pour tous). Le réglage du config.lua, s\'il y en a un, reste.')
+end)
+
+RegisterNUICallback('flashDone', function(_, cb)
+    cb({ ok = true })
+    if not editing then return end
+    local weapon = editing.weapon
+    local line = configLine(weapon, mine[weapon])
+    closeEdit()
+    print('[rp_weaponscontrol] ligne pour config.lua (Flashlight.Positions) : ' .. line)
+    notify('Réglage gardé pour vous (jusqu\'à la déconnexion) ; « Enregistrer pour tous » pour tout le monde. Ligne pour config.lua (aussi dans F8) : ' .. line)
+end)
+
+RPWeapons.flashPositions = { positionOf = positionOf, mine = mine, saved = function() return saved end, editing = function() return editing end }
+
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
+    if editing then SetNuiFocus(false, false) end
     if strobe then LocalPlayer.state:set('rpStrobe', false, true) end
     if OVERRIDE then
         -- la lampe du script disparaît : la lampe du jeu reprend, allumée si la nôtre l'était

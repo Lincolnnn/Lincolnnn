@@ -92,6 +92,20 @@ chaque arme (rangée puis ressortie : comme elle était) et vue par tous (état 
 accessoires `Flashlight.Components` et les lampes tenues ; une arme ajoutée dont le jeu allume la lampe est reconnue
 toute seule (sa lampe du jeu est coupée aussitôt). `Override = false` : la lampe du jeu reste, celle du script s'ajoute.
 Ressource arrêtée : la lampe du jeu reprend (rallumée si la nôtre l'était).
+La touche E est prise sur **toutes les armes à feu** : la lampe du jeu ne s'allume jamais, même à la première
+utilisation (arme ajoutée : un essai invisible vérifie qu'elle a une lampe). **Son** en allumant / éteignant (clic du
+bouton, plus grave à l'extinction ; entendu plus bas par les joueurs à moins de 10 m ; `Flashlight.Sound`).
+
+**Tache de lumière** : **centre puissant** (`Light.Core` = 60 % du cône, à `Intensity`, bord net `CoreRoundness`) et
+**bords moins éclairés** (cône entier à `Intensity` x `Edge` = 0,3, bord doux) ; aussi pour CartoonFlashlight (son
+`Config.Light`). Lueur / orbe de la lampe plus fine (`GlowSize`, `GlowRange`, `GlowIntensity`, `Beam.GlowAlpha`).
+
+**Emplacement de la lampe par arme** (armes ajoutées, ex. PM4 ; admins) : **`/editflashlight`**, l'arme en main (comme
+`/editspotlight`) : un **point rouge** montre le départ de la lumière (un trait : sa direction ; lampe éteinte : lumière
+d'essai), curseurs **X / Y / Z** (axes de l'arme, m) en haut au milieu, à la souris. **Enregistrer pour tous** : gardé
+par le serveur pour tous les joueurs, même après un redémarrage ; **Par défaut** : retiré ; **Terminer** (ou Échap) :
+gardé pour vous jusqu'à la déconnexion. La ligne pour `config.lua` (`Flashlight.Positions`) s'affiche (et dans F8).
+Permission : `add_ace group.admin rp_weaponscontrol.admin allow` (`Flashlight.EditAce`), ou la permission `command`.
 
 **Nouveau système de lampe** (`Flashlight.Light`, `Beam`, `Glare`, `Strobe` ; repris de la base de `rp_spotlight`) :
 tant que la lampe est allumée (lampe sur une arme **ou** lampe tenue en main), le script ajoute :
