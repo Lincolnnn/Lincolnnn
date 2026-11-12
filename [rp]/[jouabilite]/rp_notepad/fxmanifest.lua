@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_notepad'
 author 'Lincolnnn'
 description 'Bloc-notes en jeu (texte manuscrit, dessin, pages gardées) + retranscription dans le MDC - standalone'
-version '1.1.0'
+version '1.1.1'
 
 ui_page 'html/index.html'
 
@@ -24,6 +24,7 @@ files {
 
 shared_script 'config.lua'
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/theme.lua',   -- mode nuit (réglé dans le MDC)
     'client/client.lua',
 }

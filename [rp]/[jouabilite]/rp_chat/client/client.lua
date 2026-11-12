@@ -26,7 +26,7 @@ local RP_COMMANDS = { nomrp = true, me = true, info = true, qst = true, rep = tr
 -- Commandes possibles même sans nom RP (/nomrp) : /tuto, /dv (supprimer un véhicule), /fichecivil (profils,
 -- rp_interact), /eup (tenues, rp_interact), /repair (moteur, rp_vehiclecontrol)
 local NO_NAME_COMMANDS = {
-    dv = true, eup = true, fichecivil = true, repair = true, id = true, idconfig = true, [(Config.Tuto and Config.Tuto.Command) or 'tuto'] = true,
+    dv = true, eup = true, fichecivil = true, repair = true, id = true, idconfig = true, modiftouche = true, [(Config.Tuto and Config.Tuto.Command) or 'tuto'] = true,
 }
 
 local isOpen = false
@@ -115,6 +115,7 @@ end
 local function system(text, kind)
     SendNUIMessage({ action = 'message', data = { type = kind or 'system', text = text } })
 end
+RPChatSystem = system -- (client/keybinds.lua : /modiftouche)
 
 -- Nom RP modifié (/nomrp ou MDC) : confirmation dans le chat
 AddStateBagChangeHandler('rpName', ('player:%d'):format(GetPlayerServerId(PlayerId())), function(_, _, value)
@@ -185,7 +186,7 @@ RegisterNUICallback('ready', function(_, cb)
     cb({ ok = true })
 end)
 
-local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup, /tuto, /fichecivil, /repair, /id, /idconfig, /hrp [message].'
+local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup, /tuto, /fichecivil, /repair, /id, /idconfig, /modiftouche, /hrp [message].'
 
 -- =========================================================================
 -- /dv : supprime UN véhicule (celui où l'on se trouve, sinon celui qu'on regarde, sinon le plus proche,
@@ -274,7 +275,8 @@ RegisterNUICallback('submit', function(data, cb)
         system('Définissez d\'abord votre nom RP : /nomrp [nom RP]', 'error')
         return
     end
-    -- Commande d'une autre ressource (/mdc, …)
+    -- Commande d'une autre ressource (/mdc, …) : tapée dans le chat, jamais bloquée par une touche déplacée
+    if RPChatKeys then RPChatKeys.typed(command) end
     ExecuteCommand(text:sub(2))
 end)
 

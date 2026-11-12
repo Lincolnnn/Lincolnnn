@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_spotlight'
 author 'Lincolnnn'
 description 'Projecteurs de portière par véhicule (conducteur / passager avant), faisceau visible, éblouissement, visée, verrouillage'
-version '1.4.0'
+version '1.4.1'
 
 ui_page 'html/index.html'
 
@@ -23,6 +23,7 @@ files {
 
 shared_script 'config.lua'
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/theme.lua',
     'client/client.lua',
 }

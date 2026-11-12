@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_mdc'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police 100% standalone - NUI Vanilla JS'
-version '2.21.0'
+version '2.21.1'
 
 ui_page 'html/index.html'
 
@@ -26,6 +26,7 @@ files {
 }
 
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/client.lua',
     'client/streetnames.lua',     -- noms du PLD : config/washington.json (rues, quartiers, villes, polices)
     'client/hud.lua',

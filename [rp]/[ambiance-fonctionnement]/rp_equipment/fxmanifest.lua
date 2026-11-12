@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_equipment'
 author 'Lincolnnn'
 description 'Équipement des véhicules de police, râtelier d\'armes longues et coffre (plots, fusées) - standalone, NUI Vanilla JS'
-version '1.18.1'
+version '1.18.2'
 
 ui_page 'html/index.html'
 
@@ -24,6 +24,7 @@ files {
 
 shared_script 'config.lua'
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'client/client.lua',
     'client/traffic.lua',

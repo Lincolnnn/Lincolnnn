@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_policecards'
 author 'Lincolnnn'
 description 'Carte Miranda et alphabet phonétique de la police à l\'écran (non bloquant) - standalone'
-version '1.1.0'
+version '1.1.1'
 
 ui_page 'html/index.html'
 
@@ -20,4 +20,7 @@ files {
 }
 
 shared_script 'config.lua'
-client_script 'client/client.lua'
+client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
+    'client/client.lua',
+}

@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_TrafficControl'
 author 'Lincolnnn'
 description 'Gestion du trafic voie par voie : fermeture (nœuds / PNJ rabattus), ralentissement, arrêt - standalone, NUI Vanilla JS'
-version '1.9.1'
+version '1.9.2'
 
 ui_page 'html/index.html'
 
@@ -25,6 +25,7 @@ files {
 shared_script 'config.lua'
 
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'client/network.lua', -- mesures appliquées : nœuds, zones de vitesse, cartes, PNJ (voie, demi-tour, vitesse)
     'client/editor.lua',  -- outil de pose (voie / sens / route visés, aperçu de la bande et des nœuds)

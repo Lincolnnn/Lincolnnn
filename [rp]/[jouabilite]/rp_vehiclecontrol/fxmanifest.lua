@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_vehiclecontrol'
 author 'Lincolnnn'
 description 'Vehicle Control : essence, dégâts, accidents réalistes, terrain, ceinture, motos (projection), moteur, portières, clignotants et poussée - standalone'
-version '1.51.0'
+version '1.51.1'
 
 ui_page 'html/index.html' -- message "pousser le véhicule", sons du véhicule, fiche /inspectvehicle, réparation de fortune (le car HUD est dessiné par le MDC)
 
@@ -26,6 +26,7 @@ files {
 shared_script 'config.lua'
 
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'client/main.lua',      -- boucle du véhicule, chocs, liaison avec le car HUD du MDC
     'client/seatbelt.lua',  -- ceinture, alarme, éjection, sons synchronisés

@@ -11,7 +11,7 @@ lua54 'yes'
 name 'rp_chat'
 author 'Lincolnnn'
 description 'Chat écrit rôleplay standalone (commandes police / RP) - NUI Vanilla JS'
-version '1.25.0'
+version '1.26.0'
 
 -- Remplace la ressource "chat" d'origine : les ressources qui dépendent de "chat"
 -- (ou qui envoient "chat:addMessage") fonctionnent avec ce chat.
@@ -28,9 +28,12 @@ files {
 shared_script 'config.lua'
 
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
+    'touches.lua',          -- /modiftouche : scripts, spécificités et touches d'origine (catalogue)
     'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'client/client.lua',
     'client/overhead.lua',
+    'client/keybinds.lua',  -- /modiftouche : nouvelles touches du joueur (gardées)
 }
 
 server_scripts {

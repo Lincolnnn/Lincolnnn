@@ -10,13 +10,14 @@ lua54 'yes'
 name 'rp_flares'
 author 'Lincolnnn'
 description 'Fusées de détresse posées au sol, retirées avec l\'œil, lumière renforcée la nuit - standalone'
-version '1.2.1'
+version '1.2.2'
 
 shared_scripts {
     'config.lua',
 }
 
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/client.lua',
 }
 

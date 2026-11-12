@@ -26,6 +26,7 @@
         { name: 'repair', usage: '/repair', desc: 'Répare le moteur du véhicule (pas la carrosserie)' },
         { name: 'id', usage: '/id [1-5 | off]', desc: 'Fiche d\'une de vos 5 dernières identités du MDC à l\'écran' },
         { name: 'idconfig', usage: '/idconfig', desc: 'Déplacer, agrandir et enregistrer la fiche /id' },
+        { name: 'modiftouche', usage: '/modiftouche [script] [spécificité] [touche]', desc: 'Changer une touche de nos scripts (pour vous, gardée) ; seul : liste des scripts' },
         // grisée : existe, mais n'est pas mise en avant
         { name: 'hrp', usage: '/hrp [message]', desc: 'Message hors RP (à limiter)', muted: true },
     ];

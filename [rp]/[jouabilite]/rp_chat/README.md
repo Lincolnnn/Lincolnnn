@@ -104,6 +104,66 @@ Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` e
   (gardé chez vous, même après une reconnexion), Par défaut, Annuler (Échap).
 - Données lues dans le MDC (export `rp_mdc:getRecentIdentities`) ; utilisable sans nom RP.
 
+### `/modiftouche` : changer les touches de nos scripts (sans le menu pause)
+
+**`/modiftouche [script] [spécificité] [touche]`** — pour vous seulement, **gardé** (même après une reconnexion).
+- `/modiftouche` seul : liste des scripts ; `/modiftouche MDC` : ses spécificités et leurs touches actuelles ;
+- `/modiftouche MDC ouvrir F5` : le MDC s'ouvre avec **F5**, et l'ancienne touche (K) **ne fait plus rien** ;
+- `/modiftouche MDC ouvrir defaut` : touche d'origine.
+- Touches : `A` à `Z`, `0` à `9`, `F1` à `F24`, `NUMPAD0` à `NUMPAD9`, et en français `ESPACE`, `ENTREE`, `MAJ`, `CTRL`,
+  `ALT`, `VERRMAJ`, `TAB`, `HAUT`, `BAS`, `GAUCHE`, `DROITE`, `DEBUT`, `FIN`, `PAGEHAUT`, `PAGEBAS`, `INSER`, `SUPPR`,
+  `CLICGAUCHE`, `CLICDROIT`, `CLICMOLETTE` (noms FiveM aussi acceptés : `LSHIFT`, `LCONTROL`, `LMENU`…). Majuscules
+  et accents sans importance. Une touche déjà prise par une autre spécificité : avertissement.
+
+Comment : FiveM ne laisse pas un script changer un raccourci. `/modiftouche` crée donc un **nouveau raccourci** sur la
+touche choisie (visible dans Raccourcis clavier > FiveM : « Touche perso : … »), et l'**ancienne** touche est
+neutralisée : chaque script charge `keyguard.lua` (même fichier partout, avant ses autres scripts), qui demande au chat
+si sa commande peut partir. Une commande tapée dans le chat (`/mdc`, `/trafic`…) n'est jamais bloquée. Catalogue :
+`touches.lua` (une ligne par touche à ajouter).
+
+| Script | Spécificité | Action | Touche d'origine |
+|---|---|---|---|
+| **MDC** | `ouvrir` | Ouvrir le MDC | K |
+| **MDC** | `accepter` | Accepter l'appel proposé | Y |
+| **MDC** | `refuser` | Refuser l'appel proposé | N |
+| **CHAT** | `ouvrir` | Ouvrir / fermer le chat | T |
+| **CHAT** | `monter` | Remonter dans la conversation | PAGEUP |
+| **CHAT** | `descendre` | Descendre dans la conversation | PAGEDOWN |
+| **VEHICULE** | `moteur` | Allumer / couper le moteur | O |
+| **VEHICULE** | `ceinture` | Attacher / détacher la ceinture | G |
+| **VEHICULE** | `portiere` | Ouvrir / fermer sa portière | U |
+| **VEHICULE** | `portieres` | Les deux portières avant (conducteur) | I |
+| **VEHICULE** | `clignogauche` | Clignotant gauche | LEFT |
+| **VEHICULE** | `clignodroit` | Clignotant droit | RIGHT |
+| **VEHICULE** | `warnings` | Warnings (feux de détresse) | DOWN |
+| **VEHICULE** | `rapport` | Marche avant (D) / arrière (R) | UP |
+| **INTERACTION** | `menu` | Menu Interaction | F1 |
+| **INTERACTION** | `oeil` | Œil (maintenir) | LMENU (maintenir) |
+| **INTERACTION** | `lacherbras` | Police : lâcher le bras | X |
+| **INTERACTION** | `debattre` | Civil : se débattre (tenu par le bras) | SPACE |
+| **INTERACTION** | `mainsenlair` | Tips d'arrestation : mains en l'air | H |
+| **INTERACTION** | `genoux` | Tips d'arrestation : à genoux | J |
+| **INTERACTION** | `allonger` | Tips d'arrestation : s'allonger | L |
+| **EQUIPEMENT** | `menu` | Menu Équipement du véhicule | E |
+| **EQUIPEMENT** | `poser` | Poser au sol (plot, sac médical porté) | G |
+| **EQUIPEMENT** | `radar` | Prendre / ranger le pistolet radar (à l'avant) | aucune |
+| **FUSEE** | `poser` | Poser la fusée au sol | G |
+| **PROJECTEUR** | `allumer` | Allumer / éteindre | LCONTROL (maintenir) |
+| **PROJECTEUR** | `viser` | Viser (maintenir) | MOUSE_RIGHT (maintenir) |
+| **ARMES** | `tir` | Coup par coup / automatique | B |
+| **ARMES** | `stroboscope` | Stroboscope de la lampe | F7 |
+| **TASER** | `securite` | Sélecteur ARMÉ / SÉCURITÉ | B (maintenir) |
+| **TASER** | `alerte` | Alerte sonore et lampe stroboscopique | R (maintenir) |
+| **TASER** | `test` | Sélecteur vers le bas (discret, test) | G (maintenir) |
+| **BLOCNOTES** | `ouvrir` | Ouvrir / fermer | F2 |
+| **TRAFIC** | `ouvrir` | Ouvrir la gestion du trafic | aucune |
+| **SCENE** | `ouvrir` | Ouvrir /scene | aucune |
+| **SCENE** | `oeildaigle` | Œil d'aigle (policiers) | CAPITAL |
+| **SCENE** | `lacherarme` | Mode civil : lâcher son arme | G |
+| **NUMEROS** | `afficher` | Afficher (maintenir) | HOME (maintenir) |
+| **CARTES** | `miranda` | Carte Miranda | aucune |
+| **CARTES** | `alphabet` | Alphabet phonétique | aucune |
+
 ## Réglages (par joueur)
 
 Dans le MDC : onglet **Paramètres > Chat écrit et commandes**. Gardés chez chaque joueur (KVP `rpchat_settings`), même après une reconnexion :

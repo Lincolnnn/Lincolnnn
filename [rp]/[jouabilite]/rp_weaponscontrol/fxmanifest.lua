@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_weaponscontrol'
 author 'Lincolnnn'
 description 'Recul, effets au tir, flash et fumée du canon synchronisés, lampe toujours allumée et renforcée, sélecteur de tir, effet de tir sur les bords de l\'écran - standalone'
-version '1.17.0'
+version '1.17.1'
 
 ui_page 'html/index.html'
 
@@ -23,6 +23,7 @@ files {
 
 shared_script 'config.lua'
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/client.lua',
     'client/flashlight.lua', -- lampes : lumière, faisceau visible, lueur, éblouissement, stroboscope
 }

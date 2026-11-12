@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_interact'
 author 'Lincolnnn'
 description 'Menu d\'interactions, fiches civiles et Eye Target standalone - NUI Vanilla JS'
-version '3.33.3'
+version '3.33.4'
 
 ui_page 'html/index.html'
 
@@ -29,6 +29,7 @@ shared_scripts {
 }
 
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/theme.lua',     -- mode nuit des menus (réglé dans le MDC)
     'client/main.lua',     -- NUI, menu d'interactions, fiches civiles, résultats
     'client/kbmenu.lua',   -- menus au clavier (Menu Interaction, /eup) : touches, saisie de texte

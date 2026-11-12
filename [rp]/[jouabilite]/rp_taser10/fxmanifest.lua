@@ -21,7 +21,10 @@ ui_page 'html/index.html'
 
 shared_script 'config.lua'
 
-client_script 'client.lua'
+client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
+    'client.lua',
+}
 server_script 'server.lua'
 
 data_file 'DLC_ITYP_REQUEST' 'stream/prong.ytyp'

@@ -10,13 +10,14 @@ lua54 'yes'
 name 'rp_overheadids'
 author 'Lincolnnn'
 description 'Numéros et noms des joueurs au-dessus des têtes en maintenant une touche - standalone'
-version '1.2.0'
+version '1.2.1'
 
 shared_scripts {
     'config.lua',
 }
 
 client_scripts {
+    'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/client.lua',
 }
 
