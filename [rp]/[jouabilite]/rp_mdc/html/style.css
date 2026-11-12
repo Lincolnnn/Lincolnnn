@@ -1496,3 +1496,11 @@ tr.row-ended td { opacity: .55; }
 #page-offenders .grid { width: 100%; }
 #page-offenders .grid td { white-space: normal; vertical-align: top; }
 #page-offenders .grid td .muted { font-size: 11px; }
+
+/* Nationalité et permis */
+.endorse-checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px; }
+.endorse-checks .check { font-size: 12px; }
+.check.disabled { opacity: .45; cursor: default; }
+.nexus-check { align-self: end; min-height: 32px; }
+.nationality-hint, .license-info { margin-top: 6px; }
+.license-info:empty, .nationality-hint:empty { display: none; }

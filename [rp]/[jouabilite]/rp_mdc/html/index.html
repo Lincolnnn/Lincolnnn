@@ -415,7 +415,7 @@
                                 </label>
                                 <label class="lbl">Adresse *<input name="address" type="text" maxlength="80" placeholder="ex : 225 Baker Street NW, Atlanta, Fulton Co., GA"></label>
 
-                                <label class="lbl">Social Security Number *
+                                <label class="lbl">Social Security Number <span class="ssn-req">*</span>
                                     <span class="inline">
                                         <input name="ssn" type="text" maxlength="11" placeholder="XXX-XX-XXXX" class="ssn-input">
                                         <button type="button" class="btn btn-icon regen" data-regen="ssn" title="Générer un nouveau SSN">&#8635;</button>
@@ -424,29 +424,64 @@
                                 <label class="lbl span-2">Emploi<input name="job" type="text" maxlength="40"></label>
                             </div>
 
+                            <!-- Nationalité (config/licenses.lua) : citoyen US, canadien (statut aux États-Unis) ou double -->
                             <div class="subgroup">
-                                <span class="subgroup-title">Licence de conduite</span>
+                                <span class="subgroup-title">Nationalité et documents</span>
+                                <div class="form-grid cols-3">
+                                    <label class="lbl">Nationalité *
+                                        <select name="nationality"></select>
+                                    </label>
+                                    <label class="lbl ca-only hidden">Statut aux États-Unis *
+                                        <select name="immigration"></select>
+                                    </label>
+                                    <label class="lbl visitor-only hidden">Date d'entrée aux États-Unis *<input name="entryDate" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
+                                    <label class="lbl status-only hidden"><span class="status-expiry-label">Fin du statut</span><input name="statusExpiry" type="text" maxlength="10" placeholder="JJ/MM/AAAA" class="date-input"></label>
+                                    <label class="lbl sin-only hidden">N° d'assurance sociale canadien (SIN)
+                                        <span class="inline">
+                                            <input name="sin" type="text" maxlength="11" placeholder="XXX-XXX-XXX">
+                                            <button type="button" class="btn btn-icon regen" data-regen="sin" title="Générer un nouveau SIN">&#8635;</button>
+                                        </span>
+                                    </label>
+                                    <label class="lbl">N° de passeport
+                                        <span class="inline">
+                                            <input name="passportNumber" type="text" maxlength="12" class="upper">
+                                            <button type="button" class="btn btn-icon regen" data-regen="passportNumber" title="Générer un nouveau numéro">&#8635;</button>
+                                        </span>
+                                    </label>
+                                    <label class="check nexus-check"><input type="checkbox" name="nexus"> Carte NEXUS (voyageur fiable US / Canada)</label>
+                                    <label class="lbl nexus-only hidden">N° NEXUS
+                                        <span class="inline">
+                                            <input name="nexusNumber" type="text" maxlength="12" class="digits">
+                                            <button type="button" class="btn btn-icon regen" data-regen="nexusNumber" title="Générer un nouveau numéro">&#8635;</button>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="hint-text nationality-hint"></div>
+                            </div>
+
+                            <div class="subgroup">
+                                <span class="subgroup-title">Permis de conduire</span>
                                 <!-- Case visible uniquement dans ce formulaire (pas dans les fiches) -->
-                                <label class="check"><input type="checkbox" name="hasLicense"> Cette personne possède une licence de conduite</label>
+                                <label class="check"><input type="checkbox" name="hasLicense"> Cette personne possède un permis de conduire</label>
                                 <!-- Visibles uniquement si la case est cochée -->
                                 <div class="form-grid cols-4 license-only hidden license-grid">
-                                    <label class="lbl">État d'émission *
+                                    <label class="lbl">État / province d'émission *
                                         <select name="licenseState">
                                             <option value="">— Choisir —</option>
                                         </select>
                                     </label>
-                                    <label class="lbl">Type de licence *
+                                    <label class="lbl">Type de permis *
                                         <select name="licenseClass">
                                             <option value="">— Choisir l'État —</option>
                                         </select>
                                     </label>
-                                    <label class="lbl">N° de licence
+                                    <label class="lbl">N° de permis
                                         <span class="inline">
                                             <input name="licenseNumber" type="text" maxlength="20" class="upper">
                                             <button type="button" class="btn btn-icon regen" data-regen="licenseNumber" title="Générer un nouveau numéro">&#8635;</button>
                                         </span>
                                     </label>
-                                    <label class="lbl">Condition de la licence
+                                    <label class="lbl">Condition du permis
                                         <select name="licenseStatus">
                                             <option value="valid">Valide</option>
                                             <option value="suspended">Suspension</option>
@@ -455,6 +490,10 @@
                                             <option value="disqualified">Disqualification (CDL)</option>
                                         </select>
                                     </label>
+                                    <div class="lbl span-4 license-endorse-wrap hidden">Mentions (endorsements)
+                                        <span class="endorse-checks" id="licenseEndorsements"></span>
+                                    </div>
+                                    <div class="hint-text span-4 license-info"></div>
                                 </div>
                             </div>
 

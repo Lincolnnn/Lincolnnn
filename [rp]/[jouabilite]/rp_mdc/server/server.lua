@@ -265,6 +265,8 @@ Migrations.identities = function(r)
     if type(r.restrictions) ~= 'table' then r.restrictions = {} end
     if type(r.records) ~= 'table' then r.records = {} end
     if type(r.convictions) ~= 'table' then r.convictions = {} end     -- v2.19 : casier judiciaire
+    r.nationality = r.nationality or 'US'                              -- v2.20 : nationalité (anciennes fiches : US)
+    if type(r.licenseEndorsements) ~= 'table' then r.licenseEndorsements = {} end
     if type(r.registrations) ~= 'table' then r.registrations = {} end -- v2.19 : registre (sex / kidnapping offender)
 end
 
@@ -567,10 +569,7 @@ local function genSSN()
     return ('%03d-%02d-%04d'):format(area, math.random(1, 99), math.random(1, 9999))
 end
 
--- N° de licence de conduite : 1 lettre + 7 chiffres
-local function genLicenseNumber()
-    return string.char(math.random(65, 90)) .. ('%07d'):format(math.random(0, 9999999))
-end
+-- N° de permis de conduire : au format de chaque juridiction (Licenses.number, section LISTES)
 
 -- VIN : 17 caractères (sans I, O ni Q, comme les vrais VIN)
 local VIN_CHARS = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789'
@@ -631,21 +630,57 @@ end
 -- =========================================================================
 -- LISTES (doivent correspondre aux <option> de index.html)
 -- =========================================================================
--- Licences de conduite par État d'émission. Doit correspondre à LICENSE_STATES dans script.js.
---   GA : toutes les licences du MDC (standard, lourd, combiné, moto, CDL, probatoires)
---   autres États : licences standard, moto et CDL de chaque État
-local LICENSE_STATES = {
-    GA = {
-        ['Class C - Standard'] = true, ['Class F - Lourd'] = true, ['Class E - Combiné'] = true, ['Class M - Moto'] = true,
-        ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true,
-        ['Probatoire - Class CP'] = true, ['Probatoire - Class D'] = true, ['Probatoire - Class MP'] = true,
-    },
-    FL = { ['Class E - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
-    TN = { ['Class D - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
-    SC = { ['Class D - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true, ['Class G - Cyclomoteur'] = true },
-    NC = { ['Class C - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
-    AL = { ['Class D - Standard'] = true, ['CDL A'] = true, ['CDL B'] = true, ['CDL C'] = true, ['Class M - Moto'] = true },
-}
+-- PERMIS DE CONDUIRE ET NATIONALITÉS : config/licenses.lua (juridictions, types de permis, mentions, statuts)
+local Licenses = {} -- (bloc : limite de 200 variables locales du fichier)
+do
+    local JUR, NAT, IMM = {}, {}, {}
+    for _, j in ipairs(MDC_LICENSE_JURISDICTIONS or {}) do
+        local classes, endorse = {}, {}
+        for _, c in ipairs(j.classes or {}) do classes[c.label] = c end
+        for _, e in ipairs(j.endorsements or {}) do endorse[e.code] = e end
+        JUR[j.code] = { def = j, classes = classes, endorse = endorse }
+    end
+    for _, n in ipairs(MDC_NATIONALITIES or {}) do NAT[n.code] = n end
+    for _, s in ipairs(MDC_IMMIGRATION or {}) do IMM[s.code] = s end
+    Licenses.JUR, Licenses.NAT, Licenses.IMM = JUR, NAT, IMM
+
+    local LETTERS, ALNUM = 'ABCDEFGHJKLMNPRSTUVWXYZ', 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789'
+    local function chars(set, n)
+        local out = {}
+        for i = 1, n do local k = math.random(1, #set) out[i] = set:sub(k, k) end
+        return table.concat(out)
+    end
+    local function digits(n) return chars('0123456789', n) end
+    --- N° de permis au format de la juridiction : WA « WDL » + 9 caractères ; OR 7 chiffres ; ID 2 lettres + 6 chiffres +
+    --- 1 lettre ; MT 13 chiffres ; CA (Californie) 1 lettre + 7 chiffres ; BC 7 chiffres ; AB 6 chiffres - 3 chiffres
+    function Licenses.number(code)
+        if code == 'WA' then return 'WDL' .. chars(ALNUM, 9) end
+        if code == 'OR' or code == 'BC' then return digits(7) end
+        if code == 'ID' then return chars(LETTERS, 2) .. digits(6) .. chars(LETTERS, 1) end
+        if code == 'MT' then return digits(13) end
+        if code == 'AB' then return digits(6) .. '-' .. digits(3) end
+        return chars(LETTERS, 1) .. digits(7)
+    end
+    function Licenses.sin() -- n° d'assurance sociale canadien : XXX-XXX-XXX
+        return ('%d%s-%s-%s'):format(math.random(1, 9), digits(2), digits(3), digits(3))
+    end
+    function Licenses.passport(nationality) -- US : 1 lettre + 8 chiffres ; Canada : 2 lettres + 6 chiffres
+        if nationality == 'CA' then return chars(LETTERS, 2) .. digits(6) end
+        return chars(LETTERS, 1) .. digits(8)
+    end
+    function Licenses.nexus() return '15' .. digits(7) end
+    --- Pays dont la personne peut détenir un permis (nationalité et statut)
+    function Licenses.countries(nationality, status)
+        if nationality == 'US' then return { US = true } end
+        if nationality == 'USCA' then return { US = true, CA = true } end
+        local s = IMM[status]
+        return s and s.countries or { CA = true }
+    end
+    function Licenses.age(dobKey) -- âge révolu aujourd'hui
+        return (todayKey() - dobKey) // 10000
+    end
+end
+
 -- Condition de la licence ("disqualified" uniquement pour les licences CDL)
 local LICENSE_STATUSES = { valid = true, suspended = true, revoked = true, cancelled = true, disqualified = true }
 -- Interdictions (cumulables ; liste vide = N/A) : port d'arme, conduite de jour uniquement,
@@ -822,16 +857,64 @@ Builders.identities = function(p, selfId)
         sex           = (p.sex == 'M' or p.sex == 'F') and p.sex or '', -- (M) Male / (F) Female
         wantedReason  = '',
         wantedSince   = '',
+        licenseEndorsements = {},
+        -- Nationalité (config/licenses.lua) : US, CA, USCA ; statut d'un Canadien aux États-Unis
+        nationality   = Licenses.NAT[p.nationality] and p.nationality or 'US',
+        immigration   = '',
+        entryDate     = '',
+        statusExpiry  = '',
+        sin           = '',
+        passportNumber = (clean(p.passportNumber, 12):upper():gsub('[^%w]', '')),
+        nexus         = p.nexus == true,
+        nexusNumber   = '',
     }
 
-    -- Obligatoires : Prénom, Nom de famille, DoB, Adresse, SSN (généré si vide)
+    -- Obligatoires : Prénom, Nom de famille, DoB, Adresse, SSN (généré si vide ; pas pour un visiteur canadien)
     if r.firstname == '' or r.lastname == '' then return nil, 'Le prénom et le nom de famille sont obligatoires.' end
     local dob = dateKey(r.dob)
     if not dob then return nil, 'Date de naissance invalide (format JJ/MM/AAAA).' end
     if dob > todayKey() then return nil, 'La date de naissance ne peut pas être dans le futur.' end
     if r.address == '' then return nil, 'L\'adresse est obligatoire.' end
 
-    if r.ssn == '' then
+    -- Statut d'un citoyen canadien : visiteur (date d'entrée, 6 mois), résident permanent, visa TN, visa F-1
+    local status = nil
+    if r.nationality == 'CA' then
+        status = Licenses.IMM[p.immigration] and p.immigration or 'visitor'
+        r.immigration = status
+        local s = Licenses.IMM[status]
+        if s.months then
+            r.entryDate = clean(p.entryDate, 10)
+            local key = dateKey(r.entryDate)
+            if not key then return nil, 'Visiteur : date d\'entrée aux États-Unis invalide (JJ/MM/AAAA).' end
+            if key > todayKey() or key < dob then return nil, 'Visiteur : la date d\'entrée doit être passée (et après la naissance).' end
+        else
+            r.statusExpiry = clean(p.statusExpiry, 10)
+            if r.statusExpiry ~= '' and not dateKey(r.statusExpiry) then
+                return nil, ('%s : date invalide (JJ/MM/AAAA).'):format(s.expiry or 'Fin du statut')
+            end
+        end
+        if s.ssn == false then r.ssn = '' end -- un visiteur n'a pas de SSN
+    end
+    local needSsn = not (status and Licenses.IMM[status].ssn == false)
+
+    -- N° d'assurance sociale canadien (Canadiens et double nationalité), passeport, carte NEXUS
+    if r.nationality ~= 'US' then
+        r.sin = clean(p.sin, 11)
+        if r.sin == '' then
+            r.sin = uniqueValue('identities', 'sin', Licenses.sin)
+        elseif not r.sin:match('^%d%d%d%-%d%d%d%-%d%d%d$') then
+            return nil, 'SIN invalide (format XXX-XXX-XXX).'
+        end
+    end
+    if r.passportNumber == '' then r.passportNumber = Licenses.passport(r.nationality) end
+    if r.nexus then
+        r.nexusNumber = (clean(p.nexusNumber, 12):gsub('%D', ''))
+        if r.nexusNumber == '' then r.nexusNumber = Licenses.nexus() end
+    end
+
+    if not needSsn then
+        r.ssn = ''
+    elseif r.ssn == '' then
         r.ssn = uniqueValue('identities', 'ssn', genSSN)
     elseif not r.ssn:match('^%d%d%d%-%d%d%-%d%d%d%d$') then
         return nil, 'SSN invalide (format XXX-XX-XXXX).'
@@ -843,19 +926,53 @@ Builders.identities = function(p, selfId)
     -- Licence de conduite (case "licence de conduite" cochée) : État d'émission, type de licence
     -- de cet État, n° (généré si vide) et condition
     if p.hasLicense == true then
-        local classes = LICENSE_STATES[p.licenseState]
-        if not classes then return nil, 'Choisissez l\'État d\'émission de la licence de conduite.' end
-        if not classes[p.licenseClass] then return nil, 'Choisissez un type de licence délivré par cet État.' end
+        local jur = Licenses.JUR[p.licenseState]
+        if not jur then return nil, 'Choisissez l\'État / la province qui a délivré le permis.' end
+        local class = jur.classes[p.licenseClass]
+        if not class then return nil, 'Choisissez un type de permis délivré par cet État / cette province.' end
+        local nat = Licenses.NAT[r.nationality].label
+        if not Licenses.countries(r.nationality, status)[jur.def.country] then
+            if jur.def.country == 'CA' then
+                return nil, ('Permis canadien impossible : %s (il faut résider au Canada, ou être canadien).'):format(nat:lower())
+            end
+            return nil, 'Un visiteur canadien conduit avec le permis de sa province (BC, Alberta…), pas avec un permis américain.'
+        end
+        if class.edl and r.nationality == 'CA' then
+            return nil, 'L\'Enhanced Driver License est réservé aux citoyens américains (preuve de citoyenneté).'
+        end
+        local age = Licenses.age(dob)
+        if class.minAge and age < class.minAge then
+            return nil, ('%s : %d ans minimum (la personne a %d ans).'):format(class.label, class.minAge, age)
+        end
+        if class.maxAge and age > class.maxAge then
+            return nil, ('%s : réservé aux moins de %d ans (la personne a %d ans).'):format(class.label, class.maxAge + 1, age)
+        end
         r.licenseState = p.licenseState
         r.licenseClass = p.licenseClass
         r.licenseStatus = LICENSE_STATUSES[p.licenseStatus] and p.licenseStatus or 'valid'
-        if r.licenseStatus == 'disqualified' and not r.licenseClass:match('^CDL') then
-            return nil, 'La disqualification ne concerne que les licences CDL.'
+        local commercialClass = class.kind == 'cdl' or class.kind == 'clp'
+        if r.licenseStatus == 'disqualified' and not commercialClass then
+            return nil, 'La disqualification ne concerne que les permis commerciaux (CDL / classes 1 à 4).'
+        end
+        -- Mentions (endorsements) : celles de la juridiction ; mentions commerciales seulement sur un permis commercial
+        local seen = {}
+        for _, code in ipairs(type(p.licenseEndorsements) == 'table' and p.licenseEndorsements or {}) do
+            local e = jur.endorse[code]
+            if e and not seen[code] then
+                if e.cdl and not commercialClass then
+                    return nil, ('Mention %s : seulement sur un permis commercial.'):format(e.label)
+                end
+                if code == 'M' and class.kind == 'learner' then
+                    return nil, 'Mention moto impossible sur un permis d\'apprentissage.'
+                end
+                seen[code] = true
+                r.licenseEndorsements[#r.licenseEndorsements + 1] = code
+            end
         end
 
         r.licenseNumber = (clean(p.licenseNumber, 20):upper():gsub('[^%w%-]', ''))
         if r.licenseNumber == '' then
-            r.licenseNumber = uniqueValue('identities', 'licenseNumber', genLicenseNumber)
+            r.licenseNumber = uniqueValue('identities', 'licenseNumber', function() return Licenses.number(r.licenseState) end)
         else
             local other = findBy('identities', 'licenseNumber', r.licenseNumber, selfId)
             if other then return nil, ('Ce numéro de licence est déjà attribué (fiche n°%d).'):format(other.id) end
@@ -2688,7 +2805,10 @@ local function reportListItem(report, me)
 end
 
 RegisterMDCCallback('getReportTypes', function()
-    return { ok = true, types = MDC_REPORT_TYPES or {}, offenses = MDC_OFFENSES or {}, classes = MDC_OFFENSE_CLASSES or {} }
+    return { ok = true, types = MDC_REPORT_TYPES or {}, offenses = MDC_OFFENSES or {}, classes = MDC_OFFENSE_CLASSES or {},
+        -- permis et nationalités (config/licenses.lua) : formulaire Identité et fiches
+        licenses = MDC_LICENSE_JURISDICTIONS or {}, nationalities = MDC_NATIONALITIES or {},
+        immigration = MDC_IMMIGRATION or {}, legacyStates = MDC_LEGACY_STATES or {} }
 end, true)
 
 -- Liste : filtres par type, par texte (n°, résumé, auteur, contenu) et "mes rapports"

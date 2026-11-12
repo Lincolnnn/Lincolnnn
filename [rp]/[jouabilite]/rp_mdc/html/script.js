@@ -51,19 +51,28 @@
     // Interdictions (cumulables) : clés identiques à RESTRICTIONS dans server.lua
     const RESTRICTION_LABELS = { weapon: 'Port d\'arme', daylight: 'Conduite de jour uniquement', nointerstate: 'Interdiction de rouler sur Interstate' };
 
-    // Licences de conduite par État d'émission (identique à LICENSE_STATES dans server.lua) :
-    // la Géorgie en premier (toutes les licences du MDC), puis les États voisins (licences standard,
-    // moto et CDL réelles).
-    const LICENSE_STATES = [
-        { code: 'GA', label: 'GA - Georgia', classes: ['Class C - Standard', 'Class F - Lourd', 'Class E - Combiné', 'Class M - Moto',
-            'CDL A', 'CDL B', 'CDL C', 'Probatoire - Class CP', 'Probatoire - Class D', 'Probatoire - Class MP'] },
-        { code: 'FL', label: 'FL - Floride', classes: ['Class E - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
-        { code: 'TN', label: 'TN - Tennessee', classes: ['Class D - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
-        { code: 'SC', label: 'SC - South Carolina', classes: ['Class D - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto', 'Class G - Cyclomoteur'] },
-        { code: 'NC', label: 'NC - North Carolina', classes: ['Class C - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
-        { code: 'AL', label: 'AL - Alabama', classes: ['Class D - Standard', 'CDL A', 'CDL B', 'CDL C', 'Class M - Moto'] },
-    ];
-    const stateLabel = (code) => (LICENSE_STATES.find((s) => s.code === code) || {}).label || code || '';
+    // Permis de conduire et nationalités : config/licenses.lua, reçus du serveur avec les modèles des rapports
+    // (getReportTypes) : juridictions (Washington, États voisins, provinces canadiennes), types, mentions, statuts.
+    const licenseCatalog = { jurisdictions: [], byCode: {}, nationalities: [], natByCode: {}, immigration: [], immByCode: {}, legacy: {} };
+    const stateLabel = (code) => (licenseCatalog.byCode[code] || {}).label || licenseCatalog.legacy[code] || code || '';
+    const classOf = (code, label) => toArray((licenseCatalog.byCode[code] || {}).classes).find((c) => c.label === label) || null;
+    const endorsementLabel = (code, e) => (toArray((licenseCatalog.byCode[code] || {}).endorsements).find((x) => x.code === e) || {}).label || e;
+    /** Pays dont la personne peut détenir un permis (même règle que server.lua : Licenses.countries) */
+    function licenseCountries(nationality, status) {
+        if (nationality === 'US') return { US: true };
+        if (nationality === 'USCA') return { US: true, CA: true };
+        const s = licenseCatalog.immByCode[status];
+        return (s && s.countries) || { CA: true };
+    }
+    /** Visiteur canadien : séjour autorisé jusqu'au (date d'entrée + 6 mois) */
+    function visitorUntil(r) {
+        const s = licenseCatalog.immByCode[r.immigration];
+        const d = parseDate(r.entryDate);
+        if (!s || !s.months || !d) return null;
+        const until = new Date(d.getTime());
+        until.setMonth(until.getMonth() + s.months);
+        return until;
+    }
     const LICENSE_STATUS_LABELS = { valid: 'Valide', suspended: 'Suspension', revoked: 'Révocation', cancelled: 'Annulation', disqualified: 'Disqualification' };
     const LICENSE_STATUS_COLOR = { valid: 'c-green', suspended: 'c-orange', revoked: 'c-red', cancelled: 'c-red', disqualified: 'c-red' };
 
@@ -304,6 +313,7 @@
 
     // Contenu du MDC choisi : unité, BOLOs, onglet de départ
     function enterMdc(opening) {
+        loadReportTypes(); // permis, nationalités, infractions (fiches et formulaires)
         if (isPolice()) {
             refreshUnits(); // statut de l'unité du joueur (volet de gauche)
             refreshBolos(); // BOLOs actifs (volet de gauche)
@@ -962,6 +972,62 @@
             .map((reg) => ` ${flag(reg.status === 'absconded' ? 'c-red' : 'c-purple', reg.type === 'sex' ? 'SO' : 'KO')}`).join('');
     }
 
+    // ---- Nationalité, statut et documents dans une fiche ----
+    const NAT_SHORT = { US: 'US', CA: 'CAN', USCA: 'US / CAN' };
+    const startOfToday = () => new Date(new Date().toDateString());
+    function nationalityHtml(r) {
+        const nat = licenseCatalog.natByCode[r.nationality || 'US'];
+        const s = licenseCatalog.immByCode[r.immigration];
+        const label = nat ? nat.label : (r.nationality || 'US');
+        return `${flag(r.nationality === 'CA' ? 'c-red' : r.nationality === 'USCA' ? 'c-purple' : 'c-blue', NAT_SHORT[r.nationality || 'US'] || r.nationality)} ${esc(label)}${
+            r.nationality === 'CA' && s ? ` — ${esc(s.short || s.label)}` : ''}`;
+    }
+    function statusAlert(r) {
+        if (r.nationality !== 'CA') return '';
+        const until = visitorUntil(r);
+        if (until && until < startOfToday()) {
+            return `<div class="sheet-alert yellow">&#9888; SÉJOUR DÉPASSÉ — visiteur canadien autorisé jusqu'au ${esc(dateString(until))} (entré le ${esc(r.entryDate)})</div>`;
+        }
+        const exp = parseDate(r.statusExpiry);
+        const s = licenseCatalog.immByCode[r.immigration];
+        if (exp && exp < startOfToday()) {
+            return `<div class="sheet-alert yellow">&#9888; STATUT EXPIRÉ — ${esc((s && s.short) || r.immigration)} depuis le ${esc(r.statusExpiry)}</div>`;
+        }
+        return '';
+    }
+    function documentsHtml(r) {
+        const s = licenseCatalog.immByCode[r.immigration];
+        const until = visitorUntil(r);
+        const rows = [dd('Nationalité', nationalityHtml(r))];
+        if (r.nationality === 'CA' && s) {
+            rows.push(row('Statut aux États-Unis', s.label));
+            if (s.months) {
+                rows.push(row('Entré aux États-Unis le', r.entryDate));
+                if (until) rows.push(dd('Séjour autorisé jusqu\'au', `${esc(dateString(until))} ${until < startOfToday() ? flag('c-red', 'Dépassé') : flag('c-green', 'En cours')}`));
+            } else if (r.statusExpiry) {
+                const exp = parseDate(r.statusExpiry);
+                rows.push(dd(s.expiry || 'Fin du statut', `${esc(r.statusExpiry)} ${exp && exp < startOfToday() ? flag('c-red', 'Expiré') : flag('c-green', 'Valide')}`));
+            }
+        }
+        rows.push(row('N° de passeport', r.passportNumber));
+        if (r.nationality && r.nationality !== 'US') rows.push(row('N° d\'assurance sociale (SIN)', r.sin));
+        rows.push(dd('Carte NEXUS', r.nexus ? `${flag('c-green', 'Oui')} ${esc(r.nexusNumber || '')}` : 'Non'));
+        return `<dl class="sheet">${rows.join('')}</dl>`;
+    }
+    function licenseHtml(r) {
+        const c = classOf(r.licenseState, r.licenseClass);
+        const endorse = toArray(r.licenseEndorsements);
+        return `
+            <dl class="sheet">
+                ${row('Type de permis', r.licenseClass)}
+                ${c && c.info ? row('Détail', c.info) : ''}
+                ${dd('Condition du permis', flag(LICENSE_STATUS_COLOR[r.licenseStatus], LICENSE_STATUS_LABELS[r.licenseStatus] || 'Valide'))}
+                ${row('N° de permis', r.licenseNumber)}
+                ${row('Délivré par', stateLabel(r.licenseState))}
+                ${dd('Mentions', endorse.length ? endorse.map((e) => flag('c-blue', endorsementLabel(r.licenseState, e))).join(' ') : 'Aucune')}
+            </dl>`;
+    }
+
     function renderIdentity(r, editable) {
         const vehicles = toArray(r.vehicles);
         const records = toArray(r.records);
@@ -973,6 +1039,7 @@
         return `
             ${sheetHead(`FICHE D'IDENTITÉ — ${fullName(r)}`, r, editable)}
             ${conditionAlert(r)}
+            ${statusAlert(r)}
             ${registryAlerts(r)}
             ${boloAlerts(r)}
             <dl class="sheet">
@@ -981,18 +1048,14 @@
                 ${row('Nom de famille', String(r.lastname || '').toUpperCase())}
                 ${row('Date de naissance', r.dob)}
                 ${row('Sexe', SEX_LABELS[r.sex] || '')}
-                ${row('SSN', r.ssn)}
+                ${dd('Nationalité', nationalityHtml(r))}
+                ${row('SSN', r.ssn || (r.nationality === 'CA' ? 'N/A (pas de SSN)' : ''))}
                 ${row('Adresse', r.address)}
                 ${row('Emploi', r.job)}
                 ${dd('Condition', conditionFlag(r.condition))}
             </dl>
-            ${fold('Licence de conduite', hasLicense ? `
-                <dl class="sheet">
-                    ${row('Type de licence', r.licenseClass)}
-                    ${dd('Condition de la licence', flag(LICENSE_STATUS_COLOR[r.licenseStatus], LICENSE_STATUS_LABELS[r.licenseStatus] || 'Valide'))}
-                    ${row('N° de licence', r.licenseNumber)}
-                    ${row('État d\'émission', stateLabel(r.licenseState))}
-                </dl>` : foldEmpty('Aucune licence de conduite (N/A).'))}
+            ${fold('Permis de conduire', hasLicense ? licenseHtml(r) : foldEmpty('Aucun permis de conduire (N/A).'))}
+            ${fold('Nationalité et documents', documentsHtml(r))}
             ${fold('Véhicule(s)', vehicles.length
                 ? `<ul class="sheet-list">${vehicles.map(vehicleLine).join('')}</ul>`
                 : foldEmpty('Aucun véhicule enregistré au nom de cette personne.'), vehicles.length)}
@@ -1095,8 +1158,8 @@
                 <tr data-index="${i}" class="${r.condition === 'wanted' ? 'row-wanted' : ''}">
                     <td>Identité</td>
                     <td><b>${esc(String(r.lastname).toUpperCase())}</b> ${esc([r.firstname, r.middlename].filter(Boolean).join(' '))}</td>
-                    <td>${esc(r.dob)}${r.sex ? ` (${esc(r.sex)})` : ''} — SSN ${esc(r.ssn || '-')}</td>
-                    <td>${conditionFlag(r.condition)}${registryFlags(r)}${boloFlag(r)}</td>
+                    <td>${esc(r.dob)}${r.sex ? ` (${esc(r.sex)})` : ''} — ${r.ssn ? `SSN ${esc(r.ssn)}` : (r.sin ? `SIN ${esc(r.sin)}` : 'SSN -')}</td>
+                    <td>${r.nationality && r.nationality !== 'US' ? `${flag(r.nationality === 'CA' ? 'c-red' : 'c-purple', NAT_SHORT[r.nationality])} ` : ''}${conditionFlag(r.condition)}${registryFlags(r)}${boloFlag(r)}</td>
                 </tr>`;
         }
         const owner = r.ownerIdentity ? fullName(r.ownerIdentity) : (r.ownerName || 'Propriétaire inconnu');
@@ -1953,14 +2016,56 @@
             do { area = int(1, 899); } while (area === 666);
             return `${String(area).padStart(3, '0')}-${String(int(1, 99)).padStart(2, '0')}-${String(int(1, 9999)).padStart(4, '0')}`;
         }
-        const licenseNumber = () => `${letter()}${String(int(0, 9999999)).padStart(7, '0')}`;
+        // N° de permis au format de la juridiction (identique à server.lua : Licenses.number)
+        const digits = (n) => Array.from({ length: n }, () => int(0, 9)).join('');
+        const letters = (n) => Array.from({ length: n }, () => 'ABCDEFGHJKLMNPRSTUVWXYZ'[int(0, 22)]).join('');
+        const alnum = (n) => Array.from({ length: n }, () => 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789'[int(0, 32)]).join('');
+        function licenseNumber(code) {
+            if (code === 'WA') return `WDL${alnum(9)}`;
+            if (code === 'OR' || code === 'BC') return digits(7);
+            if (code === 'ID') return `${letters(2)}${digits(6)}${letters(1)}`;
+            if (code === 'MT') return digits(13);
+            if (code === 'AB') return `${digits(6)}-${digits(3)}`;
+            return `${letters(1)}${digits(7)}`;
+        }
+        const sin = () => `${int(1, 9)}${digits(2)}-${digits(3)}-${digits(3)}`; // n° d'assurance sociale (Canada)
+        const passport = (nat) => (nat === 'CA' ? `${letters(2)}${digits(6)}` : `${letters(1)}${digits(8)}`);
+        const nexus = () => `15${digits(7)}`;
+        // Adresses au Canada (visiteurs canadiens) : Colombie-Britannique et Alberta
+        const CANADA_ADDRESSES = [
+            '1055 W Georgia St, Vancouver, BC V6E 3P3', '2329 W Mall, Vancouver, BC V6T 1Z4', '4700 Kingsway, Burnaby, BC V5H 4M1',
+            '6551 No. 3 Rd, Richmond, BC V6Y 2B6', '10153 King George Blvd, Surrey, BC V3T 2W1', '1150 Douglas St, Victoria, BC V8W 3M9',
+            '32555 Simon Ave, Abbotsford, BC V2T 4Y2', '1580 Ellis St, Kelowna, BC V1Y 2B3', '20202 66 Ave, Langley, BC V2Y 1P3',
+            '800 Macleod Trail SE, Calgary, AB T2G 2M3', '10365 97 St NW, Edmonton, AB T5J 3Y9', '317 7 Ave SW, Calgary, AB T2P 2Y9',
+        ];
         const vin = () => Array.from({ length: 17 }, () => VIN_CHARS[int(0, VIN_CHARS.length - 1)]).join('');
         const policyNumber = () => `${letter()}${letter()}${String(int(0, 99999999)).padStart(8, '0')}`;
         // Indicatif régional de Géorgie compris entre 470 et 678 (identique à server.lua)
         const GEORGIA_AREA_CODES = [470, 478, 678];
         const phone = () => `${pick(GEORGIA_AREA_CODES)}-${int(200, 999)}-${String(int(0, 9999)).padStart(4, '0')}`;
 
-        // Identité : prénom, middle name, nom, DoB, adresse, SSN et emploi uniquement
+        // Nationalité au hasard : surtout des citoyens américains ; Canadiens (visiteurs, résidents, visas TN / F-1)
+        const NATIONALITIES = [['US', 82], ['CA', 14], ['USCA', 4]];
+        const CA_STATUSES = [['visitor', 45], ['permanent', 25], ['worker', 20], ['student', 10]];
+
+        function nationality() {
+            const nat = weighted(NATIONALITIES);
+            const out = { nationality: nat, sin: nat === 'US' ? '' : sin(), passportNumber: passport(nat), nexus: Math.random() < 0.15 };
+            out.nexusNumber = out.nexus ? nexus() : '';
+            if (nat === 'CA') {
+                out.immigration = weighted(CA_STATUSES);
+                if (out.immigration === 'visitor') {
+                    out.entryDate = dateString(new Date(Date.now() - int(1, 150) * 86400000)); // entré il y a moins de 5 mois
+                    out.address = pick(CANADA_ADDRESSES);
+                    out.ssn = '';
+                } else {
+                    out.statusExpiry = dateString(new Date(Date.now() + int(60, out.immigration === 'permanent' ? 3600 : 1000) * 86400000));
+                }
+            }
+            return out;
+        }
+
+        // Identité : prénom, middle name, nom, DoB, adresse, SSN, emploi et nationalité (statut, dates, documents)
         function identity() {
             const male = Math.random() < 0.5;
             const [street, city, county] = pick(ADDRESSES[weighted(ADDRESS_AREAS)]);
@@ -1974,6 +2079,7 @@
                 address: `${street}, ${city}, ${county} Co., GA`, // ex : 225 Baker Street NW, Atlanta, Fulton Co., GA
                 ssn: ssn(),
                 job: pick(JOBS),
+                ...nationality(),
             };
         }
 
@@ -1991,7 +2097,7 @@
             };
         }
 
-        return { ssn, licenseNumber, vin, policyNumber, phone, identity, vehicle };
+        return { ssn, licenseNumber, sin, passport, nexus, vin, policyNumber, phone, identity, vehicle };
     })();
 
     // =====================================================================
@@ -2136,39 +2242,153 @@
 
     idField('condition').addEventListener('change', updateWantedFields);
 
-    // ---- Licence : case à cocher, puis État d'émission, type de licence (selon l'État), n° et condition ----
-    idField('licenseState').innerHTML = '<option value="">— Choisir —</option>'
-        + LICENSE_STATES.map((s) => `<option value="${s.code}">${esc(s.label)}</option>`).join('');
+    // ---- Nationalité : citoyen américain, canadien (statut aux États-Unis) ou double nationalité ----
+    // Visiteur canadien : date d'entrée (séjour de 6 mois), pas de SSN, permis de sa province ; résident permanent,
+    // visa TN, visa F-1 : SSN, permis américain ou canadien, date de fin du statut ; SIN pour les Canadiens.
+    let identityCatalogReady = false;
+    function buildIdentityCatalog() {
+        if (identityCatalogReady || !licenseCatalog.nationalities.length) return identityCatalogReady;
+        identityCatalogReady = true;
+        idField('nationality').innerHTML = licenseCatalog.nationalities.map((n) => `<option value="${esc(n.code)}">${esc(n.label)}</option>`).join('');
+        idField('immigration').innerHTML = licenseCatalog.immigration.map((s) => `<option value="${esc(s.code)}">${esc(s.label)}</option>`).join('');
+        updateNationalityFields();
+        return true;
+    }
+    async function identityCatalog() {
+        if (!identityCatalogReady) { await loadReportTypes(); buildIdentityCatalog(); }
+        return identityCatalogReady;
+    }
 
-    // Types de licence délivrés par l'État choisi (le type déjà choisi est gardé s'il existe dans cet État)
+    function updateNationalityFields() {
+        if (!identityCatalogReady) return;
+        const nat = idField('nationality').value || 'US';
+        const canadian = nat === 'CA';
+        const status = licenseCatalog.immByCode[idField('immigration').value];
+        const visitor = canadian && status && status.months;
+        const show = (sel, on) => identityForm.querySelectorAll(sel).forEach((el) => el.classList.toggle('hidden', !on));
+        show('.ca-only', canadian);
+        show('.visitor-only', !!visitor);
+        show('.status-only', canadian && !visitor);
+        show('.sin-only', nat !== 'US');
+        show('.nexus-only', idField('nexus').checked);
+        identityForm.querySelector('.status-expiry-label').textContent = (status && status.expiry) || 'Fin du statut';
+        // SSN : aucun pour un visiteur canadien
+        const ssn = idField('ssn');
+        ssn.disabled = !!visitor;
+        identityForm.querySelector('.ssn-req').classList.toggle('hidden', !!visitor);
+        if (visitor) { ssn.value = ''; ssn.placeholder = 'N/A (visiteur canadien)'; } else {
+            ssn.placeholder = 'XXX-XX-XXXX';
+            if (!ssn.value) ssn.value = Random.ssn();
+        }
+        if (nat !== 'US' && !idField('sin').value) idField('sin').value = Random.sin();
+        // passeport au format du pays (US : 1 lettre + 8 chiffres ; Canada : 2 lettres + 6 chiffres) : refait si la
+        // nationalité a changé
+        const passport = idField('passportNumber');
+        const usFormat = /^[A-Z]\d{8}$/.test(passport.value);
+        const caFormat = /^[A-Z]{2}\d{6}$/.test(passport.value);
+        if (!passport.value || (nat === 'CA' && usFormat) || (nat === 'US' && caFormat)) passport.value = Random.passport(nat);
+        if (idField('nexus').checked && !idField('nexusNumber').value) idField('nexusNumber').value = Random.nexus();
+        if (visitor && !idField('entryDate').value) idField('entryDate').value = dateString(new Date());
+        let hint = '';
+        if (visitor) {
+            const until = visitorUntil({ immigration: idField('immigration').value, entryDate: idField('entryDate').value });
+            hint = `Visiteur : séjour autorisé ${status.months} mois${until ? `, jusqu'au ${dateString(until)}` : ''} ; pas de SSN ; adresse au Canada ; permis de sa province uniquement.`;
+        } else if (canadian) {
+            hint = 'Vit aux États-Unis : SSN, permis d\'un État américain ou de sa province (jamais l\'Enhanced Driver License).';
+        } else if (nat === 'USCA') {
+            hint = 'Double nationalité : SSN et SIN ; permis américain (EDL possible) ou canadien.';
+        }
+        identityForm.querySelector('.nationality-hint').textContent = hint;
+        updateLicenseStates();
+    }
+
+    // ---- Permis : case à cocher, puis État / province (selon la nationalité), type (selon l'âge), mentions, n° ----
+    const identityAge = () => {
+        const d = parseDate(idField('dob').value);
+        if (!d) return null;
+        const now = new Date();
+        let age = now.getFullYear() - d.getFullYear();
+        if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) age--;
+        return age;
+    };
+
+    function updateLicenseStates() {
+        const select = idField('licenseState');
+        const current = select.value;
+        const allowed = licenseCountries(idField('nationality').value || 'US', idField('immigration').value);
+        const list = licenseCatalog.jurisdictions.filter((j) => allowed[j.country]);
+        select.innerHTML = '<option value="">— Choisir —</option>' + ['US', 'CA'].filter((c) => list.some((j) => j.country === c)).map((c) =>
+            `<optgroup label="${c === 'US' ? 'États-Unis' : 'Canada'}">${list.filter((j) => j.country === c)
+                .map((j) => `<option value="${esc(j.code)}">${esc(j.label)}</option>`).join('')}</optgroup>`).join('');
+        select.value = list.some((j) => j.code === current) ? current : '';
+        updateLicenseClasses();
+    }
+
+    /** Raison pour laquelle ce type de permis est impossible (âge, EDL), ou '' */
+    function classBlocked(c) {
+        const age = identityAge();
+        if (c.edl && idField('nationality').value === 'CA') return 'citoyens américains';
+        if (age != null && c.minAge && age < c.minAge) return `${c.minAge} ans min.`;
+        if (age != null && c.maxAge != null && age > c.maxAge) return `moins de ${c.maxAge + 1} ans`;
+        return '';
+    }
+
     function updateLicenseClasses() {
-        const state = LICENSE_STATES.find((s) => s.code === idField('licenseState').value);
+        const j = licenseCatalog.byCode[idField('licenseState').value];
         const select = idField('licenseClass');
         const current = select.value;
-        select.innerHTML = state
-            ? '<option value="">— Choisir —</option>' + state.classes.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')
+        select.innerHTML = j
+            ? '<option value="">— Choisir —</option>' + toArray(j.classes).map((c) => {
+                const why = classBlocked(c);
+                return `<option value="${esc(c.label)}"${why ? ' disabled' : ''}>${esc(c.label)}${why ? ` (${esc(why)})` : ''}</option>`;
+            }).join('')
             : '<option value="">— Choisir l\'État —</option>';
-        select.value = state && state.classes.includes(current) ? current : '';
+        const keep = j && toArray(j.classes).find((c) => c.label === current && !classBlocked(c));
+        select.value = keep ? current : '';
+        updateLicenseFields();
+    }
+
+    function updateEndorsements() {
+        const code = idField('licenseState').value;
+        const j = licenseCatalog.byCode[code];
+        const c = classOf(code, idField('licenseClass').value);
+        const box = $('#licenseEndorsements');
+        const checked = new Set([...box.querySelectorAll('input:checked')].map((i) => i.value));
+        const commercial = c && (c.kind === 'cdl' || c.kind === 'clp');
+        const list = j ? toArray(j.endorsements) : [];
+        box.innerHTML = list.map((e) => {
+            const off = !c || (e.cdl && !commercial) || (e.code === 'M' && (c.kind === 'learner' || c.kind === 'moto'));
+            return `<label class="check${off ? ' disabled' : ''}"><input type="checkbox" name="licenseEndorsements" value="${esc(e.code)}"${off ? ' disabled' : ''}${!off && checked.has(e.code) ? ' checked' : ''}> ${esc(e.label)}</label>`;
+        }).join('');
+        identityForm.querySelector('.license-endorse-wrap').classList.toggle('hidden', !list.length);
     }
 
     function updateLicenseFields() {
         const hasLicense = idField('hasLicense').checked;
         identityForm.querySelectorAll('.license-only').forEach((el) => el.classList.toggle('hidden', !hasLicense));
-        const licenseClass = idField('licenseClass').value;
+        const code = idField('licenseState').value;
+        const c = classOf(code, idField('licenseClass').value);
 
-        // "Disqualification" uniquement pour les licences CDL
-        const cdl = licenseClass.startsWith('CDL');
+        // "Disqualification" uniquement pour les permis commerciaux (CDL, CLP, classes canadiennes 1 à 4)
+        const commercial = !!c && (c.kind === 'cdl' || c.kind === 'clp');
         const status = idField('licenseStatus');
-        status.querySelector('option[value="disqualified"]').disabled = !cdl;
-        if (!cdl && status.value === 'disqualified') status.value = 'valid';
+        status.querySelector('option[value="disqualified"]').disabled = !commercial;
+        if (!commercial && status.value === 'disqualified') status.value = 'valid';
+        identityForm.querySelector('.license-info').textContent = c ? `${c.label} : ${c.info || ''}${c.minAge ? ` — ${c.minAge} ans minimum` : ''}.` : '';
+        updateEndorsements();
 
-        if (hasLicense && !idField('licenseNumber').value) idField('licenseNumber').value = Random.licenseNumber();
+        if (hasLicense && code && !idField('licenseNumber').value) idField('licenseNumber').value = Random.licenseNumber(code);
     }
 
+    idField('nationality').addEventListener('change', updateNationalityFields);
+    idField('immigration').addEventListener('change', updateNationalityFields);
+    idField('entryDate').addEventListener('change', updateNationalityFields);
+    idField('nexus').addEventListener('change', updateNationalityFields);
+    idField('dob').addEventListener('change', updateLicenseClasses);
     idField('hasLicense').addEventListener('change', updateLicenseFields);
     idField('licenseState').addEventListener('change', () => {
+        idField('licenseNumber').value = ''; // nouveau n° au format de cette juridiction
         updateLicenseClasses();
-        updateLicenseFields();
     });
     idField('licenseClass').addEventListener('change', updateLicenseFields);
 
@@ -2184,28 +2404,46 @@
         }
         setRestrictions([]);
         updateWantedFields();
-        updateLicenseClasses();
-        updateLicenseFields();
         idField('ssn').value = Random.ssn();
+        if (identityCatalogReady) {
+            idField('nationality').value = 'US';
+            idField('immigration').value = licenseCatalog.immigration.length ? licenseCatalog.immigration[0].code : '';
+            updateNationalityFields();
+        }
+        updateLicenseFields();
     }
 
     function fillIdentityForm(r) {
         resetIdentityForm();
         ['firstname', 'middlename', 'lastname', 'dob', 'sex', 'address', 'ssn', 'job',
-            'licenseStatus', 'licenseNumber', 'condition', 'wantedReason', 'wantedSince']
+            'licenseStatus', 'licenseNumber', 'condition', 'wantedReason', 'wantedSince',
+            'entryDate', 'statusExpiry', 'sin', 'passportNumber', 'nexusNumber']
             .forEach((name) => { idField(name).value = r[name] ?? ''; });
-        // Licence : État (code GA, FL…) puis le type de licence de cet État
-        idField('hasLicense').checked = !!r.licenseClass && r.licenseClass !== 'N/A';
-        const knownState = LICENSE_STATES.some((s) => s.code === r.licenseState);
-        const legacyGeorgia = !knownState && LICENSE_STATES[0].classes.includes(r.licenseClass); // ancienne fiche (ex : "San Andreas")
-        idField('licenseState').value = knownState ? r.licenseState : (legacyGeorgia ? 'GA' : '');
-        updateLicenseClasses();
-        idField('licenseClass').value = r.licenseClass || '';
+        idField('nexus').checked = !!r.nexus;
         if (!idField('licenseStatus').value) idField('licenseStatus').value = 'valid';
         if (!idField('condition').value) idField('condition').value = 'none';
         setRestrictions(toArray(r.restrictions));
-        updateLicenseFields();
         updateWantedFields();
+        // Nationalité puis permis (catalogue chargé d'abord) ; ancienne fiche (Géorgie…) : État et type à rechoisir
+        identityCatalog().then((ok) => {
+            if (!ok) return;
+            idField('nationality').value = r.nationality || 'US';
+            if (r.immigration) idField('immigration').value = r.immigration;
+            updateNationalityFields();
+            idField('hasLicense').checked = !!r.licenseClass && r.licenseClass !== 'N/A';
+            idField('licenseState').value = licenseCatalog.byCode[r.licenseState] ? r.licenseState : '';
+            updateLicenseClasses();
+            idField('licenseClass').value = r.licenseClass || '';
+            if (!idField('licenseClass').value && r.licenseClass && r.licenseClass !== 'N/A') {
+                toast(`Ancien permis (${stateLabel(r.licenseState)} — ${r.licenseClass}) : choisissez l'État / la province et le type actuels.`, 'info');
+            }
+            updateLicenseFields();
+            toArray(r.licenseEndorsements).forEach((code) => {
+                const box = $(`#licenseEndorsements input[value="${CSS.escape(code)}"]`);
+                if (box && !box.disabled) box.checked = true;
+            });
+            idField('licenseNumber').value = r.licenseNumber || idField('licenseNumber').value;
+        });
         // Casier judiciaire et registre (catalogue chargé d'abord) ; anciens antécédents gardés tels quels
         const legacy = toArray(r.records);
         const note = identityForm.querySelector('.legacy-records');
@@ -2223,14 +2461,22 @@
         const payload = Object.fromEntries(formData.entries());
         payload.restrictions = formData.getAll('restrictions').filter((v) => v !== 'none');
         payload.hasLicense = formData.has('hasLicense');
+        payload.licenseEndorsements = formData.getAll('licenseEndorsements');
+        payload.nexus = formData.has('nexus');
         payload.convictions = collectConvictions(identityJustice.record);
         payload.registrations = collectRegistrations(identityJustice.registry);
         return payload;
     }
 
     // Remplissage aléatoire : prénom, middle name, nom, DoB, adresse, SSN et emploi
-    $('#randomIdentity').addEventListener('click', () => {
-        Object.entries(Random.identity()).forEach(([name, value]) => { idField(name).value = value; });
+    $('#randomIdentity').addEventListener('click', async () => {
+        await identityCatalog();
+        Object.entries(Random.identity()).forEach(([name, value]) => {
+            const el = idField(name);
+            if (!el) return;
+            if (el.type === 'checkbox') el.checked = !!value; else el.value = value;
+        });
+        updateNationalityFields();
     });
 
     // =====================================================================
@@ -2837,10 +3083,15 @@
     // =====================================================================
     // BOUTONS "GÉNÉRER" (SSN, licence, VIN, police d'assurance)
     // =====================================================================
-    const GENERATORS = { ssn: Random.ssn, licenseNumber: Random.licenseNumber, vin: Random.vin, insurancePolicy: Random.policyNumber, phone: Random.phone };
+    const formValue = (form, name) => (form.elements.namedItem(name) || {}).value || '';
+    const GENERATORS = { ssn: Random.ssn, vin: Random.vin, insurancePolicy: Random.policyNumber, phone: Random.phone,
+        licenseNumber: (form) => Random.licenseNumber(formValue(form, 'licenseState')), sin: Random.sin, nexusNumber: Random.nexus,
+        passportNumber: (form) => Random.passport(formValue(form, 'nationality')) };
 
     $$('.regen').forEach((btn) => btn.addEventListener('click', () => {
-        btn.closest('form').elements.namedItem(btn.dataset.regen).value = GENERATORS[btn.dataset.regen]();
+        const form = btn.closest('form');
+        const input = form.elements.namedItem(btn.dataset.regen);
+        if (!input.disabled) input.value = GENERATORS[btn.dataset.regen](form);
     }));
 
     // =====================================================================
@@ -2856,7 +3107,7 @@
     }
 
     function loadCreateView(view) {
-        if (view === 'identity') justiceReady();
+        if (view === 'identity') { justiceReady(); identityCatalog(); }
         else if (view === 'record' || view === 'offender') loadJusticeView(view);
         if (view === 'registry') refreshRegistry();
         else if (view === 'vehicle' && !(state.editing && state.editing.kind === 'vehicle')) loadOwners();
@@ -4022,6 +4273,13 @@
             return false;
         }
         reports.types = toArray(res.types);
+        licenseCatalog.jurisdictions = toArray(res.licenses);
+        licenseCatalog.byCode = Object.fromEntries(licenseCatalog.jurisdictions.map((j) => [j.code, j]));
+        licenseCatalog.nationalities = toArray(res.nationalities);
+        licenseCatalog.natByCode = Object.fromEntries(licenseCatalog.nationalities.map((n) => [n.code, n]));
+        licenseCatalog.immigration = toArray(res.immigration);
+        licenseCatalog.immByCode = Object.fromEntries(licenseCatalog.immigration.map((s) => [s.code, s]));
+        licenseCatalog.legacy = res.legacyStates || {};
         offenses.list = toArray(res.offenses);
         offenses.byId = Object.fromEntries(offenses.list.map((o) => [o.id, o]));
         offenses.classes = toArray(res.classes);

@@ -55,23 +55,21 @@
 -- -------------------------------------------------------------------------
 -- Listes communes
 -- -------------------------------------------------------------------------
--- Toutes les classes délivrées par les États de server.lua (LICENSE_STATES)
-local LICENSE_CLASSES = {
-    { 'N/A', 'Aucune' },
-    { 'Class C - Standard', 'Class C - Standard' },
-    { 'Class D - Standard', 'Class D - Standard' },
-    { 'Class E - Standard', 'Class E - Standard' },
-    { 'Class E - Combiné', 'Class E - Combiné' },
-    { 'Class F - Lourd', 'Class F - Lourd' },
-    { 'Class M - Moto', 'Class M - Moto' },
-    { 'Class G - Cyclomoteur', 'Class G - Cyclomoteur' },
-    { 'CDL A', 'CDL A' },
-    { 'CDL B', 'CDL B' },
-    { 'CDL C', 'CDL C' },
-    { 'Probatoire - Class CP', 'Probatoire - Class CP' },
-    { 'Probatoire - Class D', 'Probatoire - Class D' },
-    { 'Probatoire - Class MP', 'Probatoire - Class MP' },
-}
+-- Tous les types de permis (config/licenses.lua), puis les anciens (Géorgie) pour les rapports déjà écrits
+local LICENSE_CLASSES = { { 'N/A', 'Aucune' } }
+do
+    local seen = { ['N/A'] = true }
+    local function add(value, label)
+        if not seen[value] then seen[value] = true LICENSE_CLASSES[#LICENSE_CLASSES + 1] = { value, label or value } end
+    end
+    for _, j in ipairs(MDC_LICENSE_JURISDICTIONS or {}) do
+        for _, c in ipairs(j.classes or {}) do add(c.label) end
+    end
+    for _, old in ipairs({ 'Class C - Standard', 'Class D - Standard', 'Class E - Standard', 'Class E - Combiné', 'Class F - Lourd',
+        'Class M - Moto', 'Class G - Cyclomoteur', 'Probatoire - Class CP', 'Probatoire - Class D', 'Probatoire - Class MP' }) do
+        add(old, old .. ' (ancien)')
+    end
+end
 
 local SEXES = { { 'male', '(M) Male' }, { 'female', '(F) Female' } }
 

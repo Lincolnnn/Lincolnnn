@@ -452,12 +452,8 @@ l'interface et la validation serveur suivent automatiquement.
 
 ### Identités
 
-Prénom\*, middle name, nom de famille\*, date de naissance\*, sexe ((M) Male / (F) Female), adresse\*, SSN\* (généré), emploi ;
-licence de conduite (case à cocher, puis État d'émission : GA - Georgia, FL - Floride, TN - Tennessee,
-SC - South Carolina, NC - North Carolina, AL - Alabama ; type de licence selon l'État : en Géorgie Class C - Standard,
-Class F - Lourd, Class E - Combiné, Class M - Moto, CDL A/B/C, Probatoire - Class CP/D/MP ; ailleurs standard, moto,
-CDL A/B/C (+ Class G - Cyclomoteur en Caroline du Sud) ; n° généré ; condition : Valide / Suspension / Révocation / Annulation /
-Disqualification pour les CDL) ;
+Prénom\*, middle name, nom de famille\*, date de naissance\*, sexe ((M) Male / (F) Female), adresse\*, SSN (généré), emploi ;
+**nationalité et documents** et **permis de conduire** (ci-dessous, réglages dans **`config/licenses.lua`**) ;
 interdictions cumulables (Port d'arme, Conduite de jour uniquement, Interdiction de rouler sur Interstate),
 condition (Recherché + raison et date de début) ; **Casier judiciaire** et **Registre des délinquants** (ci-dessous).
 Les anciens antécédents en texte libre restent affichés sur les fiches (pli « Casier judiciaire », « ancien antécédent »).
@@ -500,6 +496,45 @@ Les anciens antécédents en texte libre restent affichés sur les fiches (pli �
 fiche complète à droite. Fiche d'une personne inscrite : bandeau violet **SEX OFFENDER / KIDNAPPING OFFENDER — NIVEAU
 … — inscription à vie / jusqu'au …** (EN FUITE, NON CONFORME), plis **Registre des délinquants** et **Casier judiciaire**.
 **Remplissage aléatoire** : prénom, middle name, nom, DoB, adresse, SSN et emploi.
+
+### Nationalité et permis de conduire (`config/licenses.lua`)
+
+**Nationalité** : **citoyen américain**, **citoyen canadien** ou **double nationalité** (Washington est frontalier du
+Canada). Pour un Canadien, son **statut aux États-Unis** :
+- **visiteur** (exempté de visa) : date d'entrée, **séjour autorisé 6 mois** ; **pas de SSN** ; adresse au Canada ;
+  conduit avec le permis de **sa province** (Colombie-Britannique, Alberta) ;
+- **résident permanent** (green card), **travailleur** (visa TN, ACEUM), **étudiant** (visa F-1) : vit aux
+  États-Unis, SSN, permis d'un État américain ou de sa province, date de fin de la carte / du visa.
+
+Documents : **SIN** (n° d'assurance sociale canadien, XXX-XXX-XXX) pour les Canadiens et la double nationalité,
+**passeport** (US : 1 lettre + 8 chiffres ; Canada : 2 lettres + 6 chiffres), carte **NEXUS** (voyageur fiable).
+Fiches des polices : nationalité (étiquette **CAN** dans les résultats, SIN à la place du SSN), plis « Permis de
+conduire » et « Nationalité et documents », bandeau **SÉJOUR DÉPASSÉ** (visiteur resté plus de 6 mois) ou
+**STATUT EXPIRÉ** (green card / visa).
+
+**Permis** : État ou province d'émission, **type**, **mentions**, n° généré **au format réel** de la juridiction,
+condition (valide, suspension, révocation, annulation, disqualification pour les permis commerciaux).
+
+| Juridiction | Types de permis | N° |
+|---|---|---|
+| **WA - Washington** | Driver License (standard), **Enhanced Driver License (EDL)** (citoyens américains : passage de la frontière par la route), Intermediate License (16-17 ans), Instruction Permit, Motorcycle Instruction Permit, CLP, CDL A / B / C | WDL + 9 caractères |
+| OR - Oregon | Class C - Standard, Provisional (moins de 18 ans), Instruction Permit, Motorcycle Instruction Permit, CLP, CDL A / B / C | 7 chiffres |
+| ID - Idaho | Class D - Standard, Class D - Graduated (moins de 17 ans), Supervised Instruction Permit, CLP, CDL A / B / C | 2 lettres + 6 chiffres + 1 lettre |
+| MT - Montana | Class D - Standard, First-Year Restricted, Learner License, CLP, CDL A / B / C | 13 chiffres |
+| CA - Californie | Class C - Standard, Provisional, Instruction Permit, Class M1 - Moto, Class M2 - Cyclomoteur, Class A / B non commerciaux, CLP, CDL A / B / C | 1 lettre + 7 chiffres |
+| BC - Colombie-Britannique | Class 5 - Standard, Class 7 - Novice (N), Class 7L - Learner (L), Class 6 - Moto, Class 6L, Classes 1 à 4 (commerciales) | 7 chiffres |
+| AB - Alberta | Class 5 - Standard, Class 5 GDL, Class 7 - Learner, Class 6 - Moto, Classes 1 à 4 (commerciales) | 6 chiffres - 3 chiffres |
+
+Mentions : **M** (moto, États-Unis) ; permis commerciaux : **H** matières dangereuses, **N** citerne, **P** passagers,
+**S** bus scolaire, **T** doubles / triples, **X** citerne + matières dangereuses ; Canada : **Q** freins pneumatiques.
+
+Vérifié par le serveur (et grisé dans le formulaire) : **âge** de chaque type (permis d'apprentissage dès 14 / 15 ans,
+probatoires réservés aux mineurs, standard et commerciaux selon la juridiction), **pays** selon la nationalité et le
+statut (citoyen américain : permis américain ; visiteur canadien : permis canadien ; double nationalité, résident,
+visas : les deux), **EDL réservé aux citoyens américains**, mentions commerciales seulement sur un permis commercial.
+Anciennes fiches (Géorgie…) : affichées telles quelles ; en modification, l'État et le type sont à rechoisir. Pour
+ajouter un type, une juridiction ou un statut : `config/licenses.lua` uniquement (le serveur, les rapports et
+l'interface suivent).
 
 ### Véhicules
 

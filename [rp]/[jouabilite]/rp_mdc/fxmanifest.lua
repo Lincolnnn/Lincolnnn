@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_mdc'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police 100% standalone - NUI Vanilla JS'
-version '2.19.0'
+version '2.20.0'
 
 ui_page 'html/index.html'
 
@@ -33,6 +33,7 @@ client_scripts {
 }
 
 server_scripts {
+    'config/licenses.lua', -- permis de conduire (Washington, États voisins, Canada) et nationalités
     'server/offenses.lua', -- infractions de l'État de Washington (RCW) et classifications
     'server/reports.lua',  -- modèles des rapports (chargé avant server.lua)
     'server/server.lua'
