@@ -288,3 +288,45 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 /* De jour (couleurs du logo) : contour blanc, comme avant */
 [data-night-color="logo"] .chat { border-color: #ffffff; }
 [data-theme="night"] #input { border-bottom-color: var(--n-accent); }
+
+/* =========================================================================
+   /id : fiche d'identité du MDC à l'écran ; /idconfig : réglage (place, taille) ; sélecteur des identités
+   ========================================================================= */
+.idcard {
+    position: fixed; left: 1.5vw; top: 34vh; width: 300px; transform-origin: top left; z-index: 2;
+    background: rgba(18, 24, 36, .9); border: 1px solid rgba(140, 170, 220, .3); border-radius: 4px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .45); color: #eef2f8; font: 13px var(--font); pointer-events: none; user-select: none;
+}
+.idcard.editing { pointer-events: auto; cursor: move; outline: 2px dashed rgba(255, 255, 255, .6); outline-offset: 3px; }
+.idcard-head {
+    display: flex; justify-content: space-between; align-items: baseline; padding: 6px 10px;
+    background: #8a121b; border-radius: 3px 3px 0 0; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 12px;
+}
+.idcard-head small { font-weight: 600; letter-spacing: 0; text-transform: none; opacity: .8; }
+.idcard-body { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; padding: 8px 10px 10px; }
+.idcard-body dt { color: rgba(200, 214, 234, .62); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; align-self: center; }
+.idcard-body dd { font-weight: 600; word-break: break-word; }
+.idconfig {
+    position: fixed; left: 50%; bottom: 4vh; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: rgba(18, 24, 36, .95); border: 1px solid rgba(140, 170, 220, .3); border-radius: 4px;
+    color: #eef2f8; font: 13px var(--font);
+}
+.idconfig span { color: rgba(200, 214, 234, .7); margin-right: 4px; }
+.idconfig button, .idchooser button {
+    height: 28px; padding: 0 10px; border: 1px solid rgba(140, 170, 220, .3); border-radius: 3px;
+    background: rgba(255, 255, 255, .06); color: #eef2f8; font: 600 12px var(--font); cursor: pointer;
+}
+.idconfig button:hover, .idchooser button:hover { background: rgba(255, 255, 255, .14); }
+.idconfig button.primary { background: #b2141f; border-color: #b2141f; }
+.idchooser {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 360px; z-index: 4;
+    background: rgba(18, 24, 36, .97); border: 1px solid rgba(140, 170, 220, .3); border-radius: 4px;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, .55); color: #eef2f8; font: 13px var(--font); overflow: hidden;
+}
+.idchooser-head { padding: 9px 12px; background: #8a121b; font-weight: 700; }
+.idchooser-head small { font-weight: 500; opacity: .8; margin-left: 6px; }
+.idchooser-list { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; }
+.idchooser-list button { display: flex; justify-content: space-between; align-items: center; height: 34px; text-align: left; }
+.idchooser-list button span { font-weight: 500; color: rgba(200, 214, 234, .7); }
+.idchooser-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 0 12px 12px; }
+.idcard.hidden, .idchooser.hidden, .idconfig.hidden { display: none; }

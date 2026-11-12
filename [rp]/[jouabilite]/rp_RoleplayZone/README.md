@@ -152,7 +152,7 @@ Console : **`sceneclear`** supprime toutes les scènes.
 
 ## Liens avec les autres ressources
 
-- **MDC** : policier = joueur dans une unité (`getPlayerUnit`) ; lieux avec les rues d'Atlanta (`GetLocationText`).
+- **MDC** : policier = joueur dans une unité (`getPlayerUnit`) ; lieux avec les noms de l'État de Washington (`GetLocationText`).
 - **rp_interact** : mode civil (état `rpiCivilMode`) ; arme au sol ramassée à l'œil, seule façon de la récupérer
   (`ExternalObjects.rpDroppedWeapon`) ; fouilles et « Modifier la description » à l'œil (`TargetProviders` de
   rp_interact : exports `targetOptions` / `targetSelect` de ce script, y compris sur un point du sol).

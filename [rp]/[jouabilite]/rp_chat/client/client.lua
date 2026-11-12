@@ -26,7 +26,7 @@ local RP_COMMANDS = { nomrp = true, me = true, info = true, qst = true, rep = tr
 -- Commandes possibles même sans nom RP (/nomrp) : /tuto, /dv (supprimer un véhicule), /fichecivil (profils,
 -- rp_interact), /eup (tenues, rp_interact), /repair (moteur, rp_vehiclecontrol)
 local NO_NAME_COMMANDS = {
-    dv = true, eup = true, fichecivil = true, repair = true, [(Config.Tuto and Config.Tuto.Command) or 'tuto'] = true,
+    dv = true, eup = true, fichecivil = true, repair = true, id = true, idconfig = true, [(Config.Tuto and Config.Tuto.Command) or 'tuto'] = true,
 }
 
 local isOpen = false
@@ -179,12 +179,13 @@ local sendExtraCommands
 RegisterNUICallback('ready', function(_, cb)
     nuiReady = true
     sendSettings()
+    SendNUIMessage({ action = 'idLayout', data = idLayout() }) -- place et taille de la fiche /id
     if sendExtraCommands then sendExtraCommands() end
     TriggerServerEvent('rp_chat:server:ready')
     cb({ ok = true })
 end)
 
-local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup, /tuto, /fichecivil, /repair, /hrp [message].'
+local HELP = 'Commandes : /nomrp [nom RP], /me [action], /info [texte], /qst [question], /rep [réponse], /dv, /eup, /tuto, /fichecivil, /repair, /id, /idconfig, /hrp [message].'
 
 -- =========================================================================
 -- /dv : supprime UN véhicule (celui où l'on se trouve, sinon celui qu'on regarde, sinon le plus proche,
@@ -433,9 +434,101 @@ AddEventHandler('rp_chat:client:addCommands', function(resource, list)
 end)
 
 -- =========================================================================
+-- /id : fiche d'une identité du MDC à l'écran (pense-bête RP) ; /idconfig : la déplacer, l'agrandir, sauvegarder
+--   /id        : choisir parmi les 5 dernières identités enregistrées dans le MDC (souris), ou la masquer
+--   /id 1 à 5  : afficher directement celle-là ; /id off : masquer
+--   Affichées : nom, prénom, middle name, DoB, adresse, téléphone, permis (s'il y en a un), Canadian Citizen.
+--   Place et taille gardées chez le joueur (KVP rpchat_idcard). Aucune boucle.
+-- =========================================================================
+local ID_KVP = 'rpchat_idcard'
+local idFocus = false
+local idList = {}
+
+local function idLayout()
+    local ok, data = pcall(json.decode, GetResourceKvpString(ID_KVP) or '')
+    return ok and type(data) == 'table' and data or {}
+end
+
+local function idSetFocus(on)
+    idFocus = on
+    SetNuiFocus(on, on)
+end
+
+RegisterNetEvent('rp_chat:client:idList', function(list, err, pick)
+    if err then return system(err, 'error') end
+    idList = type(list) == 'table' and list or {}
+    if #idList == 0 then
+        return system('Aucune identité enregistrée dans le MDC (Créations > Identité).', 'error')
+    end
+    if pick then
+        local card = idList[pick]
+        if not card then return system(('Identité n°%d introuvable : vous en avez %d.'):format(pick, #idList), 'error') end
+        SendNUIMessage({ action = 'idCard', data = { show = true, card = card } })
+        return
+    end
+    idSetFocus(true)
+    SendNUIMessage({ action = 'idChooser', data = { list = idList } })
+end)
+
+RegisterCommand('id', function(_, args)
+    local arg = (args[1] or ''):lower()
+    if arg == 'off' or arg == 'masquer' then
+        SendNUIMessage({ action = 'idCard', data = { show = false } })
+        return
+    end
+    local n = tonumber(arg)
+    if arg ~= '' and not (n and n >= 1 and n <= 5) then
+        return system('Utilisation : /id (choisir), /id 1 à 5 (afficher), /id off (masquer).', 'error')
+    end
+    TriggerServerEvent('rp_chat:server:idList', n)
+end, false)
+
+RegisterCommand('idconfig', function()
+    idSetFocus(true)
+    SendNUIMessage({ action = 'idConfig', data = { on = true } })
+end, false)
+
+RegisterNUICallback('idPick', function(data, cb)
+    cb({ ok = true })
+    idSetFocus(false)
+    local card = idList[tonumber(type(data) == 'table' and data.index) or 0]
+    if card then SendNUIMessage({ action = 'idCard', data = { show = true, card = card } }) end
+end)
+
+RegisterNUICallback('idHide', function(_, cb)
+    cb({ ok = true })
+    idSetFocus(false)
+    SendNUIMessage({ action = 'idCard', data = { show = false } })
+end)
+
+RegisterNUICallback('idRelease', function(_, cb)
+    cb({ ok = true })
+    idSetFocus(false)
+end)
+
+RegisterNUICallback('idSaveLayout', function(data, cb)
+    cb({ ok = true })
+    idSetFocus(false)
+    if type(data) ~= 'table' then return end
+    local layout = {
+        x = math.max(0.0, math.min(95.0, tonumber(data.x) or 2.0)), y = math.max(0.0, math.min(95.0, tonumber(data.y) or 30.0)),
+        scale = math.max(0.6, math.min(2.0, tonumber(data.scale) or 1.0)),
+    }
+    SetResourceKvp(ID_KVP, json.encode(layout))
+    SendNUIMessage({ action = 'idLayout', data = layout })
+    system('Place et taille de la fiche /id enregistrées.', 'success')
+end)
+
+RegisterNUICallback('idResetLayout', function(_, cb)
+    cb({ ok = true })
+    DeleteResourceKvp(ID_KVP)
+    SendNUIMessage({ action = 'idLayout', data = {} })
+end)
+
+-- =========================================================================
 -- SÉCURITÉ : relâche le focus si la ressource est arrêtée
 -- =========================================================================
 AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() and isOpen then SetNuiFocus(false, false) end
+    if resource == GetCurrentResourceName() and (isOpen or idFocus) then SetNuiFocus(false, false) end
     if extraCommands[resource] or next(extraNoName) then setExtraCommands(resource, nil) end
 end)

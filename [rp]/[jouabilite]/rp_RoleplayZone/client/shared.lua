@@ -1,7 +1,7 @@
 --[[
     RP RoleplayZone - client : outils partagés
     ------------------------------------------
-    Demandes au serveur, notifications, droits (policier / civil), lieu lisible (rues d'Atlanta du MDC), aide en
+    Demandes au serveur, notifications, droits (policier / civil), lieu lisible (noms de Washington du MDC), aide en
     haut à gauche, et le CERCLE QUI ÉPOUSE LE TERRAIN (comme l'indicateur de lancer de grenade de PUBG) : chaque
     point du cercle est posé sur ce qui se trouve dessous (sol, trottoir, mur, toit, objet), puis le cercle est
     dessiné comme une bande blanche lumineuse (DrawPoly) avec un halo. Utilisé par le mode sélection, l'œil
@@ -68,7 +68,7 @@ function RZ.civilMode()
     return LocalPlayer.state.rpiCivilMode == true
 end
 
---- Lieu lisible (noms du MDC si présent : rues d'Atlanta ; sinon ceux du jeu)
+--- Lieu lisible (noms du MDC si présent : État de Washington ; sinon ceux du jeu)
 function RZ.locationText(p)
     local mdc = GlobalState.mdcResource
     if mdc and GetResourceState(mdc) == 'started' then

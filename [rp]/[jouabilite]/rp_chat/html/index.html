@@ -11,12 +11,35 @@
         <div class="messages" id="messages"></div>
         <div class="browse-hint hidden" id="browseHint">▼ Messages plus récents en bas</div>
         <div class="input-row">
-            <input id="input" type="text" maxlength="300" autocomplete="off" spellcheck="false" placeholder="/me, /info, /qst, /rep, /dv, /eup, /tuto — /nomrp pour votre nom RP">
+            <input id="input" type="text" maxlength="300" autocomplete="off" spellcheck="false" placeholder="/me, /info, /qst, /rep, /dv, /eup, /id, /tuto — /nomrp pour votre nom RP">
         </div>
         <ul class="suggest hidden" id="suggest"></ul>
     </div>
     <!-- /tuto : affiche en haut de l'écran, au milieu, sans souris ni clavier (/tuto à nouveau pour la retirer) -->
     <div class="tuto hidden" id="tuto" aria-hidden="true"></div>
+    <!-- /id : fiche d'une identité du MDC (pense-bête RP), place et taille réglées avec /idconfig -->
+    <div class="idcard hidden" id="idCard">
+        <div class="idcard-head"><span>Identité</span><small id="idCardTag"></small></div>
+        <dl class="idcard-body" id="idCardBody"></dl>
+    </div>
+    <div class="idconfig hidden" id="idConfigBar">
+        <span>Glissez la fiche · molette : taille</span>
+        <button type="button" data-id-scale="-1">−</button>
+        <b id="idScaleText">100 %</b>
+        <button type="button" data-id-scale="1">+</button>
+        <button type="button" id="idResetBtn">Par défaut</button>
+        <button type="button" id="idCancelBtn">Annuler</button>
+        <button type="button" class="primary" id="idSaveBtn">Enregistrer</button>
+    </div>
+    <!-- /id : choisir une des 5 dernières identités enregistrées dans le MDC -->
+    <div class="idchooser hidden" id="idChooser">
+        <div class="idchooser-head">Mes identités (MDC) <small>5 dernières enregistrées</small></div>
+        <div class="idchooser-list" id="idChooserList"></div>
+        <div class="idchooser-actions">
+            <button type="button" id="idHideBtn">Masquer la fiche</button>
+            <button type="button" id="idCloseBtn">Fermer (Échap)</button>
+        </div>
+    </div>
     <script src="script.js"></script>
     <script>/* rp_freecam (mode photo) : interface masquée tant que « Masquer les interfaces » est coché */
         window.addEventListener('message', (e) => { const d = e.data; if (d && d.action === 'rpHideUi') document.documentElement.style.opacity = d.data && d.data.hidden ? '0' : ''; });</script>

@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_mdc'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police 100% standalone - NUI Vanilla JS'
-version '2.20.0'
+version '2.21.0'
 
 ui_page 'html/index.html'
 
@@ -21,13 +21,13 @@ files {
     'html/img/*.png', -- logos des polices (WSP, KCSO)
     'html/sounds/*.mp3', -- sons du MDC (appels, BOLO, unités, fiches liées, recherches, clic, clavier)
     'html/sounds/*.wav',
-    'config/blocks.json' -- blocs de localisation du HUD (lu par client/hud.lua)
+    'config/blocs.json',      -- blocs de localisation du PLD (lu par client/hud.lua)
+    'config/washington.json', -- noms du PLD : État de Washington (lu par client/streetnames.lua)
 }
 
 client_scripts {
     'client/client.lua',
-    'config/atlanta_streets.lua', -- noms d'Atlanta (rues, quartiers) : SEULE source des noms du PLD
-    'client/streetnames.lua',     -- applique config/atlanta_streets.lua (PLD, Position actuelle, exports)
+    'client/streetnames.lua',     -- noms du PLD : config/washington.json (rues, quartiers, villes, polices)
     'client/hud.lua',
     'client/carhud.lua' -- car HUD : relais des données de Vehicle Control (rp_vehiclecontrol)
 }

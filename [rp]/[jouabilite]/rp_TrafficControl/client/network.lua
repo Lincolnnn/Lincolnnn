@@ -66,7 +66,7 @@ function TC.notify(text)
     EndTextCommandThefeedPostTicker(false, false)
 end
 
---- Lieu lisible (noms du MDC si présent : rues d'Atlanta ; sinon ceux du jeu)
+--- Lieu lisible (noms du MDC si présent : État de Washington ; sinon ceux du jeu)
 function TC.locationText(p)
     local mdc = GlobalState.mdcResource
     if mdc and GetResourceState(mdc) == 'started' then

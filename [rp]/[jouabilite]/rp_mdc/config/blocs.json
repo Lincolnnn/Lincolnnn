@@ -1,0 +1,84 @@
+{
+    "_LISEZMOI": [
+        "Blocs du PLD. \"blocks\" est VIDE : ajoutez-y vos blocs. \"exemples\" n'est jamais lu (modèles à copier).",
+        "Bloc POINT (une coordonnée) : le joueur est dans ce bloc à moins de \"radius\" m (facultatif, 75 m par défaut).",
+        "Bloc CARRÉ (4 coordonnées, les 4 coins dans l'ordre du tour) : pour les grandes zones sous un seul bloc.",
+        "Le premier bloc qui contient le joueur est affiché ; hors de tout bloc : le plus proche. Petits blocs AVANT les grands.",
+        "Option \"street\" : le bloc ne vaut que sur cette rue (nom AFFICHÉ par le PLD, ex. \"I-90\"). Coordonnées en jeu : /mdc_pos (F8)."
+    ],
+    "default": "",
+    "blocks": [],
+    "exemples": [
+        {
+            "name": "400",
+            "type": "point",
+            "coords": [
+                441.0,
+                -982.0
+            ]
+        },
+        {
+            "name": "100",
+            "type": "point",
+            "coords": [
+                -447.0,
+                6013.0
+            ],
+            "radius": 120
+        },
+        {
+            "name": "2200",
+            "type": "point",
+            "coords": [
+                1853.0,
+                3686.0
+            ],
+            "radius": 90,
+            "street": "Maple Valley-Black Diamond Rd SE"
+        },
+        {
+            "name": "1800",
+            "type": "square",
+            "corners": [
+                [
+                    1700.0,
+                    3550.0
+                ],
+                [
+                    2100.0,
+                    3550.0
+                ],
+                [
+                    2100.0,
+                    3900.0
+                ],
+                [
+                    1700.0,
+                    3900.0
+                ]
+            ]
+        },
+        {
+            "name": "9000",
+            "type": "square",
+            "corners": [
+                [
+                    -2900.0,
+                    2900.0
+                ],
+                [
+                    -1800.0,
+                    2900.0
+                ],
+                [
+                    -1800.0,
+                    3700.0
+                ],
+                [
+                    -2900.0,
+                    3700.0
+                ]
+            ]
+        }
+    ]
+}

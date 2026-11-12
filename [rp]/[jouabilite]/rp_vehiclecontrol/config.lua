@@ -136,11 +136,13 @@ VCConfig = {
         MaxPerSecond = 20,        -- balles prises en compte par tireur et par seconde (serveur)
     },
 
-    -- MARCHE AVANT / MARCHE ARRIÈRE (touche Keys.gear) : en D on ne peut qu'avancer et freiner, en R que freiner et
-    -- reculer ; la pédale « interdite » freine puis, à l'arrêt (sous StopSpeed m/s), retient le véhicule.
+    -- MARCHE AVANT / MARCHE ARRIÈRE (touche Keys.gear) : l'accélérateur (Z / W) fait rouler dans le sens du rapport (D :
+    -- avancer, R : reculer) ; le frein (S) freine puis, à l'arrêt (sous StopSpeed m/s), retient le véhicule.
+    -- Changer de rapport : seulement sous MaxShiftMph (au-delà : refusé, message).
     Gear = {
         Enabled = true,
         StopSpeed = 0.5,
+        MaxShiftMph = 5.0,
         Sound = { 'NAV_UP_DOWN', 'HUD_FRONTEND_DEFAULT_SOUNDSET' }, -- petit clic au changement (nil : aucun)
         SkipClasses = { [13] = true, [14] = true, [15] = true, [16] = true, [21] = true }, -- vélos, bateaux, aéronefs, trains
     },

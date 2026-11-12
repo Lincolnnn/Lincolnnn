@@ -1051,6 +1051,7 @@
                 ${dd('Nationalité', nationalityHtml(r))}
                 ${row('SSN', r.ssn || (r.nationality === 'CA' ? 'N/A (pas de SSN)' : ''))}
                 ${row('Adresse', r.address)}
+                ${row('Téléphone', r.phone)}
                 ${row('Emploi', r.job)}
                 ${dd('Condition', conditionFlag(r.condition))}
             </dl>
@@ -1904,93 +1905,55 @@
         // Adresses RÉELLES de Géorgie (bâtiments publics, institutions, lieux connus — aucun domicile
         // de particulier) : [numéro et rue, ville, comté]. Ajoutez librement vos propres adresses vérifiées.
         // Tirage : 80 % Atlanta (comté de Fulton), 10 % autres villes du comté de Fulton, 10 % reste de la Géorgie.
+        // Adresses de King County (État de Washington), par municipalité du PLD : [rue, ville, code postal] ; le n° de
+        // la maison est tiré au hasard. Format : « 4521 Fremont Ave N, Seattle, WA 98103 »
         const ADDRESSES = {
-            atlanta: [
-                ['225 Baker Street NW', 'Atlanta', 'Fulton'],                   // Georgia Aquarium
-                ['121 Baker Street NW', 'Atlanta', 'Fulton'],                   // World of Coca-Cola
-                ['100 Ivan Allen Jr. Boulevard NW', 'Atlanta', 'Fulton'],       // National Center for Civil and Human Rights
-                ['250 Marietta Street NW', 'Atlanta', 'Fulton'],                // College Football Hall of Fame
-                ['190 Marietta Street NW', 'Atlanta', 'Fulton'],                // CNN Center
-                ['1 AMB Drive NW', 'Atlanta', 'Fulton'],                        // Mercedes-Benz Stadium
-                ['1 State Farm Drive', 'Atlanta', 'Fulton'],                    // State Farm Arena
-                ['285 Andrew Young International Boulevard NW', 'Atlanta', 'Fulton'], // Georgia World Congress Center
-                ['265 Park Avenue West NW', 'Atlanta', 'Fulton'],               // Centennial Olympic Park
-                ['660 Peachtree Street NE', 'Atlanta', 'Fulton'],               // Fox Theatre
-                ['1280 Peachtree Street NE', 'Atlanta', 'Fulton'],              // Woodruff Arts Center
-                ['600 Peachtree Street NE', 'Atlanta', 'Fulton'],               // Bank of America Plaza
-                ['191 Peachtree Street NE', 'Atlanta', 'Fulton'],               // 191 Peachtree Tower
-                ['210 Peachtree Street NW', 'Atlanta', 'Fulton'],               // Westin Peachtree Plaza
-                ['265 Peachtree Center Avenue NE', 'Atlanta', 'Fulton'],        // Atlanta Marriott Marquis
-                ['675 Ponce de Leon Avenue NE', 'Atlanta', 'Fulton'],           // Ponce City Market
-                ['1345 Piedmont Avenue NE', 'Atlanta', 'Fulton'],               // Atlanta Botanical Garden
-                ['400 Park Drive NE', 'Atlanta', 'Fulton'],                     // Piedmont Park
-                ['979 Crescent Avenue NE', 'Atlanta', 'Fulton'],                // Margaret Mitchell House
-                ['130 West Paces Ferry Road NW', 'Atlanta', 'Fulton'],          // Atlanta History Center
-                ['391 West Paces Ferry Road NW', 'Atlanta', 'Fulton'],          // Georgia Governor's Mansion
-                ['3393 Peachtree Road NE', 'Atlanta', 'Fulton'],                // Lenox Square
-                ['3500 Peachtree Road NE', 'Atlanta', 'Fulton'],                // Phipps Plaza
-                ['1968 Peachtree Road NW', 'Atlanta', 'Fulton'],                // Piedmont Atlanta Hospital
-                ['1380 Atlantic Drive NW', 'Atlanta', 'Fulton'],                // Atlantic Station
-                ['441 John Lewis Freedom Parkway NE', 'Atlanta', 'Fulton'],     // Jimmy Carter Presidential Library
-                ['407 Auburn Avenue NE', 'Atlanta', 'Fulton'],                  // Historic Ebenezer Baptist Church
-                ['449 Auburn Avenue NE', 'Atlanta', 'Fulton'],                  // The King Center
-                ['501 Auburn Avenue NE', 'Atlanta', 'Fulton'],                  // Martin Luther King Jr. Birth Home
-                ['206 Washington Street SW', 'Atlanta', 'Fulton'],              // Georgia State Capitol
-                ['55 Trinity Avenue SW', 'Atlanta', 'Fulton'],                  // Atlanta City Hall
-                ['136 Pryor Street SW', 'Atlanta', 'Fulton'],                   // Fulton County Courthouse
-                ['226 Peachtree Street SW', 'Atlanta', 'Fulton'],               // Atlanta Police Department HQ
-                ['50 Upper Alabama Street SW', 'Atlanta', 'Fulton'],            // Underground Atlanta
-                ['1 Margaret Mitchell Square NW', 'Atlanta', 'Fulton'],         // Atlanta-Fulton Central Library
-                ['80 Jesse Hill Jr. Drive SE', 'Atlanta', 'Fulton'],            // Grady Memorial Hospital
-                ['248 Oakland Avenue SE', 'Atlanta', 'Fulton'],                 // Oakland Cemetery
-                ['800 Cherokee Avenue SE', 'Atlanta', 'Fulton'],                // Zoo Atlanta
-                ['755 Hank Aaron Drive SE', 'Atlanta', 'Fulton'],               // Center Parc Stadium
-                ['61 North Avenue NW', 'Atlanta', 'Fulton'],                    // The Varsity
-                ['225 North Avenue NW', 'Atlanta', 'Fulton'],                   // Georgia Tech
-                ['33 Gilmer Street SE', 'Atlanta', 'Fulton'],                   // Georgia State University
-                ['830 Westview Drive SW', 'Atlanta', 'Fulton'],                 // Morehouse College
-                ['350 Spelman Lane SW', 'Atlanta', 'Fulton'],                   // Spelman College
-                ['223 James P. Brawley Drive SW', 'Atlanta', 'Fulton'],         // Clark Atlanta University
-                ['2002 Lakewood Way SW', 'Atlanta', 'Fulton'],                  // Lakewood Amphitheatre
-                ['99 Krog Street NE', 'Atlanta', 'Fulton'],                     // Krog Street Market
+            seattle: [
+                ['Pike St', 'Seattle', '98101'], ['Pine St', 'Seattle', '98101'], ['2nd Ave', 'Seattle', '98121'],
+                ['Western Ave', 'Seattle', '98121'], ['Yesler Way', 'Seattle', '98104'], ['S Jackson St', 'Seattle', '98104'],
+                ['S King St', 'Seattle', '98104'], ['Broadway E', 'Seattle', '98102'], ['15th Ave E', 'Seattle', '98112'],
+                ['E Madison St', 'Seattle', '98122'], ['E Union St', 'Seattle', '98122'], ['23rd Ave', 'Seattle', '98122'],
+                ['Eastlake Ave E', 'Seattle', '98102'], ['Westlake Ave N', 'Seattle', '98109'], ['Dexter Ave N', 'Seattle', '98109'],
+                ['Queen Anne Ave N', 'Seattle', '98109'], ['W Dravus St', 'Seattle', '98119'], ['Fremont Ave N', 'Seattle', '98103'],
+                ['Stone Way N', 'Seattle', '98103'], ['N 45th St', 'Seattle', '98103'], ['Aurora Ave N', 'Seattle', '98103'],
+                ['Greenwood Ave N', 'Seattle', '98103'], ['University Way NE', 'Seattle', '98105'], ['Roosevelt Way NE', 'Seattle', '98105'],
+                ['NE 65th St', 'Seattle', '98115'], ['Latona Ave NE', 'Seattle', '98115'], ['NW Market St', 'Seattle', '98107'],
+                ['24th Ave NW', 'Seattle', '98107'], ['NW 85th St', 'Seattle', '98117'], ['W McGraw St', 'Seattle', '98199'],
+                ['34th Ave W', 'Seattle', '98199'], ['California Ave SW', 'Seattle', '98116'], ['Alki Ave SW', 'Seattle', '98116'],
+                ['Delridge Way SW', 'Seattle', '98106'], ['16th Ave SW', 'Seattle', '98106'], ['Beacon Ave S', 'Seattle', '98108'],
+                ['Airport Way S', 'Seattle', '98108'], ['Rainier Ave S', 'Seattle', '98118'], ['S Alaska St', 'Seattle', '98118'],
+                ['Martin Luther King Jr Way S', 'Seattle', '98144'], ['S Henderson St', 'Seattle', '98178'], ['1st Ave S', 'Seattle', '98134'],
+                ['4th Ave S', 'Seattle', '98134'], ['Lake City Way NE', 'Seattle', '98125'],
             ],
-            fulton: [
-                ['1 Galambos Way', 'Sandy Springs', 'Fulton'],                  // Sandy Springs City Hall
-                ['38 Hill Street', 'Roswell', 'Fulton'],                        // Roswell City Hall
-                ['535 Barrington Drive', 'Roswell', 'Fulton'],                  // Barrington Hall
-                ['180 Bulloch Avenue', 'Roswell', 'Fulton'],                    // Bulloch Hall
-                ['2 Park Plaza', 'Alpharetta', 'Fulton'],                       // Alpharetta City Hall
-                ['400 Avalon Boulevard', 'Alpharetta', 'Fulton'],               // Avalon
-                ['1000 North Point Circle', 'Alpharetta', 'Fulton'],            // North Point Mall
-                ['2200 Encore Parkway', 'Alpharetta', 'Fulton'],                // Ameris Bank Amphitheatre
-                ['11360 Lakefield Drive', 'Johns Creek', 'Fulton'],             // Johns Creek City Hall
-                ['2006 Heritage Walk', 'Milton', 'Fulton'],                     // Milton City Hall
-                ['2757 East Point Street', 'East Point', 'Fulton'],             // East Point City Hall
-                ['3667 Main Street', 'College Park', 'Fulton'],                 // College Park City Hall
-                ['2330 Convention Center Concourse', 'College Park', 'Fulton'], // Gateway Center
-                ['3468 North Fulton Avenue', 'Hapeville', 'Fulton'],            // Hapeville City Hall
-                ['5047 Union Street', 'Union City', 'Fulton'],                  // Union City City Hall
-                ['56 Malone Street', 'Fairburn', 'Fulton'],                     // Fairburn City Hall
-                ['509 Toombs Street', 'Palmetto', 'Fulton'],                    // Palmetto City Hall
+            bellevue: [
+                ['Bellevue Way NE', 'Bellevue', '98004'], ['NE 8th St', 'Bellevue', '98004'], ['116th Ave NE', 'Bellevue', '98004'],
+                ['Main St', 'Bellevue', '98004'], ['Northup Way', 'Bellevue', '98005'], ['Richards Rd', 'Bellevue', '98005'],
+                ['148th Ave SE', 'Bellevue', '98007'], ['Factoria Blvd SE', 'Bellevue', '98006'], ['Lakemont Blvd SE', 'Bellevue', '98006'],
+                ['Coal Creek Pkwy SE', 'Bellevue', '98006'], ['Evergreen Point Rd', 'Medina', '98039'], ['92nd Ave NE', 'Clyde Hill', '98004'],
             ],
-            georgia: [
-                ['2 East Bay Street', 'Savannah', 'Chatham'],                   // Savannah City Hall
-                ['429 Bull Street', 'Savannah', 'Chatham'],                     // Mercer Williams House
-                ['2604 Washington Road', 'Augusta', 'Richmond'],                // Augusta National Golf Club
-                ['700 Poplar Street', 'Macon', 'Bibb'],                         // Macon City Hall
-                ['301 College Avenue', 'Athens', 'Clarke'],                     // Athens-Clarke County City Hall
-                ['100 10th Street', 'Columbus', 'Muscogee'],                     // Columbus Government Center
-                ['12 Cobb Parkway North', 'Marietta', 'Cobb'],                  // The Big Chicken
-                ['1000 Chastain Road', 'Kennesaw', 'Cobb'],                     // Kennesaw State University
-                ['1000 Robert E. Lee Boulevard', 'Stone Mountain', 'DeKalb'],   // Stone Mountain Park
-                ['101 East Court Square', 'Decatur', 'DeKalb'],                 // Historic DeKalb Courthouse
-                ['75 Langley Drive', 'Lawrenceville', 'Gwinnett'],              // Gwinnett Justice and Administration Center
-                ['6400 Sugarloaf Parkway', 'Duluth', 'Gwinnett'],               // Gas South Arena
-                ['1500 North Patterson Street', 'Valdosta', 'Lowndes'],         // Valdosta State University
-                ['2277 Martha Berry Highway NW', 'Rome', 'Floyd'],              // Berry College
+            kenmore: [
+                ['NE Bothell Way', 'Kenmore', '98028'], ['68th Ave NE', 'Kenmore', '98028'], ['NE 181st St', 'Kenmore', '98028'],
+                ['Juanita Dr NE', 'Kenmore', '98028'], ['61st Ave NE', 'Kenmore', '98028'], ['NE 175th St', 'Kenmore', '98028'],
+            ],
+            carnation: [
+                ['Tolt Ave', 'Carnation', '98014'], ['Entwistle St', 'Carnation', '98014'], ['Stossel Ave', 'Carnation', '98014'],
+                ['NE Carnation Farm Rd', 'Carnation', '98014'], ['Tolt Hill Rd NE', 'Carnation', '98014'],
+            ],
+            maplevalley: [
+                ['SE 231st St', 'Maple Valley', '98038'], ['Witte Rd SE', 'Maple Valley', '98038'], ['Wax Rd SE', 'Maple Valley', '98038'],
+                ['SE 248th St', 'Maple Valley', '98038'], ['216th Ave SE', 'Maple Valley', '98038'], ['Lake Wilderness Dr SE', 'Maple Valley', '98038'],
+                ['Maple Valley-Black Diamond Rd SE', 'Maple Valley', '98038'],
+            ],
+            ravensdale: [
+                ['SE Ravensdale Way', 'Ravensdale', '98051'], ['Landsburg Rd SE', 'Ravensdale', '98051'],
+                ['SE Kent-Kangley Rd', 'Ravensdale', '98051'], ['276th Ave SE', 'Ravensdale', '98051'],
             ],
         };
-        const ADDRESS_AREAS = [['atlanta', 80], ['fulton', 10], ['georgia', 10]];
+        const ADDRESS_AREAS = [['seattle', 55], ['bellevue', 20], ['maplevalley', 8], ['kenmore', 7], ['carnation', 5], ['ravensdale', 5]];
+        // Indicatifs régionaux : Seattle 206 ; Bellevue et l'est du comté 425 ; ailleurs dans l'État 253 / 360
+        const AREA_CODE_OF = { seattle: [206], bellevue: [425], kenmore: [425], carnation: [425], maplevalley: [425], ravensdale: [425] };
+        const WASHINGTON_AREA_CODES = [[206, 45], [425, 35], [253, 12], [360, 8]];
+        const CANADA_AREA_CODES = { BC: [604, 778, 236, 250], AB: [403, 587, 780, 825] };
         const JOBS = ['Mécanicien', 'Chauffeur de taxi', 'Agent immobilier', 'Infirmier', 'Cuisinier', 'Livreur', 'Barman',
             'Électricien', 'Plombier', 'Vendeur', 'Agriculteur', 'Pêcheur', 'Routier', 'Comptable', 'Avocat', 'Journaliste',
             'Ouvrier du bâtiment', 'Agent de sécurité', 'Étudiant', 'Sans emploi', 'Garagiste', 'Coiffeur', 'Photographe',
@@ -2040,23 +2003,22 @@
         ];
         const vin = () => Array.from({ length: 17 }, () => VIN_CHARS[int(0, VIN_CHARS.length - 1)]).join('');
         const policyNumber = () => `${letter()}${letter()}${String(int(0, 99999999)).padStart(8, '0')}`;
-        // Indicatif régional de Géorgie compris entre 470 et 678 (identique à server.lua)
-        const GEORGIA_AREA_CODES = [470, 478, 678];
-        const phone = () => `${pick(GEORGIA_AREA_CODES)}-${int(200, 999)}-${String(int(0, 9999)).padStart(4, '0')}`;
+        // N° de téléphone : AAA-XXX-XXXX ; AAA = indicatif de l'État de Washington (identique à server.lua, genPhone) ou
+        // celui d'une zone donnée (Seattle 206, est du comté 425, Colombie-Britannique, Alberta)
+        const phone = (codes) => `${codes ? pick(codes) : weighted(WASHINGTON_AREA_CODES)}-${int(200, 999)}-${String(int(0, 9999)).padStart(4, '0')}`;
 
-        // Nationalité au hasard : surtout des citoyens américains ; Canadiens (visiteurs, résidents, visas TN / F-1)
-        const NATIONALITIES = [['US', 82], ['CA', 14], ['USCA', 4]];
+        // Statut d'un Canadien tiré au hasard quand aucun n'est choisi (visiteurs, résidents, visas TN / F-1)
         const CA_STATUSES = [['visitor', 45], ['permanent', 25], ['worker', 20], ['student', 10]];
 
-        function nationality() {
-            const nat = weighted(NATIONALITIES);
+        function nationality(nat = 'US', chosenStatus = '') {
             const out = { nationality: nat, sin: nat === 'US' ? '' : sin(), passportNumber: passport(nat), nexus: Math.random() < 0.15 };
             out.nexusNumber = out.nexus ? nexus() : '';
             if (nat === 'CA') {
-                out.immigration = weighted(CA_STATUSES);
+                out.immigration = chosenStatus || weighted(CA_STATUSES);
                 if (out.immigration === 'visitor') {
                     out.entryDate = dateString(new Date(Date.now() - int(1, 150) * 86400000)); // entré il y a moins de 5 mois
                     out.address = pick(CANADA_ADDRESSES);
+                    out.phone = phone(CANADA_AREA_CODES[/, AB /.test(out.address) ? 'AB' : 'BC']); // téléphone canadien
                     out.ssn = '';
                 } else {
                     out.statusExpiry = dateString(new Date(Date.now() + int(60, out.immigration === 'permanent' ? 3600 : 1000) * 86400000));
@@ -2065,10 +2027,12 @@
             return out;
         }
 
-        // Identité : prénom, middle name, nom, DoB, adresse, SSN, emploi et nationalité (statut, dates, documents)
-        function identity() {
+        // Identité : prénom, middle name, nom, DoB, adresse, téléphone, SSN, emploi et documents, pour la nationalité
+        // (et le statut) déjà choisis dans le formulaire : citoyen américain par défaut
+        function identity(nat = 'US', status = '') {
             const male = Math.random() < 0.5;
-            const [street, city, county] = pick(ADDRESSES[weighted(ADDRESS_AREAS)]);
+            const area = weighted(ADDRESS_AREAS);
+            const [street, city, zip] = pick(ADDRESSES[area]);
             const birth = new Date(new Date().getFullYear() - int(18, 75), int(0, 11), int(1, 28));
             return {
                 firstname: pick(male ? MALE : FEMALE),
@@ -2076,10 +2040,11 @@
                 lastname: pick(LAST),
                 dob: dateString(birth),
                 sex: male ? 'M' : 'F',
-                address: `${street}, ${city}, ${county} Co., GA`, // ex : 225 Baker Street NW, Atlanta, Fulton Co., GA
+                address: `${int(100, 24999)} ${street}, ${city}, WA ${zip}`, // ex : 4521 Fremont Ave N, Seattle, WA 98103
+                phone: phone(AREA_CODE_OF[area]),
                 ssn: ssn(),
                 job: pick(JOBS),
-                ...nationality(),
+                ...nationality(nat, status),
             };
         }
 
@@ -2405,6 +2370,7 @@
         setRestrictions([]);
         updateWantedFields();
         idField('ssn').value = Random.ssn();
+        idField('phone').value = Random.phone([206, 425]); // téléphone de King County (Seattle 206 / est 425)
         if (identityCatalogReady) {
             idField('nationality').value = 'US';
             idField('immigration').value = licenseCatalog.immigration.length ? licenseCatalog.immigration[0].code : '';
@@ -2415,7 +2381,7 @@
 
     function fillIdentityForm(r) {
         resetIdentityForm();
-        ['firstname', 'middlename', 'lastname', 'dob', 'sex', 'address', 'ssn', 'job',
+        ['firstname', 'middlename', 'lastname', 'dob', 'sex', 'address', 'phone', 'ssn', 'job',
             'licenseStatus', 'licenseNumber', 'condition', 'wantedReason', 'wantedSince',
             'entryDate', 'statusExpiry', 'sin', 'passportNumber', 'nexusNumber']
             .forEach((name) => { idField(name).value = r[name] ?? ''; });
@@ -2471,7 +2437,9 @@
     // Remplissage aléatoire : prénom, middle name, nom, DoB, adresse, SSN et emploi
     $('#randomIdentity').addEventListener('click', async () => {
         await identityCatalog();
-        Object.entries(Random.identity()).forEach(([name, value]) => {
+        // nationalité choisie (citoyen américain par défaut) gardée : le hasard ne la change pas
+        const nat = idField('nationality').value || 'US';
+        Object.entries(Random.identity(nat, nat === 'CA' ? idField('immigration').value : '')).forEach(([name, value]) => {
             const el = idField(name);
             if (!el) return;
             if (el.type === 'checkbox') el.checked = !!value; else el.value = value;
@@ -3084,7 +3052,7 @@
     // BOUTONS "GÉNÉRER" (SSN, licence, VIN, police d'assurance)
     // =====================================================================
     const formValue = (form, name) => (form.elements.namedItem(name) || {}).value || '';
-    const GENERATORS = { ssn: Random.ssn, vin: Random.vin, insurancePolicy: Random.policyNumber, phone: Random.phone,
+    const GENERATORS = { ssn: Random.ssn, vin: Random.vin, insurancePolicy: Random.policyNumber, phone: () => Random.phone(),
         licenseNumber: (form) => Random.licenseNumber(formValue(form, 'licenseState')), sin: Random.sin, nexusNumber: Random.nexus,
         passportNumber: (form) => Random.passport(formValue(form, 'nationality')) };
 

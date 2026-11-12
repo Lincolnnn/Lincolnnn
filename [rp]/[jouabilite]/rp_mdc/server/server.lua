@@ -848,6 +848,7 @@ Builders.identities = function(p, selfId)
         address       = clean(p.address, 80),
         ssn           = clean(p.ssn, 11),
         job           = clean(p.job, 40),
+        phone         = clean(p.phone, 20),
         licenseClass  = 'N/A',
         licenseStatus = 'valid',
         licenseNumber = '',
@@ -875,6 +876,8 @@ Builders.identities = function(p, selfId)
     if not dob then return nil, 'Date de naissance invalide (format JJ/MM/AAAA).' end
     if dob > todayKey() then return nil, 'La date de naissance ne peut pas être dans le futur.' end
     if r.address == '' then return nil, 'L\'adresse est obligatoire.' end
+    if r.phone == '' then r.phone = genPhone() end -- téléphone de l'État de Washington
+    if not r.phone:match('^[%d%s%-%+%(%)%.]+$') then return nil, 'Numéro de téléphone invalide.' end
 
     -- Statut d'un citoyen canadien : visiteur (date d'entrée, 6 mois), résident permanent, visa TN, visa F-1
     local status = nil
@@ -1818,11 +1821,11 @@ local function upperFr(str)
     return (str:upper():gsub('[\195\197][\128-\191]', ACCENTS))
 end
 
--- N° de téléphone du requérant : AAA-XXX-XXXX, où AAA est un indicatif régional de
--- Géorgie compris entre 470 et 678 (doit correspondre à script.js, Random.phone)
-local GEORGIA_AREA_CODES = { 470, 478, 678 }
-local function genPhone()
-    local area = GEORGIA_AREA_CODES[math.random(1, #GEORGIA_AREA_CODES)]
+-- N° de téléphone (requérant, identité) : AAA-XXX-XXXX, AAA = indicatif de l'État de Washington (Seattle 206, est
+-- de King County 425, Tacoma 253, reste de l'État 360 ; doit correspondre à script.js, Random.phone)
+local WASHINGTON_AREA_CODES = { 206, 206, 206, 425, 425, 425, 253, 360 }
+function genPhone()
+    local area = WASHINGTON_AREA_CODES[math.random(1, #WASHINGTON_AREA_CODES)]
     return ('%d-%03d-%04d'):format(area, math.random(200, 999), math.random(0, 9999))
 end
 
@@ -3528,6 +3531,39 @@ end)
 
 --   exports.rp_mdc:getPlayerAgency(source) -> clé du MDC choisi ('generic', 'wsp', 'kcso'…) ou nil
 exports('getPlayerAgency', function(src) return PlayerAgency[tonumber(src)] end)
+
+--- Dernières identités enregistrées (créées ou modifiées) par ce joueur, les plus récentes d'abord : informations
+--- essentielles pour le chat écrit (/id : nom, DoB, adresse, téléphone, permis, nationalité)
+exports('getRecentIdentities', function(src, count)
+    src = tonumber(src)
+    if not src then return {} end
+    local me = getIdentifier(src)
+    local list = {}
+    for _, identity in ipairs(Store.identities) do
+        if identity.createdBy == me then list[#list + 1] = identity end
+    end
+    table.sort(list, function(a, b)
+        local ta, tb = math.max(a.updatedAt or 0, a.createdAt or 0), math.max(b.updatedAt or 0, b.createdAt or 0)
+        if ta ~= tb then return ta > tb end
+        return (a.id or 0) > (b.id or 0) -- même seconde : la plus récente (n° le plus grand) d'abord
+    end)
+    local out = {}
+    for i = 1, math.min(#list, math.max(1, math.min(10, tonumber(count) or 5))) do
+        local r = list[i]
+        local jur = Licenses.JUR[r.licenseState or '']
+        local hasLicense = r.licenseClass and r.licenseClass ~= '' and r.licenseClass ~= 'N/A'
+        out[#out + 1] = {
+            id = r.id, firstname = r.firstname, middlename = r.middlename, lastname = r.lastname, dob = r.dob,
+            address = r.address, phone = r.phone or '', nationality = r.nationality or 'US',
+            license = hasLicense and {
+                class = r.licenseClass, state = r.licenseState,
+                stateLabel = jur and jur.def.label or (MDC_LEGACY_STATES or {})[r.licenseState or ''] or r.licenseState,
+                number = r.licenseNumber, status = r.licenseStatus,
+            } or nil,
+        }
+    end
+    return out
+end)
 
 -- Demande du client au démarrage (accès au MDC + unité actuelle)
 RegisterNetEvent('mdc:server:hudSync', function()

@@ -20,7 +20,7 @@
       - Le display MDC et les notifications n'ont pas de boucle : le serveur envoie
         les changements (événements).
 
-    Les blocs de localisation se configurent dans config/blocks.json (voir config/LISEZMOI.txt).
+    Les blocs de localisation se configurent dans config/blocs.json (voir config/LISEZMOI.txt).
     Les réglages (position, taille, éléments affichés) sont modifiés dans l'onglet
     "Paramètres" du MDC et gardés chez le joueur (KVP), même après une reconnexion.
 ]]
@@ -31,7 +31,8 @@ local Config = {
     PldForEveryone = true,
 
     Interval = 500,          -- délai (ms) entre deux mises à jour du PLD
-    BlocksFile = 'config/blocks.json',
+    BlocksFile = 'config/blocs.json',
+    PointRadius = 75.0,      -- bloc "point" sans "radius" : rayon (m)
     UnknownStreet = 'Rue inconnue',
 
     -- Recherche du croisement le plus proche quand le joueur n'est pas sur une intersection :
@@ -71,7 +72,7 @@ end
 loadSettings()
 
 -- =========================================================================
--- BLOCS DE LOCALISATION (config/blocks.json)
+-- BLOCS DE LOCALISATION (config/blocs.json) : point (une coordonnée), carré (4 coins), cercle, rectangle, polygone
 -- Le bloc qui contient le joueur est affiché ; sinon, le bloc le plus proche.
 -- =========================================================================
 local Blocks = {}
@@ -112,6 +113,18 @@ local function loadBlocks()
             if c and type(entry.radius) == 'number' then
                 block.kind, block.cx, block.cy, block.r = 'circle', c.x, c.y, entry.radius
             end
+        elseif entry.type == 'point' then
+            -- une coordonnée : le bloc s'étend sur "radius" m autour (PointRadius par défaut)
+            local c = toPoint(entry.coords or entry.center)
+            if c then
+                block.kind, block.cx, block.cy = 'circle', c.x, c.y
+                block.r = type(entry.radius) == 'number' and entry.radius or Config.PointRadius
+            end
+        elseif (entry.type == 'square' or entry.type == 'quad') and type(entry.corners) == 'table' then
+            -- 4 coordonnées (les 4 coins, dans l'ordre du tour) : grande zone sous un seul bloc
+            local points = {}
+            for _, value in ipairs(entry.corners) do points[#points + 1] = toPoint(value) end
+            if #points == 4 then block.kind, block.points = 'poly', points end
         elseif entry.type == 'poly' and type(entry.points) == 'table' then
             local points = {}
             for _, value in ipairs(entry.points) do points[#points + 1] = toPoint(value) end
@@ -188,7 +201,7 @@ loadBlocks()
 -- Cap GTA : 0 = Nord, 90 = Ouest, 180 = Sud, 270 = Est (sens inverse des aiguilles)
 local DIRECTIONS = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
 
--- Noms des rues et des quartiers : config/atlanta_streets.lua uniquement (client/streetnames.lua)
+-- Noms des rues et des quartiers : config/washington.json uniquement (client/streetnames.lua)
 local function streetsAt(x, y, z)
     local streetHash, crossingHash = GetStreetNameAtCoord(x, y, z)
     return StreetNames.street(streetHash), StreetNames.street(crossingHash)
@@ -519,11 +532,13 @@ RegisterNUICallback('getLocation', function(_, cb)
     cb({ ok = true, street = location.street, crossing = location.crossing, block = location.block })
 end)
 
--- Commande /mdc_pos (cadres) : position dans la console F8, au format de config/blocks.json
+-- Commande /mdc_pos (cadres) : position dans la console F8, au format de config/blocs.json (bloc point, ou coin
+-- d'un bloc carré)
 RegisterCommand('mdc_pos', function()
     local location, coords = readLocation()
     print(('[MDC] Rue : %s | Croisement : %s | Bloc affiché : %s'):format(location.street, location.crossing, location.block))
-    print(('{ "name": "A RENOMMER", "type": "circle", "center": [%.2f, %.2f], "radius": 60 }'):format(coords.x, coords.y))
+    print(('{ "name": "A RENOMMER", "type": "point", "coords": [%.2f, %.2f] }'):format(coords.x, coords.y))
+    print(('Coin d\'un bloc carré : [%.2f, %.2f]'):format(coords.x, coords.y))
 end, false)
 
 -- Démarrage (ou redémarrage) du MDC : les autres ressources reçoivent le thème des menus

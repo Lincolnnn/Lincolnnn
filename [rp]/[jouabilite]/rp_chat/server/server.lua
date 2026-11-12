@@ -254,6 +254,25 @@ exports('sendMe', function(src, rawText)
     return true
 end)
 
+-- /id : les 5 dernières identités enregistrées par le joueur dans le MDC (export rp_mdc:getRecentIdentities)
+local lastIdRequest = {}
+RegisterNetEvent('rp_chat:server:idList', function(pick)
+    local src = source
+    local now = GetGameTimer()
+    if lastIdRequest[src] and now - lastIdRequest[src] < 800 then return end
+    lastIdRequest[src] = now
+    local mdc = GlobalState.mdcResource or Config.MdcResource or 'rp_mdc'
+    if GetResourceState(mdc) ~= 'started' then
+        return TriggerClientEvent('rp_chat:client:idList', src, {}, 'Le MDC n\'est pas démarré.')
+    end
+    local ok, list = pcall(function() return exports[mdc]:getRecentIdentities(src, 5) end)
+    if not ok or type(list) ~= 'table' then
+        return TriggerClientEvent('rp_chat:client:idList', src, {}, 'Identités du MDC indisponibles.')
+    end
+    TriggerClientEvent('rp_chat:client:idList', src, list, nil, tonumber(pick))
+end)
+AddEventHandler('playerDropped', function() lastIdRequest[source] = nil end)
+
 -- Le chat du joueur est prêt (connexion ou redémarrage de la ressource) :
 -- derniers messages /info, /qst, /rep
 RegisterNetEvent('rp_chat:server:ready', function()

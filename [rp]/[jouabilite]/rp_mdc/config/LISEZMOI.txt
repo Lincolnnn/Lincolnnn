@@ -1,30 +1,31 @@
-Blocs de localisation du HUD (PLD) : blocks.json
-================================================
+Blocs de localisation du PLD : blocs.json
+==========================================
 
-Le PLD affiche le "bloc" de la zone où se trouve le joueur. Chaque bloc est une zone
-dessinée sur la carte. Le PREMIER bloc de la liste qui contient le joueur est affiché :
-placez donc les petites zones précises AVANT les grandes zones qui les englobent.
-Hors de tout bloc, c'est le bloc le PLUS PROCHE qui est affiché : le bloc ne disparaît
-jamais. "default" n'est utilisé que si le fichier ne contient aucun bloc.
+Le PLD affiche le "bloc" de la zone où se trouve le joueur. Le PREMIER bloc de la liste "blocks" qui contient le
+joueur est affiché : placez les petits blocs AVANT les grands qui les englobent. Hors de tout bloc, c'est le bloc le
+PLUS PROCHE qui est affiché. "default" n'est utilisé que si "blocks" est vide.
 
-Les blocs fournis sont des EXEMPLES (Mission Row, Legion Square, Sandy Shores, Paleto) :
-remplacez-les par les vôtres.
+"blocks" est VIDE au départ : ajoutez-y vos blocs. "exemples" n'est jamais lu (modèles à copier dans "blocks").
 
-Formats (coordonnées x, y du jeu ; la hauteur z n'est pas utilisée) :
+Deux formes principales (coordonnées x, y du jeu ; la hauteur z n'est pas utilisée) :
 
-  Cercle    : { "name": "400",  "type": "circle", "center": [x, y], "radius": 80 }
-  Rectangle : { "name": "200",  "type": "rect",   "min": [x1, y1], "max": [x2, y2] }
-  Polygone  : { "name": "1800", "type": "poly",   "points": [[x1, y1], [x2, y2], [x3, y3], ...] }
+  POINT  (une simple coordonnée ; "radius" facultatif, 75 m par défaut) :
+    { "name": "400", "type": "point", "coords": [x, y] }
+    { "name": "100", "type": "point", "coords": [x, y], "radius": 120 }
 
-Option sur chaque bloc : "street": "Nom de la rue" -> le bloc ne s'applique que sur cette
-rue (nom exact affiché par le PLD, sans tenir compte des majuscules) : le nom d'ATLANTA de
-config/atlanta_streets.lua (ex. "Aberdeen Pkwy", et non "Paleto Blvd").
+  CARRÉ  (4 coordonnées = les 4 coins, dans l'ordre du tour ; pour une grande zone sous un seul bloc) :
+    { "name": "1800", "type": "square", "corners": [[x1, y1], [x2, y2], [x3, y3], [x4, y4]] }
 
-Noms des rues et des quartiers du PLD : config/atlanta_streets.lua, et rien d'autre.
+Toujours acceptés : cercle ("circle", "center", "radius"), rectangle ("rect", "min", "max"), polygone ("poly",
+"points" : autant de coins que voulu).
 
-Trouver des coordonnées en jeu : commande  /mdc_pos  (console F8) : affiche la position
-actuelle et le bloc détecté, avec une ligne prête à copier.
+Option sur chaque bloc : "street": "Nom de la rue" -> le bloc ne vaut que sur cette rue (nom AFFICHÉ par le PLD,
+donc celui de config/washington.json, ex. "I-90" et non "Great Ocean Hwy").
 
-Le fichier doit rester un JSON valide (virgules entre les blocs, pas de virgule après le
-dernier, pas de commentaires). Après modification : redémarrez la ressource
-(ensure rp_mdc), les joueurs reçoivent automatiquement le nouveau fichier.
+Noms des rues, quartiers et villes du PLD : config/washington.json, et rien d'autre (liste : WASHINGTON_CARTE.md).
+
+Trouver des coordonnées en jeu : commande /mdc_pos (console F8) : position actuelle, bloc détecté, ligne "point"
+prête à copier et coin de carré.
+
+Le fichier doit rester un JSON valide (virgules entre les blocs, pas de virgule après le dernier, pas de
+commentaires). Après modification : restart rp_mdc (les joueurs reçoivent le nouveau fichier).

@@ -86,7 +86,7 @@ réseau routier rendu **à l'original**, PNJ relâchés (route et vitesse normal
      La zone prend dans le monde la couleur de l'action choisie (rouge : fermeture, orange : ralentissement, rouge
      foncé : arrêt). Clavier : **1 / 2 / 3** choisissent l'action, **Entrée** applique. **« Rechoisir »** : retour à
      la visée de la route ; **« Annuler »** / **Échap** : la zone est abandonnée, rien n'est posé.
-  - **Mesures actives** : lieu (rues d'Atlanta du MDC), voie / sens, longueur, auteur, temps restant ; **Repérer**
+  - **Mesures actives** : lieu (noms de l'État de Washington du MDC), voie / sens, longueur, auteur, temps restant ; **Repérer**
     (point GPS), **Lever** ; « Lever mes mesures » / « Tout lever ».
 - **Carte** : bande de chaque mesure le long de la route, et **plusieurs points le long de la zone, du début à la fin**
   (un tous les 25 m, 10 au plus, les deux bouts un peu plus gros : `Blip`), avec son nom (« Fermeture : voie de

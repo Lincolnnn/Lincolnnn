@@ -93,6 +93,17 @@ Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` e
   d'autres ressources) sont exécutées normalement.
 - 250 caractères max par message, 1 message par seconde max (`config.lua`).
 
+### `/id` et `/idconfig` : fiche d'identité du MDC à l'écran
+
+- **`/id`** : choisir (à la souris) une de vos **5 dernières identités enregistrées** dans le MDC (Créations >
+  Identité) ; **`/id 1`** à **`/id 5`** : l'afficher directement ; **`/id off`** (ou « Masquer la fiche ») : la retirer.
+- La fiche reste à l'écran (pense-bête RP) : **nom, prénom, middle name**, **DoB**, **adresse**, **téléphone**,
+  **Driver License** (type et État / province, seulement si la personne en a un), **Canadian Citizen** (seulement
+  pour un Canadien ; « US & Canadian Citizen » en double nationalité).
+- **`/idconfig`** : la déplacer (glisser à la souris), l'agrandir / la réduire (molette, − / +), **Enregistrer**
+  (gardé chez vous, même après une reconnexion), Par défaut, Annuler (Échap).
+- Données lues dans le MDC (export `rp_mdc:getRecentIdentities`) ; utilisable sans nom RP.
+
 ## Réglages (par joueur)
 
 Dans le MDC : onglet **Paramètres > Chat écrit et commandes**. Gardés chez chaque joueur (KVP `rpchat_settings`), même après une reconnexion :

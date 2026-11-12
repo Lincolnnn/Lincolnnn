@@ -98,6 +98,7 @@ ChatConfig = {
                 { "/freecam", "mode photo : caméra libre, zoom, inclinaison 90°, interfaces masquées" },
                 { "Ctrl gauche", "à bord : projecteur (appui : allumer ; maintenu : viser, clic gauche verrouiller, clic droit suivre) ; /editspotlight : régler" },
                 { "/trafic · /scene", "gestion du trafic (police) ; scène à fouiller (civil)" },
+                { "/id · /idconfig", "fiche d'une de vos identités du MDC à l'écran (/id 1-5, /id off) · la déplacer, l'agrandir" },
                 { "/tuto · /aide", "cette page" },
             } },
             { title = "MDC & menus", items = {

@@ -304,15 +304,20 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   (`StopConflictingHuds = false` pour ne rien arrêter). Pour que les HUD du MDC passent aussi **au-dessus** de
   l'interface d'un autre script, démarrez `rp_mdc` **après** lui dans `server.cfg` (la dernière interface
   chargée s'affiche au-dessus).
-  **Noms des rues et des quartiers** : **uniquement** ceux de **`config/atlanta_streets.lua`** (aucun autre fichier,
-  aucune autre ressource) : `streets` (nom du jeu -> nom d'Atlanta), `pool` (rues non listées : un nom de la liste,
-  toujours le même pour une même rue ; `autoRenameUnmapped = false` pour garder leur nom du jeu), `zones` (quartiers,
-  renommés aussi sur la carte du menu pause), `countyZones` / `cityName` / `countyName`. Utilisés par le PLD, le bouton
-  « Position actuelle » et les exports `GetStreetName`, `GetDistrictName`, `GetLocationText`, `RenameStreet`.
-  Le filtre `"street"` de `config/blocks.json` utilise le nom **affiché** (d'Atlanta, ex. « Aberdeen Pkwy »).
-  Commande **`/mdc_streets`** (F8) : noms à votre position (et ceux du jeu), pour vérifier.
-  Les blocs se dessinent dans **`config/blocks.json`** (cercles, rectangles, polygones, filtre par rue) : voir
-  `config/LISEZMOI.txt` ; la commande `/mdc_pos` (console F8) donne la ligne à copier.
+  **Noms des rues, quartiers et villes : État de Washington (King County)**, **uniquement** ceux de
+  **`config/washington.json`** (liste complète et lisible : **`config/WASHINGTON_CARTE.md`**) : `streets` (nom du jeu ->
+  nom affiché : **I-5** (autoroutes de la ville), **I-90** (Great Ocean Hwy), **I-405** (Palomino Fwy), **US-2** (Senora
+  Fwy), **US-12** (Route 68), routes de l'État (SR 169, SR 18, SR 203, SR 516, SR 522, SR 202) et routes du comté),
+  `zones` (les 90 zones du jeu : quartiers de Seattle et de Bellevue, villes sous contrat, zones géographiques ; aussi
+  renommées sur la carte du menu pause), `municipalities` (ville affichée et police compétente : Seattle PD, Bellevue
+  PD, KCSO Précinct 2 / 3). Les rues des villes absentes de `streets` gardent leur nom du jeu. Utilisés par le PLD,
+  le bouton « Position actuelle » et les exports `GetStreetName`, `GetDistrictName`, `GetLocationText`,
+  `RenameStreet`, `GetJurisdiction` (police compétente et municipalité). Commande **`/mdc_streets`** (F8) : noms à votre
+  position (et ceux du jeu), pour vérifier.
+  Les blocs se dessinent dans **`config/blocs.json`** (vide au départ, modèles dans `exemples`) : bloc **point** (une
+  coordonnée, rayon facultatif) ou **carré** (4 coins, pour une grande zone sous un seul bloc), et toujours cercles,
+  rectangles, polygones, filtre par rue (nom **affiché**, ex. « I-90 ») : voir `config/LISEZMOI.txt` ; la commande
+  `/mdc_pos` (console F8) donne la ligne à copier.
 - **Display MDC** : affiché seulement dans une unité : « **[N° d'unité] • [POLICE]** » (ex. `417 • WSP`, pastille
   WSP bleue / KCSO verte) suivi du tag spécial (ex. SUP.), statut, n° d'incident (uniquement quand l'unité est sur un
   appel) et **secteur** (zone de jeu) choisi dans le Menu Interaction (`rp_interact`, Police > Display MDC) : « aucun
@@ -548,10 +553,13 @@ plaque du véhicule (export serveur `getVehicleVin(plaque)` : le VIN, ou `nil` s
 rp_interact affiche alors « Illisible »).
 
 Les listes du générateur (noms, adresses, emplois…) se modifient dans `html/script.js`, section « GÉNÉRATEURS ALÉATOIRES ».
-Adresses générées : adresses réelles de Géorgie au format « 225 Baker Street NW, Atlanta, Fulton Co., GA » — 80 % Atlanta,
-10 % autres villes du comté de Fulton, 10 % reste de la Géorgie (liste `ADDRESSES`, bâtiments publics et lieux connus).
-Les numéros de téléphone générés commencent par un indicatif régional de Géorgie compris entre 470 et 678
-(470, 478, 678 : liste `GEORGIA_AREA_CODES` dans `server/server.lua` et `html/script.js`).
+Adresses générées : **King County (État de Washington)**, rues réelles au format « 4521 Fremont Ave N, Seattle, WA 98103 » —
+55 % Seattle, 20 % Bellevue (et Medina, Clyde Hill), puis Maple Valley, Kenmore, Carnation, Ravensdale (liste `ADDRESSES`) ;
+visiteur canadien : adresse en Colombie-Britannique ou en Alberta. **Téléphone** de chaque identité généré (↻ pour un
+autre) : Seattle **206**, est du comté **425** ; Canadien visiteur : indicatif de sa province. N° du requérant d'une
+intervention : toujours un numéro de l'**État de Washington** (206, 425, 253, 360 : `WASHINGTON_AREA_CODES` dans
+`server/server.lua` et `html/script.js`). **Nationalité par défaut : citoyen américain** ; le remplissage aléatoire
+garde la nationalité choisie.
 
 ## Données (permanentes)
 

@@ -1,0 +1,756 @@
+{
+  "_LISEZMOI": [
+    "PLD du MDC : noms de l'État de Washington (King County). SEULE source des noms (rues, quartiers, villes).",
+    "zones : code de zone GTA -> nom affiché (quartier en ville, zone géographique hors ville) et municipalité.",
+    "municipalities : ville affichée après le quartier, et police compétente (Seattle PD, Bellevue PD, KCSO).",
+    "streets : nom de la rue dans le jeu -> nom affiché (majuscules sans importance). Rue absente : nom du jeu.",
+    "interstates / usRoutes / stateRoutes : documentation des grands axes (déjà repris dans streets).",
+    "Liste complète et lisible : config/WASHINGTON_CARTE.md. Après modification : restart rp_mdc."
+  ],
+  "state": "WA",
+  "county": "King County",
+  "defaultArea": "King County",
+  "autoRenameUnmapped": false,
+  "municipalities": {
+    "seattle": {
+      "name": "Seattle",
+      "agency": "Seattle PD",
+      "type": "Ville (police municipale)"
+    },
+    "bellevue": {
+      "name": "Bellevue",
+      "agency": "Bellevue PD",
+      "type": "Ville (police municipale)"
+    },
+    "kenmore": {
+      "name": "Kenmore",
+      "agency": "KCSO - Précinct 2",
+      "type": "Ville sous contrat KCSO (pas de PD)"
+    },
+    "carnation": {
+      "name": "Carnation",
+      "agency": "KCSO - Précinct 2",
+      "type": "Ville sous contrat KCSO (pas de PD)"
+    },
+    "maplevalley": {
+      "name": "Maple Valley",
+      "agency": "KCSO - Précinct 3",
+      "type": "Ville sous contrat KCSO, siège du Précinct 3"
+    },
+    "ravensdale": {
+      "name": "Ravensdale",
+      "agency": "KCSO - Précinct 3",
+      "type": "Non incorporé (KCSO direct)"
+    },
+    "kc2": {
+      "name": "King County",
+      "agency": "KCSO - Précinct 2",
+      "type": "Non incorporé, nord-ouest"
+    },
+    "kc3": {
+      "name": "King County",
+      "agency": "KCSO - Précinct 3",
+      "type": "Non incorporé, centre et est"
+    }
+  },
+  "zones": {
+    "AIRP": {
+      "name": "Sea-Tac International Airport",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Los Santos International Airport"
+    },
+    "ALAMO": {
+      "name": "Lake Sammamish",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Alamo Sea"
+    },
+    "ALTA": {
+      "name": "First Hill",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Alta"
+    },
+    "ARMYB": {
+      "name": "Joint Base Lewis-McChord (annexe)",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Fort Zancudo"
+    },
+    "BANHAMC": {
+      "name": "Somerset",
+      "type": "quartier",
+      "municipality": "bellevue",
+      "gta": "Banham Canyon Dr"
+    },
+    "BANNING": {
+      "name": "Highland Park",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Banning"
+    },
+    "BEACH": {
+      "name": "Golden Gardens",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Vespucci Beach"
+    },
+    "BHAMCA": {
+      "name": "Factoria",
+      "type": "quartier",
+      "municipality": "bellevue",
+      "gta": "Banham Canyon"
+    },
+    "BRADP": {
+      "name": "Stevens Pass",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Braddock Pass"
+    },
+    "BRADT": {
+      "name": "Stevens Pass Tunnel",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Braddock Tunnel"
+    },
+    "BURTON": {
+      "name": "Queen Anne",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Burton"
+    },
+    "CALAFB": {
+      "name": "Tolt River Bridge",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Calafia Bridge"
+    },
+    "CANNY": {
+      "name": "Tolt River Canyon",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Raton Canyon"
+    },
+    "CCREAK": {
+      "name": "Griffin Creek",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Cassidy Creek"
+    },
+    "CHAMH": {
+      "name": "Delridge",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Chamberlain Hills"
+    },
+    "CHIL": {
+      "name": "Bridle Trails",
+      "type": "quartier",
+      "municipality": "bellevue",
+      "gta": "Vinewood Hills"
+    },
+    "CHU": {
+      "name": "Richmond Beach",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Chumash"
+    },
+    "CMSW": {
+      "name": "Mount Si Natural Resources Area",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Chiliad Mountain State Wilderness"
+    },
+    "CYPRE": {
+      "name": "Georgetown",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Cypress Flats"
+    },
+    "DAVIS": {
+      "name": "White Center",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Davis"
+    },
+    "DELBE": {
+      "name": "Discovery Park",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Del Perro Beach"
+    },
+    "DELPE": {
+      "name": "Magnolia",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Del Perro"
+    },
+    "DELSOL": {
+      "name": "Elliott Bay Marina",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Puerto Del Sol"
+    },
+    "DESRT": {
+      "name": "Cedar River Valley",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Grand Senora Desert"
+    },
+    "DOWNT": {
+      "name": "Downtown",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Downtown"
+    },
+    "DTVINE": {
+      "name": "South Lake Union",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Downtown Vinewood"
+    },
+    "EAST_V": {
+      "name": "University District",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "East Vinewood"
+    },
+    "EBURO": {
+      "name": "Rainier Beach",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "El Burro Heights"
+    },
+    "ELGORL": {
+      "name": "Point Robinson Lighthouse",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "El Gordo Lighthouse"
+    },
+    "ELYSIAN": {
+      "name": "Harbor Island",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Elysian Island"
+    },
+    "GALFISH": {
+      "name": "Lake Wilderness",
+      "type": "zone",
+      "municipality": "maplevalley",
+      "gta": "Galilee"
+    },
+    "GALLI": {
+      "name": "Kerry Park",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Galileo Park"
+    },
+    "GOLF": {
+      "name": "Overlake",
+      "type": "quartier",
+      "municipality": "bellevue",
+      "gta": "GWC and Golfing Society"
+    },
+    "GRAPES": {
+      "name": "Carnation",
+      "type": "quartier",
+      "municipality": "carnation",
+      "gta": "Grapeseed"
+    },
+    "GREATC": {
+      "name": "Union Hill",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Great Chaparral"
+    },
+    "HARMO": {
+      "name": "Ravensdale",
+      "type": "quartier",
+      "municipality": "ravensdale",
+      "gta": "Harmony"
+    },
+    "HAWICK": {
+      "name": "Capitol Hill",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Hawick"
+    },
+    "HORS": {
+      "name": "Emerald Downs",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Vinewood Racetrack"
+    },
+    "HUMLAB": {
+      "name": "Cascade BioLabs",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Humane Labs and Research"
+    },
+    "JAIL": {
+      "name": "Monroe Correctional Complex",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Bolingbroke Penitentiary"
+    },
+    "KOREAT": {
+      "name": "Chinatown-International District",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Little Seoul"
+    },
+    "LACT": {
+      "name": "Chester Morse Lake",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Land Act Reservoir"
+    },
+    "LAGO": {
+      "name": "Tolt River Wetlands",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Lago Zancudo"
+    },
+    "LDAM": {
+      "name": "Masonry Dam",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Land Act Dam"
+    },
+    "LEGSQU": {
+      "name": "Westlake",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Legion Square"
+    },
+    "LMESA": {
+      "name": "Beacon Hill",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "La Mesa"
+    },
+    "LOSPUER": {
+      "name": "Alki",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "La Puerta"
+    },
+    "MIRR": {
+      "name": "Green Lake",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Mirror Park"
+    },
+    "MORN": {
+      "name": "West Bellevue",
+      "type": "quartier",
+      "municipality": "bellevue",
+      "gta": "Morningwood"
+    },
+    "MOVIE": {
+      "name": "Interbay",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Richards Majestic"
+    },
+    "MTCHIL": {
+      "name": "Mount Si",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Mount Chiliad"
+    },
+    "MTGORDO": {
+      "name": "Rattlesnake Mountain",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Mount Gordo"
+    },
+    "MTJOSE": {
+      "name": "Tiger Mountain",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Mount Josiah"
+    },
+    "MURRI": {
+      "name": "Columbia City",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Murrieta Heights"
+    },
+    "NCHU": {
+      "name": "Cherry Valley",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "North Chumash"
+    },
+    "NOOSE": {
+      "name": "WSP District 2 Headquarters",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "N.O.O.S.E"
+    },
+    "OCEANA": {
+      "name": "Puget Sound",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Pacific Ocean"
+    },
+    "PALCOV": {
+      "name": "Log Boom Park",
+      "type": "zone",
+      "municipality": "kenmore",
+      "gta": "Paleto Cove"
+    },
+    "PALETO": {
+      "name": "Kenmore",
+      "type": "quartier",
+      "municipality": "kenmore",
+      "gta": "Paleto Bay"
+    },
+    "PALFOR": {
+      "name": "Saint Edward State Park",
+      "type": "zone",
+      "municipality": "kenmore",
+      "gta": "Paleto Forest"
+    },
+    "PALHIGH": {
+      "name": "Taylor Mountain",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Palomino Highlands"
+    },
+    "PALMPOW": {
+      "name": "Cedar Falls Power Station",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Palmer-Taylor Power Station"
+    },
+    "PBLUFF": {
+      "name": "Newport",
+      "type": "quartier",
+      "municipality": "bellevue",
+      "gta": "Pacific Bluffs"
+    },
+    "PBOX": {
+      "name": "Financial District",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Pillbox Hill"
+    },
+    "PROCOB": {
+      "name": "Juanita Beach",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Procopio Beach"
+    },
+    "RANCHO": {
+      "name": "South Park",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Rancho"
+    },
+    "RGLEN": {
+      "name": "Clyde Hill",
+      "type": "quartier",
+      "municipality": "bellevue",
+      "gta": "Richman Glen"
+    },
+    "RICHM": {
+      "name": "Medina",
+      "type": "quartier",
+      "municipality": "bellevue",
+      "gta": "Richman"
+    },
+    "ROCKF": {
+      "name": "Downtown Bellevue",
+      "type": "quartier",
+      "municipality": "bellevue",
+      "gta": "Rockford Hills"
+    },
+    "RTRAK": {
+      "name": "Pacific Raceways",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Redwood Lights Track"
+    },
+    "SANAND": {
+      "name": "King County",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "San Andreas"
+    },
+    "SANCHIA": {
+      "name": "Cascade Foothills",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "San Chianski Mountain Range"
+    },
+    "SANDY": {
+      "name": "Maple Valley",
+      "type": "quartier",
+      "municipality": "maplevalley",
+      "gta": "Sandy Shores"
+    },
+    "SKID": {
+      "name": "Pioneer Square",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Mission Row"
+    },
+    "SLAB": {
+      "name": "Hobart",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Stab City"
+    },
+    "STAD": {
+      "name": "SoDo",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Maze Bank Arena"
+    },
+    "STRAW": {
+      "name": "Central District",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Strawberry"
+    },
+    "TATAMO": {
+      "name": "Squak Mountain",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Tataviam Mountains"
+    },
+    "TERMINA": {
+      "name": "Port of Seattle",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Terminal"
+    },
+    "TEXTI": {
+      "name": "SoDo Industrial District",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Textile City"
+    },
+    "TONGVAH": {
+      "name": "Novelty Hill",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Tongva Hills"
+    },
+    "TONGVAV": {
+      "name": "Bear Creek Valley",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Tongva Valley"
+    },
+    "VCANA": {
+      "name": "Ship Canal",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Vespucci Canals"
+    },
+    "VESP": {
+      "name": "Ballard",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Vespucci"
+    },
+    "VINE": {
+      "name": "Fremont",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Vinewood"
+    },
+    "WINDF": {
+      "name": "Wild Horse Wind Farm",
+      "type": "zone",
+      "municipality": "kc3",
+      "gta": "Ron Alternates Wind Farm"
+    },
+    "WVINE": {
+      "name": "Wallingford",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "West Vinewood"
+    },
+    "ZANCUDO": {
+      "name": "Snoqualmie River",
+      "type": "zone",
+      "municipality": "kc2",
+      "gta": "Zancudo River"
+    },
+    "ZP_ORT": {
+      "name": "Duwamish Waterway",
+      "type": "quartier",
+      "municipality": "seattle",
+      "gta": "Port of South Los Santos"
+    },
+    "ZQ_UAR": {
+      "name": "Ravensdale Quarry",
+      "type": "zone",
+      "municipality": "ravensdale",
+      "gta": "Davis Quartz"
+    }
+  },
+  "interstates": [
+    {
+      "route": "I-90",
+      "game": [
+        "Great Ocean Hwy"
+      ],
+      "note": "Great Ocean Highway : tour de l'île, côte ouest et nord"
+    },
+    {
+      "route": "I-5",
+      "game": [
+        "Los Santos Fwy",
+        "Olympic Fwy",
+        "Del Perro Fwy",
+        "La Puerta Fwy",
+        "Elysian Fields Fwy"
+      ],
+      "note": "Toutes les autoroutes de la ville (Seattle)"
+    },
+    {
+      "route": "I-405",
+      "game": [
+        "Palomino Fwy"
+      ],
+      "note": "Palomino Freeway : contournement est"
+    }
+  ],
+  "usRoutes": [
+    {
+      "route": "US-2",
+      "game": [
+        "Senora Fwy"
+      ],
+      "note": "Senora Freeway : axe nord-sud du Précinct 3, vers Stevens Pass"
+    },
+    {
+      "route": "US-12",
+      "game": [
+        "Route 68"
+      ],
+      "note": "Route 68 : traverse le centre d'ouest en est (Harmony, Sandy)"
+    }
+  ],
+  "stateRoutes": [
+    {
+      "route": "SR 169 (Maple Valley Hwy)",
+      "game": [
+        "Senora Way"
+      ],
+      "note": "Accès à Maple Valley depuis l'US-12"
+    },
+    {
+      "route": "SR 18",
+      "game": [
+        "Senora Rd"
+      ],
+      "note": "Route du désert entre Ravensdale et le nord-est"
+    },
+    {
+      "route": "SR 203 (Carnation-Duvall Rd)",
+      "game": [
+        "Joshua Rd"
+      ],
+      "note": "Axe nord-sud vers Carnation"
+    },
+    {
+      "route": "SR 516 (Kent-Kangley Rd)",
+      "game": [
+        "East Joshua Road"
+      ],
+      "note": "Ravensdale"
+    },
+    {
+      "route": "SR 522 (Bothell Way NE)",
+      "game": [
+        "Paleto Blvd"
+      ],
+      "note": "Rue principale de Kenmore"
+    },
+    {
+      "route": "SR 202 (Redmond-Fall City Rd)",
+      "game": [
+        "Calafia Rd",
+        "North Calafia Way"
+      ],
+      "note": "Nord-ouest, pont de la Tolt River"
+    },
+    {
+      "route": "SR 203 (Tolt Ave)",
+      "game": [
+        "Grapeseed Main St"
+      ],
+      "note": "Rue principale de Carnation"
+    }
+  ],
+  "streets": {
+    "Algonquin Blvd": "Maple Valley-Black Diamond Rd SE",
+    "Alhambra Dr": "216th Ave SE",
+    "Armadillo Ave": "SE 231st St",
+    "Barbareno Rd": "Redmond Ridge Dr NE",
+    "Baytree Canyon Rd": "Novelty Hill Rd",
+    "Buen Vino Rd": "NE Union Hill Rd",
+    "Calafia Rd": "SR 202 (Redmond-Fall City Rd)",
+    "Cascabel Ave": "NE 175th St",
+    "Cassidy Trail": "Griffin Creek Rd",
+    "Cat-Claw Ave": "Tahoma Way SE",
+    "Cholla Rd": "SE Jones Rd",
+    "Cholla Springs Ave": "Wax Rd SE",
+    "Del Perro Fwy": "I-5",
+    "Duluoz Ave": "61st Ave NE",
+    "East Joshua Road": "SR 516 (Kent-Kangley Rd)",
+    "Elysian Fields Fwy": "I-5",
+    "Fenwell Pl": "Landsburg Rd SE",
+    "Fort Zancudo Approach Rd": "JBLM Annex Access Rd",
+    "Gentry Ln": "SE Kent-Black Diamond Rd",
+    "Grapeseed Ave": "NE Carnation Farm Rd",
+    "Grapeseed Main St": "SR 203 (Tolt Ave)",
+    "Great Ocean Hwy": "I-90",
+    "Hangman Ave": "SE Hobart Rd",
+    "Joad Ln": "SE Ravensdale Way",
+    "Joshua Rd": "SR 203 (Carnation-Duvall Rd)",
+    "La Puerta Fwy": "I-5",
+    "Lake Vinewood Dr": "Lake Tradition Rd",
+    "Lake Vinewood Est": "SE Tradition Lake Dr",
+    "Lesbos Ln": "Lake Wilderness Dr SE",
+    "Lolita Ave": "SE 248th St",
+    "Los Santos Fwy": "I-5",
+    "Marina Dr": "East Lake Sammamish Pkwy SE",
+    "Marlowe Dr": "NE Ames Lake Rd",
+    "Meringue Ln": "SE 240th St",
+    "Mount Haan Dr": "SE Mount Si Rd",
+    "Mount Haan Rd": "Mount Si Rd",
+    "Mountain View Dr": "SE 264th St",
+    "Niland Ave": "Witte Rd SE",
+    "North Calafia Way": "SR 202 (Redmond-Fall City Rd)",
+    "Nowhere Rd": "SE Summit-Landsburg Rd",
+    "O'Neil Way": "NE 50th St",
+    "Olympic Fwy": "I-5",
+    "Paleto Blvd": "SR 522 (Bothell Way NE)",
+    "Palomino Fwy": "I-405",
+    "Panorama Dr": "West Lake Sammamish Pkwy SE",
+    "Procopio Dr": "68th Ave NE",
+    "Procopio Promenade": "Kenmore Waterfront Trail",
+    "Pyrite Ave": "NE 181st St",
+    "Raton Pass": "Tolt Pipeline Rd",
+    "Route 68": "US-12",
+    "Seaview Rd": "Juanita Dr NE",
+    "Senora Fwy": "US-2",
+    "Senora Rd": "SR 18",
+    "Senora Way": "SR 169 (Maple Valley Hwy)",
+    "Smoke Tree Rd": "SE Lake Holm Rd",
+    "Steele Way": "276th Ave SE",
+    "Tongva Dr": "Bear Creek Rd",
+    "Union Rd": "Tolt Hill Rd NE",
+    "Zancudo Ave": "SE 228th St",
+    "Zancudo Rd": "Snoqualmie Valley Rd NE"
+  },
+  "pool": []
+}

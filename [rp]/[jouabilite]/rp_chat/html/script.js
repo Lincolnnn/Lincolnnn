@@ -24,6 +24,8 @@
         { name: 'tuto', usage: '/tuto', desc: 'Affiche / retire la page des touches et fonctionnalités' },
         { name: 'fichecivil', usage: '/fichecivil', desc: 'Fiche civile : créer / gérer vos profils' },
         { name: 'repair', usage: '/repair', desc: 'Répare le moteur du véhicule (pas la carrosserie)' },
+        { name: 'id', usage: '/id [1-5 | off]', desc: 'Fiche d\'une de vos 5 dernières identités du MDC à l\'écran' },
+        { name: 'idconfig', usage: '/idconfig', desc: 'Déplacer, agrandir et enregistrer la fiche /id' },
         // grisée : existe, mais n'est pas mise en avant
         { name: 'hrp', usage: '/hrp [message]', desc: 'Message hors RP (à limiter)', muted: true },
     ];
@@ -383,6 +385,136 @@
                 break;
         }
     });
+
+    // ---------------------------------------------------------------------
+    // /id : fiche d'identité du MDC ; /idconfig : déplacer (glisser), agrandir (molette, − / +), enregistrer
+    // ---------------------------------------------------------------------
+    const idCard = document.getElementById('idCard');
+    const idChooser = document.getElementById('idChooser');
+    const idBar = document.getElementById('idConfigBar');
+    const ID_DEFAULT = { x: 1.5, y: 34, scale: 1 };
+    const idState = { layout: { ...ID_DEFAULT }, saved: { ...ID_DEFAULT }, card: null, config: false, list: [] };
+    const idText = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; e.textContent = text ?? ''; return e; };
+
+    function idApplyLayout() {
+        const l = idState.layout;
+        idCard.style.left = `${l.x}vw`;
+        idCard.style.top = `${l.y}vh`;
+        idCard.style.transform = `scale(${l.scale})`;
+        document.getElementById('idScaleText').textContent = `${Math.round(l.scale * 100)} %`;
+    }
+    function idRenderCard(card) {
+        const body = document.getElementById('idCardBody');
+        body.replaceChildren();
+        const row = (label, value) => { if (value) body.append(idText('dt', '', label), idText('dd', '', value)); };
+        const names = [card.firstname, card.middlename].filter(Boolean).join(' ');
+        row('Nom', `${String(card.lastname || '').toUpperCase()}${names ? `, ${names}` : ''}`);
+        row('DoB', card.dob);
+        row('Adresse', card.address);
+        row('Phone', card.phone);
+        if (card.license) row('Driver License', `${card.license.class}${card.license.stateLabel ? ` — ${String(card.license.stateLabel).split(' - ')[0]}` : ''}`);
+        if (card.nationality === 'CA') row('Citizenship', 'Canadian Citizen');
+        if (card.nationality === 'USCA') row('Citizenship', 'US & Canadian Citizen');
+        document.getElementById('idCardTag').textContent = card.id ? `MDC n°${card.id}` : '';
+    }
+    function idShowCard(card) {
+        idState.card = card || null;
+        if (card) idRenderCard(card);
+        idCard.classList.toggle('hidden', !card && !idState.config);
+    }
+    function idOpenChooser(list) {
+        idState.list = Array.isArray(list) ? list : Object.values(list || {});
+        const box = document.getElementById('idChooserList');
+        box.replaceChildren();
+        idState.list.forEach((c, i) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.dataset.index = String(i + 1);
+            b.append(idText('b', '', `${i + 1}. ${String(c.lastname || '').toUpperCase()} ${c.firstname || ''}`), idText('span', '', `${c.dob || ''}${c.nationality === 'CA' ? ' · Canadian' : ''}`));
+            box.append(b);
+        });
+        idChooser.classList.remove('hidden');
+    }
+    function idCloseChooser(notify = true) {
+        idChooser.classList.add('hidden');
+        if (notify) post('idRelease');
+    }
+    document.getElementById('idChooserList').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-index]');
+        if (!b) return;
+        idCloseChooser(false);
+        post('idPick', { index: Number(b.dataset.index) });
+    });
+    document.getElementById('idHideBtn').addEventListener('click', () => { idCloseChooser(false); post('idHide'); });
+    document.getElementById('idCloseBtn').addEventListener('click', () => idCloseChooser());
+
+    function idStartConfig() {
+        idState.config = true;
+        idState.saved = { ...idState.layout };
+        if (!idState.card) idRenderCard({ lastname: 'Nom', firstname: 'Prénom', middlename: 'Middle', dob: 'JJ/MM/AAAA',
+            address: '1234 Rue, Seattle, WA 98101', phone: '206-555-0123', license: { class: 'Driver License (standard)', stateLabel: 'WA - Washington' } });
+        idCard.classList.remove('hidden');
+        idCard.classList.add('editing');
+        idBar.classList.remove('hidden');
+        idApplyLayout();
+    }
+    function idEndConfig() {
+        idState.config = false;
+        idCard.classList.remove('editing');
+        idBar.classList.add('hidden');
+        if (idState.card) idRenderCard(idState.card);
+        idCard.classList.toggle('hidden', !idState.card);
+    }
+    let drag = null;
+    idCard.addEventListener('mousedown', (e) => {
+        if (!idState.config) return;
+        drag = { mx: e.clientX, my: e.clientY, x: idState.layout.x, y: idState.layout.y };
+        e.preventDefault();
+    });
+    window.addEventListener('mousemove', (e) => {
+        if (!drag) return;
+        idState.layout.x = Math.max(0, Math.min(95, drag.x + (e.clientX - drag.mx) / window.innerWidth * 100));
+        idState.layout.y = Math.max(0, Math.min(95, drag.y + (e.clientY - drag.my) / window.innerHeight * 100));
+        idApplyLayout();
+    });
+    window.addEventListener('mouseup', () => { drag = null; });
+    const idScale = (dir) => {
+        idState.layout.scale = Math.max(0.6, Math.min(2, Math.round((idState.layout.scale + dir * 0.05) * 100) / 100));
+        idApplyLayout();
+    };
+    idCard.addEventListener('wheel', (e) => { if (idState.config) idScale(e.deltaY < 0 ? 1 : -1); }, { passive: true });
+    idBar.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-id-scale]');
+        if (b) idScale(Number(b.dataset.idScale));
+    });
+    document.getElementById('idResetBtn').addEventListener('click', () => { idState.layout = { ...ID_DEFAULT }; idApplyLayout(); });
+    document.getElementById('idCancelBtn').addEventListener('click', () => {
+        idState.layout = { ...idState.saved };
+        idApplyLayout();
+        idEndConfig();
+        post('idRelease');
+    });
+    document.getElementById('idSaveBtn').addEventListener('click', () => {
+        idEndConfig();
+        post('idSaveLayout', { x: idState.layout.x, y: idState.layout.y, scale: idState.layout.scale });
+    });
+    window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!idChooser.classList.contains('hidden')) idCloseChooser();
+        else if (idState.config) document.getElementById('idCancelBtn').click();
+    });
+    window.addEventListener('message', ({ data }) => {
+        if (!data || !data.action) return;
+        const d = data.data || {};
+        if (data.action === 'idCard') idShowCard(d.show ? d.card : null);
+        else if (data.action === 'idChooser') idOpenChooser(d.list);
+        else if (data.action === 'idConfig') idStartConfig();
+        else if (data.action === 'idLayout') {
+            idState.layout = { x: Number(d.x ?? ID_DEFAULT.x), y: Number(d.y ?? ID_DEFAULT.y), scale: Number(d.scale ?? ID_DEFAULT.scale) };
+            idApplyLayout();
+        }
+    });
+    idApplyLayout();
 
     post('ready');
 

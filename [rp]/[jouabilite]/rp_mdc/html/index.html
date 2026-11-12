@@ -413,7 +413,7 @@
                                         <option value="F">(F) Female</option>
                                     </select>
                                 </label>
-                                <label class="lbl">Adresse *<input name="address" type="text" maxlength="80" placeholder="ex : 225 Baker Street NW, Atlanta, Fulton Co., GA"></label>
+                                <label class="lbl">Adresse *<input name="address" type="text" maxlength="80" placeholder="ex : 4521 Fremont Ave N, Seattle, WA 98103"></label>
 
                                 <label class="lbl">Social Security Number <span class="ssn-req">*</span>
                                     <span class="inline">
@@ -421,7 +421,13 @@
                                         <button type="button" class="btn btn-icon regen" data-regen="ssn" title="Générer un nouveau SSN">&#8635;</button>
                                     </span>
                                 </label>
-                                <label class="lbl span-2">Emploi<input name="job" type="text" maxlength="40"></label>
+                                <label class="lbl">N° de téléphone
+                                    <span class="inline">
+                                        <input name="phone" type="text" maxlength="20" placeholder="206-555-0123">
+                                        <button type="button" class="btn btn-icon regen" data-regen="phone" title="Générer un nouveau numéro (État de Washington)">&#8635;</button>
+                                    </span>
+                                </label>
+                                <label class="lbl">Emploi<input name="job" type="text" maxlength="40"></label>
                             </div>
 
                             <!-- Nationalité (config/licenses.lua) : citoyen US, canadien (statut aux États-Unis) ou double -->
