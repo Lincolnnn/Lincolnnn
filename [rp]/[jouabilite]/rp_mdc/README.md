@@ -318,6 +318,12 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   coordonnée, rayon facultatif) ou **carré** (4 coins, pour une grande zone sous un seul bloc), et toujours cercles,
   rectangles, polygones, filtre par rue (nom **affiché**, ex. « I-90 ») : voir `config/LISEZMOI.txt` ; la commande
   `/mdc_pos` (console F8) donne la ligne à copier.
+  **`/blocs` (admins, `Config.BlockEditorAce` = `rp.admin`)** : éditeur de blocs. Panneau à droite : **Point** (rayon)
+  ou **Carré** (largeur, hauteur, rotation), nom du bloc ; le bloc se dessine **en jeu** (jaune) et **sur la carte**
+  (rayon / zone), au centre du joueur (« Suivre ma position ») ou figé (« Fixer ici »). « **Ajouter le bloc** » : il
+  passe en vert et sa ligne rejoint la liste (✕ pour la retirer) ; « **Copier tout** » : les lignes à coller dans
+  `"blocks"` de `config/blocs.json`. « Se déplacer » rend la souris (le panneau reste), `/blocs` la reprend. Rien
+  n'est écrit sur le serveur ; redémarrer `rp_mdc` après avoir collé les lignes.
 - **Display MDC** : affiché seulement dans une unité : « **[N° d'unité] • [POLICE]** » (ex. `417 • WSP`, pastille
   WSP bleue / KCSO verte) suivi du tag spécial (ex. SUP.), statut, n° d'incident (uniquement quand l'unité est sur un
   appel) et **secteur** (zone de jeu) choisi dans le Menu Interaction (`rp_interact`, Police > Display MDC) : « aucun

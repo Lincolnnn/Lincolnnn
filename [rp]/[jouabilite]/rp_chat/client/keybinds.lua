@@ -85,8 +85,25 @@ local function apply(id, key)
     if key then bind(id, key) end
 end
 
+--- Catalogue envoyé au chat (NUI) : suggestions de /modiftouche (scripts démarrés, spécificités, touches actuelles)
+local function sendCatalog()
+    local list = {}
+    for _, s in ipairs(SCRIPTS) do
+        if GetResourceState(s.res) == 'started' then
+            local acts = {}
+            for _, a in ipairs(s.actions or {}) do
+                local id = s.name .. '.' .. a.id
+                acts[#acts + 1] = { id = a.id, label = a.label, key = overrides[id] or a.key or '', custom = overrides[id] ~= nil }
+            end
+            list[#list + 1] = { name = s.name, label = s.label, actions = acts }
+        end
+    end
+    SendNUIMessage({ action = 'keyCatalog', data = list })
+end
+
 local function save()
     SetResourceKvp(KVP, json.encode(overrides))
+    sendCatalog()
 end
 
 --- Nom de touche FiveM ('Z', 'F5', 'LSHIFT', 'MOUSE_RIGHT'…) ou nil
@@ -192,3 +209,7 @@ do
 end
 
 RPChatKeys.overrides = function() return overrides end -- (tests)
+RPChatKeys.sendCatalog = sendCatalog
+-- un script démarre / s'arrête : suggestions à jour
+AddEventHandler('onClientResourceStart', function() SetTimeout(500, sendCatalog) end)
+AddEventHandler('onClientResourceStop', function() SetTimeout(500, sendCatalog) end)

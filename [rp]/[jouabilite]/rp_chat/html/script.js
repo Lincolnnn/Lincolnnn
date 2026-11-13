@@ -231,9 +231,35 @@
     // ---------------------------------------------------------------------
     // Saisie : Entrée, Échap / touche d'ouverture, historique, suggestions
     // ---------------------------------------------------------------------
+    // /modiftouche : après l'espace, les scripts ; après le script et un espace, ses spécificités (touches actuelles)
+    function keySuggestions() {
+        const scripts = state.keyCatalog || [];
+        const fold = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        let m = /^\/modiftouche (\S*)$/i.exec(input.value);
+        if (m) {
+            return scripts.filter((s) => fold(s.name).startsWith(fold(m[1]))).map((s) => ({
+                name: s.name, fill: `/modiftouche ${s.name} `, usage: s.name,
+                desc: `${s.label} — ${s.actions.length} touche${s.actions.length > 1 ? 's' : ''}`,
+            }));
+        }
+        m = /^\/modiftouche (\S+) (\S*)$/i.exec(input.value);
+        if (m) {
+            const s = scripts.find((x) => fold(x.name) === fold(m[1]));
+            if (!s) return [];
+            return s.actions.filter((a) => fold(a.id).startsWith(fold(m[2]))).map((a) => ({
+                name: a.id, fill: `/modiftouche ${s.name} ${a.id} `, usage: `${s.name} ${a.id} [touche]`,
+                desc: `${a.label} — touche : ${a.key || 'aucune'}${a.custom ? ' (perso)' : ''}`,
+            }));
+        }
+        return null;
+    }
+
     function matchingCommands() {
+        if (!state.open) return [];
+        const keys = keySuggestions();
+        if (keys) return keys;
         const m = /^\/(\S*)$/.exec(input.value);
-        if (!state.open || !m) return [];
+        if (!m) return [];
         const typed = m[1].toLowerCase();
         const known = new Set(COMMANDS.map((c) => c.name));
         const all = COMMANDS.concat(state.extraCommands.filter((c) => !known.has(c.name)));
@@ -300,7 +326,7 @@
             case 'Tab':
                 e.preventDefault();
                 if (matches.length) {
-                    input.value = `/${matches[state.suggestIndex].name} `;
+                    input.value = matches[state.suggestIndex].fill || `/${matches[state.suggestIndex].name} `;
                     state.suggestIndex = 0;
                     renderSuggest();
                 }
@@ -378,6 +404,11 @@
                 state.extraCommands = (Array.isArray(data.data) ? data.data : Object.values(data.data || {}))
                     .filter((c) => c && typeof c.name === 'string')
                     .map((c) => ({ name: c.name, usage: String(c.usage || '/' + c.name), desc: String(c.desc || ''), muted: !!c.muted }));
+                renderSuggest();
+                break;
+            case 'keyCatalog': // /modiftouche : scripts, spécificités et touches (suggestions)
+                state.keyCatalog = (Array.isArray(data.data) ? data.data : Object.values(data.data || {})).map((s) => ({
+                    ...s, actions: Array.isArray(s.actions) ? s.actions : Object.values(s.actions || {}) }));
                 renderSuggest();
                 break;
             case 'settings':

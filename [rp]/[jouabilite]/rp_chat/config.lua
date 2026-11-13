@@ -21,6 +21,10 @@ ChatConfig = {
     ScrollUpKey = 'PAGEUP',
     ScrollDownKey = 'PAGEDOWN',
 
+    -- Messages PRIVÉS des autres scripts (véhicule, Riven, fouilles…) : anti-spam. Même texte répété dans SameText s :
+    -- ignoré ; au plus Max messages privés en Window s (les suivants sont ignorés). Enabled = false : tout passe.
+    PrivateLimit = { Enabled = true, SameText = 20, Window = 10, Max = 4 },
+
     -- /me : visible uniquement par les joueurs dans ce rayon (mètres) au moment de l'envoi
     MeDistance = 50.0,
 

@@ -97,6 +97,7 @@ local Config = {
     --   DeleteCallAce : supprimer une intervention / un incident de la liste
     AgencyAce = { wsp = 'rp.membre' },
     SupervisorAce = 'rp.admin',
+    BlockEditorAce = 'rp.admin', -- /blocs : éditeur des blocs du PLD (point / carré), admins
     DeleteCallAce = 'rp.admin',
 
     -- Débit (octets/s) des réponses "latentes" (modèles et contenu des rapports,
@@ -350,6 +351,16 @@ end
 loadAll()
 
 -- Rechargement manuel après modification des fichiers (console serveur uniquement)
+-- /blocs (client/blockeditor.lua) : éditeur des blocs du PLD, réservé aux admins
+RegisterNetEvent('mdc:server:blockEditor', function()
+    local src = source
+    if aceAllowed(src, Config.BlockEditorAce or 'rp.admin') then
+        TriggerClientEvent('mdc:client:blockEditor', src, true)
+    else
+        TriggerClientEvent('mdc:client:blockEditor', src, false, 'Éditeur de blocs : réservé aux admins.')
+    end
+end)
+
 RegisterCommand('mdc_reload', function(source)
     if source ~= 0 then return end
     loadAll()

@@ -27,5 +27,9 @@ Noms des rues, quartiers et villes du PLD : config/washington.json, et rien d'au
 Trouver des coordonnées en jeu : commande /mdc_pos (console F8) : position actuelle, bloc détecté, ligne "point"
 prête à copier et coin de carré.
 
+Plus simple (admins) : /blocs ouvre l'éditeur. Point ou carré, rayon / largeur / hauteur / rotation, visible en jeu
+et sur la carte ; "Ajouter le bloc" puis "Copier tout" : les lignes sont prêtes à coller dans "blocks" (une virgule
+entre chaque bloc, déjà mise par "Copier tout"). Redémarrer rp_mdc ensuite.
+
 Le fichier doit rester un JSON valide (virgules entre les blocs, pas de virgule après le dernier, pas de
 commentaires). Après modification : restart rp_mdc (les joueurs reçoivent le nouveau fichier).

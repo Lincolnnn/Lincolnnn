@@ -110,6 +110,9 @@ Mise en forme du nom RP : en gras pour `/me`, en gras et souligné pour `/qst` e
 - `/modiftouche` seul : liste des scripts ; `/modiftouche MDC` : ses spécificités et leurs touches actuelles ;
 - `/modiftouche MDC ouvrir F5` : le MDC s'ouvre avec **F5**, et l'ancienne touche (K) **ne fait plus rien** ;
 - `/modiftouche MDC ouvrir defaut` : touche d'origine.
+- **Suggestions en tapant** : `/modiftouche ` (avec l'espace) propose les **scripts** ; **Tab** (ou clic) complète, puis
+  après l'espace suivant ce sont les **spécificités** de ce script, avec leur **touche actuelle** (« (perso) » si vous
+  l'avez changée). Il ne reste qu'à taper la nouvelle touche.
 - Touches : `A` à `Z`, `0` à `9`, `F1` à `F24`, `NUMPAD0` à `NUMPAD9`, et en français `ESPACE`, `ENTREE`, `MAJ`, `CTRL`,
   `ALT`, `VERRMAJ`, `TAB`, `HAUT`, `BAS`, `GAUCHE`, `DROITE`, `DEBUT`, `FIN`, `PAGEHAUT`, `PAGEBAS`, `INSER`, `SUPPR`,
   `CLICGAUCHE`, `CLICDROIT`, `CLICMOLETTE` (noms FiveM aussi acceptés : `LSHIFT`, `LCONTROL`, `LMENU`…). Majuscules
@@ -191,6 +194,7 @@ Le chat apparaît en aperçu pendant les réglages. Sans le MDC, les réglages p
 | `Permissions` | permission ACE facultative par commande, ex. `info = 'rpchat.info'` puis `add_ace group.admin rpchat.info allow` |
 | `OverheadDuration`, `OverheadMaxLines` | durée d'un `/me` au-dessus d'une tête, nombre max par joueur |
 | `OverheadScale`, `OverheadMinScale`, `OverheadMaxScale` | taille du `/me` au-dessus des têtes (à ~4 m), facteurs min (au loin) et max (tout près) |
+| `PrivateLimit` | anti-spam des messages privés (`addPrivate`) : `SameText` (même texte, 20 s), `Max` par `Window` (4 par 10 s) |
 
 Si vous renommez le dossier, mettez le nouveau nom dans `ChatResource` (`client/client.lua` du MDC).
 
@@ -212,6 +216,8 @@ obligatoire, rayon de 50 m). Utilisé par `rp_interact` pour les annonces RP («
 
 `exports.rp_chat:addPrivate({ title, subject, text })` (client) : message **privé**, affiché uniquement chez ce joueur
 avec l'étiquette `PRIVÉ` (résultats d'inspection / de fouille de `rp_interact`).
+**Anti-spam** (`PrivateLimit` dans `config.lua`) : un même texte n'est pas répété avant `SameText` s (20), et au plus
+`Max` messages privés (4) par `Window` s (10) ; le reste est ignoré. `Enabled = false` pour tout laisser passer.
 
 Le chat publie son nom de ressource (`GlobalState.rpChatResource`) : le MDC et `rp_interact` le retrouvent même si le
 dossier a été renommé.

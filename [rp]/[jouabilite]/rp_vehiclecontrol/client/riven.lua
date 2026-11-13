@@ -22,7 +22,7 @@ exports('rivenSettings', function()
         Lamps = R.Lamps ~= false,
         HideLamps = type(R.HideLamps) == 'table' and R.HideLamps or { 'belt' },
         Notify = R.Notify ~= false,
-        MuteBelt = R.MuteBelt ~= false, MuteTyres = R.MuteTyres ~= false,
+        MuteBelt = R.MuteBelt ~= false, MuteTyres = R.MuteTyres ~= false, MutePark = R.MutePark ~= false,
         OwnBelt = true, OwnPark = true, -- ceinture et frein de parking : messages écrits par ce script
     }
 end)

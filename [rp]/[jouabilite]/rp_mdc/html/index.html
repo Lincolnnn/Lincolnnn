@@ -1256,7 +1256,41 @@
     <div id="toasts" class="toasts"></div>
     </div>
 
+    <!-- /blocs (admins) : éditeur des blocs du PLD -->
+    <div id="blockEditor" class="block-editor hidden">
+        <div class="be-head">Blocs du PLD <span id="beFocusHint"></span></div>
+        <div class="be-body">
+            <div class="be-row">
+                <label><input type="radio" name="beType" value="point" checked> Point</label>
+                <label><input type="radio" name="beType" value="square"> Carré</label>
+                <input type="text" id="beName" maxlength="30" placeholder="Nom du bloc (ex. 400)">
+            </div>
+            <label class="be-slider be-point">Rayon <input type="range" id="beRadius" min="10" max="800" step="5"><b id="beRadiusV"></b></label>
+            <label class="be-slider be-square">Largeur <input type="range" id="beWidth" min="20" max="3000" step="10"><b id="beWidthV"></b></label>
+            <label class="be-slider be-square">Hauteur <input type="range" id="beHeight" min="20" max="3000" step="10"><b id="beHeightV"></b></label>
+            <label class="be-slider be-square">Rotation <input type="range" id="beRotation" min="0" max="359" step="1"><b id="beRotationV"></b></label>
+            <div class="be-row">
+                <label><input type="checkbox" id="beFollow"> Suivre ma position</label>
+                <span class="be-pos" id="bePos"></span>
+            </div>
+            <code class="be-preview" id="bePreview"></code>
+            <div class="be-actions">
+                <button type="button" id="beHere">Fixer ici</button>
+                <button type="button" id="beMove">Se déplacer</button>
+                <button type="button" class="primary" id="beAdd">Ajouter le bloc</button>
+            </div>
+            <div class="be-list-title">Blocs créés (<span id="beCount">0</span>) — à copier dans config/blocs.json, liste « blocks »</div>
+            <div class="be-list" id="beList"></div>
+            <textarea id="beAll" readonly rows="4"></textarea>
+            <div class="be-actions">
+                <button type="button" id="beCopy">Copier tout</button>
+                <button type="button" id="beClose">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
+    <script src="blockeditor.js"></script>
     <script>/* rp_freecam (mode photo) : interface masquée tant que « Masquer les interfaces » est coché */
         window.addEventListener('message', (e) => { const d = e.data; if (d && d.action === 'rpHideUi') document.documentElement.style.opacity = d.data && d.data.hidden ? '0' : ''; });</script>
 </body>

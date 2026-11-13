@@ -445,6 +445,8 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
   pédale, comme une boîte automatique).
 - **D** : Z / W avance ; le frein (S) freine ; véhicule arrêté, il le **retient** au lieu de reculer.
 - **R** : Z / W recule ; le frein (S) freine, puis **retient** le véhicule arrêté (il ne fait jamais avancer).
+  En R, la **marche avant est bloquée** : la pédale d'accélérateur du jeu est neutralisée et c'est la marche arrière
+  du jeu qui est actionnée à sa place (les deux ne s'activent plus en même temps, le véhicule recule normalement).
 - Affiché sur le **car HUD du MDC**, à droite : **R au-dessus de D**, une pastille glisse en douceur de l'un à l'autre
   (jaune en R). Pas de rapport sur les vélos, bateaux, hélicoptères, avions et trains (`Gear.SkipClasses`), ni pendant
   que le véhicule est poussé.
@@ -487,9 +489,11 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
    `pont Riven actif` (Riven a démarré, tout est relié). Rien : la ligne n'est pas dans son `fxmanifest.lua` ou les
    ressources n'ont pas été redémarrées. `pont Riven absent` en montant dans un véhicule : idem.
 
-   **Ceinture et frein de parking**, avec ou sans le pont : ce script les lit chez Riven et écrit lui-même, en message
-   privé du chat, « Ceinture attachée. » / « Ceinture détachée. » et « Frein de parking serré. » / « Frein de parking
-   desserré. » (le pont coupe ceux de Riven : jamais en double ; `Riven.MuteBelt` / `Riven.MutePark` pour les taire).
+   **Ceinture et frein de parking**, avec ou sans le pont : **aucun message par défaut** (logo de la ceinture et « P »
+   du car HUD suffisent) ; le pont coupe ceux de Riven, toujours. `Riven.MuteBelt = false` / `Riven.MutePark = false` :
+   ce script écrit lui-même « Ceinture attachée. », « Frein de parking serré. »… en message privé du chat.
+   Également tus : « Stopped. », chaînes à neige, moteur qui tousse / repart / cale. Le chat limite en plus les
+   messages privés (`PrivateLimit` de `rp_chat` : pas de doublon en 20 s, 4 au plus en 10 s).
    Frein de parking serré : **« P » rouge cerclé sur le car HUD du MDC** (conducteur), retiré dès qu'il est desserré ;
    il reste rouge moteur coupé. Il vient de l'état synchronisé du véhicule chez Riven (`rivenParkingBrake`) : il suit
    aussi le serrage automatique après un accident ou un tonneau.

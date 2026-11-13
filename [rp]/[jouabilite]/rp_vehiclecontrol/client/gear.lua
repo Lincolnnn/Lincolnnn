@@ -93,14 +93,18 @@ VC.on('frame', function(_, vehicle)
     else
         -- R : l'accélérateur (Z / W) RECULE (il pilote la marche arrière du jeu, à sa pression) ; le frein (S) freine,
         -- puis retient le véhicule (il ne fait jamais avancer)
+        -- (comme push.lua : les deux pédales du jeu bloquées, puis remplies par le script : la marche avant est
+        -- coupée net, sinon accélérateur et marche arrière agissent ensemble et le véhicule ne bouge pas)
         local gas = math.max(GetControlNormal(0, ACCELERATE), GetDisabledControlNormal(0, ACCELERATE))
         local brake = IsControlPressed(0, BRAKE) or IsDisabledControlPressed(0, BRAKE)
         DisableControlAction(0, ACCELERATE, true) -- jamais vers l'avant en R
+        DisableControlAction(0, BRAKE, true)
+        SetControlNormal(0, ACCELERATE, 0.0)
         if brake then
-            DisableControlAction(0, BRAKE, true)
+            SetControlNormal(0, BRAKE, 0.0)
             hold = true
-        elseif gas > 0.05 then
-            SetControlNormal(0, BRAKE, gas) -- marche arrière du jeu (frein / recul), à la pression de l'accélérateur
+        else
+            SetControlNormal(0, BRAKE, gas > 0.05 and gas or 0.0) -- marche arrière du jeu, à la pression de Z / W
         end
     end
     if hold then

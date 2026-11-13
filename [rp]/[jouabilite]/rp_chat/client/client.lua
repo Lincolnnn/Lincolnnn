@@ -181,6 +181,7 @@ RegisterNUICallback('ready', function(_, cb)
     nuiReady = true
     sendSettings()
     SendNUIMessage({ action = 'idLayout', data = idLayout() }) -- place et taille de la fiche /id
+    if RPChatKeys and RPChatKeys.sendCatalog then RPChatKeys.sendCatalog() end -- suggestions de /modiftouche
     if sendExtraCommands then sendExtraCommands() end
     TriggerServerEvent('rp_chat:server:ready')
     cb({ ok = true })
@@ -390,8 +391,27 @@ end
 
 -- Message PRIVÉ (affiché uniquement chez ce joueur), ex. résultat d'une inspection rp_interact :
 --   exports.rp_chat:addPrivate({ title = 'Fouille du coffre', subject = 'Bravado Buffalo', text = '…' })
+-- Anti-spam des messages privés (Config.PrivateLimit) : même texte (et même titre) répété dans SameText s :
+-- ignoré ; plus de Max messages privés en Window s : les suivants sont ignorés jusqu'à la fin de la fenêtre
+local PL = Config.PrivateLimit or {}
+local privateSeen, privateTimes = {}, {}
+local function privateAllowed(title, text)
+    if PL.Enabled == false then return true end
+    local now = GetGameTimer()
+    local key = title .. '|' .. text
+    if privateSeen[key] and now - privateSeen[key] < (PL.SameText or 20) * 1000 then return false end
+    local window, kept = (PL.Window or 10) * 1000, {}
+    for _, t in ipairs(privateTimes) do if now - t < window then kept[#kept + 1] = t end end
+    privateTimes = kept
+    if #privateTimes >= (PL.Max or 4) then return false end
+    privateTimes[#privateTimes + 1] = now
+    privateSeen[key] = now
+    return true
+end
+
 exports('addPrivate', function(data)
     if type(data) ~= 'table' or type(data.text) ~= 'string' or data.text == '' then return end
+    if not privateAllowed(tostring(data.title or ''), data.text) then return end
     SendNUIMessage({ action = 'message', data = {
         type = 'private', title = tostring(data.title or ''), name = data.subject and tostring(data.subject) or nil, text = data.text,
     } })

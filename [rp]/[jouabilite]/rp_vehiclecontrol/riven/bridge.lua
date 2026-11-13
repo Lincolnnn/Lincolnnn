@@ -41,6 +41,12 @@ local TYRES = { ['front left'] = 'avant gauche', ['front right'] = 'avant droit'
     ['rear left'] = 'arrière gauche', ['rear right'] = 'arrière droit' }
 
 local BELT = { ['Seatbelt fastened.'] = true, ['Seatbelt unfastened.'] = true }
+-- Messages d'information sans intérêt en jeu (le joueur voit déjà ce qui se passe) : jamais dans le chat
+local QUIET = {
+    ['Stopped.'] = true, ['Fitting snow chains...'] = true, ['Taking the snow chains off...'] = true,
+    ['The engine cranks but won\'t catch...'] = true, ['The engine sputters back to life.'] = true,
+    ['The parking brake is on.'] = true, ['The engine cut out.'] = true,
+}
 -- Frein de parking : rp_vehiclecontrol écrit lui-même ces messages (« P » sur le car HUD), ceux de Riven sont coupés
 local PARK = { ['Parking brake set.'] = true, ['Parking brake released.'] = true,
     ['Rolled over: parking brake set automatically.'] = true, ['Crash: parking brake set automatically.'] = true }
@@ -139,9 +145,11 @@ end
 --- Texte français (texte d'origine sans couleurs s'il n'est pas connu) ; muet : rien à afficher
 local function translate(text)
     local p = plain(text)
-    -- ceinture / frein de parking : écrits par rp_vehiclecontrol (OwnBelt / OwnPark), sinon traduits ici
-    if BELT[p] and (settings.MuteBelt == true or (settingsLoaded and settings.OwnBelt)) then return p, true end
-    if PARK[p] and settingsLoaded and settings.OwnPark then return p, true end
+    -- ceinture / frein de parking : jamais dans le chat (le car HUD les montre ; rp_vehiclecontrol les écrit
+    -- seulement si on le lui demande : Riven.MuteBelt = false / MutePark = false)
+    if BELT[p] and settings.MuteBelt ~= false then return p, true end
+    if PARK[p] and settings.MutePark ~= false then return p, true end
+    if QUIET[p] then return p, true end
     -- pneus (crevé, se dégonfle, sur la jante) : le voyant de Riven le montre déjà (Riven.MuteTyres)
     if settings.MuteTyres ~= false and (p:find('^Tyre pressure dropping') or p:find('^Flat tyre') or p:find('^Tyre shredded')) then
         return p, true

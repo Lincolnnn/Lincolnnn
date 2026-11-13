@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_mdc'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police 100% standalone - NUI Vanilla JS'
-version '2.21.1'
+version '2.22.0'
 
 ui_page 'html/index.html'
 
@@ -18,6 +18,7 @@ files {
     'html/index.html',
     'html/style.css',
     'html/script.js',
+    'html/blockeditor.js', -- panneau de /blocs (admins)
     'html/img/*.png', -- logos des polices (WSP, KCSO)
     'html/sounds/*.mp3', -- sons du MDC (appels, BOLO, unités, fiches liées, recherches, clic, clavier)
     'html/sounds/*.wav',
@@ -29,6 +30,7 @@ client_scripts {
     'keyguard.lua',         -- /modiftouche (rp_chat) : l'ancienne touche déplacée ne fait plus rien (AVANT les autres)
     'client/client.lua',
     'client/streetnames.lua',     -- noms du PLD : config/washington.json (rues, quartiers, villes, polices)
+    'client/blockeditor.lua',     -- /blocs (admins) : créer les blocs du PLD (point / carré) et copier leurs lignes
     'client/hud.lua',
     'client/carhud.lua' -- car HUD : relais des données de Vehicle Control (rp_vehiclecontrol)
 }
