@@ -354,7 +354,9 @@ loadAll()
 -- /blocs (client/blockeditor.lua) : éditeur des blocs du PLD, réservé aux admins
 RegisterNetEvent('mdc:server:blockEditor', function()
     local src = source
-    if aceAllowed(src, Config.BlockEditorAce or 'rp.admin') then
+    -- admin : rp.admin (ACE ou rang Discord de rp_permissions), ou l'ACE « command » des admins (comme la config des
+    -- lampes des armes)
+    if aceAllowed(src, Config.BlockEditorAce or 'rp.admin') or IsPlayerAceAllowed(src, 'command') then
         TriggerClientEvent('mdc:client:blockEditor', src, true)
     else
         TriggerClientEvent('mdc:client:blockEditor', src, false, 'Éditeur de blocs : réservé aux admins.')

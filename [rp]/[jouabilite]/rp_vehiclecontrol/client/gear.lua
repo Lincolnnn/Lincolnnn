@@ -3,10 +3,10 @@
     --------------------------------------------------------------------
     Touche Keys.gear (flèche haut par défaut) : passe de D (marche avant) à R (marche arrière) et inversement,
     SEULEMENT presque arrêté (MaxShiftMph, 5 MPH par défaut) : au-delà, refusé (message).
-    LA MÊME TOUCHE FAIT ROULER dans les deux rapports : l'accélérateur (Z / W).
-      - D : Z / W AVANCE ; S FREINE, puis, véhicule arrêté, le retient au lieu de reculer ;
-      - R : Z / W RECULE (comme une boîte automatique en marche arrière, à la pression de la pédale) ; S FREINE, puis,
-        véhicule arrêté, le retient au lieu d'avancer.
+      - D : on ne peut qu'AVANCER et FREINER : le frein (S) freine, puis, véhicule arrêté, le retient au lieu de
+        reculer ;
+      - R : on ne peut que FREINER et RECULER : la marche arrière (S) recule, l'accélérateur (W) ne sert qu'à freiner
+        la marche arrière, puis, véhicule arrêté, le retient au lieu d'avancer.
     Le rapport est affiché sur le car HUD du MDC (R au-dessus de D, le passage de l'un à l'autre glisse en douceur).
     Chaque véhicule part en D. Pas de rapport sur les vélos, bateaux, hélicoptères, avions, trains (SkipClasses).
     Performance : seulement à bord, au volant (événement 'frame' du véhicule).
@@ -76,8 +76,7 @@ VC.on('leave', function(vehicle)
     VC.hud.gear = nil
 end)
 
--- À chaque image, au volant : l'accélérateur (Z / W) roule dans le sens du rapport ; le frein (S) freine, puis retient
--- le véhicule arrêté
+-- À chaque image, au volant : la pédale « interdite » par le rapport ne fait que freiner, puis retient le véhicule
 VC.on('frame', function(_, vehicle)
     if VC.seat ~= -1 or not hasGear(vehicle) then return end
     if VC.pushedNow then return release(vehicle) end -- poussé par un autre joueur (push.lua) : rien à bloquer
@@ -91,20 +90,10 @@ VC.on('frame', function(_, vehicle)
             hold = true
         end
     else
-        -- R : l'accélérateur (Z / W) RECULE (il pilote la marche arrière du jeu, à sa pression) ; le frein (S) freine,
-        -- puis retient le véhicule (il ne fait jamais avancer)
-        -- (comme push.lua : les deux pédales du jeu bloquées, puis remplies par le script : la marche avant est
-        -- coupée net, sinon accélérateur et marche arrière agissent ensemble et le véhicule ne bouge pas)
-        local gas = math.max(GetControlNormal(0, ACCELERATE), GetDisabledControlNormal(0, ACCELERATE))
-        local brake = IsControlPressed(0, BRAKE) or IsDisabledControlPressed(0, BRAKE)
-        DisableControlAction(0, ACCELERATE, true) -- jamais vers l'avant en R
-        DisableControlAction(0, BRAKE, true)
-        SetControlNormal(0, ACCELERATE, 0.0)
-        if brake then
-            SetControlNormal(0, BRAKE, 0.0)
+        -- accélérateur : il freine tant que le véhicule recule ; arrêté (ou avançant), il le retient
+        if (IsControlPressed(0, ACCELERATE) or IsDisabledControlPressed(0, ACCELERATE)) and forward >= -stop then
+            DisableControlAction(0, ACCELERATE, true)
             hold = true
-        else
-            SetControlNormal(0, BRAKE, gas > 0.05 and gas or 0.0) -- marche arrière du jeu, à la pression de Z / W
         end
     end
     if hold then

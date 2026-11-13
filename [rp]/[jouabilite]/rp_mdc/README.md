@@ -318,7 +318,7 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   coordonnée, rayon facultatif) ou **carré** (4 coins, pour une grande zone sous un seul bloc), et toujours cercles,
   rectangles, polygones, filtre par rue (nom **affiché**, ex. « I-90 ») : voir `config/LISEZMOI.txt` ; la commande
   `/mdc_pos` (console F8) donne la ligne à copier.
-  **`/blocs` (admins, `Config.BlockEditorAce` = `rp.admin`)** : éditeur de blocs. Panneau à droite : **Point** (rayon)
+  **`/blocs` (admins : `Config.BlockEditorAce` = `rp.admin`, ACE ou rang Discord, ou l'ACE `command`)** : éditeur de blocs. Panneau à droite : **Point** (rayon)
   ou **Carré** (largeur, hauteur, rotation), nom du bloc ; le bloc se dessine **en jeu** (jaune) et **sur la carte**
   (rayon / zone), au centre du joueur (« Suivre ma position ») ou figé (« Fixer ici »). « **Ajouter le bloc** » : il
   passe en vert et sa ligne rejoint la liste (✕ pour la retirer) ; « **Copier tout** » : les lignes à coller dans

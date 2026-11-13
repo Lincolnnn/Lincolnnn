@@ -441,12 +441,9 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
 - **↑** (`Keys.gear`, modifiable : Raccourcis clavier > FiveM) passe de **D** (marche avant) à **R** (marche arrière)
   et inversement, avec un petit clic, **seulement sous 5 MPH** (`Gear.MaxShiftMph`) : en roulant plus vite, c'est
   refusé (bip et message). Chaque véhicule part en **D**.
-- **La même touche fait rouler** : l'**accélérateur (Z / W)** avance en **D** et **recule en R** (à la pression de la
-  pédale, comme une boîte automatique).
 - **D** : Z / W avance ; le frein (S) freine ; véhicule arrêté, il le **retient** au lieu de reculer.
-- **R** : Z / W recule ; le frein (S) freine, puis **retient** le véhicule arrêté (il ne fait jamais avancer).
-  En R, la **marche avant est bloquée** : la pédale d'accélérateur du jeu est neutralisée et c'est la marche arrière
-  du jeu qui est actionnée à sa place (les deux ne s'activent plus en même temps, le véhicule recule normalement).
+- **R** : **S recule** (marche arrière du jeu) ; Z / W ne sert qu'à freiner la marche arrière, puis **retient** le
+  véhicule arrêté (il ne fait jamais avancer).
 - Affiché sur le **car HUD du MDC**, à droite : **R au-dessus de D**, une pastille glisse en douceur de l'un à l'autre
   (jaune en R). Pas de rapport sur les vélos, bateaux, hélicoptères, avions et trains (`Gear.SkipClasses`), ni pendant
   que le véhicule est poussé.

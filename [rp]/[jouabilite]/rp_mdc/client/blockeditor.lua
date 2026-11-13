@@ -145,12 +145,18 @@ local function closeEditor()
     SendNUIMessage({ action = 'blockEditor', data = { open = false } })
 end
 
+--- Message au joueur : chat écrit (privé) s'il est démarré, sinon notification du jeu ; toujours en console F8
+local function tell(text)
+    print(('[MDC] %s'):format(text))
+    local chat = GlobalState.rpChatResource or 'rp_chat'
+    if GetResourceState(chat) == 'started' and pcall(function() exports[chat]:addPrivate({ title = 'Blocs', text = text }) end) then return end
+    BeginTextCommandThefeedPost('STRING')
+    AddTextComponentSubstringPlayerName(text)
+    EndTextCommandThefeedPostTicker(false, false)
+end
+
 RegisterNetEvent('mdc:client:blockEditor', function(ok, message)
-    if not ok then
-        local chat = GlobalState.rpChatResource or Config.ChatResource or 'rp_chat'
-        if not pcall(function() exports[chat]:addPrivate({ title = 'Blocs', text = message or 'Réservé aux admins.' }) end) then print(message) end
-        return
-    end
+    if not ok then return tell(message or 'Éditeur de blocs : réservé aux admins.') end
     if editor then return setFocus(true) end
     editor = { focus = true, type = 'point', name = '', radius = 75.0, width = 200.0, height = 150.0, rotation = 0.0,
         follow = true, center = playerPos(), list = {} }
@@ -158,6 +164,7 @@ RegisterNetEvent('mdc:client:blockEditor', function(ok, message)
     SetNuiFocus(true, true)
     sendState()
     drawLoop()
+    tell('Éditeur de blocs ouvert : « Se déplacer » rend la souris, /blocs la reprend.')
 end)
 
 RegisterCommand('blocs', function()
