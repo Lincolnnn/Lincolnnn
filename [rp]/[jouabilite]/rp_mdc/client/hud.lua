@@ -397,6 +397,18 @@ RegisterNetEvent('mdc:client:unitMessages', function(data)
     if type(data) == 'table' then SendNUIMessage({ action = 'unitMessages', data = data }) end
 end)
 
+-- Centre de dispatch (MDC Web) : messages PRIORITAIRES (toujours notifiés, MDC ouvert ou non), groupe civil, avis
+-- (appel transmis / refusé, unité affectée…). Le NUI joue le son au volume réglé.
+RegisterNetEvent('mdc:client:dispatchMessage', function(data)
+    if type(data) == 'table' then SendNUIMessage({ action = 'dispatchMessage', data = data }) end
+end)
+RegisterNetEvent('mdc:client:civilMessage', function(data)
+    if type(data) == 'table' then SendNUIMessage({ action = 'civilMessage', data = data }) end
+end)
+RegisterNetEvent('mdc:client:dispatchNotice', function(data)
+    if type(data) == 'table' then SendNUIMessage({ action = 'dispatchNotice', data = data }) end
+end)
+
 -- Changement de statut de l'unité du joueur : notification en haut à droite
 RegisterNetEvent('mdc:client:statusNotify', function(unit)
     if type(unit) ~= 'table' then return end

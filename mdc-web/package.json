@@ -1,0 +1,23 @@
+{
+  "name": "mdc-dispatch-web",
+  "version": "1.0.0",
+  "description": "MDC Web du dispatch (Washington) : centre de dispatch en ligne relié au MDC en jeu (rp_mdc), Discord OAuth2, MySQL, temps réel",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/config.js && node --check src/db.js && node --check src/queries.js && node --check src/discord.js && node --check src/auth.js && node --check src/fivem.js && node --check src/realtime.js && node --check src/api.js && node --check src/logger.js && node --check public/assets/app.js && node --check public/assets/login.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "dependencies": {
+    "dotenv": "16.4.7",
+    "express": "4.21.2",
+    "express-mysql-session": "3.0.3",
+    "express-session": "1.18.1",
+    "helmet": "8.0.0",
+    "mysql2": "3.11.5",
+    "socket.io": "4.8.1"
+  }
+}

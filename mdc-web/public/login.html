@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dispatch — Connexion</title>
+    <link rel="icon" href="/assets/shield.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body class="auth-page">
+    <main class="auth-card">
+        <img class="auth-logo" src="/assets/shield.svg" alt="">
+        <h1>Washington Dispatch</h1>
+        <p class="auth-sub">Centre de dispatch — MDC Web</p>
+        <p class="auth-text">Accès réservé aux dispatchers. Connectez-vous avec votre compte Discord : votre rôle sur le serveur
+            Discord est vérifié à chaque connexion.</p>
+        <p class="auth-error hidden" id="authError"></p>
+        <a class="btn-discord" href="/auth/login">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.6 5.6A16.4 16.4 0 0 0 15.5 4.3l-.5 1a15.2 15.2 0 0 0-6 0l-.5-1a16.4 16.4 0 0 0-4.1 1.3C1.8 9.5 1.1 13.3 1.4 17a16.6 16.6 0 0 0 5 2.5l1.1-1.7a10.7 10.7 0 0 1-1.7-.8l.4-.3a11.8 11.8 0 0 0 10.2 0l.4.3a10.7 10.7 0 0 1-1.7.8l1.1 1.7a16.5 16.5 0 0 0 5-2.5c.4-4.3-.7-8-3.6-11.4ZM8.5 14.7c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg>
+            Se connecter avec Discord
+        </a>
+        <p class="auth-foot">Aucune donnée de votre compte n'est conservée en dehors de votre session (identifiant, nom affiché).</p>
+    </main>
+    <script src="/assets/login.js"></script>
+</body>
+</html>

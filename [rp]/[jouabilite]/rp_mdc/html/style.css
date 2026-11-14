@@ -1570,3 +1570,28 @@ tr.row-ended td { opacity: .55; }
 .clear-choice .btn { text-align: left; }
 .note.note-backup { border-left: 3px solid rgb(230, 110, 20); }
 .note.note-backup-1033 { border-left-color: rgb(255, 40, 40); }
+
+/* =========================================================================
+   DISPATCH (MDC Web) : indicateur, messagerie prioritaire, groupe civil, avis
+   ========================================================================= */
+.dispatch-chip { align-self: center; margin-right: 8px; padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .6px; background: rgba(255, 255, 255, .1); color: rgba(255, 255, 255, .75); white-space: nowrap; }
+.dispatch-chip.online { background: rgba(46, 160, 67, .25); color: #9be9a8; }
+.dispatch-chip.active { background: #d9480f; color: #fff; }
+.msg-badge.dispatch-badge { background: #d9480f; animation: dispatch-pulse 1.4s ease-in-out infinite; }
+@keyframes dispatch-pulse { 50% { box-shadow: 0 0 0 4px rgba(217, 72, 15, .35); } }
+.msg-section { margin: 8px 0 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .7px; color: var(--text-2); }
+.msg-section.dispatch { color: #d9480f; }
+.msg-conv.dispatch-conv { border-left: 3px solid #d9480f; background: rgba(217, 72, 15, .06); }
+.msg-conv.dispatch-conv.unread { background: rgba(217, 72, 15, .14); }
+.msg-thread-head.dispatch-head { background: rgba(217, 72, 15, .1); border-left: 3px solid #d9480f; padding-left: 6px; }
+.msg-bubble.from-dispatch { border-left: 3px solid #d9480f; background: rgba(217, 72, 15, .08); }
+.msg-bubble.from-dispatch .msg-bubble-meta span:first-child { color: #d9480f; font-weight: 700; }
+.msg-dispatch-state { margin: 4px 0 8px; font-size: 11.5px; color: var(--text-2); }
+.call-toast.dispatch-toast { --prio: 217, 72, 15; border-left-width: 6px; }
+.call-toast.dispatch-toast .ct-head { color: #ff8a50; }
+.call-toast.notice-toast { --prio: 217, 72, 15; }
+.call-toast.notice-toast.refused, .call-toast.notice-toast.cancelled { --prio: 255, 99, 99; }
+.call-toast.notice-toast.validated, .call-toast.notice-toast.assigned { --prio: 80, 200, 120; }
+.grade-select { margin-top: 4px; width: 100%; height: 24px; font-size: 11.5px; }
+.flag.c-dispatch { background: #d9480f; color: #fff; }

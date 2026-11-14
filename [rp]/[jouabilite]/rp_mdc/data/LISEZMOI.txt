@@ -1,23 +1,15 @@
-Dossier de données du MDC (créé et rempli automatiquement par le serveur).
+Ancien dossier de données du MDC (versions 1 et 2).
 
-  identities.json  -> identités enregistrées via "Créations"
-  vehicles.json    -> véhicules enregistrés via "Créations"
-  reports.json     -> rapports rédigés via "Rapports" (DOT-523, Arrest Report, tickets…)
-  bolos.json       -> BOLOs actifs (Recherches -> bouton "BOLOs")
+Depuis la version 3, TOUTES les données du MDC sont dans MySQL / MariaDB (ressource oxmysql) :
+identités, véhicules, rapports, BOLO, unités, interventions, notes, messages, agents, journal…
+(voir le README de rp_mdc, section « Base de données (MySQL) »).
 
-Ces fiches sont PERMANENTES : elles survivent aux déconnexions et aux redémarrages.
-Identités et véhicules restent accessibles dans les recherches et dans le registre de
-leur créateur ; les rapports dans l'onglet "Rapports" (seul leur auteur peut les modifier).
-L'auteur est retrouvé grâce à sa licence Rockstar (champ "createdBy").
-Les unités, interventions et incidents ne sont pas enregistrés ici : ils disparaissent au redémarrage.
+Au premier démarrage avec MySQL, les fichiers de ce dossier (s'ils existent) sont IMPORTÉS UNE SEULE FOIS dans la base :
+  identities.json  -> table mdc_identities
+  vehicles.json    -> table mdc_vehicles
+  reports.json     -> table mdc_reports
+  bolos.json       -> table mdc_bolos
+Ensuite ils ne sont plus lus ni modifiés : gardez-les comme sauvegarde, ou supprimez-les.
 
-Le script ne supprime JAMAIS d'entrée, sauf les BOLOs : un BOLO supprimé depuis le MDC (bouton
-"Supprimer") est retiré de bolos.json. Pour retirer une autre entrée (cadres uniquement) :
-  1. Ouvrez le fichier et supprimez l'objet { ... } voulu (le fichier doit rester un JSON valide).
-  2. Tapez  mdc_reload  dans la console serveur (ou redémarrez la ressource).
-
-Si un fichier devient illisible, le MDC bloque les créations/modifications de ce type
-plutôt que de l'écraser : corrigez le JSON puis tapez mdc_reload.
-
-ATTENTION : lors d'une mise à jour du script, ne remplacez pas ce dossier.
-(Un ancien fichier interventions.json, s'il existe, n'est plus utilisé et peut être supprimé.)
+Pour corriger une fiche à la main : modifiez la ligne dans MySQL (colonne data, JSON) puis tapez  mdc_reload  dans la
+console serveur.

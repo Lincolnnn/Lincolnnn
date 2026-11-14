@@ -339,6 +339,9 @@
         if (!res || !res.ok) return false;
         state.agencies = toArray(res.agencies);
         state.perms = res.perms || {};
+        state.grades = res.grades || {};
+        state.grade = res.grade || '';
+        if (res.dispatch) setDispatchState(res.dispatch);
         applyPerms();
         if (res.current && agencyInfo(res.current)) state.agency = res.current; // NUI rechargée, choix déjà fait
         return true;
@@ -449,10 +452,16 @@
         $('#appIcon').innerHTML = logo ? `<img src="${logo}" alt="">` : appShieldIcon;
         $('#appIcon').classList.toggle('has-logo', !!logo);
         $('#profileAgency').textContent = info ? (police ? info.short : 'Générique') : '';
+        renderGrade();
+        $('#btnMessagesLabel').textContent = police ? 'Messages' : 'Dispatch';
+        $('#btnMessages').title = police ? 'Messages (dispatch et unités)' : 'Discussion avec le dispatch (groupe civil)';
         $$('.tab').forEach((t) => t.classList.toggle('hidden', !allowedPages().includes(t.dataset.page)));
         $$('.police-only').forEach((el) => el.classList.toggle('hidden', !police));
-        if (!police) { $('#memoPane').classList.add('hidden'); $('#msgPane').classList.add('hidden'); } // MDC générique : pas d'unité
-        else {
+        if (!police) { // MDC générique : pas d'unité ; la messagerie = groupe civil avec le dispatch
+            $('#memoPane').classList.add('hidden');
+            $('#msgPane').classList.toggle('hidden', !$('#btnMessages').classList.contains('active'));
+            if (msgOpen()) loadMessages(null);
+        } else {
             $('#memoPane').classList.toggle('hidden', !$('#btnMemo').classList.contains('active'));
             $('#msgPane').classList.toggle('hidden', !$('#btnMessages').classList.contains('active'));
         }
@@ -1333,9 +1342,12 @@
         box.innerHTML = priorityFieldsHtml(agencies, priority, code);
     }
     const CALL_STATUS = {
+        awaiting: ['c-dispatch', 'Attente dispatch'], // mode Dispatch : en attente de validation (MDC Web)
         pending: ['c-blue', 'En Attente'],
         ongoing: ['c-green', 'En Cours'],
         closed: ['c-gray', 'Terminée'],
+        refused: ['c-red', 'Refusée (dispatch)'],
+        cancelled: ['c-gray', 'Annulée (dispatch)'],
     };
     const callFlag = (map, key) => (map[key] ? flag(map[key][0], map[key][1]) : '-');
     const findCall = (id) => state.interventions.find((c) => c.id === id) || null;
@@ -1588,6 +1600,7 @@
                 ${row(incident ? 'Description de l\'incident' : 'Description', c.description)}
                 ${row('Émise le', formatDate(c.createdAt))}
                 ${c.closed ? row('Terminée le', `${formatDate(c.closedAt)} par ${c.closedByName || '-'}`) : ''}
+                ${c.dispatch ? row('Dispatch', `${({ awaiting: 'En attente de validation', validated: 'Validée', refused: 'Refusée', cancelled: 'Annulée' })[c.dispatch] || c.dispatch}${c.dispatchBy ? ` par ${c.dispatchBy}` : ''}${c.dispatchReason ? ` — ${c.dispatchReason}` : ''}`) : ''}
                 ${c.closed && c.clear ? row('Clôture', CLEAR_CODES[c.clear] || `Clear ${c.clear}`) : ''}
             </dl>
             <div class="sheet-sub">Unités sur l'appel (${units.length})</div>
@@ -3307,7 +3320,7 @@
         const res = await post('create', payload);
         submit.disabled = false;
         if (res && res.ok) {
-            toast(`Intervention ${res.number} enregistrée.`, 'success');
+            toast(res.dispatch ? `Intervention ${res.number} transmise au dispatch : en attente de validation.` : `Intervention ${res.number} enregistrée.`, 'success');
             resetInterventionForm();
         } else {
             toast(res?.error || 'Erreur lors de l\'enregistrement.', 'error');
@@ -4722,14 +4735,47 @@
     // Boîte de réception (toutes les autres unités de police, non-lus), puis la conversation ; Entrée envoie
     // (Maj + Entrée : nouvelle ligne). Un message reçu : notification en haut à droite et son (même MDC fermé).
     // =====================================================================
-    const msg = { with: null, unit: null, unitId: null, inbox: [], thread: null, unread: 0, draft: {} };
+    const msg = { with: null, channel: null, unit: null, unitId: null, inbox: [], dispatch: [], thread: null, unread: 0,
+        dispatchUnread: 0, civil: null, draft: {} };
     const msgOpen = () => !$('#msgPane').classList.contains('hidden');
 
-    function setMsgBadge(n) {
+    function setMsgBadge(n, dispatchN) {
         msg.unread = n;
         $('#msgBadge').textContent = n > 99 ? '99+' : String(n);
         $('#msgBadge').classList.toggle('hidden', !(n > 0));
+        if (typeof dispatchN === 'number') {
+            msg.dispatchUnread = dispatchN;
+            $('#dispatchBadge').textContent = dispatchN > 99 ? '99+' : String(dispatchN);
+            $('#dispatchBadge').classList.toggle('hidden', !(dispatchN > 0));
+        }
     }
+
+    // ---- Centre de dispatch (MDC Web) : indicateur dans la barre de titre ----
+    function setDispatchState(d) {
+        state.dispatch = d || null;
+        const chip = $('#dispatchChip');
+        if (!d || !d.online) { chip.classList.add('hidden'); return; }
+        chip.classList.remove('hidden');
+        chip.classList.toggle('active', !!d.effective);
+        chip.classList.toggle('online', !d.effective);
+        chip.textContent = d.effective ? 'MODE DISPATCH' : 'DISPATCH EN LIGNE';
+        chip.title = d.effective
+            ? 'Mode Dispatch actif : les appels des civils sont validés par un dispatcher avant d\'arriver aux unités.'
+            : `Dispatch en ligne${d.dispatchers && toArray(d.dispatchers).length ? ` : ${toArray(d.dispatchers).join(', ')}` : ''}.`;
+    }
+
+    // ---- Grade de l'agent (sous le nom RP) ----
+    function renderGrade() {
+        const sel = $('#gradeSelect');
+        const list = toArray((state.grades || {})[state.agency]);
+        sel.classList.toggle('hidden', !isPolice() || !list.length);
+        sel.innerHTML = `<option value="">— Grade —</option>${list.map((g) => `<option value="${esc(g)}" ${g === state.grade ? 'selected' : ''}>${esc(g)}</option>`).join('')}`;
+    }
+    $('#gradeSelect').addEventListener('change', async (e) => {
+        const res = await post('setGrade', { grade: e.target.value });
+        if (res && res.ok) { state.grade = res.grade; toast(res.grade ? `Grade : ${res.grade}.` : 'Grade retiré.', 'success'); }
+        else { toast(res?.error || 'Grade non enregistré.', 'error'); renderGrade(); }
+    });
 
     function setMsgPane(open) {
         if (open) setMemoPane(false);
@@ -4738,15 +4784,58 @@
         if (open) loadMessages(msg.with);
     }
 
-    async function loadMessages(withId) {
-        const res = await post('getMessages', withId ? { with: withId } : {});
+    // `target` : id d'une unité (conversation d'unité à unité) ou canal du dispatch ('d:u:ID', 'd:c:ID')
+    async function loadMessages(target) {
+        if (!isPolice()) return loadCivilChat();
+        const body = typeof target === 'string' ? { channel: target } : (target ? { with: target } : {});
+        const res = await post('getMessages', body);
         if (!res || !res.ok) return;
         msg.unit = res.unit || null;
         msg.inbox = toArray(res.inbox);
-        msg.thread = res.thread ? { unit: res.thread.unit, messages: toArray(res.thread.messages) } : null;
-        msg.with = msg.thread ? msg.thread.unit.id : null;
-        setMsgBadge(Number(res.unread) || 0);
+        msg.dispatch = toArray(res.dispatch);
+        msg.thread = res.thread ? { kind: res.thread.kind, channel: res.thread.channel, title: res.thread.title,
+            unit: res.thread.unit, messages: toArray(res.thread.messages) } : null;
+        msg.with = msg.thread && msg.thread.kind === 'unit' ? msg.thread.unit.id : null;
+        msg.channel = msg.thread ? msg.thread.channel : null;
+        setMsgBadge(Number(res.unread) || 0, Number(res.dispatchUnread) || 0);
         renderMessages();
+    }
+
+    // MDC générique : discussion du groupe civil avec le dispatch
+    async function loadCivilChat() {
+        const res = await post('getCivilChat');
+        if (!res || !res.ok) return;
+        msg.civil = { messages: toArray(res.messages), online: !!res.dispatchOnline };
+        setMsgBadge(0, 0);
+        renderMessages();
+    }
+
+    function bubbleHtml(m, mine) {
+        const dispatch = m.senderType === 'dispatch';
+        return `
+            <div class="msg-bubble${mine ? ' mine' : ''}${dispatch ? ' from-dispatch' : ''}">
+                <div class="msg-bubble-meta"><span>${dispatch ? 'DISPATCH — ' : ''}${esc(m.author || '')}</span><span>${esc(formatTime(m.at))}</span></div>
+                <div class="msg-bubble-text">${esc(m.text)}</div>
+            </div>`;
+    }
+
+    function composerHtml(placeholder) {
+        return `
+            <div class="msg-compose">
+                <textarea id="msgInput" maxlength="300" rows="2" spellcheck="false" placeholder="${esc(placeholder)}"></textarea>
+                <button class="btn btn-default" id="msgSend">Envoyer</button>
+            </div>`;
+    }
+
+    function bindComposer(key) {
+        const input = $('#msgInput');
+        input.value = msg.draft[key] || '';
+        input.addEventListener('input', () => { msg.draft[key] = input.value; });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+        });
+        $('#msgSend').addEventListener('click', sendMessage);
+        input.focus();
     }
 
     function messagesUnitChanged() {
@@ -4764,9 +4853,38 @@
     function renderMessages() {
         if (!msgOpen()) return;
         const body = $('#msgBody');
+        if (!isPolice()) {
+            const c = msg.civil || { messages: [], online: false };
+            $('#msgTitle').textContent = 'Dispatch — groupe civil';
+            body.innerHTML = `
+                <div class="msg-thread-head dispatch-head"><span class="grow"><b>Dispatch</b> — tous les civils voient cette discussion</span></div>
+                <div class="msg-dispatch-state">${c.online ? 'Un dispatcher est en ligne.' : 'Aucun dispatcher en ligne pour le moment : votre message sera lu à son retour.'}</div>
+                <div class="msg-thread" id="msgThread">${c.messages.length ? c.messages.map((m) => bubbleHtml(m, !!m.mine)).join('')
+                    : '<div class="msg-empty">Aucun message. Écrivez au dispatch.</div>'}</div>
+                ${composerHtml('Message au dispatch (Entrée : envoyer)')}`;
+            $('#msgThread').scrollTop = $('#msgThread').scrollHeight;
+            bindComposer('d:civ');
+            return;
+        }
         if (!msg.unit) {
             $('#msgTitle').textContent = 'Messages';
             body.innerHTML = '<div class="msg-empty">Rejoignez une unité (onglet Unités) pour écrire aux autres unités.</div>';
+            return;
+        }
+        if (msg.thread && msg.thread.kind === 'dispatch') {
+            const t = msg.thread;
+            $('#msgTitle').textContent = 'Dispatch';
+            body.innerHTML = `
+                <div class="msg-thread-head dispatch-head">
+                    <button class="btn btn-icon btn-ghost" id="msgBack" title="Toutes les conversations"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+                    <span class="grow"><b>${esc(t.title || 'Dispatch')}</b></span>
+                </div>
+                <div class="msg-thread" id="msgThread">${t.messages.length ? t.messages.map((m) => bubbleHtml(m, m.senderType === 'unit' && m.from === msg.unit.id)).join('')
+                    : '<div class="msg-empty">Aucun message : écrivez au dispatch.</div>'}</div>
+                ${composerHtml('Message au dispatch (Entrée : envoyer)')}`;
+            $('#msgThread').scrollTop = $('#msgThread').scrollHeight;
+            bindComposer(t.channel);
+            $('#msgBack').addEventListener('click', () => { msg.with = null; msg.channel = null; msg.thread = null; loadMessages(null); });
             return;
         }
         if (msg.thread) {
@@ -4802,6 +4920,14 @@
         $('#msgTitle').textContent = 'Messages';
         body.innerHTML = `
             <div class="msg-me">Votre unité : ${unitTag(msg.unit)}<b>${esc(msg.unit.name)}</b></div>
+            <div class="msg-section dispatch">DISPATCH${state.dispatch && state.dispatch.online ? ' — en ligne' : ''}</div>
+            <div class="msg-list">${msg.dispatch.map((c) => `
+                <button class="msg-conv dispatch-conv${c.unread ? ' unread' : ''}" data-msg-channel="${esc(c.channel)}">
+                    <span class="msg-conv-top"><span class="grow"><b>${esc(c.label)}</b>${c.callTitle ? ` <span class="muted">${esc(c.callTitle)}</span>` : ''}</span>
+                        ${c.unread ? `<span class="msg-badge dispatch-badge">${c.unread}</span>` : ''}</span>
+                    <span class="msg-conv-last">${c.last ? `${c.last.senderType === 'dispatch' ? 'Dispatch : ' : `${esc(c.last.author || '')} : `}${esc(c.last.text)}` : 'Aucun message'}</span>
+                </button>`).join('')}</div>
+            <div class="msg-section">UNITÉS</div>
             <div class="msg-list">${msg.inbox.length ? msg.inbox.map((c) => `
                 <button class="msg-conv${c.unread ? ' unread' : ''}" data-msg-unit="${esc(c.unit.id)}">
                     <span class="msg-conv-top"><span class="grow">${unitTag(c.unit)} ${esc(c.unit.name)}</span>
@@ -4810,14 +4936,24 @@
                     <span class="msg-conv-last">${c.last ? `${c.last.from === msg.unit.id ? 'Vous : ' : ''}${esc(c.last.text)}` : 'Aucun message'}</span>
                 </button>`).join('') : '<div class="msg-empty">Aucune autre unité en service.</div>'}</div>`;
         $$('[data-msg-unit]', body).forEach((b) => b.addEventListener('click', () => loadMessages(Number(b.dataset.msgUnit))));
+        $$('[data-msg-channel]', body).forEach((b) => b.addEventListener('click', () => loadMessages(b.dataset.msgChannel)));
     }
 
     async function sendMessage() {
         const t = msg.thread;
         const input = $('#msgInput');
-        if (!t || !input) return;
+        if (!input) return;
         const text = input.value.trim();
         if (!text) return;
+        if (!isPolice() || (t && t.kind === 'dispatch')) { // groupe civil / conversation avec le dispatch
+            const channel = isPolice() ? t.channel : 'd:civ';
+            const res = await post('sendMessage', { channel, text });
+            if (!res || !res.ok) return toast((res && res.error) || 'Message non envoyé.', 'error');
+            msg.draft[channel] = '';
+            input.value = '';
+            return isPolice() ? loadMessages(channel) : loadCivilChat();
+        }
+        if (!t) return;
         const res = await post('sendMessage', { to: t.unit.id, text });
         if (!res || !res.ok) return toast((res && res.error) || 'Message non envoyé.', 'error');
         msg.draft[t.unit.id] = '';
@@ -4842,6 +4978,51 @@
         });
         pushNotification(el, 9000);
         if (hud.settings.notify.sound !== false) playSound('message');
+    }
+
+    // Message du dispatch (ou d'une unité sur un canal du dispatch) : notification PRIORITAIRE, même MDC fermé
+    function dispatchToast(d, civil) {
+        const el = document.createElement('div');
+        el.className = 'call-toast dispatch-toast';
+        el.innerHTML = `
+            <div class="ct-head"><span>${civil ? 'DISPATCH — GROUPE CIVIL' : 'MESSAGE DU DISPATCH'}</span><span class="ct-number">${esc(formatTime(d.message.at))}</span></div>
+            <div class="ct-title">${esc(d.title || 'Dispatch')}</div>
+            <div class="msg-toast-text">${d.message.senderType === 'dispatch' ? 'Dispatch' : esc(d.message.author || '')}${d.message.senderType === 'dispatch' && d.message.author ? ` (${esc(d.message.author)})` : ''} : ${esc(d.message.text)}</div>`;
+        el.addEventListener('click', () => {
+            el.remove();
+            if ($('#mdc').classList.contains('hidden')) return;
+            setMsgPane(true);
+            if (!civil) loadMessages(d.channel);
+        });
+        pushNotification(el, 15000);
+        if (hud.settings.notify.sound !== false) playSound('call');
+    }
+
+    function onDispatchMessage(d) {
+        if (typeof d.unread === 'number' || typeof d.dispatchUnread === 'number') setMsgBadge(Number(d.unread) || 0, Number(d.dispatchUnread) || 0);
+        const viewing = msgOpen() && !$('#mdc').classList.contains('hidden') && msg.channel === d.channel;
+        if (msgOpen() && isPolice()) loadMessages(viewing ? d.channel : msg.channel || null);
+        if (d.incoming && !viewing) dispatchToast(d, false);
+    }
+
+    function onCivilMessage(d) {
+        const viewing = msgOpen() && !$('#mdc').classList.contains('hidden') && !isPolice();
+        if (viewing) loadCivilChat();
+        else if (d.incoming) setMsgBadge(0, Number(d.unread) || 0);
+        if (d.incoming && !viewing) dispatchToast(d, true);
+    }
+
+    // Avis du dispatch : appel transmis / refusé / annulé, unité affectée / retirée, statut changé
+    function dispatchNotice(n) {
+        const el = document.createElement('div');
+        el.className = `call-toast notice-toast ${esc(n.kind || '')}`;
+        el.innerHTML = `
+            <div class="ct-head"><span>DISPATCH</span>${n.number ? `<span class="ct-number">${esc(n.number)}</span>` : ''}</div>
+            <div class="ct-title">${esc(n.title || '')}</div>
+            ${n.text ? `<div class="msg-toast-text">${esc(n.text)}</div>` : ''}`;
+        pushNotification(el, 12000);
+        if (hud.settings.notify.sound !== false) playSound(n.kind === 'assigned' ? 'call' : 'message');
+        if (state.open && state.page === 'interventions') refreshInterventions();
     }
 
     function onUnitMessage(d) {
@@ -6396,8 +6577,20 @@
             case 'unitMessage': // messagerie : nouveau message (reçu ou envoyé par un membre de son unité)
                 if (data.data) onUnitMessage(data.data);
                 break;
-            case 'unitMessages': // messagerie : nombre de non-lus de son unité
-                if (data.data) setMsgBadge(Number(data.data.unread) || 0);
+            case 'unitMessages': // messagerie : nombre de non-lus de son unité (et du dispatch)
+                if (data.data) setMsgBadge(Number(data.data.unread) || 0, typeof data.data.dispatchUnread === 'number' ? data.data.dispatchUnread : undefined);
+                break;
+            case 'dispatchMessage': // message du dispatch / sur un canal du dispatch (prioritaire)
+                if (data.data) onDispatchMessage(data.data);
+                break;
+            case 'civilMessage': // groupe civil <-> dispatch (MDC générique)
+                if (data.data) onCivilMessage(data.data);
+                break;
+            case 'dispatchNotice': // avis du dispatch (appel validé / refusé, unité affectée…)
+                if (data.data) dispatchNotice(data.data);
+                break;
+            case 'dispatch': // état du centre de dispatch (en ligne, mode Dispatch)
+                setDispatchState(data.data);
                 break;
         }
     });

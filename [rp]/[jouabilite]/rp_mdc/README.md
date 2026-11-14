@@ -1,6 +1,12 @@
 # MDC Standalone (FiveM)
 
-Mobile Data Computer **100% standalone** (sans ESX / QBCore / vRP), interface NUI en HTML/CSS/Vanilla JS, au look
+> **Version 3** : toutes les données sont dans **MySQL / MariaDB** (ressource **oxmysql**), et un **MDC Web du
+> dispatch** (site Node.js, dossier [`mdc-web/`](../../../mdc-web/README.md) à la racine du dépôt) pilote les
+> interventions en temps réel. Installation complète (MySQL, oxmysql, Discord OAuth2, site, liaison) :
+> **[mdc-web/README.md](../../../mdc-web/README.md)**. Résumé : sections « Base de données (MySQL) » et
+> « MDC Web du dispatch » plus bas.
+
+Mobile Data Computer **sans framework** (sans ESX / QBCore / vRP ; seule dépendance : **oxmysql**), interface NUI en HTML/CSS/Vanilla JS, au look
 **Windows 11** clair (jour) et sobre (fenêtre « Mica » claire aux coins presque carrés, volet de navigation à gauche,
 cartes blanches, boutons et champs Fluent, accent bleu). Les couleurs se changent dans les variables en haut de
 `html/style.css` (`--accent`, `--mica`, `--radius`…). Les autres menus (`rp_interact`, `rp_RoleplayZone`,
@@ -59,6 +65,12 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ```
    set rp_discord_token "TOKEN_DU_BOT"   # jamais dans un fichier du dépôt
    exec @vMenu/config/permissions.cfg
+   # MDC : base de données (oxmysql) et MDC Web du dispatch (voir mdc-web/README.md)
+   set mysql_connection_string "mysql://UTILISATEUR:MOT_DE_PASSE@127.0.0.1/fivem?charset=utf8mb4"
+   set mdc_web_url "http://127.0.0.1:3000"          # adresse du site du dispatch (facultatif)
+   set mdc_web_key "LONGUE_CLE_SECRETE"             # = FIVEM_API_KEY du .env du site (facultatif)
+   set mdc_web_allow_ip "127.0.0.1"                 # IP du site autorisée à appeler l'API (facultatif)
+   ensure oxmysql
    ensure rp_permissions
    ensure rp_chat
    ensure rp_mdc
@@ -193,6 +205,14 @@ dans `server/server.lua`.
   lignes, partagée par ses membres, enregistrée pendant la frappe ; gardée dans l'unité côté serveur). Panneau ouvert
   ou fermé : gardé chez le joueur. Bouton **« Retranscription du notepad »** : ajoute à la fin de la note le texte de
   votre bloc-notes (`rp_notepad`, `/notepad`), page par page.
+- **Messagerie avec le DISPATCH** (MDC Web) : dans le panneau **Messages**, une section **DISPATCH** en tête, en
+  orange, au-dessus des unités : la conversation de votre unité avec le dispatch et une conversation par
+  **intervention** où votre unité est affectée (« Dispatch — RD1234 »). Pastille **orange clignotante** sur le bouton
+  Messages pour les non-lus du dispatch, **notification prioritaire** (toujours affichée, MDC ouvert ou non, avec un
+  son), bulles du dispatch signées « DISPATCH — nom du dispatcher » et horodatées. Le **MDC générique** (civils) a un
+  bouton **Dispatch** : discussion du **groupe civil** avec le dispatch (tous les civils la voient). Indicateur dans la
+  barre de titre : **DISPATCH EN LIGNE** (un dispatcher est connecté) ou **MODE DISPATCH** (les appels des civils sont
+  validés par le dispatch avant d'arriver aux unités). Grade de l'agent : liste sous le nom RP (`Config.Grades`).
 - **Messagerie entre unités** (polices) : bouton **Messages** juste à côté de la note de l'unité (pastille rouge : nombre
   de messages non lus). Il ouvre un **panneau à droite** : la liste des **autres unités** de police (WSP et KCSO ; les
   conversations récentes d'abord, avec le dernier message et ses non-lus), puis la **conversation** avec l'unité
@@ -200,8 +220,8 @@ dans `server/server.lua`.
   messages privés entre joueurs) : chaque membre des deux unités voit la conversation (auteur = nom RP), « lu » pour
   toute l'unité dès qu'un membre l'ouvre. **Entrée** envoie, **Maj + Entrée** va à la ligne (300 caractères,
   `UnitMessageLength`). Nouveau message reçu, MDC ouvert ou non : **notification avec un son** (se désactive :
-  *Paramètres > MDC > Notifications et sons*, « Messages entre unités »). Gardés en mémoire côté serveur
-  (`MaxUnitMessages` = 60 derniers par conversation ; supprimés avec l'unité, perdus au redémarrage). Anti-spam :
+  *Paramètres > MDC > Notifications et sons*, « Messages entre unités »). Enregistrés dans **MySQL** (`mdc_messages`,
+  tous conservés ; les `MaxUnitMessages` = 60 derniers de chaque conversation sont affichés en jeu). Anti-spam :
   `UnitMessageCooldown` (800 ms). Ces trois réglages sont en haut de `server/server.lua`.
 - **En bas** : la disponibilité et l'heure du jeu.
 
@@ -594,17 +614,53 @@ Notice of Infraction (ticket), **Clear B** — Arrestation, retenue ou criminal 
 Warning. La clôture est affichée sur l'appel terminé. Les unités KCSO terminent comme avant (deuxième clic pour
 confirmer).
 
-## Données (permanentes)
+## Base de données (MySQL / MariaDB)
 
-Identités, véhicules, rapports et BOLOs : `data/identities.json`, `data/vehicles.json`, `data/reports.json` et `data/bolos.json`,
-écrits à chaque création / modification. Ils survivent aux déconnexions et aux redémarrages. **Le script ne supprime
-jamais rien**, sauf les BOLOs supprimés depuis le MDC (BOLO levé).
-Pour retirer une entrée (cadres) : éditez le fichier puis tapez `mdc_reload` dans la console serveur.
-Voir `data/LISEZMOI.txt`. ⚠ Ne remplacez pas le dossier `data/` lors d'une mise à jour.
+**Tout** est enregistré dans MySQL par `server/db.lua` (via **oxmysql**) et rechargé au démarrage : rien d'important ne
+dépend de la mémoire du serveur.
 
-## Relier une base de données
+| Table | Contenu |
+|---|---|
+| `mdc_identities`, `mdc_vehicles` | fiches (colonnes indexées : nom, date de naissance, SSN, plaque, VIN, **propriétaire** -> identité) + fiche complète en JSON |
+| `mdc_reports`, `mdc_bolos` | rapports (lien -> intervention) et BOLO |
+| `mdc_units`, `mdc_unit_members` | unités (indicatif, tag, couleur, **statut**, note, espace partagé) et agents connectés dedans |
+| `mdc_unit_status_log` | chaque changement de statut (jeu ou dispatch) |
+| `mdc_calls` | interventions et incidents : **n° RD1234**, priorité, code de réponse, polices, état du dispatch, clôture… |
+| `mdc_call_units`, `mdc_call_notes`, `mdc_call_links` | **affectations**, notes du déroulé (unités et dispatch), personnes / véhicules liés |
+| `mdc_messages`, `mdc_message_reads` | messagerie (unités, dispatch, groupe civil) et « lu » par lecteur |
+| `mdc_agents` | nom RP, **grade**, dernier MDC utilisé, dernière connexion |
+| `mdc_settings` | mode Dispatch, compteurs (n° RD, unités) |
+| `mdc_action_log` | journal des actions importantes (jeu, dispatch, connexions au site) |
 
-Cherchez `>>> BASE DE DONNÉES` dans `server/server.lua` : seules les fonctions `loadStore()` / `saveStore()` sont à remplacer.
+- **Migrations automatiques** (`sql/migrations/`, table `mdc_schema_migrations`) : rien à importer à la main ; le
+  fichier `sql/migrations/001_init.sql` peut aussi être importé dans phpMyAdmin / HeidiSQL.
+- **Ancien stockage** : au premier démarrage, les fichiers `data/identities.json`, `vehicles.json`, `reports.json` et
+  `bolos.json` sont **importés une seule fois** (table vide) ; ensuite ils ne sont plus lus (gardez-les en sauvegarde).
+- **Écritures** : une **file d'écriture séquentielle** (jamais une ancienne version après une nouvelle), **seules
+  les fiches modifiées** sont écrites, **requêtes préparées** uniquement, identifiants attribués par le serveur
+  (aucun doublon). Redémarrage de la ressource avec des joueurs en jeu : ils **restent dans leur unité**.
+- Base injoignable au démarrage : message rouge dans la console, le MDC répond « Base de données injoignable » (aucune
+  donnée écrasée). `mdc_reload` (console serveur) relit les fiches depuis MySQL après une modification à la main.
+- Interventions terminées : gardées **12 h** dans la liste du MDC en jeu (`ClosedCallsKeepHours`), **toutes** dans
+  MySQL (historique du MDC Web).
+
+## MDC Web du dispatch
+
+Site **séparé** pour les dispatchers (dossier `mdc-web/` à la racine du dépôt, Node.js) : connexion **Discord**
+(rôle `1562214435886465055` vérifié côté serveur), tableau de bord, file de validation, interventions, unités
+(statut et affectations à distance), messagerie (unités, interventions, groupe civil), historique, journal, temps réel.
+Installation : **[mdc-web/README.md](../../../mdc-web/README.md)**.
+
+- **Mode Dispatch** (interrupteur du site) : **désactivé**, rien ne change (appels envoyés aux unités comme avant).
+  **Activé**, l'appel d'un civil est enregistré (n° RD) mais **attend la validation** d'un dispatcher (« Attente
+  dispatch », invisible des unités) ; le dispatcher le **valide** (en choisissant éventuellement les unités),
+  le **refuse** ou l'**annule** avec un motif (le civil est prévenu en jeu). Sans dispatcher connecté depuis
+  45 s (`Config.Dispatch.HeartbeatTimeout`), ou mode désactivé : les appels en attente partent **automatiquement**
+  aux unités (aucun appel perdu).
+- **N° de référence** `RD1234`, `RD1235`… (`CallNumberPrefix`, `CallNumberStart`) : identique dans le jeu, le site,
+  les notifications, les messages et l'historique.
+- Liaison : convars `mdc_web_url`, `mdc_web_key` (+ `mdc_web_allow_ip`) dans `server.cfg` ; API de la ressource sur
+  `http://IP:30120/rp_mdc/api/...` (clé obligatoire). Sans ces convars, le MDC en jeu fonctionne seul.
 
 ## Permissions (rôles Discord)
 

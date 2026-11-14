@@ -363,8 +363,10 @@ relay('leaveUnit',          'leaveUnit')
 relay('deleteUnit',         'deleteUnit')
 relay('setStatus',          'setStatus')
 relay('setUnitMemo',        'setUnitMemo')        -- Note de l'unité (barre du bas), gardée dans l'unité
-relay('getMessages',        'getMessages')        -- Messagerie entre unités : boîte de réception / conversation
+relay('getMessages',        'getMessages')        -- Messagerie : unités + section DISPATCH (boîte de réception / conversation)
 relay('sendMessage',        'sendMessage')
+relay('getCivilChat',       'getCivilChat')       -- MDC générique : groupe civil avec le dispatch
+relay('setGrade',           'setGrade')           -- Grade de l'agent (sous le nom RP)
 
 -- Interventions / incidents
 relay('getInterventions',   'getInterventions')
