@@ -11,7 +11,7 @@ let io = null;
 const presence = new Map(); // id Discord -> { id, name, avatar, sockets }
 
 function dispatchers() {
-    return [...presence.values()].map((p) => ({ id: p.id, name: p.name }));
+    return [...presence.values()].map((p) => ({ id: p.id, name: 'Dispatch' }));
 }
 
 function init(httpServer, sessionMiddleware, onPresenceChange) {
@@ -29,9 +29,8 @@ function init(httpServer, sessionMiddleware, onPresenceChange) {
         const u = socket.request.session.user;
         socket.data.userId = u.id;
         socket.join('dispatch');
-        const p = presence.get(u.id) || { id: u.id, name: u.name, avatar: u.avatar, sockets: 0 };
+        const p = presence.get(u.id) || { id: u.id, name: 'Dispatch', sockets: 0 };
         p.sockets += 1;
-        p.name = u.name;
         presence.set(u.id, p);
         if (p.sockets === 1) {
             log.info(`dispatcher en ligne : ${u.name}`);

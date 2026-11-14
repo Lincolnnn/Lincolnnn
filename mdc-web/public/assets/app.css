@@ -261,3 +261,24 @@ select.status.st-unavailable { border-color: var(--danger); color: #ffb3b6; }
     .drawer { position: fixed; right: 0; top: 60px; bottom: 0; width: min(520px, 100%); z-index: 40; }
 }
 .pick-section { margin: 0 0 8px; width: 100%; }
+
+/* Recherches (identités, véhicules) */
+.search-tabs { display: inline-flex; margin-bottom: 10px; }
+.search-form label { display: inline-flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.search-form .btn { align-self: flex-end; }
+.search-grid { display: grid; grid-template-columns: minmax(320px, 1fr) 1.4fr; gap: 14px; align-items: start; }
+.search-results { display: flex; flex-direction: column; gap: 6px; }
+.result { display: block; width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--panel-2);
+    text-align: left; cursor: pointer; }
+.result:hover, .result.active { border-color: var(--accent); }
+.result small { display: block; color: var(--muted); }
+.record-sheet h3 { margin: 0 0 8px; }
+.alert { margin: 0 0 8px; padding: 7px 10px; border-radius: 7px; font-weight: 700; font-size: 12.5px; background: rgba(242, 85, 90, .15);
+    border: 1px solid rgba(242, 85, 90, .5); color: #ffb3b6; }
+.alert.yellow { background: rgba(227, 179, 65, .14); border-color: rgba(227, 179, 65, .5); color: #ffe39a; }
+.alert.purple { background: rgba(167, 139, 250, .14); border-color: rgba(167, 139, 250, .5); color: #d9ccff; }
+.sheet-block { margin-top: 12px; }
+.sheet-block h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.entry { padding: 6px 8px; margin-bottom: 5px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); font-size: 13px; }
+.linkish { background: none; border: 0; padding: 0; color: #9fd1ff; cursor: pointer; text-decoration: underline; }
+@media (max-width: 1300px) { .search-grid { grid-template-columns: 1fr; } }

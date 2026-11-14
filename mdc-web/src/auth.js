@@ -49,7 +49,7 @@ function requireDispatcher(sensitive = false) {
         if (check.ok) return next();
         if (req.session && req.session.user) {
             log.info(`accès retiré (${check.reason}) : ${req.session.user.name} (${req.session.user.id})`);
-            await logAction('web', `discord:${req.session.user.id}`, req.session.user.name, 'web.revoked', { reason: check.reason });
+            await logAction('web', `discord:${req.session.user.id}`, 'Dispatch', 'web.revoked', { reason: check.reason });
             await destroy(req);
         }
         if (req.path.startsWith('/api/') || req.originalUrl.startsWith('/api/')) {
@@ -92,7 +92,7 @@ router.get('/auth/callback', async (req, res) => {
         if (!member || !discord.hasDispatchRole(member)) {
             const reason = member ? 'role' : 'guild';
             log.info(`connexion refusée (${reason}) : ${name} (${user.id})`);
-            await logAction('web', `discord:${user.id}`, name, 'web.denied', { reason });
+            await logAction('web', `discord:${user.id}`, 'Refusé', 'web.denied', { reason });
             return res.redirect(`/denied?reason=${reason}`);
         }
         // nouvelle session (évite la fixation de session), jeton CSRF propre à la session
@@ -100,12 +100,12 @@ router.get('/auth/callback', async (req, res) => {
             if (err) return res.redirect('/login?error=session');
             req.session.user = {
                 id: String(user.id), username: user.username, globalName: user.global_name || null, name,
-                avatar: discord.avatarUrl(user), checkedAt: Date.now(),
+                checkedAt: Date.now(),
             };
             req.session.tokens = tokens;
             req.session.csrf = crypto.randomBytes(32).toString('hex');
             log.info(`connexion : ${name} (${user.id})`);
-            await logAction('web', `discord:${user.id}`, name, 'web.login', null);
+            await logAction('web', `discord:${user.id}`, 'Dispatch', 'web.login', null);
             req.session.save(() => res.redirect('/'));
         });
     } catch (e) {
@@ -116,7 +116,7 @@ router.get('/auth/callback', async (req, res) => {
 
 router.post('/auth/logout', requireCsrf, async (req, res) => {
     const u = req.session.user;
-    if (u) await logAction('web', `discord:${u.id}`, u.name, 'web.logout', null);
+    if (u) await logAction('web', `discord:${u.id}`, 'Dispatch', 'web.logout', null);
     await destroy(req);
     res.clearCookie('mdc.sid');
     res.json({ ok: true });

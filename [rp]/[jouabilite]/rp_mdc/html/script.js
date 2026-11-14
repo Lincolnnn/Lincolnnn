@@ -339,8 +339,6 @@
         if (!res || !res.ok) return false;
         state.agencies = toArray(res.agencies);
         state.perms = res.perms || {};
-        state.grades = res.grades || {};
-        state.grade = res.grade || '';
         if (res.dispatch) setDispatchState(res.dispatch);
         applyPerms();
         if (res.current && agencyInfo(res.current)) state.agency = res.current; // NUI rechargée, choix déjà fait
@@ -452,7 +450,6 @@
         $('#appIcon').innerHTML = logo ? `<img src="${logo}" alt="">` : appShieldIcon;
         $('#appIcon').classList.toggle('has-logo', !!logo);
         $('#profileAgency').textContent = info ? (police ? info.short : 'Générique') : '';
-        renderGrade();
         $('#btnMessagesLabel').textContent = police ? 'Messages' : 'Dispatch';
         $('#btnMessages').title = police ? 'Messages (dispatch et unités)' : 'Discussion avec le dispatch (groupe civil)';
         $$('.tab').forEach((t) => t.classList.toggle('hidden', !allowedPages().includes(t.dataset.page)));
@@ -1304,6 +1301,8 @@
 
     // Priorités de réponse du KCSO (appel du KCSO, seul ou commun) ; sinon Non-Urgent, Priorité 1 à 3
     const kcsoPriorities = (agencies) => agencies.includes(PRIORITY_AGENCY);
+    // Clôture Clear A / B / C : unité WSP sur un appel qui n'est pas du KCSO (pas de Clear au shérif)
+    const needsClear = (c, unit) => unit.agency === CLEAR_AGENCY && !kcsoPriorities(callAgencies(c));
     const priorityText = (c) => {
         const p = CALL_PRIORITY[c.priority];
         if (!p) return '-';
@@ -1545,12 +1544,14 @@
             hints = `
                 ${police && !unit ? '<div class="hint-box">Seules les unités peuvent rejoindre un appel : rejoignez d\'abord une unité (onglet Unités).</div>' : ''}
                 ${police ? '' : `<div class="hint-box">MDC générique : consultation uniquement (rejoindre un appel est réservé aux unités de police)${incident ? '' : ' ; les informations de cet appel peuvent être modifiées'}.</div>`}`;
-            const clearing = onCall && state.clearChoice === c.id && unit && unit.agency === CLEAR_AGENCY;
+            const clearing = onCall && state.clearChoice === c.id && unit && needsClear(c, unit);
+            const dispatchOnly = !!(state.dispatch && state.dispatch.effective); // mode Dispatch : le dispatch affecte seul
             actions = `
                 <div class="toolbar call-actions call-actions-bottom">
                     ${police && unit && allowed ? (onCall
                         ? '<button type="button" class="btn" data-call-action="leave">Quitter l\'appel</button>'
-                        : `<button type="button" class="btn btn-default" data-call-action="join">Rejoindre l'appel (${esc(unit.name)})</button>`) : ''}
+                        : dispatchOnly ? '<span class="hint-text">Mode Dispatch : seul le dispatch affecte les unités.</span>'
+                            : `<button type="button" class="btn btn-default" data-call-action="join">Rejoindre l'appel (${esc(unit.name)})</button>`) : ''}
                     ${allowed ? '<button type="button" class="btn" data-call-action="edit">Modifier</button>' : ''}
                     <span class="grow"></span>
                     ${onCall ? `<button type="button" class="btn btn-danger" data-call-action="end">${clearing ? 'Annuler la clôture' : 'Intervention terminée'}</button>` : ''}
@@ -1885,7 +1886,7 @@
 
             // WSP : « Intervention terminée » ouvre le choix Clear A / B / C (le choix vaut confirmation)
             const me = myUnit();
-            if (action === 'end' && me && me.agency === CLEAR_AGENCY) {
+            if (action === 'end' && me && needsClear(call, me)) {
                 state.clearChoice = state.clearChoice === call.id ? null : call.id;
                 renderInterventionDetail();
                 const choice = $('#interventionDetail .clear-choice');
@@ -4760,22 +4761,12 @@
         chip.classList.toggle('online', !d.effective);
         chip.textContent = d.effective ? 'MODE DISPATCH' : 'DISPATCH EN LIGNE';
         chip.title = d.effective
-            ? 'Mode Dispatch actif : les appels des civils sont validés par un dispatcher avant d\'arriver aux unités.'
-            : `Dispatch en ligne${d.dispatchers && toArray(d.dispatchers).length ? ` : ${toArray(d.dispatchers).join(', ')}` : ''}.`;
+            ? 'Mode Dispatch actif : les appels des civils sont validés par le dispatch, qui affecte seul les unités.'
+            : 'Dispatch en ligne.';
+        if (state.open && state.page === 'interventions') renderInterventionDetail(); // « Rejoindre l'appel » selon le mode
     }
 
-    // ---- Grade de l'agent (sous le nom RP) ----
-    function renderGrade() {
-        const sel = $('#gradeSelect');
-        const list = toArray((state.grades || {})[state.agency]);
-        sel.classList.toggle('hidden', !isPolice() || !list.length);
-        sel.innerHTML = `<option value="">— Grade —</option>${list.map((g) => `<option value="${esc(g)}" ${g === state.grade ? 'selected' : ''}>${esc(g)}</option>`).join('')}`;
-    }
-    $('#gradeSelect').addEventListener('change', async (e) => {
-        const res = await post('setGrade', { grade: e.target.value });
-        if (res && res.ok) { state.grade = res.grade; toast(res.grade ? `Grade : ${res.grade}.` : 'Grade retiré.', 'success'); }
-        else { toast(res?.error || 'Grade non enregistré.', 'error'); renderGrade(); }
-    });
+
 
     function setMsgPane(open) {
         if (open) setMemoPane(false);
@@ -4814,7 +4805,7 @@
         const dispatch = m.senderType === 'dispatch';
         return `
             <div class="msg-bubble${mine ? ' mine' : ''}${dispatch ? ' from-dispatch' : ''}">
-                <div class="msg-bubble-meta"><span>${dispatch ? 'DISPATCH — ' : ''}${esc(m.author || '')}</span><span>${esc(formatTime(m.at))}</span></div>
+                <div class="msg-bubble-meta"><span>${dispatch ? 'DISPATCH' : esc(m.author || '')}</span><span>${esc(formatTime(m.at))}</span></div>
                 <div class="msg-bubble-text">${esc(m.text)}</div>
             </div>`;
     }
@@ -4987,7 +4978,7 @@
         el.innerHTML = `
             <div class="ct-head"><span>${civil ? 'DISPATCH — GROUPE CIVIL' : 'MESSAGE DU DISPATCH'}</span><span class="ct-number">${esc(formatTime(d.message.at))}</span></div>
             <div class="ct-title">${esc(d.title || 'Dispatch')}</div>
-            <div class="msg-toast-text">${d.message.senderType === 'dispatch' ? 'Dispatch' : esc(d.message.author || '')}${d.message.senderType === 'dispatch' && d.message.author ? ` (${esc(d.message.author)})` : ''} : ${esc(d.message.text)}</div>`;
+            <div class="msg-toast-text">${d.message.senderType === 'dispatch' ? 'Dispatch' : esc(d.message.author || '')} : ${esc(d.message.text)}</div>`;
         el.addEventListener('click', () => {
             el.remove();
             if ($('#mdc').classList.contains('hidden')) return;

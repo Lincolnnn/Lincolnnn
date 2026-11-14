@@ -25,7 +25,7 @@
             <span class="ind-plain" id="indDispatchers" title="Dispatchers en ligne"></span>
             <button type="button" class="sound-btn" id="soundBtn" title="Activer / couper les sons">Son : activé</button>
             <span class="clock" id="clock">--:--:--</span>
-            <span class="user-chip"><img id="userAvatar" alt="" class="hidden"><span id="userName"></span></span>
+            <span class="user-chip"><span id="userName">Dispatch</span></span>
             <button type="button" class="btn ghost small" id="logoutBtn">Déconnexion</button>
         </div>
     </header>
@@ -36,6 +36,7 @@
             <button type="button" class="nav active" data-view="dashboard">Tableau de bord</button>
             <button type="button" class="nav" data-view="calls">Interventions <span class="badge hot hidden" id="navAwaiting"></span></button>
             <button type="button" class="nav" data-view="units">Unités <span class="badge hidden" id="navUnits"></span></button>
+            <button type="button" class="nav" data-view="search">Recherches</button>
             <button type="button" class="nav" data-view="messages">Messagerie <span class="badge hot hidden" id="navUnread"></span></button>
             <button type="button" class="nav" data-view="history">Historique</button>
             <button type="button" class="nav" data-view="log">Journal</button>
@@ -93,9 +94,33 @@
                     <label class="check"><input type="checkbox" id="unitsConnected" checked> Connectées seulement</label>
                     <select id="unitsAgency"><option value="">Toutes les polices</option><option value="kcso">KCSO</option><option value="wsp">WSP</option></select>
                 </div>
-                <table class="grid"><thead><tr><th>Indicatif</th><th>Police</th><th>Agents (grade)</th><th>Statut</th><th>Intervention</th><th>Depuis</th><th>Actions</th></tr></thead>
+                <table class="grid"><thead><tr><th>Indicatif</th><th>Police</th><th>Agents</th><th>Statut</th><th>Intervention</th><th>Depuis</th><th>Actions</th></tr></thead>
                     <tbody id="unitsBody"></tbody></table>
                 <div class="empty hidden" id="unitsEmpty">Aucune unité.</div>
+            </section>
+
+            <!-- ================= RECHERCHES (comme le MDC en jeu) ================= -->
+            <section class="view hidden" id="view-search">
+                <div class="tabs search-tabs" id="searchTabs">
+                    <button type="button" class="tab active" data-stype="identity">Individu</button>
+                    <button type="button" class="tab" data-stype="vehicle">Véhicule</button>
+                </div>
+                <form class="toolbar search-form" id="searchIdentity">
+                    <label>Nom * <input id="sLast" maxlength="40" required></label>
+                    <label>Prénom <input id="sFirst" maxlength="40"></label>
+                    <label>Date de naissance * <input id="sDob" maxlength="10" placeholder="JJ/MM/AAAA" required></label>
+                    <label>SSN <input id="sSsn" maxlength="11" placeholder="123-45-6789"></label>
+                    <button type="submit" class="btn primary">Rechercher</button>
+                </form>
+                <form class="toolbar search-form hidden" id="searchVehicle">
+                    <label>Immatriculation ou VIN * <input id="sQuery" maxlength="20" required></label>
+                    <button type="submit" class="btn primary">Rechercher</button>
+                </form>
+                <div class="search-grid">
+                    <div class="panel"><div class="panel-head"><h2>Résultats</h2><span class="muted" id="searchCount"></span></div>
+                        <div id="searchResults" class="search-results"><div class="empty">Lancez une recherche.</div></div></div>
+                    <div class="panel"><div id="recordSheet" class="record-sheet"><div class="empty">Choisissez une fiche.</div></div></div>
+                </div>
             </section>
 
             <!-- ================= MESSAGERIE ================= -->

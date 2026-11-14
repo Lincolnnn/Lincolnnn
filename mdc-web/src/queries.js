@@ -81,10 +81,10 @@ async function callDetail(id) {
     });
 }
 
-/** Unités (indicatif, tag, police, statut, membres connectés avec grade, interventions en cours) */
+/** Unités (indicatif, tag, police, statut, membres connectés, interventions en cours) */
 async function units() {
     const rows = await query('SELECT * FROM mdc_units ORDER BY agency, name');
-    const members = await query(`SELECT m.unit_id, m.server_id, m.joined_at, a.rp_name, a.grade
+    const members = await query(`SELECT m.unit_id, m.server_id, m.joined_at, a.rp_name
         FROM mdc_unit_members m LEFT JOIN mdc_agents a ON a.identifier = m.identifier ORDER BY a.rp_name`);
     const calls = await query(`SELECT cu.unit_id, c.id, c.number, c.title FROM mdc_call_units cu
         JOIN mdc_calls c ON c.id = cu.call_id WHERE c.closed = 0 ORDER BY c.id DESC`);
@@ -92,7 +92,7 @@ async function units() {
     const statusAt = Object.fromEntries(lastStatus.map((s) => [s.unit_id, Number(s.at)]));
     return rows.map((u) => {
         const m = members.filter((x) => Number(x.unit_id) === Number(u.id)).map((x) => ({
-            serverId: Number(x.server_id), name: x.rp_name || 'Agent sans nom RP', grade: x.grade || '' }));
+            serverId: Number(x.server_id), name: x.rp_name || 'Agent sans nom RP' }));
         return {
             id: Number(u.id), agency: u.agency, name: u.name, tag: u.tag, color: u.color, status: u.status,
             updatedAt: Number(u.updated_at), statusAt: statusAt[u.id] || Number(u.updated_at), members: m, connected: m.length > 0,

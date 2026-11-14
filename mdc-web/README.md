@@ -9,12 +9,18 @@ c'est une console de dispatch, avec ses propres écrans et ses propres outils :
   détaillée (priorité, code de réponse, requérant, adresse, description, unités affectées, notes du déroulé, fiches
   liées, messages avec les unités de l'intervention, actions enregistrées) ;
 - **Mode Dispatch** (interrupteur en haut) : les appels des civils attendent votre **validation** avant d'arriver aux
-  unités ; **valider** (en choisissant les unités), **refuser** ou **annuler** avec un motif, **clôturer** (Clear A/B/C) ;
-- **Unités** : indicatif, police, agents (nom RP et **grade**), **statut modifiable à distance**, interventions,
+  unités, et **seul le dispatch affecte les unités** (elles ne peuvent plus rejoindre un appel elles-mêmes) ;
+  **valider** (en choisissant les unités), **refuser** ou **annuler** avec un motif, **clôturer** (Clear A/B/C pour
+  les interventions de la WSP seulement : pas de Clear pour le shérif) ;
+- **Recherches** : individus (nom + date de naissance, prénom et SSN facultatifs) et véhicules (plaque ou VIN), avec
+  les **mêmes règles et les mêmes fiches** qu'en jeu (permis, véhicules, casier, registre, rapports, BOLO, propriétaire) ;
+- **Unités** : indicatif, police, agents (nom RP), **statut modifiable à distance**, interventions,
   depuis quand, **affectation** à une intervention, message direct ;
 - **Messagerie** : conversations avec chaque **unité**, avec les unités de chaque **intervention** (n° RD) et avec le
   **groupe civil** (tous les joueurs du MDC civil) ; non-lus, heures, expéditeurs ;
 - **Historique** (recherche, filtres, dates, pagination) et **Journal** des actions (dispatch, jeu, connexions) ;
+- Le dispatcher apparaît **toujours sous le nom « Dispatch »** (en jeu comme sur le site) : aucun pseudo Discord
+  n'est affiché ; l'identifiant Discord reste dans le journal MySQL (`actor_id`) pour les administrateurs ;
 - **Temps réel** (Socket.IO) : rien à rafraîchir ; **notifications visuelles et sonores** (nouvelle intervention à
   valider : alarme répétée tant qu'elle attend ; nouveau message).
 

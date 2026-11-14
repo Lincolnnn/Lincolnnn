@@ -85,8 +85,7 @@ end
 local function actorOf(body)
     local a = type(body.actor) == 'table' and body.actor or {}
     local id = tostring(a.id or ''):gsub('[^%d]', ''):sub(1, 32)
-    local name = tostring(a.name or ''):gsub('[%c<>]', ''):sub(1, 60)
-    return { id = id, name = name ~= '' and name or 'Dispatch' }
+    return { id = id, name = 'Dispatch' } -- jamais le pseudo du dispatcher : toujours « Dispatch »
 end
 
 local ACTIONS = {
@@ -103,6 +102,8 @@ local ACTIONS = {
     ['unit.status']    = function(b, actor) return MDCServer.unitStatus(b.unitId, b.status, actor) end,
     ['message.send']   = function(b, actor) return MDCServer.sendMessage(b.channel, b.text, actor) end,
     ['message.read']   = function(b) return MDCServer.markRead(b.channel) end,
+    ['search']         = function(b) return MDCServer.search(b) end,
+    ['record']         = function(b) return MDCServer.record(b.kind, b.id) end,
 }
 
 local function reply(res, code, data)

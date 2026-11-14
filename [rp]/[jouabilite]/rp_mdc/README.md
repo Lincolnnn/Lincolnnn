@@ -207,12 +207,13 @@ dans `server/server.lua`.
   votre bloc-notes (`rp_notepad`, `/notepad`), page par page.
 - **Messagerie avec le DISPATCH** (MDC Web) : dans le panneau **Messages**, une section **DISPATCH** en tête, en
   orange, au-dessus des unités : la conversation de votre unité avec le dispatch et une conversation par
-  **intervention** où votre unité est affectée (« Dispatch — RD1234 »). Pastille **orange clignotante** sur le bouton
+  **intervention** où votre unité est affectée (« Dispatch — RD4817 »). Pastille **orange clignotante** sur le bouton
   Messages pour les non-lus du dispatch, **notification prioritaire** (toujours affichée, MDC ouvert ou non, avec un
-  son), bulles du dispatch signées « DISPATCH — nom du dispatcher » et horodatées. Le **MDC générique** (civils) a un
+  son), bulles du dispatch signées « DISPATCH » (jamais le pseudo du dispatcher) et horodatées. Le **MDC générique** (civils) a un
   bouton **Dispatch** : discussion du **groupe civil** avec le dispatch (tous les civils la voient). Indicateur dans la
   barre de titre : **DISPATCH EN LIGNE** (un dispatcher est connecté) ou **MODE DISPATCH** (les appels des civils sont
-  validés par le dispatch avant d'arriver aux unités). Grade de l'agent : liste sous le nom RP (`Config.Grades`).
+  validés par le dispatch avant d'arriver aux unités ; les unités ne peuvent plus **rejoindre** un appel elles-mêmes :
+  seul le dispatch les affecte, et il n'y a plus de proposition « unité la plus proche » Y / N).
 - **Messagerie entre unités** (polices) : bouton **Messages** juste à côté de la note de l'unité (pastille rouge : nombre
   de messages non lus). Il ouvre un **panneau à droite** : la liste des **autres unités** de police (WSP et KCSO ; les
   conversations récentes d'abord, avec le dernier message et ses non-lus), puis la **conversation** avec l'unité
@@ -609,10 +610,11 @@ Une fois **rattaché** à l'appel, une barre **RENFORTS** apparaît en haut :
 - la demande s'affiche en **notification** (même son qu'une nouvelle intervention ; 10-33 en rouge clignotant) et
   s'inscrit dans le déroulé de l'appel. Une demande par unité toutes les 10 s au plus (`Config.BackupCooldown`).
 
-**Clôture** : une unité **WSP** (`Config.ClearAgency`) qui clique « Intervention terminée » choisit : **Clear A** —
-Notice of Infraction (ticket), **Clear B** — Arrestation, retenue ou criminal citation et libération, **Clear C** —
-Warning. La clôture est affichée sur l'appel terminé. Les unités KCSO terminent comme avant (deuxième clic pour
-confirmer).
+**Clôture** : une unité **WSP** (`Config.ClearAgency`) qui clique « Intervention terminée » sur une intervention
+**qui n'est pas du shérif** choisit : **Clear A** — Notice of Infraction (ticket), **Clear B** — Arrestation, retenue ou
+criminal citation et libération, **Clear C** — Warning. La clôture est affichée sur l'appel terminé. **Pas de Clear pour
+les interventions du shérif (KCSO, seul ou appel commun)** : elles se terminent comme avant (deuxième clic pour
+confirmer), y compris depuis le MDC Web.
 
 ## Base de données (MySQL / MariaDB)
 
@@ -625,10 +627,10 @@ dépend de la mémoire du serveur.
 | `mdc_reports`, `mdc_bolos` | rapports (lien -> intervention) et BOLO |
 | `mdc_units`, `mdc_unit_members` | unités (indicatif, tag, couleur, **statut**, note, espace partagé) et agents connectés dedans |
 | `mdc_unit_status_log` | chaque changement de statut (jeu ou dispatch) |
-| `mdc_calls` | interventions et incidents : **n° RD1234**, priorité, code de réponse, polices, état du dispatch, clôture… |
+| `mdc_calls` | interventions et incidents : **n° RD aléatoire** (ex. RD4817), priorité, code de réponse, polices, état du dispatch, clôture… |
 | `mdc_call_units`, `mdc_call_notes`, `mdc_call_links` | **affectations**, notes du déroulé (unités et dispatch), personnes / véhicules liés |
 | `mdc_messages`, `mdc_message_reads` | messagerie (unités, dispatch, groupe civil) et « lu » par lecteur |
-| `mdc_agents` | nom RP, **grade**, dernier MDC utilisé, dernière connexion |
+| `mdc_agents` | nom RP, dernier MDC utilisé, dernière connexion |
 | `mdc_settings` | mode Dispatch, compteurs (n° RD, unités) |
 | `mdc_action_log` | journal des actions importantes (jeu, dispatch, connexions au site) |
 
@@ -656,9 +658,15 @@ Installation : **[mdc-web/README.md](../../../mdc-web/README.md)**.
   dispatch », invisible des unités) ; le dispatcher le **valide** (en choisissant éventuellement les unités),
   le **refuse** ou l'**annule** avec un motif (le civil est prévenu en jeu). Sans dispatcher connecté depuis
   45 s (`Config.Dispatch.HeartbeatTimeout`), ou mode désactivé : les appels en attente partent **automatiquement**
-  aux unités (aucun appel perdu).
-- **N° de référence** `RD1234`, `RD1235`… (`CallNumberPrefix`, `CallNumberStart`) : identique dans le jeu, le site,
-  les notifications, les messages et l'historique.
+  aux unités (aucun appel perdu). **Mode Dispatch actif** : **seul le dispatch affecte les unités** (le bouton
+  « Rejoindre l'appel » disparaît, le serveur refuse, aucune proposition « unité la plus proche » Y / N).
+- **N° de référence aléatoire** : `RD` + 4 chiffres (ex. `RD4817`, `RD0592`…, `CallNumberPrefix`), **jamais deux fois
+  le même** (vérifié sur tous les appels enregistrés) : identique dans le jeu, le site, les notifications, les
+  messages et l'historique.
+- Le dispatcher apparaît **toujours sous le nom « Dispatch »** (messages, notes, clôtures, journal) ; son identifiant
+  Discord reste seulement dans la colonne `actor_id` du journal (`mdc_action_log`), pour les administrateurs.
+- **Recherches** sur le site : identités (nom + date de naissance, prénom et SSN facultatifs) et véhicules (plaque ou
+  VIN), **mêmes règles et mêmes fiches** que le MDC en jeu (le site interroge le serveur FiveM).
 - Liaison : convars `mdc_web_url`, `mdc_web_key` (+ `mdc_web_allow_ip`) dans `server.cfg` ; API de la ressource sur
   `http://IP:30120/rp_mdc/api/...` (clé obligatoire). Sans ces convars, le MDC en jeu fonctionne seul.
 

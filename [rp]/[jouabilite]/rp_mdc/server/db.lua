@@ -21,6 +21,7 @@ MDCDB = {
     ready = false,       -- migrations faites et données chargées
     failed = nil,        -- message d'erreur si la base est injoignable
     knownCalls = {},     -- [id] = true : appels présents dans mdc_calls (clé étrangère des rapports)
+    usedNumbers = {},    -- [n° RD] = true : n° déjà attribués (jamais deux fois le même)
     identifierOf = nil,  -- fonction(src) -> identifiant (défini par server.lua)
 }
 
@@ -272,7 +273,7 @@ local function importJson(kind, file)
 end
 
 -- =========================================================================
--- AGENTS (nom RP, grade)
+-- AGENTS (nom RP, dernier MDC utilisé ; la colonne grade n'est plus utilisée)
 -- =========================================================================
 local Agents = {} -- [identifier] = { rpName, grade, agency }
 
@@ -429,8 +430,14 @@ function MDCDB.deleteCall(id)
 end
 
 --- Appels à garder en mémoire : en cours, en attente, et terminés depuis moins de `keepSeconds`
+function MDCDB.numberUsed(number) return MDCDB.usedNumbers[number] == true end
+function MDCDB.useNumber(number) MDCDB.usedNumbers[number] = true end
+
 function MDCDB.loadCalls(keepSeconds)
-    for _, row in ipairs(query('SELECT id FROM mdc_calls') or {}) do MDCDB.knownCalls[tonumber(row.id)] = true end
+    for _, row in ipairs(query('SELECT id, number FROM mdc_calls') or {}) do
+        MDCDB.knownCalls[tonumber(row.id)] = true
+        MDCDB.usedNumbers[row.number] = true
+    end
     local since = os.time() - (keepSeconds or 0)
     local rows = query('SELECT * FROM mdc_calls WHERE closed = 0 OR closed_at >= ? ORDER BY id', { since }) or {}
     local calls, byId = {}, {}

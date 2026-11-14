@@ -1593,5 +1593,4 @@ tr.row-ended td { opacity: .55; }
 .call-toast.notice-toast { --prio: 217, 72, 15; }
 .call-toast.notice-toast.refused, .call-toast.notice-toast.cancelled { --prio: 255, 99, 99; }
 .call-toast.notice-toast.validated, .call-toast.notice-toast.assigned { --prio: 80, 200, 120; }
-.grade-select { margin-top: 4px; width: 100%; height: 24px; font-size: 11.5px; }
 .flag.c-dispatch { background: #d9480f; color: #fff; }

@@ -366,7 +366,6 @@ relay('setUnitMemo',        'setUnitMemo')        -- Note de l'unité (barre du 
 relay('getMessages',        'getMessages')        -- Messagerie : unités + section DISPATCH (boîte de réception / conversation)
 relay('sendMessage',        'sendMessage')
 relay('getCivilChat',       'getCivilChat')       -- MDC générique : groupe civil avec le dispatch
-relay('setGrade',           'setGrade')           -- Grade de l'agent (sous le nom RP)
 
 -- Interventions / incidents
 relay('getInterventions',   'getInterventions')

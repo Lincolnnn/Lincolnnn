@@ -120,15 +120,9 @@ local Config = {
     --   ClosedCallsKeepHours : interventions terminées gardées dans la liste du MDC en jeu ; toutes restent dans MySQL
     --   (historique du MDC Web).
     ClosedCallsKeepHours = 12,
-    -- N° de référence des interventions et incidents : RD1234, RD1235… (compteur gardé dans MySQL)
+    -- N° de référence des interventions et incidents : RD + 4 chiffres ALÉATOIRES (ex. RD4817), jamais deux fois le
+    -- même (vérifié sur tous les appels enregistrés dans MySQL)
     CallNumberPrefix = 'RD',
-    CallNumberStart = 1234,
-
-    -- Grades des agents (choisis dans le MDC, sous le nom RP ; visibles du dispatch)
-    Grades = {
-        kcso = { 'Deputy', 'Senior Deputy', 'Corporal', 'Sergeant', 'Lieutenant', 'Captain', 'Major', 'Chief Deputy', 'Sheriff' },
-        wsp = { 'Trooper', 'Senior Trooper', 'Corporal', 'Sergeant', 'Lieutenant', 'Captain', 'Major', 'Chief' },
-    },
 
     -- MDC WEB DU DISPATCH (dossier mdc-web, site Node.js) : adresse et clé dans server.cfg (jamais dans ce fichier) :
     --   set mdc_web_url "http://127.0.0.1:3000"   (adresse du site vue depuis le serveur FiveM)
@@ -1330,7 +1324,8 @@ end)
 --              prénom et SSN facultatifs pour affiner.
 --   Véhicule : immatriculation ou VIN.
 -- =========================================================================
-RegisterMDCCallback('search', function(src, payload)
+--- Recherche d'identités / de véhicules (MDC en jeu et MDC Web du dispatch : mêmes règles, mêmes fiches)
+function MDCServer.search(payload)
     local results = {}
 
     if payload.type == 'identity' then
@@ -1364,9 +1359,13 @@ RegisterMDCCallback('search', function(src, payload)
     else
         return { ok = false, error = 'Type de recherche invalide.' }
     end
-
-    shareUnitSearch(src, results) -- historique et résultat partagés avec l'unité du joueur
     return { ok = true, results = results }
+end
+
+RegisterMDCCallback('search', function(src, payload)
+    local res = MDCServer.search(payload)
+    if res.ok then shareUnitSearch(src, res.results) end -- historique et résultat partagés avec l'unité du joueur
+    return res
 end)
 
 -- =========================================================================
@@ -1448,8 +1447,7 @@ local function unitView(unit)
     local members = {}
     for key in pairs(unit.members) do
         local member = tonumber(key)
-        local agent = MDCDB.agent(getIdentifier(member))
-        members[#members + 1] = { id = member, name = agentName(member), grade = agent and agent.grade ~= '' and agent.grade or nil }
+        members[#members + 1] = { id = member, name = agentName(member) }
     end
     table.sort(members, function(a, b) return a.name < b.name end)
     return {
@@ -2010,24 +2008,9 @@ RegisterMDCCallback('getAgencies', function(src)
         Player(src).state:set('mdcAgency', false, true)
         Player(src).state:set('mdcPolice', false, true)
     end
-    local agent = MDCDB.agent(getIdentifier(src))
     return { ok = true, agencies = list, current = agencyOf(src),
         perms = { supervisor = aceAllowed(src, Config.SupervisorAce), deleteCalls = aceAllowed(src, Config.DeleteCallAce) },
-        grades = Config.Grades, grade = agent and agent.grade or '', dispatch = MDCServer.dispatchState() }
-end)
-
--- Grade de l'agent (liste Config.Grades de sa police), visible du dispatch et des autres unités
-RegisterMDCCallback('setGrade', function(src, payload)
-    local agency = agencyOf(src)
-    local grade = clean(payload.grade, 40)
-    if grade ~= '' then
-        local found = false
-        for _, g in ipairs((Config.Grades or {})[agency] or {}) do if g == grade then found = true end end
-        if not found then return { ok = false, error = 'Grade inconnu pour ce MDC.' } end
-    end
-    MDCDB.saveAgent(getIdentifier(src), { rpName = rpNameOf(src), grade = grade, agency = agency or '' }, src)
-    if PlayerUnit[src] then pushUnits() end
-    return { ok = true, grade = grade }
+        dispatch = MDCServer.dispatchState() }
 end)
 
 RegisterMDCCallback('setAgency', function(src, payload)
@@ -2078,6 +2061,11 @@ local CallRules = {
 function CallRules.kcso(agency)
     return Config.PriorityAgency ~= nil and agencySet(agency)[Config.PriorityAgency] == true
 end
+
+--- Clôture avec Clear A / B / C : unité de Config.ClearAgency (WSP) sur un appel qui n'est pas du KCSO
+function CallRules.needsClear(call, unit)
+    return Config.ClearAgency ~= nil and (unit == nil or unit.agency == Config.ClearAgency) and not CallRules.kcso(call.agency)
+end
 local NextInterventionId = 1
 
 -- Les notes sont toujours écrites en MAJUSCULES (accents compris)
@@ -2103,12 +2091,19 @@ local function genCaseNumber()
     return ('%02d-%04d'):format(math.random(0, 99), math.random(0, 9999))
 end
 
---- N° de référence : RD1234, RD1235… (compteur enregistré dans MySQL, jamais réutilisé)
+--- N° de référence aléatoire : RD + 4 chiffres (5 si les 9 000 numéros à 4 chiffres sont déjà pris), unique
 local function newInterventionNumber()
-    local seq = tonumber(MDCDB.getSetting('call_number')) or (Config.CallNumberStart - 1)
-    seq = seq + 1
-    MDCDB.setSetting('call_number', seq)
-    return ('%s%d'):format(Config.CallNumberPrefix, seq)
+    for digits = 4, 6 do
+        local low, high = 10 ^ (digits - 1), 10 ^ digits - 1
+        for _ = 1, 400 do
+            local number = ('%s%d'):format(Config.CallNumberPrefix, math.random(math.floor(low), math.floor(high)))
+            if not MDCDB.numberUsed(number) then
+                MDCDB.useNumber(number)
+                return number
+            end
+        end
+    end
+    error('plus aucun n° d\'intervention libre')
 end
 
 findIntervention = function(id)
@@ -2388,7 +2383,7 @@ RegisterNetEvent('mdc:server:offerAnswer', function(callId, accept)
     local call = findIntervention(callId)
     local offers = call and Offers[call.id]
     if not unit or not offers or not offers.pending[unit.id] then return end
-    if accept == true and not call.closed then
+    if accept == true and not call.closed and not MDCServer.dispatchState().effective then
         closeOffer(call, unit, 'accepted')
         joinCall(call, unit)
         print(('^5[MDC]^0 %s : accepté par %s (unité la plus proche)'):format(call.number, unitLabel(unit)))
@@ -2440,10 +2435,11 @@ local function addCall(src, call, kind, unit)
     return { ok = true, id = call.id, number = call.number }
 end
 
---- Diffuse un appel aux unités : propositions « unité la plus proche » (interventions) et notification
+--- Diffuse un appel aux unités : propositions « unité la plus proche » (interventions) et notification.
+--- Mode Dispatch actif : notification seulement (le dispatch choisit les unités, aucune proposition Y / N).
 function MDCServer.release(call)
     local offered
-    if call.kind == 'intervention' then
+    if call.kind == 'intervention' and not MDCServer.dispatchState().effective then
         Offers[call.id] = { offered = {}, pending = {} }
         offered = fillOffers(call)
     end
@@ -2578,6 +2574,9 @@ RegisterMDCCallback('interventionAction', function(src, payload)
     local key = tostring(unit.id)
 
     if call.dispatch == 'awaiting' then return { ok = false, error = 'Cet appel attend la validation du dispatch.' } end
+    if payload.action == 'join' and MDCServer.dispatchState().effective then
+        return { ok = false, error = 'Mode Dispatch actif : seul le dispatch affecte les unités aux interventions.' }
+    end
     if payload.action == 'join' then
         -- Appel d'une police : réservé à ses unités (appel commun : les deux polices)
         if not callServes(call, unit.agency) then
@@ -2609,8 +2608,8 @@ RegisterMDCCallback('interventionAction', function(src, payload)
         if not result.ok then return result end
     elseif payload.action == 'end' then
         if not call.units[key] then return { ok = false, error = 'Seules les unités sur l\'appel peuvent y mettre fin.' } end
-        -- WSP (Config.ClearAgency) : fermeture avec Clear A / B / C
-        if Config.ClearAgency and unit.agency == Config.ClearAgency then
+        -- WSP (Config.ClearAgency) : fermeture avec Clear A / B / C, sauf les appels du KCSO (pas de Clear au shérif)
+        if CallRules.needsClear(call, unit) then
             local clear = tostring(payload.clear or ''):upper()
             if not CallRules.clearCodes[clear] then return { ok = false, error = 'Choisissez la clôture : Clear A, B ou C.' } end
             call.clear = clear
@@ -2739,11 +2738,16 @@ RegisterMDCCallback('unlinkRecord', function(src, payload)
 end)
 
 -- Fiche complète (bouton "Fiche" d'une identité / d'un véhicule lié à un appel)
-RegisterMDCCallback('getRecord', function(_, payload)
-    local storeName = LINK_STORES[payload.kind]
-    local record = storeName and findBy(storeName, 'id', tonumber(payload.id))
+--- Fiche complète d'une identité / d'un véhicule (MDC en jeu et MDC Web du dispatch)
+function MDCServer.record(kind, id)
+    local storeName = LINK_STORES[kind]
+    local record = storeName and findBy(storeName, 'id', tonumber(id))
     if not record then return { ok = false, error = 'Fiche introuvable.' } end
-    return { ok = true, record = payload.kind == 'vehicle' and vehicleView(record) or identityView(record) }
+    return { ok = true, record = kind == 'vehicle' and vehicleView(record) or identityView(record) }
+end
+
+RegisterMDCCallback('getRecord', function(_, payload)
+    return MDCServer.record(payload.kind, payload.id)
 end)
 
 RegisterMDCCallback('editNote', function(src, payload)
@@ -3978,13 +3982,11 @@ do
         local now = os.time()
         local online = (#D.dispatchers > 0 and now - D.lastBeat <= Config.Dispatch.HeartbeatTimeout)
             or (D.enabled and now < D.graceUntil) -- démarrage : le temps que le site se reconnecte
-        local names = {}
-        for _, d in ipairs(D.dispatchers) do names[#names + 1] = d.name end
         return { enabled = D.enabled, online = online == true, effective = D.enabled and online == true,
-            count = #D.dispatchers, dispatchers = names }
+            count = #D.dispatchers }
     end
 
-    function D.actorName(actor) return actor and actor.name or 'Dispatch' end
+    function D.actorName() return 'Dispatch' end -- le dispatcher apparaît toujours sous le nom « Dispatch »
     function D.logD(actor, action, call, unit, details)
         MDCDB.log('dispatch', actor and actor.id ~= '' and ('discord:' .. actor.id) or '', D.actorName(actor), action,
             call and call.id or nil, unit and unit.id or nil, details)
@@ -4055,8 +4057,7 @@ do
         local dispatchers = {}
         for _, d in ipairs(type(list) == 'table' and list or {}) do
             if type(d) == 'table' and #dispatchers < 50 then
-                dispatchers[#dispatchers + 1] = { id = tostring(d.id or ''):gsub('[^%d]', ''):sub(1, 32),
-                    name = clean(d.name, 60) }
+                dispatchers[#dispatchers + 1] = { id = tostring(d.id or ''):gsub('[^%d]', ''):sub(1, 32) }
             end
         end
         D.dispatchers, D.lastBeat = dispatchers, os.time()
@@ -4118,7 +4119,7 @@ do
         if call.dispatch ~= 'awaiting' or call.closed then return { ok = false, error = 'Seule une intervention en attente peut être refusée.' } end
         reason = clean(reason, 200)
         call.dispatch, call.dispatchBy, call.dispatchAt, call.dispatchReason = 'refused', D.actorName(actor), os.time(), reason ~= '' and reason or nil
-        call.closed, call.closedAt, call.closedByName = true, os.time(), ('Dispatch (%s)'):format(D.actorName(actor))
+        call.closed, call.closedAt, call.closedByName = true, os.time(), 'Dispatch'
         pushInterventions()
         D.noticeCreator(call, { kind = 'refused', title = 'Appel refusé par le dispatch', number = call.number,
             text = reason ~= '' and reason or call.title })
@@ -4137,7 +4138,7 @@ do
         end
         call.dispatchBy, call.dispatchAt = D.actorName(actor), os.time()
         call.dispatchReason = ('Annulée par le dispatch%s'):format(reason ~= '' and (' : ' .. reason) or '')
-        call.closed, call.closedAt, call.closedByName = true, os.time(), ('Dispatch (%s)'):format(D.actorName(actor))
+        call.closed, call.closedAt, call.closedByName = true, os.time(), 'Dispatch'
         D.closePendingOffers(call)
         D.noticeCall(call, { kind = 'cancelled', title = 'Intervention annulée par le dispatch', number = call.number,
             text = reason ~= '' and reason or call.title })
@@ -4156,8 +4157,9 @@ do
         if call.dispatch == 'awaiting' then return { ok = false, error = 'Validez, refusez ou annulez d\'abord cette intervention.' } end
         clear = tostring(clear or ''):upper()
         if clear ~= '' and not ({ A = true, B = true, C = true })[clear] then return { ok = false, error = 'Clôture invalide (Clear A, B ou C).' } end
+        if clear ~= '' and not CallRules.needsClear(call) then return { ok = false, error = 'Pas de Clear pour une intervention du shérif (KCSO).' } end
         call.clear = clear ~= '' and clear or nil
-        call.closed, call.closedAt, call.closedByName = true, os.time(), ('Dispatch (%s)'):format(D.actorName(actor))
+        call.closed, call.closedAt, call.closedByName = true, os.time(), 'Dispatch'
         D.closePendingOffers(call)
         D.noticeCall(call, { kind = 'closed', title = 'Intervention terminée par le dispatch', number = call.number, text = call.title })
         pushInterventions()

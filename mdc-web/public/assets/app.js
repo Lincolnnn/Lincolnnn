@@ -151,8 +151,8 @@
         $('#indFivem').classList.toggle('on', !!state.fivem.online);
         $('#fivemBanner').classList.toggle('hidden', !!state.fivem.online);
         $('#indPlayers').textContent = typeof state.fivem.players === 'number' ? `${state.fivem.players} joueur(s)` : '';
-        $('#indDispatchers').textContent = `${state.presence.length} dispatcher(s)`;
-        $('#presenceList').innerHTML = `<b>DISPATCHERS EN LIGNE</b>${state.presence.map((p) => esc(p.name)).join('<br>') || '-'}`;
+        $('#indDispatchers').textContent = `${state.presence.length} poste(s) dispatch`;
+        $('#presenceList').innerHTML = `<b>DISPATCH</b>${state.presence.length} poste(s) connecté(s)`;
     }
 
     $('#modeSwitch').addEventListener('click', async () => {
@@ -176,6 +176,7 @@
         if (view === 'history') loadHistory();
         if (view === 'log') loadLog();
         if (view === 'messages') renderChatList();
+        if (view === 'search') $(state.searchType === 'vehicle' ? '#sQuery' : '#sLast').focus();
         renderAll();
     }
     $$('.nav').forEach((b) => b.addEventListener('click', () => showView(b.dataset.view)));
@@ -228,7 +229,7 @@
         $('#dashUnits').innerHTML = connected.length ? connected.map((u) => `
             <div class="ucard">
                 <div class="u-top">${unitLabel(u)} ${agencyChips([u.agency])}</div>
-                <div class="u-members">${u.members.map((m) => `${esc(m.name)}${m.grade ? ` (${esc(m.grade)})` : ''}`).join(', ')}</div>
+                <div class="u-members">${u.members.map((m) => esc(m.name)).join(', ')}</div>
                 ${statusSelect(u)}
                 ${u.calls.length ? `<div class="u-call">${u.calls.map((c) => `${esc(c.number)} ${esc(c.title)}`).join(' · ')}</div>` : ''}
             </div>`).join('') : '<div class="empty">Aucune unité connectée.</div>';
@@ -268,7 +269,7 @@
             <tr>
                 <td><b>${unitLabel(u)}</b>${u.connected ? '' : ' <span class="muted">(hors ligne)</span>'}</td>
                 <td>${agencyChips([u.agency])}</td>
-                <td>${u.members.map((m) => `${esc(m.name)}${m.grade ? ` <span class="muted">(${esc(m.grade)})</span>` : ''}`).join('<br>') || '<span class="muted">-</span>'}</td>
+                <td>${u.members.map((m) => esc(m.name)).join('<br>') || '<span class="muted">-</span>'}</td>
                 <td>${statusSelect(u)}</td>
                 <td>${u.calls.map((c) => `<a href="#" data-open="${c.id}" class="num">${esc(c.number)}</a>`).join(' ') || '<span class="muted">-</span>'}</td>
                 <td><span data-age="${u.statusAt}">${age(u.statusAt)}</span></td>
@@ -323,9 +324,10 @@
                     <button type="button" class="btn ghost" data-act="cancel">Annuler…</button>
                 </div>`;
         } else if (open) {
+            const sheriff = (c.agency || []).includes('kcso'); // pas de Clear pour les interventions du shérif (KCSO)
             actions = `
                 <div class="d-actions">
-                    <select id="clearSelect"><option value="">Clôturer sans code</option>${Object.entries(CLEAR).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select>
+                    ${sheriff ? '<input type="hidden" id="clearSelect" value="">' : `<select id="clearSelect"><option value="">Clôturer sans code</option>${Object.entries(CLEAR).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select>`}
                     <button type="button" class="btn" data-act="close">Clôturer</button>
                     <button type="button" class="btn danger" data-act="cancel">Annuler l'intervention…</button>
                 </div>`;
@@ -353,7 +355,7 @@
             </div>
             ${c.links.length ? `<div class="d-section"><h4>Personnes et véhicules liés</h4>${c.links.map((l) => `<div>${l.kind === 'vehicle' ? 'Véhicule' : 'Identité'} : <b>${esc(l.label)}</b> <span class="muted">(${esc(l.addedBy)})</span></div>`).join('')}</div>` : ''}
             <div class="d-section"><h4>Déroulé et notes (${c.notes.length})</h4>
-                <div class="timeline">${c.notes.map((n) => `<div class="note ${n.dispatch ? 'dispatch' : ''}"><div class="note-head"><span>${esc(n.dispatch ? `DISPATCH — ${n.authorName}` : `${n.unitName} — ${n.authorName}`)}</span><span>${fmtDate(n.createdAt)}</span></div><div class="note-text">${esc(n.text)}</div></div>`).join('') || '<span class="muted">Aucune note.</span>'}</div>
+                <div class="timeline">${c.notes.map((n) => `<div class="note ${n.dispatch ? 'dispatch' : ''}"><div class="note-head"><span>${esc(n.dispatch ? 'DISPATCH' : `${n.unitName} — ${n.authorName}`)}</span><span>${fmtDate(n.createdAt)}</span></div><div class="note-text">${esc(n.text)}</div></div>`).join('') || '<span class="muted">Aucune note.</span>'}</div>
                 ${open ? `<div class="inline-form"><input id="noteInput" maxlength="500" placeholder="Note du dispatch (affichée en jeu dans l'intervention)"><button type="button" class="btn" data-act="note">Ajouter</button></div>` : ''}
             </div>
             ${c.status !== 'awaiting' ? `<div class="d-section thread-small"><h4>Messages avec les unités de ${esc(c.number)}</h4>
@@ -462,7 +464,7 @@
     // ---------------- messagerie ----------------
     const bubble = (m) => {
         const mine = m.senderType === 'dispatch';
-        const who = mine ? `DISPATCH — ${m.author}` : m.senderType === 'civil' ? `${m.author} (civil)` : m.author;
+        const who = mine ? 'DISPATCH' : m.senderType === 'civil' ? `${m.author} (civil)` : m.author;
         return `<div class="bubble ${mine ? 'mine' : ''}"><div class="b-meta"><b>${esc(who)}</b><span>${fmtTime(m.at)}</span></div><div class="b-text">${esc(m.text)}</div></div>`;
     };
 
@@ -522,6 +524,113 @@
     $('#chatInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chatForm').requestSubmit(); }
     });
+
+    // ---------------- recherches (mêmes règles et fiches que le MDC en jeu) ----------------
+    const CONDITION = { none: 'Aucune', wanted: 'Recherché', missing: 'Personne disparue', deceased: 'Personne décédée' };
+    const LICENSE_STATUS = { valid: 'Valide', suspended: 'Suspension', revoked: 'Révocation', cancelled: 'Annulation', disqualified: 'Disqualification' };
+    const REG_STATUS = { valid: 'Valide', invalid: 'Invalide', suspended: 'Suspendue' };
+    const INSURANCE = { valid: 'Valide', invalid: 'Invalide', cancelled: 'Résiliée', none: 'Non assuré' };
+    const RESTRICTION = { weapon: 'Port d\'arme', daylight: 'Conduite de jour uniquement', nointerstate: 'Interdiction de rouler sur Interstate' };
+    const REGISTRY = { sex: 'Sex Offender', kidnap: 'Kidnapping Offender' };
+    const NATIONALITY = { US: 'Américaine', CA: 'Canadienne', USCA: 'Américaine et canadienne' };
+    const CLASS = { M: 'Misdemeanor', GM: 'Gross misdemeanor', FC: 'Felony C', FB: 'Felony B', FA: 'Felony A' };
+    const arr = (v) => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []);
+    state.searchType = 'identity';
+    state.searchResults = [];
+
+    $$('#searchTabs .tab').forEach((t) => t.addEventListener('click', () => {
+        state.searchType = t.dataset.stype;
+        $$('#searchTabs .tab').forEach((x) => x.classList.toggle('active', x === t));
+        $('#searchIdentity').classList.toggle('hidden', state.searchType !== 'identity');
+        $('#searchVehicle').classList.toggle('hidden', state.searchType !== 'vehicle');
+    }));
+    $('#sDob').addEventListener('input', (e) => { // JJ/MM/AAAA tapé au clavier
+        const d = e.target.value.replace(/\D/g, '').slice(0, 8);
+        e.target.value = [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/');
+    });
+    async function runSearch(params) {
+        $('#searchResults').innerHTML = '<div class="empty">Recherche…</div>';
+        const res = await api(`/search?${new URLSearchParams(params)}`);
+        state.searchResults = res ? res.results : [];
+        $('#searchCount').textContent = res ? `${state.searchResults.length} résultat(s)` : '';
+        $('#searchResults').innerHTML = state.searchResults.map((r, i) => `
+            <button type="button" class="result" data-result="${i}">
+                ${r.kind === 'vehicle'
+                    ? `<b>${esc(r.plate)}</b> — ${esc([r.make, r.model].filter(Boolean).join(' '))}${r.stolen ? ' <span class="chip refused">Volé</span>' : ''}<small>VIN ${esc(r.vin || '-')} · ${esc(REG_STATUS[r.regStatus] || r.regStatus || '')}</small>`
+                    : `<b>${esc(String(r.lastname || '').toUpperCase())}</b> ${esc([r.firstname, r.middlename].filter(Boolean).join(' '))}${r.condition === 'wanted' ? ' <span class="chip refused">Recherché</span>' : ''}<small>${esc(r.dob || '')} · ${esc(r.address || '')}</small>`}
+            </button>`).join('') || `<div class="empty">${res ? 'Aucun résultat.' : 'Recherche impossible.'}</div>`;
+        if (state.searchResults.length === 1) showRecord(state.searchResults[0]);
+    }
+    $('#searchIdentity').addEventListener('submit', (e) => {
+        e.preventDefault();
+        runSearch({ type: 'identity', lastname: $('#sLast').value.trim(), firstname: $('#sFirst').value.trim(), dob: $('#sDob').value.trim(), ssn: $('#sSsn').value.trim() });
+    });
+    $('#searchVehicle').addEventListener('submit', (e) => { e.preventDefault(); runSearch({ type: 'vehicle', query: $('#sQuery').value.trim() }); });
+    $('#searchResults').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-result]');
+        if (!b) return;
+        $$('.result').forEach((x) => x.classList.toggle('active', x === b));
+        showRecord(state.searchResults[Number(b.dataset.result)]);
+    });
+    $('#recordSheet').addEventListener('click', async (e) => {
+        const b = e.target.closest('[data-record]');
+        if (!b) return;
+        const res = await api(`/records/${b.dataset.record}/${b.dataset.id}`);
+        if (res) showRecord(res.record);
+    });
+
+    const dl = (rows) => `<dl class="info-grid">${rows.filter(([, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join('')}</dl>`;
+    const block = (title, html) => `<div class="sheet-block"><h4>${esc(title)}</h4>${html}</div>`;
+    const bolosHtml = (r) => arr(r.bolos).map((b) => `<div class="alert">BOLO ${esc(b.number)} — ${esc(b.reason)}${b.possible ? ' (correspondance possible)' : ''}</div>`).join('');
+
+    function showRecord(r) {
+        if (!r) return;
+        $('#recordSheet').innerHTML = r.kind === 'vehicle' ? vehicleSheet(r) : identitySheet(r);
+    }
+
+    function identitySheet(r) {
+        const name = `${String(r.lastname || '').toUpperCase()} ${[r.firstname, r.middlename].filter(Boolean).join(' ')}`;
+        const alerts = [
+            r.condition === 'wanted' && `<div class="alert">PERSONNE RECHERCHÉE${r.wantedSince ? ` depuis le ${esc(r.wantedSince)}` : ''}${r.wantedReason ? ` — ${esc(r.wantedReason)}` : ''}</div>`,
+            r.condition === 'missing' && '<div class="alert yellow">PERSONNE DISPARUE</div>',
+            r.condition === 'deceased' && '<div class="alert yellow">PERSONNE DÉCÉDÉE</div>',
+            ...arr(r.registrations).map((g) => `<div class="alert purple">${esc(REGISTRY[g.type] || g.type)} — niveau ${esc(g.level)} — inscription ${g.endDate === 'life' ? 'à vie' : `jusqu'au ${esc(g.endDate)}`}${g.status === 'absconded' ? ' — EN FUITE' : ''}</div>`),
+        ].filter(Boolean).join('');
+        const hasLicense = r.licenseClass && r.licenseClass !== 'N/A';
+        const vehicles = arr(r.vehicles);
+        const convictions = arr(r.convictions);
+        const records = arr(r.records);
+        const reports = arr(r.reports);
+        return `
+            <h3>Fiche d'identité — ${esc(name)}</h3>${alerts}${bolosHtml(r)}
+            ${dl([['Nom', esc(name)], ['Date de naissance', esc(r.dob)], ['Sexe', esc({ M: 'Homme', F: 'Femme' }[r.sex] || '')],
+                ['Nationalité', esc(NATIONALITY[r.nationality || 'US'] || r.nationality)], ['SSN', esc(r.ssn)], ['Adresse', esc(r.address)],
+                ['Téléphone', esc(r.phone)], ['Emploi', esc(r.job)], ['Condition', esc(CONDITION[r.condition] || r.condition || 'Aucune')],
+                ['Interdictions', esc(arr(r.restrictions).map((x) => RESTRICTION[x] || x).join(', ') || 'Aucune')]])}
+            ${block('Permis de conduire', hasLicense ? dl([['Type', esc(r.licenseClass)], ['Condition', esc(LICENSE_STATUS[r.licenseStatus] || 'Valide')],
+                ['N° de permis', esc(r.licenseNumber)], ['Délivré par', esc(r.licenseState)], ['Mentions', esc(arr(r.licenseEndorsements).join(', ') || 'Aucune')]])
+                : '<span class="muted">Aucun permis de conduire.</span>')}
+            ${block(`Véhicules (${vehicles.length})`, vehicles.map((v) => `<div class="entry"><button type="button" class="linkish" data-record="vehicle" data-id="${esc(v.id)}">${esc(v.plate)}</button> — ${esc([v.make, v.model].filter(Boolean).join(' '))}${v.color ? ` (${esc(v.color)})` : ''} · ${esc(REG_STATUS[v.regStatus] || '')}${v.stolen ? ' · <b>VOLÉ</b>' : ''}</div>`).join('') || '<span class="muted">Aucun véhicule.</span>')}
+            ${block(`Casier judiciaire (${convictions.length + records.length})`, [
+                ...convictions.map((c) => `<div class="entry"><b>${esc(CLASS[c.class] || c.class || '')}</b> — ${esc(c.label || c.offense)} <span class="muted">${esc(c.rcw || '')}</span><br><span class="muted">faits le ${esc(c.offenseDate || '-')}, jugement le ${esc(c.convictionDate || '-')}${c.sentence ? ` — ${esc(c.sentence)}` : ''}</span></div>`),
+                ...records.map((x) => `<div class="entry">${esc(x.offense || '')} <span class="muted">(ancien antécédent ${esc(x.date || '')})</span></div>`),
+            ].join('') || '<span class="muted">Casier vierge.</span>')}
+            ${block(`Rapports (${reports.length})`, reports.map((x) => `<div class="entry"><b>${esc(x.label)}</b> n°${esc(x.number)}${x.callNumber ? ` — ${esc(x.callNumber)}` : ''}<br><span class="muted">${esc(x.role || '')} — ${fmtDate(x.createdAt)} par ${esc(x.createdByName || '-')}</span>${x.summary ? `<br>${esc(x.summary)}` : ''}</div>`).join('') || '<span class="muted">Aucun rapport.</span>')}`;
+    }
+
+    function vehicleSheet(r) {
+        const owner = r.ownerIdentity;
+        const history = arr(r.history);
+        return `
+            <h3>Fiche véhicule — ${esc(r.plate)}</h3>
+            ${r.stolen ? '<div class="alert">VÉHICULE VOLÉ</div>' : ''}${r.abandoned ? '<div class="alert yellow">VÉHICULE ABANDONNÉ</div>' : ''}${bolosHtml(r)}
+            ${dl([['Immatriculation', esc(r.plate)], ['Statut', esc(REG_STATUS[r.regStatus] || r.regStatus || '')], ['Marque', esc(r.make)], ['Modèle', esc(r.model)],
+                ['Année', esc(r.year)], ['Couleur', esc(r.color)], ['VIN', esc(r.vin)], ['Contrôle technique', esc(r.inspectionDate)],
+                ['Usage', r.commercial ? 'Véhicule commercial' : 'Particulier'], ['Assurance', esc(INSURANCE[r.insuranceStatus] || r.insuranceStatus || '')],
+                ['Police d\'assurance', esc(r.insurancePolicy)], ['Compagnie', esc(r.insuranceCompany)],
+                ['Propriétaire', owner ? `<button type="button" class="linkish" data-record="identity" data-id="${esc(owner.id)}">${esc(String(owner.lastname || '').toUpperCase())} ${esc(owner.firstname || '')}</button> (${esc(owner.dob || '')})` : esc(r.ownerName || 'Non renseigné')]])}
+            ${block(`Historique (${history.length})`, history.map((h) => `<div class="entry">${esc({ administrative: 'Infraction administrative', parking: 'Infraction de stationnement' }[h.type] || h.type || '')} — ${esc(h.date || '')}${h.offense ? ` — ${esc(h.offense)}` : ''}</div>`).join('') || '<span class="muted">Aucune infraction connue.</span>')}`;
+    }
 
     // ---------------- historique ----------------
     const dateToS = (v, end) => (v ? Math.floor(new Date(`${v}T${end ? '23:59:59' : '00:00:00'}`).getTime() / 1000) : 0);
@@ -652,8 +761,7 @@
         if (!me) return;
         state.me = me.user;
         state.csrf = me.csrf;
-        $('#userName').textContent = me.user.name;
-        if (me.user.avatar) { $('#userAvatar').src = me.user.avatar; $('#userAvatar').classList.remove('hidden'); }
+        $('#userName').textContent = 'Dispatch';
         await refreshState();
         connect();
     })();

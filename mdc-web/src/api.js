@@ -21,7 +21,10 @@ const id = (v) => {
     return Number.isInteger(n) && n > 0 && n < 1e9 ? n : null;
 };
 const text = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
-const actor = (req) => ({ id: req.session.user.id, name: req.session.user.name });
+// Le dispatcher apparaît toujours sous le nom « Dispatch » (jeu, messages, notes, journal) ; son identifiant Discord
+// reste dans le journal (mdc_action_log.actor_id) pour les administrateurs.
+const DISPATCH_NAME = 'Dispatch';
+const actor = (req) => ({ id: req.session.user.id, name: DISPATCH_NAME });
 
 const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
     log.error(`${req.method} ${req.originalUrl} :`, e.message);
@@ -40,8 +43,7 @@ async function game(res, action, body, req) {
 
 // ---------------------------------------------------------------- lecture
 router.get('/me', read, (req, res) => {
-    const u = req.session.user;
-    res.json({ ok: true, user: { id: u.id, name: u.name, avatar: u.avatar }, csrf: req.session.csrf });
+    res.json({ ok: true, user: { name: DISPATCH_NAME }, csrf: req.session.csrf });
 });
 
 router.get('/state', read, wrap(async (req, res) => {
@@ -73,6 +75,30 @@ router.get('/log', read, wrap(async (req, res) => {
     const source = ['all', 'dispatch', 'game', 'web'].includes(req.query.source) ? req.query.source : 'all';
     const page = Math.min(10000, Math.max(1, Number(req.query.page) || 1));
     res.json({ ok: true, ...(await queries.actionLog({ source, page })) });
+}));
+
+// ---------------------------------------------------------------- recherches (mêmes règles et fiches que le MDC en jeu)
+const DOB = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+router.get('/search', read, wrap(async (req, res) => {
+    const type = req.query.type === 'vehicle' ? 'vehicle' : 'identity';
+    const body = type === 'vehicle'
+        ? { type, query: text(req.query.query, 20) }
+        : { type, lastname: text(req.query.lastname, 40), firstname: text(req.query.firstname, 40), dob: text(req.query.dob, 10), ssn: text(req.query.ssn, 11) };
+    if (type === 'identity' && (!body.lastname || !DOB.test(body.dob))) {
+        return res.status(400).json({ ok: false, error: 'Le nom de famille et la date de naissance (JJ/MM/AAAA) sont obligatoires.' });
+    }
+    const result = await fivem.call('search', body);
+    if (!result || result.ok !== true) return res.status(result && /injoignable/.test(result.error || '') ? 503 : 400).json({ ok: false, error: (result && result.error) || 'Recherche impossible.' });
+    res.json({ ok: true, results: Array.isArray(result.results) ? result.results : [] });
+}));
+
+router.get('/records/:kind/:id', read, wrap(async (req, res) => {
+    const kind = req.params.kind === 'vehicle' ? 'vehicle' : 'identity';
+    const rid = id(req.params.id);
+    if (!rid) return res.status(400).json({ ok: false, error: 'Fiche invalide.' });
+    const result = await fivem.call('record', { kind, id: rid });
+    if (!result || result.ok !== true) return res.status(404).json({ ok: false, error: (result && result.error) || 'Fiche introuvable.' });
+    res.json({ ok: true, record: result.record });
 }));
 
 router.get('/conversations', read, wrap(async (req, res) => {
