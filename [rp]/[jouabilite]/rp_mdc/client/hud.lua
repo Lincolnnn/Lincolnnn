@@ -335,6 +335,13 @@ RegisterNetEvent('mdc:client:callNotify', function(call)
     SendNUIMessage({ action = 'callNotify', data = call })
 end)
 
+-- Demande de renforts depuis un appel (Code 1 / 2 / 3 Backup, 10-33) : notification + son de nouvelle intervention
+-- (toujours affichée : une demande de renfort ne se coupe pas dans les réglages)
+RegisterNetEvent('mdc:client:backupNotify', function(call)
+    if type(call) ~= 'table' then return end
+    SendNUIMessage({ action = 'backupNotify', data = call })
+end)
+
 -- Nouveau BOLO (communs aux polices) : notification + son, même MDC fermé (réglage "Notifier les nouvelles interventions")
 RegisterNetEvent('mdc:client:boloNotify', function(bolo)
     if type(bolo) ~= 'table' or not setting('notify', 'calls') then return end

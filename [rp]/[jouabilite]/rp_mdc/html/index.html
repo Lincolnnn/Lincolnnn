@@ -687,19 +687,12 @@
                                         <button type="button" class="btn btn-icon regen" data-regen="phone" title="Générer un nouveau numéro">&#8635;</button>
                                     </span>
                                 </label>
-                                <label class="lbl">Priorité de l'urgence *
-                                    <select name="priority">
-                                        <option value="">— Choisir —</option>
-                                        <option value="nonurgent">Non-Urgent</option>
-                                        <option value="p1">Priorité 1</option>
-                                        <option value="p2">Priorité 2</option>
-                                        <option value="p3">Priorité 3</option>
-                                    </select>
-                                </label>
-                                <!-- Polices missionnées : une seule = appel de cette police ; les deux = appel commun -->
+                                <!-- Polices missionnées d'abord (une seule = appel de cette police ; les deux = appel commun),
+                                     puis la priorité de réponse propre à la police (script.js : priorityFieldsHtml) -->
                                 <div class="lbl span-3">Polices * <small class="muted">(une seule : réservé à cette police ; les deux : appel commun)</small>
                                     <span class="dept-checks" data-agency-checks></span>
                                 </div>
+                                <div class="span-3 priority-fields" data-priority-fields></div>
                                 <label class="lbl">Nombre idéal d'unités *
                                     <select name="idealUnits">
                                         <option value="1">1 unité</option>

@@ -792,6 +792,13 @@ input[type="range"] { accent-color: var(--accent); }
 .grid tr.prio-p1        { --prio: 255, 99, 99; }
 .grid tr.prio-p2        { --prio: 255, 140, 60; }
 .grid tr.prio-p3        { --prio: 252, 210, 70; }
+/* Priorités du KCSO : X (critique) … 0 (911 coupé) */
+.grid tr.prio-px        { --prio: 200, 20, 40; }
+.grid tr.prio-k1        { --prio: 255, 99, 99; }
+.grid tr.prio-k2        { --prio: 255, 140, 60; }
+.grid tr.prio-k3        { --prio: 252, 210, 70; }
+.grid tr.prio-k4        { --prio: 90, 160, 230; }
+.grid tr.prio-k0        { --prio: 150, 150, 150; }
 .grid.selectable tbody tr.prio td { background: rgba(var(--prio), .08); }
 .grid.selectable tbody tr.prio td:first-child { box-shadow: inset 3px 0 0 rgb(var(--prio)); }
 .grid.selectable tbody tr.prio:hover td { background: rgba(var(--prio), .14); }
@@ -1185,6 +1192,14 @@ body.hud-placing .hud { pointer-events: auto; cursor: move; outline: 1px dashed 
 .call-toast.prio-p3        { --prio: 252, 210, 70; }
 .call-toast.prio-incident  { --prio: var(--accent-rgb); }
 .call-toast.prio-backup    { --prio: 230, 110, 20; }
+.call-toast.prio-px        { --prio: 200, 20, 40; }
+.call-toast.prio-k1        { --prio: 255, 99, 99; }
+.call-toast.prio-k2        { --prio: 255, 140, 60; }
+.call-toast.prio-k3        { --prio: 252, 210, 70; }
+.call-toast.prio-k4        { --prio: 90, 160, 230; }
+.call-toast.prio-k0        { --prio: 150, 150, 150; }
+.call-toast.prio-1033      { --prio: 255, 40, 40; animation: call-in .25s ease-out, toast-alarm 1s ease-in-out 6; }
+@keyframes toast-alarm { 50% { background: rgba(120, 10, 16, .95); } }
 .ct-head { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; font-weight: 700; letter-spacing: .7px; color: rgb(var(--prio)); }
 .ct-number { color: rgba(255, 255, 255, .7); white-space: nowrap; }
 .ct-title { margin: 3px 0 5px; font: 600 15px var(--font-display); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1533,3 +1548,25 @@ tr.row-ended td { opacity: .55; }
 .be-item code { flex: 1; word-break: break-all; }
 .be-item button { height: 22px; padding: 0 6px; }
 .block-editor textarea { width: 100%; box-sizing: border-box; resize: vertical; color: #e9eef6; background: rgba(255,255,255,.05); border: 1px solid rgba(140,170,220,.2); border-radius: 3px; font: 11px Consolas, monospace; }
+
+/* =========================================================================
+   Priorités de réponse (KCSO), code de réponse, clôture (WSP), renforts depuis un appel
+   ========================================================================= */
+.priority-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.priority-fields:empty { display: none; }
+.priority-fields .lbl { margin: 0; }
+.priority-legend { grid-column: 1 / -1; color: #c62828; font-size: 11.5px; line-height: 1.45; }
+.priority-legend b { color: #a4161a; }
+[data-theme="night"] .priority-legend, [data-theme="night"] .priority-legend b { color: rgb(var(--n-danger-rgb)); }
+.flag.c-darkred { background: #a4161a; color: #fff; }
+.flag.c-sky { background: #dceefc; color: #0b4f8a; }
+.call-backup-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; padding: 8px 10px;
+    border: 1px solid rgba(230, 110, 20, .35); background: rgba(230, 110, 20, .06); border-radius: var(--radius-sm); }
+.call-backup-bar .bb-title { font-weight: 700; font-size: 11px; letter-spacing: .5px; margin-right: 4px; }
+.btn.btn-1033 { background: #c62828; border-color: #c62828; color: #fff; font-weight: 700; }
+.btn.btn-1033:hover { background: #a4161a; }
+.call-actions-bottom { margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(0, 0, 0, .1); }
+.clear-choice { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 8px 10px; border: 1px solid rgba(0, 0, 0, .12); border-radius: var(--radius-sm); }
+.clear-choice .btn { text-align: left; }
+.note.note-backup { border-left: 3px solid rgb(230, 110, 20); }
+.note.note-backup-1033 { border-left-color: rgb(255, 40, 40); }

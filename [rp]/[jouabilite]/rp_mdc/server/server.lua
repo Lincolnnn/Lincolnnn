@@ -91,6 +91,18 @@ local Config = {
     OfferTimeout = 30000,   -- ms pour répondre ; refus / sans réponse : l'unité suivante est proposée
     SupervisorTag = 'SUP.', -- tag des superviseurs (jamais proposés comme unité la plus proche)
 
+    -- Priorités et fermeture propres à chaque police :
+    --   PriorityAgency : appels de cette police (seule ou en appel commun) : Priorité X, 1, 2, 3, 4, 0 + « Code de
+    --                    réponse » (Code 1 / 2 / 3) ; les autres appels gardent Non-Urgent, Priorité 1 à 3 ;
+    --   ClearAgency    : ses unités ferment un appel avec Clear A (Notice of Infraction), B (arrestation / retenue /
+    --                    criminal citation et libération) ou C (Warning).
+    PriorityAgency = 'kcso',
+    ClearAgency = 'wsp',
+    -- Renforts depuis un appel (unité rattachée) : boutons par police ; '1033' (Officer Needs Help) part aux deux
+    -- polices, les autres à la police de l'unité seulement. BackupCooldown : délai (s) entre deux demandes d'une unité.
+    BackupCodes = { kcso = { 'code1', 'code2', 'code3', '1033' }, wsp = { '1033' } },
+    BackupCooldown = 10,
+
     -- PERMISSIONS (rôles Discord -> ACE par rp_permissions, voir permissions.cfg ; false = tout le monde) :
     --   AgencyAce : MDC réservés (WSP : membres recrutés et admins ; les joueurs non-officiels ont le KCSO et le civil)
     --   SupervisorAce : mettre le tag « SUP. » (superviseur) à une unité
@@ -1821,7 +1833,23 @@ end)
 -- Déroulé : "En attente" (aucune unité), "En cours" (au moins une unité),
 -- "Terminée" (bouton "Intervention terminée", grisée dans la liste).
 -- =========================================================================
+-- Priorités : appels de Config.PriorityAgency (KCSO) : X, 1 à 4, 0 + code de réponse ; autres appels : non urgent, 1 à 3
 local PRIORITIES = { nonurgent = true, p1 = true, p2 = true, p3 = true }
+-- (une seule table : le fichier est à la limite des 200 variables locales de Lua)
+local CallRules = {
+    kcsoPriorities = { px = true, k1 = true, k2 = true, k3 = true, k4 = true, k0 = true },
+    responseCodes = { [1] = true, [2] = true, [3] = true },
+    clearCodes = { A = true, B = true, C = true },
+    backupLabels = {
+        code1 = 'CODE 1 BACKUP', code2 = 'CODE 2 BACKUP', code3 = 'CODE 3 BACKUP', ['1033'] = '10-33 OFFICER NEEDS HELP',
+    },
+    lastBackup = {}, -- [id de l'unité] = os.time() de sa dernière demande de renfort
+}
+
+--- L'appel suit les priorités du KCSO (Config.PriorityAgency parmi ses polices) ?
+function CallRules.kcso(agency)
+    return Config.PriorityAgency ~= nil and agencySet(agency)[Config.PriorityAgency] == true
+end
 local NextInterventionId = 1
 
 -- Les notes sont toujours écrites en MAJUSCULES (accents compris)
@@ -1949,12 +1977,20 @@ local function buildCall(p, kind)
         if r.phone == '' then r.phone = genPhone() end
         if not r.phone:match('^[%d%s%-%+%(%)%.]+$') then return nil, 'Numéro de téléphone invalide.' end
 
-        if not PRIORITIES[p.priority] then return nil, 'Choisissez la priorité de l\'urgence.' end
-        r.priority = p.priority
-
+        -- Police d'abord : elle décide des priorités proposées
         local agencies = normalizeAgencies(p.agencies or p.agency)
         if not agencies then return nil, 'Cochez au moins une police (WSP, KCSO).' end
         r.agency = agencies
+
+        if CallRules.kcso(agencies) then
+            if not CallRules.kcsoPriorities[p.priority] then return nil, 'Choisissez la priorité de réponse.' end
+            local code = math.tointeger(tonumber(p.responseCode) or 0)
+            if not code or not CallRules.responseCodes[code] then return nil, 'Choisissez le code de réponse (Code 1, 2 ou 3).' end
+            r.priority, r.responseCode = p.priority, code
+        else
+            if not PRIORITIES[p.priority] then return nil, 'Choisissez la priorité de l\'urgence.' end
+            r.priority, r.responseCode = p.priority, nil
+        end
         local ideal = math.tointeger(tonumber(p.idealUnits) or 0)
         if not ideal or ideal < 1 or ideal > Config.MaxIdealUnits then
             return nil, ('Choisissez le nombre idéal d\'unités (1 à %d).'):format(Config.MaxIdealUnits)
@@ -1971,7 +2007,7 @@ end
 local function callSummary(call)
     return {
         id = call.id, number = call.number, kind = call.kind, title = call.title, priority = call.priority,
-        address = call.address, crossStreet = call.crossStreet, block = call.block, unitName = call.unitName,
+        responseCode = call.responseCode, address = call.address, crossStreet = call.crossStreet, block = call.block, unitName = call.unitName,
         agency = call.agency, idealUnits = call.idealUnits, backup = call.backup, sector = call.sector, requestedBy = call.requestedBy,
     }
 end
@@ -2204,6 +2240,52 @@ RegisterMDCCallback('getInterventions', function(src)
     return { ok = true, interventions = interventionsList(src) }
 end)
 
+-- Demande de renforts depuis un appel (unité rattachée) : Code 1 / 2 / 3 Backup (KCSO) ou 10-33 (les deux polices).
+-- 10-33 : envoyé aux DEUX polices (l'appel devient commun pour qu'elles puissent le rejoindre) ; sinon à la police de
+-- l'unité seulement. Notification + son de nouvelle intervention chez les unités qui ne sont pas sur l'appel.
+function CallRules.backup(call, unit, code)
+    code = tostring(code or '')
+    local allowed = false
+    for _, c in ipairs((Config.BackupCodes or {})[unit.agency] or {}) do if c == code then allowed = true end end
+    if not allowed or not CallRules.backupLabels[code] then return { ok = false, error = 'Demande de renfort invalide pour votre police.' } end
+    if not call.units[tostring(unit.id)] then return { ok = false, error = 'Rattachez-vous d\'abord à l\'appel.' } end
+    local now = os.time()
+    if CallRules.lastBackup[unit.id] and now - CallRules.lastBackup[unit.id] < (Config.BackupCooldown or 10) then
+        return { ok = false, error = 'Demande déjà envoyée : patientez quelques secondes.' }
+    end
+    CallRules.lastBackup[unit.id] = now
+
+    local targets = {}
+    if code == '1033' then
+        for _, a in ipairs(POLICE_ORDER) do targets[a] = true end
+        call.agency = normalizeAgencies(POLICE_ORDER) or call.agency
+    else
+        targets[unit.agency] = true
+    end
+
+    local data = callSummary(call)
+    data.backupCode, data.backupLabel = code, CallRules.backupLabels[code]
+    data.requestedUnit, data.requestedAgency = unit.name, AGENCIES[unit.agency].short
+    local sent = 0
+    for _, other in ipairs(Units) do
+        if targets[other.agency] and not call.units[tostring(other.id)] then
+            for member in pairs(other.members) do
+                TriggerClientEvent('mdc:client:backupNotify', tonumber(member), data)
+                sent = sent + 1
+            end
+        end
+    end
+
+    -- Trace dans le déroulé de l'appel
+    call.notes[#call.notes + 1] = {
+        id = call.nextNoteId, unitId = unit.id, unitTag = unit.tag, unitName = unit.name, unitColor = unit.color,
+        authorName = unit.name, text = ('DEMANDE DE RENFORT : %s'):format(CallRules.backupLabels[code]), createdAt = now, backup = code,
+    }
+    call.nextNoteId = call.nextNoteId + 1
+    print(('^5[MDC]^0 %s : %s demandé par %s (%d joueur(s) prévenu(s))'):format(call.number, CallRules.backupLabels[code], unitLabel(unit), sent))
+    return { ok = true, sent = sent }
+end
+
 -- Rejoindre / quitter l'appel, y mettre fin (réservé aux unités)
 RegisterMDCCallback('interventionAction', function(src, payload)
     local call = findIntervention(payload.id)
@@ -2247,8 +2329,30 @@ RegisterMDCCallback('interventionAction', function(src, payload)
             call.units[key] = nil
             callSound(call, 'deassign', unit) -- l'unité qui part l'entend aussi
         end
+    elseif payload.action == 'addAgency' then
+        -- Ajouter l'autre police à l'appel (sans demande de renfort) : l'appel devient commun, ses unités le voient
+        if not call.units[key] then return { ok = false, error = 'Seules les unités sur l\'appel peuvent y ajouter une police.' } end
+        local agency = tostring(payload.agency or '')
+        if not isPoliceAgency(agency) or callServes(call, agency) then return { ok = false, error = 'Police invalide ou déjà sur l\'appel.' } end
+        call.agency = normalizeAgencies(call.agency .. '+' .. agency) or call.agency
+        local data = callSummary(call)
+        for _, other in ipairs(Units) do
+            if other.agency == agency and not call.units[tostring(other.id)] then
+                for member in pairs(other.members) do TriggerClientEvent('mdc:client:callNotify', tonumber(member), data) end
+            end
+        end
+        print(('^5[MDC]^0 %s : %s ajouté(e) par %s'):format(call.number, AGENCIES[agency].short, unitLabel(unit)))
+    elseif payload.action == 'backup' then
+        local result = CallRules.backup(call, unit, payload.code)
+        if not result.ok then return result end
     elseif payload.action == 'end' then
         if not call.units[key] then return { ok = false, error = 'Seules les unités sur l\'appel peuvent y mettre fin.' } end
+        -- WSP (Config.ClearAgency) : fermeture avec Clear A / B / C
+        if Config.ClearAgency and unit.agency == Config.ClearAgency then
+            local clear = tostring(payload.clear or ''):upper()
+            if not CallRules.clearCodes[clear] then return { ok = false, error = 'Choisissez la clôture : Clear A, B ou C.' } end
+            call.clear = clear
+        end
         call.closed = true
         call.closedAt = os.time()
         call.closedByName = unit.name

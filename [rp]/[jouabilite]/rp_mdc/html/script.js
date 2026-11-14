@@ -1263,7 +1263,75 @@
         p1: ['c-red', 'Priorité 1'],
         p2: ['c-orange', 'Priorité 2'],
         p3: ['c-yellow', 'Priorité 3'],
+        // KCSO (Config.PriorityAgency, server.lua) : priorités de réponse
+        px: ['c-darkred', 'Priorité X'],
+        k1: ['c-red', 'Priorité 1'],
+        k2: ['c-orange', 'Priorité 2'],
+        k3: ['c-yellow', 'Priorité 3'],
+        k4: ['c-sky', 'Priorité 4'],
+        k0: ['c-gray', 'Priorité 0'],
     };
+    // Doit correspondre à server.lua (PriorityAgency, ClearAgency, BackupCodes)
+    const PRIORITY_AGENCY = 'kcso';
+    const CLEAR_AGENCY = 'wsp';
+    const WSP_PRIORITIES = ['nonurgent', 'p1', 'p2', 'p3'];
+    const KCSO_PRIORITIES = [
+        ['px', 'Critique (danger de mort)'], ['k1', 'Immédiat'], ['k2', 'Rapide'], ['k3', 'Routine'],
+        ['k4', 'Quand disponible'], ['k0', '911 coupé sans info'],
+    ];
+    const RESPONSE_CODES = { 1: 'Code 1 (normal)', 2: 'Code 2 (urgent, moyen)', 3: 'Code 3 (urgent, rapide)' };
+    const CLEAR_CODES = {
+        A: 'Clear A — Notice of Infraction (ticket)',
+        B: 'Clear B — Arrestation, retenue ou criminal citation et libération',
+        C: 'Clear C — Warning',
+    };
+    const BACKUP_BUTTONS = {
+        kcso: [['code1', 'Code 1 Backup', 'Une unité supplémentaire, sans urgence'],
+            ['code2', 'Code 2 Backup', 'Renfort nécessaire, 2 unités idéalement'],
+            ['code3', 'Code 3 Backup', 'Renfort nécessaire, urgence'],
+            ['1033', '10-33', 'Officer Needs Help, urgence vitale : envoyé aux deux polices']],
+        wsp: [['1033', '10-33', 'Officer Needs Help, urgence vitale : envoyé aux deux polices']],
+    };
+
+    // Priorités de réponse du KCSO (appel du KCSO, seul ou commun) ; sinon Non-Urgent, Priorité 1 à 3
+    const kcsoPriorities = (agencies) => agencies.includes(PRIORITY_AGENCY);
+    const priorityText = (c) => {
+        const p = CALL_PRIORITY[c.priority];
+        if (!p) return '-';
+        const kcso = KCSO_PRIORITIES.find(([k]) => k === c.priority);
+        return kcso ? `${p[1]} — ${kcso[1]}` : p[1];
+    };
+    function priorityLegendHtml(selected) {
+        return `<div class="priority-legend">Priorités de réponse : ${KCSO_PRIORITIES.map(([k, label]) => {
+            const text = `${esc(CALL_PRIORITY[k][1])} : ${esc(label)}`;
+            return k === selected ? `<b>${text}</b>` : text;
+        }).join(' · ')}.</div>`;
+    }
+    // Champs « priorité » (et « code de réponse » pour le KCSO) selon les polices cochées : rien tant qu'aucune
+    // police n'est choisie ; la légende rouge et le code de réponse apparaissent une fois la priorité choisie.
+    function priorityFieldsHtml(agencies, priority, responseCode) {
+        if (!agencies.length) return '';
+        if (!kcsoPriorities(agencies)) {
+            const opts = WSP_PRIORITIES.map((k) => `<option value="${k}" ${k === priority ? 'selected' : ''}>${esc(CALL_PRIORITY[k][1])}</option>`).join('');
+            return `<label class="lbl">Priorité de l'urgence *<select name="priority" data-priority-select><option value="">— Choisir —</option>${opts}</select></label>`;
+        }
+        const ok = KCSO_PRIORITIES.some(([k]) => k === priority);
+        const opts = KCSO_PRIORITIES.map(([k, label]) =>
+            `<option value="${k}" ${k === priority ? 'selected' : ''}>${esc(CALL_PRIORITY[k][1])} — ${esc(label)}</option>`).join('');
+        const codes = Object.entries(RESPONSE_CODES).map(([k, label]) =>
+            `<option value="${k}" ${String(responseCode) === k ? 'selected' : ''}>${esc(label)}</option>`).join('');
+        return `<label class="lbl">Priorité de réponse *<select name="priority" data-priority-select><option value="">— Choisir —</option>${opts}</select></label>
+            ${ok ? `<label class="lbl">Code de réponse *<select name="responseCode"><option value="">— Choisir —</option>${codes}</select></label>
+            ${priorityLegendHtml(priority)}` : ''}`;
+    }
+    // (Re)dessine les champs de priorité d'un formulaire, en gardant le choix si la priorité reste valable
+    function refreshPriorityFields(form, agencies) {
+        const box = form.querySelector('[data-priority-fields]');
+        if (!box) return;
+        const priority = form.elements.priority ? form.elements.priority.value : '';
+        const code = form.elements.responseCode ? form.elements.responseCode.value : '';
+        box.innerHTML = priorityFieldsHtml(agencies, priority, code);
+    }
     const CALL_STATUS = {
         pending: ['c-blue', 'En Attente'],
         ongoing: ['c-green', 'En Cours'],
@@ -1321,7 +1389,7 @@
         return `
             <tr data-id="${esc(c.id)}" class="${c.closed ? 'row-closed' : ''} ${prio} ${c.id === selected ? 'selected' : ''}">
                 <td class="cell-ellipsis">${callAgencies(c).length > 1 ? `${agenciesTags(c)} ` : ''}<b>${esc(c.title)}</b></td>
-                <td>${c.kind === 'incident' ? '<span class="muted">Incident</span>' : esc(CALL_PRIORITY[c.priority] ? CALL_PRIORITY[c.priority][1] : '-')}</td>
+                <td>${c.kind === 'incident' ? '<span class="muted">Incident</span>' : `${esc(CALL_PRIORITY[c.priority] ? CALL_PRIORITY[c.priority][1] : '-')}${c.responseCode ? ` <span class="muted">· C${esc(c.responseCode)}</span>` : ''}`}</td>
                 <td class="cell-ellipsis">${esc(c.address)}${c.crossStreet ? `<span class="cross-inline"> × ${esc(c.crossStreet)}</span>` : ''}</td>
                 <td>${esc(c.block)}</td>
             </tr>`;
@@ -1360,7 +1428,7 @@
                    <button type="button" class="btn btn-small btn-default" data-note-save="${esc(note.id)}">Enregistrer</button>
                </div>`
             : `<div class="note-text">${esc(note.text)}</div>`;
-        return `<div class="note">${head}${body}</div>`;
+        return `<div class="note${note.backup ? ` note-backup${note.backup === '1033' ? ' note-backup-1033' : ''}` : ''}">${head}${body}</div>`;
     }
 
     // Rapport lié, affiché dans le déroulé avec les notes
@@ -1457,19 +1525,38 @@
         // des civils y sont modifiables (pas les incidents de la police)
         const allowed = police ? callServes(c, state.agency) : !incident;
 
+        // En haut : renforts (seulement rattaché à l'appel) ; tout en bas : rejoindre / quitter / modifier / terminer
+        let hints = '';
         let actions = '';
+        let backupBar = '';
         if (!c.closed) {
-            actions = `
+            hints = `
                 ${police && !unit ? '<div class="hint-box">Seules les unités peuvent rejoindre un appel : rejoignez d\'abord une unité (onglet Unités).</div>' : ''}
-                ${police ? '' : `<div class="hint-box">MDC générique : consultation uniquement (rejoindre un appel est réservé aux unités de police)${incident ? '' : ' ; les informations de cet appel peuvent être modifiées'}.</div>`}
-                <div class="toolbar call-actions">
+                ${police ? '' : `<div class="hint-box">MDC générique : consultation uniquement (rejoindre un appel est réservé aux unités de police)${incident ? '' : ' ; les informations de cet appel peuvent être modifiées'}.</div>`}`;
+            const clearing = onCall && state.clearChoice === c.id && unit && unit.agency === CLEAR_AGENCY;
+            actions = `
+                <div class="toolbar call-actions call-actions-bottom">
                     ${police && unit && allowed ? (onCall
                         ? '<button type="button" class="btn" data-call-action="leave">Quitter l\'appel</button>'
                         : `<button type="button" class="btn btn-default" data-call-action="join">Rejoindre l'appel (${esc(unit.name)})</button>`) : ''}
                     ${allowed ? '<button type="button" class="btn" data-call-action="edit">Modifier</button>' : ''}
                     <span class="grow"></span>
-                    ${onCall ? '<button type="button" class="btn btn-danger" data-call-action="end">Intervention terminée</button>' : ''}
-                </div>`;
+                    ${onCall ? `<button type="button" class="btn btn-danger" data-call-action="end">${clearing ? 'Annuler la clôture' : 'Intervention terminée'}</button>` : ''}
+                </div>
+                ${clearing ? `<div class="clear-choice"><span class="hint-text">Clôture de l'appel (WSP) : choisissez :</span>
+                    ${Object.entries(CLEAR_CODES).map(([k, label]) => `<button type="button" class="btn" data-call-action="endClear" data-clear="${k}">${esc(label)}</button>`).join('')}
+                </div>` : ''}`;
+            if (onCall && police && unit) {
+                const others = policeAgencies().filter((a) => !callServes(c, a.key));
+                backupBar = `
+                    <div class="call-backup-bar">
+                        <span class="bb-title">RENFORTS</span>
+                        ${(BACKUP_BUTTONS[unit.agency] || []).map(([code, label, tip]) =>
+                            `<button type="button" class="btn btn-small ${code === '1033' ? 'btn-1033' : 'btn-backup'}" data-call-action="backup" data-code="${code}" title="${esc(tip)}">${esc(label)}</button>`).join('')}
+                        <span class="grow"></span>
+                        ${others.map((a) => `<button type="button" class="btn btn-small" data-call-action="addAgency" data-agency="${esc(a.key)}" title="L'appel devient commun : ${esc(a.short)} le voit et peut le rejoindre (sans demande de renfort)">+ Ajouter ${esc(a.short)} à l'appel</button>`).join('')}
+                    </div>`;
+            }
         }
 
         // Admins : supprimer l'appel de la liste (en cours ou terminé)
@@ -1480,7 +1567,8 @@
 
         return `
             <div class="sheet-title"><span>${esc(c.number)} — ${esc(c.title)}</span>${c.backup ? flag('c-backup', 'Renforts') : ''}${callFlag(CALL_STATUS, c.status)}</div>
-            ${actions}
+            ${hints}
+            ${backupBar}
             <dl class="sheet">
                 ${row('N° d\'incident', c.number)}
                 ${row('Catégorie', c.backup ? `Demande de renforts${c.requestedBy ? ` de ${c.requestedBy}` : ''} (incident commun)` : incident ? 'Incident (déclaré par une unité)' : 'Intervention (appel)')}
@@ -1490,7 +1578,9 @@
                 ${row(incident ? 'Type d\'incident' : 'Type d\'intervention', c.title)}
                 ${incident
                     ? row('Unité déclarante', c.unitName)
-                    : row('Requérant', c.caller) + row('Téléphone du requérant', c.phone) + dd('Priorité de l\'urgence', callFlag(CALL_PRIORITY, c.priority))}
+                    : row('Requérant', c.caller) + row('Téléphone du requérant', c.phone)
+                        + dd(c.responseCode ? 'Priorité de réponse' : 'Priorité de l\'urgence', CALL_PRIORITY[c.priority] ? `${flag(CALL_PRIORITY[c.priority][0], CALL_PRIORITY[c.priority][1])} ${esc(priorityText(c).split(' — ')[1] || '')}` : '-')
+                        + (c.responseCode ? row('Code de réponse', RESPONSE_CODES[c.responseCode] || `Code ${c.responseCode}`) : '')}
                 ${row('Adresse', c.address)}
                 ${row('Croisement', c.crossStreet)}
                 ${c.sector ? row('Secteur', c.sector) : ''}
@@ -1498,6 +1588,7 @@
                 ${row(incident ? 'Description de l\'incident' : 'Description', c.description)}
                 ${row('Émise le', formatDate(c.createdAt))}
                 ${c.closed ? row('Terminée le', `${formatDate(c.closedAt)} par ${c.closedByName || '-'}`) : ''}
+                ${c.closed && c.clear ? row('Clôture', CLEAR_CODES[c.clear] || `Clear ${c.clear}`) : ''}
             </dl>
             <div class="sheet-sub">Unités sur l'appel (${units.length})</div>
             <div class="call-units">${units.length
@@ -1514,7 +1605,8 @@
                         <button type="button" class="btn btn-default" data-call-action="addNote">Ajouter la note</button>
                     </div>
                 </div>` : ''}
-            ${reportStarterHtml()}`;
+            ${reportStarterHtml()}
+            ${actions}`;
     }
 
     // Cases des polices (une ou les deux : appel commun). `fixed` : police toujours cochée (incident : celle
@@ -1538,8 +1630,6 @@
         const unit = myUnit();
         const v = (key) => esc(c ? (c[key] ?? '') : '');
         const unitName = isNew ? (unit ? unit.name : 'Aucune unité : rejoignez une unité pour déclarer un incident') : c.unitName;
-        const priorities = Object.entries(CALL_PRIORITY).map(([key, [, label]]) =>
-            `<option value="${key}" ${c && c.priority === key ? 'selected' : ''}>${label}</option>`).join('');
 
         return `
             <form id="callForm" class="call-form" autocomplete="off" novalidate>
@@ -1559,7 +1649,7 @@
                                 <button type="button" class="btn btn-icon" data-gen-phone title="Générer un nouveau numéro">&#8635;</button>
                             </span>
                         </label>
-                        <label class="lbl span-2">Priorité de l'urgence *<select name="priority">${priorities}</select></label>`}
+                        <div class="span-2 priority-fields" data-priority-fields>${priorityFieldsHtml(callAgencies(c), c.priority, c.responseCode)}</div>`}
                     <label class="lbl">Adresse *<input name="address" type="text" maxlength="80" value="${v('address')}"></label>
                     <label class="lbl">Croisement<input name="crossStreet" type="text" maxlength="80" value="${v('crossStreet')}"></label>
                     <label class="lbl">Bloc *<input name="block" type="text" maxlength="40" value="${v('block')}"></label>
@@ -1777,6 +1867,35 @@
                     state.linkChoice = null;
                     refreshInterventions();
                 }
+                return;
+            }
+
+            // WSP : « Intervention terminée » ouvre le choix Clear A / B / C (le choix vaut confirmation)
+            const me = myUnit();
+            if (action === 'end' && me && me.agency === CLEAR_AGENCY) {
+                state.clearChoice = state.clearChoice === call.id ? null : call.id;
+                renderInterventionDetail();
+                const choice = $('#interventionDetail .clear-choice');
+                if (choice) choice.scrollIntoView({ block: 'nearest' });
+                return;
+            }
+            if (action === 'endClear') {
+                actionBtn.disabled = true;
+                const res = await callRequest('interventionAction', { id: call.id, action: 'end', clear: actionBtn.dataset.clear },
+                    `Intervention terminée (Clear ${actionBtn.dataset.clear}).`);
+                actionBtn.disabled = false;
+                if (res) { state.clearChoice = null; refreshInterventions(); }
+                return;
+            }
+            if (action === 'backup' || action === 'addAgency') {
+                actionBtn.disabled = true;
+                const res = action === 'backup'
+                    ? await callRequest('interventionAction', { id: call.id, action, code: actionBtn.dataset.code },
+                        actionBtn.dataset.code === '1033' ? '10-33 envoyé aux deux polices.' : `${actionBtn.textContent} demandé.`)
+                    : await callRequest('interventionAction', { id: call.id, action, agency: actionBtn.dataset.agency },
+                        `${agencyShort(actionBtn.dataset.agency)} ajouté(e) à l'appel.`);
+                actionBtn.disabled = false;
+                if (res) refreshInterventions();
                 return;
             }
 
@@ -3164,7 +3283,18 @@
     function resetInterventionForm() {
         interventionForm.reset();
         interventionForm.elements.phone.value = Random.phone(); // téléphone du requérant généré automatiquement
+        interventionForm.querySelector('[data-priority-fields]').innerHTML = ''; // la priorité suit le choix de la police
     }
+    // Police cochée -> priorités de cette police ; priorité choisie -> code de réponse + légende (KCSO)
+    const formAgencies = (form) => [...form.querySelectorAll('input[name="agencies"]')].filter((i) => i.checked).map((i) => i.value);
+    interventionForm.addEventListener('change', (e) => {
+        if (e.target.name === 'agencies' || e.target.matches('[data-priority-select]')) refreshPriorityFields(interventionForm, formAgencies(interventionForm));
+    });
+    $('#interventionDetail').addEventListener('change', (e) => {
+        const form = e.target.closest('#callForm');
+        const call = findCall(state.callPanel.id);
+        if (form && call && e.target.matches('[data-priority-select]')) refreshPriorityFields(form, callAgencies(call));
+    });
 
     interventionForm.querySelector('.btn-clear').addEventListener('click', resetInterventionForm);
 
@@ -4337,6 +4467,23 @@
             <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
         pushNotification(el, c.backup ? 20000 : 12000);
         if (hud.settings.notify.sound) playSound(incident ? 'incident' : 'call');
+    }
+
+    // Demande de renforts depuis un appel (Code 1 / 2 / 3 Backup, 10-33) : même son qu'une nouvelle intervention
+    function backupNotification(c) {
+        const urgent = c.backupCode === '1033';
+        const el = document.createElement('div');
+        el.className = `call-toast prio-${urgent ? '1033' : 'backup'}`;
+        el.innerHTML = `
+            <div class="ct-head"><span>${urgent ? '10-33 — OFFICER NEEDS HELP' : `DEMANDE DE RENFORT — ${esc(c.backupLabel || '')}`}</span><span class="ct-number">${esc(c.number)}</span></div>
+            <div class="ct-title">${esc(c.title)}</div>
+            <div class="ct-row"><span class="hud-label">UNITÉ</span>${esc(c.requestedUnit || '-')}${c.requestedAgency ? ` (${esc(c.requestedAgency)})` : ''}</div>
+            ${c.priority && CALL_PRIORITY[c.priority] ? `<div class="ct-row"><span class="hud-label">PRIORITÉ</span><span class="flag ${CALL_PRIORITY[c.priority][0]}">${esc(CALL_PRIORITY[c.priority][1])}</span></div>` : ''}
+            <div class="ct-row"><span class="hud-label">ADRESSE</span>${esc(c.address)}</div>
+            ${c.crossStreet ? `<div class="ct-row"><span class="hud-label">CROISEMENT</span>${esc(c.crossStreet)}</div>` : ''}
+            <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
+        pushNotification(el, urgent ? 25000 : 15000);
+        if (hud.settings.notify.sound) playSound('call');
     }
 
     // Nouveau BOLO (communs aux deux polices) : notification + son pour toutes les unités de police
@@ -6224,6 +6371,9 @@
                 break;
             case 'callNotify': // nouvelle intervention / nouvel incident (même MDC fermé)
                 if (data.data) callNotification(data.data);
+                break;
+            case 'backupNotify': // demande de renfort depuis un appel (même MDC fermé)
+                if (data.data) backupNotification(data.data);
                 break;
             case 'boloNotify': // nouveau BOLO (toutes les unités de police, même MDC fermé)
                 if (data.data) boloNotification(data.data);

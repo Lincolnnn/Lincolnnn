@@ -245,10 +245,11 @@ plus de flou de l'arrière-plan.
 |---|---|
 | Unités | (polices) Une liste : les unités **de votre police** seulement. Bouton **Créer une unité** (nom, **tag** au menu déroulant : Aucun, **SUP.** (superviseur) ou **Autre** à saisir, couleur) ; l'unité appartient à la police du MDC (pastille **WSP** bleue / **KCSO** verte). Chacun peut rejoindre une unité de sa police (4 joueurs max par unité) ; **une seule unité à la fois** : dans une unité, le bouton « Rejoindre » des autres disparaît, il faut d'abord **quitter** la sienne (le serveur refuse aussi). **Modifier** et **Supprimer** : réservés aux **membres** de l'unité. Les membres d'une unité partagent leurs recherches et leurs rapports (voir plus bas) |
 | Interventions | **Police** : les appels de **sa police** (toujours ouverts), puis les **appels communs** (WSP & KCSO) ; les appels de l'autre police ne sont **pas** visibles. Seules les polices visées peuvent rejoindre un appel (vérifié par le serveur). Incident : police de l'unité déclarante toujours cochée, **case** pour y ajouter l'autre police (incident commun). **Générique** : les listes de **chaque police** et les appels communs, **en lecture** (pas de « Rejoindre ») ; bouton **Modifier** sur les **interventions** (appels des civils) pour les corriger directement. Interventions (civils) et incidents (unités) : titre, priorité, adresse, bloc ; chaque ligne est surlignée de la couleur de sa priorité. N° d'incident `XX-XXXX`. Cliquer pour afficher le détail, recliquer (ou **✕** en haut du panneau) pour le masquer : **sans appel choisi, le panneau des détails est réduit à une fine colonne** et la liste prend toute la place. Rejoindre / quitter l'appel (unités uniquement), notes en majuscules modifiables, « Intervention terminée » (grisée dans la liste). Les rapports liés apparaissent avec les notes (ouvrir / modifier) et un rapport peut être rédigé directement depuis l'intervention. **Personnes et véhicules** : les unités sur l'appel y ajoutent les fiches de l'historique des recherches (bouton « Fiche » pour la consulter). Bouton **Nouvel incident** pour les unités ; à côté, bouton **orange foncé « Demande de renforts »** : intitulé, description et localisation complète (route, croisement, **secteur** — prérempli avec celui du Menu Interaction —, bloc ; bouton « Position actuelle ») ; il crée un **incident commun aux deux polices** (étiquette « Renforts », notification « DEMANDE DE RENFORTS » chez toutes leurs unités), l'unité qui demande est placée dessus |
+| Interventions : priorités, renforts, clôture | Voir « Priorités de réponse, renforts et clôture des appels » ci-dessous |
 | Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. En haut à droite : boutons **Sex Offenders** et **Kidnapping Offenders** (registre des délinquants, **même liste pour la WSP et le KCSO** : voir « Casier judiciaire et registre ») et **BOLOs** (voir plus bas). Résultat d'une personne inscrite : étiquettes **SO** / **KO** |
 | Rapports | **Communs à tous les MDC**. Formulaires de l'**État de Washington** : Notice of Infraction (NOI), Criminal Citation and Notice to Appear, Written Warning, Arrest Report, DUI Arrest Report, Police Traffic Collision Report (PTCR), Incident Report, Vehicle Impound / Inventory Report. Infractions choisies dans le **catalogue RCW** (classification + infraction liées, pénalité automatique). Les anciens modèles (DOT-523, Citation, Traffic Citation, Convocation, Warning, Ticket) restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
 | Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, **apparence jour / nuit**, couleur du mode nuit et où il s'applique, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : taille et position seulement, tous leurs éléments sont toujours affichés ; volume des sons du véhicule ; le Menu Interaction de `rp_interact` n'est plus réglable : il est toujours en haut à gauche, comme les menus du jeu) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
-| Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, priorité, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Mes créations** : vos identités et véhicules, modifiables. En dessous, pour une identité **déjà créée** : **Casier judiciaire** et **Registre Sex / Kidnapping Offender** (voir « Casier judiciaire et registre ») |
+| Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun) **puis la priorité** de cette police (voir plus bas), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Mes créations** : vos identités et véhicules, modifiables. En dessous, pour une identité **déjà créée** : **Casier judiciaire** et **Registre Sex / Kidnapping Offender** (voir « Casier judiciaire et registre ») |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
 
@@ -566,6 +567,32 @@ autre) : Seattle **206**, est du comté **425** ; Canadien visiteur : indicatif 
 intervention : toujours un numéro de l'**État de Washington** (206, 425, 253, 360 : `WASHINGTON_AREA_CODES` dans
 `server/server.lua` et `html/script.js`). **Nationalité par défaut : citoyen américain** ; le remplissage aléatoire
 garde la nationalité choisie.
+
+## Priorités de réponse, renforts et clôture des appels
+
+**Création d'un appel** (Créations > Intervention) : on coche d'abord la ou les **polices**, puis la priorité apparaît.
+- **KCSO** (seul ou appel commun, `Config.PriorityAgency`) : **Priorité de réponse** : X (critique, danger de mort),
+  1 (immédiat), 2 (rapide), 3 (routine), 4 (quand disponible), 0 (911 coupé sans info). Une fois choisie, une
+  **légende en rouge** rappelle les différences (la priorité choisie en gras) et le champ **Code de réponse**
+  apparaît à côté : Code 1 (normal), Code 2 (urgent, moyen), Code 3 (urgent, rapide). Les deux sont obligatoires.
+- **WSP seule** : Non-Urgent, Priorité 1 à 3, sans code de réponse.
+Liste : « Priorité X · C3 » ; détail : priorité et sa signification, code de réponse ; couleur de ligne par priorité.
+
+**Fiche d'un appel** : les boutons Rejoindre / Quitter / Modifier / Intervention terminée sont **tout en bas**.
+Une fois **rattaché** à l'appel, une barre **RENFORTS** apparaît en haut :
+- **+ Ajouter WSP / KCSO à l'appel** : l'appel devient commun, l'autre police le voit et peut le rejoindre (ses
+  unités reçoivent la notification d'appel habituelle, **pas** une demande de renfort) ;
+- **KCSO** : Code 1 Backup (une unité en plus, sans urgence), Code 2 Backup (renfort, 2 unités idéalement),
+  Code 3 Backup (renfort urgent), **10-33** (Officer Needs Help) ; **WSP** : **10-33** seulement (`Config.BackupCodes`) ;
+- un Code 1 / 2 / 3 Backup part **à la police de l'unité seulement** ; un **10-33** part **aux deux polices** (l'appel
+  devient commun pour que tous puissent le rejoindre). Les unités déjà sur l'appel ne sont pas renotifiées ;
+- la demande s'affiche en **notification** (même son qu'une nouvelle intervention ; 10-33 en rouge clignotant) et
+  s'inscrit dans le déroulé de l'appel. Une demande par unité toutes les 10 s au plus (`Config.BackupCooldown`).
+
+**Clôture** : une unité **WSP** (`Config.ClearAgency`) qui clique « Intervention terminée » choisit : **Clear A** —
+Notice of Infraction (ticket), **Clear B** — Arrestation, retenue ou criminal citation et libération, **Clear C** —
+Warning. La clôture est affichée sur l'appel terminé. Les unités KCSO terminent comme avant (deuxième clic pour
+confirmer).
 
 ## Données (permanentes)
 
