@@ -298,6 +298,7 @@ startLoop = function()
     loopRunning = true
     CreateThread(function()
         local last = nil
+        local lastLoc, lastLocAt = nil, -10000
         while pldActive() do
             local data = readLocation()
             -- (l'heure du jeu avance d'une minute toutes les 2 s : un envoi au plus toutes les 2 s)
@@ -305,6 +306,14 @@ startLoop = function()
             if key ~= last then
                 last = key
                 SendNUIMessage({ action = 'pld', data = data })
+            end
+            -- MDC Web : rue et bloc de son unité (en service seulement), quand ils changent, 1 envoi / 3 s au plus
+            if unitInfo then
+                local locKey = ('%s|%s|%s|%s'):format(data.street, data.crossing, data.block, data.zone)
+                if locKey ~= lastLoc and GetGameTimer() - lastLocAt >= 3000 then
+                    lastLoc, lastLocAt = locKey, GetGameTimer()
+                    TriggerServerEvent('mdc:server:location', { street = data.street, crossing = data.crossing, block = data.block, zone = data.zone })
+                end
             end
             Wait(Config.Interval)
         end

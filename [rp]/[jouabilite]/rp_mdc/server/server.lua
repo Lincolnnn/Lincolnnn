@@ -818,6 +818,12 @@ do
                 if gk < rk then return nil, name .. ' : l\'inscription se fait après la libération.' end
                 if rk > todayKey() or gk > todayKey() then return nil, name .. ' : la libération et l\'inscription doivent être passées.' end
                 if r.sentence == '' then return nil, name .. ' : la peine est obligatoire.' end
+                -- dernière mise à jour du suivi (vérification d'adresse…) : après l'inscription, jamais dans le futur
+                r.lastUpdate = clean(e.lastUpdate, 10)
+                if r.lastUpdate == '' then r.lastUpdate = r.registeredDate end
+                local uk = dateKey(r.lastUpdate)
+                if not uk then return nil, name .. ' : date de dernière mise à jour invalide (JJ/MM/AAAA).' end
+                if uk < gk or uk > todayKey() then return nil, name .. ' : la dernière mise à jour est entre l\'inscription et aujourd\'hui.' end
                 local years = (MDC_REGISTRY_YEARS or {})[r.class]
                 r.endDate = years and keyToDate(addYears(rk, years)) or 'life'
                 out[#out + 1] = r
@@ -873,6 +879,7 @@ Builders.identities = function(p, selfId)
         address       = clean(p.address, 80),
         ssn           = clean(p.ssn, 11),
         job           = clean(p.job, 40),
+        physical      = cleanMultiline(p.physical, 200), -- description physique (taille, corpulence, cheveux, signes)
         phone         = clean(p.phone, 20),
         licenseClass  = 'N/A',
         licenseStatus = 'valid',
@@ -1757,9 +1764,17 @@ local function pushUnread(unit)
     end
 end
 
---- Le joueur peut-il lire / écrire sur ce canal du dispatch ? (unité affectée, ou civil pour d:civ)
+--- Clé de la conversation privée d'un civil avec le dispatch : son identifiant (licence), jamais son identité MDC
+function Chat.civKey(src)
+    local id = tostring(getIdentifier(src) or ''):gsub('^[^:]*:', ''):gsub('[^%w]', '')
+    return id:sub(1, 28)
+end
+
+--- Le joueur peut-il lire / écrire sur ce canal du dispatch ? (unité affectée, ou civil pour d:civ / son d:p:CLÉ)
 function Chat.dispatchAccess(src, channel)
     if channel == 'd:civ' then return agencyOf(src) == 'generic' end
+    local key = channel:match('^d:p:(%w+)$')
+    if key then return agencyOf(src) == 'generic' and key == Chat.civKey(src) end
     local unit = findUnit(PlayerUnit[src])
     if not unit then return false end
     local unitId = tonumber(channel:match('^d:u:(%d+)$'))
@@ -1772,6 +1787,7 @@ end
 --- Titre affiché d'un canal du dispatch
 function Chat.title(channel)
     if channel == 'd:civ' then return 'Dispatch — Groupe civil' end
+    if channel:match('^d:p:') then return 'Dispatch — conversation privée' end
     local unitId = tonumber(channel:match('^d:u:(%d+)$'))
     if unitId then
         local unit = findUnit(unitId)
@@ -1786,6 +1802,13 @@ function Chat.recipients(channel)
     local list = {}
     if channel == 'd:civ' then
         for src, agency in pairs(PlayerAgency) do if agency == 'generic' then list[#list + 1] = src end end
+        return list
+    end
+    local key = channel:match('^d:p:(%w+)$')
+    if key then -- le joueur suivi (où qu'il soit : même passé sur le MDC d'une police, il le reçoit à son retour)
+        for src, agency in pairs(PlayerAgency) do
+            if agency == 'generic' and Chat.civKey(src) == key then list[#list + 1] = src end
+        end
         return list
     end
     local units = {}
@@ -1820,12 +1843,12 @@ end
 function Chat.deliverDispatch(channel, message)
     local title = Chat.title(channel)
     for _, member in ipairs(Chat.recipients(channel)) do
-        if channel == 'd:civ' then
+        if channel == 'd:civ' or channel:match('^d:p:') then
             local reader = 'civ:' .. getIdentifier(member)
             local mine = message.identifier ~= nil and message.identifier == getIdentifier(member)
             if mine then Chat.markRead(channel, reader) end
             TriggerClientEvent('mdc:client:civilMessage', member, { channel = channel, title = title, message = message,
-                incoming = not mine, unread = Chat.unread(channel, reader) })
+                incoming = not mine, unread = Chat.unread(channel, reader), private = channel ~= 'd:civ' })
         else
             local unit = findUnit(PlayerUnit[member])
             if unit then
@@ -1881,16 +1904,19 @@ end
 RegisterMDCCallback('sendMessage', function(src, payload)
     local channel = type(payload.channel) == 'string' and payload.channel or nil
 
-    -- Canaux du dispatch (unité affectée) et groupe civil
+    -- Conversation privée du civil avec le dispatch (« d:p » : la sienne)
+    if channel == 'd:p' then channel = 'd:p:' .. Chat.civKey(src) end
+    -- Canaux du dispatch (unité affectée), groupe civil et conversation privée
     if channel and channel:match('^d:') then
         local allowed, unit, call = Chat.dispatchAccess(src, channel)
         if not allowed then return { ok = false, error = 'Conversation indisponible.' } end
-        local max = channel == 'd:civ' and Config.Dispatch.CivilMessageLength or Config.UnitMessageLength or 300
+        local civil = channel == 'd:civ' or channel:match('^d:p:') ~= nil
+        local max = civil and Config.Dispatch.CivilMessageLength or Config.UnitMessageLength or 300
         local text = cleanMultiline(payload.text, max)
         if text == '' then return { ok = false, error = 'Message vide.' } end
         if not messageCooldown(src) then return { ok = false, error = 'Patientez un instant.' } end
         local message = Chat.append(channel, {
-            callId = call and call.id or nil, senderType = channel == 'd:civ' and 'civil' or 'unit',
+            callId = call and call.id or nil, senderType = civil and 'civil' or 'unit',
             from = unit and unit.id or nil, author = agentName(src), identifier = getIdentifier(src), text = text,
         })
         if unit then Chat.markRead(channel, 'unit:' .. unit.id) end
@@ -1930,17 +1956,25 @@ RegisterMDCCallback('sendMessage', function(src, payload)
 end)
 
 -- Groupe civil <-> dispatch (MDC générique) : conversation commune à tous les civils
-RegisterMDCCallback('getCivilChat', function(src)
+RegisterMDCCallback('getCivilChat', function(src, payload)
     if agencyOf(src) ~= 'generic' then return { ok = false, error = 'Réservé au MDC civil.' } end
     local reader = 'civ:' .. getIdentifier(src)
-    Chat.markRead('d:civ', reader)
-    local conv = Conversations['d:civ']
-    local list = {}
-    for _, m in ipairs(conv and conv.messages or {}) do
-        list[#list + 1] = { id = m.id, senderType = m.senderType, author = m.author, text = m.text, at = m.at,
-            mine = m.identifier ~= nil and m.identifier == getIdentifier(src) or nil }
+    local private = 'd:p:' .. Chat.civKey(src)
+    local function list(channel)
+        local conv = Conversations[channel]
+        local out = {}
+        for _, m in ipairs(conv and conv.messages or {}) do
+            out[#out + 1] = { id = m.id, senderType = m.senderType, author = m.author, text = m.text, at = m.at,
+                mine = m.identifier ~= nil and m.identifier == getIdentifier(src) or nil }
+        end
+        return out
     end
-    return { ok = true, messages = list, unread = 0, dispatchOnline = MDCServer.dispatchState().online }
+    -- onglet ouvert : marqué lu ; l'autre garde ses non-lus
+    local tab = payload and payload.tab == 'private' and 'private' or 'group'
+    Chat.markRead(tab == 'private' and private or 'd:civ', reader)
+    return { ok = true, tab = tab, messages = list('d:civ'), private = list(private),
+        unread = Chat.unread('d:civ', reader), privateUnread = Chat.unread(private, reader),
+        dispatchOnline = MDCServer.dispatchState().online }
 end)
 
 --- Unité supprimée : ses conversations quittent la mémoire (elles restent dans MySQL, consultables par le dispatch)
@@ -2034,6 +2068,7 @@ RegisterMDCCallback('setAgency', function(src, payload)
     end
     print(('^5[MDC]^0 %s [%s] utilise le MDC %s'):format(agentName(src), GetPlayerName(src) or '?', AGENCIES[key].label))
     MDCDB.saveAgent(getIdentifier(src), { rpName = rpNameOf(src), agency = key }, src)
+    MDCWeb.notify('players') -- MDC Web : liste des joueurs (LiveView, civils joignables)
     return { ok = true, agency = key, left = unit and unit.agency ~= key or nil }
 end)
 
@@ -4053,7 +4088,7 @@ do
         end
     end)
 
-    function MDCServer.heartbeat(list)
+    function MDCServer.heartbeat(list) -- (joueurs : nombre ; liste détaillée via MDCServer.players)
         local dispatchers = {}
         for _, d in ipairs(type(list) == 'table' and list or {}) do
             if type(d) == 'table' and #dispatchers < 50 then
@@ -4238,10 +4273,226 @@ do
         return { ok = true }
     end
 
-    --- Canal du dispatch valide : d:civ, d:u:ID (unité existante), d:c:ID (appel chargé)
+    -- =====================================================================
+    -- INTERVENTIONS CRÉÉES OU MODIFIÉES PAR LE DISPATCH (MDC Web)
+    -- =====================================================================
+    D.EDIT_LABELS = { title = 'Intitulé', address = 'Adresse', crossStreet = 'Croisement', block = 'Bloc', sector = 'Secteur',
+        description = 'Description', caller = 'Requérant', phone = 'Téléphone', priority = 'Priorité',
+        responseCode = 'Code de réponse', idealUnits = 'Unités idéales', agency = 'Police' }
+    D.EDIT_CALL = { 'title', 'priority', 'responseCode', 'agency', 'address', 'crossStreet', 'block', 'sector', 'caller', 'phone',
+        'idealUnits', 'description' }
+    D.EDIT_INCIDENT = { 'title', 'agency', 'address', 'crossStreet', 'block', 'sector', 'description' }
+
+    --- Nouvelle intervention / nouvel incident saisi(e) par le dispatch : transmis(e) tout de suite aux unités
+    --- (le dispatch l'a lui-même validé(e)) ; unités choisies affectées d'office.
+    function MDCServer.createCall(p, actor)
+        p = type(p) == 'table' and p or {}
+        local kind = p.kind == 'incident' and 'incident' or 'intervention'
+        if kind == 'intervention' then
+            if clean(p.caller, 60) == '' then p.caller = 'Dispatch (911)' end
+            if math.tointeger(tonumber(p.idealUnits) or 0) == nil or (tonumber(p.idealUnits) or 0) < 1 then p.idealUnits = 1 end
+        end
+        if cleanMultiline(p.description, 2000) == '' then p.description = clean(p.title, 60) end
+        local call, err = buildCall(p, kind)
+        if not call then return { ok = false, error = err } end
+        if kind == 'incident' then
+            call.agency = normalizeAgencies(p.agencies or p.agency)
+            if not call.agency then return { ok = false, error = 'Cochez au moins une police (WSP, KCSO).' } end
+            call.unitName = 'DISPATCH'
+        end
+        call.sector = clean(p.sector, 40) ~= '' and clean(p.sector, 40) or nil
+        call.id = NextInterventionId
+        call.number = newInterventionNumber()
+        call.kind = kind
+        call.units, call.unitsAt, call.notes, call.reports, call.links = {}, {}, {}, {}, {}
+        call.nextNoteId, call.closed, call.rev = 1, false, 0
+        call.createdAt = os.time()
+        call.createdByName = 'Dispatch'
+        call.createdBy = actor and actor.id ~= '' and ('discord:' .. actor.id) or ''
+        call.dispatch, call.dispatchBy, call.dispatchAt = 'validated', D.actorName(actor), os.time()
+        NextInterventionId = NextInterventionId + 1
+        MDCDB.setSetting('call_seq', NextInterventionId)
+        Interventions[#Interventions + 1] = call
+        local assigned = {}
+        for _, uid in ipairs(type(p.units) == 'table' and p.units or {}) do
+            local unit = findUnit(tonumber(uid))
+            if unit and isPoliceAgency(unit.agency) and not call.units[tostring(unit.id)] then
+                if not callServes(call, unit.agency) then call.agency = normalizeAgencies(call.agency .. '+' .. unit.agency) or call.agency end
+                joinCall(call, unit)
+                assigned[#assigned + 1] = unit.name
+                D.noticeUnit(unit, { kind = 'assigned', title = 'Affecté par le dispatch', number = call.number,
+                    text = ('%s — %s'):format(call.title, call.address) })
+            end
+        end
+        pushInterventions()
+        MDCServer.release(call)
+        D.logD(actor, kind == 'incident' and 'incident.dispatch' or 'call.dispatch', call, nil,
+            { number = call.number, title = call.title, units = assigned })
+        MDCWeb.notify('call:new', { id = call.id, number = call.number, title = call.title, kind = kind })
+        print(('^5[MDC]^0 %s %s « %s » créé(e) par le dispatch.'):format(kind, call.number, call.title))
+        return { ok = true, id = call.id, number = call.number }
+    end
+
+    local function editValue(v)
+        if v == nil then return '' end
+        if type(v) == 'string' then return v end
+        return tostring(v)
+    end
+
+    --- Modifie une intervention (avant son envoi, ou pendant son déroulement). `rev` : n° de version vu par le
+    --- dispatcher ; s'il a changé entre-temps (autre dispatcher, unité), refus avec la version actuelle, sauf `force`.
+    function MDCServer.editCall(id, fields, rev, force, actor)
+        local call, err = D.getCall(id)
+        if not call then return { ok = false, error = err } end
+        if call.closed then return { ok = false, error = 'Une intervention terminée ne se modifie plus.' } end
+        call.rev = call.rev or 0
+        if not force and tonumber(rev) ~= call.rev then
+            return { ok = false, conflict = true, rev = call.rev,
+                error = 'Cette intervention a été modifiée entre-temps (autre poste dispatch ou unité). Vérifiez ses valeurs actuelles.' }
+        end
+        fields = type(fields) == 'table' and fields or {}
+        -- valeurs actuelles + champs modifiés, validées par les mêmes règles qu'à la création
+        local merged = {
+            title = call.title, address = call.address, crossStreet = call.crossStreet, block = call.block,
+            description = call.description, caller = call.caller, phone = call.phone, priority = call.priority,
+            responseCode = call.responseCode, idealUnits = call.idealUnits, agencies = call.agency,
+        }
+        for k in pairs(D.EDIT_LABELS) do
+            if fields[k] ~= nil then
+                if k == 'agency' then merged.agencies = fields.agency else merged[k] = fields[k] end
+            end
+        end
+        local built, berr
+        if call.kind == 'intervention' then
+            built, berr = buildCall(merged, 'intervention')
+        else
+            built, berr = buildCall(merged, 'incident')
+            if built then
+                built.agency = normalizeAgencies(merged.agencies) or call.agency
+            end
+        end
+        if not built then return { ok = false, error = berr } end
+        if call.backup then built.agency = call.agency end -- renforts : toujours les deux polices
+        local sector = fields.sector ~= nil and clean(fields.sector, 40) or (call.sector or '')
+        built.sector = sector ~= '' and sector or nil
+        local changes = {}
+        local keys = call.kind == 'intervention' and D.EDIT_CALL or D.EDIT_INCIDENT
+        for _, k in ipairs(keys) do
+            local before, after = editValue(call[k]), editValue(built[k])
+            if before ~= after then changes[#changes + 1] = { field = k, label = D.EDIT_LABELS[k], from = before, to = after } end
+        end
+        if #changes == 0 then return { ok = true, rev = call.rev, unchanged = true } end
+        for _, c in ipairs(changes) do
+            local v = built[c.field]
+            call[c.field] = v
+        end
+        call.rev = call.rev + 1
+        call.updatedAt, call.updatedByName = os.time(), 'Dispatch'
+        -- trace dans le déroulé (visible en jeu) : ce qui a changé
+        local parts = {}
+        for _, c in ipairs(changes) do
+            parts[#parts + 1] = c.field == 'description' and c.label or ('%s : %s'):format(c.label, c.to ~= '' and c.to or '—')
+        end
+        call.notes[#call.notes + 1] = {
+            id = call.nextNoteId, unitName = 'DISPATCH', unitTag = '', unitColor = 'orange', authorName = D.actorName(actor),
+            text = upperFr(('Intervention modifiée — %s'):format(table.concat(parts, ' ; '))):sub(1, 500), createdAt = os.time(), dispatch = true,
+        }
+        call.nextNoteId = call.nextNoteId + 1
+        pushInterventions()
+        -- unités de l'appel : avis sonore seulement (rp_mdc html : NOTIFY_EVENTS.callEdit)
+        D.noticeCall(call, { kind = 'edited', title = 'Intervention modifiée par le dispatch', number = call.number, text = call.title })
+        D.logD(actor, 'call.edit', call, nil, { number = call.number, changes = changes, forced = force == true or nil })
+        MDCWeb.notify('call:edited', { id = call.id, number = call.number, rev = call.rev })
+        return { ok = true, rev = call.rev, changes = #changes }
+    end
+
+    -- =====================================================================
+    -- JOUEURS CONNECTÉS (LiveView, conversations privées des civils) ET POSITIONS DES UNITÉS
+    -- =====================================================================
+    function MDCServer.players()
+        local list = {}
+        for _, p in ipairs(GetPlayers()) do
+            local src = tonumber(p)
+            if src then
+                local unit = findUnit(PlayerUnit[src])
+                local agency = PlayerAgency[src]
+                local rp = rpNameOf(src)
+                list[#list + 1] = {
+                    serverId = src, name = rp ~= '' and rp or (GetPlayerName(src) or ('Joueur ' .. src)),
+                    agency = agency or '', unitId = unit and unit.id or nil, unitName = unit and unit.name or nil,
+                    civKey = agency == 'generic' and Chat.civKey(src) or nil,
+                }
+            end
+        end
+        table.sort(list, function(a, b) return a.serverId < b.serverId end)
+        return { ok = true, players = list, liveview = GetResourceState('screenshot-basic') == 'started' }
+    end
+
+    D.locations = {}     -- [id de l'unité] = { street, crossing, block, zone, at }
+    D.locationAt = {}    -- [joueur] = dernier envoi accepté (ms)
+    RegisterNetEvent('mdc:server:location', function(data)
+        local src = source
+        local unit = findUnit(PlayerUnit[src])
+        if not unit or type(data) ~= 'table' then return end
+        local now = GetGameTimer()
+        if D.locationAt[src] and now - D.locationAt[src] < 2000 then return end -- 1 envoi / 2 s au plus par joueur
+        D.locationAt[src] = now
+        local loc = { street = clean(data.street, 80), crossing = clean(data.crossing, 80), block = clean(data.block, 40),
+            zone = clean(data.zone, 60), at = os.time() }
+        D.locations[unit.id] = loc
+        MDCWeb.notify('position', { unitId = unit.id, location = loc })
+    end)
+    AddEventHandler('playerDropped', function() D.locationAt[source] = nil end)
+
+    function MDCServer.positions()
+        local out = {}
+        for unitId, loc in pairs(D.locations) do
+            if findUnit(unitId) then out[#out + 1] = { unitId = unitId, location = loc } end
+        end
+        return { ok = true, positions = out }
+    end
+
+    -- =====================================================================
+    -- LIVEVIEW (MDC Web) : captures d'écran du jeu envoyées par le joueur au site, seulement pendant qu'un
+    -- dispatcher le regarde (ressource screenshot-basic). Le serveur FiveM ne fait que relayer l'ordre.
+    -- =====================================================================
+    D.LIVE_MODES = {
+        grid = { w = 480, h = 270, q = 0.45, interval = 2000 },  -- mosaïque : 0,5 image / s
+        focus = { w = 960, h = 540, q = 0.6, interval = 500 },   -- agrandi : 2 images / s
+    }
+    function MDCServer.liveStart(targets, url)
+        if GetResourceState('screenshot-basic') ~= 'started' then
+            return { ok = false, error = 'LiveView indisponible : la ressource screenshot-basic n\'est pas démarrée sur le serveur.' }
+        end
+        url = tostring(url or '')
+        if not url:match('^https?://') then return { ok = false, error = 'Adresse d\'envoi invalide.' } end
+        local started = 0
+        for _, t in ipairs(type(targets) == 'table' and targets or {}) do
+            local src = tonumber(t.serverId)
+            local token = tostring(t.token or ''):gsub('[^%w]', ''):sub(1, 64)
+            local mode = D.LIVE_MODES[t.mode] and t.mode or 'grid'
+            if src and GetPlayerName(src) and #token >= 24 then
+                local m = D.LIVE_MODES[mode]
+                TriggerClientEvent('mdc:client:liveview', src, { on = true, token = token, url = url, mode = mode,
+                    w = m.w, h = m.h, q = m.q, interval = m.interval, ttl = 25 })
+                started = started + 1
+            end
+        end
+        return { ok = true, started = started }
+    end
+    function MDCServer.liveStop(serverIds)
+        for _, id in ipairs(type(serverIds) == 'table' and serverIds or {}) do
+            local src = tonumber(id)
+            if src and GetPlayerName(src) then TriggerClientEvent('mdc:client:liveview', src, { on = false }) end
+        end
+        return { ok = true }
+    end
+
+    --- Canal du dispatch valide : d:civ, d:u:ID (unité existante), d:c:ID (appel chargé), d:p:CLÉ (civil)
     function D.dispatchChannel(channel)
         channel = tostring(channel or '')
         if channel == 'd:civ' then return channel end
+        if channel:match('^d:p:%w+$') and #channel <= 32 then return channel end
         local unitId = tonumber(channel:match('^d:u:(%d+)$'))
         if unitId then return findUnit(unitId) and channel or nil end
         local callId = tonumber(channel:match('^d:c:(%d+)$'))
@@ -4268,6 +4519,8 @@ do
     end
 
     function MDCServer.playerDropped(src)
+        D.locationAt[src] = nil
+        MDCWeb.notify('players')
         local identifier = getIdentifier(src)
         if MDCDB.agent(identifier) then MDCDB.saveAgent(identifier, {}, src) end
     end
@@ -4331,3 +4584,12 @@ do
 
     MySQL.ready(function() CreateThread(D.startup) end)
 end
+
+-- Données de démonstration (server/demo.lua) : mêmes règles de validation que les fiches saisies en jeu
+MDCServer.demo = {
+    Store = Store, NextId = NextId, Builders = Builders, saveStore = saveStore,
+    buildReport = buildReport, reportSummary = reportSummary, reportSearchText = reportSearchText,
+    ReportTypes = ReportTypes, Offenses = Offenses, classAllowed = classAllowed, matrixSet = matrixSet,
+    genCaseNumber = genCaseNumber, uniqueValue = uniqueValue, todayKey = todayKey, dateKey = dateKey,
+    ready = function() return MDCDB.ready == true end,
+}

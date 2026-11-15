@@ -20,6 +20,7 @@ const auth = require('./auth');
 const api = require('./api');
 const fivem = require('./fivem');
 const realtime = require('./realtime');
+const liveview = require('./liveview');
 
 const app = express();
 app.disable('x-powered-by');
@@ -32,7 +33,7 @@ app.use(helmet({
             'default-src': ["'self'"],
             'script-src': ["'self'"],
             'style-src': ["'self'"],
-            'img-src': ["'self'", 'data:', 'https://cdn.discordapp.com'],
+            'img-src': ["'self'", 'data:', 'blob:', 'https://cdn.discordapp.com'],
             'connect-src': ["'self'"],
             'font-src': ["'self'"],
             'object-src': ["'none'"],
@@ -84,6 +85,10 @@ app.post('/bridge/events', express.json({ limit: '256kb' }), (req, res) => {
     realtime.handleGameEvents(events.filter((e) => e && typeof e.topic === 'string'));
 });
 
+// ---- LiveView : images envoyées par le jeu (jeton temporaire, avant les sessions : pas de cookie) ----
+app.options('/live/frame', liveview.cors);
+app.post('/live/frame', liveview.cors, express.raw({ type: 'image/jpeg', limit: '700kb' }), liveview.receiveFrame);
+
 app.use(sessionMiddleware);
 app.use(express.json({ limit: '32kb' }));
 
@@ -109,6 +114,11 @@ app.get('/login', (req, res) => (req.session.user ? res.redirect('/') : res.send
 app.get('/denied', (req, res) => res.sendFile(page('denied.html')));
 app.get('/', auth.requireDispatcher(false), (req, res) => res.sendFile(page('app.html')));
 app.use('/assets', express.static(path.join(__dirname, '..', 'public', 'assets'), { maxAge: '1h', index: false }));
+// Polices du site (Barlow, Barlow Condensed, JetBrains Mono — licence OFL) servies depuis node_modules : aucun CDN
+for (const font of ['barlow', 'barlow-condensed', 'jetbrains-mono']) {
+    app.use('/assets/fonts', express.static(path.join(__dirname, '..', 'node_modules', '@fontsource', font, 'files'),
+        { maxAge: '30d', immutable: true, index: false }));
+}
 app.get('/healthz', (req, res) => res.json({ ok: true, fivem: fivem.publicStatus().online }));
 
 app.use((req, res) => res.status(404).json({ ok: false, error: 'Introuvable.' }));
@@ -120,7 +130,12 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 const server = http.createServer(app);
 let heartbeat = null;
 realtime.init(server, sessionMiddleware, () => heartbeat && heartbeat.beat());
-fivem.setStatusListener((status) => realtime.broadcast('fivem', status));
+let wasOnline = false;
+fivem.setStatusListener((status) => {
+    realtime.broadcast('fivem', status);
+    if (status.online && !wasOnline) realtime.resync().catch(() => {}); // joueurs + positions relus
+    wasOnline = status.online;
+});
 
 pool.query('SELECT 1 FROM mdc_calls LIMIT 1').then(() => {
     server.listen(config.port, () => {

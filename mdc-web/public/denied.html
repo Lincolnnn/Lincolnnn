@@ -1,19 +1,22 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="night">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Dispatch — Accès refusé</title>
-    <link rel="icon" href="/assets/shield.svg" type="image/svg+xml">
+    <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/app.css">
+    <script src="/assets/theme.js"></script>
 </head>
 <body class="auth-page">
     <main class="auth-card denied">
-        <img class="auth-logo" src="/assets/shield.svg" alt="">
-        <h1>Accès refusé</h1>
-        <p class="auth-text" id="deniedText">Votre compte Discord n'a pas le rôle « Dispatch » sur le serveur Discord.</p>
-        <p class="auth-foot">Si vous pensez qu'il s'agit d'une erreur, demandez le rôle à un administrateur, puis reconnectez-vous.</p>
-        <a class="btn-discord secondary" href="/login">Revenir à la connexion</a>
+        <div class="auth-stripe" aria-hidden="true"></div>
+        <div class="auth-body">
+            <div class="auth-mark"><img src="/assets/mark.svg" alt="" width="44" height="44"><div><h1>Accès refusé</h1><p class="auth-sub">King County Dispatch</p></div></div>
+            <p class="auth-text" id="deniedText">Votre compte Discord n'a pas le rôle « Dispatch » sur le serveur Discord.</p>
+            <p class="auth-foot">Si vous pensez qu'il s'agit d'une erreur, demandez le rôle à un administrateur, puis reconnectez-vous.</p>
+            <p><a class="btn-discord secondary" href="/login">Revenir à la connexion</a></p>
+        </div>
     </main>
     <script src="/assets/login.js"></script>
 </body>

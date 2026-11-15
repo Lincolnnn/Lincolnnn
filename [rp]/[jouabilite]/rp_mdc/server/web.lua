@@ -27,7 +27,7 @@ function MDCWeb.enabled() return KEY ~= '' end
 -- ÉVÉNEMENTS VERS LE SITE (regroupés, envoyés une fois MySQL à jour)
 -- =========================================================================
 local pending, scheduled, lastError = {}, false, 0
-local COALESCE = { calls = true, units = true, reads = true } -- un seul « liste à jour » par envoi
+local COALESCE = { calls = true, units = true, reads = true, players = true } -- un seul « liste à jour » par envoi
 
 local function flush()
     if MDCDB.busy() then return end -- MDCDB.onIdle relancera l'envoi
@@ -103,6 +103,12 @@ local ACTIONS = {
     ['message.send']   = function(b, actor) return MDCServer.sendMessage(b.channel, b.text, actor) end,
     ['message.read']   = function(b) return MDCServer.markRead(b.channel) end,
     ['search']         = function(b) return MDCServer.search(b) end,
+    ['call.create']    = function(b, actor) return MDCServer.createCall(b.call, actor) end,
+    ['call.edit']      = function(b, actor) return MDCServer.editCall(b.id, b.fields, b.rev, b.force == true, actor) end,
+    ['players']        = function() return MDCServer.players() end,
+    ['positions']      = function() return MDCServer.positions() end,
+    ['live.start']     = function(b) return MDCServer.liveStart(b.targets, b.url) end,
+    ['live.stop']      = function(b) return MDCServer.liveStop(b.serverIds) end,
     ['record']         = function(b) return MDCServer.record(b.kind, b.id) end,
 }
 

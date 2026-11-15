@@ -28,7 +28,7 @@ function callView(r, units = [], extra = {}) {
         dispatch: r.dispatch_state || null, dispatchReason: r.dispatch_reason || '', dispatchBy: r.dispatch_by || '',
         dispatchAt: r.dispatch_at ? Number(r.dispatch_at) : null, createdByName: r.created_by_name || '',
         createdAt: Number(r.created_at), closedAt: r.closed_at ? Number(r.closed_at) : null, closedByName: r.closed_by_name || '',
-        updatedAt: r.updated_at ? Number(r.updated_at) : null,
+        updatedAt: r.updated_at ? Number(r.updated_at) : null, rev: Number(r.rev || 0),
         status: callStatus(r, units.length), units, ...extra,
     };
 }
@@ -119,8 +119,12 @@ async function messageById(id) {
     return rows.length ? messageView(rows[0]) : null;
 }
 
-/** Conversations du dispatch : groupe civil, chaque unité, chaque intervention ouverte (dernier message, non-lus) */
-async function conversations() {
+/**
+ * Conversations du dispatch, en trois catégories : groupe civil, conversation privée de chaque civil (le JOUEUR, clé
+ * d:p:<licence>), chaque unité ; + chaque intervention ouverte (dans sa fiche). `players` : joueurs connectés (civils
+ * joignables même sans message).
+ */
+async function conversations(players = []) {
     const unitRows = await units();
     const openCalls = await query('SELECT id, number, title, dispatch_state FROM mdc_calls WHERE closed = 0 ORDER BY id DESC');
     const last = await query(`SELECT m.* FROM mdc_messages m JOIN (SELECT channel, MAX(id) id FROM mdc_messages
@@ -128,6 +132,10 @@ async function conversations() {
     const unread = await query(`SELECT m.channel, COUNT(*) n FROM mdc_messages m
         LEFT JOIN mdc_message_reads r ON r.channel = m.channel AND r.reader = 'dispatch'
         WHERE m.channel LIKE 'd:%' AND m.sender_type <> 'dispatch' AND m.id > COALESCE(r.last_id, 0) GROUP BY m.channel`);
+    // nom affiché d'un civil : son dernier nom connu dans sa conversation privée (sinon celui du jeu, s'il est connecté)
+    const civNames = await query(`SELECT m.channel, m.sender_name FROM mdc_messages m JOIN (SELECT channel, MAX(id) id FROM mdc_messages
+        WHERE channel LIKE 'd:p:%' AND sender_type = 'civil' GROUP BY channel) t ON t.id = m.id`);
+    const civName = Object.fromEntries(civNames.map((r) => [r.channel, r.sender_name]));
     const lastBy = Object.fromEntries(last.map((m) => [m.channel, messageView(m)]));
     const unreadBy = Object.fromEntries(unread.map((u) => [u.channel, Number(u.n)]));
     const item = (channel, kind, label, extra = {}) => ({ channel, kind, label, last: lastBy[channel] || null,
@@ -138,12 +146,36 @@ async function conversations() {
             list.push(item(`d:u:${u.id}`, 'unit', u.name, { unitId: u.id, agency: u.agency, tag: u.tag, connected: u.connected, status: u.status }));
         }
     }
+    const online = new Map(players.filter((p) => p.civKey).map((p) => [`d:p:${p.civKey}`, p]));
+    const privateChannels = new Set([...Object.keys(lastBy).filter((ch) => ch.startsWith('d:p:')), ...online.keys()]);
+    for (const ch of privateChannels) {
+        const p = online.get(ch);
+        list.push(item(ch, 'private', (p && p.name) || civName[ch] || 'Civil', { online: !!p, serverId: p ? p.serverId : null }));
+    }
     for (const c of openCalls) {
         if (c.dispatch_state !== 'awaiting') {
             list.push(item(`d:c:${c.id}`, 'call', `${c.number} — ${c.title}`, { callId: Number(c.id), number: c.number }));
         }
     }
     return list;
+}
+
+/** Observation (lecture seule) : conversations entre unités (u:A:B), sans rien marquer comme lu */
+async function observeConversations() {
+    const last = await query(`SELECT m.* FROM mdc_messages m JOIN (SELECT channel, MAX(id) id, COUNT(*) n FROM mdc_messages
+        WHERE channel LIKE 'u:%' GROUP BY channel) t ON t.id = m.id ORDER BY m.id DESC LIMIT 200`);
+    const counts = await query("SELECT channel, COUNT(*) n FROM mdc_messages WHERE channel LIKE 'u:%' GROUP BY channel");
+    const countBy = Object.fromEntries(counts.map((c) => [c.channel, Number(c.n)]));
+    const unitRows = await query('SELECT id, name, tag, agency FROM mdc_units');
+    const unitBy = Object.fromEntries(unitRows.map((u) => [Number(u.id), u]));
+    return last.map((m) => {
+        const [, a, b] = m.channel.split(':').map(Number);
+        const ua = unitBy[a];
+        const ub = unitBy[b];
+        return { channel: m.channel, kind: 'observe', label: `${ua ? ua.name : `Unité ${a}`} ↔ ${ub ? ub.name : `Unité ${b}`}`,
+            units: [ua ? { id: a, name: ua.name, agency: ua.agency } : { id: a }, ub ? { id: b, name: ub.name, agency: ub.agency } : { id: b }],
+            last: messageView(m), count: countBy[m.channel] || 0, unread: 0 };
+    });
 }
 
 /** Historique : appels terminés / refusés / annulés, recherche et pagination */
@@ -190,4 +222,5 @@ async function dispatchMode() {
     return rows.length ? rows[0].value === '1' : false;
 }
 
-module.exports = { activeCalls, callDetail, units, channelMessages, messageById, conversations, history, actionLog, dispatchMode, callStatus };
+module.exports = { activeCalls, callDetail, units, channelMessages, messageById, conversations, observeConversations, history, actionLog,
+    dispatchMode, callStatus };

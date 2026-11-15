@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_mdc'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police sans framework - MySQL (oxmysql), MDC Web du dispatch, NUI Vanilla JS'
-version '3.2.0'
+version '4.0.0'
 
 dependency 'oxmysql' -- base de données MySQL / MariaDB (voir README)
 
@@ -34,7 +34,8 @@ client_scripts {
     'client/streetnames.lua',     -- noms du PLD : config/washington.json (rues, quartiers, villes, polices)
     'client/blockeditor.lua',     -- /blocs (admins) : créer les blocs du PLD (point / carré) et copier leurs lignes
     'client/hud.lua',
-    'client/carhud.lua' -- car HUD : relais des données de Vehicle Control (rp_vehiclecontrol)
+    'client/carhud.lua',    -- car HUD : relais des données de Vehicle Control (rp_vehiclecontrol)
+    'client/liveview.lua'   -- LiveView du MDC Web (captures du jeu via screenshot-basic, seulement sur demande)
 }
 
 server_scripts {
@@ -44,5 +45,6 @@ server_scripts {
     'config/licenses.lua', -- permis de conduire (Washington, États voisins, Canada) et nationalités
     'server/offenses.lua', -- infractions de l'État de Washington (RCW) et classifications
     'server/reports.lua',  -- modèles des rapports (chargé avant server.lua)
-    'server/server.lua'
+    'server/server.lua',
+    'server/demo.lua'      -- données de démonstration fictives (commande console mdc_demo seed / purge / status)
 }

@@ -1594,3 +1594,18 @@ tr.row-ended td { opacity: .55; }
 .call-toast.notice-toast.refused, .call-toast.notice-toast.cancelled { --prio: 255, 99, 99; }
 .call-toast.notice-toast.validated, .call-toast.notice-toast.assigned { --prio: 80, 200, 120; }
 .flag.c-dispatch { background: #d9480f; color: #fff; }
+
+/* Photo par défaut d'une identité (silhouette) : en-tête de la fiche et liste du registre */
+.sheet-title > span:first-child { display: inline-flex; align-items: center; gap: 10px; }
+.id-avatar { display: inline-flex; flex: none; width: 44px; height: 52px; border: 1px solid var(--stroke); border-radius: 3px;
+    overflow: hidden; color: var(--muted); background: var(--card); }
+.id-avatar svg { width: 100%; height: 100%; }
+.id-avatar.small { width: 28px; height: 34px; }
+.off-person { display: flex; align-items: center; gap: 8px; }
+
+/* Civil : onglets Groupe civil / Privé (dispatch) */
+.msg-civil-tabs { display: flex; gap: 4px; margin-bottom: 6px; }
+.msg-civil-tabs button { flex: 1; padding: 6px 8px; border: 1px solid var(--stroke); border-radius: var(--radius-sm);
+    background: var(--card-2); color: var(--text-2); font: 600 12px var(--font); cursor: pointer; }
+.msg-civil-tabs button.active { background: var(--card); color: var(--text); border-color: var(--accent, #2563eb); }
+.msg-civil-tabs .msg-count { display: inline-block; min-width: 16px; padding: 0 4px; border-radius: 8px; background: #d93838; color: #fff; font-size: 10.5px; }

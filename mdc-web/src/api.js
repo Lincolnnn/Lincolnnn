@@ -14,7 +14,10 @@ const read = requireDispatcher(false);
 const act = [requireDispatcher(true), requireCsrf];
 
 const STATUSES = ['available', 'en_route', 'on_scene', 'unavailable'];
-const CHANNEL = /^d:(civ|u:\d{1,9}|c:\d{1,9})$/;
+// Canaux où le dispatch écrit : groupe civil, conversation privée d'un civil (joueur), unité, intervention
+const CHANNEL = /^d:(civ|u:\d{1,9}|c:\d{1,9}|p:[A-Za-z0-9]{1,28})$/;
+// Lecture seule (observation) : conversations entre deux unités
+const OBSERVE = /^u:\d{1,9}:\d{1,9}$/;
 
 const id = (v) => {
     const n = Number(v);
@@ -47,12 +50,12 @@ router.get('/me', read, (req, res) => {
 });
 
 router.get('/state', read, wrap(async (req, res) => {
-    const [calls, units, conversations, mode] = await Promise.all([queries.activeCalls(), queries.units(), queries.conversations(),
-        queries.dispatchMode()]);
+    const [calls, units, conversations, mode] = await Promise.all([queries.activeCalls(), queries.units(),
+        queries.conversations(realtime.players()), queries.dispatchMode()]);
     const status = fivem.publicStatus();
     res.json({ ok: true, calls, units, conversations, fivem: status,
         dispatch: status.dispatch || { enabled: mode, online: false, effective: false, count: 0 },
-        presence: realtime.dispatchers() });
+        presence: realtime.dispatchers(), positions: realtime.positions(), players: realtime.players(), editing: realtime.editing() });
 }));
 
 router.get('/calls/:id', read, wrap(async (req, res) => {
@@ -102,12 +105,21 @@ router.get('/records/:kind/:id', read, wrap(async (req, res) => {
 }));
 
 router.get('/conversations', read, wrap(async (req, res) => {
-    res.json({ ok: true, conversations: await queries.conversations() });
+    res.json({ ok: true, conversations: await queries.conversations(realtime.players()) });
+}));
+
+// Observation : conversations entre unités, en lecture seule (rien n'est marqué comme lu, aucun signe de présence)
+router.get('/observe', read, wrap(async (req, res) => {
+    res.json({ ok: true, conversations: await queries.observeConversations() });
+}));
+
+router.get('/players', read, wrap(async (req, res) => {
+    res.json({ ok: true, players: realtime.players(), liveview: realtime.liveviewAvailable() });
 }));
 
 router.get('/messages', read, wrap(async (req, res) => {
     const channel = String(req.query.channel || '');
-    if (!CHANNEL.test(channel)) return res.status(400).json({ ok: false, error: 'Conversation invalide.' });
+    if (!CHANNEL.test(channel) && !OBSERVE.test(channel)) return res.status(400).json({ ok: false, error: 'Conversation invalide.' });
     const before = Math.max(0, Number(req.query.before) || 0);
     res.json({ ok: true, channel, messages: await queries.channelMessages(channel, before) });
 }));
@@ -139,6 +151,55 @@ callAction('close', 'call.close', (b) => {
 callAction('assign', 'call.assign', (b) => (id(b.unitId) ? { unitId: id(b.unitId) } : null));
 callAction('unassign', 'call.unassign', (b) => (id(b.unitId) ? { unitId: id(b.unitId) } : null));
 callAction('note', 'call.note', (b) => (text(b.text, 500) ? { text: text(b.text, 500) } : null));
+
+// ---- Création d'une intervention / d'un incident par le dispatch (formulaire rapide ou détaillé) ----
+const PRIORITIES = ['px', 'k1', 'k2', 'k3', 'k4', 'k0', 'nonurgent', 'p1', 'p2', 'p3'];
+function callFields(b, partial) {
+    const out = {};
+    const str = (k, max) => { if (b[k] !== undefined) out[k] = text(b[k], max); };
+    str('title', 60); str('address', 80); str('crossStreet', 80); str('block', 40); str('sector', 40);
+    str('caller', 60); str('phone', 20);
+    if (b.description !== undefined) out.description = typeof b.description === 'string' ? b.description.trim().slice(0, 2000) : '';
+    if (b.priority !== undefined) { if (b.priority !== '' && !PRIORITIES.includes(b.priority)) return null; out.priority = b.priority; }
+    if (b.responseCode !== undefined && b.responseCode !== null && b.responseCode !== '') {
+        const rc = Number(b.responseCode);
+        if (![1, 2, 3].includes(rc)) return null;
+        out.responseCode = rc;
+    }
+    if (b.idealUnits !== undefined && b.idealUnits !== '') {
+        const n = Number(b.idealUnits);
+        if (!Number.isInteger(n) || n < 1 || n > 20) return null;
+        out.idealUnits = n;
+    }
+    const ag = b.agencies !== undefined ? b.agencies : b.agency;
+    if (ag !== undefined) {
+        const list = (Array.isArray(ag) ? ag : String(ag).split('+')).map(String).filter((a) => ['kcso', 'wsp'].includes(a));
+        if (!list.length) return null;
+        out[partial ? 'agency' : 'agencies'] = [...new Set(list)];
+    }
+    return out;
+}
+
+router.post('/calls', act, wrap(async (req, res) => {
+    const b = req.body || {};
+    const fields = callFields(b, false);
+    if (!fields) return res.status(400).json({ ok: false, error: 'Données invalides.' });
+    const call = { ...fields, kind: b.kind === 'incident' ? 'incident' : 'intervention',
+        units: Array.isArray(b.units) ? b.units.map(id).filter(Boolean).slice(0, 10) : [] };
+    return game(res, 'call.create', { call }, req);
+}));
+
+// ---- Modification (avant l'envoi, ou pendant l'intervention) : n° de version pour les modifications simultanées ----
+router.post('/calls/:id/edit', act, wrap(async (req, res) => {
+    const cid = id(req.params.id);
+    const b = req.body || {};
+    const fields = callFields(b.fields || {}, true);
+    if (!cid || !fields || !Number.isInteger(Number(b.rev))) return res.status(400).json({ ok: false, error: 'Données invalides.' });
+    const result = await fivem.call('call.edit', { id: cid, rev: Number(b.rev), force: b.force === true, fields, actor: actor(req) });
+    if (result && result.conflict) return res.status(409).json({ ok: false, conflict: true, rev: result.rev, error: result.error });
+    if (!result || result.ok !== true) return res.status(400).json({ ok: false, error: (result && result.error) || 'Modification refusée.' });
+    return res.json(result);
+}));
 
 router.post('/units/:id/status', act, wrap(async (req, res) => {
     const uid = id(req.params.id);

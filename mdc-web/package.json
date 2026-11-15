@@ -1,23 +1,31 @@
 {
   "name": "mdc-dispatch-web",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "MDC Web du dispatch (Washington) : centre de dispatch en ligne relié au MDC en jeu (rp_mdc), Discord OAuth2, MySQL, temps réel",
   "private": true,
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "check": "node --check src/server.js && node --check src/config.js && node --check src/db.js && node --check src/queries.js && node --check src/discord.js && node --check src/auth.js && node --check src/fivem.js && node --check src/realtime.js && node --check src/api.js && node --check src/logger.js && node --check public/assets/app.js && node --check public/assets/login.js"
+    "check": "node --check src/server.js && node --check src/config.js && node --check src/db.js && node --check src/queries.js && node --check src/discord.js && node --check src/auth.js && node --check src/fivem.js && node --check src/realtime.js && node --check src/api.js && node --check src/logger.js && node --check src/liveview.js && node --check public/assets/app.js && node --check public/assets/login.js"
   },
   "engines": {
     "node": ">=18.17"
   },
   "dependencies": {
+    "@fontsource/barlow": "5.2.8",
+    "@fontsource/barlow-condensed": "5.2.8",
+    "@fontsource/jetbrains-mono": "5.2.8",
     "dotenv": "16.4.7",
-    "express": "4.21.2",
+    "express": "4.22.3",
     "express-mysql-session": "3.0.3",
-    "express-session": "1.18.1",
+    "express-session": "1.19.0",
     "helmet": "8.0.0",
-    "mysql2": "3.11.5",
+    "mysql2": "3.24.6",
     "socket.io": "4.8.1"
+  },
+  "overrides": {
+    "express-mysql-session": {
+      "mysql2": "$mysql2"
+    }
   }
 }

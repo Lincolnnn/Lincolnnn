@@ -900,10 +900,14 @@
         if (entry) showReportFromCall(Number(entry.dataset.openReport));
     });
 
+    // Photo par défaut d'une identité (aucune photo enregistrée) : silhouette neutre
+    const AVATAR_SVG = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" fill="currentColor" opacity=".12"/><circle cx="32" cy="24" r="11" fill="currentColor" opacity=".55"/><path d="M12 60c2-12 10-18 20-18s18 6 20 18z" fill="currentColor" opacity=".55"/></svg>';
+    const avatarHtml = (cls = '') => `<span class="id-avatar ${cls}" title="Photo par défaut">${AVATAR_SVG}</span>`;
+
     function sheetHead(title, record, editable) {
         return `
             <div class="sheet-title">
-                <span>${esc(title)}</span>
+                <span>${record && record.kind === 'identity' ? avatarHtml() : ''}${esc(title)}</span>
                 ${editable ? `<button type="button" class="btn btn-small" data-edit-kind="${esc(record.kind)}" data-edit-id="${esc(record.id)}">Modifier</button>` : ''}
             </div>`;
     }
@@ -956,6 +960,7 @@
                     ${row('Adresse déclarée', reg.address)}
                     ${row('Niveau de risque', RISK_LABELS[reg.level] || reg.level)}
                     ${row('Inscrit le', reg.registeredDate)}
+                    ${row('Dernière mise à jour', reg.lastUpdate)}
                     ${row('Fin de l\'inscription', registryEndText(reg))}
                     ${row('Libéré le', reg.releaseDate)}
                     ${row('Incarcération purgée', reg.prisonMonths != null ? `${reg.prisonMonths} mois` : '')}
@@ -1059,6 +1064,7 @@
                 ${row('Adresse', r.address)}
                 ${row('Téléphone', r.phone)}
                 ${row('Emploi', r.job)}
+                ${row('Description physique', r.physical)}
                 ${dd('Condition', conditionFlag(r.condition))}
             </dl>
             ${fold('Permis de conduire', hasLicense ? licenseHtml(r) : foldEmpty('Aucun permis de conduire (N/A).'))}
@@ -2514,7 +2520,7 @@
 
     function fillIdentityForm(r) {
         resetIdentityForm();
-        ['firstname', 'middlename', 'lastname', 'dob', 'sex', 'address', 'phone', 'ssn', 'job',
+        ['firstname', 'middlename', 'lastname', 'dob', 'sex', 'address', 'phone', 'ssn', 'job', 'physical',
             'licenseStatus', 'licenseNumber', 'condition', 'wantedReason', 'wantedSince',
             'entryDate', 'statusExpiry', 'sin', 'passportNumber', 'nexusNumber']
             .forEach((name) => { idField(name).value = r[name] ?? ''; });
@@ -2827,6 +2833,7 @@
                         ${dateField('convictionDate', 'Date du jugement *')}
                         ${dateField('releaseDate', 'Date de libération *')}
                         ${dateField('registeredDate', 'Date d\'inscription *')}
+                        ${dateField('lastUpdate', 'Dernière mise à jour')}
                         <label class="lbl">Fin de l'inscription<input data-j-end type="text" readonly tabindex="-1"></label>
                         <div class="lbl"><span class="reg-months muted"></span><button type="button" class="btn j-dates" title="Dates cohérentes : faits, jugement, libération (selon l'incarcération), inscription">&#128197; Dates automatiques</button></div>
                         <label class="lbl">Tribunal<select data-j="court">${optionsOf(COURT_LABELS, 'superior')}</select></label>
@@ -4479,8 +4486,7 @@
             ${c.crossStreet ? `<div class="ct-row"><span class="hud-label">CROISEMENT</span>${esc(c.crossStreet)}</div>` : ''}
             ${c.sector ? `<div class="ct-row"><span class="hud-label">SECTEUR</span>${esc(c.sector)}</div>` : ''}
             <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
-        pushNotification(el, c.backup ? 20000 : 12000);
-        if (hud.settings.notify.sound) playSound(incident ? 'incident' : 'call');
+        notify(c.backup ? 'backup' : incident ? 'incident' : 'call', el, c.backup ? 20000 : 12000);
     }
 
     // Demande de renforts depuis un appel (Code 1 / 2 / 3 Backup, 10-33) : même son qu'une nouvelle intervention
@@ -4496,8 +4502,7 @@
             <div class="ct-row"><span class="hud-label">ADRESSE</span>${esc(c.address)}</div>
             ${c.crossStreet ? `<div class="ct-row"><span class="hud-label">CROISEMENT</span>${esc(c.crossStreet)}</div>` : ''}
             <div class="ct-row"><span class="hud-label">BLOC</span>${esc(c.block)}</div>`;
-        pushNotification(el, urgent ? 25000 : 15000);
-        if (hud.settings.notify.sound) playSound('call');
+        notify('backup', el, urgent ? 25000 : 15000);
     }
 
     // Nouveau BOLO (communs aux deux polices) : notification + son pour toutes les unités de police
@@ -4510,8 +4515,7 @@
             <div class="ct-row"><span class="hud-label">TYPE</span>${b.kind === 'vehicle' ? 'Véhicule' : 'Individu'}</div>
             ${b.summary ? `<div class="ct-row"><span class="hud-label">DESCRIPTION</span><span class="ct-ellipsis">${esc(b.summary)}</span></div>` : ''}
             ${b.agencyShort ? `<div class="ct-row"><span class="hud-label">ÉMIS PAR</span>${esc(b.agencyShort)}${b.unitName ? ` — ${esc(b.unitName)}` : ''}</div>` : ''}`;
-        pushNotification(el, 10000);
-        serverSound('bolo');
+        notify('bolo', el, 10000);
     }
 
     // "Vous êtes l'une des unités les plus proches" : Y pour accepter, N pour refuser (client/hud.lua).
@@ -4539,7 +4543,7 @@
         };
         tick();
         offers[c.id] = { el, timer: setInterval(tick, 500) };
-        if (hud.settings.notify.sound) playSound('call');
+        notify('call'); // l'invite elle-même reste affichée (il faut répondre Y / N) ; ici : seulement son son
     }
 
     const OFFER_RESULTS = { accepted: ['c-green', 'Appel accepté : unité en route'], declined: ['c-gray', 'Appel refusé'] };
@@ -4656,10 +4660,39 @@
         }
     }
 
-    // Sons d'événements envoyés par le serveur (client/hud.lua) : BOLO, unité qui rejoint / quitte l'appel, fiche liée
-    const SERVER_SOUNDS = new Set(['bolo', 'assign', 'deassign', 'link', 'status']);
+    // =====================================================================
+    // NOTIFICATIONS : POINT DE CONFIGURATION UNIQUE
+    //   Pour chaque type d'événement : visual = notification affichée (en haut à droite), sound = son joué (clé de
+    //   SOUND_FILES / SOUNDS ci-dessus, null = aucun). Les sons existants ne changent pas : seul l'affichage est
+    //   coupé pour les messages, les modifications d'intervention et les autres avis (son seul).
+    //   Les réglages du joueur (Paramètres > MDC : sons, volume, types notifiés) s'appliquent toujours en plus.
+    // =====================================================================
+    const NOTIFY_EVENTS = {
+        call:     { visual: true,  sound: 'call' },     // nouvelle intervention (et affectation par le dispatch)
+        backup:   { visual: true,  sound: 'call' },     // demande de renfort / 10-33 sur une intervention
+        incident: { visual: true,  sound: 'incident' }, // nouvel incident
+        bolo:     { visual: true,  sound: 'bolo' },     // nouveau BOLO
+        status:   { visual: true,  sound: 'status' },   // changement de statut de son unité
+        message:  { visual: false, sound: 'message' },  // TOUT message reçu : unité, dispatch, groupe civil, privé
+        callEdit: { visual: false, sound: 'link' },     // modification d'un élément d'une intervention (dispatch)
+        assign:   { visual: false, sound: 'assign' },   // une unité rejoint l'appel
+        deassign: { visual: false, sound: 'deassign' }, // une unité quitte l'appel
+        link:     { visual: false, sound: 'link' },     // fiche / rapport lié à l'appel
+        other:    { visual: false, sound: 'message' },  // autres avis du dispatch (appel transmis, refusé, annulé…)
+    };
+
+    // Seule fonction qui affiche une notification et / ou joue son son. el (facultatif) : la notification construite.
+    function notify(event, el, duration) {
+        const cfg = NOTIFY_EVENTS[event] || NOTIFY_EVENTS.other;
+        if (cfg.visual && el) pushNotification(el, duration || 8000);
+        if (cfg.sound && hud.settings.notify.sound !== false) playSound(cfg.sound);
+    }
+
+    // Sons d'événements envoyés par le serveur (client/hud.lua) : unité qui rejoint / quitte l'appel, fiche liée,
+    // statut (notification de statut coupée par le joueur), modification d'une intervention
+    const SERVER_SOUNDS = new Set(['bolo', 'assign', 'deassign', 'link', 'status', 'callEdit']);
     function serverSound(kind) {
-        if (SERVER_SOUNDS.has(kind) && hud.settings.notify.sound !== false) playSound(kind);
+        if (SERVER_SOUNDS.has(kind)) notify(kind);
     }
 
     // Sons de l'interface (réglage "Sons de l'interface") : clic de souris et clavier, MDC ouvert seulement
@@ -4727,8 +4760,7 @@
             <div class="ct-unit">${esc(u.name)}</div>
             <div class="ct-status"><span class="sq" data-status="${esc(u.status)}"></span>${esc(STATUS_LABELS[u.status] || u.status)}</div>`;
         el.dataset.status = u.status; // couleur du liseré
-        pushNotification(el, 6000);
-        serverSound('status');
+        notify('status', el, 6000);
     }
 
     // =====================================================================
@@ -4793,11 +4825,14 @@
     }
 
     // MDC générique : discussion du groupe civil avec le dispatch
+    // Civil : deux onglets, le groupe civil (tous les civils) et sa conversation PRIVÉE avec le dispatch
     async function loadCivilChat() {
-        const res = await post('getCivilChat');
+        const tab = (msg.civil && msg.civil.tab) || 'group';
+        const res = await post('getCivilChat', { tab });
         if (!res || !res.ok) return;
-        msg.civil = { messages: toArray(res.messages), online: !!res.dispatchOnline };
-        setMsgBadge(0, 0);
+        msg.civil = { tab, messages: toArray(res.messages), private: toArray(res.private), online: !!res.dispatchOnline,
+            unread: Number(res.unread) || 0, privateUnread: Number(res.privateUnread) || 0 };
+        setMsgBadge(0, msg.civil.unread + msg.civil.privateUnread);
         renderMessages();
     }
 
@@ -4845,16 +4880,27 @@
         if (!msgOpen()) return;
         const body = $('#msgBody');
         if (!isPolice()) {
-            const c = msg.civil || { messages: [], online: false };
-            $('#msgTitle').textContent = 'Dispatch — groupe civil';
+            const c = msg.civil || { tab: 'group', messages: [], private: [], online: false, unread: 0, privateUnread: 0 };
+            const priv = c.tab === 'private';
+            const list = priv ? c.private : c.messages;
+            $('#msgTitle').textContent = priv ? 'Dispatch — conversation privée' : 'Dispatch — groupe civil';
             body.innerHTML = `
-                <div class="msg-thread-head dispatch-head"><span class="grow"><b>Dispatch</b> — tous les civils voient cette discussion</span></div>
+                <div class="msg-civil-tabs" role="tablist">
+                    <button type="button" class="${priv ? '' : 'active'}" data-civ-tab="group" role="tab" aria-selected="${!priv}">Groupe civil${!priv || !c.unread ? '' : ` <span class="msg-count">${c.unread}</span>`}</button>
+                    <button type="button" class="${priv ? 'active' : ''}" data-civ-tab="private" role="tab" aria-selected="${priv}">Privé (dispatch)${priv || !c.privateUnread ? '' : ` <span class="msg-count">${c.privateUnread}</span>`}</button>
+                </div>
+                <div class="msg-thread-head dispatch-head"><span class="grow"><b>Dispatch</b> — ${priv ? 'vous seul et le dispatch voyez cette discussion' : 'tous les civils voient cette discussion'}</span></div>
                 <div class="msg-dispatch-state">${c.online ? 'Un dispatcher est en ligne.' : 'Aucun dispatcher en ligne pour le moment : votre message sera lu à son retour.'}</div>
-                <div class="msg-thread" id="msgThread">${c.messages.length ? c.messages.map((m) => bubbleHtml(m, !!m.mine)).join('')
-                    : '<div class="msg-empty">Aucun message. Écrivez au dispatch.</div>'}</div>
-                ${composerHtml('Message au dispatch (Entrée : envoyer)')}`;
+                <div class="msg-thread" id="msgThread">${list.length ? list.map((m) => bubbleHtml(m, !!m.mine)).join('')
+                    : `<div class="msg-empty">${priv ? 'Aucun message privé. Écrivez au dispatch : seul le dispatch le lira.' : 'Aucun message. Écrivez au dispatch.'}</div>`}</div>
+                ${composerHtml(priv ? 'Message privé au dispatch (Entrée : envoyer)' : 'Message au dispatch (Entrée : envoyer)')}`;
             $('#msgThread').scrollTop = $('#msgThread').scrollHeight;
-            bindComposer('d:civ');
+            bindComposer(priv ? 'd:p' : 'd:civ');
+            body.querySelectorAll('[data-civ-tab]').forEach((b) => b.addEventListener('click', () => {
+                if (c.tab === b.dataset.civTab) return;
+                msg.civil.tab = b.dataset.civTab;
+                loadCivilChat();
+            }));
             return;
         }
         if (!msg.unit) {
@@ -4936,8 +4982,8 @@
         if (!input) return;
         const text = input.value.trim();
         if (!text) return;
-        if (!isPolice() || (t && t.kind === 'dispatch')) { // groupe civil / conversation avec le dispatch
-            const channel = isPolice() ? t.channel : 'd:civ';
+        if (!isPolice() || (t && t.kind === 'dispatch')) { // groupe civil, conversation privée, dispatch
+            const channel = isPolice() ? t.channel : (msg.civil && msg.civil.tab === 'private' ? 'd:p' : 'd:civ');
             const res = await post('sendMessage', { channel, text });
             if (!res || !res.ok) return toast((res && res.error) || 'Message non envoyé.', 'error');
             msg.draft[channel] = '';
@@ -4954,6 +5000,35 @@
         renderMessages();
     }
 
+    // =====================================================================
+    // LIVEVIEW (MDC Web) : capture du jeu (screenshot-basic) réduite à la taille demandée (480 x 270 en mosaïque,
+    // 960 x 540 agrandie), JPEG, envoyée au site avec le jeton reçu du serveur. Une image à la fois.
+    // =====================================================================
+    const live = { busy: false, canvas: null, lastMs: 0 };
+    function liveFrame(f) {
+        if (live.busy || !f.img || !f.url || !f.token) return;
+        live.busy = true;
+        const img = new Image();
+        img.onload = () => {
+            const canvas = live.canvas || (live.canvas = document.createElement('canvas'));
+            const w = Math.max(160, Math.min(1280, Number(f.w) || 480));
+            const h = Math.max(90, Math.min(720, Number(f.h) || 270));
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            canvas.toBlob((blob) => {
+                if (!blob) { live.busy = false; return; }
+                const started = performance.now();
+                fetch(f.url, { method: 'POST', mode: 'cors', body: blob,
+                    headers: { 'Content-Type': 'image/jpeg', 'X-Live-Token': f.token, 'X-Live-Ms': String(Math.round(live.lastMs)), 'X-Live-Size': `${w}x${h}` } })
+                    .catch(() => null)
+                    .finally(() => { live.lastMs = performance.now() - started; live.busy = false; });
+            }, 'image/jpeg', Math.min(0.9, Math.max(0.2, Number(f.q) || 0.5)));
+        };
+        img.onerror = () => { live.busy = false; };
+        img.src = f.img;
+    }
+
     function messageNotification(d) {
         const el = document.createElement('div');
         el.className = 'call-toast msg-toast';
@@ -4967,8 +5042,7 @@
             msg.with = d.with;
             setMsgPane(true);
         });
-        pushNotification(el, 9000);
-        if (hud.settings.notify.sound !== false) playSound('message');
+        notify('message', el, 9000); // son seul (NOTIFY_EVENTS.message)
     }
 
     // Message du dispatch (ou d'une unité sur un canal du dispatch) : notification PRIORITAIRE, même MDC fermé
@@ -4985,8 +5059,7 @@
             setMsgPane(true);
             if (!civil) loadMessages(d.channel);
         });
-        pushNotification(el, 15000);
-        if (hud.settings.notify.sound !== false) playSound('call');
+        notify('message', el, 15000); // même son que tous les messages, sans affichage (NOTIFY_EVENTS.message)
     }
 
     function onDispatchMessage(d) {
@@ -4997,13 +5070,16 @@
     }
 
     function onCivilMessage(d) {
-        const viewing = msgOpen() && !$('#mdc').classList.contains('hidden') && !isPolice();
-        if (viewing) loadCivilChat();
+        const open = msgOpen() && !$('#mdc').classList.contains('hidden') && !isPolice();
+        const tab = d.private ? 'private' : 'group';
+        const viewing = open && (msg.civil ? msg.civil.tab : 'group') === tab;
+        if (open) loadCivilChat(); // onglet ouvert : lu ; l'autre onglet : compteur à jour
         else if (d.incoming) setMsgBadge(0, Number(d.unread) || 0);
-        if (d.incoming && !viewing) dispatchToast(d, true);
+        if (d.incoming && !viewing) dispatchToast(d, true); // son des messages seulement (NOTIFY_EVENTS.message)
     }
 
-    // Avis du dispatch : appel transmis / refusé / annulé, unité affectée / retirée, statut changé
+    // Avis du dispatch : appel transmis / refusé / annulé, unité affectée / retirée, statut changé, intervention modifiée
+    const NOTICE_EVENTS = { assigned: 'call', status: 'status', edited: 'callEdit' };
     function dispatchNotice(n) {
         const el = document.createElement('div');
         el.className = `call-toast notice-toast ${esc(n.kind || '')}`;
@@ -5011,8 +5087,7 @@
             <div class="ct-head"><span>DISPATCH</span>${n.number ? `<span class="ct-number">${esc(n.number)}</span>` : ''}</div>
             <div class="ct-title">${esc(n.title || '')}</div>
             ${n.text ? `<div class="msg-toast-text">${esc(n.text)}</div>` : ''}`;
-        pushNotification(el, 12000);
-        if (hud.settings.notify.sound !== false) playSound(n.kind === 'assigned' ? 'call' : 'message');
+        notify(NOTICE_EVENTS[n.kind] || 'other', el, 12000);
         if (state.open && state.page === 'interventions') refreshInterventions();
     }
 
@@ -5855,8 +5930,8 @@
             const lvl = RISK_SHORT[reg.level] || reg.level;
             return `
                 <tr data-index="${i}" class="${reg.status === 'absconded' ? 'row-wanted' : ''}${e.active ? '' : ' row-ended'}">
-                    <td><b>${esc(String(e.identity.lastname || '').toUpperCase())}</b> ${esc([e.identity.firstname, e.identity.middlename].filter(Boolean).join(' '))}
-                        <div class="muted">${esc(e.identity.dob)}${e.identity.sex ? ` (${esc(e.identity.sex)})` : ''}</div></td>
+                    <td><div class="off-person">${avatarHtml('small')}<div><b>${esc(String(e.identity.lastname || '').toUpperCase())}</b> ${esc([e.identity.firstname, e.identity.middlename].filter(Boolean).join(' '))}
+                        <div class="muted">${esc(e.identity.dob)}${e.identity.sex ? ` (${esc(e.identity.sex)})` : ''}${reg.lastUpdate ? ` — maj ${esc(reg.lastUpdate)}` : ''}</div></div></div></td>
                     <td>${flag(reg.level === '3' ? 'c-red' : reg.level === '2' ? 'c-orange' : 'c-yellow', lvl)}</td>
                     <td>${esc(reg.label || reg.offense)}</td>
                     <td>${esc(reg.address || '-')}</td>
@@ -6573,6 +6648,12 @@
                 break;
             case 'dispatchMessage': // message du dispatch / sur un canal du dispatch (prioritaire)
                 if (data.data) onDispatchMessage(data.data);
+                break;
+            case 'liveFrame': // LiveView du MDC Web (client/liveview.lua) : image du jeu à réduire et envoyer
+                if (data.data) liveFrame(data.data);
+                break;
+            case 'liveStop':
+                live.busy = false;
                 break;
             case 'civilMessage': // groupe civil <-> dispatch (MDC générique)
                 if (data.data) onCivilMessage(data.data);

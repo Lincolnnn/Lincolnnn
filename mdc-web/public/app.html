@@ -1,189 +1,307 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="night">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Washington Dispatch</title>
-    <link rel="icon" href="/assets/shield.svg" type="image/svg+xml">
+    <title>King County Dispatch</title>
+    <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+    <link rel="preload" href="/assets/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/barlow-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/assets/app.css">
+    <script src="/assets/theme.js"></script>
 </head>
 <body class="app">
+    <!-- Icônes : un seul jeu, trait de 1,6 px sur une grille de 16 -->
+    <svg width="0" height="0" class="hidden" aria-hidden="true">
+        <symbol id="i-dash" viewBox="0 0 16 16"><path d="M2 2h5v5H2zM9 2h5v3H9zM9 7h5v7H9zM2 9h5v5H2z"/></symbol>
+        <symbol id="i-calls" viewBox="0 0 16 16"><path d="M8 8.5V14M5.5 14h5M5.2 6.2a4 4 0 0 1 5.6 0M3 4a7 7 0 0 1 10 0M8 7.6v.4"/></symbol>
+        <symbol id="i-units" viewBox="0 0 16 16"><path d="M2 10V7l2-4h8l2 4v3M2 10h12v3H2zM3 7h10M4 11.5h1.5M10.5 11.5H12"/></symbol>
+        <symbol id="i-msg" viewBox="0 0 16 16"><path d="M2 3h12v8H7l-3 3v-3H2z"/></symbol>
+        <symbol id="i-search" viewBox="0 0 16 16"><path d="M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10zM10.6 10.6 14 14"/></symbol>
+        <symbol id="i-live" viewBox="0 0 16 16"><path d="M1.5 3h6v4.5h-6zM8.5 3h6v4.5h-6zM1.5 8.5h6V13h-6zM8.5 8.5h6V13h-6z"/></symbol>
+        <symbol id="i-history" viewBox="0 0 16 16"><path d="M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12zM8 5v3.5l2.5 1.5"/></symbol>
+        <symbol id="i-log" viewBox="0 0 16 16"><path d="M5 4h9M5 8h9M5 12h9M2 4h1M2 8h1M2 12h1"/></symbol>
+        <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+        <symbol id="i-edit" viewBox="0 0 16 16"><path d="m3 13 .6-3L11 2.6 13.4 5 6 12.4zM9.5 4 12 6.5"/></symbol>
+        <symbol id="i-x" viewBox="0 0 16 16"><path d="m3.5 3.5 9 9M12.5 3.5l-9 9"/></symbol>
+        <symbol id="i-sound" viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2zM11.5 5.5a3.5 3.5 0 0 1 0 5"/></symbol>
+        <symbol id="i-mute" viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2zM11 6l4 4M15 6l-4 4"/></symbol>
+        <symbol id="i-sun" viewBox="0 0 16 16"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3"/></symbol>
+        <symbol id="i-moon" viewBox="0 0 16 16"><path d="M13.5 10A6 6 0 0 1 6 2.5 6 6 0 1 0 13.5 10z"/></symbol>
+        <symbol id="i-logout" viewBox="0 0 16 16"><path d="M6 2H2v12h4M10 5l3 3-3 3M13 8H6"/></symbol>
+        <symbol id="i-pin" viewBox="0 0 16 16"><path d="M5.5 2h5L10 6l2.5 3h-9L6 6zM8 9v5"/></symbol>
+        <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></symbol>
+        <symbol id="i-eyeoff" viewBox="0 0 16 16"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM2 2l12 12"/></symbol>
+        <symbol id="i-expand" viewBox="0 0 16 16"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></symbol>
+        <symbol id="i-grip" viewBox="0 0 16 16"><path d="M6 3.5v1M10 3.5v1M6 7.5v1M10 7.5v1M6 11.5v1M10 11.5v1" stroke-width="2.4"/></symbol>
+        <symbol id="i-keys" viewBox="0 0 16 16"><path d="M1.5 4h13v8h-13zM4 7v.5M6.5 7v.5M9 7v.5M11.5 7v.5M5 9.5h6"/></symbol>
+        <symbol id="i-inbox" viewBox="0 0 16 16"><path d="m2 9 2-6h8l2 6v4H2zM2 9h4l1 2h2l1-2h4"/></symbol>
+        <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 12h-13zM8 6v4M8 11.5v.5"/></symbol>
+        <symbol id="i-check" viewBox="0 0 16 16"><path d="m3 8.5 3 3 7-7"/></symbol>
+        <symbol id="i-mark" viewBox="0 0 32 32"><path d="M16 2 30 16 16 30 2 16z" fill="currentColor" stroke="none"/><path d="M16 8.5v10M12 15l4 4 4-4M11 23h10" stroke="#160b04" stroke-width="2.2"/></symbol>
+    </svg>
+
     <!-- ================= BARRE DU HAUT ================= -->
     <header class="topbar">
         <div class="brand">
-            <img src="/assets/shield.svg" alt="">
-            <div><b>WASHINGTON DISPATCH</b><span>Computer Aided Dispatch</span></div>
+            <svg class="i brand-mark"><use href="#i-mark"/></svg>
+            <div class="brand-text"><b>King County</b><span>Dispatch · MDC Web</span></div>
         </div>
-        <button type="button" class="mode-switch" id="modeSwitch" role="switch" aria-checked="false" title="Mode Dispatch">
-            <span class="mode-track"><span class="mode-knob"></span></span>
-            <span class="mode-text"><b id="modeLabel">MODE DISPATCH : INACTIF</b><small id="modeHint">Les appels partent directement aux unités</small></span>
+        <button type="button" class="mode-switch" id="modeSwitch" role="switch" aria-checked="false" title="Mode Dispatch (activer / désactiver)">
+            <span class="lamp" aria-hidden="true"></span>
+            <span class="mode-text"><b id="modeLabel">Mode dispatch : inactif</b><small id="modeHint">Les appels partent directement aux unités</small></span>
         </button>
         <div class="top-status">
-            <span class="ind" id="indRealtime" title="Connexion temps réel au site"><i></i>Temps réel</span>
-            <span class="ind" id="indFivem" title="Serveur FiveM (ressource rp_mdc)"><i></i>Serveur FiveM</span>
-            <span class="ind-plain" id="indPlayers" title="Joueurs connectés en jeu"></span>
-            <span class="ind-plain" id="indDispatchers" title="Dispatchers en ligne"></span>
-            <button type="button" class="sound-btn" id="soundBtn" title="Activer / couper les sons">Son : activé</button>
-            <span class="clock" id="clock">--:--:--</span>
-            <span class="user-chip"><span id="userName">Dispatch</span></span>
-            <button type="button" class="btn ghost small" id="logoutBtn">Déconnexion</button>
+            <span class="led" id="indRealtime" title="Connexion temps réel au site"><span>Temps réel</span></span>
+            <span class="led" id="indFivem" title="Serveur FiveM (ressource rp_mdc)"><span>FiveM</span></span>
+            <span class="stat optional" id="indPlayers" title="Joueurs connectés en jeu"></span>
+            <span class="stat optional" id="indDispatchers" title="Postes dispatch connectés"></span>
+            <span class="station" id="station" title="Votre poste"></span>
+            <span class="clock" id="clock" aria-label="Heure">--:--:--</span>
+            <button type="button" class="btn ghost icon" id="soundBtn" title="Sons : activés (cliquer pour couper)" aria-pressed="true"><svg class="i"><use href="#i-sound"/></svg></button>
+            <button type="button" class="btn ghost icon" id="themeBtn" title="Thème jour / nuit"><svg class="i"><use href="#i-sun"/></svg></button>
+            <button type="button" class="btn ghost icon" id="helpBtn" title="Raccourcis clavier (?)"><svg class="i"><use href="#i-keys"/></svg></button>
+            <button type="button" class="btn ghost icon" id="logoutBtn" title="Déconnexion"><svg class="i"><use href="#i-logout"/></svg></button>
         </div>
     </header>
 
-    <div class="layout">
-        <!-- ================= NAVIGATION ================= -->
-        <nav class="sidenav" aria-label="Navigation">
-            <button type="button" class="nav active" data-view="dashboard">Tableau de bord</button>
-            <button type="button" class="nav" data-view="calls">Interventions <span class="badge hot hidden" id="navAwaiting"></span></button>
-            <button type="button" class="nav" data-view="units">Unités <span class="badge hidden" id="navUnits"></span></button>
-            <button type="button" class="nav" data-view="search">Recherches</button>
-            <button type="button" class="nav" data-view="messages">Messagerie <span class="badge hot hidden" id="navUnread"></span></button>
-            <button type="button" class="nav" data-view="history">Historique</button>
-            <button type="button" class="nav" data-view="log">Journal</button>
-            <div class="nav-foot" id="presenceList"></div>
-        </nav>
+    <!-- ================= NAVIGATION ================= -->
+    <nav class="sidenav" aria-label="Navigation">
+        <button type="button" class="nav" data-view="dashboard" aria-current="page"><svg class="i"><use href="#i-dash"/></svg><span class="nav-text">Tableau</span><span class="kbd">1</span></button>
+        <button type="button" class="nav" data-view="calls"><svg class="i"><use href="#i-calls"/></svg><span class="nav-text">Interventions</span><span class="count hidden" id="navAwaiting"></span><span class="kbd">2</span></button>
+        <button type="button" class="nav" data-view="units"><svg class="i"><use href="#i-units"/></svg><span class="nav-text">Unités</span><span class="count dim hidden" id="navUnits"></span><span class="kbd">3</span></button>
+        <button type="button" class="nav" data-view="messages"><svg class="i"><use href="#i-msg"/></svg><span class="nav-text">Messagerie</span><span class="count hidden" id="navUnread"></span><span class="kbd">4</span></button>
+        <button type="button" class="nav" data-view="search"><svg class="i"><use href="#i-search"/></svg><span class="nav-text">Recherche</span><span class="kbd">5</span></button>
+        <button type="button" class="nav" data-view="live"><svg class="i"><use href="#i-live"/></svg><span class="nav-text">LiveView</span><span class="count dim hidden" id="navLive"></span><span class="kbd">6</span></button>
+        <div class="nav-sep"></div>
+        <button type="button" class="nav" data-view="history"><svg class="i"><use href="#i-history"/></svg><span class="nav-text">Historique</span><span class="kbd">7</span></button>
+        <button type="button" class="nav" data-view="log"><svg class="i"><use href="#i-log"/></svg><span class="nav-text">Journal</span><span class="kbd">8</span></button>
+        <div class="nav-foot" id="presenceList"></div>
+    </nav>
 
-        <main class="main">
-            <div class="banner hidden" id="fivemBanner">Serveur FiveM injoignable : les données affichées viennent de la base, les actions sont impossibles jusqu'à son retour.</div>
+    <main class="main" id="main">
+        <div class="banner hidden" id="fivemBanner" role="alert"><p><b>Serveur FiveM injoignable.</b> Les données affichées viennent de la base ; aucune action possible jusqu'à son retour.</p></div>
 
-            <!-- ================= TABLEAU DE BORD ================= -->
-            <section class="view" id="view-dashboard">
-                <div class="kpis">
-                    <div class="kpi hot"><span id="kpiAwaiting">0</span><small>À valider (dispatch)</small></div>
-                    <div class="kpi"><span id="kpiPending">0</span><small>En attente d'unité</small></div>
-                    <div class="kpi"><span id="kpiOngoing">0</span><small>En cours</small></div>
-                    <div class="kpi"><span id="kpiUnits">0</span><small>Unités connectées</small></div>
-                    <div class="kpi ok"><span id="kpiAvailable">0</span><small>Unités disponibles</small></div>
-                </div>
-                <div class="dash-grid">
-                    <div class="panel">
-                        <div class="panel-head"><h2>File de validation</h2><span class="muted" id="queueHint"></span></div>
-                        <div class="queue" id="dashQueue"></div>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-head"><h2>Unités en service</h2><span class="muted">statut modifiable</span></div>
-                        <div class="unit-board" id="dashUnits"></div>
-                    </div>
-                    <div class="panel span-2">
-                        <div class="panel-head"><h2>Interventions actives</h2></div>
-                        <table class="grid"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Police</th><th>Unités</th><th>Statut</th><th>Depuis</th></tr></thead>
-                            <tbody id="dashCalls"></tbody></table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ================= INTERVENTIONS ================= -->
-            <section class="view hidden" id="view-calls">
-                <div class="toolbar">
-                    <div class="tabs" id="callTabs">
-                        <button type="button" class="tab active" data-filter="awaiting">À valider <span class="badge hot hidden" data-count="awaiting"></span></button>
-                        <button type="button" class="tab" data-filter="pending">En attente d'unité <span class="badge hidden" data-count="pending"></span></button>
-                        <button type="button" class="tab" data-filter="ongoing">En cours <span class="badge hidden" data-count="ongoing"></span></button>
-                        <button type="button" class="tab" data-filter="recent">Terminées récentes</button>
-                        <button type="button" class="tab" data-filter="all">Toutes</button>
-                    </div>
-                </div>
-                <table class="grid selectable"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Bloc</th><th>Police</th><th>Unités</th><th>Statut</th><th>Créée</th></tr></thead>
-                    <tbody id="callsBody"></tbody></table>
-                <div class="empty hidden" id="callsEmpty">Aucune intervention dans cette liste.</div>
-            </section>
-
-            <!-- ================= UNITÉS ================= -->
-            <section class="view hidden" id="view-units">
-                <div class="toolbar">
-                    <label class="check"><input type="checkbox" id="unitsConnected" checked> Connectées seulement</label>
-                    <select id="unitsAgency"><option value="">Toutes les polices</option><option value="kcso">KCSO</option><option value="wsp">WSP</option></select>
-                </div>
-                <table class="grid"><thead><tr><th>Indicatif</th><th>Police</th><th>Agents</th><th>Statut</th><th>Intervention</th><th>Depuis</th><th>Actions</th></tr></thead>
-                    <tbody id="unitsBody"></tbody></table>
-                <div class="empty hidden" id="unitsEmpty">Aucune unité.</div>
-            </section>
-
-            <!-- ================= RECHERCHES (comme le MDC en jeu) ================= -->
-            <section class="view hidden" id="view-search">
-                <div class="tabs search-tabs" id="searchTabs">
-                    <button type="button" class="tab active" data-stype="identity">Individu</button>
-                    <button type="button" class="tab" data-stype="vehicle">Véhicule</button>
-                </div>
-                <form class="toolbar search-form" id="searchIdentity">
-                    <label>Nom * <input id="sLast" maxlength="40" required></label>
-                    <label>Prénom <input id="sFirst" maxlength="40"></label>
-                    <label>Date de naissance * <input id="sDob" maxlength="10" placeholder="JJ/MM/AAAA" required></label>
-                    <label>SSN <input id="sSsn" maxlength="11" placeholder="123-45-6789"></label>
-                    <button type="submit" class="btn primary">Rechercher</button>
-                </form>
-                <form class="toolbar search-form hidden" id="searchVehicle">
-                    <label>Immatriculation ou VIN * <input id="sQuery" maxlength="20" required></label>
-                    <button type="submit" class="btn primary">Rechercher</button>
-                </form>
-                <div class="search-grid">
-                    <div class="panel"><div class="panel-head"><h2>Résultats</h2><span class="muted" id="searchCount"></span></div>
-                        <div id="searchResults" class="search-results"><div class="empty">Lancez une recherche.</div></div></div>
-                    <div class="panel"><div id="recordSheet" class="record-sheet"><div class="empty">Choisissez une fiche.</div></div></div>
-                </div>
-            </section>
-
-            <!-- ================= MESSAGERIE ================= -->
-            <section class="view hidden" id="view-messages">
-                <div class="chat">
-                    <aside class="chat-list" id="chatList"></aside>
-                    <div class="chat-thread">
-                        <div class="chat-head" id="chatHead">Choisissez une conversation.</div>
-                        <div class="chat-body" id="chatBody"></div>
-                        <form class="chat-compose hidden" id="chatForm">
-                            <textarea id="chatInput" rows="2" maxlength="300" placeholder="Message (Entrée : envoyer, Maj + Entrée : nouvelle ligne)"></textarea>
-                            <button type="submit" class="btn primary">Envoyer</button>
-                        </form>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ================= HISTORIQUE ================= -->
-            <section class="view hidden" id="view-history">
-                <form class="toolbar" id="historyForm">
-                    <input type="search" id="historyQ" placeholder="N° RD, intervention, adresse, requérant…" maxlength="60">
-                    <select id="historyStatus"><option value="all">Tous</option><option value="closed">Terminées</option><option value="refused">Refusées</option><option value="cancelled">Annulées</option></select>
-                    <label>Du <input type="date" id="historyFrom"></label>
-                    <label>au <input type="date" id="historyTo"></label>
-                    <button type="submit" class="btn">Rechercher</button>
-                </form>
-                <table class="grid selectable"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Police</th><th>Statut</th><th>Créée</th><th>Clôture</th></tr></thead>
-                    <tbody id="historyBody"></tbody></table>
-                <div class="pager" id="historyPager"></div>
-            </section>
-
-            <!-- ================= JOURNAL ================= -->
-            <section class="view hidden" id="view-log">
-                <div class="toolbar">
-                    <select id="logSource"><option value="all">Toutes les sources</option><option value="dispatch">Dispatch</option><option value="game">Jeu</option><option value="web">Connexions</option></select>
-                </div>
-                <table class="grid"><thead><tr><th>Date</th><th>Source</th><th>Auteur</th><th>Action</th><th>Détails</th></tr></thead>
-                    <tbody id="logBody"></tbody></table>
-                <div class="pager" id="logPager"></div>
-            </section>
-        </main>
-
-        <!-- ================= FICHE D'INTERVENTION (panneau à droite) ================= -->
-        <aside class="drawer hidden" id="drawer" aria-label="Intervention">
-            <div class="drawer-head">
-                <div id="drawerTitle"></div>
-                <button type="button" class="btn ghost small" id="drawerClose" title="Fermer">✕</button>
+        <!-- ================= TABLEAU DE BORD ================= -->
+        <section class="view" id="view-dashboard" aria-labelledby="h-dash">
+            <div class="view-head">
+                <h1 id="h-dash">Tableau de bord</h1><span class="grow"></span>
+                <button type="button" class="btn" data-new="incident"><svg class="i"><use href="#i-plus"/></svg>Incident<span class="kbd">I</span></button>
+                <button type="button" class="btn primary" data-new="intervention"><svg class="i"><use href="#i-plus"/></svg>Intervention<span class="kbd">N</span></button>
             </div>
-            <div class="drawer-body" id="drawerBody"></div>
-        </aside>
+            <div class="kpis">
+                <div class="kpi hot"><span id="kpiAwaiting">0</span><small>À valider</small></div>
+                <div class="kpi"><span id="kpiPending">0</span><small>Sans unité</small></div>
+                <div class="kpi"><span id="kpiOngoing">0</span><small>En cours</small></div>
+                <div class="kpi"><span id="kpiUnits">0</span><small>Unités en service</small></div>
+                <div class="kpi go"><span id="kpiAvailable">0</span><small>Disponibles</small></div>
+            </div>
+            <div class="dash-grid">
+                <div class="panel">
+                    <div class="panel-head"><h2>File de validation</h2><span class="grow"></span><span class="muted" id="queueHint"></span></div>
+                    <div class="queue" id="dashQueue"></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-head"><h2>Unités en service</h2><span class="grow"></span><button type="button" class="btn ghost small" data-goto="units">Tout voir</button></div>
+                    <div class="unit-board" id="dashUnits"></div>
+                </div>
+                <div class="panel span-2">
+                    <div class="panel-head"><h2>Interventions actives</h2><span class="grow"></span><button type="button" class="btn ghost small" data-goto="calls">Tout voir</button></div>
+                    <div class="table-wrap flush"><table class="grid"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Police</th><th>Unités</th><th>Statut</th><th>Depuis</th></tr></thead>
+                        <tbody id="dashCalls"></tbody></table></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= INTERVENTIONS ================= -->
+        <section class="view hidden" id="view-calls" aria-labelledby="h-calls">
+            <div class="view-head">
+                <h1 id="h-calls">Interventions</h1>
+                <div class="seg" id="callTabs" role="group" aria-label="Filtre">
+                    <button type="button" data-filter="active" aria-pressed="true">Actives</button>
+                    <button type="button" data-filter="awaiting" aria-pressed="false">À valider <span data-count="awaiting"></span></button>
+                    <button type="button" data-filter="pending" aria-pressed="false">Sans unité <span data-count="pending"></span></button>
+                    <button type="button" data-filter="ongoing" aria-pressed="false">En cours <span data-count="ongoing"></span></button>
+                    <button type="button" data-filter="recent" aria-pressed="false">Terminées (6 h)</button>
+                </div>
+                <span class="grow"></span>
+                <button type="button" class="btn" data-new="incident"><svg class="i"><use href="#i-plus"/></svg>Incident<span class="kbd">I</span></button>
+                <button type="button" class="btn primary" data-new="intervention"><svg class="i"><use href="#i-plus"/></svg>Intervention<span class="kbd">N</span></button>
+            </div>
+            <div class="toolbar">
+                <input type="search" id="callsQ" placeholder="N° RD, intitulé, adresse, requérant…  ( / )" aria-label="Filtrer les interventions">
+                <select id="callsAgency" aria-label="Police"><option value="">Toutes les polices</option><option value="kcso">KCSO</option><option value="wsp">WSP</option></select>
+                <span class="muted">Navigation : <span class="kbd">J</span> <span class="kbd">K</span> puis <span class="kbd">Entrée</span></span>
+            </div>
+            <div class="table-wrap"><table class="grid" id="callsTable"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Bloc</th><th>Police</th><th>Unités</th><th>Statut</th><th>Créée</th></tr></thead>
+                <tbody id="callsBody"></tbody></table></div>
+        </section>
+
+        <!-- ================= UNITÉS ================= -->
+        <section class="view hidden" id="view-units" aria-labelledby="h-units">
+            <div class="view-head"><h1 id="h-units">Unités</h1><span class="grow"></span><span class="muted" id="unitsHint">Positions mises à jour en direct (rue et bloc, toutes les 3 s au plus)</span></div>
+            <div class="toolbar">
+                <input type="search" id="unitsQ" placeholder="Indicatif, agent, rue, secteur…" aria-label="Filtrer les unités">
+                <select id="unitsStatus" aria-label="Statut"><option value="">Tous les statuts</option><option value="available">Disponible</option><option value="en_route">En route</option><option value="on_scene">Sur place</option><option value="unavailable">Indisponible</option></select>
+                <select id="unitsAgency" aria-label="Police"><option value="">Toutes les polices</option><option value="kcso">KCSO</option><option value="wsp">WSP</option></select>
+                <select id="unitsSector" aria-label="Secteur"><option value="">Tous les secteurs</option></select>
+                <label class="check"><input type="checkbox" id="unitsConnected" checked> En service seulement</label>
+            </div>
+            <div class="table-wrap"><table class="grid" id="unitsTable"><thead><tr>
+                <th class="sortable" data-sort="name">Indicatif</th><th class="sortable" data-sort="agency">Police</th><th>Agents</th>
+                <th class="sortable" data-sort="status">Statut</th><th class="sortable" data-sort="street">Position (rue · bloc)</th>
+                <th class="sortable" data-sort="zone">Secteur</th><th>Intervention</th><th class="sortable" data-sort="since">Depuis</th><th></th></tr></thead>
+                <tbody id="unitsBody"></tbody></table></div>
+        </section>
+
+        <!-- ================= MESSAGERIE ================= -->
+        <section class="view hidden" id="view-messages" aria-labelledby="h-msg">
+            <div class="view-head"><h1 id="h-msg">Messagerie</h1></div>
+            <div class="chat">
+                <aside class="chat-side">
+                    <div class="chat-side-top">
+                        <input type="search" id="chatQ" placeholder="Rechercher une conversation…" aria-label="Rechercher une conversation">
+                        <div class="chat-tabs" role="tablist" id="chatTabs">
+                            <button type="button" role="tab" data-cat="civil" aria-selected="true">Groupe civil <span class="count hidden" data-catcount="civil"></span></button>
+                            <button type="button" role="tab" data-cat="private" aria-selected="false">Civils <span class="count hidden" data-catcount="private"></span></button>
+                            <button type="button" role="tab" data-cat="unit" aria-selected="false">Unités <span class="count hidden" data-catcount="unit"></span></button>
+                        </div>
+                        <label class="observe-toggle" id="observeToggle"><span>Observation des conversations entre unités (lecture seule)</span><input type="checkbox" id="observeChk"></label>
+                    </div>
+                    <div class="chat-list" id="chatList" role="listbox" aria-label="Conversations"></div>
+                </aside>
+                <div class="chat-thread">
+                    <div class="chat-head" id="chatHead"><span class="muted">Choisissez une conversation.</span></div>
+                    <div class="chat-body" id="chatBody" aria-live="polite"></div>
+                    <form class="chat-compose hidden" id="chatForm">
+                        <textarea id="chatInput" rows="2" maxlength="300" placeholder="Message (Entrée : envoyer · Maj + Entrée : nouvelle ligne)" aria-label="Message"></textarea>
+                        <button type="submit" class="btn primary">Envoyer</button>
+                    </form>
+                    <div class="readonly-note hidden" id="readonlyNote"><svg class="i"><use href="#i-eye"/></svg>Observation : lecture seule. Vous n'envoyez rien, rien n'est marqué comme lu et les unités ne voient pas votre présence.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= RECHERCHE ================= -->
+        <section class="view hidden" id="view-search" aria-labelledby="h-search">
+            <div class="view-head"><h1 id="h-search">Recherche</h1>
+                <div class="seg" id="searchTabs" role="group" aria-label="Type"><button type="button" data-stype="identity" aria-pressed="true">Individu</button><button type="button" data-stype="vehicle" aria-pressed="false">Véhicule</button></div>
+            </div>
+            <form class="search-form" id="searchIdentity">
+                <label class="field"><span>Nom <b>*</b></span><input id="sLast" maxlength="40" required></label>
+                <label class="field"><span>Prénom</span><input id="sFirst" maxlength="40"></label>
+                <label class="field"><span>Date de naissance <b>*</b></span><input id="sDob" maxlength="10" placeholder="JJ/MM/AAAA" required inputmode="numeric"></label>
+                <label class="field"><span>SSN</span><input id="sSsn" maxlength="11" placeholder="123-45-6789"></label>
+                <button type="submit" class="btn primary">Rechercher</button>
+            </form>
+            <form class="search-form hidden" id="searchVehicle">
+                <label class="field"><span>Immatriculation ou VIN <b>*</b></span><input id="sQuery" maxlength="20" required></label>
+                <button type="submit" class="btn primary">Rechercher</button>
+            </form>
+            <div class="search-grid">
+                <div class="panel"><div class="panel-head"><h2>Résultats</h2><span class="grow"></span><span class="muted" id="searchCount"></span></div>
+                    <div id="searchResults"></div></div>
+                <div class="panel"><div id="recordSheet" class="record-sheet"></div></div>
+            </div>
+        </section>
+
+        <!-- ================= LIVEVIEW ================= -->
+        <section class="view hidden" id="view-live" aria-labelledby="h-live">
+            <div class="view-head"><h1 id="h-live">LiveView</h1><span class="muted" id="liveHint">Écran du jeu des joueurs connectés, en direct. Chaque consultation est enregistrée dans le journal.</span></div>
+            <div class="warn-line hidden" id="liveUnavailable" role="alert"></div>
+            <div class="live">
+                <aside class="live-side">
+                    <input type="search" id="liveQ" placeholder="Nom ou ID du joueur…" aria-label="Rechercher un joueur">
+                    <div class="toolbar tight">
+                        <select id="liveService" aria-label="Service"><option value="">Tous les services</option><option value="kcso">KCSO</option><option value="wsp">WSP</option><option value="generic">Civils</option><option value="none">Sans MDC</option></select>
+                        <select id="liveUnit" aria-label="Unité"><option value="">Toutes les unités</option></select>
+                    </div>
+                    <div class="toolbar tight">
+                        <button type="button" class="btn small" id="liveAddAll">Afficher la sélection</button>
+                        <button type="button" class="btn small ghost" id="liveClear">Tout retirer</button>
+                    </div>
+                    <div class="panel live-players" id="livePlayers"></div>
+                    <p class="live-note">Mosaïque : 480 × 270, 1 image / 2 s. Agrandi : 960 × 540, 2 images / s. Seuls les joueurs affichés et non masqués envoient des images.</p>
+                </aside>
+                <div class="live-grid" id="liveGrid"></div>
+            </div>
+        </section>
+
+        <!-- ================= HISTORIQUE ================= -->
+        <section class="view hidden" id="view-history" aria-labelledby="h-hist">
+            <div class="view-head"><h1 id="h-hist">Historique</h1></div>
+            <form class="toolbar" id="historyForm">
+                <input type="search" id="historyQ" placeholder="N° RD, intervention, adresse, requérant…" maxlength="60" aria-label="Rechercher">
+                <select id="historyStatus" aria-label="Statut"><option value="all">Tous</option><option value="closed">Terminées</option><option value="refused">Refusées</option><option value="cancelled">Annulées</option></select>
+                <label class="field inline"><span>Du</span><input type="date" id="historyFrom"></label>
+                <label class="field inline"><span>au</span><input type="date" id="historyTo"></label>
+                <button type="submit" class="btn">Rechercher</button>
+            </form>
+            <div class="table-wrap"><table class="grid"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Police</th><th>Statut</th><th>Créée</th><th>Clôture</th></tr></thead>
+                <tbody id="historyBody"></tbody></table></div>
+            <div class="pager" id="historyPager"></div>
+        </section>
+
+        <!-- ================= JOURNAL ================= -->
+        <section class="view hidden" id="view-log" aria-labelledby="h-log">
+            <div class="view-head"><h1 id="h-log">Journal</h1><span class="grow"></span>
+                <select id="logSource" aria-label="Source"><option value="all">Toutes les sources</option><option value="dispatch">Dispatch</option><option value="game">Jeu</option><option value="web">Connexions et LiveView</option></select></div>
+            <div class="table-wrap"><table class="grid"><thead><tr><th>Date</th><th>Source</th><th>Auteur</th><th>Action</th><th>Détails</th></tr></thead>
+                <tbody id="logBody"></tbody></table></div>
+            <div class="pager" id="logPager"></div>
+        </section>
+    </main>
+
+    <!-- ================= FICHE D'INTERVENTION ================= -->
+    <aside class="drawer hidden" id="drawer" aria-label="Intervention">
+        <div class="drawer-head">
+            <div class="grow" id="drawerTitle"></div>
+            <button type="button" class="btn ghost icon" id="drawerClose" title="Fermer (Échap)"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="drawer-body" id="drawerBody"></div>
+        <div class="drawer-foot hidden" id="drawerFoot"></div>
+    </aside>
+
+    <!-- ================= NOUVELLE INTERVENTION / NOUVEL INCIDENT ================= -->
+    <div class="modal hidden" id="newModal" role="dialog" aria-modal="true" aria-labelledby="newTitle">
+        <form class="modal-card" id="newForm" novalidate>
+            <div class="modal-head">
+                <h2 id="newTitle">Nouvelle intervention</h2>
+                <div class="seg" role="group" aria-label="Type"><button type="button" data-nkind="intervention" aria-pressed="true">Intervention</button><button type="button" data-nkind="incident" aria-pressed="false">Incident</button></div>
+                <div class="seg" role="group" aria-label="Formulaire"><button type="button" data-nmode="quick" aria-pressed="true">Rapide</button><button type="button" data-nmode="full" aria-pressed="false">Détaillé</button></div>
+            </div>
+            <div class="modal-body" id="newBody"></div>
+            <div class="modal-foot"><span class="form-note push">Transmise tout de suite aux unités (vous la validez en la créant). <span class="kbd">Ctrl</span>+<span class="kbd">Entrée</span></span>
+                <button type="button" class="btn ghost" data-close-modal>Annuler</button><button type="submit" class="btn primary" id="newSubmit">Créer et transmettre</button></div>
+        </form>
     </div>
 
-    <!-- Fenêtre de saisie (motif de refus / d'annulation) -->
-    <div class="modal hidden" id="modal">
-        <form class="modal-card" id="modalForm">
-            <h3 id="modalTitle"></h3>
-            <p class="muted" id="modalText"></p>
-            <textarea id="modalInput" rows="3" maxlength="200"></textarea>
-            <div class="modal-actions">
-                <button type="button" class="btn ghost" id="modalCancel">Retour</button>
-                <button type="submit" class="btn danger" id="modalOk">Confirmer</button>
-            </div>
+    <!-- Motif (refus / annulation) -->
+    <div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <form class="modal-card small" id="modalForm">
+            <div class="modal-head"><h2 id="modalTitle"></h2></div>
+            <div class="modal-body"><p class="muted modal-text" id="modalText"></p><textarea id="modalInput" rows="3" maxlength="200"></textarea></div>
+            <div class="modal-foot"><button type="button" class="btn ghost" id="modalCancel">Retour</button><button type="submit" class="btn stop" id="modalOk">Confirmer</button></div>
         </form>
+    </div>
+
+    <!-- Raccourcis -->
+    <div class="modal hidden" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+        <div class="modal-card small">
+            <div class="modal-head"><h2 id="helpTitle">Raccourcis clavier</h2><button type="button" class="btn ghost icon" data-close-modal title="Fermer"><svg class="i"><use href="#i-x"/></svg></button></div>
+            <div class="modal-body"><dl class="shortcuts">
+                <dt><span class="kbd">1</span> … <span class="kbd">8</span></dt><dd>Changer de page</dd>
+                <dt><span class="kbd">N</span></dt><dd>Nouvelle intervention</dd>
+                <dt><span class="kbd">I</span></dt><dd>Nouvel incident</dd>
+                <dt><span class="kbd">/</span></dt><dd>Rechercher / filtrer dans la page</dd>
+                <dt><span class="kbd">J</span> <span class="kbd">K</span></dt><dd>Intervention suivante / précédente</dd>
+                <dt><span class="kbd">Entrée</span></dt><dd>Ouvrir l'intervention choisie</dd>
+                <dt><span class="kbd">E</span></dt><dd>Modifier l'intervention ouverte</dd>
+                <dt><span class="kbd">V</span></dt><dd>Valider l'intervention ouverte (en attente)</dd>
+                <dt><span class="kbd">Échap</span></dt><dd>Fermer la fiche ou la fenêtre</dd>
+                <dt><span class="kbd">?</span></dt><dd>Cette aide</dd>
+            </dl></div>
+        </div>
     </div>
 
     <div class="toasts" id="toasts" aria-live="polite"></div>

@@ -48,6 +48,13 @@ const config = {
         bridgeIps: list('BRIDGE_ALLOWED_IPS', '127.0.0.1'),
         heartbeatSeconds: int('HEARTBEAT_SECONDS', 15),
     },
+    // LiveView : adresse à laquelle le JEU envoie les images (doit être en HTTPS en production : le NUI du jeu est
+    // une page https://cfx-nui-rp_mdc), nombre de joueurs regardés à la fois, origines autorisées (NUI du MDC)
+    live: {
+        uploadUrl: String(env('LIVE_UPLOAD_URL', `${publicUrl}/live/frame`)),
+        maxStreams: Math.max(1, Math.min(64, int('LIVE_MAX_STREAMS', 16))),
+        origins: list('LIVE_ALLOWED_ORIGINS', 'https://cfx-nui-rp_mdc,nui://rp_mdc'),
+    },
 };
 
 // Vérification : sans ces valeurs, le site ne démarre pas (message clair plutôt qu'un site ouvert à tous)

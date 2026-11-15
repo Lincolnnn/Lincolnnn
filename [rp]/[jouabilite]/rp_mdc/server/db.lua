@@ -26,7 +26,7 @@ MDCDB = {
 }
 
 local RESOURCE = GetCurrentResourceName()
-local MIGRATIONS = { '001_init' } -- fichiers de sql/migrations, dans l'ordre
+local MIGRATIONS = { '001_init', '002_v4' } -- fichiers de sql/migrations, dans l'ordre
 
 -- =========================================================================
 -- FILE D'ÉCRITURE
@@ -369,9 +369,9 @@ end
 local CALL_SQL = [[INSERT INTO mdc_calls (id, number, kind, title, caller, phone, priority, response_code, agency,
     ideal_units, address, cross_street, block, sector, description, unit_name, backup, requested_by, coords, closed,
     clear_code, dispatch_state, dispatch_reason, dispatch_by, dispatch_at, created_by, created_by_name, created_at,
-    updated_at, updated_by_name, closed_at, closed_by_name, next_note_id)
+    updated_at, updated_by_name, closed_at, closed_by_name, next_note_id, rev)
     VALUES (?, ?, ?, ?, ?, ?, ?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, NULLIF(?, ''),
-    NULLIF(?, ''), ?, ?, NULLIF(?, 0), ?, ?, ?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?)
+    NULLIF(?, ''), ?, ?, NULLIF(?, 0), ?, ?, ?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, ?)
     ON DUPLICATE KEY UPDATE number = VALUES(number), kind = VALUES(kind), title = VALUES(title), caller = VALUES(caller),
     phone = VALUES(phone), priority = VALUES(priority), response_code = VALUES(response_code), agency = VALUES(agency),
     ideal_units = VALUES(ideal_units), address = VALUES(address), cross_street = VALUES(cross_street),
@@ -380,7 +380,7 @@ local CALL_SQL = [[INSERT INTO mdc_calls (id, number, kind, title, caller, phone
     clear_code = VALUES(clear_code), dispatch_state = VALUES(dispatch_state), dispatch_reason = VALUES(dispatch_reason),
     dispatch_by = VALUES(dispatch_by), dispatch_at = VALUES(dispatch_at), updated_at = VALUES(updated_at),
     updated_by_name = VALUES(updated_by_name), closed_at = VALUES(closed_at), closed_by_name = VALUES(closed_by_name),
-    next_note_id = VALUES(next_note_id)]]
+    next_note_id = VALUES(next_note_id), rev = VALUES(rev)]]
 
 local function callParams(c)
     local coords = ''
@@ -391,7 +391,7 @@ local function callParams(c)
         s(c.sector, 40), s(c.description), s(c.unitName, 30), b(c.backup), s(c.requestedBy, 16), coords, b(c.closed),
         s(c.clear, 1), s(c.dispatch, 16), s(c.dispatchReason, 200), s(c.dispatchBy, 60), nz(c.dispatchAt),
         s(c.createdBy, 80), s(c.createdByName, 60), nz(c.createdAt), nz(c.updatedAt), s(c.updatedByName, 60),
-        nz(c.closedAt), s(c.closedByName, 60), nz(c.nextNoteId) > 0 and nz(c.nextNoteId) or 1,
+        nz(c.closedAt), s(c.closedByName, 60), nz(c.nextNoteId) > 0 and nz(c.nextNoteId) or 1, nz(c.rev),
     }
 end
 
@@ -460,7 +460,7 @@ function MDCDB.loadCalls(keepSeconds)
             createdBy = r.created_by, createdByName = r.created_by_name, createdAt = nz(r.created_at),
             updatedAt = tonumber(r.updated_at), updatedByName = r.updated_by_name ~= '' and r.updated_by_name or nil,
             closedAt = tonumber(r.closed_at), closedByName = r.closed_by_name ~= '' and r.closed_by_name or nil,
-            nextNoteId = nz(r.next_note_id), units = {}, unitsAt = {}, notes = {}, links = {}, reports = {},
+            nextNoteId = nz(r.next_note_id), rev = nz(r.rev), units = {}, unitsAt = {}, notes = {}, links = {}, reports = {},
         }
         calls[#calls + 1] = call
         byId[call.id] = call

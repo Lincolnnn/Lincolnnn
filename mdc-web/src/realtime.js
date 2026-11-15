@@ -5,18 +5,52 @@ const { Server } = require('socket.io');
 const config = require('./config');
 const queries = require('./queries');
 const { verifyRole } = require('./auth');
+const fivem = require('./fivem');
+const liveview = require('./liveview');
 const log = require('./logger');
 
 let io = null;
 const presence = new Map(); // id Discord -> { id, name, avatar, sockets }
+// Données du jeu gardées en mémoire (jamais écrites dans MySQL : envoyées par le serveur FiveM quand elles changent)
+const cache = { positions: new Map(), players: [], liveview: false };
+// Postes en train de modifier une intervention (verrou doux) : id de l'appel -> Map(socket -> n° de poste)
+const editors = new Map();
+let stationSeq = 0;
+
+function editing() {
+    const out = {};
+    for (const [callId, m] of editors) if (m.size) out[callId] = [...m.values()];
+    return out;
+}
+
+async function refreshPlayers() {
+    const res = await fivem.call('players', {});
+    if (res && res.ok && Array.isArray(res.players)) {
+        cache.players = res.players.map((p) => ({ serverId: Number(p.serverId), name: String(p.name || ''), agency: p.agency || '',
+            unitId: p.unitId ? Number(p.unitId) : null, unitName: p.unitName || null, civKey: p.civKey || null }));
+        cache.liveview = res.liveview === true;
+        broadcast('players', { players: cache.players, liveview: cache.liveview });
+        liveview.dropPlayers(cache.players.map((p) => p.serverId));
+    }
+}
+
+async function refreshPositions() {
+    const res = await fivem.call('positions', {});
+    if (res && res.ok && Array.isArray(res.positions)) {
+        cache.positions.clear();
+        for (const p of res.positions) cache.positions.set(Number(p.unitId), p.location);
+        broadcast('positions', Object.fromEntries(cache.positions));
+    }
+}
 
 function dispatchers() {
     return [...presence.values()].map((p) => ({ id: p.id, name: 'Dispatch' }));
 }
 
 function init(httpServer, sessionMiddleware, onPresenceChange) {
-    io = new Server(httpServer, { serveClient: true, cors: { origin: config.publicUrl, credentials: true } });
+    io = new Server(httpServer, { serveClient: true, cors: { origin: config.publicUrl, credentials: true }, maxHttpBufferSize: 64 * 1024 });
     io.engine.use(sessionMiddleware);
+    liveview.setIo(io);
 
     io.use(async (socket, next) => {
         const session = socket.request.session;
@@ -28,7 +62,10 @@ function init(httpServer, sessionMiddleware, onPresenceChange) {
     io.on('connection', (socket) => {
         const u = socket.request.session.user;
         socket.data.userId = u.id;
+        stationSeq += 1;
+        socket.data.station = `Poste ${stationSeq}`;
         socket.join('dispatch');
+        socket.emit('station', socket.data.station);
         const p = presence.get(u.id) || { id: u.id, name: 'Dispatch', sockets: 0 };
         p.sockets += 1;
         presence.set(u.id, p);
@@ -37,7 +74,32 @@ function init(httpServer, sessionMiddleware, onPresenceChange) {
             onPresenceChange();
         }
         broadcast('presence', dispatchers());
+
+        // Verrou doux : « Poste N modifie cette intervention » chez les autres postes (rien n'est bloqué)
+        socket.on('edit:start', (callId) => {
+            const cid = Number(callId);
+            if (!Number.isInteger(cid) || cid <= 0) return;
+            for (const m of editors.values()) m.delete(socket.id);
+            if (!editors.has(cid)) editors.set(cid, new Map());
+            editors.get(cid).set(socket.id, socket.data.station);
+            broadcast('editing', editing());
+        });
+        socket.on('edit:stop', () => {
+            for (const m of editors.values()) m.delete(socket.id);
+            broadcast('editing', editing());
+        });
+
+        // LiveView : joueurs regardés par ce poste
+        socket.on('live:watch', (list, ack) => {
+            const r = liveview.setWatch(socket, list, cache.players);
+            if (typeof ack === 'function') ack(r);
+        });
+
         socket.on('disconnect', () => {
+            let wasEditing = false;
+            for (const m of editors.values()) if (m.delete(socket.id)) wasEditing = true;
+            if (wasEditing) broadcast('editing', editing());
+            liveview.dropSocket(socket);
             const cur = presence.get(u.id);
             if (!cur) return;
             cur.sockets -= 1;
@@ -86,7 +148,13 @@ async function handleGameEvents(events) {
     try {
         if (topics.has('calls') || [...topics].some((t) => t.startsWith('call:'))) broadcast('calls', await queries.activeCalls());
         if (topics.has('units')) broadcast('units', await queries.units());
+        if (topics.has('players') || topics.has('units')) await refreshPlayers();
         for (const e of events) {
+            if (e.topic === 'position' && e.data && e.data.unitId) {
+                cache.positions.set(Number(e.data.unitId), e.data.location);
+                broadcast('position', { unitId: Number(e.data.unitId), location: e.data.location });
+            }
+            if (e.topic === 'call:edited' && e.data) broadcast('call:edited', e.data);
             if (e.topic === 'dispatch' && e.data) broadcast('dispatch', e.data);
             if (ALERTS[e.topic] && e.data) broadcast('alert', { type: ALERTS[e.topic], ...e.data });
             if (e.topic === 'message' && e.data && e.data.id) {
@@ -94,10 +162,19 @@ async function handleGameEvents(events) {
                 if (m) broadcast('message', m);
             }
         }
-        if (topics.has('message') || topics.has('reads') || topics.has('units') || topics.has('calls')) broadcast('conversations', await queries.conversations());
+        if (topics.has('message') || topics.has('reads') || topics.has('units') || topics.has('calls') || topics.has('players')) {
+            broadcast('conversations', await queries.conversations(cache.players));
+        }
     } catch (e) {
         log.error('relecture MySQL après un événement du jeu :', e.message);
     }
 }
 
-module.exports = { init, broadcast, dispatchers, handleGameEvents };
+/** Serveur FiveM de nouveau joignable (ou démarrage) : joueurs et positions relus */
+async function resync() {
+    await refreshPlayers();
+    await refreshPositions();
+}
+
+module.exports = { init, broadcast, dispatchers, handleGameEvents, resync, editing,
+    positions: () => Object.fromEntries(cache.positions), players: () => cache.players, liveviewAvailable: () => cache.liveview };
