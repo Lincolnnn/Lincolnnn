@@ -176,6 +176,10 @@
                 if (c && c.length >= 3) el.style.color = `rgb(${c.slice(0, 3).map((v) => Math.min(Math.max(Number(v) || 0, 0), 255)).join(',')})`;
                 break;
             }
+            case 'join': // connexion d'un joueur
+            case 'leave': // déconnexion d'un joueur
+                el.append(span('presence-tag', m.type === 'join' ? '+' : '−'), ` ${m.text}`);
+                break;
             default: // system / error / success
                 el.textContent = m.text;
         }

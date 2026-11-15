@@ -8,12 +8,34 @@
         Bannir : « Ban en jeu » ou « Ban en jeu et Discord » (rôles d'accès retirés sur Discord), par rp_permissions.
     Un admin ne peut ni expulser ni bannir un autre admin. Téléportation : rp_teleport (chargement du décor, sol sûr)
     s'il est démarré, sinon directement.
+    En plus (permissions de Config.Players.Permissions : false = tous, 'rp.membre' = Whitelist et au-dessus, 'rp.admin') :
+      - Se téléporter au point (point placé sur la carte, comme « Teleport to Waypoint » de vMenu) : tout le monde ;
+      - Activer les blips (TOUS les joueurs) et Activer le blip (UN joueur) : Whitelist et au-dessus. Positions envoyées
+        par le serveur (OneSync : il connaît tous les joueurs), donc SANS LIMITE DE DISTANCE ; boucle seulement tant
+        qu'au moins un joueur a des blips ;
+      - Spectate Player : voir le point de vue d'un joueur sans s'y téléporter (Whitelist et au-dessus).
 ]]
 
 local S = RPIServer
 local P = (InteractConfig or {}).Players or {}
 
 local function isAdmin(src) return S.rankAllowed(src, P.AdminAce or 'rp.admin') == true end
+
+-- Permission d'une option (Config.Players.Permissions) ; options d'admin par défaut si absentes
+local DEFAULT_PERMS = { teleport = false, waypoint = false, blips = 'rp.membre', spectate = 'rp.membre',
+    bring = 'rp.admin', kick = 'rp.admin', ban = 'rp.admin' }
+local function can(src, option)
+    local perms = P.Permissions or {}
+    local ace = perms[option]
+    if ace == nil then ace = DEFAULT_PERMS[option] end
+    if ace == true then ace = P.AdminAce or 'rp.admin' end
+    return S.rankAllowed(src, ace or nil) == true
+end
+local function permsOf(src)
+    local out = {}
+    for option in pairs(DEFAULT_PERMS) do out[option] = can(src, option) end
+    return out
+end
 
 local function stateOf(id, key)
     local p = Player(id)
@@ -35,7 +57,11 @@ S.on('playersList', function(src)
         list[#list + 1] = { id = id, discord = discord, rp = rp, self = id == src or nil, admin = isAdmin(id) or nil }
     end
     table.sort(list, function(a, b) return a.discord:lower() < b.discord:lower() end)
-    return { ok = true, players = list, admin = isAdmin(src) }
+    local sub = BlipSubs and BlipSubs[src]
+    local tracked = {}
+    for id in pairs(sub and sub.ids or {}) do tracked[#tracked + 1] = id end
+    return { ok = true, players = list, admin = isAdmin(src), perms = permsOf(src),
+        blipsAll = sub and sub.all or false, blipIds = tracked }
 end)
 
 --- Point à côté du joueur (à sa gauche ; à côté de son véhicule s'il est dedans)
@@ -70,6 +96,7 @@ S.on('playerAction', function(src, p)
     local reason = type(p.reason) == 'string' and p.reason:gsub('[%c]', ' '):sub(1, 200) or ''
 
     if action == 'goto' then
+        if not can(src, 'teleport') then return { ok = false, error = 'Vous n\'avez pas la permission.' } end
         if target == src then return { ok = false, error = 'C\'est vous.' } end
         local now = GetGameTimer()
         if not admin and lastTp[src] and now - lastTp[src] < (P.TeleportCooldown or 5) * 1000 then
@@ -82,7 +109,24 @@ S.on('playerAction', function(src, p)
         return { ok = true, message = ('Téléporté à côté de %s.'):format(who) }
     end
 
-    if not admin then return { ok = false, error = 'Réservé aux admins.' } end
+    if action == 'blip' then
+        if not can(src, 'blips') then return { ok = false, error = 'Blips réservés aux membres Whitelist et au-dessus.' } end
+        if target == src then return { ok = false, error = 'C\'est vous.' } end
+        local on = BlipsSet(src, target)
+        return { ok = true, on = on, message = on and ('Blip de %s activé.'):format(who) or ('Blip de %s désactivé.'):format(who) }
+    end
+
+    if action == 'spectate' then
+        if not can(src, 'spectate') then return { ok = false, error = 'Spectate réservé aux membres Whitelist et au-dessus.' } end
+        if target == src then return { ok = false, error = 'C\'est vous.' } end
+        local ped = GetPlayerPed(target)
+        if not ped or ped == 0 or not DoesEntityExist(ped) then return { ok = false, error = 'Position du joueur introuvable.' } end
+        local c = GetEntityCoords(ped)
+        print(('[rp_interact] %s regarde le point de vue de %s (spectate)'):format(GetPlayerName(src) or '?', GetPlayerName(target) or '?'))
+        return { ok = true, coords = { x = c.x, y = c.y, z = c.z }, name = who }
+    end
+
+    if not can(src, action) then return { ok = false, error = 'Réservé aux admins.' } end
     if target == src then return { ok = false, error = 'C\'est vous.' } end
 
     if action == 'bring' then
@@ -116,4 +160,109 @@ S.on('playerAction', function(src, p)
     return { ok = false, error = 'Action inconnue.' }
 end)
 
-AddEventHandler('playerDropped', function() lastTp[source] = nil end)
+-- Position du joueur regardé (spectate) quand il n'est plus dans le rayon du client (téléporté, loin)
+S.on('spectatePos', function(src, p)
+    if not can(src, 'spectate') then return { ok = false } end
+    local target = tonumber(p.target)
+    local ped = target and GetPlayerName(target) and GetPlayerPed(target)
+    if not ped or ped == 0 or not DoesEntityExist(ped) then return { ok = false, error = 'Le joueur n\'est plus connecté.' } end
+    local c = GetEntityCoords(ped)
+    return { ok = true, coords = { x = c.x, y = c.y, z = c.z } }
+end)
+
+-- Se téléporter au point placé sur la carte : le client cherche le sol, le serveur vérifie la permission et le délai
+S.on('waypoint', function(src)
+    if not can(src, 'waypoint') then return { ok = false, error = 'Vous n\'avez pas la permission.' } end
+    local now = GetGameTimer()
+    if not isAdmin(src) and lastTp[src] and now - lastTp[src] < (P.TeleportCooldown or 5) * 1000 then
+        return { ok = false, error = 'Patientez quelques secondes avant de vous téléporter à nouveau.' }
+    end
+    lastTp[src] = now
+    return { ok = true }
+end)
+
+-- =========================================================================
+-- BLIPS GPS (tous les joueurs ou certains), sans limite de distance
+-- =========================================================================
+BlipSubs = {} -- [src] = { all = bool, ids = { [id] = true } }
+local blipLoop = false
+
+local function hasSubs()
+    for _, sub in pairs(BlipSubs) do
+        if sub.all or next(sub.ids) then return true end
+    end
+    return false
+end
+
+local function blipName(id)
+    local discord, rp = displayOf(id)
+    return rp and ('%s (%s)'):format(discord, rp) or discord
+end
+
+local function startBlipLoop()
+    if blipLoop then return end
+    blipLoop = true
+    CreateThread(function()
+        while hasSubs() do
+            -- positions de tous les joueurs (une seule fois par tour)
+            local all = {}
+            for _, s in ipairs(GetPlayers()) do
+                local id = tonumber(s)
+                local ped = GetPlayerPed(id)
+                if ped and ped ~= 0 and DoesEntityExist(ped) then
+                    local c = GetEntityCoords(ped)
+                    local vehicle = GetVehiclePedIsIn(ped, false)
+                    all[#all + 1] = { id = id, x = c.x, y = c.y, z = c.z,
+                        h = GetEntityHeading(vehicle ~= 0 and vehicle or ped), car = vehicle ~= 0 or nil, name = blipName(id) }
+                end
+            end
+            for src, sub in pairs(BlipSubs) do
+                if not GetPlayerName(src) then
+                    BlipSubs[src] = nil
+                elseif not can(src, 'blips') then -- rang perdu : blips retirés
+                    BlipSubs[src] = nil
+                    TriggerClientEvent('rp_interact:client:blipsClear', src)
+                elseif sub.all or next(sub.ids) then
+                    local list = {}
+                    for _, pl in ipairs(all) do
+                        if pl.id ~= src and (sub.all or sub.ids[pl.id]) then
+                            list[#list + 1] = { id = pl.id, x = pl.x, y = pl.y, z = pl.z, h = pl.h, car = pl.car, name = pl.name,
+                                tracked = sub.ids[pl.id] or nil }
+                        end
+                    end
+                    TriggerClientEvent('rp_interact:client:blips', src, list)
+                end
+            end
+            Wait(math.max(500, P.BlipInterval or 2000))
+        end
+        blipLoop = false
+    end)
+end
+
+--- Blip d'UN joueur : bascule ; retourne true s'il est maintenant affiché
+function BlipsSet(src, target)
+    local sub = BlipSubs[src] or { all = false, ids = {} }
+    BlipSubs[src] = sub
+    if sub.ids[target] then sub.ids[target] = nil else sub.ids[target] = true end
+    if not sub.all and not next(sub.ids) then TriggerClientEvent('rp_interact:client:blipsClear', src) end
+    startBlipLoop()
+    return sub.ids[target] == true
+end
+
+-- Blips de TOUS les joueurs : bascule
+S.on('blipsAll', function(src, p)
+    if not can(src, 'blips') then return { ok = false, error = 'Blips réservés aux membres Whitelist et au-dessus.' } end
+    local sub = BlipSubs[src] or { all = false, ids = {} }
+    BlipSubs[src] = sub
+    sub.all = p.on == true
+    if not sub.all and not next(sub.ids) then TriggerClientEvent('rp_interact:client:blipsClear', src) end
+    startBlipLoop()
+    return { ok = true, on = sub.all, message = sub.all and 'Blips de tous les joueurs activés (sans limite de distance).'
+        or 'Blips de tous les joueurs désactivés.' }
+end)
+
+AddEventHandler('playerDropped', function()
+    lastTp[source] = nil
+    BlipSubs[source] = nil
+    for _, sub in pairs(BlipSubs) do sub.ids[source] = nil end
+end)

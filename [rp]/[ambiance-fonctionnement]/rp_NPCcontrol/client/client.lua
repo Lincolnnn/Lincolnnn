@@ -32,6 +32,13 @@ local emergencyPed, emergencyVehicle, nonPolice = {}, {}, {}
 for _, name in ipairs(Config.EmergencyPeds or {}) do emergencyPed[GetHashKey(name)] = true end
 for _, name in ipairs(Config.EmergencyVehicles or {}) do emergencyVehicle[GetHashKey(name)] = true end
 for _, name in ipairs(Config.NonPoliceModels or {}) do nonPolice[GetHashKey(name)] = true end
+local airModel = {}
+for _, name in ipairs(Config.AirModels or {}) do airModel[GetHashKey(name)] = true end
+--- Avion / hélicoptère / dirigeable du jeu (classe 15 hélicoptère, 16 avion, ou modèle de la liste)
+local function isAircraft(vehicle)
+    local class = GetVehicleClass(vehicle)
+    return class == 15 or class == 16 or airModel[GetEntityModel(vehicle)] == true
+end
 -- Renforts de police du jeu (types de "dispatch") : voitures, hélicoptères, SWAT, motards, barrages, bateaux
 local POLICE_SERVICES = { [1] = true, [2] = true, [4] = true, [6] = true, [7] = true, [8] = true, [9] = true,
     [10] = true, [12] = true, [13] = true }
@@ -94,6 +101,12 @@ local function applyRules()
         for hash in pairs(emergencyPed) do SetPedModelIsSuppressed(hash, blockedModel(hash, emergencyPed)) end
         for hash in pairs(emergencyVehicle) do SetVehicleModelIsSuppressed(hash, blockedModel(hash, emergencyVehicle)) end
         for _, scenario in ipairs(Config.EmergencyScenarios or {}) do SetScenarioTypeEnabled(scenario, hunt) end
+    end
+    if Config.DisableAirTraffic then
+        -- trafic aérien du jeu : plus aucun avion / hélicoptère / dirigeable (aéroports, base militaire, vols)
+        for _, group in ipairs(Config.AirScenarioGroups or {}) do SetScenarioGroupEnabled(group, false) end
+        for _, scenario in ipairs(Config.AirScenarioTypes or {}) do SetScenarioTypeEnabled(scenario, false) end
+        for hash in pairs(airModel) do SetVehicleModelIsSuppressed(hash, true) end
     end
     if hunt then
         -- Chasse à l'homme : étoiles et police du jeu normales (elle ne l'ignore plus)
@@ -325,11 +338,17 @@ local function scan()
     for ped in pairs(deadSeen) do
         if not DoesEntityExist(ped) then deadSeen[ped] = nil end
     end
-    -- Véhicules d'urgence du jeu (vides ou conduits par un PNJ), toutes les 3 s
-    if Config.DisableEmergencyServices and tick % 3 == 0 then
+    -- Véhicules d'urgence et appareils volants du jeu (vides ou pilotés par un PNJ), toutes les 3 s
+    if (Config.DisableEmergencyServices or Config.DisableAirTraffic) and tick % 3 == 0 then
         for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-            if blockedModel(GetEntityModel(vehicle), emergencyVehicle) and not MISSION[GetEntityPopulationType(vehicle)]
-                and not hasPlayerInside(vehicle) then
+            if not MISSION[GetEntityPopulationType(vehicle)] and not hasPlayerInside(vehicle)
+                and ((Config.DisableEmergencyServices and blockedModel(GetEntityModel(vehicle), emergencyVehicle))
+                    or (Config.DisableAirTraffic and isAircraft(vehicle))) then
+                -- occupants PNJ retirés avec l'appareil (sinon le pilote tombe du ciel)
+                for seat = -1, GetVehicleMaxNumberOfPassengers(vehicle) - 1 do
+                    local ped = GetPedInVehicleSeat(vehicle, seat)
+                    if ped ~= 0 and not IsPedAPlayer(ped) and not MISSION[GetEntityPopulationType(ped)] then remove(ped, false) end
+                end
                 remove(vehicle, true)
             end
         end
@@ -341,7 +360,7 @@ CreateThread(function()
     applyRules()
     local lastRules = GetGameTimer()
     while true do
-        if Config.NoFear or Config.DisableEmergencyServices then scan() end
+        if Config.NoFear or Config.DisableEmergencyServices or Config.DisableAirTraffic then scan() end
         checkAlert() -- (vérifié aussi à chaque image quand la boucle par image tourne)
         if GetGameTimer() - lastRules >= 10000 then
             lastRules = GetGameTimer()
@@ -448,4 +467,7 @@ AddEventHandler('onResourceStop', function(resource)
     for _, scenario in ipairs(Config.EmergencyScenarios or {}) do SetScenarioTypeEnabled(scenario, true) end
     SetGarbageTrucks(true)
     SetRandomBoats(true)
+    for _, group in ipairs(Config.AirScenarioGroups or {}) do SetScenarioGroupEnabled(group, true) end
+    for _, scenario in ipairs(Config.AirScenarioTypes or {}) do SetScenarioTypeEnabled(scenario, true) end
+    for hash in pairs(airModel) do SetVehicleModelIsSuppressed(hash, false) end
 end)

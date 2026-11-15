@@ -12,6 +12,24 @@ NPCConfig = {
     -- ---------------------------------------------------------------------
     DisableEmergencyServices = true,
 
+    -- ---------------------------------------------------------------------
+    -- TRAFIC AÉRIEN DU JEU : SUPPRIMÉ ENTIÈREMENT (true). Plus aucun avion, jet, hélicoptère ni dirigeable du jeu :
+    -- aéroports (LSIA, Sandy Shores, Grapeseed, McKenzie), base militaire, vols qui traversent la carte. Ceux déjà en
+    -- l'air au démarrage sont retirés (avec leur pilote). Un appareil sorti par un joueur ou un script (menu de
+    -- spawn, hangar…) n'est JAMAIS touché, même vide.
+    -- ---------------------------------------------------------------------
+    DisableAirTraffic = true,
+    AirScenarioGroups = { 'LSA_Planes', 'ALAMO_PLANES', 'ARMY_HELI', 'GRAPESEED_PLANES', 'SANDY_PLANES', 'Blimp',
+        'MP_POLICE', 'MP_POLICE2', 'LSA_Departures' },
+    AirScenarioTypes = { 'WORLD_VEHICLE_MILITARY_PLANES_SMALL', 'WORLD_VEHICLE_MILITARY_PLANES_BIG' },
+    AirModels = {
+        'shamal', 'luxor', 'luxor2', 'jet', 'cargoplane', 'titan', 'lazer', 'besra', 'miljet', 'nimbus', 'vestra',
+        'velum', 'velum2', 'cuban800', 'duster', 'mammatus', 'dodo', 'stunt', 'mogul', 'howard', 'alphaz1', 'seabreeze',
+        'frogger', 'frogger2', 'maverick', 'polmav', 'buzzard', 'buzzard2', 'annihilator', 'cargobob', 'cargobob2',
+        'cargobob3', 'cargobob4', 'savage', 'valkyrie', 'swift', 'swift2', 'supervolito', 'supervolito2', 'volatus',
+        'skylift', 'havok', 'seasparrow', 'blimp', 'blimp2', 'blimp3',
+    },
+
     -- Indice de recherche (étoiles) : jamais, pour personne
     DisableWantedLevel = true,
 

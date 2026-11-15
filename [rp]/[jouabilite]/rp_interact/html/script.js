@@ -553,14 +553,15 @@
                     { kind: 'menu', label: 'Météo', open: weatherPage, desc: 'Météo et heure du serveur (pour tout le monde), et leur défilement.', ...locked('weather') },
                     { kind: 'section', label: 'Joueurs' },
                     { kind: 'menu', label: 'Joueurs', right: players.loaded ? `${players.list.length}` : '', open: playersPage,
-                        desc: 'Tous les joueurs connectés (pseudo Discord et nom RP) : se téléporter ; admins : téléporter à soi, expulser, bannir.' },
+                        desc: 'Se téléporter au point, blips GPS des joueurs ; pour chaque joueur : se téléporter, spectate, blip ; admins : téléporter à soi, expulser, bannir.' },
                 ];
             },
         };
     }
 
     // ---- Joueurs : pseudo Discord (nom RP) ; se téléporter (tous) ; admins : téléporter à soi, expulser, bannir ----
-    const players = { loaded: false, list: [], admin: false, reason: '', confirm: null };
+    const players = { loaded: false, list: [], admin: false, perms: {}, blipsAll: false, blipIds: [], spectating: null, reason: '', confirm: null };
+    const NO_PERM_BLIPS = 'Réservé aux membres Whitelist et au-dessus.';
     const playerLabel = (pl) => (pl.rp ? `${pl.discord} (${pl.rp})` : pl.discord);
 
     async function loadPlayers() {
@@ -569,6 +570,11 @@
         players.loaded = true;
         players.list = toArray(res.players);
         players.admin = !!res.admin;
+        players.perms = res.perms || {};
+        players.blipsAll = !!res.blipsAll;
+        players.blipIds = toArray(res.blipIds).map(Number);
+        const spec = await post('playersSpectating');
+        players.spectating = spec && spec.target ? Number(spec.target) : null;
         rerender();
     }
 
@@ -578,10 +584,23 @@
             banner: () => ({ title: 'Joueurs', sub: players.loaded ? (players.list.length > 1 ? `${players.list.length} joueurs connectés` : `${players.list.length} joueur connecté`) : 'Chargement…', color: MENU_COLORS.players }),
             onEnter: loadPlayers,
             items: () => [
+                // Options générales (pas propres à un joueur)
+                { kind: 'button', label: 'Se téléporter au point', right: 'Carte',
+                    ...(players.perms.waypoint === false ? { disabled: true, why: 'Vous n\'avez pas la permission.' } : {}),
+                    desc: 'Vous téléporte au point placé sur la carte (menu pause), sur le sol (comme « Teleport to Waypoint » de vMenu).',
+                    action: () => post('playersWaypoint') },
+                { kind: 'button', label: players.blipsAll ? 'Désactiver les blips' : 'Activer les blips', mark: players.blipsAll,
+                    ...(players.perms.blips ? {} : { disabled: true, why: NO_PERM_BLIPS }),
+                    desc: 'Blips GPS de TOUS les joueurs du serveur sur la carte et le radar, sans limite de distance (mis à jour toutes les 2 s).',
+                    action: async () => {
+                        const res = await post('playersBlipsAll', { on: !players.blipsAll });
+                        if (res && res.ok) { players.blipsAll = !!res.on; rerender(); }
+                    } },
+                { kind: 'section', label: 'Joueurs connectés' },
                 ...(players.loaded && !players.list.length ? [{ kind: 'info', label: 'Aucun joueur.', tone: 'muted' }] : []),
                 ...players.list.map((pl) => ({
-                    kind: 'menu', label: playerLabel(pl), right: pl.self ? 'Vous' : `ID ${pl.id}`, open: () => playerPage(pl),
-                    desc: pl.self ? 'Vous-même.' : (players.admin ? 'Se téléporter, téléporter à soi, expulser, bannir.' : 'Se téléporter à côté de ce joueur.'),
+                    kind: 'menu', label: playerLabel(pl), right: pl.self ? 'Vous' : (players.spectating === pl.id ? 'Spectate' : `ID ${pl.id}`), open: () => playerPage(pl),
+                    desc: pl.self ? 'Vous-même.' : 'Se téléporter, spectate, blip' + (players.admin ? ', téléporter à soi, expulser, bannir.' : '.'),
                 })),
             ],
         };
@@ -607,9 +626,30 @@
                 const admin = players.admin;
                 const protectedAdmin = pl.admin ? { disabled: true, why: 'Impossible sur un autre admin.' } : {};
                 const confirmKick = players.confirm === 'kick';
+                const self = pl.self ? { disabled: true, why: 'C\'est vous.' } : null;
+                const watching = players.spectating === pl.id;
+                const blipOn = players.blipIds.includes(pl.id);
                 return [
-                    { kind: 'button', label: 'Se téléporter', ...(pl.self ? { disabled: true, why: 'C\'est vous.' } : {}),
+                    { kind: 'button', label: 'Se téléporter', ...(self || (players.perms.teleport === false ? { disabled: true, why: 'Vous n\'avez pas la permission.' } : {})),
                         desc: 'À côté de ce joueur (à côté de son véhicule s\'il est dedans).', action: () => action(pl, 'goto') },
+                    { kind: 'button', label: watching ? 'Arrêter le spectate' : 'Spectate Player', mark: watching,
+                        ...(self || (players.perms.spectate ? {} : { disabled: true, why: NO_PERM_BLIPS })),
+                        desc: watching ? 'Revenir à votre personnage (ou Retour arrière).'
+                            : 'Voir le point de vue de ce joueur sans vous téléporter (Retour arrière pour arrêter).',
+                        action: async () => {
+                            const res = await post('playerAction', { action: 'spectate', target: pl.id });
+                            if (res && res.ok) { players.spectating = res.on ? pl.id : null; rerender(); }
+                        } },
+                    { kind: 'button', label: blipOn ? 'Désactiver le blip' : 'Activer le blip', mark: blipOn,
+                        ...(self || (players.perms.blips ? {} : { disabled: true, why: NO_PERM_BLIPS })),
+                        desc: 'Blip GPS de CE joueur seulement (jaune), sur la carte et le radar, sans limite de distance.',
+                        action: async () => {
+                            const res = await post('playerAction', { action: 'blip', target: pl.id });
+                            if (res && res.ok) {
+                                players.blipIds = res.on ? [...players.blipIds, pl.id] : players.blipIds.filter((x) => x !== pl.id);
+                                rerender();
+                            }
+                        } },
                     admin && { kind: 'section', label: 'Admin' },
                     admin && { kind: 'button', label: 'Téléporter le joueur à soi', ...(pl.self ? { disabled: true, why: 'C\'est vous.' } : {}),
                         desc: 'Le joueur arrive à côté de vous.', action: () => action(pl, 'bring') },

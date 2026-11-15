@@ -1,192 +1,192 @@
-# Cartographie du PLD — État de Washington (King County)
+# PLD du MDC — État de Washington (King County)
 
-Source : `config/washington.json` (seule source du PLD, du bouton « Position actuelle », des appels et de la carte du menu pause).
-Les rues des villes (Seattle, Bellevue) gardent leur nom du jeu tant qu'elles ne sont pas ajoutées dans `streets`.
+Généré depuis `config/washington.json` (organisation de l'ancien `cali_names.json` : streets, areas, custom_streets).
 
-## Municipalités et polices
+## Villes et polices (jurisdictions)
 
-| Municipalité | Police | Statut |
+| Ville / comté | Police | Zones |
 |---|---|---|
-| Seattle | Seattle PD | Ville (police municipale) |
-| Bellevue | Bellevue PD | Ville (police municipale) |
-| Kenmore | KCSO - Précinct 2 | Ville sous contrat KCSO (pas de PD) |
-| Carnation | KCSO - Précinct 2 | Ville sous contrat KCSO (pas de PD) |
-| Maple Valley | KCSO - Précinct 3 | Ville sous contrat KCSO, siège du Précinct 3 |
-| Ravensdale | KCSO - Précinct 3 | Non incorporé (KCSO direct) |
-| King County | KCSO - Précinct 2 | Non incorporé, nord-ouest |
-| King County | KCSO - Précinct 3 | Non incorporé, centre et est |
+| Seattle | Seattle PD | AIRP, ALTA, BANNING, BEACH, BURTON, CHAMH, CYPRE, DAVIS, DELBE, DELPE, DELSOL, DOWNT, DTVINE, EAST_V, EBURO, ELYSIAN, GALLI, HAWICK, HORS, KOREAT, LEGSQU, LMESA, LOSPUER, MIRR, MOVIE, MURRI, PBOX, RANCHO, SKID, STAD, STRAW, TERMINA, TEXTI, VCANA, VESP, VINE, WVINE, ZP_ORT |
+| Bellevue | Bellevue PD | BANHAMC, BHAMCA, CHIL, GOLF, MORN, PBLUFF, RGLEN, RICHM, ROCKF |
+| Kenmore | KCSO - Précinct 2 | PALCOV, PALETO, PALFOR |
+| Carnation | KCSO - Précinct 2 | GRAPES |
+| Maple Valley | KCSO - Précinct 3 | GALFISH, SANDY |
+| Ravensdale | KCSO - Précinct 3 | HARMO, ZQ_UAR |
+| King County | KCSO - Précinct 2 | ARMYB, BRADP, BRADT, CALAFB, CANNY, CCREAK, CHU, CMSW, ELGORL, GREATC, LAGO, MTCHIL, MTGORDO, MTJOSE, NCHU, OCEANA, PROCOB, SANCHIA, TONGVAH, TONGVAV, ZANCUDO |
+| King County | KCSO - Précinct 3 | ALAMO, DESRT, HUMLAB, JAIL, LACT, LDAM, NOOSE, PALHIGH, PALMPOW, RTRAK, SANAND, SLAB, TATAMO, WINDF |
 
-## Interstates
+## Zones (areas) : code — nom affiché ← nom du jeu (GTA V)
 
-| Route | Nom(s) dans le jeu | Remarque |
-|---|---|---|
-| **I-90** | Great Ocean Hwy | Great Ocean Highway : tour de l'île, côte ouest et nord |
-| **I-5** | Los Santos Fwy, Olympic Fwy, Del Perro Fwy, La Puerta Fwy, Elysian Fields Fwy | Toutes les autoroutes de la ville (Seattle) |
-| **I-405** | Palomino Fwy | Palomino Freeway : contournement est |
+| Code | Nom affiché | Nom du jeu | Ville |
+|---|---|---|---|
+| AIRP | Sea-Tac International Airport | Los Santos International Airport | Seattle |
+| ALAMO | Lake Sammamish | Alamo Sea | King County |
+| ALTA | First Hill | Alta | Seattle |
+| ARMYB | Joint Base Lewis-McChord (annexe) | Fort Zancudo | King County |
+| BANHAMC | Somerset | Banham Canyon Dr | Bellevue |
+| BANNING | Highland Park | Banning | Seattle |
+| BEACH | Golden Gardens | Vespucci Beach | Seattle |
+| BHAMCA | Factoria | Banham Canyon | Bellevue |
+| BRADP | Stevens Pass | Braddock Pass | King County |
+| BRADT | Stevens Pass Tunnel | Braddock Tunnel | King County |
+| BURTON | Queen Anne | Burton | Seattle |
+| CALAFB | Tolt River Bridge | Calafia Bridge | King County |
+| CANNY | Tolt River Canyon | Raton Canyon | King County |
+| CCREAK | Griffin Creek | Cassidy Creek | King County |
+| CHAMH | Delridge | Chamberlain Hills | Seattle |
+| CHIL | Bridle Trails | Vinewood Hills | Bellevue |
+| CHU | Richmond Beach | Chumash | King County |
+| CMSW | Mount Si Natural Resources Area | Chiliad Mountain State Wilderness | King County |
+| CYPRE | Georgetown | Cypress Flats | Seattle |
+| DAVIS | White Center | Davis | Seattle |
+| DELBE | Discovery Park | Del Perro Beach | Seattle |
+| DELPE | Magnolia | Del Perro | Seattle |
+| DELSOL | Elliott Bay Marina | Puerto Del Sol | Seattle |
+| DESRT | Cedar River Valley | Grand Senora Desert | King County |
+| DOWNT | Downtown | Downtown | Seattle |
+| DTVINE | South Lake Union | Downtown Vinewood | Seattle |
+| EAST_V | University District | East Vinewood | Seattle |
+| EBURO | Rainier Beach | El Burro Heights | Seattle |
+| ELGORL | Point Robinson Lighthouse | El Gordo Lighthouse | King County |
+| ELYSIAN | Harbor Island | Elysian Island | Seattle |
+| GALFISH | Lake Wilderness | Galilee | Maple Valley |
+| GALLI | Kerry Park | Galileo Park | Seattle |
+| GOLF | Overlake | GWC and Golfing Society | Bellevue |
+| GRAPES | Carnation | Grapeseed | Carnation |
+| GREATC | Union Hill | Great Chaparral | King County |
+| HARMO | Ravensdale | Harmony | Ravensdale |
+| HAWICK | Capitol Hill | Hawick | Seattle |
+| HORS | Emerald Downs | Vinewood Racetrack | Seattle |
+| HUMLAB | Cascade BioLabs | Humane Labs and Research | King County |
+| JAIL | Monroe Correctional Complex | Bolingbroke Penitentiary | King County |
+| KOREAT | Chinatown-International District | Little Seoul | Seattle |
+| LACT | Chester Morse Lake | Land Act Reservoir | King County |
+| LAGO | Tolt River Wetlands | Lago Zancudo | King County |
+| LDAM | Masonry Dam | Land Act Dam | King County |
+| LEGSQU | Westlake | Legion Square | Seattle |
+| LMESA | Beacon Hill | La Mesa | Seattle |
+| LOSPUER | Alki | La Puerta | Seattle |
+| MIRR | Green Lake | Mirror Park | Seattle |
+| MORN | West Bellevue | Morningwood | Bellevue |
+| MOVIE | Interbay | Richards Majestic | Seattle |
+| MTCHIL | Mount Si | Mount Chiliad | King County |
+| MTGORDO | Rattlesnake Mountain | Mount Gordo | King County |
+| MTJOSE | Tiger Mountain | Mount Josiah | King County |
+| MURRI | Columbia City | Murrieta Heights | Seattle |
+| NCHU | Cherry Valley | North Chumash | King County |
+| NOOSE | WSP District 2 Headquarters | N.O.O.S.E | King County |
+| OCEANA | Puget Sound | Pacific Ocean | King County |
+| PALCOV | Log Boom Park | Paleto Cove | Kenmore |
+| PALETO | Kenmore | Paleto Bay | Kenmore |
+| PALFOR | Saint Edward State Park | Paleto Forest | Kenmore |
+| PALHIGH | Taylor Mountain | Palomino Highlands | King County |
+| PALMPOW | Cedar Falls Power Station | Palmer-Taylor Power Station | King County |
+| PBLUFF | Newport | Pacific Bluffs | Bellevue |
+| PBOX | Financial District | Pillbox Hill | Seattle |
+| PROCOB | Juanita Beach | Procopio Beach | King County |
+| RANCHO | South Park | Rancho | Seattle |
+| RGLEN | Clyde Hill | Richman Glen | Bellevue |
+| RICHM | Medina | Richman | Bellevue |
+| ROCKF | Downtown Bellevue | Rockford Hills | Bellevue |
+| RTRAK | Pacific Raceways | Redwood Lights Track | King County |
+| SANAND | King County | San Andreas | King County |
+| SANCHIA | Cascade Foothills | San Chianski Mountain Range | King County |
+| SANDY | Maple Valley | Sandy Shores | Maple Valley |
+| SKID | Pioneer Square | Mission Row | Seattle |
+| SLAB | Hobart | Stab City | King County |
+| STAD | SoDo | Maze Bank Arena | Seattle |
+| STRAW | Central District | Strawberry | Seattle |
+| TATAMO | Squak Mountain | Tataviam Mountains | King County |
+| TERMINA | Port of Seattle | Terminal | Seattle |
+| TEXTI | SoDo Industrial District | Textile City | Seattle |
+| TONGVAH | Novelty Hill | Tongva Hills | King County |
+| TONGVAV | Bear Creek Valley | Tongva Valley | King County |
+| VCANA | Ship Canal | Vespucci Canals | Seattle |
+| VESP | Ballard | Vespucci | Seattle |
+| VINE | Fremont | Vinewood | Seattle |
+| WINDF | Wild Horse Wind Farm | Ron Alternates Wind Farm | King County |
+| WVINE | Wallingford | West Vinewood | Seattle |
+| ZANCUDO | Snoqualmie River | Zancudo River | King County |
+| ZP_ORT | Duwamish Waterway | Port of South Los Santos | Seattle |
+| ZQ_UAR | Ravensdale Quarry | Davis Quartz | Ravensdale |
 
-## US Routes
+## Rues (streets) : nom du jeu → nom affiché
 
-| Route | Nom(s) dans le jeu | Remarque |
-|---|---|---|
-| **US-2** | Senora Fwy | Senora Freeway : axe nord-sud du Précinct 3, vers Stevens Pass |
-| **US-12** | Route 68 | Route 68 : traverse le centre d'ouest en est (Harmony, Sandy) |
-
-## State Routes (routes de l'État)
-
-| Route | Nom(s) dans le jeu | Remarque |
-|---|---|---|
-| **SR 169 (Maple Valley Hwy)** | Senora Way | Accès à Maple Valley depuis l'US-12 |
-| **SR 18** | Senora Rd | Route du désert entre Ravensdale et le nord-est |
-| **SR 203 (Carnation-Duvall Rd)** | Joshua Rd | Axe nord-sud vers Carnation |
-| **SR 516 (Kent-Kangley Rd)** | East Joshua Road | Ravensdale |
-| **SR 522 (Bothell Way NE)** | Paleto Blvd | Rue principale de Kenmore |
-| **SR 202 (Redmond-Fall City Rd)** | Calafia Rd, North Calafia Way | Nord-ouest, pont de la Tolt River |
-| **SR 203 (Tolt Ave)** | Grapeseed Main St | Rue principale de Carnation |
-
-## Routes de comté et rues des villes sous contrat
-
-| Nom dans le jeu | Nom affiché |
+| Nom du jeu (GTA V) | Nom affiché |
 |---|---|
 | Algonquin Blvd | Maple Valley-Black Diamond Rd SE |
-| Marina Dr | East Lake Sammamish Pkwy SE |
-| Panorama Dr | West Lake Sammamish Pkwy SE |
-| Niland Ave | Witte Rd SE |
-| Armadillo Ave | SE 231st St |
-| Cholla Springs Ave | Wax Rd SE |
-| Lolita Ave | SE 248th St |
-| Mountain View Dr | SE 264th St |
 | Alhambra Dr | 216th Ave SE |
-| Lesbos Ln | Lake Wilderness Dr SE |
-| Meringue Ln | SE 240th St |
-| Nowhere Rd | SE Summit-Landsburg Rd |
-| Smoke Tree Rd | SE Lake Holm Rd |
-| Zancudo Ave | SE 228th St |
+| Armadillo Ave | SE 231st St |
+| Barbareno Rd | Redmond Ridge Dr NE |
+| Baytree Canyon Rd | Novelty Hill Rd |
+| Buen Vino Rd | NE Union Hill Rd |
+| Calafia Rd | SR 202 (Redmond-Fall City Rd) |
+| Cascabel Ave | NE 175th St |
+| Cassidy Trail | Griffin Creek Rd |
 | Cat-Claw Ave | Tahoma Way SE |
 | Cholla Rd | SE Jones Rd |
-| Joad Ln | SE Ravensdale Way |
+| Cholla Springs Ave | Wax Rd SE |
+| Del Perro Fwy | I-5 |
+| Duluoz Ave | 61st Ave NE |
+| East Joshua Road | SR 516 (Kent-Kangley Rd) |
+| Elysian Fields Fwy | I-5 |
 | Fenwell Pl | Landsburg Rd SE |
+| Fort Zancudo Approach Rd | JBLM Annex Access Rd |
 | Gentry Ln | SE Kent-Black Diamond Rd |
-| Hangman Ave | SE Hobart Rd |
-| Steele Way | 276th Ave SE |
 | Grapeseed Ave | NE Carnation Farm Rd |
-| Union Rd | Tolt Hill Rd NE |
+| Grapeseed Main St | SR 203 (Tolt Ave) |
+| Great Ocean Hwy | I-90 |
+| Hangman Ave | SE Hobart Rd |
+| Joad Ln | SE Ravensdale Way |
+| Joshua Rd | SR 203 (Carnation-Duvall Rd) |
+| La Puerta Fwy | I-5 |
+| Lake Vinewood Dr | Lake Tradition Rd |
+| Lake Vinewood Est | SE Tradition Lake Dr |
+| Lesbos Ln | Lake Wilderness Dr SE |
+| Lolita Ave | SE 248th St |
+| Los Santos Fwy | I-5 |
+| Marina Dr | East Lake Sammamish Pkwy SE |
+| Marlowe Dr | NE Ames Lake Rd |
+| Meringue Ln | SE 240th St |
+| Mount Haan Dr | SE Mount Si Rd |
+| Mount Haan Rd | Mount Si Rd |
+| Mountain View Dr | SE 264th St |
+| Niland Ave | Witte Rd SE |
+| North Calafia Way | SR 202 (Redmond-Fall City Rd) |
+| Nowhere Rd | SE Summit-Landsburg Rd |
 | O'Neil Way | NE 50th St |
-| Seaview Rd | Juanita Dr NE |
+| Olympic Fwy | I-5 |
+| Paleto Blvd | SR 522 (Bothell Way NE) |
+| Palomino Fwy | I-405 |
+| Panorama Dr | West Lake Sammamish Pkwy SE |
 | Procopio Dr | 68th Ave NE |
 | Procopio Promenade | Kenmore Waterfront Trail |
 | Pyrite Ave | NE 181st St |
-| Duluoz Ave | 61st Ave NE |
-| Cascabel Ave | NE 175th St |
-| Zancudo Rd | Snoqualmie Valley Rd NE |
-| Fort Zancudo Approach Rd | JBLM Annex Access Rd |
 | Raton Pass | Tolt Pipeline Rd |
-| Mount Haan Rd | Mount Si Rd |
-| Mount Haan Dr | SE Mount Si Rd |
-| Cassidy Trail | Griffin Creek Rd |
-| Baytree Canyon Rd | Novelty Hill Rd |
+| Route 68 | US-12 |
+| Seaview Rd | Juanita Dr NE |
+| Senora Fwy | US-2 |
+| Senora Rd | SR 18 |
+| Senora Way | SR 169 (Maple Valley Hwy) |
+| Smoke Tree Rd | SE Lake Holm Rd |
+| Steele Way | 276th Ave SE |
 | Tongva Dr | Bear Creek Rd |
-| Buen Vino Rd | NE Union Hill Rd |
-| Marlowe Dr | NE Ames Lake Rd |
-| Barbareno Rd | Redmond Ridge Dr NE |
-| Lake Vinewood Dr | Lake Tradition Rd |
-| Lake Vinewood Est | SE Tradition Lake Dr |
+| Union Rd | Tolt Hill Rd NE |
+| Zancudo Ave | SE 228th St |
+| Zancudo Rd | Snoqualmie Valley Rd NE |
 
-## Quartiers
+## Rues par zones (custom_streets)
 
-| Code | Nom affiché | Ancien nom (GTA) | Municipalité | Police |
-|---|---|---|---|---|
-| `CHIL` | **Bridle Trails** | Vinewood Hills | Bellevue | Bellevue PD |
-| `RGLEN` | **Clyde Hill** | Richman Glen | Bellevue | Bellevue PD |
-| `ROCKF` | **Downtown Bellevue** | Rockford Hills | Bellevue | Bellevue PD |
-| `BHAMCA` | **Factoria** | Banham Canyon | Bellevue | Bellevue PD |
-| `RICHM` | **Medina** | Richman | Bellevue | Bellevue PD |
-| `PBLUFF` | **Newport** | Pacific Bluffs | Bellevue | Bellevue PD |
-| `GOLF` | **Overlake** | GWC and Golfing Society | Bellevue | Bellevue PD |
-| `BANHAMC` | **Somerset** | Banham Canyon Dr | Bellevue | Bellevue PD |
-| `MORN` | **West Bellevue** | Morningwood | Bellevue | Bellevue PD |
-| `GRAPES` | **Carnation** | Grapeseed | Carnation | KCSO - Précinct 2 |
-| `PALETO` | **Kenmore** | Paleto Bay | Kenmore | KCSO - Précinct 2 |
-| `SANDY` | **Maple Valley** | Sandy Shores | Maple Valley | KCSO - Précinct 3 |
-| `HARMO` | **Ravensdale** | Harmony | Ravensdale | KCSO - Précinct 3 |
-| `LOSPUER` | **Alki** | La Puerta | Seattle | Seattle PD |
-| `VESP` | **Ballard** | Vespucci | Seattle | Seattle PD |
-| `LMESA` | **Beacon Hill** | La Mesa | Seattle | Seattle PD |
-| `HAWICK` | **Capitol Hill** | Hawick | Seattle | Seattle PD |
-| `STRAW` | **Central District** | Strawberry | Seattle | Seattle PD |
-| `KOREAT` | **Chinatown-International District** | Little Seoul | Seattle | Seattle PD |
-| `MURRI` | **Columbia City** | Murrieta Heights | Seattle | Seattle PD |
-| `CHAMH` | **Delridge** | Chamberlain Hills | Seattle | Seattle PD |
-| `DELBE` | **Discovery Park** | Del Perro Beach | Seattle | Seattle PD |
-| `DOWNT` | **Downtown** | Downtown | Seattle | Seattle PD |
-| `ZP_ORT` | **Duwamish Waterway** | Port of South Los Santos | Seattle | Seattle PD |
-| `DELSOL` | **Elliott Bay Marina** | Puerto Del Sol | Seattle | Seattle PD |
-| `HORS` | **Emerald Downs** | Vinewood Racetrack | Seattle | Seattle PD |
-| `PBOX` | **Financial District** | Pillbox Hill | Seattle | Seattle PD |
-| `ALTA` | **First Hill** | Alta | Seattle | Seattle PD |
-| `VINE` | **Fremont** | Vinewood | Seattle | Seattle PD |
-| `CYPRE` | **Georgetown** | Cypress Flats | Seattle | Seattle PD |
-| `BEACH` | **Golden Gardens** | Vespucci Beach | Seattle | Seattle PD |
-| `MIRR` | **Green Lake** | Mirror Park | Seattle | Seattle PD |
-| `ELYSIAN` | **Harbor Island** | Elysian Island | Seattle | Seattle PD |
-| `BANNING` | **Highland Park** | Banning | Seattle | Seattle PD |
-| `MOVIE` | **Interbay** | Richards Majestic | Seattle | Seattle PD |
-| `GALLI` | **Kerry Park** | Galileo Park | Seattle | Seattle PD |
-| `DELPE` | **Magnolia** | Del Perro | Seattle | Seattle PD |
-| `SKID` | **Pioneer Square** | Mission Row | Seattle | Seattle PD |
-| `TERMINA` | **Port of Seattle** | Terminal | Seattle | Seattle PD |
-| `BURTON` | **Queen Anne** | Burton | Seattle | Seattle PD |
-| `EBURO` | **Rainier Beach** | El Burro Heights | Seattle | Seattle PD |
-| `AIRP` | **Sea-Tac International Airport** | Los Santos International Airport | Seattle | Seattle PD |
-| `VCANA` | **Ship Canal** | Vespucci Canals | Seattle | Seattle PD |
-| `STAD` | **SoDo** | Maze Bank Arena | Seattle | Seattle PD |
-| `TEXTI` | **SoDo Industrial District** | Textile City | Seattle | Seattle PD |
-| `DTVINE` | **South Lake Union** | Downtown Vinewood | Seattle | Seattle PD |
-| `RANCHO` | **South Park** | Rancho | Seattle | Seattle PD |
-| `EAST_V` | **University District** | East Vinewood | Seattle | Seattle PD |
-| `WVINE` | **Wallingford** | West Vinewood | Seattle | Seattle PD |
-| `LEGSQU` | **Westlake** | Legion Square | Seattle | Seattle PD |
-| `DAVIS` | **White Center** | Davis | Seattle | Seattle PD |
+| Nom affiché | Zones | Ancien nom (cali_names.json) |
+|---|---|---|
+| Holmes Point Dr NE | 1 | Anaconda Road |
+| NE 153rd Pl | 4 | Chips Drive |
+| 428th Ave SE | 7 | Mamba Road |
+| NE 145th St | 6 | Community Avenue |
+| Simonds Rd NE | 2 | Salamender Lane |
+| NE 141st St | 1 | Boar's Lake |
+| 84th Ave NE | 1 | Fries Street |
+| NE 160th St | 2 | Wisteria Road |
+| 100th Ave NE | 1 | Olympia Road |
 
-## Zones géographiques
-
-| Code | Nom affiché | Ancien nom (GTA) | Municipalité | Police |
-|---|---|---|---|---|
-| `TONGVAV` | **Bear Creek Valley** | Tongva Valley | King County | KCSO - Précinct 2 |
-| `SANCHIA` | **Cascade Foothills** | San Chianski Mountain Range | King County | KCSO - Précinct 2 |
-| `NCHU` | **Cherry Valley** | North Chumash | King County | KCSO - Précinct 2 |
-| `CCREAK` | **Griffin Creek** | Cassidy Creek | King County | KCSO - Précinct 2 |
-| `ARMYB` | **Joint Base Lewis-McChord (annexe)** | Fort Zancudo | King County | KCSO - Précinct 2 |
-| `PROCOB` | **Juanita Beach** | Procopio Beach | King County | KCSO - Précinct 2 |
-| `MTCHIL` | **Mount Si** | Mount Chiliad | King County | KCSO - Précinct 2 |
-| `CMSW` | **Mount Si Natural Resources Area** | Chiliad Mountain State Wilderness | King County | KCSO - Précinct 2 |
-| `TONGVAH` | **Novelty Hill** | Tongva Hills | King County | KCSO - Précinct 2 |
-| `ELGORL` | **Point Robinson Lighthouse** | El Gordo Lighthouse | King County | KCSO - Précinct 2 |
-| `OCEANA` | **Puget Sound** | Pacific Ocean | King County | KCSO - Précinct 2 |
-| `MTGORDO` | **Rattlesnake Mountain** | Mount Gordo | King County | KCSO - Précinct 2 |
-| `CHU` | **Richmond Beach** | Chumash | King County | KCSO - Précinct 2 |
-| `ZANCUDO` | **Snoqualmie River** | Zancudo River | King County | KCSO - Précinct 2 |
-| `BRADP` | **Stevens Pass** | Braddock Pass | King County | KCSO - Précinct 2 |
-| `BRADT` | **Stevens Pass Tunnel** | Braddock Tunnel | King County | KCSO - Précinct 2 |
-| `MTJOSE` | **Tiger Mountain** | Mount Josiah | King County | KCSO - Précinct 2 |
-| `CALAFB` | **Tolt River Bridge** | Calafia Bridge | King County | KCSO - Précinct 2 |
-| `CANNY` | **Tolt River Canyon** | Raton Canyon | King County | KCSO - Précinct 2 |
-| `LAGO` | **Tolt River Wetlands** | Lago Zancudo | King County | KCSO - Précinct 2 |
-| `GREATC` | **Union Hill** | Great Chaparral | King County | KCSO - Précinct 2 |
-| `HUMLAB` | **Cascade BioLabs** | Humane Labs and Research | King County | KCSO - Précinct 3 |
-| `PALMPOW` | **Cedar Falls Power Station** | Palmer-Taylor Power Station | King County | KCSO - Précinct 3 |
-| `DESRT` | **Cedar River Valley** | Grand Senora Desert | King County | KCSO - Précinct 3 |
-| `LACT` | **Chester Morse Lake** | Land Act Reservoir | King County | KCSO - Précinct 3 |
-| `SLAB` | **Hobart** | Stab City | King County | KCSO - Précinct 3 |
-| `SANAND` | **King County** | San Andreas | King County | KCSO - Précinct 3 |
-| `ALAMO` | **Lake Sammamish** | Alamo Sea | King County | KCSO - Précinct 3 |
-| `LDAM` | **Masonry Dam** | Land Act Dam | King County | KCSO - Précinct 3 |
-| `JAIL` | **Monroe Correctional Complex** | Bolingbroke Penitentiary | King County | KCSO - Précinct 3 |
-| `RTRAK` | **Pacific Raceways** | Redwood Lights Track | King County | KCSO - Précinct 3 |
-| `TATAMO` | **Squak Mountain** | Tataviam Mountains | King County | KCSO - Précinct 3 |
-| `PALHIGH` | **Taylor Mountain** | Palomino Highlands | King County | KCSO - Précinct 3 |
-| `NOOSE` | **WSP District 2 Headquarters** | N.O.O.S.E | King County | KCSO - Précinct 3 |
-| `WINDF` | **Wild Horse Wind Farm** | Ron Alternates Wind Farm | King County | KCSO - Précinct 3 |
-| `PALCOV` | **Log Boom Park** | Paleto Cove | Kenmore | KCSO - Précinct 2 |
-| `PALFOR` | **Saint Edward State Park** | Paleto Forest | Kenmore | KCSO - Précinct 2 |
-| `GALFISH` | **Lake Wilderness** | Galilee | Maple Valley | KCSO - Précinct 3 |
-| `ZQ_UAR` | **Ravensdale Quarry** | Davis Quartz | Ravensdale | KCSO - Précinct 3 |
+Rues de la ville (Seattle, Bellevue) non listées : leur nom du jeu est gardé.

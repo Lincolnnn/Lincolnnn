@@ -330,9 +330,12 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   **`config/washington.json`** (liste complète et lisible : **`config/WASHINGTON_CARTE.md`**) : `streets` (nom du jeu ->
   nom affiché : **I-5** (autoroutes de la ville), **I-90** (Great Ocean Hwy), **I-405** (Palomino Fwy), **US-2** (Senora
   Fwy), **US-12** (Route 68), routes de l'État (SR 169, SR 18, SR 203, SR 516, SR 522, SR 202) et routes du comté),
-  `zones` (les 90 zones du jeu : quartiers de Seattle et de Bellevue, villes sous contrat, zones géographiques ; aussi
-  renommées sur la carte du menu pause), `municipalities` (ville affichée et police compétente : Seattle PD, Bellevue
-  PD, KCSO Précinct 2 / 3). Les rues des villes absentes de `streets` gardent leur nom du jeu. Utilisés par le PLD,
+  `areas` (les 90 zones du jeu, code -> nom : quartiers de Seattle et de Bellevue, villes sous contrat, zones
+  géographiques ; aussi renommées sur la carte du menu pause), `custom_streets` (rues nommées par des zones x / y,
+  comme l'ancien `cali_names.json` : dedans, ce nom remplace celui du jeu, ex. NE 145th St, 84th Ave NE),
+  `jurisdictions` (ville affichée et police compétente, avec ses zones : Seattle PD, Bellevue PD, KCSO Précinct 2 / 3).
+  Même organisation que l'ancien `cali_names.json` (streets / areas / custom_streets). Les rues des villes absentes de
+  `streets` gardent leur nom du jeu. Utilisés par le PLD,
   le bouton « Position actuelle » et les exports `GetStreetName`, `GetDistrictName`, `GetLocationText`,
   `RenameStreet`, `GetJurisdiction` (police compétente et municipalité). Commande **`/mdc_streets`** (F8) : noms à votre
   position (et ceux du jeu), pour vérifier.

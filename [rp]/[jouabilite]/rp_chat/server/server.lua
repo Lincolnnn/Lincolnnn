@@ -285,6 +285,38 @@ AddEventHandler('playerDropped', function()
 end)
 
 -- =========================================================================
+-- CONNEXIONS / DÉCONNEXIONS (Config.JoinLeave) : message à tout le monde
+-- =========================================================================
+local JL = Config.JoinLeave or {}
+
+--- Nom affiché : pseudo Discord (état « discordName » donné par rp_permissions), sinon nom FiveM
+local function displayName(src)
+    local discord = Player(src).state.discordName
+    local name = cleanText(type(discord) == 'string' and discord ~= '' and discord or GetPlayerName(src) or '', 40)
+    if name == '' then name = 'Un joueur' end
+    return JL.ShowId ~= false and ('%s (ID %d)'):format(name, src) or name
+end
+
+AddEventHandler('playerJoining', function()
+    if JL.Enabled == false then return end
+    local src = source
+    -- le pseudo Discord arrive quelques secondes après la connexion (rp_permissions) : petit délai
+    SetTimeout(4000, function()
+        if not GetPlayerName(src) then return end
+        send(-1, { type = 'join', text = ('%s a rejoint le serveur.'):format(displayName(src)) })
+    end)
+end)
+
+AddEventHandler('playerDropped', function(reason)
+    if JL.Enabled == false then return end
+    local src = source
+    local text = ('%s a quitté le serveur'):format(displayName(src))
+    reason = cleanText(reason, 80)
+    if JL.ShowReason ~= false and reason ~= '' then text = ('%s (%s).'):format(text, reason) else text = text .. '.' end
+    send(-1, { type = 'leave', text = text })
+end)
+
+-- =========================================================================
 -- REMPLACEMENT DU CHAT D'ORIGINE ("chat" et "chat-theme-gtao")
 -- Les dossiers d'origine peuvent rester dans resources/ (ils sont souvent remis par
 -- l'hébergeur ou txAdmin) : seule compte leur exécution. S'ils sont démarrés, ils sont

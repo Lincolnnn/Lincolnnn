@@ -489,6 +489,10 @@ pour lui-même. Réglages : `Bike` dans `config.lua`.
    **Ceinture et frein de parking**, avec ou sans le pont : **aucun message par défaut** (logo de la ceinture et « P »
    du car HUD suffisent) ; le pont coupe ceux de Riven, toujours. `Riven.MuteBelt = false` / `Riven.MutePark = false` :
    ce script écrit lui-même « Ceinture attachée. », « Frein de parking serré. »… en message privé du chat.
+   **Dégâts : un seul message générique**, seulement pour l'essentiel : « Véhicule abîmé : transmission déviée. »,
+   « Véhicule abîmé : direction faussée. », « Véhicule abîmé : moteur endommagé. », « Véhicule abîmé : pneu avant
+   gauche crevé. » ; le même message pas plus d'une fois toutes les 90 s. Tous les autres dégâts (carrosserie,
+   phares, radiateur, suspensions, pression des pneus qui baisse…) ne s'écrivent plus.
    Également tus : « Stopped. », chaînes à neige, moteur qui tousse / repart / cale. Le chat limite en plus les
    messages privés (`PrivateLimit` de `rp_chat` : pas de doublon en 20 s, 4 au plus en 10 s).
    Frein de parking serré : **« P » rouge cerclé sur le car HUD du MDC** (conducteur), retiré dès qu'il est desserré ;

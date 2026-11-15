@@ -120,6 +120,55 @@ local EXACT = {
 
 local function tyre(name) return TYRES[name] or name end
 
+-- =========================================================================
+-- DÉGÂTS : un seul message générique « Véhicule abîmé : … » pour les éléments FONDAMENTAUX (pneus, transmission,
+-- direction, moteur) ; tous les autres dégâts (carrosserie, suspensions, phares, vitres, freins, radiateur…) sont
+-- muets (les voyants de Riven les montrent). Messages vitaux gardés : feu, moteur détruit, véhicule détruit,
+-- réservoir vidé. Un même message n'est pas répété avant DAMAGE_COOLDOWN secondes.
+-- =========================================================================
+local DAMAGE_COOLDOWN = 90
+local VITAL = {
+    ['The engine is destroyed. It won\'t turn over.'] = true, ['The tank has leaked dry.'] = true,
+    ['Leaking fuel caught fire!'] = true, ['Fire under the hood. Get out!'] = true,
+    ['Severe rollover. The vehicle is wrecked and heavily damaged.'] = true,
+    ['The engine stalled. Hold accelerate to try to restart it.'] = true,
+}
+-- mots qui signalent un dégât (texte anglais de Riven)
+local DAMAGE_WORDS = { 'damage', 'damaged', 'broken', 'broke', 'bent', 'leak', 'hit', 'shredded', 'flat', 'cracked',
+    'smashed', 'failing', 'failed', 'overheat', 'misalign', 'pulls', 'pulling', 'wrecked', 'crushed', 'snapped',
+    'blown', 'dented', 'worn', 'loose', 'rollover', 'impact', 'crash' }
+-- éléments fondamentaux : mots-clés -> texte français
+local PARTS = {
+    { words = { 'transmission', 'gearbox', 'gear box', 'clutch', 'drivetrain', 'driveshaft', 'drive shaft', 'axle', 'differential' },
+      text = 'transmission endommagée' },
+    { words = { 'steering', 'alignment', 'misalign', 'pulls to', 'pulling to', 'tie rod' }, text = 'direction déviée' },
+    { words = { 'engine', 'motor', 'radiator', 'cooling', 'coolant', 'oil', 'overheat' }, text = 'moteur endommagé' },
+}
+local lastDamage = {} -- [texte] = heure de la dernière annonce
+
+local function hasAny(text, words)
+    for _, w in ipairs(words) do if text:find(w, 1, true) then return true end end
+    return false
+end
+
+--- Notification de dégât -> message générique (nil : pas un dégât) ; '' : dégât secondaire, muet
+local function damageSummary(p)
+    if VITAL[p] then return nil end
+    local lower = p:lower()
+    -- pneus : seulement crevé / sur la jante (le « se dégonfle » précède la crevaison : muet)
+    if lower:find('^tyre pressure dropping') then return '' end
+    local t = p:match('^Flat tyre %- (.+)$') or p:match('^Tyre shredded %- on the rim, (.+)$')
+    if t then return ('Véhicule abîmé : pneu %s crevé.'):format(tyre(t)) end
+    if not hasAny(lower, DAMAGE_WORDS) then return nil end
+    local parts = {}
+    for _, part in ipairs(PARTS) do
+        if hasAny(lower, part.words) then parts[#parts + 1] = part.text end
+    end
+    if lower:find('tyre', 1, true) or lower:find('tire', 1, true) then table.insert(parts, 1, 'pneu crevé') end
+    if #parts == 0 then return '' end
+    return ('Véhicule abîmé : %s.'):format(table.concat(parts, ', '))
+end
+
 -- { motif du texte anglais, fonction qui rend le français }
 local PATTERNS = {
     { '^Unfasten your seatbelt first %((.-)%)%.$', function(key) return ('Détachez d\'abord votre ceinture (%s).'):format(key) end },
@@ -150,9 +199,14 @@ local function translate(text)
     if BELT[p] and settings.MuteBelt ~= false then return p, true end
     if PARK[p] and settings.MutePark ~= false then return p, true end
     if QUIET[p] then return p, true end
-    -- pneus (crevé, se dégonfle, sur la jante) : le voyant de Riven le montre déjà (Riven.MuteTyres)
-    if settings.MuteTyres ~= false and (p:find('^Tyre pressure dropping') or p:find('^Flat tyre') or p:find('^Tyre shredded')) then
-        return p, true
+    -- dégâts : message générique (pneus, transmission, direction, moteur) une fois par DAMAGE_COOLDOWN, le reste muet
+    local summary = damageSummary(p)
+    if summary then
+        if summary == '' then return p, true end
+        local now = GetGameTimer()
+        if lastDamage[summary] and now - lastDamage[summary] < DAMAGE_COOLDOWN * 1000 then return p, true end
+        lastDamage[summary] = now
+        return summary, false
     end
     if EXACT[p] then return EXACT[p], false end
     for _, entry in ipairs(PATTERNS) do

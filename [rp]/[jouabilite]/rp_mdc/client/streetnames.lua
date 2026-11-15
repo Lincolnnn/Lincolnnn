@@ -3,12 +3,14 @@
     ------------------------------------------------------------------------------------
     SEULE source des noms affichés par le PLD (rue, croisement, quartier, ville), le bouton "Position actuelle" et les
     appels : config/washington.json (liste lisible : config/WASHINGTON_CARTE.md). Aucun autre fichier.
-      - streets : nom de la rue dans le jeu -> nom affiché (I-5, I-90, I-405, US-2, US-12, routes de l'État, routes du
-                  comté…), majuscules sans importance ; rue absente : son nom du jeu (ou un nom de "pool" si
-                  autoRenameUnmapped = true) ;
-      - zones   : code de zone du jeu -> quartier (ville) ou zone géographique, et sa municipalité (aussi renommé sur la
-                  carte du menu pause) ;
-      - municipalities : ville affichée après le quartier (Seattle, Bellevue, Kenmore…) et police compétente.
+    Même organisation que l'ancien cali_names.json :
+      - streets        : nom de la rue dans le jeu -> nom affiché (I-5, I-90, I-405, US-2, routes de l'État, du comté…),
+                         majuscules sans importance ; rue absente : son nom du jeu ;
+      - areas          : code de zone du jeu -> quartier (ville) ou zone géographique (aussi renommé sur la carte du
+                         menu pause) ;
+      - custom_streets : rue nommée par des zones (polygones x / y) : dedans, ce nom remplace celui du jeu ;
+      - jurisdictions  : ville affichée après le quartier (Seattle, Bellevue, Kenmore…) et police compétente.
+    (L'ancien format « zones / municipalities » est encore lu.)
     Exports (nom du dossier de cette ressource) : GetStreetName(coords), GetDistrictName(coords),
     GetLocationText(coords), RenameStreet(nomDuJeu), GetJurisdiction(coords).
     Commande /mdc_streets : noms à votre position (F8). Aucune boucle.
@@ -30,6 +32,8 @@ StreetNames = { loaded = 0, file = FILE }
 
 local byName = {} -- [nom du jeu en minuscules] = nom affiché
 local zones = {}  -- [code de zone, ex. "CYPRE"] = { name, municipality }
+local munis = {}  -- [clé de ville] = { name, agency }
+local customs = {} -- rues par zones : { name, polys = { { {x, y}, … } }, minX, maxX, minY, maxY }
 local pool = {}
 local renamed = {} -- cache : [nom du jeu] = nom affiché
 
@@ -39,17 +43,53 @@ local function u32(n)
 end
 
 function StreetNames.load()
-    byName, zones, pool, renamed = {}, {}, {}, {}
+    byName, zones, munis, customs, pool, renamed = {}, {}, {}, {}, {}, {}
     StreetNames.loaded = 0
+    -- villes et polices (nouveau format : jurisdictions ; ancien : municipalities + zones[].municipality)
+    local areaMuni = {}
+    for key, j in pairs(N.jurisdictions or N.municipalities or {}) do
+        if type(j) == 'table' then
+            munis[key] = { name = j.name, agency = j.agency }
+            for _, code in ipairs(j.areas or {}) do areaMuni[tostring(code):upper()] = key end
+        end
+    end
+    for code, name in pairs(N.areas or {}) do
+        if type(code) == 'string' and type(name) == 'string' and name ~= '' then
+            zones[code:upper()] = { name = name, municipality = areaMuni[code:upper()] }
+            AddTextEntry(code:upper(), name) -- quartier renommé aussi sur la carte (menu pause)
+            StreetNames.loaded = StreetNames.loaded + 1
+        end
+    end
+    for _, c in ipairs(N.custom_streets or {}) do
+        if type(c) == 'table' and type(c.name) == 'string' and c.name ~= '' then
+            local entry = { name = c.name, polys = {}, minX = math.huge, maxX = -math.huge, minY = math.huge, maxY = -math.huge }
+            for _, poly in ipairs(c.zones or {}) do
+                local pts = {}
+                for _, p in ipairs(poly) do
+                    local x, y = tonumber(p.x), tonumber(p.y)
+                    if x and y then
+                        pts[#pts + 1] = { x, y }
+                        entry.minX, entry.maxX = math.min(entry.minX, x), math.max(entry.maxX, x)
+                        entry.minY, entry.maxY = math.min(entry.minY, y), math.max(entry.maxY, y)
+                    end
+                end
+                if #pts >= 3 then entry.polys[#entry.polys + 1] = pts end
+            end
+            if #entry.polys > 0 then
+                customs[#customs + 1] = entry
+                StreetNames.loaded = StreetNames.loaded + 1
+            end
+        end
+    end
     for game, name in pairs(N.streets or {}) do
         if type(game) == 'string' and type(name) == 'string' and name ~= '' then
             byName[game:lower()] = name
             StreetNames.loaded = StreetNames.loaded + 1
         end
     end
-    for code, zone in pairs(N.zones or {}) do
+    for code, zone in pairs(N.zones or {}) do -- (ancien format)
         local name = type(zone) == 'table' and zone.name or zone
-        if type(code) == 'string' and type(name) == 'string' and name ~= '' then
+        if type(code) == 'string' and type(name) == 'string' and name ~= '' and not zones[code:upper()] then
             zones[code:upper()] = { name = name, municipality = type(zone) == 'table' and zone.municipality or nil }
             AddTextEntry(code:upper(), name) -- quartier renommé aussi sur la carte (menu pause)
             StreetNames.loaded = StreetNames.loaded + 1
@@ -84,6 +124,34 @@ function StreetNames.street(hash)
     return StreetNames.rename(GetStreetNameFromHashKey(hash) or '')
 end
 
+-- Point dans un polygone (lancer de rayon)
+local function inPolygon(x, y, pts)
+    local inside, j = false, #pts
+    for i = 1, #pts do
+        local a, b = pts[i], pts[j]
+        if (a[2] > y) ~= (b[2] > y) and x < (b[1] - a[1]) * (y - a[2]) / (b[2] - a[2]) + a[1] then inside = not inside end
+        j = i
+    end
+    return inside
+end
+
+--- Rue par zones (custom_streets) à cette position, ou nil
+function StreetNames.custom(x, y)
+    for _, c in ipairs(customs) do
+        if x >= c.minX and x <= c.maxX and y >= c.minY and y <= c.maxY then
+            for _, pts in ipairs(c.polys) do
+                if inPolygon(x, y, pts) then return c.name end
+            end
+        end
+    end
+    return nil
+end
+
+--- Rue à cette position : rue par zones si on est dedans, sinon le nom (renommé) de la rue du jeu
+function StreetNames.streetAt(x, y, hash)
+    return StreetNames.custom(x, y) or StreetNames.street(hash)
+end
+
 --- Quartier / zone géographique à cette position (ex. "Capitol Hill") ; code absent du fichier : nom du jeu
 function StreetNames.zone(x, y, z)
     local code = GetNameOfZone(x, y, z)
@@ -98,7 +166,7 @@ end
 --- Municipalité de cette position (Seattle, Bellevue, Kenmore, Carnation, Maple Valley, Ravensdale, King County)
 local function municipalityOf(x, y, z)
     local zone = zones[(GetNameOfZone(x, y, z) or ''):upper()]
-    return zone and zone.municipality and (N.municipalities or {})[zone.municipality] or nil
+    return zone and zone.municipality and munis[zone.municipality] or nil
 end
 function StreetNames.area(x, y, z)
     local m = municipalityOf(x, y, z)
@@ -126,7 +194,7 @@ end
 exports('GetStreetName', function(coords)
     local x, y, z = xyz(coords)
     local s, c = GetStreetNameAtCoord(x, y, z)
-    return StreetNames.street(s), StreetNames.street(c)
+    return StreetNames.streetAt(x, y, s), StreetNames.street(c)
 end)
 
 --- Quartier, ville / comté
@@ -140,7 +208,7 @@ exports('GetLocationText', function(coords)
     local x, y, z = xyz(coords)
     local s = GetStreetNameAtCoord(x, y, z)
     local parts = {}
-    for _, part in ipairs({ StreetNames.street(s), StreetNames.zone(x, y, z), StreetNames.area(x, y, z) }) do
+    for _, part in ipairs({ StreetNames.streetAt(x, y, s), StreetNames.zone(x, y, z), StreetNames.area(x, y, z) }) do
         if part ~= '' then parts[#parts + 1] = part end
     end
     return table.concat(parts, ', ')
@@ -160,7 +228,7 @@ RegisterCommand('mdc_streets', function()
     local s, x = GetStreetNameAtCoord(c.x, c.y, c.z)
     print(('[MDC] %d noms lus dans %s (seule source)'):format(StreetNames.loaded, StreetNames.file))
     print(('[MDC] Rue : %s (jeu : %s) | Croisement : %s (jeu : %s) | Quartier : %s (code %s) | %s'):format(
-        StreetNames.street(s), GetStreetNameFromHashKey(s), StreetNames.street(x), GetStreetNameFromHashKey(x),
+        StreetNames.streetAt(c.x, c.y, s), GetStreetNameFromHashKey(s), StreetNames.street(x), GetStreetNameFromHashKey(x),
         StreetNames.zone(c.x, c.y, c.z), GetNameOfZone(c.x, c.y, c.z), StreetNames.area(c.x, c.y, c.z)))
     print(('[MDC] Police compétente : %s'):format(StreetNames.agency(c.x, c.y, c.z)))
 end, false)

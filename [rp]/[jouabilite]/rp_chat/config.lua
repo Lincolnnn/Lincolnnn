@@ -25,6 +25,10 @@ ChatConfig = {
     -- ignoré ; au plus Max messages privés en Window s (les suivants sont ignorés). Enabled = false : tout passe.
     PrivateLimit = { Enabled = true, SameText = 20, Window = 10, Max = 4 },
 
+    -- Connexions / déconnexions des joueurs dans le chat écrit (tout le monde les voit) : pseudo Discord (rp_permissions)
+    -- ou nom FiveM, n° du joueur, et raison de la déconnexion (ShowReason)
+    JoinLeave = { Enabled = true, ShowId = true, ShowReason = true },
+
     -- /me : visible uniquement par les joueurs dans ce rayon (mètres) au moment de l'envoi
     MeDistance = 50.0,
 

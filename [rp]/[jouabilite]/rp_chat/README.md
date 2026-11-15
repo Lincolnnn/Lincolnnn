@@ -195,6 +195,7 @@ Le chat apparaît en aperçu pendant les réglages. Sans le MDC, les réglages p
 | `OverheadDuration`, `OverheadMaxLines` | durée d'un `/me` au-dessus d'une tête, nombre max par joueur |
 | `OverheadScale`, `OverheadMinScale`, `OverheadMaxScale` | taille du `/me` au-dessus des têtes (à ~4 m), facteurs min (au loin) et max (tout près) |
 | `PrivateLimit` | anti-spam des messages privés (`addPrivate`) : `SameText` (même texte, 20 s), `Max` par `Window` (4 par 10 s) |
+| `JoinLeave` | messages de **connexion / déconnexion** à tous : `Enabled`, `ShowId` (« (ID 12) »), `ShowReason` (raison du départ) — ex. « + Joe (ID 12) a rejoint le serveur. », « − Joe (ID 12) a quitté le serveur (Exiting). » |
 
 Si vous renommez le dossier, mettez le nouveau nom dans `ChatResource` (`client/client.lua` du MDC).
 

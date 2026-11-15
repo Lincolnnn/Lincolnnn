@@ -265,12 +265,21 @@ apparaissent dans l'œil (notification) ; dès que vous la quittez, ils sont ret
 
 ### Joueurs (en bas du menu)
 
-Liste de **tous les joueurs connectés** : **pseudo Discord** (nom affiché sur Discord, sinon nom d'utilisateur, lu
+En haut, deux options générales :
+
+| Option | Qui |
+|---|---|
+| **Se téléporter au point** : au point placé sur la carte (menu pause), posé sur le sol (comme « Teleport to Waypoint » de vMenu) | **tout le monde** (5 s entre deux) |
+| **Activer / Désactiver les blips** : blips GPS de **tous** les joueurs du serveur, carte et radar, **sans limite de distance** (mis à jour toutes les 2 s, `Players.BlipInterval`) | **Whitelist (Membre) et au-dessus** |
+
+Puis la liste de **tous les joueurs connectés** : **pseudo Discord** (nom affiché sur Discord, sinon nom d'utilisateur, lu
 par `rp_permissions` ; sans Discord : nom FiveM) et **(nom RP)** (`/nomrp`). Clic sur un joueur :
 
 | Option | Qui |
 |---|---|
 | **Se téléporter** (à côté de lui ; de son véhicule s'il est dedans) | **tout le monde** (5 s entre deux, `Players.TeleportCooldown`) |
+| **Spectate Player** : voir le point de vue de **ce** joueur sans s'y téléporter (votre personnage reste invisible et figé, et revient exactement à sa place) ; **Arrêter le spectate** ou **Retour arrière** pour revenir | **Whitelist et au-dessus** |
+| **Activer / Désactiver le blip** : blip GPS (jaune) de **ce** joueur seulement, sans limite de distance | **Whitelist et au-dessus** |
 | **Téléporter le joueur à soi** | admins |
 | **Raison** (texte, facultatif) puis **Expulser (kick)** (Entrée deux fois) | admins |
 | **Bannir** › **Ban en jeu** / **Ban en jeu et Discord** (Entrée deux fois) | admins |
@@ -279,6 +288,12 @@ par `rp_permissions` ; sans Discord : nom FiveM) et **(nom RP)** (`/nomrp`). Cli
 (**Membre**, puis **Joueur non-officiel** : un membre perd les deux). Bans gardés et vérifiés par `rp_permissions`
 (`/bans`, `/unban <n°>`). Admins = rang Admin de `rp_permissions` ou ACE `rp.admin` ; un admin ne peut ni expulser ni
 bannir un autre admin. Téléportation par `rp_teleport` s'il est démarré (décor chargé, sol sûr).
+
+**Permissions** (en plus des admins), `Players.Permissions` dans `config.lua` : `false` = tout le monde,
+`'rp.membre'` = Whitelist (Membre) et au-dessus, `'rp.admin'` = admins. Par défaut : `teleport` et `waypoint` à tout
+le monde ; `blips` et `spectate` à `'rp.membre'` (les **Joueurs non-officiels** voient ces options grisées, et le
+serveur les refuse aussi) ; `bring`, `kick`, `ban` à `'rp.admin'`. Un joueur qui perd son rang perd aussitôt ses blips.
+Aucune boucle tant que personne n'a de blip activé.
 
 ## Menu des tenues (`/eup`)
 
@@ -457,6 +472,9 @@ actif**, **Modifier** (puis Enregistrer) et **Supprimer**. Le premier profil cr�
 |---|---|---|
 | Nom du profil | obligatoire | — |
 | **Inspection** — *Observations visuelles et olfactives* | ☐ Visuel, ☐ Olfactif | « Rien à signaler » / « Rien d'anormal » / « Tout est correct » |
+
+**`/me` automatiques** (chat écrit) : seulement les **inspections visuelles**, le **numéro VIN** et les **fouilles**.
+Plus de `/me` pour l'inspection olfactive ni le détail notoire (le résultat s'affiche toujours au policier).
 | **Fouille** — *Contenu de ce que détient votre personnage* | ☐ Partie supérieure du corps, ☐ Partie inférieure du corps | « Rien à signaler » / « Aucun élément » / « Rien d'illégal » |
 | **Détail notoire** | texte facultatif | « Aucun détail notoire » |
 

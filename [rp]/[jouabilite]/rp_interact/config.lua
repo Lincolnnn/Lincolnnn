@@ -89,10 +89,22 @@ InteractConfig = {
         OneBased = true,            -- numéros "24:1" comptés à partir de 1 (format EUP habituel) ; false : à partir de 0
         MaxSaved = 20,              -- Mes tenues : tenues enregistrées au plus par joueur (data/saved_outfits.json)
     },
-    -- Menu Interaction > Joueurs : se téléporter (tous) ; admins : téléporter à soi, expulser, bannir (rp_permissions)
+    -- Menu Interaction > Joueurs. PERMISSIONS de chaque option (rang Discord de rp_permissions ou ACE) :
+    --   false = tout le monde ; 'rp.membre' = Membres (Whitelist) et au-dessus ; 'rp.admin' = admins.
+    --   Les joueurs non-officiels n'ont que les options à false.
     Players = {
         AdminAce = 'rp.admin',      -- admins : rang Admin de rp_permissions ou cette ACE
+        Permissions = {
+            teleport = false,       -- se téléporter à côté d'un joueur : tout le monde
+            waypoint = false,       -- se téléporter au point placé sur la carte : tout le monde
+            blips = 'rp.membre',    -- blips GPS de tous les joueurs / d'un joueur : Whitelist et au-dessus
+            spectate = 'rp.membre', -- voir le point de vue d'un joueur (spectate) : Whitelist et au-dessus
+            bring = 'rp.admin',     -- téléporter un joueur à soi
+            kick = 'rp.admin',      -- expulser
+            ban = 'rp.admin',       -- bannir
+        },
         TeleportCooldown = 5,       -- s entre deux téléportations (sauf admins)
+        BlipInterval = 2000,        -- ms entre deux mises à jour des blips GPS (sans limite de distance)
         KickMessage = 'Expulsé par un admin. Raison : %s',
     },
     -- Radio du véhicule et /musique (lien YouTube ou lien direct vers un son / une radio en ligne)

@@ -13,6 +13,14 @@ ambulance, un camion de pompiers ou un policier.
 
 ## Ce que fait le script
 
+### Plus de trafic aérien (`DisableAirTraffic`)
+
+- Plus aucun **avion, hélicoptère ni dirigeable** du jeu (aéroports, base militaire, Sandy Shores, Grapeseed,
+  hélicoptères de police) : ils ne faisaient que s'écraser. Scénarios aériens coupés, modèles retirés de la
+  population, et ceux qui apparaissent quand même sont retirés (toutes les 3 s, avec leurs pilotes PNJ).
+- Les appareils des joueurs (ou avec un joueur à bord) ne sont jamais touchés. Listes : `AirScenarioGroups`,
+  `AirScenarioTypes`, `AirModels`.
+
 ### Plus de police, pompiers ni ambulanciers du jeu (`DisableEmergencyServices`)
 
 - Ni eux **ni leurs véhicules** (voitures, motos, fourgons, hélicoptère, bateau, camion de pompiers, ambulance)
@@ -100,6 +108,7 @@ La valeur revient à celle de `config.lua` au redémarrage (c'est le fichier qui
 |---|---|
 | `DisableEmergencyServices` | police / pompiers / ambulanciers du jeu supprimés |
 | `DisableWantedLevel` | indice de recherche supprimé |
+| `DisableAirTraffic` | avions / hélicoptères / dirigeables du jeu supprimés |
 | `EveryoneIgnorePlayer`, `NoFear` | PNJ qui ignorent les joueurs, sans peur |
 | `SuppressShockingEvents` | réactions « choquées » des passants (coups de feu, explosions) supprimées à chaque image |
 | `DriverRange`, `DriverSpeed`, `DrivingStyle`, `AlertTime` | conducteurs calmés pendant une alerte (distance, vitesse et style de conduite repris, durée de l'alerte) |

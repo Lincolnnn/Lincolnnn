@@ -269,10 +269,11 @@ SetTimeout(5000, function() policeUnit(0) end)
 -- =========================================================================
 -- INSPECTIONS (œil)
 -- =========================================================================
--- police = réservé aux joueurs dans une unité du MDC ; me = annonce RP dans le chat
+-- police = réservé aux joueurs dans une unité du MDC ; me = annonce RP dans le chat (seulement les inspections
+-- visuelles, le VIN et les fouilles : jamais les inspections olfactives ni les détails notoires)
 local PERSON_FIELDS = {
     visual    = { title = 'Inspection visuelle', defaults = 'visual', me = 'observe attentivement l\'individu' },
-    olfactory = { title = 'Inspection olfactive', defaults = 'olfactory', me = 'sent l\'odeur qui se dégage de l\'individu' },
+    olfactory = { title = 'Inspection olfactive', defaults = 'olfactory' },
     upper     = { title = 'Fouille de la partie supérieure du corps', defaults = 'search', police = true, search = 'person',
                   me = 'fouille la partie supérieure du corps de l\'individu' },
     lower     = { title = 'Fouille de la partie inférieure du corps', defaults = 'search', police = true, search = 'person',
@@ -282,7 +283,7 @@ local PERSON_FIELDS = {
 local VEHICLE_FIELDS = {
     visualInterior = { title = 'Inspection visuelle intérieure', defaults = 'vehicleVisual', me = 'inspecte visuellement l\'intérieur du véhicule' },
     visualExterior = { title = 'Inspection visuelle extérieure', defaults = 'vehicleVisual', me = 'fait le tour du véhicule pour l\'inspecter' },
-    olfactory      = { title = 'Inspection olfactive', defaults = 'vehicleOlfactory', me = 'sent l\'odeur qui se dégage du véhicule' },
+    olfactory      = { title = 'Inspection olfactive', defaults = 'vehicleOlfactory' },
     vin            = { title = 'Numéro VIN', defaults = 'vehicleVisual', me = 'relève le numéro VIN du véhicule' },
     notable        = { title = 'Détail notoire', defaults = 'notable', police = true },
     cabin          = { title = 'Fouille de l\'habitacle', defaults = 'vehicleSearch', police = true, search = 'vehicle', me = 'fouille l\'habitacle du véhicule' },

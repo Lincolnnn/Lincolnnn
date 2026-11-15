@@ -22,7 +22,7 @@ exports('rivenSettings', function()
         Lamps = R.Lamps ~= false,
         HideLamps = type(R.HideLamps) == 'table' and R.HideLamps or { 'belt' },
         Notify = R.Notify ~= false,
-        MuteBelt = R.MuteBelt ~= false, MuteTyres = R.MuteTyres ~= false, MutePark = R.MutePark ~= false,
+        MuteBelt = R.MuteBelt ~= false, MutePark = R.MutePark ~= false,
         OwnBelt = true, OwnPark = true, -- ceinture et frein de parking : messages écrits par ce script
     }
 end)
@@ -40,15 +40,13 @@ local function notify(text) if VC.riven and R.Notify ~= false then VC.chat(text)
 -- =========================================================================
 -- VOYANTS (secours) : voyant qui s'allume -> notification (une fois, jusqu'à ce qu'il s'éteigne)
 -- =========================================================================
+-- Seulement les éléments fondamentaux (moteur, transmission, direction, pneus) et le feu ; les autres voyants
+-- (surchauffe, freins, huile, essence) restent muets : le voyant suffit
 local LAMPS = {
-    engine = { amber = 'Moteur endommagé : il peut caler.', red = 'Moteur gravement endommagé.' },
-    temp = 'Le moteur surchauffe : radiateur touché.',
-    trans = 'Boîte de vitesses endommagée.',
-    brake = 'Freins endommagés : le freinage est réduit.',
-    oil = 'Pression d\'huile basse : le moteur souffre.',
-    fuel = 'Fuite d\'essence : le réservoir se vide.',
-    steer = 'Direction faussée : le véhicule tire d\'un côté.',
-    tyre = 'Pneu crevé ou qui se dégonfle.',
+    engine = { amber = 'Véhicule abîmé : moteur endommagé.', red = 'Véhicule abîmé : moteur gravement endommagé.' },
+    trans = 'Véhicule abîmé : transmission endommagée.',
+    steer = 'Véhicule abîmé : direction déviée.',
+    tyre = 'Véhicule abîmé : pneu crevé.',
     fire = 'Le véhicule prend feu : sortez !',
 }
 local lit = {} -- [id] = niveau déjà annoncé

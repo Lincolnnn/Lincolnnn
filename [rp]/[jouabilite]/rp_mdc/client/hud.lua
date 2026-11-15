@@ -204,7 +204,7 @@ local DIRECTIONS = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
 -- Noms des rues et des quartiers : config/washington.json uniquement (client/streetnames.lua)
 local function streetsAt(x, y, z)
     local streetHash, crossingHash = GetStreetNameAtCoord(x, y, z)
-    return StreetNames.street(streetHash), StreetNames.street(crossingHash)
+    return StreetNames.streetAt(x, y, streetHash), StreetNames.street(crossingHash) -- (rue par zones : custom_streets)
 end
 
 --- Rue de croisement la plus proche : on teste des points devant / derrière le joueur.
