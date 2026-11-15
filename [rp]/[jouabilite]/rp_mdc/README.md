@@ -328,8 +328,10 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   chargée s'affiche au-dessus).
   **Noms des rues, quartiers et villes : État de Washington (King County)**, **uniquement** ceux de
   **`config/washington.json`** (liste complète et lisible : **`config/WASHINGTON_CARTE.md`**) : `streets` (nom du jeu ->
-  nom affiché : **I-5** (autoroutes de la ville), **I-90** (Great Ocean Hwy), **I-405** (Palomino Fwy), **US-2** (Senora
-  Fwy), **US-12** (Route 68), routes de l'État (SR 169, SR 18, SR 203, SR 516, SR 522, SR 202) et routes du comté),
+  nom affiché, en toutes lettres : **Interstate 5** (autoroutes de la ville), **Interstate 90** (Great Ocean Highway),
+  **Interstate 405** (Palomino Freeway), **U.S. Route 2** (Señora Freeway), **U.S. Route 12** (Route 68), routes de l'État
+  (State Road 169, 18, 203, 516, 522, 202) et routes du comté ; noms du jeu des autoroutes écrits comme dans l'ancien
+  `cali_names.json` : « Great Ocean Highway », « Los Santos Freeway »…),
   `areas` (les 90 zones du jeu, code -> nom : quartiers de Seattle et de Bellevue, villes sous contrat, zones
   géographiques ; aussi renommées sur la carte du menu pause), `custom_streets` (rues nommées par des zones x / y,
   comme l'ancien `cali_names.json` : dedans, ce nom remplace celui du jeu, ex. NE 145th St, 84th Ave NE),
@@ -341,7 +343,7 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   position (et ceux du jeu), pour vérifier.
   Les blocs se dessinent dans **`config/blocs.json`** (vide au départ, modèles dans `exemples`) : bloc **point** (une
   coordonnée, rayon facultatif) ou **carré** (4 coins, pour une grande zone sous un seul bloc), et toujours cercles,
-  rectangles, polygones, filtre par rue (nom **affiché**, ex. « I-90 ») : voir `config/LISEZMOI.txt` ; la commande
+  rectangles, polygones, filtre par rue (nom **affiché**, ex. « Interstate 90 ») : voir `config/LISEZMOI.txt` ; la commande
   `/mdc_pos` (console F8) donne la ligne à copier.
   **`/blocs` (admins : `Config.BlockEditorAce` = `rp.admin`, ACE ou rang Discord, ou l'ACE `command`)** : éditeur de blocs. Panneau à droite : **Point** (rayon)
   ou **Carré** (largeur, hauteur, rotation), nom du bloc ; le bloc se dessine **en jeu** (jaune) et **sur la carte**

@@ -20,7 +20,7 @@ Toujours acceptés : cercle ("circle", "center", "radius"), rectangle ("rect", "
 "points" : autant de coins que voulu).
 
 Option sur chaque bloc : "street": "Nom de la rue" -> le bloc ne vaut que sur cette rue (nom AFFICHÉ par le PLD,
-donc celui de config/washington.json, ex. "I-90" et non "Great Ocean Hwy").
+donc celui de config/washington.json, ex. "Interstate 90" et non "Great Ocean Highway").
 
 Noms des rues, quartiers et villes du PLD : config/washington.json, et rien d'autre (liste : WASHINGTON_CARTE.md).
 

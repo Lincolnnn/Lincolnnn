@@ -124,7 +124,8 @@ local STREETS = {
     { '148th Ave NE', 'Bellevue', 98007 }, { 'Northup Way', 'Bellevue', 98005 }, { 'S 320th St', 'Federal Way', 98003 },
     { 'Simonds Rd NE', 'Kenmore', 98028 }, { '428th Ave SE', 'North Bend', 98045 }, { 'Woodinville-Duvall Rd', 'Woodinville', 98072 },
 }
-local ROADS = { 'I-5', 'I-90', 'I-405', 'SR 522', 'SR 169', 'SR 18', 'US-2', 'SR 520' }
+local ROADS = { 'Interstate 5', 'Interstate 90', 'Interstate 405', 'State Road 522', 'State Road 169', 'State Road 18',
+    'U.S. Route 2', 'State Road 520' }
 local JOBS = { 'Cariste', 'Plongeur', 'Chauffeur-livreur', 'Agent d\'entretien', 'Mécanicien', 'Sans emploi', 'Couvreur',
     'Cuisinier', 'Manutentionnaire', 'Agent de sécurité', 'Électricien', 'Vendeur', 'Peintre en bâtiment', 'Soudeur',
     'Serveur', 'Chauffeur poids lourd', 'Paysagiste', 'Préparateur de commandes', 'Technicien réseau', 'Ouvrier agricole',

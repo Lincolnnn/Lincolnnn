@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_mdc'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police sans framework - MySQL (oxmysql), MDC Web du dispatch, NUI Vanilla JS'
-version '4.0.0'
+version '4.0.1'
 
 dependency 'oxmysql' -- base de données MySQL / MariaDB (voir README)
 

@@ -524,7 +524,7 @@ local function waWhere(opts)
         { k = 'date', t = 'date', l = opts.dateLabel or 'Date', req = true, def = 'today', past = true },
         { k = 'time', t = 'time', l = opts.timeLabel or 'Heure', req = true, def = 'now' },
         { k = 'address', t = 'text', l = 'Lieu (adresse / route)', req = true, max = 80, w = 2 },
-        { k = 'milepost', t = 'text', l = 'Borne kilométrique (Milepost)', max = 12, ph = 'ex : SR 520 MP 4.5' },
+        { k = 'milepost', t = 'text', l = 'Borne kilométrique (Milepost)', max = 12, ph = 'ex : State Road 520 MP 4.5' },
         { k = 'city', t = 'text', l = 'Ville / hors commune', max = 40, ph = 'ex : Unincorporated' },
         { k = 'county', t = 'select', l = 'Comté', req = true, def = 'king', o = WA_COUNTIES },
     }

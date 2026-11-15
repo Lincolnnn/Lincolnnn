@@ -4,7 +4,7 @@
         "Bloc POINT (une coordonnée) : le joueur est dans ce bloc à moins de \"radius\" m (facultatif, 75 m par défaut).",
         "Bloc CARRÉ (4 coordonnées, les 4 coins dans l'ordre du tour) : pour les grandes zones sous un seul bloc.",
         "Le premier bloc qui contient le joueur est affiché ; hors de tout bloc : le plus proche. Petits blocs AVANT les grands.",
-        "Option \"street\" : le bloc ne vaut que sur cette rue (nom AFFICHÉ par le PLD, ex. \"I-90\"). Coordonnées en jeu : /mdc_pos (F8)."
+        "Option \"street\" : le bloc ne vaut que sur cette rue (nom AFFICHÉ par le PLD, ex. \"Interstate 90\"). Coordonnées en jeu : /mdc_pos (F8)."
     ],
     "default": "",
     "blocks": [],

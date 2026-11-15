@@ -4,7 +4,7 @@
     SEULE source des noms affichés par le PLD (rue, croisement, quartier, ville), le bouton "Position actuelle" et les
     appels : config/washington.json (liste lisible : config/WASHINGTON_CARTE.md). Aucun autre fichier.
     Même organisation que l'ancien cali_names.json :
-      - streets        : nom de la rue dans le jeu -> nom affiché (I-5, I-90, I-405, US-2, routes de l'État, du comté…),
+      - streets        : nom de la rue dans le jeu -> nom affiché (Interstate 5, Interstate 90, U.S. Route 2, State Road…),
                          majuscules sans importance ; rue absente : son nom du jeu ;
       - areas          : code de zone du jeu -> quartier (ville) ou zone géographique (aussi renommé sur la carte du
                          menu pause) ;
@@ -100,7 +100,7 @@ function StreetNames.load()
     end
 end
 
---- Nom affiché d'une rue du jeu ("Great Ocean Hwy" -> "I-90") ; rue non listée : son nom du jeu, ou un nom du
+--- Nom affiché d'une rue du jeu ("Great Ocean Highway" -> "Interstate 90") ; rue non listée : son nom du jeu, ou un nom du
 --- "pool" (toujours le même pour une même rue) si autoRenameUnmapped = true
 function StreetNames.rename(game)
     if type(game) ~= 'string' or game == '' then return '' end
@@ -203,7 +203,7 @@ exports('GetDistrictName', function(coords)
     return StreetNames.zone(x, y, z), StreetNames.area(x, y, z)
 end)
 
---- "I-5, Capitol Hill, Seattle"
+--- "Interstate 5, Capitol Hill, Seattle"
 exports('GetLocationText', function(coords)
     local x, y, z = xyz(coords)
     local s = GetStreetNameAtCoord(x, y, z)
@@ -214,7 +214,7 @@ exports('GetLocationText', function(coords)
     return table.concat(parts, ', ')
 end)
 
---- Nom du jeu -> nom affiché ("Great Ocean Hwy" -> "I-90")
+--- Nom du jeu -> nom affiché ("Great Ocean Highway" -> "Interstate 90")
 exports('RenameStreet', function(name) return StreetNames.rename(name) end)
 
 --- Police compétente et municipalité à cette position : "KCSO - Précinct 3", "Maple Valley"
