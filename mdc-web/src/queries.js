@@ -47,7 +47,7 @@ async function unitsOfCalls(ids) {
 
 /** Appels actifs (en attente du dispatch, en attente d'unité, en cours) et terminés depuis moins de 6 h */
 async function activeCalls() {
-    const rows = await query('SELECT * FROM mdc_calls WHERE closed = 0 OR closed_at >= ? ORDER BY id DESC LIMIT 300',
+    const rows = await query('SELECT * FROM mdc_calls WHERE deleted_at IS NULL AND (closed = 0 OR closed_at >= ?) ORDER BY id DESC LIMIT 300',
         [now() - RECENT_CLOSED_SECONDS]);
     const ids = rows.map((r) => Number(r.id));
     const units = await unitsOfCalls(ids);
@@ -109,8 +109,8 @@ function messageView(m) {
 /** Messages d'un canal (les plus récents, `before` : pagination vers le passé) */
 async function channelMessages(channel, before = 0, limit = 60) {
     const rows = before > 0
-        ? await queryRaw('SELECT * FROM mdc_messages WHERE channel = ? AND id < ? ORDER BY id DESC LIMIT ?', [channel, before, limit])
-        : await queryRaw('SELECT * FROM mdc_messages WHERE channel = ? ORDER BY id DESC LIMIT ?', [channel, limit]);
+        ? await queryRaw('SELECT * FROM mdc_messages WHERE channel = ? AND deleted_at IS NULL AND id < ? ORDER BY id DESC LIMIT ?', [channel, before, limit])
+        : await queryRaw('SELECT * FROM mdc_messages WHERE channel = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?', [channel, limit]);
     return rows.reverse().map(messageView);
 }
 
@@ -126,15 +126,15 @@ async function messageById(id) {
  */
 async function conversations(players = []) {
     const unitRows = await units();
-    const openCalls = await query('SELECT id, number, title, dispatch_state FROM mdc_calls WHERE closed = 0 ORDER BY id DESC');
+    const openCalls = await query('SELECT id, number, title, dispatch_state FROM mdc_calls WHERE closed = 0 AND deleted_at IS NULL ORDER BY id DESC');
     const last = await query(`SELECT m.* FROM mdc_messages m JOIN (SELECT channel, MAX(id) id FROM mdc_messages
-        WHERE channel LIKE 'd:%' GROUP BY channel) t ON t.id = m.id`);
+        WHERE channel LIKE 'd:%' AND deleted_at IS NULL GROUP BY channel) t ON t.id = m.id`);
     const unread = await query(`SELECT m.channel, COUNT(*) n FROM mdc_messages m
         LEFT JOIN mdc_message_reads r ON r.channel = m.channel AND r.reader = 'dispatch'
-        WHERE m.channel LIKE 'd:%' AND m.sender_type <> 'dispatch' AND m.id > COALESCE(r.last_id, 0) GROUP BY m.channel`);
+        WHERE m.channel LIKE 'd:%' AND m.deleted_at IS NULL AND m.sender_type <> 'dispatch' AND m.id > COALESCE(r.last_id, 0) GROUP BY m.channel`);
     // nom affiché d'un civil : son dernier nom connu dans sa conversation privée (sinon celui du jeu, s'il est connecté)
     const civNames = await query(`SELECT m.channel, m.sender_name FROM mdc_messages m JOIN (SELECT channel, MAX(id) id FROM mdc_messages
-        WHERE channel LIKE 'd:p:%' AND sender_type = 'civil' GROUP BY channel) t ON t.id = m.id`);
+        WHERE channel LIKE 'd:p:%' AND sender_type = 'civil' AND deleted_at IS NULL GROUP BY channel) t ON t.id = m.id`);
     const civName = Object.fromEntries(civNames.map((r) => [r.channel, r.sender_name]));
     const lastBy = Object.fromEntries(last.map((m) => [m.channel, messageView(m)]));
     const unreadBy = Object.fromEntries(unread.map((u) => [u.channel, Number(u.n)]));
@@ -163,8 +163,8 @@ async function conversations(players = []) {
 /** Observation (lecture seule) : conversations entre unités (u:A:B), sans rien marquer comme lu */
 async function observeConversations() {
     const last = await query(`SELECT m.* FROM mdc_messages m JOIN (SELECT channel, MAX(id) id, COUNT(*) n FROM mdc_messages
-        WHERE channel LIKE 'u:%' GROUP BY channel) t ON t.id = m.id ORDER BY m.id DESC LIMIT 200`);
-    const counts = await query("SELECT channel, COUNT(*) n FROM mdc_messages WHERE channel LIKE 'u:%' GROUP BY channel");
+        WHERE channel LIKE 'u:%' AND deleted_at IS NULL GROUP BY channel) t ON t.id = m.id ORDER BY m.id DESC LIMIT 200`);
+    const counts = await query("SELECT channel, COUNT(*) n FROM mdc_messages WHERE channel LIKE 'u:%' AND deleted_at IS NULL GROUP BY channel");
     const countBy = Object.fromEntries(counts.map((c) => [c.channel, Number(c.n)]));
     const unitRows = await query('SELECT id, name, tag, agency FROM mdc_units');
     const unitBy = Object.fromEntries(unitRows.map((u) => [Number(u.id), u]));
@@ -180,7 +180,7 @@ async function observeConversations() {
 
 /** Historique : appels terminés / refusés / annulés, recherche et pagination */
 async function history({ q = '', status = 'all', from = 0, to = 0, page = 1, size = 25 }) {
-    const where = ['closed = 1'];
+    const where = ['closed = 1', 'deleted_at IS NULL'];
     const params = [];
     if (q) {
         where.push('(number LIKE ? OR title LIKE ? OR address LIKE ? OR caller LIKE ?)');
@@ -217,10 +217,43 @@ async function actionLog({ source = 'all', page = 1, size = 50 }) {
     return { total: Number(total), page, size, entries: rows.map(logView) };
 }
 
+/** Corbeille (restaurable jusqu'à expiresAt) */
+async function trash() {
+    const rows = await query('SELECT id, kind, record_id, label, deleted_by, deleted_at, expires_at FROM mdc_trash ORDER BY deleted_at DESC, id DESC LIMIT 500');
+    return rows.map((r) => ({ id: Number(r.id), kind: r.kind, recordId: r.record_id, label: r.label, deletedBy: r.deleted_by,
+        deletedAt: Number(r.deleted_at), expiresAt: Number(r.expires_at) }));
+}
+
+/** Journal d'audit : suppressions, restaurations, modifications, réouvertures (avant / après) */
+async function audit({ kind = '', action = '', q = '', page = 1, size = 40 }) {
+    const where = [];
+    const params = [];
+    if (kind) { where.push('kind = ?'); params.push(kind); }
+    if (action) { where.push('action = ?'); params.push(action); }
+    if (q) { where.push('(label LIKE ? OR record_id LIKE ?)'); const like = `%${q.replace(/[%_\\]/g, '\\$&')}%`; params.push(like, like); }
+    const w = where.length ? where.join(' AND ') : '1 = 1';
+    const total = (await queryRaw(`SELECT COUNT(*) n FROM mdc_audit WHERE ${w}`, params))[0].n;
+    const rows = await queryRaw(`SELECT * FROM mdc_audit WHERE ${w} ORDER BY id DESC LIMIT ? OFFSET ?`, [...params, size, (Math.max(1, page) - 1) * size]);
+    const parse = (v) => { try { return v ? JSON.parse(v) : null; } catch (e) { return null; } };
+    return { total: Number(total), page, size, entries: rows.map((r) => ({ id: Number(r.id), source: r.source, actorName: r.actor_name,
+        action: r.action, kind: r.kind, recordId: r.record_id, label: r.label, before: parse(r.before_data), after: parse(r.after_data),
+        at: Number(r.created_at) })) };
+}
+
+/** Fenêtres et espaces de travail d'un dispatcher */
+async function layout(userId) {
+    const rows = await query('SELECT data FROM mdc_web_layouts WHERE user_id = ?', [String(userId)]);
+    try { return rows.length ? JSON.parse(rows[0].data) : null; } catch (e) { return null; }
+}
+async function saveLayout(userId, data) {
+    await query('INSERT INTO mdc_web_layouts (user_id, data, updated_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = VALUES(updated_at)',
+        [String(userId), JSON.stringify(data), Math.floor(Date.now() / 1000)]);
+}
+
 async function dispatchMode() {
     const rows = await query("SELECT value FROM mdc_settings WHERE name = 'dispatch_mode'");
     return rows.length ? rows[0].value === '1' : false;
 }
 
 module.exports = { activeCalls, callDetail, units, channelMessages, messageById, conversations, observeConversations, history, actionLog,
-    dispatchMode, callStatus };
+    dispatchMode, callStatus, trash, audit, layout, saveLayout };

@@ -674,6 +674,17 @@ Installation : **[mdc-web/README.md](../../../mdc-web/README.md)**.
   VIN), **mêmes règles et mêmes fiches** que le MDC en jeu (le site interroge le serveur FiveM).
 - Liaison : convars `mdc_web_url`, `mdc_web_key` (+ `mdc_web_allow_ip`) dans `server.cfg` ; API de la ressource sur
   `http://IP:30120/rp_mdc/api/...` (clé obligatoire). Sans ces convars, le MDC en jeu fonctionne seul.
+- **MDC 5.0** (gestion par le dispatch) : interventions et incidents **modifiables même terminés**, **rouvrables**,
+  **supprimables** ; identités, véhicules, rapports, BOLO et conversations modifiables / supprimables depuis le site ;
+  tout ce qui est supprimé (site, ou BOLO / intervention supprimés en jeu) part à la **corbeille** (`mdc_trash`,
+  `Config.TrashDays` = 30 jours, restauration possible, purge automatique ensuite) ; **journal d'audit** séparé
+  (`mdc_audit`). Chaque intervention a un **journal automatique** dans ses notes (auteur « JOURNAL » : création,
+  validation, affectations, statuts des unités, modifications, messages du dispatch, clôture, réouverture). En jeu, une
+  modification faite par le dispatch ne fait qu'un **son**. Migration `sql/migrations/003_v5.sql` (automatique).
+- **LiveView** : diffusion de l'image du jeu (ressource `screenshot-basic`) seulement quand un dispatcher regarde ;
+  vidéo WebRTC vers un serveur relais LiveKit si le site en a un (bibliothèque `html/vendor/livekit-client.umd.js`,
+  Apache-2.0, chargée seulement pendant une diffusion), sinon images JPEG. Guide :
+  [mdc-web/docs/LIVEVIEW_WEBRTC.md](../../../mdc-web/docs/LIVEVIEW_WEBRTC.md).
 
 ## Permissions (rôles Discord)
 

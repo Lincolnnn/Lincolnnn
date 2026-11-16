@@ -1,28 +1,35 @@
 # MDC Web du dispatch — Washington Dispatch
 
 Centre de dispatch **en ligne** relié au MDC en jeu (ressource FiveM `rp_mdc`). Ce n'est pas une copie du MDC en jeu :
-c'est une console de dispatch, avec ses propres écrans et ses propres outils :
+c'est une console de dispatch, avec ses propres outils, présentés en **fenêtres flottantes** (MDC Web 3.0 / MDC 5.0) :
 
-- **Tableau de bord** : interventions à valider, en attente d'unité, en cours, unités connectées / disponibles,
-  file de validation, unités en service (statut modifiable), interventions actives, dispatchers en ligne ;
-- **Interventions** : onglets *À valider / En attente d'unité / En cours / Terminées récentes / Toutes*, fiche
-  détaillée (priorité, code de réponse, requérant, adresse, description, unités affectées, notes du déroulé, fiches
-  liées, messages avec les unités de l'intervention, actions enregistrées) ;
+- **Fenêtres** déplaçables, redimensionnables, réductibles, agrandissables, épinglables ; **dock** ; trois **espaces de
+  travail** (*Dispatch*, *Enquête*, *Supervision*) ; disposition **gardée par dispatcher sur le serveur** ;
+  **palette de commandes** (Ctrl + K) ; **menus clic droit** ; confirmation avant toute action destructive ;
+  design « verre » avec repli sans flou (transparence réduite) ; thème jour ; tablette ;
+- **Indicateurs**, **file de validation**, **interventions** (filtres, recherche, clavier J / K / Entrée) et **fiche
+  d'intervention** dans sa propre fenêtre : actions, modification (verrou doux entre postes, conflits), **journal
+  automatique** (création, validation, affectations, statuts, modifications, messages, clôture, réouverture ;
+  filtre *Tout / Notes / Journal*), **réouverture**, **suppression** (corbeille) ;
 - **Mode Dispatch** (interrupteur en haut) : les appels des civils attendent votre **validation** avant d'arriver aux
-  unités, et **seul le dispatch affecte les unités** (elles ne peuvent plus rejoindre un appel elles-mêmes) ;
-  **valider** (en choisissant les unités), **refuser** ou **annuler** avec un motif, **clôturer** (Clear A/B/C pour
-  les interventions de la WSP seulement : pas de Clear pour le shérif) ;
-- **Recherches** : individus (nom + date de naissance, prénom et SSN facultatifs) et véhicules (plaque ou VIN), avec
-  les **mêmes règles et les mêmes fiches** qu'en jeu (permis, véhicules, casier, registre, rapports, BOLO, propriétaire) ;
-- **Unités** : indicatif, police, agents (nom RP), **statut modifiable à distance**, interventions,
-  depuis quand, **affectation** à une intervention, message direct ;
-- **Messagerie** : conversations avec chaque **unité**, avec les unités de chaque **intervention** (n° RD) et avec le
-  **groupe civil** (tous les joueurs du MDC civil) ; non-lus, heures, expéditeurs ;
-- **Historique** (recherche, filtres, dates, pagination) et **Journal** des actions (dispatch, jeu, connexions) ;
+  unités, et **seul le dispatch affecte les unités** ; **valider**, **refuser** ou **annuler** avec un motif,
+  **clôturer** (Clear A/B/C pour la WSP seulement) ;
+- **Recherches** (individus, véhicules) et **Registres** du jeu (*Sex Offenders*, *Kidnapping Offenders*, **BOLO**,
+  **Rapports**) avec **les mêmes champs, libellés et filtres** qu'en jeu ; **modifier / supprimer** toute fiche ;
+- **Unités** : rue et bloc **en temps réel**, statut modifiable, affectation, message direct ;
+- **Messagerie** : groupe civil, civils (privé), unités, interventions ; **observation** (lecture seule) des
+  conversations entre unités ; **vider / supprimer** une conversation (corbeille) ;
+- **Corbeille** (30 jours, restauration, purge définitive) et **journal d'audit** séparé (avant / après) ;
+- **LiveView** : écran du jeu des joueurs choisis, en **vidéo WebRTC** par un **serveur relais (LiveKit + TURN)**,
+  ou en images si aucun relais n'est configuré ; mosaïque, **incrustation (PiP)**, plein écran — voir
+  **[docs/LIVEVIEW_WEBRTC.md](docs/LIVEVIEW_WEBRTC.md)** ;
+- **Historique** et **Journal** des actions ;
 - Le dispatcher apparaît **toujours sous le nom « Dispatch »** (en jeu comme sur le site) : aucun pseudo Discord
   n'est affiché ; l'identifiant Discord reste dans le journal MySQL (`actor_id`) pour les administrateurs ;
-- **Temps réel** (Socket.IO) : rien à rafraîchir ; **notifications visuelles et sonores** (nouvelle intervention à
-  valider : alarme répétée tant qu'elle attend ; nouveau message).
+- **Temps réel** (Socket.IO) : rien à rafraîchir ; notifications **visuelles pour les nouvelles interventions
+  seulement**, **son seul** pour les messages.
+
+Mise à jour depuis la 4.x, retour arrière et tests manuels : **[docs/MISE_A_JOUR_5.0.md](docs/MISE_A_JOUR_5.0.md)**.
 
 Tout est **synchronisé** avec le jeu : les deux MDC utilisent la **même base MySQL** ; le site agit **par l'API de la
 ressource** (le serveur FiveM reste le seul à écrire les données du MDC, prévient tout de suite les joueurs et renvoie
@@ -75,6 +82,9 @@ l'événement au site).
    GRANT SELECT ON fivem.mdc_identities TO 'mdc_web'@'localhost';
    GRANT SELECT ON fivem.mdc_vehicles TO 'mdc_web'@'localhost';
    GRANT SELECT, INSERT ON fivem.mdc_action_log TO 'mdc_web'@'localhost';
+   GRANT SELECT ON fivem.mdc_trash TO 'mdc_web'@'localhost';               -- corbeille (5.0)
+   GRANT SELECT ON fivem.mdc_audit TO 'mdc_web'@'localhost';               -- journal d'audit (5.0)
+   GRANT SELECT, INSERT, UPDATE ON fivem.mdc_web_layouts TO 'mdc_web'@'localhost';  -- fenêtres des dispatchers (5.0)
    GRANT CREATE ON fivem.* TO 'mdc_web'@'localhost';            -- création de la table des sessions (une fois)
    CREATE TABLE IF NOT EXISTS fivem.mdc_web_sessions (session_id VARCHAR(128) NOT NULL PRIMARY KEY,
        expires INT UNSIGNED NOT NULL, data MEDIUMTEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -200,4 +210,12 @@ consultables, les actions sont refusées avec un message clair.
 ## 9. Mise à jour
 
 Remplacez les fichiers (gardez `.env`), `npm install --omit=dev`, redémarrez. Côté FiveM, les nouvelles migrations SQL
-s'appliquent seules au démarrage de `rp_mdc`.
+s'appliquent seules au démarrage de `rp_mdc`. Passage à la 5.0 (droits MySQL, variables LiveKit, retour arrière,
+tests) : **[docs/MISE_A_JOUR_5.0.md](docs/MISE_A_JOUR_5.0.md)**.
+
+## 10. LiveView WebRTC (serveur relais + TURN)
+
+Facultatif. Sans configuration, le LiveView fonctionne en images. Pour la vidéo (~2 images/s) : installez le relais
+LiveKit (exemple [`deploy/livekit.yaml`](deploy/livekit.yaml)), ouvrez les ports (443, 7881/TCP, 50000–60000/UDP,
+3478/UDP, 5349/TCP), puis remplissez `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` dans `.env`.
+Architecture, jetons, sécurité, plafonds et STUN / TURN : **[docs/LIVEVIEW_WEBRTC.md](docs/LIVEVIEW_WEBRTC.md)**.

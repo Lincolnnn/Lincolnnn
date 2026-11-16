@@ -54,8 +54,21 @@ const config = {
         uploadUrl: String(env('LIVE_UPLOAD_URL', `${publicUrl}/live/frame`)),
         maxStreams: Math.max(1, Math.min(64, int('LIVE_MAX_STREAMS', 16))),
         origins: list('LIVE_ALLOWED_ORIGINS', 'https://cfx-nui-rp_mdc,nui://rp_mdc'),
+        // Vidéo WebRTC par serveur relais (SFU LiveKit + TURN intégré). Vide : repli sur les images JPEG.
+        rtc: {
+            url: String(env('LIVEKIT_URL', '')).replace(/\/+$/, ''),             // wss://live.exemple.fr (navigateur + jeu)
+            apiUrl: String(env('LIVEKIT_API_URL', '')).replace(/\/+$/, ''),      // https://… (API serveur ; déduit de LIVEKIT_URL)
+            apiKey: env('LIVEKIT_API_KEY', ''),
+            apiSecret: env('LIVEKIT_API_SECRET', ''),
+            roomPrefix: env('LIVEKIT_ROOM_PREFIX', 'mdc-live-'),
+            maxKbps: Math.max(150, Math.min(4000, int('LIVE_MAX_KBPS', 900))),   // débit max par joueur (agrandi)
+        },
     },
 };
+const rtc = config.live.rtc;
+if (!rtc.apiUrl && rtc.url) rtc.apiUrl = rtc.url.replace(/^ws(s?):\/\//, 'http$1://');
+rtc.enabled = /^wss?:\/\//.test(rtc.url) && rtc.apiKey.length >= 3 && rtc.apiSecret.length >= 32;
+if (rtc.url && !rtc.enabled) console.warn('[mdc] LiveView WebRTC désactivé : LIVEKIT_URL (wss://), LIVEKIT_API_KEY et LIVEKIT_API_SECRET (32 caractères au moins) requis.');
 
 // Vérification : sans ces valeurs, le site ne démarre pas (message clair plutôt qu'un site ouvert à tous)
 const missing = [];

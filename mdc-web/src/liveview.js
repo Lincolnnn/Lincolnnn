@@ -1,31 +1,59 @@
 'use strict';
 // LIVEVIEW : écran des joueurs connectés, en direct, pour les dispatchers.
-// Technique : captures compressées (JPEG) plutôt que WebRTC — pas de serveur TURN/STUN, pas de négociation, débit
-// prévisible et plafonné, aucune charge sur le serveur FiveM :
-//   1. un dispatcher regarde des joueurs (Socket.IO « live:watch ») ;
-//   2. le site crée un jeton aléatoire par joueur regardé et demande au serveur FiveM (API « live.start ») de dire au
-//      joueur de capturer son écran : image du JEU uniquement (screenshot-basic), réduite dans le NUI à 480 x 270
-//      (mosaïque, 1 image / 2 s) ou 960 x 540 (agrandie, 2 images / s), JPEG ;
-//   3. le jeu envoie chaque image DIRECTEMENT au site (POST /live/frame + jeton), le site la relaie aux seuls
-//      dispatchers qui regardent ce joueur ;
-//   4. plus personne ne regarde : « live.stop » ; sans renouvellement (toutes les 8 s), le jeu s'arrête seul (25 s).
-// Limites : LIVE_MAX_STREAMS joueurs à la fois, 700 Ko par image, 1 image / 150 ms au plus par joueur.
-// Chaque consultation est enregistrée dans le journal (mdc_action_log : live.view).
+//
+// Voie principale — vidéo WebRTC par serveur relais (SFU LiveKit, TURN intégré), si LIVEKIT_* est configuré :
+//   1. un dispatcher regarde des joueurs (Socket.IO « live:watch ») : le site vérifie sa session (rôle Discord),
+//      enregistre la consultation (mdc_action_log : live.view) et lui signe un jeton LECTEUR par joueur
+//      (salle « mdc-live-<id joueur> », abonnement seul, participant caché, valable 2 min pour entrer) ;
+//   2. le site demande au serveur FiveM (API « live.start ») de dire au joueur de diffuser, avec un jeton ÉMETTEUR
+//      (publication seule, dans SA salle) : le NUI du MDC dessine les captures screenshot-basic (image du JEU
+//      uniquement) dans un canevas et publie ce canevas en vidéo (~2 images / s, résolution et débit plafonnés) ;
+//   3. le relais ne transmet la vidéo qu'aux dispatchers abonnés ; plus personne ne regarde : « live.stop », la
+//      salle est fermée par l'API du relais (tout le monde en est retiré) ; un dispatcher qui arrête de regarder
+//      ou perd son rôle est retiré de la salle côté serveur (pas seulement dans son navigateur).
+// Repli — captures JPEG relayées par le site (sans relais configuré, ou si le NUI ne peut pas publier) :
+//   le jeu envoie chaque image au site (POST /live/frame + jeton aléatoire), relayée aux seuls dispatchers abonnés.
+// Sans renouvellement (toutes les 8 s), le jeu s'arrête seul (25 s). LIVE_MAX_STREAMS joueurs à la fois.
 const crypto = require('crypto');
 const config = require('./config');
 const fivem = require('./fivem');
 const { logAction } = require('./db');
 const log = require('./logger');
 
-const targets = new Map(); // serverId -> { token, viewers: Map(socketId -> mode), mode, sentMode, lastStart, lastFrame }
-const tokens = new Map();  // jeton -> serverId
+const rtc = config.live.rtc;
+let sdk = null;
+let roomService = null;
+if (rtc.enabled) {
+    sdk = require('livekit-server-sdk');
+    roomService = new sdk.RoomServiceClient(rtc.apiUrl, rtc.apiKey, rtc.apiSecret);
+}
+
+const targets = new Map(); // serverId -> { token, viewers: Map(socketId -> { mode, identity }), mode, sentMode, lastStart, lastFrame }
+const tokens = new Map();  // jeton (repli JPEG) -> serverId
 let io = null;
 let timer = null;
 
 const room = (serverId) => `live:${serverId}`;
+const rtcRoom = (serverId) => `${rtc.roomPrefix}${serverId}`;
+// mode du joueur : débit et taille de l'image (agrandi = un dispatcher l'affiche en grand)
+const RTC_MODES = {
+    grid: { w: 640, h: 360, fps: 2, kbps: Math.round(rtc.maxKbps / 2) },
+    focus: { w: 1280, h: 720, fps: 2, kbps: rtc.maxKbps },
+};
+
+async function signToken(identity, name, grant, ttl) {
+    const at = new sdk.AccessToken(rtc.apiKey, rtc.apiSecret, { identity, name, ttl });
+    at.addGrant({ roomJoin: true, canPublishData: false, ...grant });
+    return at.toJwt();
+}
+const viewerToken = (serverId, identity) => signToken(identity, 'Dispatch', { room: rtcRoom(serverId), canSubscribe: true, canPublish: false, hidden: true }, '2m');
+const publisherToken = (serverId) => signToken(`player-${serverId}`, `Joueur ${serverId}`, { room: rtcRoom(serverId), canSubscribe: false, canPublish: true }, '15m');
+
+function kick(serverId, identity) { if (roomService) roomService.removeParticipant(rtcRoom(serverId), identity).catch(() => {}); }
+function closeRoom(serverId) { if (roomService) roomService.deleteRoom(rtcRoom(serverId)).catch(() => {}); }
 
 function wantedMode(t) {
-    for (const mode of t.viewers.values()) if (mode === 'focus') return 'focus';
+    for (const v of t.viewers.values()) if (v.mode === 'focus') return 'focus';
     return 'grid';
 }
 
@@ -39,11 +67,14 @@ async function sync(force = false) {
             targets.delete(serverId);
             tokens.delete(t.token);
             stop.push(serverId);
+            closeRoom(serverId);
             continue;
         }
         t.mode = wantedMode(t);
         if (force || t.sentMode !== t.mode || now - t.lastStart > 8000) {
-            start.push({ serverId, token: t.token, mode: t.mode });
+            const item = { serverId, token: t.token, mode: t.mode };
+            if (rtc.enabled) item.rtc = { url: rtc.url, token: await publisherToken(serverId), ...RTC_MODES[t.mode] };
+            start.push(item);
             t.sentMode = t.mode;
             t.lastStart = now;
         }
@@ -67,22 +98,25 @@ async function sync(force = false) {
 
 /**
  * Joueurs regardés par un dispatcher (remplace sa liste) : [{ serverId, mode: 'grid' | 'focus' }].
- * Retourne { ok, refused: [serverId] } (limite de flux atteinte).
+ * Retourne { ok, refused: [serverId], rtc: { url, tokens: { serverId: jeton lecteur } } | null }.
  */
-function setWatch(socket, list, players) {
+async function setWatch(socket, list, players) {
     const wanted = new Map();
     for (const item of Array.isArray(list) ? list.slice(0, 64) : []) {
         const id = Number(item && item.serverId);
         if (Number.isInteger(id) && id > 0 && id < 65536) wanted.set(id, item.mode === 'focus' ? 'focus' : 'grid');
     }
     const refused = [];
-    // arrêts : joueurs que ce dispatcher ne regarde plus
+    const identity = `dispatch-${socket.data.userId}-${socket.id.slice(0, 8)}`;
+    // arrêts : joueurs que ce dispatcher ne regarde plus (retiré de la salle côté relais)
     for (const [serverId, t] of targets) {
         if (t.viewers.has(socket.id) && !wanted.has(serverId)) {
             t.viewers.delete(socket.id);
             socket.leave(room(serverId));
+            kick(serverId, identity);
         }
     }
+    const granted = [];
     for (const [serverId, mode] of wanted) {
         let t = targets.get(serverId);
         if (!t) {
@@ -96,17 +130,26 @@ function setWatch(socket, list, players) {
             socket.join(room(serverId));
             const p = (players || []).find((x) => x.serverId === serverId);
             logAction('web', `discord:${socket.data.userId}`, 'Dispatch', 'live.view',
-                { serverId, name: p ? p.name : `Joueur ${serverId}` }).catch(() => {});
+                { serverId, name: p ? p.name : `Joueur ${serverId}`, via: rtc.enabled ? 'webrtc' : 'images' }).catch(() => {});
         }
-        t.viewers.set(socket.id, mode);
+        t.viewers.set(socket.id, { mode, identity });
+        granted.push(serverId);
     }
     sync().catch((e) => log.warn('LiveView :', e.message));
-    return { ok: true, refused };
+    let rtcInfo = null;
+    if (rtc.enabled && granted.length) {
+        const signed = await Promise.all(granted.map((id) => viewerToken(id, identity)));
+        rtcInfo = { url: rtc.url, tokens: Object.fromEntries(granted.map((id, i) => [id, signed[i]])) };
+    }
+    return { ok: true, refused, rtc: rtcInfo };
 }
 
 function dropSocket(socket) {
     let changed = false;
-    for (const t of targets.values()) if (t.viewers.delete(socket.id)) changed = true;
+    for (const [serverId, t] of targets) {
+        const v = t.viewers.get(socket.id);
+        if (v) { t.viewers.delete(socket.id); kick(serverId, v.identity); changed = true; }
+    }
     if (changed) sync().catch(() => {});
 }
 
@@ -124,7 +167,7 @@ function dropPlayers(onlineIds) {
     if (changed) sync().catch(() => {});
 }
 
-// ---- Réception des images (POST /live/frame), envoyées par le NUI du MDC en jeu (origine https://cfx-nui-rp_mdc) ----
+// ---- Repli : réception des images (POST /live/frame), envoyées par le NUI du MDC (origine https://cfx-nui-rp_mdc) ----
 function cors(req, res, next) {
     const origin = String(req.get('Origin') || '');
     if (config.live.origins.some((o) => origin === o || (o.endsWith('*') && origin.startsWith(o.slice(0, -1))))) {
@@ -157,4 +200,4 @@ function status() {
     return [...targets.entries()].map(([serverId, t]) => ({ serverId, viewers: t.viewers.size, mode: t.mode, error: t.error }));
 }
 
-module.exports = { setIo: (x) => { io = x; }, setWatch, dropSocket, dropPlayers, cors, receiveFrame, status };
+module.exports = { setIo: (x) => { io = x; }, setWatch, dropSocket, dropPlayers, cors, receiveFrame, status, RTC_MODES };

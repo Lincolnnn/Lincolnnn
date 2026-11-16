@@ -2,9 +2,12 @@
     MDC - LIVEVIEW (MDC Web du dispatch)
     ------------------------------------
     Quand un dispatcher regarde l'écran de ce joueur sur le MDC Web, le serveur envoie l'ordre (mdc:client:liveview) :
-    une capture de l'image du jeu (ressource screenshot-basic, rien d'autre que le jeu) est prise toutes les
-    `interval` ms, réduite dans le NUI du MDC (480 x 270 en mosaïque, 960 x 540 agrandie), compressée en JPEG puis
-    envoyée DIRECTEMENT au site (jeton à usage limité), sans passer par le serveur FiveM.
+    une capture de l'image du jeu (ressource screenshot-basic, rien d'autre que le jeu) est prise à cadence fixe.
+    - Vidéo WebRTC (relais LiveKit configuré sur le site) : le NUI du MDC dessine chaque capture dans un canevas
+      publié en vidéo (~2 images / s, 640 x 360 en mosaïque, 1280 x 720 agrandie, débit plafonné) vers le relais,
+      avec un jeton émetteur limité à la salle de CE joueur ;
+    - repli (pas de relais, ou publication impossible) : capture réduite (480 x 270 / 960 x 540), JPEG, envoyée
+      DIRECTEMENT au site (jeton à usage limité), sans passer par le serveur FiveM.
     Aucune capture sans ordre ; arrêt automatique sans nouvel ordre pendant `ttl` secondes (dispatcher parti, site
     coupé). 0,00 ms hors LiveView : la boucle n'existe que pendant une diffusion.
 ]]
@@ -25,10 +28,10 @@ local function loop()
             if not live.busy then
                 live.busy = true
                 local ok = pcall(function()
-                    exports['screenshot-basic']:requestScreenshot({ encoding = 'jpg', quality = 0.85 }, function(data)
+                    exports['screenshot-basic']:requestScreenshot({ encoding = 'jpg', quality = cfg.rtc and 0.92 or 0.85 }, function(data)
                         if live.on and type(data) == 'string' then
                             SendNUIMessage({ action = 'liveFrame', data = { img = data, token = cfg.token, url = cfg.url,
-                                w = cfg.w, h = cfg.h, q = cfg.q } })
+                                w = cfg.w, h = cfg.h, q = cfg.q, rtc = cfg.rtc } })
                         end
                         live.busy = false
                     end)
@@ -52,6 +55,10 @@ RegisterNetEvent('mdc:client:liveview', function(data)
         q = math.min(0.9, math.max(0.2, tonumber(data.q) or 0.5)),
         interval = math.max(250, math.floor(tonumber(data.interval) or 2000)),
     }
+    if type(data.rtc) == 'table' and data.rtc.token then
+        live.cfg.rtc = data.rtc
+        live.cfg.interval = math.max(250, math.floor(1000 / math.max(1, tonumber(data.rtc.fps) or 2)))
+    end
     live.on = true
     live.until_ = GetGameTimer() + math.max(5, tonumber(data.ttl) or 25) * 1000
     loop()

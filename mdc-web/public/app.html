@@ -11,301 +11,284 @@
     <script src="/assets/theme.js"></script>
 </head>
 <body class="app">
-    <!-- Icônes : un seul jeu, trait de 1,6 px sur une grille de 16 -->
+    <div class="mesh" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <!-- Icônes : un seul jeu (trait 1,6 px, grille de 16) -->
     <svg width="0" height="0" class="hidden" aria-hidden="true">
         <symbol id="i-dash" viewBox="0 0 16 16"><path d="M2 2h5v5H2zM9 2h5v3H9zM9 7h5v7H9zM2 9h5v5H2z"/></symbol>
-        <symbol id="i-calls" viewBox="0 0 16 16"><path d="M8 8.5V14M5.5 14h5M5.2 6.2a4 4 0 0 1 5.6 0M3 4a7 7 0 0 1 10 0M8 7.6v.4"/></symbol>
-        <symbol id="i-units" viewBox="0 0 16 16"><path d="M2 10V7l2-4h8l2 4v3M2 10h12v3H2zM3 7h10M4 11.5h1.5M10.5 11.5H12"/></symbol>
-        <symbol id="i-msg" viewBox="0 0 16 16"><path d="M2 3h12v8H7l-3 3v-3H2z"/></symbol>
-        <symbol id="i-search" viewBox="0 0 16 16"><path d="M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10zM10.6 10.6 14 14"/></symbol>
-        <symbol id="i-live" viewBox="0 0 16 16"><path d="M1.5 3h6v4.5h-6zM8.5 3h6v4.5h-6zM1.5 8.5h6V13h-6zM8.5 8.5h6V13h-6z"/></symbol>
-        <symbol id="i-history" viewBox="0 0 16 16"><path d="M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12zM8 5v3.5l2.5 1.5"/></symbol>
-        <symbol id="i-log" viewBox="0 0 16 16"><path d="M5 4h9M5 8h9M5 12h9M2 4h1M2 8h1M2 12h1"/></symbol>
+        <symbol id="i-calls" viewBox="0 0 16 16"><path d="M8 8.5V14M5.5 14h5M5.2 6.2a4 4 0 0 1 5.6 0M3 4a7 7 0 0 1 10 0"/></symbol>
+        <symbol id="i-queue" viewBox="0 0 16 16"><path d="M3 3.5h10M3 8h10M3 12.5h6"/></symbol>
+        <symbol id="i-units" viewBox="0 0 16 16"><path d="M2 10V7l2-4h8l2 4v3M2 10h12v3H2zM3 7h10"/></symbol>
+        <symbol id="i-msg" viewBox="0 0 16 16"><path d="M2.5 3h11v8H7l-3 2.5V11H2.5z"/></symbol>
+        <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></symbol>
+        <symbol id="i-reg" viewBox="0 0 16 16"><path d="M3 2.5h8l2 2v9H3zM5.5 6.5h5M5.5 9h5M5.5 11.5h3"/></symbol>
+        <symbol id="i-live" viewBox="0 0 16 16"><rect x="1.5" y="3" width="9" height="7" rx="1.5"/><rect x="9" y="8.5" width="5.5" height="4.5" rx="1"/></symbol>
+        <symbol id="i-history" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5l2.5 1.5"/></symbol>
+        <symbol id="i-log" viewBox="0 0 16 16"><path d="M5 4h9M5 8h9M5 12h9M2 4h.5M2 8h.5M2 12h.5"/></symbol>
+        <symbol id="i-audit" viewBox="0 0 16 16"><path d="M8 1.5 13.5 4v4c0 3.2-2.4 5.6-5.5 6.5C4.9 13.6 2.5 11.2 2.5 8V4zM5.5 8l2 2 3-3.5"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 16 16"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.5 6.5v5M9.5 6.5v5"/></symbol>
         <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
         <symbol id="i-edit" viewBox="0 0 16 16"><path d="m3 13 .6-3L11 2.6 13.4 5 6 12.4zM9.5 4 12 6.5"/></symbol>
-        <symbol id="i-x" viewBox="0 0 16 16"><path d="m3.5 3.5 9 9M12.5 3.5l-9 9"/></symbol>
+        <symbol id="i-x" viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8"/></symbol>
+        <symbol id="i-min" viewBox="0 0 16 16"><path d="M3.5 8h9"/></symbol>
+        <symbol id="i-max" viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="2"/></symbol>
+        <symbol id="i-pin" viewBox="0 0 16 16"><path d="M5.5 2h5L10 6l2.5 3h-9L6 6zM8 9v5"/></symbol>
         <symbol id="i-sound" viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2zM11.5 5.5a3.5 3.5 0 0 1 0 5"/></symbol>
         <symbol id="i-mute" viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2zM11 6l4 4M15 6l-4 4"/></symbol>
-        <symbol id="i-sun" viewBox="0 0 16 16"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3"/></symbol>
+        <symbol id="i-sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3"/></symbol>
         <symbol id="i-moon" viewBox="0 0 16 16"><path d="M13.5 10A6 6 0 0 1 6 2.5 6 6 0 1 0 13.5 10z"/></symbol>
         <symbol id="i-logout" viewBox="0 0 16 16"><path d="M6 2H2v12h4M10 5l3 3-3 3M13 8H6"/></symbol>
-        <symbol id="i-pin" viewBox="0 0 16 16"><path d="M5.5 2h5L10 6l2.5 3h-9L6 6zM8 9v5"/></symbol>
-        <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></symbol>
-        <symbol id="i-eyeoff" viewBox="0 0 16 16"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM2 2l12 12"/></symbol>
-        <symbol id="i-expand" viewBox="0 0 16 16"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></symbol>
+        <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/></symbol>
+        <symbol id="i-eyeoff" viewBox="0 0 16 16"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5zM2 2l12 12"/></symbol>
+        <symbol id="i-expand" viewBox="0 0 16 16"><path d="M2.5 6V2.5H6M13.5 6V2.5H10M2.5 10v3.5H6M13.5 10v3.5H10"/></symbol>
+        <symbol id="i-pip" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><rect x="8" y="8" width="5" height="4" rx=".8"/></symbol>
         <symbol id="i-grip" viewBox="0 0 16 16"><path d="M6 3.5v1M10 3.5v1M6 7.5v1M10 7.5v1M6 11.5v1M10 11.5v1" stroke-width="2.4"/></symbol>
-        <symbol id="i-keys" viewBox="0 0 16 16"><path d="M1.5 4h13v8h-13zM4 7v.5M6.5 7v.5M9 7v.5M11.5 7v.5M5 9.5h6"/></symbol>
+        <symbol id="i-keys" viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="8" rx="1.5"/><path d="M4 7v.5M6.5 7v.5M9 7v.5M11.5 7v.5M5 9.5h6"/></symbol>
         <symbol id="i-inbox" viewBox="0 0 16 16"><path d="m2 9 2-6h8l2 6v4H2zM2 9h4l1 2h2l1-2h4"/></symbol>
-        <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 12h-13zM8 6v4M8 11.5v.5"/></symbol>
         <symbol id="i-check" viewBox="0 0 16 16"><path d="m3 8.5 3 3 7-7"/></symbol>
-        <symbol id="i-mark" viewBox="0 0 32 32"><path d="M16 2 30 16 16 30 2 16z" fill="currentColor" stroke="none"/><path d="M16 8.5v10M12 15l4 4 4-4M11 23h10" stroke="#160b04" stroke-width="2.2"/></symbol>
+        <symbol id="i-undo" viewBox="0 0 16 16"><path d="M5 3 2 6l3 3M2 6h7.5a4 4 0 0 1 0 8H6"/></symbol>
+        <symbol id="i-reopen" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5V5h-2.5"/></symbol>
     </svg>
 
     <!-- ================= BARRE DU HAUT ================= -->
-    <header class="topbar">
-        <div class="brand">
-            <svg class="i brand-mark"><use href="#i-mark"/></svg>
-            <div class="brand-text"><b>King County</b><span>Dispatch · MDC Web</span></div>
-        </div>
+    <header class="topbar glass">
+        <div class="brand"><span class="mark"><svg class="i" viewBox="0 0 16 16"><path d="M8 3v7M5 7.5 8 10.5l3-3M5 13h6" stroke-width="2"/></svg></span>
+            <div class="brand-text"><b>King County</b><span>Dispatch · MDC Web</span></div></div>
         <button type="button" class="mode-switch" id="modeSwitch" role="switch" aria-checked="false" title="Mode Dispatch (activer / désactiver)">
-            <span class="lamp" aria-hidden="true"></span>
+            <span class="knob" aria-hidden="true"></span>
             <span class="mode-text"><b id="modeLabel">Mode dispatch : inactif</b><small id="modeHint">Les appels partent directement aux unités</small></span>
         </button>
+        <div class="omnibox" role="button" tabindex="0" id="omnibox" aria-label="Rechercher partout (Ctrl+K)"><svg class="i"><use href="#i-search"/></svg><span class="txt">Rechercher partout : appel, unité, conversation, action…</span><span class="kbd">Ctrl K</span></div>
         <div class="top-status">
             <span class="led" id="indRealtime" title="Connexion temps réel au site"><span>Temps réel</span></span>
             <span class="led" id="indFivem" title="Serveur FiveM (ressource rp_mdc)"><span>FiveM</span></span>
-            <span class="stat optional" id="indPlayers" title="Joueurs connectés en jeu"></span>
-            <span class="stat optional" id="indDispatchers" title="Postes dispatch connectés"></span>
+            <span class="optional" id="indPlayers" title="Joueurs connectés en jeu"></span>
+            <span class="optional" id="indDispatchers" title="Postes dispatch connectés"></span>
             <span class="station" id="station" title="Votre poste"></span>
             <span class="clock" id="clock" aria-label="Heure">--:--:--</span>
-            <button type="button" class="btn ghost icon" id="soundBtn" title="Sons : activés (cliquer pour couper)" aria-pressed="true"><svg class="i"><use href="#i-sound"/></svg></button>
+            <button type="button" class="btn ghost icon" id="soundBtn" title="Sons"><svg class="i"><use href="#i-sound"/></svg></button>
             <button type="button" class="btn ghost icon" id="themeBtn" title="Thème jour / nuit"><svg class="i"><use href="#i-sun"/></svg></button>
+            <button type="button" class="btn ghost icon" id="liteBtn" title="Transparence réduite (rendu plus léger)" aria-pressed="false"><svg class="i"><use href="#i-eyeoff"/></svg></button>
             <button type="button" class="btn ghost icon" id="helpBtn" title="Raccourcis clavier (?)"><svg class="i"><use href="#i-keys"/></svg></button>
             <button type="button" class="btn ghost icon" id="logoutBtn" title="Déconnexion"><svg class="i"><use href="#i-logout"/></svg></button>
         </div>
     </header>
+    <div class="banner hidden" id="fivemBanner" role="alert"><b>Serveur FiveM injoignable.</b> Données lues dans la base ; aucune action possible jusqu'à son retour.</div>
 
-    <!-- ================= NAVIGATION ================= -->
-    <nav class="sidenav" aria-label="Navigation">
-        <button type="button" class="nav" data-view="dashboard" aria-current="page"><svg class="i"><use href="#i-dash"/></svg><span class="nav-text">Tableau</span><span class="kbd">1</span></button>
-        <button type="button" class="nav" data-view="calls"><svg class="i"><use href="#i-calls"/></svg><span class="nav-text">Interventions</span><span class="count hidden" id="navAwaiting"></span><span class="kbd">2</span></button>
-        <button type="button" class="nav" data-view="units"><svg class="i"><use href="#i-units"/></svg><span class="nav-text">Unités</span><span class="count dim hidden" id="navUnits"></span><span class="kbd">3</span></button>
-        <button type="button" class="nav" data-view="messages"><svg class="i"><use href="#i-msg"/></svg><span class="nav-text">Messagerie</span><span class="count hidden" id="navUnread"></span><span class="kbd">4</span></button>
-        <button type="button" class="nav" data-view="search"><svg class="i"><use href="#i-search"/></svg><span class="nav-text">Recherche</span><span class="kbd">5</span></button>
-        <button type="button" class="nav" data-view="live"><svg class="i"><use href="#i-live"/></svg><span class="nav-text">LiveView</span><span class="count dim hidden" id="navLive"></span><span class="kbd">6</span></button>
-        <div class="nav-sep"></div>
-        <button type="button" class="nav" data-view="history"><svg class="i"><use href="#i-history"/></svg><span class="nav-text">Historique</span><span class="kbd">7</span></button>
-        <button type="button" class="nav" data-view="log"><svg class="i"><use href="#i-log"/></svg><span class="nav-text">Journal</span><span class="kbd">8</span></button>
-        <div class="nav-foot" id="presenceList"></div>
+    <main class="desk" id="desk" aria-label="Espace de travail"></main>
+
+    <!-- ================= DOCK ================= -->
+    <nav class="dock glass" aria-label="Fenêtres">
+        <div class="ws-switch" role="group" aria-label="Espace de travail" id="wsSwitch">
+            <button type="button" data-ws="dispatch" aria-pressed="true">Dispatch</button>
+            <button type="button" data-ws="enquete" aria-pressed="false">Enquête</button>
+            <button type="button" data-ws="supervision" aria-pressed="false">Supervision</button>
+        </div>
+        <span class="dock-sep"></span>
+        <div id="dockApps" class="toolbar flat"></div>
     </nav>
 
-    <main class="main" id="main">
-        <div class="banner hidden" id="fivemBanner" role="alert"><p><b>Serveur FiveM injoignable.</b> Les données affichées viennent de la base ; aucune action possible jusqu'à son retour.</p></div>
-
-        <!-- ================= TABLEAU DE BORD ================= -->
-        <section class="view" id="view-dashboard" aria-labelledby="h-dash">
-            <div class="view-head">
-                <h1 id="h-dash">Tableau de bord</h1><span class="grow"></span>
-                <button type="button" class="btn" data-new="incident"><svg class="i"><use href="#i-plus"/></svg>Incident<span class="kbd">I</span></button>
-                <button type="button" class="btn primary" data-new="intervention"><svg class="i"><use href="#i-plus"/></svg>Intervention<span class="kbd">N</span></button>
-            </div>
-            <div class="kpis">
-                <div class="kpi hot"><span id="kpiAwaiting">0</span><small>À valider</small></div>
-                <div class="kpi"><span id="kpiPending">0</span><small>Sans unité</small></div>
-                <div class="kpi"><span id="kpiOngoing">0</span><small>En cours</small></div>
-                <div class="kpi"><span id="kpiUnits">0</span><small>Unités en service</small></div>
-                <div class="kpi go"><span id="kpiAvailable">0</span><small>Disponibles</small></div>
-            </div>
-            <div class="dash-grid">
-                <div class="panel">
-                    <div class="panel-head"><h2>File de validation</h2><span class="grow"></span><span class="muted" id="queueHint"></span></div>
-                    <div class="queue" id="dashQueue"></div>
-                </div>
-                <div class="panel">
-                    <div class="panel-head"><h2>Unités en service</h2><span class="grow"></span><button type="button" class="btn ghost small" data-goto="units">Tout voir</button></div>
-                    <div class="unit-board" id="dashUnits"></div>
-                </div>
-                <div class="panel span-2">
-                    <div class="panel-head"><h2>Interventions actives</h2><span class="grow"></span><button type="button" class="btn ghost small" data-goto="calls">Tout voir</button></div>
-                    <div class="table-wrap flush"><table class="grid"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Police</th><th>Unités</th><th>Statut</th><th>Depuis</th></tr></thead>
-                        <tbody id="dashCalls"></tbody></table></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= INTERVENTIONS ================= -->
-        <section class="view hidden" id="view-calls" aria-labelledby="h-calls">
-            <div class="view-head">
-                <h1 id="h-calls">Interventions</h1>
-                <div class="seg" id="callTabs" role="group" aria-label="Filtre">
-                    <button type="button" data-filter="active" aria-pressed="true">Actives</button>
-                    <button type="button" data-filter="awaiting" aria-pressed="false">À valider <span data-count="awaiting"></span></button>
-                    <button type="button" data-filter="pending" aria-pressed="false">Sans unité <span data-count="pending"></span></button>
-                    <button type="button" data-filter="ongoing" aria-pressed="false">En cours <span data-count="ongoing"></span></button>
-                    <button type="button" data-filter="recent" aria-pressed="false">Terminées (6 h)</button>
-                </div>
-                <span class="grow"></span>
-                <button type="button" class="btn" data-new="incident"><svg class="i"><use href="#i-plus"/></svg>Incident<span class="kbd">I</span></button>
-                <button type="button" class="btn primary" data-new="intervention"><svg class="i"><use href="#i-plus"/></svg>Intervention<span class="kbd">N</span></button>
-            </div>
-            <div class="toolbar">
-                <input type="search" id="callsQ" placeholder="N° RD, intitulé, adresse, requérant…  ( / )" aria-label="Filtrer les interventions">
-                <select id="callsAgency" aria-label="Police"><option value="">Toutes les polices</option><option value="kcso">KCSO</option><option value="wsp">WSP</option></select>
-                <span class="muted">Navigation : <span class="kbd">J</span> <span class="kbd">K</span> puis <span class="kbd">Entrée</span></span>
-            </div>
-            <div class="table-wrap"><table class="grid" id="callsTable"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Bloc</th><th>Police</th><th>Unités</th><th>Statut</th><th>Créée</th></tr></thead>
-                <tbody id="callsBody"></tbody></table></div>
-        </section>
-
-        <!-- ================= UNITÉS ================= -->
-        <section class="view hidden" id="view-units" aria-labelledby="h-units">
-            <div class="view-head"><h1 id="h-units">Unités</h1><span class="grow"></span><span class="muted" id="unitsHint">Positions mises à jour en direct (rue et bloc, toutes les 3 s au plus)</span></div>
-            <div class="toolbar">
-                <input type="search" id="unitsQ" placeholder="Indicatif, agent, rue, secteur…" aria-label="Filtrer les unités">
-                <select id="unitsStatus" aria-label="Statut"><option value="">Tous les statuts</option><option value="available">Disponible</option><option value="en_route">En route</option><option value="on_scene">Sur place</option><option value="unavailable">Indisponible</option></select>
-                <select id="unitsAgency" aria-label="Police"><option value="">Toutes les polices</option><option value="kcso">KCSO</option><option value="wsp">WSP</option></select>
-                <select id="unitsSector" aria-label="Secteur"><option value="">Tous les secteurs</option></select>
-                <label class="check"><input type="checkbox" id="unitsConnected" checked> En service seulement</label>
-            </div>
-            <div class="table-wrap"><table class="grid" id="unitsTable"><thead><tr>
-                <th class="sortable" data-sort="name">Indicatif</th><th class="sortable" data-sort="agency">Police</th><th>Agents</th>
-                <th class="sortable" data-sort="status">Statut</th><th class="sortable" data-sort="street">Position (rue · bloc)</th>
-                <th class="sortable" data-sort="zone">Secteur</th><th>Intervention</th><th class="sortable" data-sort="since">Depuis</th><th></th></tr></thead>
-                <tbody id="unitsBody"></tbody></table></div>
-        </section>
-
-        <!-- ================= MESSAGERIE ================= -->
-        <section class="view hidden" id="view-messages" aria-labelledby="h-msg">
-            <div class="view-head"><h1 id="h-msg">Messagerie</h1></div>
-            <div class="chat">
-                <aside class="chat-side">
-                    <div class="chat-side-top">
-                        <input type="search" id="chatQ" placeholder="Rechercher une conversation…" aria-label="Rechercher une conversation">
-                        <div class="chat-tabs" role="tablist" id="chatTabs">
-                            <button type="button" role="tab" data-cat="civil" aria-selected="true">Groupe civil <span class="count hidden" data-catcount="civil"></span></button>
-                            <button type="button" role="tab" data-cat="private" aria-selected="false">Civils <span class="count hidden" data-catcount="private"></span></button>
-                            <button type="button" role="tab" data-cat="unit" aria-selected="false">Unités <span class="count hidden" data-catcount="unit"></span></button>
-                        </div>
-                        <label class="observe-toggle" id="observeToggle"><span>Observation des conversations entre unités (lecture seule)</span><input type="checkbox" id="observeChk"></label>
-                    </div>
-                    <div class="chat-list" id="chatList" role="listbox" aria-label="Conversations"></div>
-                </aside>
-                <div class="chat-thread">
-                    <div class="chat-head" id="chatHead"><span class="muted">Choisissez une conversation.</span></div>
-                    <div class="chat-body" id="chatBody" aria-live="polite"></div>
-                    <form class="chat-compose hidden" id="chatForm">
-                        <textarea id="chatInput" rows="2" maxlength="300" placeholder="Message (Entrée : envoyer · Maj + Entrée : nouvelle ligne)" aria-label="Message"></textarea>
-                        <button type="submit" class="btn primary">Envoyer</button>
-                    </form>
-                    <div class="readonly-note hidden" id="readonlyNote"><svg class="i"><use href="#i-eye"/></svg>Observation : lecture seule. Vous n'envoyez rien, rien n'est marqué comme lu et les unités ne voient pas votre présence.</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= RECHERCHE ================= -->
-        <section class="view hidden" id="view-search" aria-labelledby="h-search">
-            <div class="view-head"><h1 id="h-search">Recherche</h1>
-                <div class="seg" id="searchTabs" role="group" aria-label="Type"><button type="button" data-stype="identity" aria-pressed="true">Individu</button><button type="button" data-stype="vehicle" aria-pressed="false">Véhicule</button></div>
-            </div>
-            <form class="search-form" id="searchIdentity">
-                <label class="field"><span>Nom <b>*</b></span><input id="sLast" maxlength="40" required></label>
-                <label class="field"><span>Prénom</span><input id="sFirst" maxlength="40"></label>
-                <label class="field"><span>Date de naissance <b>*</b></span><input id="sDob" maxlength="10" placeholder="JJ/MM/AAAA" required inputmode="numeric"></label>
-                <label class="field"><span>SSN</span><input id="sSsn" maxlength="11" placeholder="123-45-6789"></label>
-                <button type="submit" class="btn primary">Rechercher</button>
-            </form>
-            <form class="search-form hidden" id="searchVehicle">
-                <label class="field"><span>Immatriculation ou VIN <b>*</b></span><input id="sQuery" maxlength="20" required></label>
-                <button type="submit" class="btn primary">Rechercher</button>
-            </form>
-            <div class="search-grid">
-                <div class="panel"><div class="panel-head"><h2>Résultats</h2><span class="grow"></span><span class="muted" id="searchCount"></span></div>
-                    <div id="searchResults"></div></div>
-                <div class="panel"><div id="recordSheet" class="record-sheet"></div></div>
-            </div>
-        </section>
-
-        <!-- ================= LIVEVIEW ================= -->
-        <section class="view hidden" id="view-live" aria-labelledby="h-live">
-            <div class="view-head"><h1 id="h-live">LiveView</h1><span class="muted" id="liveHint">Écran du jeu des joueurs connectés, en direct. Chaque consultation est enregistrée dans le journal.</span></div>
-            <div class="warn-line hidden" id="liveUnavailable" role="alert"></div>
-            <div class="live">
-                <aside class="live-side">
-                    <input type="search" id="liveQ" placeholder="Nom ou ID du joueur…" aria-label="Rechercher un joueur">
-                    <div class="toolbar tight">
-                        <select id="liveService" aria-label="Service"><option value="">Tous les services</option><option value="kcso">KCSO</option><option value="wsp">WSP</option><option value="generic">Civils</option><option value="none">Sans MDC</option></select>
-                        <select id="liveUnit" aria-label="Unité"><option value="">Toutes les unités</option></select>
-                    </div>
-                    <div class="toolbar tight">
-                        <button type="button" class="btn small" id="liveAddAll">Afficher la sélection</button>
-                        <button type="button" class="btn small ghost" id="liveClear">Tout retirer</button>
-                    </div>
-                    <div class="panel live-players" id="livePlayers"></div>
-                    <p class="live-note">Mosaïque : 480 × 270, 1 image / 2 s. Agrandi : 960 × 540, 2 images / s. Seuls les joueurs affichés et non masqués envoient des images.</p>
-                </aside>
-                <div class="live-grid" id="liveGrid"></div>
-            </div>
-        </section>
-
-        <!-- ================= HISTORIQUE ================= -->
-        <section class="view hidden" id="view-history" aria-labelledby="h-hist">
-            <div class="view-head"><h1 id="h-hist">Historique</h1></div>
-            <form class="toolbar" id="historyForm">
-                <input type="search" id="historyQ" placeholder="N° RD, intervention, adresse, requérant…" maxlength="60" aria-label="Rechercher">
-                <select id="historyStatus" aria-label="Statut"><option value="all">Tous</option><option value="closed">Terminées</option><option value="refused">Refusées</option><option value="cancelled">Annulées</option></select>
-                <label class="field inline"><span>Du</span><input type="date" id="historyFrom"></label>
-                <label class="field inline"><span>au</span><input type="date" id="historyTo"></label>
-                <button type="submit" class="btn">Rechercher</button>
-            </form>
-            <div class="table-wrap"><table class="grid"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Police</th><th>Statut</th><th>Créée</th><th>Clôture</th></tr></thead>
-                <tbody id="historyBody"></tbody></table></div>
-            <div class="pager" id="historyPager"></div>
-        </section>
-
-        <!-- ================= JOURNAL ================= -->
-        <section class="view hidden" id="view-log" aria-labelledby="h-log">
-            <div class="view-head"><h1 id="h-log">Journal</h1><span class="grow"></span>
-                <select id="logSource" aria-label="Source"><option value="all">Toutes les sources</option><option value="dispatch">Dispatch</option><option value="game">Jeu</option><option value="web">Connexions et LiveView</option></select></div>
-            <div class="table-wrap"><table class="grid"><thead><tr><th>Date</th><th>Source</th><th>Auteur</th><th>Action</th><th>Détails</th></tr></thead>
-                <tbody id="logBody"></tbody></table></div>
-            <div class="pager" id="logPager"></div>
-        </section>
-    </main>
-
-    <!-- ================= FICHE D'INTERVENTION ================= -->
-    <aside class="drawer hidden" id="drawer" aria-label="Intervention">
-        <div class="drawer-head">
-            <div class="grow" id="drawerTitle"></div>
-            <button type="button" class="btn ghost icon" id="drawerClose" title="Fermer (Échap)"><svg class="i"><use href="#i-x"/></svg></button>
+    <!-- ================= CONTENU DES FENÊTRES (modèles) ================= -->
+    <template id="tpl-kpi">
+        <div class="kpis">
+            <div class="kpi hot"><b id="kpiAwaiting">0</b><span>À valider</span></div>
+            <div class="kpi"><b id="kpiPending">0</b><span>Sans unité</span></div>
+            <div class="kpi"><b id="kpiOngoing">0</b><span>En cours</span></div>
+            <div class="kpi"><b id="kpiUnits">0</b><span>Unités en service</span></div>
+            <div class="kpi go"><b id="kpiAvailable">0</b><span>Disponibles</span></div>
         </div>
-        <div class="drawer-body" id="drawerBody"></div>
-        <div class="drawer-foot hidden" id="drawerFoot"></div>
-    </aside>
+    </template>
+    <template id="tpl-queue"><div id="dashQueue"></div></template>
+    <template id="tpl-calls">
+        <div class="toolbar">
+            <div class="seg" id="callTabs" role="group" aria-label="Filtre">
+                <button type="button" data-filter="active" aria-pressed="true">Actives</button>
+                <button type="button" data-filter="awaiting" aria-pressed="false">À valider <span data-count="awaiting"></span></button>
+                <button type="button" data-filter="pending" aria-pressed="false">Sans unité <span data-count="pending"></span></button>
+                <button type="button" data-filter="ongoing" aria-pressed="false">En cours <span data-count="ongoing"></span></button>
+                <button type="button" data-filter="recent" aria-pressed="false">Terminées</button>
+            </div>
+            <input type="search" id="callsQ" placeholder="N° RD, intitulé, adresse…" aria-label="Filtrer les interventions">
+            <select id="callsAgency" aria-label="Police"><option value="">Toutes</option><option value="kcso">KCSO</option><option value="wsp">WSP</option></select>
+            <button type="button" class="btn small" data-new="incident"><svg class="i"><use href="#i-plus"/></svg>Incident</button>
+            <button type="button" class="btn small primary" data-new="intervention"><svg class="i"><use href="#i-plus"/></svg>Intervention</button>
+        </div>
+        <table class="grid"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Police</th><th>Unités</th><th>Statut</th><th>Créée</th></tr></thead>
+            <tbody id="callsBody"></tbody></table>
+    </template>
+    <template id="tpl-call"><div id="drawerBody"></div><div class="win-foot hidden" id="drawerFoot"></div></template>
+    <template id="tpl-units">
+        <div class="toolbar">
+            <input type="search" id="unitsQ" placeholder="Indicatif, agent, rue, secteur…" aria-label="Filtrer les unités">
+            <select id="unitsStatus" aria-label="Statut"><option value="">Tous statuts</option><option value="available">Disponible</option><option value="en_route">En route</option><option value="on_scene">Sur place</option><option value="unavailable">Indisponible</option></select>
+            <select id="unitsAgency" aria-label="Police"><option value="">Toutes</option><option value="kcso">KCSO</option><option value="wsp">WSP</option></select>
+            <select id="unitsSector" aria-label="Secteur"><option value="">Tous secteurs</option></select>
+            <label class="check"><input type="checkbox" id="unitsConnected" checked> En service</label>
+        </div>
+        <table class="grid" id="unitsTable"><thead><tr>
+            <th class="sortable" data-sort="name">Unité</th><th class="sortable" data-sort="status">Statut</th><th class="sortable" data-sort="street">Position (rue · bloc)</th>
+            <th class="sortable" data-sort="zone">Secteur</th><th>Intervention</th><th class="sortable" data-sort="since">Depuis</th><th></th></tr></thead>
+            <tbody id="unitsBody"></tbody></table>
+    </template>
+    <template id="tpl-messages">
+        <div class="chat">
+            <aside class="chat-side">
+                <div class="chat-side-top">
+                    <input type="search" id="chatQ" placeholder="Rechercher une conversation…" aria-label="Rechercher une conversation">
+                    <div class="seg chat-tabs" role="tablist" id="chatTabs">
+                        <button type="button" role="tab" data-cat="civil" aria-selected="true">Groupe <span class="count hidden" data-catcount="civil"></span></button>
+                        <button type="button" role="tab" data-cat="private" aria-selected="false">Civils <span class="count hidden" data-catcount="private"></span></button>
+                        <button type="button" role="tab" data-cat="unit" aria-selected="false">Unités <span class="count hidden" data-catcount="unit"></span></button>
+                    </div>
+                    <label class="observe-toggle" id="observeToggle"><span>Observer les conversations entre unités (lecture seule)</span><input type="checkbox" id="observeChk"></label>
+                </div>
+                <div class="chat-list" id="chatList" role="listbox" aria-label="Conversations"></div>
+            </aside>
+            <div class="chat-thread">
+                <div class="chat-head" id="chatHead"><span class="muted">Choisissez une conversation.</span></div>
+                <div class="chat-body" id="chatBody" aria-live="polite"></div>
+                <form class="chat-compose hidden" id="chatForm">
+                    <textarea id="chatInput" rows="2" maxlength="300" placeholder="Message (Entrée : envoyer · Maj + Entrée : nouvelle ligne)" aria-label="Message"></textarea>
+                    <button type="submit" class="btn primary">Envoyer</button>
+                </form>
+                <div class="readonly-note hidden" id="readonlyNote"><svg class="i"><use href="#i-eye"/></svg>Observation : lecture seule. Rien n'est envoyé, rien n'est marqué comme lu, aucune présence signalée.</div>
+            </div>
+        </div>
+    </template>
+    <template id="tpl-search">
+        <div class="toolbar">
+            <div class="seg" id="searchTabs" role="group" aria-label="Type"><button type="button" data-stype="identity" aria-pressed="true">Individu</button><button type="button" data-stype="vehicle" aria-pressed="false">Véhicule</button></div>
+            <form class="toolbar flat" id="searchIdentity">
+                <input id="sLast" maxlength="40" required placeholder="Nom *" aria-label="Nom">
+                <input id="sFirst" maxlength="40" placeholder="Prénom" aria-label="Prénom">
+                <input id="sDob" maxlength="10" placeholder="JJ/MM/AAAA *" required inputmode="numeric" aria-label="Date de naissance">
+                <input id="sSsn" maxlength="11" placeholder="SSN" aria-label="SSN">
+                <button type="submit" class="btn primary small">Rechercher</button>
+            </form>
+            <form class="toolbar flat hidden" id="searchVehicle">
+                <input id="sQuery" maxlength="20" required placeholder="Immatriculation ou VIN *" aria-label="Immatriculation ou VIN">
+                <button type="submit" class="btn primary small">Rechercher</button>
+            </form>
+        </div>
+        <div class="split"><div id="searchResults"></div><div id="recordSheet" class="win-pad"></div></div>
+    </template>
+    <template id="tpl-registries">
+        <div class="toolbar">
+            <div class="seg" id="regTabs" role="tablist" aria-label="Registre">
+                <button type="button" data-reg="sex" aria-selected="true">Sex Offenders</button>
+                <button type="button" data-reg="kidnap" aria-selected="false">Kidnapping Offenders</button>
+                <button type="button" data-reg="bolos" aria-selected="false">BOLOs</button>
+                <button type="button" data-reg="reports" aria-selected="false">Rapports</button>
+            </div>
+            <input type="search" id="regQ" placeholder="Rechercher…" aria-label="Rechercher dans le registre">
+            <span id="regFilters" class="toolbar flat"></span>
+            <span class="muted" id="regCount"></span>
+        </div>
+        <div class="split wide"><div id="regList"></div><div id="regDetail"></div></div>
+        <div class="pager hidden" id="regPager"></div>
+    </template>
+    <template id="tpl-live">
+        <div class="live">
+            <aside class="live-side">
+                <input type="search" id="liveQ" placeholder="Nom ou ID du joueur…" aria-label="Rechercher un joueur">
+                <select id="liveService" aria-label="Service"><option value="">Tous les services</option><option value="kcso">KCSO</option><option value="wsp">WSP</option><option value="generic">Civils</option><option value="none">Sans MDC</option></select>
+                <select id="liveUnit" aria-label="Unité"><option value="">Toutes les unités</option></select>
+                <div class="toolbar flat"><button type="button" class="btn small" id="liveAddAll">Afficher la sélection</button><button type="button" class="btn small ghost" id="liveClear">Tout retirer</button></div>
+                <div class="warn-line hidden" id="liveUnavailable" role="alert"></div>
+                <div id="livePlayers"></div>
+                <p class="form-note">Vidéo WebRTC (serveur relais) ~2 images/s. Seuls les joueurs affichés et non masqués sont filmés. Chaque consultation est journalisée.</p>
+            </aside>
+            <div class="live-grid" id="liveGrid"></div>
+        </div>
+    </template>
+    <template id="tpl-history">
+        <form class="toolbar" id="historyForm">
+            <input type="search" id="historyQ" placeholder="N° RD, intervention, adresse, requérant…" maxlength="60" aria-label="Rechercher">
+            <select id="historyStatus" aria-label="Statut"><option value="all">Tous</option><option value="closed">Terminées</option><option value="refused">Refusées</option><option value="cancelled">Annulées</option></select>
+            <input type="date" id="historyFrom" aria-label="Du"><input type="date" id="historyTo" aria-label="Au">
+            <button type="submit" class="btn small">Rechercher</button>
+        </form>
+        <table class="grid"><thead><tr><th>N°</th><th>Priorité</th><th>Intervention</th><th>Adresse</th><th>Statut</th><th>Créée</th><th>Clôture</th></tr></thead>
+            <tbody id="historyBody"></tbody></table>
+        <div class="pager" id="historyPager"></div>
+    </template>
+    <template id="tpl-log">
+        <div class="toolbar"><select id="logSource" aria-label="Source"><option value="all">Toutes les sources</option><option value="dispatch">Dispatch</option><option value="game">Jeu</option><option value="web">Site (connexions, LiveView)</option></select></div>
+        <table class="grid"><thead><tr><th>Date</th><th>Source</th><th>Auteur</th><th>Action</th><th>Détails</th></tr></thead><tbody id="logBody"></tbody></table>
+        <div class="pager" id="logPager"></div>
+    </template>
+    <template id="tpl-audit">
+        <div class="toolbar">
+            <input type="search" id="auditQ" placeholder="Élément, n°…" aria-label="Rechercher">
+            <select id="auditKind" aria-label="Élément"><option value="">Tous les éléments</option><option value="call">Interventions</option><option value="identity">Identités</option><option value="vehicle">Véhicules</option><option value="report">Rapports</option><option value="bolo">BOLOs</option><option value="conversation">Conversations</option></select>
+            <select id="auditAction" aria-label="Action"><option value="">Toutes les actions</option><option value="update">Modification</option><option value="delete">Suppression</option><option value="empty">Messages vidés</option><option value="restore">Restauration</option><option value="reopen">Réouverture</option><option value="purge">Purge définitive</option></select>
+        </div>
+        <table class="grid"><thead><tr><th>Date</th><th>Auteur</th><th>Action</th><th>Élément</th><th>Avant → après</th></tr></thead><tbody id="auditBody"></tbody></table>
+        <div class="pager" id="auditPager"></div>
+    </template>
+    <template id="tpl-trash">
+        <div class="toolbar"><span class="muted" id="trashHint">Restaurable jusqu'à la date indiquée, puis purgé automatiquement.</span></div>
+        <table class="grid"><thead><tr><th>Élément</th><th>Supprimé par</th><th>Le</th><th>Purge</th><th></th></tr></thead><tbody id="trashBody"></tbody></table>
+    </template>
 
-    <!-- ================= NOUVELLE INTERVENTION / NOUVEL INCIDENT ================= -->
+    <!-- ================= FENÊTRES MODALES ================= -->
     <div class="modal hidden" id="newModal" role="dialog" aria-modal="true" aria-labelledby="newTitle">
-        <form class="modal-card" id="newForm" novalidate>
+        <form class="modal-card glass" id="newForm" novalidate>
             <div class="modal-head">
                 <h2 id="newTitle">Nouvelle intervention</h2>
                 <div class="seg" role="group" aria-label="Type"><button type="button" data-nkind="intervention" aria-pressed="true">Intervention</button><button type="button" data-nkind="incident" aria-pressed="false">Incident</button></div>
                 <div class="seg" role="group" aria-label="Formulaire"><button type="button" data-nmode="quick" aria-pressed="true">Rapide</button><button type="button" data-nmode="full" aria-pressed="false">Détaillé</button></div>
             </div>
             <div class="modal-body" id="newBody"></div>
-            <div class="modal-foot"><span class="form-note push">Transmise tout de suite aux unités (vous la validez en la créant). <span class="kbd">Ctrl</span>+<span class="kbd">Entrée</span></span>
+            <div class="modal-foot"><span class="form-note push">Transmise tout de suite aux unités. <span class="kbd">Ctrl</span>+<span class="kbd">Entrée</span></span>
                 <button type="button" class="btn ghost" data-close-modal>Annuler</button><button type="submit" class="btn primary" id="newSubmit">Créer et transmettre</button></div>
         </form>
     </div>
-
-    <!-- Motif (refus / annulation) -->
-    <div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <form class="modal-card small" id="modalForm">
-            <div class="modal-head"><h2 id="modalTitle"></h2></div>
-            <div class="modal-body"><p class="muted modal-text" id="modalText"></p><textarea id="modalInput" rows="3" maxlength="200"></textarea></div>
-            <div class="modal-foot"><button type="button" class="btn ghost" id="modalCancel">Retour</button><button type="submit" class="btn stop" id="modalOk">Confirmer</button></div>
+    <div class="modal hidden" id="recordModal" role="dialog" aria-modal="true" aria-labelledby="recordTitle">
+        <form class="modal-card glass" id="recordForm" novalidate>
+            <div class="modal-head"><h2 id="recordTitle">Modifier la fiche</h2></div>
+            <div class="modal-body" id="recordBody"></div>
+            <div class="modal-foot"><span class="form-note push">Mêmes contrôles qu'en jeu. Modification journalisée (avant / après).</span>
+                <button type="button" class="btn ghost" data-close-modal>Annuler</button><button type="submit" class="btn primary">Enregistrer</button></div>
         </form>
     </div>
-
-    <!-- Raccourcis -->
+    <div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <form class="modal-card glass small" id="modalForm">
+            <div class="modal-head"><h2 id="modalTitle"></h2></div>
+            <div class="modal-body"><p class="confirm-text" id="modalText"></p><textarea id="modalInput" rows="3" maxlength="200" class="hidden"></textarea></div>
+            <div class="modal-foot"><span class="push" id="modalExtra"></span><button type="button" class="btn ghost" id="modalCancel">Retour</button><button type="submit" class="btn stop" id="modalOk">Confirmer</button></div>
+        </form>
+    </div>
     <div class="modal hidden" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
-        <div class="modal-card small">
+        <div class="modal-card glass small">
             <div class="modal-head"><h2 id="helpTitle">Raccourcis clavier</h2><button type="button" class="btn ghost icon" data-close-modal title="Fermer"><svg class="i"><use href="#i-x"/></svg></button></div>
             <div class="modal-body"><dl class="shortcuts">
-                <dt><span class="kbd">1</span> … <span class="kbd">8</span></dt><dd>Changer de page</dd>
-                <dt><span class="kbd">N</span></dt><dd>Nouvelle intervention</dd>
-                <dt><span class="kbd">I</span></dt><dd>Nouvel incident</dd>
-                <dt><span class="kbd">/</span></dt><dd>Rechercher / filtrer dans la page</dd>
-                <dt><span class="kbd">J</span> <span class="kbd">K</span></dt><dd>Intervention suivante / précédente</dd>
-                <dt><span class="kbd">Entrée</span></dt><dd>Ouvrir l'intervention choisie</dd>
-                <dt><span class="kbd">E</span></dt><dd>Modifier l'intervention ouverte</dd>
-                <dt><span class="kbd">V</span></dt><dd>Valider l'intervention ouverte (en attente)</dd>
-                <dt><span class="kbd">Échap</span></dt><dd>Fermer la fiche ou la fenêtre</dd>
+                <dt><span class="kbd">Ctrl</span> <span class="kbd">K</span></dt><dd>Palette de commandes et recherche globale</dd>
+                <dt><span class="kbd">1</span> … <span class="kbd">9</span></dt><dd>Ouvrir / mettre devant une fenêtre</dd>
+                <dt><span class="kbd">N</span> / <span class="kbd">I</span></dt><dd>Nouvelle intervention / nouvel incident</dd>
+                <dt><span class="kbd">E</span> · <span class="kbd">V</span></dt><dd>Modifier / valider l'intervention ouverte</dd>
+                <dt><span class="kbd">J</span> <span class="kbd">K</span> <span class="kbd">Entrée</span></dt><dd>Parcourir et ouvrir les interventions</dd>
+                <dt><span class="kbd">Alt</span> <span class="kbd">M</span></dt><dd>Réduire la fenêtre active</dd>
+                <dt>Clic droit</dt><dd>Actions d'un appel, d'une unité, d'une conversation, d'une fiche</dd>
+                <dt><span class="kbd">Échap</span></dt><dd>Fermer la fenêtre modale, la palette, le menu</dd>
                 <dt><span class="kbd">?</span></dt><dd>Cette aide</dd>
             </dl></div>
         </div>
     </div>
-
+    <div class="palette-wrap hidden" id="palette" role="dialog" aria-modal="true" aria-label="Palette de commandes">
+        <div class="palette glass">
+            <input id="palInput" placeholder="Rechercher un appel, une unité, une conversation, une action…" aria-label="Rechercher" autocomplete="off">
+            <div class="pal-list" id="palList" role="listbox"></div>
+            <div class="pal-foot"><span>↑ ↓ naviguer</span><span>Entrée ouvrir</span><span>Échap fermer</span></div>
+        </div>
+    </div>
+    <div class="ctxmenu glass hidden" id="ctxmenu" role="menu"></div>
     <div class="toasts" id="toasts" aria-live="polite"></div>
+
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/vendor/livekit-client.umd.js"></script>
+    <script src="/assets/wm.js"></script>
     <script src="/assets/app.js"></script>
 </body>
 </html>

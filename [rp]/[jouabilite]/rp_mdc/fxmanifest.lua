@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_mdc'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police sans framework - MySQL (oxmysql), MDC Web du dispatch, NUI Vanilla JS'
-version '4.0.1'
+version '5.0.0'
 
 dependency 'oxmysql' -- base de données MySQL / MariaDB (voir README)
 
@@ -21,6 +21,7 @@ files {
     'html/style.css',
     'html/script.js',
     'html/blockeditor.js', -- panneau de /blocs (admins)
+    'html/vendor/livekit-client.umd.js', -- LiveView WebRTC (Apache-2.0, voir html/vendor/LICENSE-livekit-client), chargé à la demande
     'html/img/*.png', -- logos des polices (WSP, KCSO)
     'html/sounds/*.mp3', -- sons du MDC (appels, BOLO, unités, fiches liées, recherches, clic, clavier)
     'html/sounds/*.wav',

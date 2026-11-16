@@ -3,6 +3,7 @@
 // Les actions sont exécutées par le serveur FiveM (seul à écrire les données du MDC) : le jeu est prévenu tout de
 // suite et renvoie l'événement au site, qui met à jour tous les dispatchers.
 const express = require('express');
+const config = require('./config');
 const queries = require('./queries');
 const fivem = require('./fivem');
 const realtime = require('./realtime');
@@ -114,7 +115,7 @@ router.get('/observe', read, wrap(async (req, res) => {
 }));
 
 router.get('/players', read, wrap(async (req, res) => {
-    res.json({ ok: true, players: realtime.players(), liveview: realtime.liveviewAvailable() });
+    res.json({ ok: true, players: realtime.players(), liveview: realtime.liveviewAvailable(), rtc: config.live.rtc.enabled });
 }));
 
 router.get('/messages', read, wrap(async (req, res) => {
@@ -151,6 +152,8 @@ callAction('close', 'call.close', (b) => {
 callAction('assign', 'call.assign', (b) => (id(b.unitId) ? { unitId: id(b.unitId) } : null));
 callAction('unassign', 'call.unassign', (b) => (id(b.unitId) ? { unitId: id(b.unitId) } : null));
 callAction('note', 'call.note', (b) => (text(b.text, 500) ? { text: text(b.text, 500) } : null));
+callAction('delete', 'call.delete');   // corbeille (restaurable)
+callAction('reopen', 'call.reopen');   // intervention / incident terminé(e) rouvert(e)
 
 // ---- Création d'une intervention / d'un incident par le dispatch (formulaire rapide ou détaillé) ----
 const PRIORITIES = ['px', 'k1', 'k2', 'k3', 'k4', 'k0', 'nonurgent', 'p1', 'p2', 'p3'];
@@ -221,6 +224,81 @@ router.post('/messages/read', act, wrap(async (req, res) => {
     // le jeu enregistre la lecture puis prévient le site (événement « reads ») : non-lus à jour chez tous les dispatchers
     const result = await fivem.call('message.read', { channel, actor: actor(req) });
     res.json({ ok: !!(result && result.ok) });
+}));
+
+// ---------------------------------------------------------------- registres (mêmes données que le jeu)
+const KINDS = ['identity', 'vehicle', 'report', 'bolo'];
+const fromGame = async (res, action, body, notFound) => {
+    const result = await fivem.call(action, body);
+    if (!result || result.ok !== true) {
+        return res.status(result && /injoignable/.test(result.error || '') ? 503 : (notFound ? 404 : 400))
+            .json({ ok: false, error: (result && result.error) || 'Indisponible.' });
+    }
+    return res.json(result);
+};
+router.get('/registry/offenders', read, wrap(async (req, res) => fromGame(res, 'registry.offenders', { type: req.query.type === 'kidnap' ? 'kidnap' : 'sex' })));
+router.get('/registry/bolos', read, wrap(async (req, res) => fromGame(res, 'registry.bolos', {})));
+router.get('/registry/bolos/:id', read, wrap(async (req, res) => fromGame(res, 'registry.bolo', { id: id(req.params.id) }, true)));
+router.get('/registry/reports', read, wrap(async (req, res) => fromGame(res, 'registry.reports',
+    { type: text(req.query.type, 20), query: text(req.query.q, 60), page: Math.min(10000, Math.max(1, Number(req.query.page) || 1)) })));
+router.get('/registry/reports/:id', read, wrap(async (req, res) => fromGame(res, 'registry.report', { id: id(req.params.id) }, true)));
+let reportTypesCache = null;
+router.get('/registry/report-types', read, wrap(async (req, res) => {
+    if (reportTypesCache && Date.now() - reportTypesCache.at < 600000) return res.json(reportTypesCache.data);
+    const result = await fivem.call('registry.reportTypes', {});
+    if (!result || result.ok !== true) return res.status(503).json({ ok: false, error: 'Modèles indisponibles (serveur FiveM).' });
+    reportTypesCache = { at: Date.now(), data: result };
+    return res.json(result);
+}));
+
+// Modification / suppression de TOUTE fiche par le dispatch (mêmes contrôles qu'en jeu ; suppression = corbeille)
+router.post('/records/:kind/:id', act, wrap(async (req, res) => {
+    const kind = String(req.params.kind);
+    const rid = id(req.params.id);
+    if (!KINDS.includes(kind) || !rid || typeof req.body.data !== 'object' || !req.body.data) return res.status(400).json({ ok: false, error: 'Données invalides.' });
+    return game(res, 'record.update', { kind, id: rid, data: req.body.data }, req);
+}));
+router.post('/records/:kind/:id/delete', act, wrap(async (req, res) => {
+    const kind = String(req.params.kind);
+    const rid = id(req.params.id);
+    if (!KINDS.includes(kind) || !rid) return res.status(400).json({ ok: false, error: 'Fiche invalide.' });
+    return game(res, 'record.delete', { kind, id: rid }, req);
+}));
+
+// Conversations : supprimer (ou vider) — messages à la corbeille, la conversation peut être recréée
+router.post('/conversations/delete', act, wrap(async (req, res) => {
+    const channel = String(req.body.channel || '');
+    const mode = req.body.mode === 'empty' ? 'empty' : 'delete';
+    if (!CHANNEL.test(channel) && !OBSERVE.test(channel)) return res.status(400).json({ ok: false, error: 'Conversation invalide.' });
+    return game(res, 'conversation.delete', { channel, mode }, req);
+}));
+
+// Corbeille et journal d'audit (tous les dispatchers)
+router.get('/trash', read, wrap(async (req, res) => res.json({ ok: true, items: await queries.trash() })));
+router.post('/trash/:id/restore', act, wrap(async (req, res) => {
+    const tid = id(req.params.id);
+    if (!tid) return res.status(400).json({ ok: false, error: 'Élément invalide.' });
+    return game(res, 'trash.restore', { id: tid }, req);
+}));
+router.post('/trash/:id/purge', act, wrap(async (req, res) => {
+    const tid = id(req.params.id);
+    if (!tid) return res.status(400).json({ ok: false, error: 'Élément invalide.' });
+    return game(res, 'trash.purge', { id: tid }, req);
+}));
+router.get('/audit', read, wrap(async (req, res) => {
+    const kind = ['identity', 'vehicle', 'report', 'bolo', 'call', 'conversation'].includes(req.query.kind) ? req.query.kind : '';
+    const action = ['delete', 'restore', 'purge', 'update', 'reopen', 'empty'].includes(req.query.action) ? req.query.action : '';
+    const page = Math.min(10000, Math.max(1, Number(req.query.page) || 1));
+    res.json({ ok: true, ...(await queries.audit({ kind, action, q: text(req.query.q, 60), page })) });
+}));
+
+// Fenêtres et espaces de travail du dispatcher (gardés d'une session à l'autre)
+router.get('/layout', read, wrap(async (req, res) => res.json({ ok: true, layout: await queries.layout(req.session.user.id) })));
+router.post('/layout', act, wrap(async (req, res) => {
+    const data = req.body && req.body.layout;
+    if (!data || typeof data !== 'object' || JSON.stringify(data).length > 30000) return res.status(400).json({ ok: false, error: 'Disposition invalide.' });
+    await queries.saveLayout(req.session.user.id, data);
+    res.json({ ok: true });
 }));
 
 module.exports = router;

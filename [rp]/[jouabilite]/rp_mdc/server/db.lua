@@ -26,7 +26,7 @@ MDCDB = {
 }
 
 local RESOURCE = GetCurrentResourceName()
-local MIGRATIONS = { '001_init', '002_v4' } -- fichiers de sql/migrations, dans l'ordre
+local MIGRATIONS = { '001_init', '002_v4', '003_v5' } -- fichiers de sql/migrations, dans l'ordre
 
 -- =========================================================================
 -- FILE D'ÉCRITURE
@@ -369,9 +369,9 @@ end
 local CALL_SQL = [[INSERT INTO mdc_calls (id, number, kind, title, caller, phone, priority, response_code, agency,
     ideal_units, address, cross_street, block, sector, description, unit_name, backup, requested_by, coords, closed,
     clear_code, dispatch_state, dispatch_reason, dispatch_by, dispatch_at, created_by, created_by_name, created_at,
-    updated_at, updated_by_name, closed_at, closed_by_name, next_note_id, rev)
+    updated_at, updated_by_name, closed_at, closed_by_name, next_note_id, rev, deleted_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, NULLIF(?, ''),
-    NULLIF(?, ''), ?, ?, NULLIF(?, 0), ?, ?, ?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, ?)
+    NULLIF(?, ''), ?, ?, NULLIF(?, 0), ?, ?, ?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, ?, NULLIF(?, 0))
     ON DUPLICATE KEY UPDATE number = VALUES(number), kind = VALUES(kind), title = VALUES(title), caller = VALUES(caller),
     phone = VALUES(phone), priority = VALUES(priority), response_code = VALUES(response_code), agency = VALUES(agency),
     ideal_units = VALUES(ideal_units), address = VALUES(address), cross_street = VALUES(cross_street),
@@ -380,7 +380,7 @@ local CALL_SQL = [[INSERT INTO mdc_calls (id, number, kind, title, caller, phone
     clear_code = VALUES(clear_code), dispatch_state = VALUES(dispatch_state), dispatch_reason = VALUES(dispatch_reason),
     dispatch_by = VALUES(dispatch_by), dispatch_at = VALUES(dispatch_at), updated_at = VALUES(updated_at),
     updated_by_name = VALUES(updated_by_name), closed_at = VALUES(closed_at), closed_by_name = VALUES(closed_by_name),
-    next_note_id = VALUES(next_note_id), rev = VALUES(rev)]]
+    next_note_id = VALUES(next_note_id), rev = VALUES(rev), deleted_at = VALUES(deleted_at)]]
 
 local function callParams(c)
     local coords = ''
@@ -391,7 +391,7 @@ local function callParams(c)
         s(c.sector, 40), s(c.description), s(c.unitName, 30), b(c.backup), s(c.requestedBy, 16), coords, b(c.closed),
         s(c.clear, 1), s(c.dispatch, 16), s(c.dispatchReason, 200), s(c.dispatchBy, 60), nz(c.dispatchAt),
         s(c.createdBy, 80), s(c.createdByName, 60), nz(c.createdAt), nz(c.updatedAt), s(c.updatedByName, 60),
-        nz(c.closedAt), s(c.closedByName, 60), nz(c.nextNoteId) > 0 and nz(c.nextNoteId) or 1, nz(c.rev),
+        nz(c.closedAt), s(c.closedByName, 60), nz(c.nextNoteId) > 0 and nz(c.nextNoteId) or 1, nz(c.rev), nz(c.deletedAt),
     }
 end
 
@@ -433,13 +433,16 @@ end
 function MDCDB.numberUsed(number) return MDCDB.usedNumbers[number] == true end
 function MDCDB.useNumber(number) MDCDB.usedNumbers[number] = true end
 
-function MDCDB.loadCalls(keepSeconds)
-    for _, row in ipairs(query('SELECT id, number FROM mdc_calls') or {}) do
-        MDCDB.knownCalls[tonumber(row.id)] = true
-        MDCDB.usedNumbers[row.number] = true
+function MDCDB.loadCalls(keepSeconds, onlyId)
+    if not onlyId then
+        for _, row in ipairs(query('SELECT id, number FROM mdc_calls') or {}) do
+            MDCDB.knownCalls[tonumber(row.id)] = true
+            MDCDB.usedNumbers[row.number] = true
+        end
     end
     local since = os.time() - (keepSeconds or 0)
-    local rows = query('SELECT * FROM mdc_calls WHERE closed = 0 OR closed_at >= ? ORDER BY id', { since }) or {}
+    local rows = onlyId and (query('SELECT * FROM mdc_calls WHERE id = ?', { onlyId }) or {})
+        or query('SELECT * FROM mdc_calls WHERE deleted_at IS NULL AND (closed = 0 OR closed_at >= ?) ORDER BY id', { since }) or {}
     local calls, byId = {}, {}
     for _, r in ipairs(rows) do
         local coords
@@ -460,20 +463,21 @@ function MDCDB.loadCalls(keepSeconds)
             createdBy = r.created_by, createdByName = r.created_by_name, createdAt = nz(r.created_at),
             updatedAt = tonumber(r.updated_at), updatedByName = r.updated_by_name ~= '' and r.updated_by_name or nil,
             closedAt = tonumber(r.closed_at), closedByName = r.closed_by_name ~= '' and r.closed_by_name or nil,
-            nextNoteId = nz(r.next_note_id), rev = nz(r.rev), units = {}, unitsAt = {}, notes = {}, links = {}, reports = {},
+            nextNoteId = nz(r.next_note_id), rev = nz(r.rev), deletedAt = tonumber(r.deleted_at), units = {}, unitsAt = {}, notes = {}, links = {}, reports = {},
         }
         calls[#calls + 1] = call
         byId[call.id] = call
     end
+    local only = onlyId and ' WHERE call_id = ' .. math.floor(tonumber(onlyId) or 0) or ''
     if #calls > 0 then
-        for _, r in ipairs(query('SELECT * FROM mdc_call_units ORDER BY assigned_at') or {}) do
+        for _, r in ipairs(query('SELECT * FROM mdc_call_units' .. only .. ' ORDER BY assigned_at') or {}) do
             local call = byId[tonumber(r.call_id)]
             if call then
                 call.units[tostring(r.unit_id)] = true
                 call.unitsAt[tostring(r.unit_id)] = nz(r.assigned_at)
             end
         end
-        for _, r in ipairs(query('SELECT * FROM mdc_call_notes ORDER BY call_id, note_id') or {}) do
+        for _, r in ipairs(query('SELECT * FROM mdc_call_notes' .. only .. ' ORDER BY call_id, note_id') or {}) do
             local call = byId[tonumber(r.call_id)]
             if call then
                 call.notes[#call.notes + 1] = {
@@ -483,7 +487,7 @@ function MDCDB.loadCalls(keepSeconds)
                 }
             end
         end
-        for _, r in ipairs(query('SELECT * FROM mdc_call_links ORDER BY added_at') or {}) do
+        for _, r in ipairs(query('SELECT * FROM mdc_call_links' .. only .. ' ORDER BY added_at') or {}) do
             local call = byId[tonumber(r.call_id)]
             if call then
                 call.links[#call.links + 1] = { kind = r.kind, recordId = tonumber(r.record_id), addedBy = r.added_by, addedAt = nz(r.added_at) }
@@ -578,7 +582,7 @@ end
 --- Derniers messages de chaque canal (`perChannel` au plus) et pointeurs de lecture
 function MDCDB.loadMessages(perChannel)
     local rows = query([[SELECT * FROM (
-            SELECT m.*, ROW_NUMBER() OVER (PARTITION BY channel ORDER BY id DESC) AS rn FROM mdc_messages m
+            SELECT m.*, ROW_NUMBER() OVER (PARTITION BY channel ORDER BY id DESC) AS rn FROM mdc_messages m WHERE m.deleted_at IS NULL
         ) t WHERE rn <= ? ORDER BY id]], { perChannel }) or {}
     local channels = {}
     for _, r in ipairs(rows) do
@@ -597,6 +601,100 @@ function MDCDB.loadMessages(perChannel)
     end
     nextMessageId = nz(scalar('SELECT COALESCE(MAX(id), 0) FROM mdc_messages')) + 1
     return channels
+end
+
+-- =========================================================================
+-- CORBEILLE (suppression logique, restaurable pendant Config.TrashDays jours) ET JOURNAL D'AUDIT
+-- La liste de la corbeille est gardée en mémoire (petite) : aucune lecture MySQL pendant une action.
+-- =========================================================================
+MDCDB.trash = {}   -- [id] = { id, kind, recordId, label, data, deletedBy, deletedById, deletedAt, expiresAt }
+local nextTrashId = 1
+
+function MDCDB.loadTrash()
+    MDCDB.trash = {}
+    for _, r in ipairs(query('SELECT * FROM mdc_trash') or {}) do
+        local id = tonumber(r.id)
+        MDCDB.trash[id] = { id = id, kind = r.kind, recordId = r.record_id, label = r.label, data = r.data,
+            deletedBy = r.deleted_by, deletedById = r.deleted_by_id, deletedAt = nz(r.deleted_at), expiresAt = nz(r.expires_at) }
+        if id >= nextTrashId then nextTrashId = id + 1 end
+    end
+end
+
+--- Met un élément à la corbeille. `data` : texte (JSON) qui permet de le restaurer. Retourne l'entrée.
+function MDCDB.trashAdd(kind, recordId, label, data, actorName, actorId, days)
+    local now = os.time()
+    local e = { id = nextTrashId, kind = kind, recordId = tostring(recordId), label = s(label, 160), data = data,
+        deletedBy = s(actorName, 60), deletedById = s(actorId, 80), deletedAt = now, expiresAt = now + math.floor((days or 30) * 86400) }
+    nextTrashId = nextTrashId + 1
+    MDCDB.trash[e.id] = e
+    MDCDB.enqueue(function()
+        exec([[INSERT INTO mdc_trash (id, kind, record_id, label, data, deleted_by, deleted_by_id, deleted_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]], { e.id, e.kind, e.recordId, e.label, e.data, e.deletedBy, e.deletedById, e.deletedAt, e.expiresAt })
+    end, nil, 'trash')
+    return e
+end
+
+function MDCDB.trashRemove(id)
+    local e = MDCDB.trash[id]
+    MDCDB.trash[id] = nil
+    MDCDB.enqueue(function() exec('DELETE FROM mdc_trash WHERE id = ?', { id }) end, nil, 'trash')
+    return e
+end
+
+--- Conversation mise à la corbeille : ses messages sont masqués (même date d'effacement), pas supprimés
+function MDCDB.hideChannel(channel, at)
+    MDCDB.enqueue(function()
+        exec('UPDATE mdc_messages SET deleted_at = ? WHERE channel = ? AND deleted_at IS NULL', { at, channel })
+        exec('DELETE FROM mdc_message_reads WHERE channel = ?', { channel })
+    end, nil, 'messages')
+end
+
+--- Restauration : messages de nouveau visibles, puis rechargés en mémoire (`done(conv)` dans le fil de la file)
+function MDCDB.unhideChannel(channel, at, perChannel, done)
+    MDCDB.enqueue(function()
+        exec('UPDATE mdc_messages SET deleted_at = NULL WHERE channel = ? AND deleted_at = ?', { channel, at })
+        local rows = query([[SELECT * FROM (SELECT * FROM mdc_messages WHERE channel = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?) t
+            ORDER BY id]], { channel, perChannel }) or {}
+        local conv = { messages = {}, read = {} }
+        for _, r in ipairs(rows) do
+            conv.messages[#conv.messages + 1] = {
+                id = tonumber(r.id), channel = r.channel, callId = tonumber(r.call_id), senderType = r.sender_type,
+                from = tonumber(r.sender_unit_id), author = r.sender_name, identifier = r.sender_identifier ~= '' and r.sender_identifier or nil,
+                text = r.text, at = nz(r.created_at),
+            }
+        end
+        done(conv)
+    end, nil, 'messages')
+end
+
+--- Purge définitive (corbeille expirée, ou demandée) : ce qui restait en base est effacé pour de bon
+function MDCDB.trashPurge(e)
+    MDCDB.trash[e.id] = nil
+    MDCDB.enqueue(function()
+        if e.kind == 'call' then
+            exec('DELETE FROM mdc_calls WHERE id = ? AND deleted_at IS NOT NULL', { tonumber(e.recordId) })
+            MDCDB.knownCalls[tonumber(e.recordId)] = nil
+        elseif e.kind == 'conversation' then
+            local ok, d = pcall(json.decode, e.data or '')
+            if ok and type(d) == 'table' then
+                exec('DELETE FROM mdc_messages WHERE channel = ? AND deleted_at = ?', { tostring(d.channel), nz(d.at) })
+            end
+        end
+        exec('DELETE FROM mdc_trash WHERE id = ?', { e.id })
+    end, nil, 'trash')
+end
+
+function MDCDB.audit(source, actorId, actorName, action, kind, recordId, label, before, after)
+    local enc = function(v)
+        if v == nil then return nil end
+        if type(v) == 'table' then local ok, r = pcall(json.encode, v) return ok and r or nil end
+        return tostring(v)
+    end
+    MDCDB.enqueue(function()
+        exec([[INSERT INTO mdc_audit (source, actor_id, actor_name, action, kind, record_id, label, before_data, after_data, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]], { s(source, 16), s(actorId, 80), s(actorName, 60), s(action, 32), s(kind, 16),
+            s(tostring(recordId or ''), 40), s(label, 160), enc(before), enc(after), os.time() })
+    end, nil, 'audit')
 end
 
 -- =========================================================================

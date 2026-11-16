@@ -91,8 +91,9 @@ function init(httpServer, sessionMiddleware, onPresenceChange) {
 
         // LiveView : joueurs regardés par ce poste
         socket.on('live:watch', (list, ack) => {
-            const r = liveview.setWatch(socket, list, cache.players);
-            if (typeof ack === 'function') ack(r);
+            liveview.setWatch(socket, list, cache.players)
+                .then((r) => { if (typeof ack === 'function') ack(r); })
+                .catch((e) => { log.warn('LiveView :', e.message); if (typeof ack === 'function') ack({ ok: false, refused: [] }); });
         });
 
         socket.on('disconnect', () => {
@@ -155,6 +156,8 @@ async function handleGameEvents(events) {
                 broadcast('position', { unitId: Number(e.data.unitId), location: e.data.location });
             }
             if (e.topic === 'call:edited' && e.data) broadcast('call:edited', e.data);
+            if (e.topic === 'records') broadcast('records', {});   // registres modifiés (jeu ou site)
+            if (e.topic === 'trash') broadcast('trash', {});
             if (e.topic === 'dispatch' && e.data) broadcast('dispatch', e.data);
             if (ALERTS[e.topic] && e.data) broadcast('alert', { type: ALERTS[e.topic], ...e.data });
             if (e.topic === 'message' && e.data && e.data.id) {

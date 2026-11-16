@@ -5001,15 +5001,76 @@
     }
 
     // =====================================================================
-    // LIVEVIEW (MDC Web) : capture du jeu (screenshot-basic) réduite à la taille demandée (480 x 270 en mosaïque,
-    // 960 x 540 agrandie), JPEG, envoyée au site avec le jeton reçu du serveur. Une image à la fois.
+    // LIVEVIEW (MDC Web) : capture du jeu (screenshot-basic).
+    // Vidéo WebRTC : chaque capture est décodée hors écran puis dessinée d'un coup dans un canevas (double tampon :
+    // jamais d'image à moitié dessinée) publié en vidéo vers le relais LiveKit (jeton émetteur de la salle de CE
+    // joueur, publication seule). Bibliothèque chargée seulement au premier usage (rien hors LiveView).
+    // Repli : image réduite (480 x 270 / 960 x 540), JPEG, envoyée au site avec le jeton reçu du serveur.
     // =====================================================================
     const live = { busy: false, canvas: null, lastMs: 0 };
+    const rtcPub = { lib: null, loading: null, room: null, url: '', connecting: null, canvas: null, track: null, failedAt: 0, kbps: 0 };
+    function rtcLib() {
+        if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
+        if (!rtcPub.loading) {
+            rtcPub.loading = new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'vendor/livekit-client.umd.js';
+                s.onload = () => (window.LivekitClient ? resolve(window.LivekitClient) : reject(new Error('lib')));
+                s.onerror = () => { rtcPub.loading = null; reject(new Error('lib')); };
+                document.head.appendChild(s);
+            });
+        }
+        return rtcPub.loading;
+    }
+    async function rtcConnect(r) {
+        const LK = await rtcLib();
+        const room = new LK.Room({ adaptiveStream: false, dynacast: false, disconnectOnPageLeave: true });
+        room.on(LK.RoomEvent.Disconnected, () => { if (rtcPub.room === room) { rtcPub.room = null; rtcPub.track = null; } });
+        await room.connect(r.url, r.token, { autoSubscribe: false });
+        const canvas = rtcPub.canvas || (rtcPub.canvas = document.createElement('canvas'));
+        canvas.width = r.w; canvas.height = r.h;
+        const stream = canvas.captureStream(0); // une image vidéo par capture (requestFrame)
+        const mst = stream.getVideoTracks()[0];
+        await room.localParticipant.publishTrack(mst, { name: 'ecran', source: LK.Track.Source.ScreenShare, simulcast: false,
+            videoEncoding: { maxBitrate: r.kbps * 1000, maxFramerate: r.fps }, degradationPreference: 'maintain-resolution' });
+        rtcPub.room = room; rtcPub.url = r.url; rtcPub.track = mst; rtcPub.kbps = r.kbps;
+    }
+    function rtcStop() {
+        if (rtcPub.room) rtcPub.room.disconnect();
+        rtcPub.room = null; rtcPub.track = null; rtcPub.connecting = null;
+    }
+    // vrai si la capture part en vidéo ; faux : repli JPEG
+    function rtcFrame(f, img) {
+        const r = f.rtc;
+        if (!r || !r.url || !r.token || Date.now() - rtcPub.failedAt < 30000) return false;
+        if (rtcPub.room && rtcPub.url !== r.url) rtcStop();
+        if (!rtcPub.room) {
+            if (!rtcPub.connecting) rtcPub.connecting = rtcConnect(r).catch(() => { rtcPub.failedAt = Date.now(); rtcStop(); }).finally(() => { rtcPub.connecting = null; });
+            return false;
+        }
+        const canvas = rtcPub.canvas;
+        if (canvas.width !== r.w || canvas.height !== r.h) { canvas.width = r.w; canvas.height = r.h; } // mosaïque <-> agrandi
+        canvas.getContext('2d').drawImage(img, 0, 0, r.w, r.h);
+        if (rtcPub.track && rtcPub.track.requestFrame) rtcPub.track.requestFrame();
+        if (r.kbps !== rtcPub.kbps && rtcPub.room) {
+            rtcPub.kbps = r.kbps;
+            for (const pub of rtcPub.room.localParticipant.trackPublications.values()) {
+                const sender = pub.track && pub.track.sender;
+                if (!sender) continue;
+                const params = sender.getParameters();
+                (params.encodings || []).forEach((e) => { e.maxBitrate = r.kbps * 1000; e.maxFramerate = r.fps; });
+                sender.setParameters(params).catch(() => {});
+            }
+        }
+        return true;
+    }
     function liveFrame(f) {
-        if (live.busy || !f.img || !f.url || !f.token) return;
+        if (live.busy || !f.img || ((!f.url || !f.token) && !f.rtc)) return;
         live.busy = true;
         const img = new Image();
         img.onload = () => {
+            if (rtcFrame(f, img)) { live.busy = false; return; }
+            if (!f.url || !f.token) { live.busy = false; return; }
             const canvas = live.canvas || (live.canvas = document.createElement('canvas'));
             const w = Math.max(160, Math.min(1280, Number(f.w) || 480));
             const h = Math.max(90, Math.min(720, Number(f.h) || 270));
@@ -5026,7 +5087,7 @@
             }, 'image/jpeg', Math.min(0.9, Math.max(0.2, Number(f.q) || 0.5)));
         };
         img.onerror = () => { live.busy = false; };
-        img.src = f.img;
+        img.src = f.img; // décodée entièrement avant onload : le canevas publié ne voit que des images complètes
     }
 
     function messageNotification(d) {
@@ -6654,6 +6715,7 @@
                 break;
             case 'liveStop':
                 live.busy = false;
+                rtcStop();
                 break;
             case 'civilMessage': // groupe civil <-> dispatch (MDC générique)
                 if (data.data) onCivilMessage(data.data);

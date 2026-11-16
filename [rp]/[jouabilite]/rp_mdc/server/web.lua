@@ -27,7 +27,7 @@ function MDCWeb.enabled() return KEY ~= '' end
 -- ÉVÉNEMENTS VERS LE SITE (regroupés, envoyés une fois MySQL à jour)
 -- =========================================================================
 local pending, scheduled, lastError = {}, false, 0
-local COALESCE = { calls = true, units = true, reads = true, players = true } -- un seul « liste à jour » par envoi
+local COALESCE = { calls = true, units = true, reads = true, players = true, records = true, trash = true } -- un seul « liste à jour » par envoi
 
 local function flush()
     if MDCDB.busy() then return end -- MDCDB.onIdle relancera l'envoi
@@ -109,6 +109,21 @@ local ACTIONS = {
     ['positions']      = function() return MDCServer.positions() end,
     ['live.start']     = function(b) return MDCServer.liveStart(b.targets, b.url) end,
     ['live.stop']      = function(b) return MDCServer.liveStop(b.serverIds) end,
+    -- gestion : suppression (corbeille), modification, réouverture, restauration
+    ['call.delete']    = function(b, actor) return MDCServer.deleteCall(b.id, actor) end,
+    ['call.reopen']    = function(b, actor) return MDCServer.reopenCall(b.id, actor) end,
+    ['record.update']  = function(b, actor) return MDCServer.updateRecord(b.kind, b.id, b.data, actor) end,
+    ['record.delete']  = function(b, actor) return MDCServer.deleteRecord(b.kind, b.id, actor) end,
+    ['conversation.delete'] = function(b, actor) return MDCServer.deleteConversation(b.channel, b.mode, actor) end,
+    ['trash.restore']  = function(b, actor) return MDCServer.restoreTrash(b.id, actor) end,
+    ['trash.purge']    = function(b, actor) return MDCServer.purgeTrash(b.id, actor) end,
+    -- registres (lecture)
+    ['registry.offenders'] = function(b) return MDCServer.offenders(b.type) end,
+    ['registry.bolos'] = function() return MDCServer.bolos() end,
+    ['registry.bolo']  = function(b) return MDCServer.bolo(b.id) end,
+    ['registry.reports'] = function(b) return MDCServer.reports(b) end,
+    ['registry.report'] = function(b) return MDCServer.report(b.id) end,
+    ['registry.reportTypes'] = function() return MDCServer.reportTypes() end,
     ['record']         = function(b) return MDCServer.record(b.kind, b.id) end,
 }
 
@@ -134,6 +149,15 @@ if KEY ~= '' then
             if not okRun then
                 print(('^1[MDC] API dispatch "%s" : %s^0'):format(action, tostring(result)))
                 return reply(res, 500, { ok = false, error = 'Erreur serveur FiveM.' })
+            end
+            -- réponse différée (lecture MySQL d'abord : ancien appel, restauration) : { async = function(done) }
+            if type(result) == 'table' and type(result.async) == 'function' then
+                local okAsync, err = pcall(result.async, function(r) reply(res, 200, r or { ok = true }) end)
+                if not okAsync then
+                    print(('^1[MDC] API dispatch "%s" : %s^0'):format(action, tostring(err)))
+                    reply(res, 500, { ok = false, error = 'Erreur serveur FiveM.' })
+                end
+                return
             end
             reply(res, 200, result or { ok = true })
         end)
