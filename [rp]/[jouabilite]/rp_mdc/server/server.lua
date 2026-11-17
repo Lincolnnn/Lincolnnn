@@ -98,6 +98,13 @@ local Config = {
     --                    criminal citation et libération) ou C (Warning).
     PriorityAgency = 'kcso',
     ClearAgency = 'wsp',
+    -- Secteurs du KCSO : case « KCSO » cochée à la création d'un appel (civil, dispatch) -> au moins un secteur, jusqu'aux
+    -- trois (doivent correspondre à KCSO_AREAS dans html/script.js et mdc-web/public/assets/app.js)
+    KcsoAreas = {
+        { key = 'uninc', label = 'Non-incorporé' },
+        { key = 'maplevalley', label = 'Maple Valley' },
+        { key = 'kenmore', label = 'Kenmore' },
+    },
     -- Renforts depuis un appel (unité rattachée) : boutons par police ; '1033' (Officer Needs Help) part aux deux
     -- polices, les autres à la police de l'unité seulement. BackupCooldown : délai (s) entre deux demandes d'une unité.
     BackupCodes = { kcso = { 'code1', 'code2', 'code3', '1033' }, wsp = { '1033' } },
@@ -109,7 +116,6 @@ local Config = {
     --   DeleteCallAce : supprimer une intervention / un incident de la liste
     AgencyAce = { wsp = 'rp.membre' },
     SupervisorAce = 'rp.admin',
-    BlockEditorAce = 'rp.admin', -- /blocs : éditeur des blocs du PLD (point / carré), admins
     DeleteCallAce = 'rp.admin',
 
     -- Débit (octets/s) des réponses "latentes" (modèles et contenu des rapports,
@@ -360,18 +366,6 @@ local function loadAll()
 end
 
 -- Rechargement manuel après modification des fichiers (console serveur uniquement)
--- /blocs (client/blockeditor.lua) : éditeur des blocs du PLD, réservé aux admins
-RegisterNetEvent('mdc:server:blockEditor', function()
-    local src = source
-    -- admin : rp.admin (ACE ou rang Discord de rp_permissions), ou l'ACE « command » des admins (comme la config des
-    -- lampes des armes)
-    if aceAllowed(src, Config.BlockEditorAce or 'rp.admin') or IsPlayerAceAllowed(src, 'command') then
-        TriggerClientEvent('mdc:client:blockEditor', src, true)
-    else
-        TriggerClientEvent('mdc:client:blockEditor', src, false, 'Éditeur de blocs : réservé aux admins.')
-    end
-end)
-
 -- Relit les fiches depuis MySQL (après une modification faite à la main dans la base ; console serveur uniquement)
 RegisterCommand('mdc_reload', function(source)
     if source ~= 0 or not MDCDB.ready then return end
@@ -415,6 +409,8 @@ end
 --- Identifiant stable du joueur (licence Rockstar) : sert à retrouver "ses"
 --- créations dans le registre, même après une reconnexion ou un redémarrage.
 local function getIdentifier(src)
+    local actor = MDCDemoActors and MDCDemoActors[src] -- données de démonstration : joueur virtuel (server/demo.lua)
+    if actor then return actor.identifier end
     for _, id in ipairs(GetPlayerIdentifiers(src)) do
         if id:sub(1, 8) == 'license:' then return id end
     end
@@ -448,6 +444,8 @@ end
 
 --- Nom affiché d'un joueur : son nom RP (jamais le pseudo Steam/FiveM).
 local function agentName(src)
+    local actor = MDCDemoActors and MDCDemoActors[src]
+    if actor then return actor.name end
     local name = rpNameOf(src)
     return name ~= '' and name or 'Agent sans nom RP'
 end
@@ -1154,6 +1152,7 @@ end
 local KIND_TO_STORE = { identity = 'identities', vehicle = 'vehicles' }
 
 local function checkWriteCooldown(src)
+    if MDCDemoActors and MDCDemoActors[src] then return true end
     local now = GetGameTimer()
     if lastWrite[src] and now - lastWrite[src] < Config.CreateCooldown then return false end
     lastWrite[src] = now
@@ -2111,6 +2110,37 @@ function CallRules.kcso(agency)
     return Config.PriorityAgency ~= nil and agencySet(agency)[Config.PriorityAgency] == true
 end
 
+--- Secteurs du KCSO cochés (liste ou texte « uninc+kenmore ») -> texte canonique (ordre de Config.KcsoAreas), nil si aucun
+function CallRules.areas(value)
+    local set = {}
+    if type(value) == 'table' then
+        for _, v in pairs(value) do set[tostring(v)] = true end
+    elseif type(value) == 'string' then
+        for v in value:gmatch('[^+,%s]+') do set[v] = true end
+    end
+    local list = {}
+    for _, a in ipairs(Config.KcsoAreas or {}) do if set[a.key] then list[#list + 1] = a.key end end
+    return #list > 0 and table.concat(list, '+') or nil
+end
+
+--- « Maple Valley, Kenmore »
+function CallRules.areasLabel(value)
+    local set, list = {}, {}
+    for v in tostring(value or ''):gmatch('[^+]+') do set[v] = true end
+    for _, a in ipairs(Config.KcsoAreas or {}) do if set[a.key] then list[#list + 1] = a.label end end
+    return table.concat(list, ', ')
+end
+
+--- Appel du KCSO : secteur(s) obligatoire(s) ; sinon aucun secteur gardé. Retourne (secteurs | false, erreur)
+function CallRules.checkAreas(agency, value, required)
+    if not agencySet(agency).kcso then return false end
+    local areas = CallRules.areas(value)
+    if not areas and required then
+        return nil, 'KCSO : cochez au moins un secteur (Non-incorporé, Maple Valley, Kenmore).'
+    end
+    return areas or false
+end
+
 --- Clôture avec Clear A / B / C : unité de Config.ClearAgency (WSP) sur un appel qui n'est pas du KCSO
 function CallRules.needsClear(call, unit)
     return Config.ClearAgency ~= nil and (unit == nil or unit.agency == Config.ClearAgency) and not CallRules.kcso(call.agency)
@@ -2225,6 +2255,7 @@ local function interventionsList(src)
 end
 
 pushInterventions = function()
+    if MDCDemoQuiet then return end -- création des données de démonstration en cours (une seule mise à jour à la fin)
     MDCDB.syncCalls(Interventions, DeletedCalls) -- MySQL : appels modifiés / supprimés
     DeletedCalls = {}
     MDCWeb.notify('calls')                       -- MDC Web : listes à jour
@@ -2258,6 +2289,9 @@ local function buildCall(p, kind)
         local agencies = normalizeAgencies(p.agencies or p.agency)
         if not agencies then return nil, 'Cochez au moins une police (WSP, KCSO).' end
         r.agency = agencies
+        local areas, aerr = CallRules.checkAreas(agencies, p.kcsoAreas, true)
+        if areas == nil then return nil, aerr end
+        r.kcsoAreas = areas or nil
 
         if CallRules.kcso(agencies) then
             if not CallRules.kcsoPriorities[p.priority] then return nil, 'Choisissez la priorité de réponse.' end
@@ -2285,6 +2319,7 @@ local function callSummary(call)
     return {
         id = call.id, number = call.number, kind = call.kind, title = call.title, priority = call.priority,
         responseCode = call.responseCode, address = call.address, crossStreet = call.crossStreet, block = call.block, unitName = call.unitName,
+        kcsoAreas = call.kcsoAreas,
         agency = call.agency, idealUnits = call.idealUnits, backup = call.backup, sector = call.sector, requestedBy = call.requestedBy,
     }
 end
@@ -2699,6 +2734,7 @@ RegisterMDCCallback('editIntervention', function(src, payload)
     payload.agencies, payload.agency, payload.idealUnits = nil, call.agency, call.idealUnits
     local data, err = buildCall(payload, call.kind)
     if not data then return { ok = false, error = err } end
+    if call.kind ~= 'intervention' then data.kcsoAreas = call.kcsoAreas end
 
     local changed = {}
     for k, v in pairs(data) do
@@ -4309,12 +4345,13 @@ do
     -- INTERVENTIONS CRÉÉES OU MODIFIÉES PAR LE DISPATCH (MDC Web)
     -- =====================================================================
     MDCServer.EDIT_LABELS = { title = 'Intitulé', address = 'Adresse', crossStreet = 'Croisement', block = 'Bloc', sector = 'Secteur',
+        kcsoAreas = 'Secteur KCSO',
         description = 'Description', caller = 'Requérant', phone = 'Téléphone', priority = 'Priorité',
         responseCode = 'Code de réponse', idealUnits = 'Unités idéales', agency = 'Police' }
     D.EDIT_LABELS = MDCServer.EDIT_LABELS
-    D.EDIT_CALL = { 'title', 'priority', 'responseCode', 'agency', 'address', 'crossStreet', 'block', 'sector', 'caller', 'phone',
+    D.EDIT_CALL = { 'title', 'priority', 'responseCode', 'agency', 'kcsoAreas', 'address', 'crossStreet', 'block', 'sector', 'caller', 'phone',
         'idealUnits', 'description' }
-    D.EDIT_INCIDENT = { 'title', 'agency', 'address', 'crossStreet', 'block', 'sector', 'description' }
+    D.EDIT_INCIDENT = { 'title', 'agency', 'kcsoAreas', 'address', 'crossStreet', 'block', 'sector', 'description' }
 
     --- Nouvelle intervention / nouvel incident saisi(e) par le dispatch : transmis(e) tout de suite aux unités
     --- (le dispatch l'a lui-même validé(e)) ; unités choisies affectées d'office.
@@ -4331,6 +4368,9 @@ do
         if kind == 'incident' then
             call.agency = normalizeAgencies(p.agencies or p.agency)
             if not call.agency then return { ok = false, error = 'Cochez au moins une police (WSP, KCSO).' } end
+            local areas, aerr = CallRules.checkAreas(call.agency, p.kcsoAreas, true)
+            if areas == nil then return { ok = false, error = aerr } end
+            call.kcsoAreas = areas or nil
             call.unitName = 'DISPATCH'
         end
         call.sector = clean(p.sector, 40) ~= '' and clean(p.sector, 40) or nil
@@ -4389,6 +4429,7 @@ do
             title = call.title, address = call.address, crossStreet = call.crossStreet, block = call.block,
             description = call.description, caller = call.caller, phone = call.phone, priority = call.priority,
             responseCode = call.responseCode, idealUnits = call.idealUnits, agencies = call.agency,
+            kcsoAreas = call.kcsoAreas,
         }
         for k in pairs(D.EDIT_LABELS) do
             if fields[k] ~= nil then
@@ -4402,10 +4443,12 @@ do
             built, berr = buildCall(merged, 'incident')
             if built then
                 built.agency = normalizeAgencies(merged.agencies) or call.agency
+                -- incident : secteurs facultatifs (incidents déclarés par une unité), seulement s'il y a le KCSO
+                built.kcsoAreas = CallRules.checkAreas(built.agency, merged.kcsoAreas, false) or nil
             end
         end
         if not built then return { ok = false, error = berr } end
-        if call.backup then built.agency = call.agency end -- renforts : toujours les deux polices
+        if call.backup then built.agency, built.kcsoAreas = call.agency, call.kcsoAreas end -- renforts : toujours les deux polices
         local sector = fields.sector ~= nil and clean(fields.sector, 40) or (call.sector or '')
         built.sector = sector ~= '' and sector or nil
         local changes = {}
@@ -4457,7 +4500,7 @@ do
         return { ok = true, players = list, liveview = GetResourceState('screenshot-basic') == 'started' }
     end
 
-    D.locations = {}     -- [id de l'unité] = { street, crossing, block, zone, at }
+    D.locations = {}     -- [id de l'unité] = { street, crossing, zone, at }
     D.locationAt = {}    -- [joueur] = dernier envoi accepté (ms)
     RegisterNetEvent('mdc:server:location', function(data)
         local src = source
@@ -4466,7 +4509,7 @@ do
         local now = GetGameTimer()
         if D.locationAt[src] and now - D.locationAt[src] < 2000 then return end -- 1 envoi / 2 s au plus par joueur
         D.locationAt[src] = now
-        local loc = { street = clean(data.street, 80), crossing = clean(data.crossing, 80), block = clean(data.block, 40),
+        local loc = { street = clean(data.street, 80), crossing = clean(data.crossing, 80),
             zone = clean(data.zone, 60), at = os.time() }
         D.locations[unit.id] = loc
         MDCWeb.notify('position', { unitId = unit.id, location = loc })
@@ -4984,4 +5027,62 @@ MDCServer.demo = {
     ReportTypes = ReportTypes, Offenses = Offenses, classAllowed = classAllowed, matrixSet = matrixSet,
     genCaseNumber = genCaseNumber, uniqueValue = uniqueValue, todayKey = todayKey, dateKey = dateKey,
     ready = function() return MDCDB.ready == true end,
+    -- Comme un joueur : les callbacks du NUI (create, updateJustice, saveReport…) avec un joueur virtuel (MDCDemoActors)
+    Handlers = Handlers, CallRules = CallRules, Config = Config,
+    push = function() pushInterventions() end,
 }
+
+--- Intervention passée (appel d'un civil, traitée et clôturée par une unité) : mêmes contrôles qu'un appel émis en jeu
+--- (buildCall), dates fournies (h : createdAt, units = { { name, at } }, closedAt, closedBy, clear, links, author).
+function MDCServer.demo.historicCall(p, h)
+    local call, err = buildCall(p, 'intervention')
+    if not call then return nil, err end
+    call.id = NextInterventionId
+    NextInterventionId = NextInterventionId + 1
+    MDCDB.setSetting('call_seq', NextInterventionId)
+    call.number = newInterventionNumber()
+    call.kind = 'intervention'
+    call.units, call.unitsAt, call.notes, call.reports, call.links = {}, {}, {}, {}, {}
+    call.nextNoteId, call.rev = 1, 0
+    call.createdAt, call.createdByName, call.createdBy = h.createdAt, call.caller, h.author
+    local function note(text, author, at)
+        MDCServer.journal(call, text, author)
+        call.notes[#call.notes].createdAt = at
+    end
+    note(('Intervention créé(e) par %s'):format(call.caller), call.caller, h.createdAt)
+    for _, u in ipairs(h.units or {}) do note(('%s affectée à l\'appel'):format(u.name), u.name, u.at) end
+    for _, l in ipairs(h.links or {}) do
+        call.links[#call.links + 1] = { kind = l.kind, recordId = l.recordId, addedBy = l.addedBy, addedAt = l.addedAt }
+    end
+    call.closed, call.closedAt, call.closedByName, call.clear = true, h.closedAt, h.closedBy, h.clear
+    note(('Clôturée par %s'):format(h.closedBy), h.closedBy, h.closedAt)
+    Interventions[#Interventions + 1] = call
+    return call
+end
+
+--- Fin de la démo : appels enregistrés (MySQL) ; ceux terminés depuis plus de ClosedCallsKeepHours quittent la liste du
+--- MDC en jeu (comme après un redémarrage), ils restent dans MySQL, l'historique du site et les rapports.
+function MDCServer.demo.settleCalls()
+    MDCDemoQuiet = false
+    pushInterventions()
+    local limit = os.time() - (Config.ClosedCallsKeepHours or 12) * 3600
+    for i = #Interventions, 1, -1 do
+        local c = Interventions[i]
+        if c.createdBy == 'demo' and c.closed and (c.closedAt or 0) < limit then table.remove(Interventions, i) end
+    end
+    pushInterventions()
+end
+
+--- Purge : appels de démonstration retirés (mémoire et MySQL)
+function MDCServer.demo.removeCalls(author)
+    for i = #Interventions, 1, -1 do
+        local c = Interventions[i]
+        if c.createdBy == author then
+            c.deleted = true
+            DeletedCalls[#DeletedCalls + 1] = c
+            table.remove(Interventions, i)
+        end
+    end
+    pushInterventions()
+    MDCDB.deleteCallsBy(author)
+end

@@ -157,6 +157,7 @@ callAction('reopen', 'call.reopen');   // intervention / incident terminé(e) ro
 
 // ---- Création d'une intervention / d'un incident par le dispatch (formulaire rapide ou détaillé) ----
 const PRIORITIES = ['px', 'k1', 'k2', 'k3', 'k4', 'k0', 'nonurgent', 'p1', 'p2', 'p3'];
+const KCSO_AREAS = ['uninc', 'maplevalley', 'kenmore']; // secteurs du KCSO (Config.KcsoAreas de rp_mdc)
 function callFields(b, partial) {
     const out = {};
     const str = (k, max) => { if (b[k] !== undefined) out[k] = text(b[k], max); };
@@ -179,6 +180,11 @@ function callFields(b, partial) {
         const list = (Array.isArray(ag) ? ag : String(ag).split('+')).map(String).filter((a) => ['kcso', 'wsp'].includes(a));
         if (!list.length) return null;
         out[partial ? 'agency' : 'agencies'] = [...new Set(list)];
+    }
+    // KCSO coché : secteur(s) obligatoire(s) (vérifié par le serveur FiveM) ; valeurs inconnues ignorées
+    if (b.kcsoAreas !== undefined && b.kcsoAreas !== null) {
+        const list = (Array.isArray(b.kcsoAreas) ? b.kcsoAreas : String(b.kcsoAreas).split('+')).map(String).filter((a) => KCSO_AREAS.includes(a));
+        out.kcsoAreas = [...new Set(list)];
     }
     return out;
 }

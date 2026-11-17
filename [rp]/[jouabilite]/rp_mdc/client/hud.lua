@@ -2,8 +2,7 @@
     MDC Standalone - HUD (client)
     -----------------------------
     Deux affichages indépendants, dessinés par le NUI (html/script.js) :
-      - PLD (Player Localisation Display) : direction, rue, croisement le plus proche, bloc,
-        heure du jeu
+      - PLD (Player Localisation Display) : direction, rue, zone, croisement le plus proche, heure du jeu
         -> affiché pour chaque joueur dès sa connexion, sans utiliser le MDC
            (désactivable / réglable dans l'onglet "Paramètres" du MDC, réglages propres au joueur)
       - Display MDC : nom de l'unité, tag, statut, n° d'incident de l'appel en cours
@@ -20,7 +19,6 @@
       - Le display MDC et les notifications n'ont pas de boucle : le serveur envoie
         les changements (événements).
 
-    Les blocs de localisation se configurent dans config/blocs.json (voir config/LISEZMOI.txt).
     Les réglages (position, taille, éléments affichés) sont modifiés dans l'onglet
     "Paramètres" du MDC et gardés chez le joueur (KVP), même après une reconnexion.
 ]]
@@ -31,8 +29,6 @@ local Config = {
     PldForEveryone = true,
 
     Interval = 500,          -- délai (ms) entre deux mises à jour du PLD
-    BlocksFile = 'config/blocs.json',
-    PointRadius = 75.0,      -- bloc "point" sans "radius" : rayon (m)
     UnknownStreet = 'Rue inconnue',
 
     -- Recherche du croisement le plus proche quand le joueur n'est pas sur une intersection :
@@ -70,130 +66,6 @@ local function setting(group, key)
 end
 
 loadSettings()
-
--- =========================================================================
--- BLOCS DE LOCALISATION (config/blocs.json) : point (une coordonnée), carré (4 coins), cercle, rectangle, polygone
--- Le bloc qui contient le joueur est affiché ; sinon, le bloc le plus proche.
--- =========================================================================
-local Blocks = {}
-local DefaultBlock = ''
-
-local function toPoint(value)
-    if type(value) == 'table' and type(value[1]) == 'number' and type(value[2]) == 'number' then
-        return { x = value[1], y = value[2] }
-    end
-    return nil
-end
-
-local function loadBlocks()
-    local raw = LoadResourceFile(RESOURCE, Config.BlocksFile)
-    if not raw then
-        print(('^3[MDC] HUD : %s introuvable, aucun bloc ne sera affiché.^0'):format(Config.BlocksFile))
-        return
-    end
-    local ok, decoded = pcall(json.decode, raw)
-    if not ok or type(decoded) ~= 'table' then
-        print(('^1[MDC] HUD : %s est un JSON invalide, aucun bloc ne sera affiché.^0'):format(Config.BlocksFile))
-        return
-    end
-
-    DefaultBlock = type(decoded.default) == 'string' and decoded.default or ''
-    for index, entry in ipairs(type(decoded.blocks) == 'table' and decoded.blocks or {}) do
-        local block = { name = tostring(entry.name or ''), street = type(entry.street) == 'string' and entry.street:lower() or nil }
-
-        if entry.type == 'rect' then
-            local a, b = toPoint(entry.min), toPoint(entry.max)
-            if a and b then
-                block.kind = 'rect'
-                block.minX, block.maxX = math.min(a.x, b.x), math.max(a.x, b.x)
-                block.minY, block.maxY = math.min(a.y, b.y), math.max(a.y, b.y)
-            end
-        elseif entry.type == 'circle' then
-            local c = toPoint(entry.center)
-            if c and type(entry.radius) == 'number' then
-                block.kind, block.cx, block.cy, block.r = 'circle', c.x, c.y, entry.radius
-            end
-        elseif entry.type == 'point' then
-            -- une coordonnée : le bloc s'étend sur "radius" m autour (PointRadius par défaut)
-            local c = toPoint(entry.coords or entry.center)
-            if c then
-                block.kind, block.cx, block.cy = 'circle', c.x, c.y
-                block.r = type(entry.radius) == 'number' and entry.radius or Config.PointRadius
-            end
-        elseif (entry.type == 'square' or entry.type == 'quad') and type(entry.corners) == 'table' then
-            -- 4 coordonnées (les 4 coins, dans l'ordre du tour) : grande zone sous un seul bloc
-            local points = {}
-            for _, value in ipairs(entry.corners) do points[#points + 1] = toPoint(value) end
-            if #points == 4 then block.kind, block.points = 'poly', points end
-        elseif entry.type == 'poly' and type(entry.points) == 'table' then
-            local points = {}
-            for _, value in ipairs(entry.points) do points[#points + 1] = toPoint(value) end
-            if #points >= 3 then block.kind, block.points = 'poly', points end
-        end
-
-        if block.kind and block.name ~= '' then
-            Blocks[#Blocks + 1] = block
-        else
-            print(('^3[MDC] HUD : bloc n°%d ignoré dans %s (format invalide).^0'):format(index, Config.BlocksFile))
-        end
-    end
-    print(('^5[MDC]^0 HUD : %d bloc(s) de localisation chargé(s).'):format(#Blocks))
-end
-
--- Point dans un polygone (lancer de rayon)
-local function inPolygon(x, y, points)
-    local inside, j = false, #points
-    for i = 1, #points do
-        local a, b = points[i], points[j]
-        if (a.y > y) ~= (b.y > y) and x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x then
-            inside = not inside
-        end
-        j = i
-    end
-    return inside
-end
-
-local function distanceToSegment(x, y, a, b)
-    local dx, dy = b.x - a.x, b.y - a.y
-    local length2 = dx * dx + dy * dy
-    local t = length2 > 0 and math.max(0, math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / length2)) or 0
-    local px, py = a.x + t * dx, a.y + t * dy
-    return math.sqrt((x - px) ^ 2 + (y - py) ^ 2)
-end
-
---- Distance (m) entre la position et le bord du bloc ; 0 si la position est dedans.
-local function blockDistance(block, x, y)
-    if block.kind == 'circle' then
-        return math.max(0, math.sqrt((x - block.cx) ^ 2 + (y - block.cy) ^ 2) - block.r)
-    elseif block.kind == 'rect' then
-        local dx = math.max(block.minX - x, 0, x - block.maxX)
-        local dy = math.max(block.minY - y, 0, y - block.maxY)
-        return math.sqrt(dx * dx + dy * dy)
-    end
-    if inPolygon(x, y, block.points) then return 0 end
-    local best, points = math.huge, block.points
-    for i = 1, #points do
-        best = math.min(best, distanceToSegment(x, y, points[i], points[i % #points + 1]))
-    end
-    return best
-end
-
---- Bloc qui contient la position (le premier de la liste), sinon le bloc le plus proche.
---- Un bloc limité à une rue ("street") n'est utilisé que sur cette rue.
-local function findBlock(x, y, street)
-    street = street:lower()
-    local nearest, nearestDistance = nil, math.huge
-    for _, block in ipairs(Blocks) do
-        if not block.street or block.street == street then
-            local distance = blockDistance(block, x, y)
-            if distance == 0 then return block.name end
-            if distance < nearestDistance then nearest, nearestDistance = block.name, distance end
-        end
-    end
-    return nearest or DefaultBlock
-end
-
-loadBlocks()
 
 -- =========================================================================
 -- LOCALISATION
@@ -242,7 +114,6 @@ local function readLocation()
         crossing = crossing,
         zone = StreetNames.zone(coords.x, coords.y, coords.z), -- zone géographique (ex. Cypress Flats)
         dir = DIRECTIONS[math.floor(((heading + 22.5) % 360) / 45) + 1],
-        block = findBlock(coords.x, coords.y, street),
         time = ('%02d:%02d'):format(GetClockHours(), GetClockMinutes()), -- heure du jeu
         -- masqué dans le menu pause et pendant les écrans noirs (chargement, mort…)
         paused = IsPauseMenuActive() or IsScreenFadedOut() or GetIsLoadingScreenActive(),
@@ -302,17 +173,17 @@ startLoop = function()
         while pldActive() do
             local data = readLocation()
             -- (l'heure du jeu avance d'une minute toutes les 2 s : un envoi au plus toutes les 2 s)
-            local key = ('%s|%s|%s|%s|%s|%s|%s'):format(data.street, data.zone, data.crossing, data.dir, data.block, data.time, tostring(data.paused))
+            local key = ('%s|%s|%s|%s|%s|%s'):format(data.street, data.zone, data.crossing, data.dir, data.time, tostring(data.paused))
             if key ~= last then
                 last = key
                 SendNUIMessage({ action = 'pld', data = data })
             end
-            -- MDC Web : rue et bloc de son unité (en service seulement), quand ils changent, 1 envoi / 3 s au plus
+            -- MDC Web : rue de son unité (en service seulement), quand elle change, 1 envoi / 3 s au plus
             if unitInfo then
-                local locKey = ('%s|%s|%s|%s'):format(data.street, data.crossing, data.block, data.zone)
+                local locKey = ('%s|%s|%s'):format(data.street, data.crossing, data.zone)
                 if locKey ~= lastLoc and GetGameTimer() - lastLocAt >= 3000 then
                     lastLoc, lastLocAt = locKey, GetGameTimer()
-                    TriggerServerEvent('mdc:server:location', { street = data.street, crossing = data.crossing, block = data.block, zone = data.zone })
+                    TriggerServerEvent('mdc:server:location', { street = data.street, crossing = data.crossing, zone = data.zone })
                 end
             end
             Wait(Config.Interval)
@@ -554,20 +425,12 @@ RegisterNUICallback('saveSettings', function(data, cb)
     publishTheme()
 end)
 
--- Bouton "Position actuelle" des formulaires d'intervention / d'incident : rue, croisement, bloc
+-- Bouton "Position actuelle" des formulaires d'intervention / d'incident : rue et croisement (le bloc se saisit
+-- toujours à la main)
 RegisterNUICallback('getLocation', function(_, cb)
     local location = readLocation()
-    cb({ ok = true, street = location.street, crossing = location.crossing, block = location.block })
+    cb({ ok = true, street = location.street, crossing = location.crossing })
 end)
-
--- Commande /mdc_pos (cadres) : position dans la console F8, au format de config/blocs.json (bloc point, ou coin
--- d'un bloc carré)
-RegisterCommand('mdc_pos', function()
-    local location, coords = readLocation()
-    print(('[MDC] Rue : %s | Croisement : %s | Bloc affiché : %s'):format(location.street, location.crossing, location.block))
-    print(('{ "name": "A RENOMMER", "type": "point", "coords": [%.2f, %.2f] }'):format(coords.x, coords.y))
-    print(('Coin d\'un bloc carré : [%.2f, %.2f]'):format(coords.x, coords.y))
-end, false)
 
 -- Démarrage (ou redémarrage) du MDC : les autres ressources reçoivent le thème des menus
 CreateThread(function()

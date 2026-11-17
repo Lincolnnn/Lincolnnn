@@ -28,8 +28,11 @@
     const UNIT_ORDER = { available: 0, en_route: 1, on_scene: 2, unavailable: 3 };
     const CLEAR = { A: 'Clear A — Notice of Infraction (ticket)', B: 'Clear B — Arrestation, retenue ou criminal citation', C: 'Clear C — Warning' };
     const AGENCY = { kcso: 'KCSO', wsp: 'WSP', generic: 'Civil' };
+    // Secteurs du KCSO (case KCSO cochée : au moins un, jusqu'aux trois) — mêmes clés que Config.KcsoAreas (rp_mdc)
+    const KCSO_AREAS = { uninc: 'Non-incorporé', maplevalley: 'Maple Valley', kenmore: 'Kenmore' };
+    const areasText = (list) => Object.keys(KCSO_AREAS).filter((k) => (list || []).includes(k)).map((k) => KCSO_AREAS[k]).join(', ');
     const FIELD_LABEL = { title: 'Intitulé', address: 'Adresse', crossStreet: 'Croisement', block: 'Bloc', sector: 'Secteur', description: 'Description',
-        caller: 'Requérant', phone: 'Téléphone', priority: 'Priorité', responseCode: 'Code de réponse', idealUnits: 'Unités idéales', agency: 'Police' };
+        caller: 'Requérant', phone: 'Téléphone', priority: 'Priorité', responseCode: 'Code de réponse', idealUnits: 'Unités idéales', agency: 'Police', kcsoAreas: 'Secteur KCSO' };
     const KIND_LABEL = { identity: 'Identité', vehicle: 'Véhicule', report: 'Rapport', bolo: 'BOLO', call: 'Intervention', conversation: 'Conversation' };
     const AUDIT_ACTION = { update: 'Modification', delete: 'Suppression', empty: 'Messages vidés', restore: 'Restauration', reopen: 'Réouverture', purge: 'Purge définitive' };
     const ACTIONS = {
@@ -291,7 +294,7 @@
             <div class="qcard" data-open="${x.id}" data-ctx-call="${x.id}">
                 <div class="q-top"><span class="num">${esc(x.number)}</span>${prioChip(x.priority)}${x.responseCode ? `<span class="chip">Code ${esc(x.responseCode)}</span>` : ''}
                     <span class="q-title">${esc(x.title)}</span><span class="q-age" data-age="${x.createdAt}">${age(x.createdAt)}</span></div>
-                <div class="q-meta">${esc(x.address)}${x.block ? ` · bloc ${esc(x.block)}` : ''} · ${agencyChips(x.agency)} · requérant ${esc(x.caller || '—')}</div>
+                <div class="q-meta">${esc(x.address)}${x.block ? ` · bloc ${esc(x.block)}` : ''} · ${agencyChips(x.agency)}${(x.kcsoAreas || []).length ? ` <span class="muted">${esc(areasText(x.kcsoAreas))}</span>` : ''} · requérant ${esc(x.caller || '—')}</div>
                 <div class="q-actions"><button type="button" class="btn go small" data-quick="validate" data-id="${x.id}">${icon('check')}Valider</button>
                     <button type="button" class="btn small" data-open="${x.id}">Ouvrir</button>
                     <button type="button" class="btn stop small" data-quick="refuse" data-id="${x.id}">Refuser</button></div>
@@ -308,7 +311,7 @@
             <td>${prioChip(c.priority)}${c.responseCode ? ` <span class="muted">C${esc(c.responseCode)}</span>` : ''}</td>
             <td><b>${esc(c.title)}</b>${c.kind === 'incident' ? ' <span class="tag">Incident</span>' : ''}${editing ? ` <span class="chip caution" title="${esc(editing.join(', '))} modifie cette fiche">${icon('edit')}</span>` : ''}</td>
             <td>${esc(c.address)}${c.block ? `<span class="sub">bloc ${esc(c.block)}${c.crossStreet ? ` · × ${esc(c.crossStreet)}` : ''}</span>` : ''}</td>
-            <td>${agencyChips(c.agency)}</td>
+            <td>${agencyChips(c.agency)}${(c.kcsoAreas || []).length ? `<span class="sub">${esc(areasText(c.kcsoAreas))}</span>` : ''}</td>
             <td>${c.units.map((u) => esc(u.name)).join(', ') || '<span class="muted">—</span>'}</td>
             <td>${statusChip(c.status)}</td>
             <td>${fmtTime(c.createdAt)}<span class="sub" data-age="${c.createdAt}">${age(c.createdAt)}</span></td>
@@ -360,7 +363,7 @@
         markRead(`d:c:${id}`);
     }
     const othersEditing = (id) => (state.editing[id] || []).filter((s) => s !== state.station);
-    const fieldText = (field, v) => (field === 'priority' ? PRIORITY[v] || v : field === 'agency' ? String(v || '').split('+').map((a) => AGENCY[a] || a).join(' + ') : field === 'responseCode' ? (v ? `Code ${v}` : '') : v);
+    const fieldText = (field, v) => (field === 'kcsoAreas' ? areasText(String(v || '').split('+')) : field === 'priority' ? PRIORITY[v] || v : field === 'agency' ? String(v || '').split('+').map((a) => AGENCY[a] || a).join(' + ') : field === 'responseCode' ? (v ? `Code ${v}` : '') : v);
     const changesHtml = (details) => arr(details && details.changes).map((ch) => `<span class="change">${esc(ch.label || FIELD_LABEL[ch.field] || ch.field)} : ${ch.field === 'description' ? '<ins>modifiée</ins>'
         : `<del>${esc(fieldText(ch.field, ch.from) || '—')}</del> → <ins>${esc(fieldText(ch.field, ch.to) || '—')}</ins>`}</span>`).join('');
     function editLockHtml() {
@@ -392,6 +395,7 @@
             ['Priorité', `${prioChip(c.priority)} <span class="muted">${esc(PRIORITY_MEANING[c.priority] || '')}</span>`],
             ['Code de réponse', c.responseCode ? esc(RESPONSE[c.responseCode]) : '—'],
             ['Requérant', `${esc(c.caller || '—')}${c.phone ? ` <span class="muted">${esc(c.phone)}</span>` : ''}`],
+            ...((c.kcsoAreas || []).length ? [['Secteur KCSO', esc(areasText(c.kcsoAreas))]] : []),
             ['Adresse', `${esc(c.address)}${c.crossStreet ? ` × ${esc(c.crossStreet)}` : ''}`], ['Bloc', esc(c.block || '—')],
             ...(c.sector ? [['Secteur', esc(c.sector)]] : []),
             ...(c.kind === 'intervention' ? [['Unités idéales', c.idealUnits ? esc(c.idealUnits) : '—']] : [['Déclaré par', esc(c.unitName || '—')]]),
@@ -453,7 +457,7 @@
     }
 
     function editValues(c) {
-        return { title: c.title, priority: c.priority, responseCode: c.responseCode ? String(c.responseCode) : '', agency: [...(c.agency || [])], address: c.address,
+        return { title: c.title, priority: c.priority, responseCode: c.responseCode ? String(c.responseCode) : '', agency: [...(c.agency || [])], kcsoAreas: [...(c.kcsoAreas || [])], address: c.address,
             crossStreet: c.crossStreet, block: c.block, sector: c.sector, caller: c.caller, phone: c.phone, idealUnits: c.idealUnits ? String(c.idealUnits) : '', description: c.description };
     }
     function enterEdit() {
@@ -479,6 +483,7 @@
         return `<div class="form-grid ${full ? '' : 'quick'}">
             <label class="field"><span>${kind === 'incident' ? 'Type d\'incident' : 'Type d\'intervention'} <b>*</b></span><input name="title" maxlength="60" value="${esc(v.title || '')}" required placeholder="ex : Accident matériel"></label>
             <div class="field"><span>Police <b>*</b></span><div class="toolbar flat">${['kcso', 'wsp'].map((a) => `<label class="check"><input type="checkbox" name="agency" value="${a}" ${(v.agency || []).includes(a) ? 'checked' : ''}> ${AGENCY[a]}</label>`).join(' ')}</div></div>
+            ${kcso ? `<div class="field kcso-areas"><span>Secteur KCSO <b>*</b> <small class="muted">un ou plusieurs</small></span><div class="toolbar flat">${Object.entries(KCSO_AREAS).map(([k, l]) => `<label class="check"><input type="checkbox" name="kcsoAreas" value="${k}" ${(v.kcsoAreas || []).includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join(' ')}</div></div>` : ''}
             ${kind === 'intervention' ? `<label class="field"><span>Priorité <b>*</b></span><select name="priority" required><option value="">Choisir…</option>${prios.map((p) => `<option value="${p}" ${p === v.priority ? 'selected' : ''}>${esc(PRIORITY[p])}${PRIORITY_MEANING[p] ? ` — ${esc(PRIORITY_MEANING[p])}` : ''}</option>`).join('')}</select></label>
             ${kcso ? `<label class="field"><span>Code de réponse <b>*</b></span><select name="responseCode" required><option value="">Choisir…</option>${[1, 2, 3].map((n) => `<option value="${n}" ${String(n) === String(v.responseCode) ? 'selected' : ''}>${esc(RESPONSE[n])}</option>`).join('')}</select></label>` : '<span></span>'}` : ''}
             <label class="field"><span>Adresse <b>*</b></span><input name="address" maxlength="80" value="${esc(v.address || '')}" required></label>
@@ -495,7 +500,7 @@
     function readForm(root, kind) {
         const val = (n) => { const el = root.querySelector(`[name="${n}"]`); return el ? el.value.trim() : undefined; };
         const out = { title: val('title'), address: val('address'), block: val('block'), crossStreet: val('crossStreet'), sector: val('sector'), description: val('description'),
-            agency: $$('[name="agency"]:checked', root).map((x) => x.value) };
+            agency: $$('[name="agency"]:checked', root).map((x) => x.value), kcsoAreas: $$('[name="kcsoAreas"]:checked', root).map((x) => x.value) };
         if (kind === 'intervention') Object.assign(out, { priority: val('priority'), responseCode: val('responseCode') || null, caller: val('caller'), phone: val('phone'), idealUnits: val('idealUnits') });
         Object.keys(out).forEach((k) => out[k] === undefined && delete out[k]);
         return out;
@@ -522,11 +527,12 @@
         const base = state.editBase.values;
         const fields = {};
         for (const [k, v] of Object.entries(values)) {
-            const before = k === 'agency' ? [...(base.agency || [])].sort().join('+') : String(base[k] ?? '');
-            const after = k === 'agency' ? [...v].sort().join('+') : String(v ?? '');
+            const before = Array.isArray(base[k]) ? [...base[k]].sort().join('+') : String(base[k] ?? '');
+            const after = Array.isArray(v) ? [...v].sort().join('+') : String(v ?? '');
             if (before !== after) fields[k] = v;
         }
         if (fields.priority !== undefined || fields.agency !== undefined) { fields.priority = values.priority; fields.agency = values.agency; if (values.responseCode !== undefined) fields.responseCode = values.responseCode; }
+        if (fields.agency !== undefined || fields.kcsoAreas !== undefined) fields.kcsoAreas = values.kcsoAreas; // secteurs revérifiés avec les polices
         if (!Object.keys(fields).length) { leaveEdit(); return; }
         const res = await api(`/calls/${c.id}/edit`, { rev: state.editBase.rev, force, fields });
         if (!res) return;
@@ -636,10 +642,11 @@
         keepNew();
         const v = draft.values;
         const missing = [!v.title && 'intitulé', !(v.agency || []).length && 'police', !v.address && 'adresse', !v.block && 'bloc',
-            draft.kind === 'intervention' && !v.priority && 'priorité', draft.kind === 'intervention' && (v.agency || []).includes('kcso') && !v.responseCode && 'code de réponse'].filter(Boolean);
+            draft.kind === 'intervention' && !v.priority && 'priorité', draft.kind === 'intervention' && (v.agency || []).includes('kcso') && !v.responseCode && 'code de réponse',
+            (v.agency || []).includes('kcso') && !(v.kcsoAreas || []).length && 'secteur KCSO (Non-incorporé, Maple Valley, Kenmore)'].filter(Boolean);
         if (missing.length) { toast('error', 'Champs obligatoires', `À remplir : ${missing.join(', ')}.`); return; }
         $('#newSubmit').disabled = true;
-        const body = { kind: draft.kind, title: v.title, address: v.address, block: v.block, crossStreet: v.crossStreet, sector: v.sector, description: v.description, agencies: v.agency, units: draft.units };
+        const body = { kind: draft.kind, title: v.title, address: v.address, block: v.block, crossStreet: v.crossStreet, sector: v.sector, description: v.description, agencies: v.agency, kcsoAreas: v.kcsoAreas || [], units: draft.units };
         if (draft.kind === 'intervention') Object.assign(body, { priority: v.priority, responseCode: v.responseCode || null, caller: v.caller, phone: v.phone, idealUnits: v.idealUnits });
         const res = await api('/calls', body);
         $('#newSubmit').disabled = false;
@@ -683,13 +690,13 @@
     });
 
     // =================================================================================================================
-    // UNITÉS (rue et bloc en temps réel)
+    // UNITÉS (rue et croisement en temps réel)
     // =================================================================================================================
     function positionHtml(unitId) {
         const p = state.positions[unitId];
         if (!p || !p.street) return '<span class="muted">Position inconnue</span>';
         const stale = nowS() - (p.at || 0) > 120;
-        return `<span class="pos ${stale ? 'stale' : ''}"><b>${esc(p.street)}${p.block ? ` · bloc ${esc(p.block)}` : ''}</b><small>${p.crossing ? `× ${esc(p.crossing)} · ` : ''}${p.at ? `il y a <span data-age="${p.at}">${age(p.at)}</span>` : ''}</small></span>`;
+        return `<span class="pos ${stale ? 'stale' : ''}"><b>${esc(p.street)}</b><small>${p.crossing ? `× ${esc(p.crossing)} · ` : ''}${p.at ? `il y a <span data-age="${p.at}">${age(p.at)}</span>` : ''}</small></span>`;
     }
     const statusSelect = (u) => `<select class="status st-${esc(u.status)}" data-unit-status="${u.id}" aria-label="Statut de ${esc(u.name)}">${Object.entries(UNIT_STATUS).map(([k, v]) => `<option value="${k}" ${k === u.status ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>`;
     function unitSortValue(u, key) {
@@ -705,7 +712,7 @@
         const list = state.units.filter((u) => {
             const p = state.positions[u.id] || {};
             return (!onlyConnected || u.connected) && (!agency || u.agency === agency) && (!status || u.status === status) && (!sector || p.zone === sector)
-                && (!q || norm([u.name, u.tag, p.street, p.crossing, p.block, p.zone, ...u.members.map((m) => m.name)].join(' ')).includes(q));
+                && (!q || norm([u.name, u.tag, p.street, p.crossing, p.zone, ...u.members.map((m) => m.name)].join(' ')).includes(q));
         });
         const { key, dir } = state.unitSort;
         list.sort((a, b) => { const x = unitSortValue(a, key); const y = unitSortValue(b, key); return (x < y ? -1 : x > y ? 1 : 0) * dir || norm(a.name).localeCompare(norm(b.name)); });

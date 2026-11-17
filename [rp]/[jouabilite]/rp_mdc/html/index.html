@@ -680,7 +680,7 @@
                             <div class="toolbar">
                                 <span class="hint-text">* champs obligatoires — l'intervention apparaîtra dans l'onglet « Interventions ».</span>
                                 <span class="grow"></span>
-                                <button type="button" class="btn" data-fill-location title="Remplit l'adresse, le croisement et le bloc avec votre position actuelle">Position actuelle</button>
+                                <button type="button" class="btn" data-fill-location title="Remplit l'adresse et le croisement avec votre position actuelle (le bloc se saisit à la main)">Position actuelle</button>
                             </div>
                             <div class="form-grid cols-3">
                                 <label class="lbl">Type d'intervention *<input name="title" type="text" maxlength="60" placeholder="ex : Cambriolage en cours"></label>
@@ -696,6 +696,8 @@
                                 <div class="lbl span-3">Polices * <small class="muted">(une seule : réservé à cette police ; les deux : appel commun)</small>
                                     <span class="dept-checks" data-agency-checks></span>
                                 </div>
+                                <!-- KCSO coché : secteur(s) Non-incorporé / Maple Valley / Kenmore (script.js : kcsoAreasHtml) -->
+                                <div class="span-3" data-kcso-areas></div>
                                 <div class="span-3 priority-fields" data-priority-fields></div>
                                 <label class="lbl">Nombre idéal d'unités *
                                     <select name="idealUnits">
@@ -1149,7 +1151,7 @@
     <div class="minimap-frame hidden" id="minimapFrame" aria-hidden="true"></div>
     <!-- PLD : Player Localisation Display -->
     <!-- PLD : sans fond ni contour (lisible par l'ombre du texte). À gauche le cap (flèche + lettre), un trait, puis la
-         rue, la zone, et une ligne « croisement · bloc · heure ». Tous les éléments sont toujours affichés. -->
+         rue, la zone, et une ligne « croisement · heure ». Tous les éléments sont toujours affichés. -->
     <div class="hud hud-pld hidden" id="hudPld" data-hud="pld">
         <div class="pld-compass">
             <svg class="pld-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 9h-4.2v9H9.2v-9H5z"/></svg>
@@ -1164,7 +1166,6 @@
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20"/></svg>
                     <span id="pldCross"></span>
                 </span>
-                <span class="pld-item" data-part="block"><span class="pld-key">Bloc</span><span id="pldBlock"></span></span>
                 <span class="pld-item" data-part="time">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
                     <span id="pldTime"></span>
@@ -1253,41 +1254,7 @@
     <div id="toasts" class="toasts"></div>
     </div>
 
-    <!-- /blocs (admins) : éditeur des blocs du PLD -->
-    <div id="blockEditor" class="block-editor hidden">
-        <div class="be-head">Blocs du PLD <span id="beFocusHint"></span></div>
-        <div class="be-body">
-            <div class="be-row">
-                <label><input type="radio" name="beType" value="point" checked> Point</label>
-                <label><input type="radio" name="beType" value="square"> Carré</label>
-                <input type="text" id="beName" maxlength="30" placeholder="Nom du bloc (ex. 400)">
-            </div>
-            <label class="be-slider be-point">Rayon <input type="range" id="beRadius" min="10" max="800" step="5"><b id="beRadiusV"></b></label>
-            <label class="be-slider be-square">Largeur <input type="range" id="beWidth" min="20" max="3000" step="10"><b id="beWidthV"></b></label>
-            <label class="be-slider be-square">Hauteur <input type="range" id="beHeight" min="20" max="3000" step="10"><b id="beHeightV"></b></label>
-            <label class="be-slider be-square">Rotation <input type="range" id="beRotation" min="0" max="359" step="1"><b id="beRotationV"></b></label>
-            <div class="be-row">
-                <label><input type="checkbox" id="beFollow"> Suivre ma position</label>
-                <span class="be-pos" id="bePos"></span>
-            </div>
-            <code class="be-preview" id="bePreview"></code>
-            <div class="be-actions">
-                <button type="button" id="beHere">Fixer ici</button>
-                <button type="button" id="beMove">Se déplacer</button>
-                <button type="button" class="primary" id="beAdd">Ajouter le bloc</button>
-            </div>
-            <div class="be-list-title">Blocs créés (<span id="beCount">0</span>) — à copier dans config/blocs.json, liste « blocks »</div>
-            <div class="be-list" id="beList"></div>
-            <textarea id="beAll" readonly rows="4"></textarea>
-            <div class="be-actions">
-                <button type="button" id="beCopy">Copier tout</button>
-                <button type="button" id="beClose">Fermer</button>
-            </div>
-        </div>
-    </div>
-
     <script src="script.js"></script>
-    <script src="blockeditor.js"></script>
     <script>/* rp_freecam (mode photo) : interface masquée tant que « Masquer les interfaces » est coché */
         window.addEventListener('message', (e) => { const d = e.data; if (d && d.action === 'rpHideUi') document.documentElement.style.opacity = d.data && d.data.hidden ? '0' : ''; });</script>
 </body>

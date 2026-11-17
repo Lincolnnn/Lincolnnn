@@ -85,7 +85,6 @@ local function whenWhere()
         { k = 'date', t = 'date', l = 'Date', req = true, def = 'today', past = true },
         { k = 'time', t = 'time', l = 'Horaire', req = true, def = 'now' },
         { k = 'address', t = 'text', l = 'Adresse', req = true, max = 80, w = 2 },
-        { k = 'block', t = 'text', l = 'Bloc', max = 40 },
     }
 end
 
@@ -271,7 +270,6 @@ local DOT523 = {
                 { t = 'group', l = 'A) Lieu précis de l\'accident', f = {
                     { k = 'street', t = 'text', l = 'Rue', req = true, max = 80, w = 2 },
                     { k = 'crossStreet', t = 'text', l = 'Croisement', max = 80, w = 2 },
-                    { k = 'block', t = 'text', l = 'Bloc', max = 40 },
                     { k = 'direction', t = 'select', l = 'Direction', o = {
                         { 'N', 'Nord' }, { 'S', 'Sud' }, { 'E', 'Est' }, { 'W', 'Ouest' },
                         { 'NE', 'Nord-Est' }, { 'NW', 'Nord-Ouest' }, { 'SE', 'Sud-Est' }, { 'SW', 'Sud-Ouest' },

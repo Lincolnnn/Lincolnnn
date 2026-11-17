@@ -22,6 +22,7 @@ function callView(r, units = [], extra = {}) {
         id: Number(r.id), number: r.number, kind: r.kind, title: r.title, caller: r.caller || '', phone: r.phone || '',
         priority: r.priority || '', responseCode: r.response_code === null ? null : Number(r.response_code),
         agency: agencies(r.agency), idealUnits: r.ideal_units === null ? null : Number(r.ideal_units),
+        kcsoAreas: String(r.kcso_areas || '').split('+').filter(Boolean),
         address: r.address, crossStreet: r.cross_street || '', block: r.block || '', sector: r.sector || '',
         description: r.description || '', unitName: r.unit_name || '', backup: Number(r.backup) === 1,
         requestedBy: r.requested_by || '', closed: Number(r.closed) === 1, clear: r.clear_code || null,

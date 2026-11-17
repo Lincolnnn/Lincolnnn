@@ -16,7 +16,7 @@ c'est une console de dispatch, avec ses propres outils, présentés en **fenêtr
   **clôturer** (Clear A/B/C pour la WSP seulement) ;
 - **Recherches** (individus, véhicules) et **Registres** du jeu (*Sex Offenders*, *Kidnapping Offenders*, **BOLO**,
   **Rapports**) avec **les mêmes champs, libellés et filtres** qu'en jeu ; **modifier / supprimer** toute fiche ;
-- **Unités** : rue et bloc **en temps réel**, statut modifiable, affectation, message direct ;
+- **Unités** : rue et croisement **en temps réel**, statut modifiable, affectation, message direct ;
 - **Messagerie** : groupe civil, civils (privé), unités, interventions ; **observation** (lecture seule) des
   conversations entre unités ; **vider / supprimer** une conversation (corbeille) ;
 - **Corbeille** (30 jours, restauration, purge définitive) et **journal d'audit** séparé (avant / après) ;
@@ -29,7 +29,7 @@ c'est une console de dispatch, avec ses propres outils, présentés en **fenêtr
 - **Temps réel** (Socket.IO) : rien à rafraîchir ; notifications **visuelles pour les nouvelles interventions
   seulement**, **son seul** pour les messages.
 
-Mise à jour depuis la 4.x, retour arrière et tests manuels : **[docs/MISE_A_JOUR_5.0.md](docs/MISE_A_JOUR_5.0.md)**.
+Mise à jour depuis la 4.x, retour arrière et tests manuels : **[docs/MISE_A_JOUR_5.0.md](docs/MISE_A_JOUR_5.0.md)**, puis **[docs/MISE_A_JOUR_5.1.md](docs/MISE_A_JOUR_5.1.md)** (blocs retirés, secteurs KCSO, démonstration).
 
 Tout est **synchronisé** avec le jeu : les deux MDC utilisent la **même base MySQL** ; le site agit **par l'API de la
 ressource** (le serveur FiveM reste le seul à écrire les données du MDC, prévient tout de suite les joueurs et renvoie

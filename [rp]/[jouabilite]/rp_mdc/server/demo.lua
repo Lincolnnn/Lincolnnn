@@ -7,30 +7,34 @@
       mdc_demo purge    supprime TOUTES les fiches de démonstration, et seulement elles
       mdc_demo regen    purge puis seed (mêmes fiches à chaque fois : générateur à graine fixe)
 
-    Contenu (DEMO ci-dessous) :
-      - Kidnapping Offenders (45) et Sex Offenders (70) : identités complètes (nom, date de naissance, SSN, adresse,
-        téléphone, emploi, description physique, photo par défaut) inscrites au registre : charge retenue (RCW),
-        niveau de risque, statut de suivi, dates (faits, jugement, libération, inscription, dernière mise à jour),
-        tribunal, n° de dossier, peine, notes ; parfois un casier antérieur.
-      - Rapports (80) de toutes natures : arrestations, accidents (PTCR), plaintes, vols, contrôles routiers, enquêtes,
-        interventions médicales, conduite sous influence, fourrières… avec n°, auteur, unité, date, type, résumé,
-        personnes (dont des inscrits au registre : ils apparaissent dans leurs antécédents) et intervention liée.
-    Chaque fiche passe par les MÊMES contrôles que dans le MDC (server.lua) et porte demo = true : la purge ne touche
-    jamais une fiche créée par un joueur. Noms, dates, adresses et numéros sont inventés (combinaisons aléatoires).
+    COMME UN VRAI JOUEUR : chaque fiche passe par les MÊMES callbacks que le NUI du MDC (server.lua), avec un « joueur
+    virtuel » (MDCDemoActors : identifiant « demo », nom RP du personnage ou de l'agent) :
+      - Kidnapping Offenders (45) et Sex Offenders (70) : le joueur ENREGISTRE son personnage (Créations > Identité :
+        callback « create »), puis l'AJOUTE au registre désigné (Créations > Registre : « updateJustice », partie
+        « registry » ; parfois avant un casier antérieur : partie « record »). Rien d'autre.
+      - Rapports (80) : les personnes et véhicules en cause sont ENREGISTRÉS (« create » : identités, puis véhicules
+        avec leur propriétaire), l'INTERVENTION est créée (appel d'un civil, mêmes contrôles qu'en jeu : police,
+        priorité, secteur KCSO, adresse, bloc), l'unité y est affectée, les fiches y sont liées, puis elle est clôturée ;
+        l'agent rédige le RAPPORT lié à cette intervention (« saveReport »).
+    DATES : entre 10 mois en arrière et aujourd'hui, jamais dans le futur (faits, jugements, libérations, inscriptions,
+    mises à jour du registre, appels, rapports, créations des fiches). Seules les dates de naissance sont plus anciennes.
+    Les fiches portent createdBy = « demo » (jamais un identifiant de joueur) : la purge ne touche jamais une fiche créée
+    par un joueur. Noms, dates, adresses et numéros sont inventés (combinaisons aléatoires).
 ]]
 
 local DEMO = {
     kidnap = 45,    -- Kidnapping Offenders (entre 30 et 60)
     sex = 70,       -- Sex Offenders
-    reports = 80,   -- rapports déjà remplis (40 minimum)
-    seed = 20261115, -- graine du générateur : mêmes données à chaque « seed »
-    author = 'demo', -- createdBy des fiches (jamais un identifiant de joueur)
+    reports = 80,   -- rapports déjà remplis (40 minimum), chacun avec son intervention
+    seed = 20261117, -- graine du générateur : mêmes données à chaque « seed »
+    author = 'demo', -- identifiant des joueurs virtuels = createdBy des fiches
+    windowDays = 304, -- fenêtre des dates : 10 mois (304 jours) avant aujourd'hui
 }
 
 local API = MDCServer and MDCServer.demo
 -- Dates en NUMÉROS DE JOUR (jours depuis le 01/01/1970, calendrier civil) : pas d'os.date / os.time sur des dates
 -- de naissance antérieures à 1970 (refusées par le serveur sous Windows)
-local DAY, MONTH = 1, 30.44
+local DAY = 1
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Générateur pseudo-aléatoire à graine fixe (indépendant de math.random : les fiches restent les mêmes)
@@ -265,37 +269,121 @@ local function offensesOf(filter)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
--- IDENTITÉS INSCRITES AU REGISTRE
+-- JOUEURS VIRTUELS : les callbacks du NUI, comme en jeu
 -- ---------------------------------------------------------------------------------------------------------------------
-local PRISON = { FA = { 96, 300 }, FB = { 36, 120 }, FC = { 12, 60 }, GM = { 2, 11 }, M = { 0, 3 } }
+local NOW, WINDOW_START = 0, 0 -- heure du seed ; début de la fenêtre des dates (10 mois avant)
+local nextSrc = -70000
+local function actor(name)
+    nextSrc = nextSrc - 1
+    MDCDemoActors[nextSrc] = { identifier = DEMO.author, name = name }
+    return nextSrc
+end
 
+--- Callback du NUI exécuté par un joueur virtuel ; retourne (réponse | nil, erreur)
+local function as(src, name, payload)
+    local fn = API.Handlers[name]
+    if not fn then return nil, 'callback inconnu : ' .. name end
+    local ok, res = pcall(fn, src, payload)
+    if not ok then return nil, tostring(res) end
+    if type(res) ~= 'table' or not res.ok then return nil, res and res.error or 'refusé' end
+    return res
+end
+
+local function findRecord(store, id)
+    for _, r in ipairs(API.Store[store]) do if r.id == id then return r end end
+    return nil
+end
+
+--- Heure (epoch) d'un jour à HH:MM, jamais dans le futur
+local function epochOf(day, minutes)
+    local y, m, d = civilFromDays(day)
+    local t = os.time({ year = y, month = m, day = d, hour = (minutes // 60) % 24, min = minutes % 60, sec = 0 })
+    return math.min(t, NOW - 120)
+end
+--- Moment aléatoire entre `from` et `to` (epoch), dans la fenêtre, jamais dans le futur
+local function between(from, to)
+    from = math.max(from, WINDOW_START)
+    to = math.min(to, NOW - 120)
+    if to <= from then return math.max(WINDOW_START, math.min(from, NOW - 120)) end
+    return from + rnd(0, to - from)
+end
+local function dayOfEpoch(t)
+    local d = os.date('*t', t)
+    return daysFromCivil(d.year, d.month, d.day), d.hour * 60 + d.min
+end
+
+local function newPhone()
+    return ('%d-%03d-%04d'):format(pick({ 206, 206, 425, 253 }), rnd(200, 999), rnd(0, 9999))
+end
+
+--- Le joueur enregistre son personnage (Créations > Identité). `opts` : sex, first, last, address, condition…
+local function registerPerson(opts, createdAt)
+    opts = opts or {}
+    local sex = opts.sex or (chance(0.55) and 'M' or 'F')
+    local first, last = opts.first, opts.last
+    if not first then first, last = newName(sex) end
+    local address = opts.address or newAddress()
+    local dobT = opts.dobT or (TODAY - (rnd(18, 74) * 365.25 + rnd(0, 360)) * DAY)
+    local src = actor(first .. ' ' .. last)
+    local payload = {
+        kind = 'identity', firstname = first, lastname = last, middlename = chance(0.3) and pick(MIDDLE) or '',
+        dob = dateStr(dobT), sex = sex, address = address, job = pick(JOBS), physical = physical(), phone = newPhone(),
+        ssn = '', nationality = 'US', condition = opts.condition or 'none',
+        wantedReason = opts.wantedReason, wantedSince = opts.wantedSince,
+    }
+    if chance(0.75) then
+        payload.hasLicense, payload.licenseState, payload.licenseClass, payload.licenseStatus = true, 'WA', 'Driver License (standard)', 'valid'
+    end
+    local res, err = as(src, 'create', payload)
+    if not res then return nil, err end
+    local record = findRecord('identities', res.id)
+    record.createdAt = createdAt
+    record.demo = true
+    return record, src
+end
+
+-- Compagnies acceptées par le MDC (INSURERS de server.lua)
+local VEHICLE_INSURERS = { 'State Farm', 'GEICO', 'Progressive', 'Allstate', 'USAA', 'Liberty Mutual', 'Farmers' }
+
+--- Le propriétaire enregistre son véhicule (Créations > Véhicule, propriétaire = son identité)
+local function registerVehicle(owner, createdAt, opts)
+    opts = opts or {}
+    local makeModel = pick(MAKES)
+    local make, model = makeModel:match('^(%S+)%s+(.+)$')
+    local src = actor(('%s %s'):format(owner.firstname, owner.lastname))
+    local inspection = math.min(TODAY - rnd(0, DEMO.windowDays), (dayOfEpoch(createdAt))) -- (jour seulement)
+    local res, err = as(src, 'create', {
+        kind = 'vehicle', plate = plate(), regStatus = 'valid', make = make or makeModel, model = model or makeModel,
+        color = pick(COLORS), year = tostring(rnd(2006, 2024)), vin = '', inspectionDate = dateStr(inspection),
+        insuranceStatus = 'valid', insuranceCompany = pick(VEHICLE_INSURERS), ownerId = owner.id, stolen = opts.stolen == true,
+    })
+    if not res then return nil, err end
+    local record = findRecord('vehicles', res.id)
+    record.createdAt = createdAt
+    record.demo = true
+    return record
+end
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- REGISTRE : le joueur enregistre son personnage, puis l'ajoute au registre désigné
+-- ---------------------------------------------------------------------------------------------------------------------
 local function registryPayload(kind, offense, address)
     local class = offense.c
-    local p = PRISON[class] or { 6, 24 }
-    local months = rnd(p[1], p[2])
-    -- libération entre 1 mois et 18 ans avant aujourd'hui (moins loin pour les peines courtes)
-    local release = TODAY - rnd(30, class == 'FA' and 18 * 365 or 12 * 365) * DAY
-    local registered = release + rnd(0, 3) * DAY
-    if registered > TODAY - DAY then registered = TODAY - DAY end
-    local conviction = release - months * MONTH - rnd(0, 25) * DAY
-    local offenseT = conviction - rnd(60, 420) * DAY
+    -- faits, jugement, libération, inscription, dernière mise à jour : tous dans les 10 derniers mois, dans l'ordre
+    local offenseT = TODAY - rnd(100, DEMO.windowDays - 2)
+    local conviction = offenseT + rnd(14, 45)
+    local release = math.min(conviction + rnd(0, 30), TODAY - 4)
+    local registered = math.min(release + rnd(0, 3), TODAY - 2)
+    local months = math.max(0, math.floor((release - offenseT) / 30.44 + 0.5)) -- détention (provisoire comprise)
     local level = class == 'FA' and weighted({ { '3', 5 }, { '2', 4 }, { '1', 1 } })
         or class == 'FB' and weighted({ { '3', 2 }, { '2', 5 }, { '1', 3 } })
         or weighted({ { '3', 1 }, { '2', 3 }, { '1', 6 } })
     local status = weighted({ { 'compliant', 74 }, { 'noncompliant', 18 }, { 'absconded', 8 } })
-    local lastUpdate
-    if status == 'absconded' then
-        local since = math.floor(TODAY - registered)
-        lastUpdate = registered + rnd(math.min(20, since), math.max(20, since))
-    else
-        lastUpdate = math.max(registered, TODAY - rnd(3, 320) * DAY)
-    end
-    lastUpdate = math.floor(math.min(lastUpdate, TODAY))
+    local lastUpdate = math.min(TODAY, registered + rnd(0, math.max(0, TODAY - registered)))
     local conditions = kind == 'sex' and SEX_CONDITIONS or KIDNAP_CONDITIONS
-    local first = pick(conditions)
-    local second = pick(conditions)
+    local first, second = pick(conditions), pick(conditions)
     local custody = class:sub(1, 1) == 'F' and 'Department of Corrections' or 'King County Jail'
-    local sentence = ('%d mois de détention (%s), %d mois de surveillance (community custody). %s%s'):format(
+    local sentence = ('%d mois de détention (%s, détention provisoire comprise), %d mois de surveillance (community custody). %s%s'):format(
         months, custody, rnd(12, 48), first, second ~= first and (' ' .. second) or '')
     local court = class:sub(1, 1) == 'F' and 'superior' or 'district'
     return {
@@ -304,26 +392,24 @@ local function registryPayload(kind, offense, address)
         registeredDate = dateStr(registered), lastUpdate = dateStr(lastUpdate),
         court = court, caseNumber = caseNumber(court, yearOf(conviction)),
         sentence = sentence, notes = uniqueNote(),
-    }, offenseT, status, lastUpdate
+    }, offenseT, status, lastUpdate, registered
 end
 
-local function priorConviction(dobT, beforeT)
-    local from, to = dobT + 18.2 * 365.25 * DAY, beforeT - 90 * DAY
-    if to - from < 60 * DAY then return nil end
+--- Casier antérieur : une condamnation entre le début de la fenêtre et les faits du registre
+local function priorConviction(beforeT)
+    local from, to = TODAY - DEMO.windowDays, beforeT - 30
+    if to - from < 20 then return nil end
     local id = pick(PRIORS)
-    local o = API.Offenses[id]
-    if not o then return nil end
-    local offenseT = from + rnd() * (to - from)
-    local conviction = offenseT + rnd(20, 160) * DAY
-    if conviction > TODAY - DAY then conviction = TODAY - DAY end
+    if not API.Offenses[id] then return nil end
+    local offenseT = from + rnd(0, to - from - 15)
+    local conviction = math.min(offenseT + rnd(7, 15), to)
     local disposition = pick({ 'guilty', 'plea', 'plea', 'deferred' })
-    local days = rnd(0, 60)
+    local days = rnd(0, 30)
     local sentence = days > 0 and ('%d jours de détention (dont %d avec sursis), amende de %d $.'):format(days, math.floor(days / 2), rnd(2, 20) * 50)
         or ('Amende de %d $ et 12 mois de probation.'):format(rnd(2, 20) * 50)
     return {
         offense = id, offenseDate = dateStr(offenseT), convictionDate = dateStr(conviction), court = 'district',
-        caseNumber = caseNumber('district', yearOf(conviction)), disposition = disposition,
-        sentence = sentence, notes = '',
+        caseNumber = caseNumber('district', yearOf(conviction)), disposition = disposition, sentence = sentence, notes = '',
     }
 end
 
@@ -333,27 +419,28 @@ local function makeOffender(kind, offenses)
         local first, last = newName(sex)
         local address = newAddress()
         local offense = pick(offenses)
-        local reg, offenseT, status, lastUpdate = registryPayload(kind, offense, address)
-        local ageAtOffense = rnd(19, 52)
-        local dobT = offenseT - (ageAtOffense * 365.25 + rnd(0, 360)) * DAY
-        local payload = {
-            firstname = first, lastname = last, middlename = chance(0.35) and pick(MIDDLE) or '',
-            dob = dateStr(dobT), sex = sex, address = address, job = pick(JOBS), physical = physical(),
-            phone = '', ssn = '', nationality = 'US', condition = 'none',
-            registrations = { [kind] = reg }, convictions = {},
-        }
-        if status == 'absconded' then
-            payload.condition = 'wanted'
-            payload.wantedReason = 'Failure to Register (RCW 9A.44.132) : ne réside plus à l\'adresse déclarée, localisation inconnue.'
-            payload.wantedSince = dateStr(lastUpdate)
+        local reg, offenseT, status, lastUpdate, registered = registryPayload(kind, offense, address)
+        local dobT = offenseT - (rnd(19, 52) * 365.25 + rnd(0, 360)) * DAY
+        local wanted = status == 'absconded'
+        -- 1. le joueur enregistre son personnage (le jour de l'inscription au registre)
+        local createdAt = epochOf(registered, rnd(8 * 60, 17 * 60))
+        local identity, src = registerPerson({ sex = sex, first = first, last = last, address = address, dobT = dobT,
+            condition = wanted and 'wanted' or 'none',
+            wantedReason = wanted and 'Failure to Register (RCW 9A.44.132) : ne réside plus à l\'adresse déclarée, localisation inconnue.' or nil,
+            wantedSince = wanted and dateStr(lastUpdate) or nil }, createdAt)
+        if identity then
+            -- 2. (parfois) son casier antérieur, 3. l'ajoute au registre désigné
+            local prior = chance(0.3) and priorConviction(offenseT)
+            if prior then as(src, 'updateJustice', { id = identity.id, part = 'record', convictions = { prior } }) end
+            local ok, err = as(src, 'updateJustice', { id = identity.id, part = 'registry', registrations = { [kind] = reg } })
+            if ok then
+                identity.updatedAt = createdAt + rnd(2, 15) * 60
+                return identity
+            end
+            print(('^3[MDC demo]^0 inscription au registre refusée (%s), nouvel essai.'):format(tostring(err)))
+        else
+            print(('^3[MDC demo]^0 identité refusée (%s), nouvel essai.'):format(tostring(src)))
         end
-        if chance(0.3) then
-            local prior = priorConviction(dobT, offenseT)
-            if prior then payload.convictions[1] = prior end
-        end
-        local record, err = API.Builders.identities(payload, nil, DEMO.author)
-        if record then return record end
-        print(('^3[MDC demo]^0 fiche refusée (%s), nouvel essai.'):format(tostring(err)))
     end
     return nil
 end
@@ -421,22 +508,17 @@ local THEMES = {
       text = { 'Véhicule {model} ({plate}) stationné en double file au {address}, gênant la circulation depuis plus de deux heures. Propriétaire injoignable. Inventaire effectué, remorquage par le dépanneur agréé.' } },
 }
 
--- Valeurs plausibles d'un champ de rapport, selon sa clé
+-- Personne / véhicule d'un rapport : toujours une fiche ENREGISTRÉE (identité ou véhicule du MDC)
 local function personData(identity)
-    if identity then
-        return { lastname = identity.lastname, firstname = identity.firstname, dob = identity.dob,
-            sex = identity.sex == 'F' and 'female' or 'male', homeAddress = identity.address, phone = identity.phone }
-    end
-    local sex = chance(0.55) and 'M' or 'F'
-    local first, last = newName(sex)
-    local dob = TODAY - (rnd(18, 74) * 365.25 + rnd(0, 360))
-    return { lastname = last, firstname = first, dob = dateStr(dob), sex = sex == 'F' and 'female' or 'male',
-        homeAddress = (newAddress()), phone = ('%d-%03d-%04d'):format(pick({ 206, 206, 425, 253 }), rnd(200, 999), rnd(0, 9999)) }
+    return { id = identity.id, lastname = identity.lastname, firstname = identity.firstname, dob = identity.dob,
+        sex = identity.sex == 'F' and 'female' or 'male', homeAddress = identity.address, phone = identity.phone,
+        dlNumber = identity.licenseNumber, dlState = identity.licenseState and 'WA' or nil }
 end
 
-local function vehicleData(owner)
-    return { plate = plate(), plateState = 'WA', model = pick(MAKES), color = pick(COLORS), year = rnd(2005, 2023),
-        vin = vin(), owner = owner and (owner.firstname .. ' ' .. owner.lastname) or '', insurance = pick(INSURERS) .. ' — ' .. rnd(1000000, 9999999) }
+local function vehicleData(v, owner)
+    return { id = v.id, plate = v.plate, plateState = 'WA', model = ('%s %s'):format(v.make, v.model), color = v.color,
+        year = tonumber(v.year) or rnd(2006, 2024), vin = v.vin,
+        owner = owner and (owner.firstname .. ' ' .. owner.lastname) or '', insurance = v.insuranceCompany or '' }
 end
 
 local TEXT = {
@@ -537,14 +619,14 @@ fillFields = function(fields, raw, ctx, level, theme)
                 if f.k == 'persons' then
                     local role = (theme.roles or {})[i] or 'witness'
                     item.role = role
-                    sub.person = role == 'suspect' and ctx.subject or (role == 'victim' and ctx.victim) or personData(nil)
+                    sub.person = role == 'suspect' and ctx.subject or (role == 'victim' and ctx.victim) or ctx.newPerson()
                 elseif f.k == 'units' then
-                    sub.person = i == 1 and ctx.subject or personData(nil)
-                    sub.vehicle = i == 1 and ctx.vehicle or vehicleData(sub.person)
+                    sub.person = i == 1 and ctx.subject or ctx.newPerson()
+                    sub.vehicle = i == 1 and ctx.vehicle or ctx.newVehicle(sub.person)
                 elseif f.k == 'vehicles' then
                     sub.vehicle = ctx.vehicle
                 elseif f.k == 'occupants' then
-                    sub.person = personData(nil)
+                    sub.person = ctx.newPerson()
                 end
                 fillFields(f.f, item, ctx, sub, theme)
                 items[#items + 1] = item
@@ -573,7 +655,7 @@ fillFields = function(fields, raw, ctx, level, theme)
                 if key == 'dob' then
                     if not level.person then level.person = ctx.subject end
                     raw[key] = level.person.dob
-                elseif key == 'appearDate' then raw[key] = dateStr(ctx.when + rnd(14, 45) * DAY)
+                elseif key == 'appearDate' then raw[key] = dateStr(math.min(TODAY, ctx.when + rnd(14, 45) * DAY)) -- jamais dans le futur
                 else raw[key] = dateStr(ctx.when) end
             elseif f.t == 'time' then
                 raw[key] = key == 'time' and ctx.time or timeStr(ctx.minutes + rnd(5, 50))
@@ -608,131 +690,191 @@ local function fillTemplate(text, ctx)
     end))
 end
 
-local function makeReport(theme, offenders)
+-- ---------------------------------------------------------------------------------------------------------------------
+-- RAPPORTS : personnes et véhicules enregistrés, intervention créée et traitée, rapport lié à l'intervention
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Clôture des appels de la WSP (Clear A : ticket, B : arrestation / criminal citation, C : avertissement / autre)
+local CLEAR_OF = { arrest = 'B', crimcite = 'B', dui = 'B', impound = 'B', noi = 'A', ptcr = 'A', wwarning = 'C', incident = 'C' }
+-- Appels à l'initiative de l'unité (contrôles) : requérant = l'unité
+local SELF_INITIATED = { noi = true, wwarning = true, crimcite = true, dui = true, impound = true }
+local KCSO_PRIORITY = { 'k1', 'k2', 'k2', 'k3', 'k3', 'k4' }
+local WSP_PRIORITY = { 'p1', 'p2', 'p2', 'p3', 'nonurgent' }
+
+local function makeCase(theme, offenders)
     local reportType = API.ReportTypes[theme.type]
     if not reportType then return nil, 'type inconnu : ' .. theme.type end
-    for attempt = 1, 8 do
-        local whenT = TODAY - rnd(0, 150)
-        local minutes = rnd(0, 1439)
-        local address, street = newAddress()
-        -- personne principale : parfois un inscrit au registre (le rapport apparaît dans ses antécédents)
-        local subjectIdentity = (#offenders > 0 and chance(0.4)) and pick(offenders) or nil
-        local ctx = {
-            when = whenT, minutes = minutes, time = timeStr(minutes), address = address, street = street[1], city = street[2],
-            road = pick(ROADS), officer = pick(OFFICERS), nature = theme.nature and pick(theme.nature) or theme.title,
-            subject = personData(subjectIdentity), victim = personData(nil),
-        }
-        ctx.vehicle = vehicleData((theme.roles or {})[1] == 'victim' and ctx.victim or ctx.subject)
-        ctx.narrative = fillTemplate(pick(theme.text), ctx)
-        local raw = {}
+    local officer = pick(OFFICERS) -- { nom, police, unité }
+    local agency = officer[2] == 'WSP' and 'wsp' or 'kcso'
+    local unit = officer[3]
+    -- moment de l'appel : dans les 10 derniers mois, jamais dans le futur
+    local callAt = epochOf(TODAY - rnd(0, DEMO.windowDays), rnd(0, 1439))
+    local whenT, minutes = dayOfEpoch(callAt)
+    local address, street = newAddress()
+    local number = tonumber(address:match('^(%d+)')) or 100
+
+    -- 1. personnes et véhicules ENREGISTRÉS (fiches créées par leurs joueurs, avant l'appel)
+    local links, linked = {}, {}
+    local function link(kind, record)
+        local key = kind .. record.id
+        if linked[key] or #links >= 30 then return end
+        linked[key] = true
+        links[#links + 1] = { kind = kind, recordId = record.id }
+    end
+    local function newPerson(opts)
+        local identity, err = registerPerson(opts, between(callAt - 120 * 86400, callAt - 3600))
+        if not identity then error('identité refusée : ' .. tostring(err)) end
+        link('identity', identity)
+        return identity
+    end
+    local function newVehicle(ownerIdentity, opts)
+        local v, err = registerVehicle(ownerIdentity, between(ownerIdentity.createdAt or callAt - 86400, callAt - 1800), opts)
+        if not v then error('véhicule refusé : ' .. tostring(err)) end
+        link('vehicle', v)
+        return v
+    end
+    local subjectIdentity = (#offenders > 0 and chance(0.4)) and pick(offenders) or newPerson()
+    link('identity', subjectIdentity)
+    local victimIdentity = newPerson()
+    local ownerIdentity = (theme.roles or {})[1] == 'victim' and victimIdentity or subjectIdentity
+    local vehicle = newVehicle(ownerIdentity)
+    local ctx = {
+        when = whenT, minutes = minutes, time = timeStr(minutes), address = address, street = street[1], city = street[2],
+        road = pick(ROADS), officer = officer, nature = theme.nature and pick(theme.nature) or theme.title,
+        subject = personData(subjectIdentity), victim = personData(victimIdentity),
+        vehicle = vehicleData(vehicle, ownerIdentity),
+    }
+    ctx.newPerson = function() return personData(newPerson()) end
+    ctx.newVehicle = function(p)
+        local owner = p and p.id and findRecord('identities', p.id) or newPerson()
+        return vehicleData(newVehicle(owner), owner)
+    end
+    ctx.narrative = fillTemplate(pick(theme.text), ctx)
+
+    -- 2. contenu du rapport (vérifié avant de créer l'intervention)
+    local raw, data, err
+    for _ = 1, 6 do
+        raw = {}
         ctx.root = raw
         for _, section in ipairs(reportType.sections) do fillFields(section.f, raw, ctx, { person = nil }, theme) end
-        local data, err = API.buildReport(reportType, raw)
-        if data then
-            local number
-            for _ = 1, 50 do
-                number = ('RD%d'):format(rnd(1000, 9999))
-                if not (MDCDB and MDCDB.numberUsed and MDCDB.numberUsed(number)) then break end
-            end
-            if MDCDB and MDCDB.useNumber then MDCDB.useNumber(number) end
-            return {
-                type = reportType.id, data = data,
-                call = { id = 0, session = 'demo', number = number, title = ctx.nature, kind = 'intervention' },
-                summary = API.reportSummary(reportType, data), searchText = API.reportSearchText(data),
-                createdAt = whenT * 86400 + minutes * 60, createdByName = ('%s (%s)'):format(ctx.officer[1], ctx.officer[2]),
-                unitName = ctx.officer[3],
-            }
-        end
-        if attempt == 8 then return nil, err end
+        data, err = API.buildReport(reportType, raw)
+        if data then break end
     end
+    if not data then return nil, err end
+
+    -- 3. l'INTERVENTION : appel d'un civil (ou initiative de l'unité), traitée par l'unité puis clôturée
+    local kcso = agency == 'kcso'
+    local areas = {}
+    if kcso then
+        for _, a in ipairs(API.Config.KcsoAreas) do if chance(0.4) then areas[#areas + 1] = a.key end end
+        if #areas == 0 then areas[1] = pick(API.Config.KcsoAreas).key end
+    end
+    local arrived = math.min(callAt + rnd(2, 12) * 60, NOW - 90)
+    local closedAt = math.min(arrived + rnd(20, 110) * 60, NOW - 60)
+    for _, l in ipairs(links) do l.addedBy, l.addedAt = unit, math.min(arrived + rnd(1, 15) * 60, closedAt) end
+    local caller = SELF_INITIATED[theme.type] and ('%s (%s, initiative de l\'unité)'):format(officer[1], unit)
+        or ('%s %s'):format(victimIdentity.firstname, victimIdentity.lastname)
+    local call, cerr = API.historicCall({
+        title = ctx.nature, caller = caller:sub(1, 60), phone = SELF_INITIATED[theme.type] and '' or (victimIdentity.phone or ''),
+        agencies = { agency }, priority = kcso and pick(KCSO_PRIORITY) or pick(WSP_PRIORITY), responseCode = kcso and tostring(rnd(1, 3)) or nil,
+        kcsoAreas = areas, idealUnits = tostring(rnd(1, 2)), address = address, crossStreet = pick(STREETS)[1],
+        block = tostring((number // 100) * 100), description = ctx.narrative,
+    }, {
+        author = DEMO.author, createdAt = callAt, units = { { name = unit, at = arrived } }, links = links,
+        closedAt = closedAt, closedBy = unit, clear = not kcso and (CLEAR_OF[theme.type] or 'C') or nil,
+    })
+    if not call then return nil, cerr end
+
+    -- 4. l'agent rédige le RAPPORT lié à l'intervention (MDC > Rapports)
+    local src = actor(officer[1])
+    local res, rerr = as(src, 'saveReport', { type = reportType.id, callRef = call.id, data = raw })
+    if not res then return nil, rerr end
+    local report = findRecord('reports', res.id)
+    report.createdAt = math.min(closedAt + rnd(5, 90) * 60, NOW - 30)
+    report.unitName = unit
+    report.demo = true
+    return report
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- COMMANDES
 -- ---------------------------------------------------------------------------------------------------------------------
+local function isDemo(r) return r.demo or r.createdBy == DEMO.author end
+
 local function demoCounts()
-    local c = { identities = 0, sex = 0, kidnap = 0, reports = 0 }
+    local c = { identities = 0, vehicles = 0, sex = 0, kidnap = 0, reports = 0 }
     for _, r in ipairs(API.Store.identities) do
-        if r.demo then
+        if isDemo(r) then
             c.identities = c.identities + 1
             for _, reg in ipairs(r.registrations or {}) do c[reg.type] = (c[reg.type] or 0) + 1 end
         end
     end
-    for _, r in ipairs(API.Store.reports) do if r.demo then c.reports = c.reports + 1 end end
+    for _, r in ipairs(API.Store.vehicles) do if isDemo(r) then c.vehicles = c.vehicles + 1 end end
+    for _, r in ipairs(API.Store.reports) do if isDemo(r) then c.reports = c.reports + 1 end end
     return c
 end
 
 local function purge()
     local removed = 0
-    for _, kind in ipairs({ 'identities', 'reports' }) do
+    for _, kind in ipairs({ 'reports', 'vehicles', 'identities' }) do
         local kept = {}
         for _, r in ipairs(API.Store[kind]) do
-            if r.demo then removed = removed + 1 else kept[#kept + 1] = r end
+            if isDemo(r) then removed = removed + 1 else kept[#kept + 1] = r end
         end
         for i = #API.Store[kind], 1, -1 do API.Store[kind][i] = nil end
         for i, r in ipairs(kept) do API.Store[kind][i] = r end
         API.saveStore(kind)
     end
+    API.removeCalls(DEMO.author) -- interventions de démonstration (mémoire et MySQL)
     return removed
 end
 
 local function seed()
     state = DEMO.seed
-    local now = os.date('*t')
+    NOW = os.time()
+    local now = os.date('*t', NOW)
     TODAY = daysFromCivil(now.year, now.month, now.day)
+    WINDOW_START = NOW - DEMO.windowDays * 86400
     used = { names = {}, cases = {}, notes = {}, plates = {} }
     for _, r in ipairs(API.Store.identities) do -- jamais le même nom qu'une fiche existante
         used.names[(r.firstname or '') .. ' ' .. (r.lastname or '')] = true
     end
+    for _, v in ipairs(API.Store.vehicles) do used.plates[v.plate or ''] = true end
+    MDCDemoActors = {}
+    MDCDemoQuiet = true -- une seule mise à jour des listes d'interventions, à la fin
+
+    -- registre : chaque joueur enregistre son personnage puis l'ajoute au registre désigné
     local offenders = {}
     for _, kind in ipairs({ 'kidnap', 'sex' }) do
         local offenses = offensesOf(function(o) return o.reg == kind end)
         for _ = 1, DEMO[kind] do
             local record = makeOffender(kind, offenses)
-            if record then
-                record.id = API.NextId.identities
-                API.NextId.identities = API.NextId.identities + 1
-                local reg = record.registrations[1]
-                record.createdAt = dayOf(reg.registeredDate) * 86400 + 10 * 3600
-                record.updatedAt = math.max(record.createdAt, dayOf(reg.lastUpdate) * 86400 + 15 * 3600)
-                record.createdByName = kind == 'sex' and 'KCSO — Sex Offender Unit' or 'WSP — Registre'
-                record.updatedByName = record.createdByName
-                record.createdBy = DEMO.author
-                record.demo = true
-                API.Store.identities[#API.Store.identities + 1] = record
-                offenders[#offenders + 1] = record
-            end
+            if record then offenders[#offenders + 1] = record end
         end
     end
-    API.saveStore('identities')
 
-    -- rapports : thèmes répartis jusqu'au nombre voulu, du plus ancien au plus récent
-    local plan = {}
-    local total = 0
+    -- rapports : thèmes répartis jusqu'au nombre voulu ; chacun avec ses fiches et son intervention
+    local plan, total = {}, 0
     for _, t in ipairs(THEMES) do total = total + t.n end
     for _, t in ipairs(THEMES) do
         for _ = 1, math.max(1, math.floor(t.n * DEMO.reports / total + 0.5)) do plan[#plan + 1] = t end
     end
-    local reports, failures = {}, 0
+    local reports, failures = 0, 0
     for _, theme in ipairs(plan) do
-        local r, err = makeReport(theme, offenders)
-        if r then reports[#reports + 1] = r
+        local ok, r, err = pcall(makeCase, theme, offenders)
+        if ok and r then reports = reports + 1
         else
             failures = failures + 1
-            print(('^3[MDC demo]^0 rapport %s non créé : %s'):format(theme.id, tostring(err)))
+            print(('^3[MDC demo]^0 rapport %s non créé : %s'):format(theme.id, tostring(ok and err or r)))
         end
     end
-    table.sort(reports, function(a, b) return a.createdAt < b.createdAt end)
-    for i, r in ipairs(reports) do
-        r.id = API.NextId.reports
-        API.NextId.reports = API.NextId.reports + 1
-        r.number = API.uniqueValue('reports', 'number', API.genCaseNumber)
-        r.createdBy = DEMO.author
-        r.demo = true
-        table.insert(API.Store.reports, i, r) -- avant les rapports des joueurs : les listes restent chronologiques
+
+    -- dates de création appliquées : enregistrement (MySQL), listes à jour, joueurs virtuels retirés
+    for _, kind in ipairs({ 'identities', 'vehicles', 'reports' }) do
+        API.saveStore(kind)
     end
-    API.saveStore('reports')
-    return #offenders, #reports, failures
+    API.settleCalls()
+    MDCDemoActors = {}
+    return #offenders, reports, failures
 end
 
 MDCDemo = { seed = seed, purge = purge, counts = demoCounts, config = DEMO } -- (tests)
@@ -746,19 +888,19 @@ RegisterCommand('mdc_demo', function(source, args)
     local action = (args[1] or 'status'):lower()
     local c = demoCounts()
     if action == 'status' then
-        print(('^5[MDC demo]^0 %d identité(s) de démonstration (%d Sex Offenders, %d Kidnapping Offenders), %d rapport(s).')
-            :format(c.identities, c.sex or 0, c.kidnap or 0, c.reports))
+        print(('^5[MDC demo]^0 %d identité(s) (%d Sex Offenders, %d Kidnapping Offenders), %d véhicule(s), %d rapport(s) liés à leur intervention.')
+            :format(c.identities, c.sex or 0, c.kidnap or 0, c.vehicles, c.reports))
     elseif action == 'seed' or action == 'regen' then
-        if action == 'seed' and (c.identities > 0 or c.reports > 0) then
+        if action == 'seed' and (c.identities > 0 or c.reports > 0 or c.vehicles > 0) then
             print('^3[MDC demo]^0 Des données de démonstration existent déjà : « mdc_demo regen » pour les recréer, « mdc_demo purge » pour les retirer.')
             return
         end
         if action == 'regen' then print(('^5[MDC demo]^0 %d fiche(s) de démonstration supprimée(s).'):format(purge())) end
         local ids, reps, failures = seed()
-        print(('^5[MDC demo]^0 Créé : %d identité(s) inscrite(s) au registre, %d rapport(s)%s. Retirer : « mdc_demo purge ».')
+        print(('^5[MDC demo]^0 Créé : %d personnage(s) inscrit(s) au registre, %d rapport(s) avec leurs personnes, véhicules et interventions%s. Retirer : « mdc_demo purge ».')
             :format(ids, reps, failures > 0 and (' (%d échec(s), voir ci-dessus)'):format(failures) or ''))
     elseif action == 'purge' then
-        print(('^5[MDC demo]^0 %d fiche(s) de démonstration supprimée(s) (fiches des joueurs intactes).'):format(purge()))
+        print(('^5[MDC demo]^0 %d fiche(s) de démonstration supprimée(s), interventions comprises (fiches des joueurs intactes).'):format(purge()))
     else
         print('^3[MDC demo]^0 Usage : mdc_demo status | seed | purge | regen')
     end

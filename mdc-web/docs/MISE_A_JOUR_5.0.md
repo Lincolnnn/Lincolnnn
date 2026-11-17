@@ -114,6 +114,6 @@ Cochez sur votre serveur (deux joueurs au moins : un civil, une unité KCSO ou W
   corbeille, conversations, registres, BOLO jeu ↔ site, rapports, identités, audit, jetons WebRTC, repli images,
   PiP, tablette, accessibilité, rôle retiré) ;
 - NUI en jeu : publication WebRTC du canevas (bibliothèque simulée), changement de mode, arrêt, repli JPEG ;
-- non-régression des MDC en jeu (recherches, permis, appels, blocs, carte /id) et du PLD.
+- non-régression des MDC en jeu (recherches, permis, appels, carte /id) et du PLD.
 
 Non testé ici : transport vidéo réel par un serveur LiveKit et TURN (voir le guide), rendu dans le vrai client FiveM.

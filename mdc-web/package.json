@@ -1,6 +1,6 @@
 {
   "name": "mdc-dispatch-web",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "MDC Web du dispatch (Washington) : centre de dispatch en ligne relié au MDC en jeu (rp_mdc), Discord OAuth2, MySQL, temps réel",
   "private": true,
   "main": "src/server.js",

@@ -1370,6 +1370,21 @@
     const agenciesShort = (c) => callAgencies(c).map(agencyShort).join(' & ');
     const agenciesTags = (c) => callAgencies(c).map((k) => `<span class="dept-tag agency-${esc(k)}">${esc(agencyShort(k))}</span>`).join(' ');
     const agenciesLabel = (c) => callAgencies(c).map((k) => (agencyInfo(k) || { label: agencyShort(k) }).label).join(', ');
+    // Secteurs du KCSO (case « KCSO » cochée : au moins un, jusqu'aux trois) : mêmes clés que Config.KcsoAreas (server.lua)
+    const KCSO_AREAS = [['uninc', 'Non-incorporé'], ['maplevalley', 'Maple Valley'], ['kenmore', 'Kenmore']];
+    const callAreas = (c) => String((c && c.kcsoAreas) || '').split('+').filter(Boolean);
+    const areasLabel = (c) => KCSO_AREAS.filter(([k]) => callAreas(c).includes(k)).map(([, l]) => l).join(', ');
+    function kcsoAreasHtml(selected) {
+        return `<div class="lbl kcso-areas">Secteur KCSO * <small class="muted">(un ou plusieurs)</small>
+            <span class="dept-checks">${KCSO_AREAS.map(([k, l]) => `<label class="check dept-check"><input type="checkbox" name="kcsoAreas" value="${k}" ${selected.includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</span></div>`;
+    }
+    // Affiche / masque les cases des secteurs selon la case KCSO (garde les secteurs déjà cochés)
+    function refreshAreaFields(form, agencies) {
+        const box = form.querySelector('[data-kcso-areas]');
+        if (!box) return;
+        const keep = [...form.querySelectorAll('input[name="kcsoAreas"]:checked')].map((i) => i.value);
+        box.innerHTML = agencies.includes('kcso') ? kcsoAreasHtml(keep) : '';
+    }
 
     // Listes des appels : police : ses appels, puis les appels communs (affichée seulement s'il y en a), toujours
     // ouvertes ; MDC générique : une liste par police + les appels communs, ouvrables / refermables.
@@ -1592,6 +1607,7 @@
                 ${row('N° d\'incident', c.number)}
                 ${row('Catégorie', c.backup ? `Demande de renforts${c.requestedBy ? ` de ${c.requestedBy}` : ''} (incident commun)` : incident ? 'Incident (déclaré par une unité)' : 'Intervention (appel)')}
                 ${dd(callAgencies(c).length > 1 ? 'Polices (appel commun)' : 'Police', `${agenciesTags(c)} ${esc(agenciesLabel(c))}`)}
+                ${callAreas(c).length ? row('Secteur KCSO', areasLabel(c)) : ''}
                 ${incident ? '' : row('Unités idéales', c.idealUnits ? `${c.idealUnits} (${toArray(c.units).length} sur l'appel)` : '-')}
                 ${dd('Déroulé', callFlag(CALL_STATUS, c.status))}
                 ${row(incident ? 'Type d\'incident' : 'Type d\'intervention', c.title)}
@@ -1656,7 +1672,7 @@
                 <div class="toolbar">
                     <span class="hint-text">* champs obligatoires${isNew ? ' — votre unité sera automatiquement placée sur l\'incident.' : ''}</span>
                     <span class="grow"></span>
-                    <button type="button" class="btn btn-small" data-fill-location title="Remplit l'adresse, le croisement et le bloc avec votre position actuelle">Position actuelle</button>
+                    <button type="button" class="btn btn-small" data-fill-location title="Remplit l'adresse et le croisement avec votre position actuelle (le bloc se saisit à la main)">Position actuelle</button>
                 </div>
                 <div class="form-grid">
                     <label class="lbl span-2">${kind === 'incident' ? 'Type d\'incident' : 'Type d\'intervention'} *<input name="title" type="text" maxlength="60" value="${v('title')}"></label>
@@ -1669,7 +1685,8 @@
                                 <button type="button" class="btn btn-icon" data-gen-phone title="Générer un nouveau numéro">&#8635;</button>
                             </span>
                         </label>
-                        <div class="span-2 priority-fields" data-priority-fields>${priorityFieldsHtml(callAgencies(c), c.priority, c.responseCode)}</div>`}
+                        <div class="span-2 priority-fields" data-priority-fields>${priorityFieldsHtml(callAgencies(c), c.priority, c.responseCode)}</div>
+                        ${callAgencies(c).includes('kcso') ? `<div class="span-2">${kcsoAreasHtml(callAreas(c))}</div>` : ''}`}
                     <label class="lbl">Adresse *<input name="address" type="text" maxlength="80" value="${v('address')}"></label>
                     <label class="lbl">Croisement<input name="crossStreet" type="text" maxlength="80" value="${v('crossStreet')}"></label>
                     <label class="lbl">Bloc *<input name="block" type="text" maxlength="40" value="${v('block')}"></label>
@@ -1695,7 +1712,7 @@
                 <div class="toolbar">
                     <span class="hint-text">* champs obligatoires</span>
                     <span class="grow"></span>
-                    <button type="button" class="btn btn-small" data-fill-location title="Remplit les routes et le bloc avec votre position actuelle">Position actuelle</button>
+                    <button type="button" class="btn btn-small" data-fill-location title="Remplit la route et le croisement avec votre position actuelle (le bloc se saisit à la main)">Position actuelle</button>
                 </div>
                 <div class="form-grid">
                     <label class="lbl span-2">Intitulé *<input name="title" type="text" maxlength="60" placeholder="ex : Poursuite véhicule, renfort périmètre…"></label>
@@ -2000,6 +2017,7 @@
         const form = e.target;
         const payload = Object.fromEntries(new FormData(form).entries());
         payload.agencies = new FormData(form).getAll('agencies'); // l'autre police cochée (incident commun)
+        payload.kcsoAreas = new FormData(form).getAll('kcsoAreas'); // secteurs du KCSO (modification d'une intervention)
         const submit = form.querySelector('button[type="submit"]');
         submit.disabled = true;
 
@@ -3305,11 +3323,13 @@
         interventionForm.reset();
         interventionForm.elements.phone.value = Random.phone(); // téléphone du requérant généré automatiquement
         interventionForm.querySelector('[data-priority-fields]').innerHTML = ''; // la priorité suit le choix de la police
+        interventionForm.querySelector('[data-kcso-areas]').innerHTML = '';      // secteurs : seulement avec le KCSO
     }
     // Police cochée -> priorités de cette police ; priorité choisie -> code de réponse + légende (KCSO)
     const formAgencies = (form) => [...form.querySelectorAll('input[name="agencies"]')].filter((i) => i.checked).map((i) => i.value);
     interventionForm.addEventListener('change', (e) => {
         if (e.target.name === 'agencies' || e.target.matches('[data-priority-select]')) refreshPriorityFields(interventionForm, formAgencies(interventionForm));
+        if (e.target.name === 'agencies') refreshAreaFields(interventionForm, formAgencies(interventionForm));
     });
     $('#interventionDetail').addEventListener('change', (e) => {
         const form = e.target.closest('#callForm');
@@ -3323,6 +3343,7 @@
         e.preventDefault();
         const payload = { ...Object.fromEntries(new FormData(interventionForm).entries()), kind: 'intervention' };
         payload.agencies = new FormData(interventionForm).getAll('agencies'); // une police, ou les deux (appel commun)
+        payload.kcsoAreas = new FormData(interventionForm).getAll('kcsoAreas'); // secteurs du KCSO (case KCSO cochée)
         const submit = interventionForm.querySelector('button[type="submit"]');
         submit.disabled = true;
         const res = await post('create', payload);
@@ -4444,7 +4465,7 @@
     });
 
     // =====================================================================
-    // BOUTON "POSITION ACTUELLE" : adresse, croisement et bloc du joueur
+    // BOUTON "POSITION ACTUELLE" : adresse et croisement du joueur (le bloc se saisit toujours à la main)
     // (formulaire d'intervention de Créations et formulaire d'incident)
     // =====================================================================
     document.addEventListener('click', async (e) => {
@@ -4459,8 +4480,7 @@
         const set = (name, value) => { if (form.elements[name] && value) form.elements[name].value = value; };
         set('address', res.street);
         set('crossStreet', res.crossing);
-        set('block', res.block);
-        toast('Adresse, croisement et bloc remplis avec votre position.', 'success');
+        toast('Adresse et croisement remplis avec votre position.', 'success');
     });
 
     // =====================================================================
@@ -4479,6 +4499,7 @@
             </div>
             <div class="ct-title">${esc(c.title)}</div>
             ${c.agency && agenciesShort(c) ? `<div class="ct-row"><span class="hud-label">POLICE</span>${esc(agenciesShort(c))}</div>` : ''}
+            ${callAreas(c).length ? `<div class="ct-row"><span class="hud-label">KCSO</span>${esc(areasLabel(c))}</div>` : ''}
             ${incident
                 ? `<div class="ct-row"><span class="hud-label">UNITÉ</span>${esc(c.unitName || '-')}</div>`
                 : `<div class="ct-row"><span class="hud-label">PRIORITÉ</span>${prio ? `<span class="flag ${prio[0]}">${esc(prio[1])}</span>` : '-'}</div>`}
@@ -5201,7 +5222,7 @@
         pldAllowed: false,  // PLD autorisé (dès la connexion du joueur, voir client/hud.lua)
         unit: null,         // unité du joueur : { name, tag, color, status, agency, agencyShort, callNumber, callTitle }
         profile: { sector: '' }, // secteur (menu d'interactions)
-        pld: null,          // { street, crossing, dir, block, time, paused }
+        pld: null,          // { street, crossing, dir, time, paused }
         car: null,          // car HUD : { show, mode, engine, speed, rpm, fuel, belt, alarm, broken, paused } (rp_vehiclecontrol)
         minimap: null,      // place de la minimap (fractions de l'écran) : { show, x, y, w, h } (client/hud.lua)
         placing: false,
@@ -5244,7 +5265,7 @@
     }
 
     // Exemple affiché en mode placement quand il n'y a pas encore de données
-    const PLD_SAMPLE = { street: 'Nom de la rue', zone: 'Zone', crossing: 'Croisement', dir: 'N', block: '100', time: '12:00' };
+    const PLD_SAMPLE = { street: 'Nom de la rue', zone: 'Zone', crossing: 'Croisement', dir: 'N', time: '12:00' };
     const UNIT_SAMPLE = { name: 'Nom de l\'unité', tag: 'TAG', color: 'blue', agency: 'wsp', agencyShort: 'WSP', status: 'available', callNumber: '00-0000' };
     const CAR_SAMPLE = { inVehicle: true, show: true, mode: 'driver', speed: 42, rpm: 0.45, fuel: 68, belt: false, alarm: false, broken: true, gear: 'D', park: true };
 
@@ -5289,8 +5310,6 @@
             $('#pldZone').textContent = loc.zone || '';
             $('#pldZone').classList.toggle('part-empty', !loc.zone);
             $('#pldCross').textContent = loc.crossing || '-'; // ligne toujours présente : taille stable
-            $('#pldBlock').textContent = loc.block || '';
-            pldEl.querySelector('[data-part="block"]').classList.toggle('part-empty', !loc.block);
             $('#pldTime').textContent = loc.time || '';
             pldEl.querySelector('[data-part="time"]').classList.toggle('part-empty', !loc.time);
             placeHud(pldEl, pldCfg);

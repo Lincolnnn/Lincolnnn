@@ -270,7 +270,7 @@ plus de flou de l'arrière-plan.
 | Recherches | (polices) Identité : nom de famille\* + date de naissance\*, prénom et SSN facultatifs. Véhicule : immatriculation ou VIN. Historique : les nouveaux résultats s'ajoutent en haut, les précédents restent en dessous. En haut à droite : boutons **Sex Offenders** et **Kidnapping Offenders** (registre des délinquants, **même liste pour la WSP et le KCSO** : voir « Casier judiciaire et registre ») et **BOLOs** (voir plus bas). Résultat d'une personne inscrite : étiquettes **SO** / **KO** |
 | Rapports | **Communs à tous les MDC**. Formulaires de l'**État de Washington** : Notice of Infraction (NOI), Criminal Citation and Notice to Appear, Written Warning, Arrest Report, DUI Arrest Report, Police Traffic Collision Report (PTCR), Incident Report, Vehicle Impound / Inventory Report. Infractions choisies dans le **catalogue RCW** (classification + infraction liées, pénalité automatique). Les anciens modèles (DOT-523, Citation, Traffic Citation, Convocation, Warning, Ticket) restent lisibles. Chaque rapport est lié à une intervention / un incident (en cours ou terminé). Liste filtrable (type, texte, mes rapports), lecture, modification par l'auteur. Permanents |
 | Paramètres | Tout en haut, **MDC utilisé** (changer de MDC). Puis trois catégories repliables, toutes fermées à l'ouverture : **MDC** (taille de l'interface, **apparence jour / nuit**, couleur du mode nuit et où il s'applique, transparence de la fenêtre, onglet à l'ouverture, fenêtre, notifications, son et son volume de 0 à 100 %), **HUD & Display** (PLD, display MDC et car HUD : taille et position seulement, tous leurs éléments sont toujours affichés ; volume des sons du véhicule ; le Menu Interaction de `rp_interact` n'est plus réglable : il est toujours en haut à gauche, comme les menus du jeu) et **Chat écrit et commandes** (apparence du chat, affichage des /me, liste des commandes ; ressource `rp_chat`). Gardés chez le joueur, même après une reconnexion |
-| Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun) **puis la priorité** de cette police (voir plus bas), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc, description ; bouton « Position actuelle »). Bouton **Mes créations** : vos identités et véhicules, modifiables. En dessous, pour une identité **déjà créée** : **Casier judiciaire** et **Registre Sex / Kidnapping Offender** (voir « Casier judiciaire et registre ») |
+| Créations | MDC **Générique** : identité, véhicule, intervention (requérant, téléphone généré, **polices** en **cases à cocher** (WSP, KCSO : une case = appel de cette police ; les deux = appel commun) ; **KCSO coché : trois cases de secteur** apparaissent, **Non-incorporé**, **Maple Valley**, **Kenmore** (une, deux ou les trois ; au moins une, refusé sinon) ; **puis la priorité** de cette police (voir plus bas), **nombre idéal d'unités** (1 à 4), adresse, croisement, bloc (saisi à la main), description ; bouton « Position actuelle » (adresse et croisement). Bouton **Mes créations** : vos identités et véhicules, modifiables. En dessous, pour une identité **déjà créée** : **Casier judiciaire** et **Registre Sex / Kidnapping Offender** (voir « Casier judiciaire et registre ») |
 
 Unités, interventions et incidents sont gardés en mémoire : ils disparaissent au redémarrage du serveur.
 
@@ -316,8 +316,10 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   réserver aux joueurs ayant accès au MDC). Composition : à gauche le **cap** (petite flèche rouge tournée vers la
   direction, puis la lettre en gros : N / NE / E / SE / S / SW / W / NW), un **trait rouge**, puis la **rue** en gros,
   la **zone géographique** en petites capitales rouges (ex. Cypress Flats ; absente : rien), et une ligne
-  « **× croisement le plus proche** (italique, toujours présent : largeur stable) · **BLOC** n° (celui où se trouve le
-  joueur, sinon le plus proche) · **🕘 heure du jeu** ».
+  « **× croisement le plus proche** (italique, toujours présent : largeur stable) · **🕘 heure du jeu** ».
+  **Plus aucun bloc automatique** : ni sur le PLD, ni dans « Position actuelle » (qui remplit seulement l'adresse et le
+  croisement), ni dans la position des unités envoyée au MDC Web, ni dans les rapports. Le **bloc** ne reste que dans
+  la **localisation des interventions et incidents** (champ « Bloc », saisi à la main).
   **Priorité au PLD, au car HUD et au display MDC** : tant que le PLD est affiché, les textes du jeu qui s'y
   superposent (nom de la rue, de la zone, du véhicule et sa classe) sont masqués (`HideGameHud` dans
   `client/hud.lua`). Les scripts de HUD concurrents listés dans `ConflictingHuds` (`server/server.lua` : street
@@ -341,16 +343,6 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
   le bouton « Position actuelle » et les exports `GetStreetName`, `GetDistrictName`, `GetLocationText`,
   `RenameStreet`, `GetJurisdiction` (police compétente et municipalité). Commande **`/mdc_streets`** (F8) : noms à votre
   position (et ceux du jeu), pour vérifier.
-  Les blocs se dessinent dans **`config/blocs.json`** (vide au départ, modèles dans `exemples`) : bloc **point** (une
-  coordonnée, rayon facultatif) ou **carré** (4 coins, pour une grande zone sous un seul bloc), et toujours cercles,
-  rectangles, polygones, filtre par rue (nom **affiché**, ex. « Interstate 90 ») : voir `config/LISEZMOI.txt` ; la commande
-  `/mdc_pos` (console F8) donne la ligne à copier.
-  **`/blocs` (admins : `Config.BlockEditorAce` = `rp.admin`, ACE ou rang Discord, ou l'ACE `command`)** : éditeur de blocs. Panneau à droite : **Point** (rayon)
-  ou **Carré** (largeur, hauteur, rotation), nom du bloc ; le bloc se dessine **en jeu** (jaune) et **sur la carte**
-  (rayon / zone), au centre du joueur (« Suivre ma position ») ou figé (« Fixer ici »). « **Ajouter le bloc** » : il
-  passe en vert et sa ligne rejoint la liste (✕ pour la retirer) ; « **Copier tout** » : les lignes à coller dans
-  `"blocks"` de `config/blocs.json`. « Se déplacer » rend la souris (le panneau reste), `/blocs` la reprend. Rien
-  n'est écrit sur le serveur ; redémarrer `rp_mdc` après avoir collé les lignes.
 - **Display MDC** : affiché seulement dans une unité : « **[N° d'unité] • [POLICE]** » (ex. `417 • WSP`, pastille
   WSP bleue / KCSO verte) suivi du tag spécial (ex. SUP.), statut, n° d'incident (uniquement quand l'unité est sur un
   appel) et **secteur** (zone de jeu) choisi dans le Menu Interaction (`rp_interact`, Police > Display MDC) : « aucun
@@ -650,6 +642,32 @@ dépend de la mémoire du serveur.
   donnée écrasée). `mdc_reload` (console serveur) relit les fiches depuis MySQL après une modification à la main.
 - Interventions terminées : gardées **12 h** dans la liste du MDC en jeu (`ClosedCallsKeepHours`), **toutes** dans
   MySQL (historique du MDC Web).
+
+## Secteurs du KCSO
+
+Quand la case **KCSO** est cochée à la création d'un appel (MDC civil, MDC de police, ou dispatch sur le MDC Web),
+trois cases apparaissent : **Non-incorporé**, **Maple Valley**, **Kenmore** (`Config.KcsoAreas`). Une, plusieurs ou
+les trois ; au moins une, sinon l'appel est refusé (« KCSO : cochez au moins un secteur »). Les secteurs s'affichent dans
+la fiche de l'appel (« Secteur KCSO »), dans la notification des unités et sur le site ; ils se modifient avec
+l'intervention (en jeu et sur le site, entrée au journal). Colonne `mdc_calls.kcso_areas` (migration
+`004_kcso_areas.sql`, automatique). Les incidents déclarés par une unité n'en demandent pas.
+
+## Données de démonstration (`mdc_demo`)
+
+Console serveur : `mdc_demo status | seed | purge | regen`. Les fiches sont créées **comme par de vrais joueurs**,
+avec les **mêmes callbacks** que le NUI (un « joueur virtuel » par personnage ou par agent) :
+
+- **Registre** (70 Sex Offenders, 45 Kidnapping Offenders) : le joueur **enregistre son personnage** (Créations >
+  Identité), puis **l'ajoute au registre désigné** (Créations > Registre), parfois après un casier antérieur ;
+- **Rapports** (≈ 80) : les **personnes et véhicules** en cause sont **enregistrés** (identités, puis véhicules avec leur
+  propriétaire), l'**intervention** est créée (appel d'un civil ou contrôle de l'unité : police, priorité, secteur KCSO,
+  adresse, bloc), l'unité y est affectée, les fiches y sont **liées**, elle est clôturée ; puis l'agent rédige le
+  **rapport lié à l'intervention**.
+
+**Dates** : entre **10 mois en arrière et aujourd'hui**, jamais dans le futur (faits, jugements, libérations, inscriptions,
+mises à jour, appels, rapports, créations des fiches ; seules les dates de naissance sont plus anciennes). Toutes les
+fiches portent `createdBy = demo` : `mdc_demo purge` retire identités, véhicules, rapports **et interventions** de
+démonstration, jamais une fiche de joueur.
 
 ## MDC Web du dispatch
 
