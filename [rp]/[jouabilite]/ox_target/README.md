@@ -82,3 +82,18 @@ Le **pistolet radar** se prend et se range dans le menu **Équipement** du coffr
 
 Notifications de riven_spikes : celles d'**ox_lib** (en français avec les `.json` fournis), pas les messages privés
 du chat : elles sont affichées par ox_lib lui-même.
+
+## Riven_Scene_Dynamics (banderoles de police, script payant)
+
+Script de **Riven Systems** (licence : `set riven_license_key` dans `server.cfg`) : **jamais dans ce dépôt**
+(`.gitignore`). Utilisez la **version adaptée à l'œil** (fournie à part, licence intacte) : elle ajoute
+`Config.Target` à la fin de son `shared/config.lua` et, au lieu des invites « E » de Riven :
+
+- **coffre** d'un véhicule de scène (classe 18 ou `Config.Trunk.models` de Riven) : œil sur le coffre →
+  **« Kit de scène (banderoles, poteaux, preuves) »** (le joueur marche jusqu'au pare-chocs, le coffre de Riven s'ouvre) ;
+- **banderole** : œil sur le sol près d'elle → **« Passer sous la banderole »** / **« Enjamber la banderole »**.
+
+Le reste (pose : E / flèches / Retour arrière, interface F6, commandes `/rivenscene`…) est celui de Riven.
+`Config.Target.enabled = false` (chez Riven) : retour aux invites E d'origine.
+
+`server.cfg` : `ensure ox_target` **avant** `ensure Riven_Scene_Dynamics`.

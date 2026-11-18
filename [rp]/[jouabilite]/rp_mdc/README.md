@@ -81,8 +81,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure ox_target                 # le pont vers l'œil (PAS le vrai ox_target), après rp_interact
    # ensure ox_lib                  (facultatif : seulement pour riven_spikes)
    # ensure riven_spikes            (facultatif, script payant : après ox_lib et ox_target)
-   # ensure Riven_Scene_Dynamics    (facultatif, script payant : banderoles de police, licence riven_license_key)
-   ensure rp_scene                  # Riven Scene Dynamics dans l'œil (kit du coffre, périmètre, preuves) : après ox_target
+   # ensure Riven_Scene_Dynamics    (facultatif, script payant adapté à l'œil : banderoles de police ; après ox_target)
    ensure rp_equipment
    ensure rp_camshake
    ensure rp_NPCcontrol
