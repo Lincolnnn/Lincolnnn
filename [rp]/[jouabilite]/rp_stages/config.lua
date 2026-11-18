@@ -2,12 +2,15 @@
     RP STAGES - configuration
     =========================
     Stages d'éclairage des véhicules de police, par EXTRAS du véhicule (SetVehicleExtra) :
-      - 3 stages principaux : stage 1, stage 2, stage 3 (le stage 3 = stage de réponse : SEUL à permettre la sirène) ;
-      - stages secondaires : Traffic Advisor Left (taLeft), Traffic Advisor Right (taRight), Steady Burn (steadyBurn).
+      - 3 stages principaux : stage 1, stage 2, stage 3 (le stage 3 = stage de réponse : SEUL à permettre la sirène),
+        changés avec UNE touche (stage suivant à chaque appui) ;
+      - stages secondaires : Traffic Advisor Left (taLeft), Traffic Advisor Right (taRight), Steady Burn (steadyBurn),
+        chacun avec sa propre touche.
+    Aucun élément visuel (pas d'indicateur à l'écran).
     Rien n'est obligatoire : un véhicule n'a que les stages et les stages secondaires écrits pour lui.
 
     Pour chaque véhicule (clé = spawn code du véhicule, ex. 'police', 'sheriff2') :
-      label       = nom affiché (facultatif)
+      label       = nom (facultatif, messages de la console)
       stages      = { [1] = {...}, [2] = {...}, [3] = {...} }   -- seulement ceux qui existent sur ce véhicule
       secondary   = { taLeft = {...}, taRight = {...}, steadyBurn = {...} } -- facultatif
       off         = { [extra] = true/false }  -- facultatif : état des extras quand aucun stage n'est actif
@@ -33,14 +36,17 @@
 
 RPStagesConfig = {
     -- Touches d'origine (modifiables par chaque joueur avec /modiftouche STAGES ... ; ou Paramètres > Raccourcis > FiveM)
+    --   stages : UNE touche pour les stages principaux (aucun -> 1 -> 2 -> 3 -> aucun, seulement ceux du véhicule)
+    --   taLeft / taRight / steadyBurn : une touche par stage secondaire ; siren : sirène (stage 3)
     Keys = {
-        stage1 = '1', stage2 = '2', stage3 = '3',
+        stages = 'Q',
         taLeft = '4', taRight = '5', steadyBurn = '6',
         siren = 'R',
     },
-
-    -- Indicateur à l'écran (conducteur d'un véhicule configuré) : stages disponibles, stage actif, TA, Steady Burn, sirène
-    Hud = { enabled = true, right = '1.4vw', bottom = '30vh' },
+    -- Touche des stages : après le dernier stage, true = retour à « aucun stage » ; false = retour au premier stage
+    CycleOff = true,
+    -- Roue de la radio du jeu (Q) bloquée au volant d'un véhicule configuré (Q = touche des stages par défaut)
+    DisableRadioWheel = true,
 
     -- Délai (ms) de détection du véhicule du joueur (hors véhicule configuré : aucune autre boucle)
     CheckInterval = 400,

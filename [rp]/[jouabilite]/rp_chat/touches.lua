@@ -50,9 +50,7 @@ RPChatKeyScripts = {
         { id = 'radar', label = 'Prendre / ranger le pistolet radar (à l\'avant)', cmd = 'radargun', key = '' },
     } },
     { name = 'STAGES', label = 'Stages des véhicules de police', res = 'rp_stages', actions = {
-        { id = 'stage1', label = 'Stage 1', cmd = 'rps_stage1', key = '1' },
-        { id = 'stage2', label = 'Stage 2', cmd = 'rps_stage2', key = '2' },
-        { id = 'stage3', label = 'Stage 3 (réponse)', cmd = 'rps_stage3', key = '3' },
+        { id = 'stages', label = 'Stage suivant (1, 2, 3)', cmd = 'rps_stage', key = 'Q' },
         { id = 'tagauche', label = 'Traffic Advisor gauche', cmd = 'rps_ta_left', key = '4' },
         { id = 'tadroite', label = 'Traffic Advisor droite', cmd = 'rps_ta_right', key = '5' },
         { id = 'steadyburn', label = 'Steady Burn', cmd = 'rps_steady', key = '6' },

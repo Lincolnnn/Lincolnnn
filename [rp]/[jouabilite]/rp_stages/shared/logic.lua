@@ -86,20 +86,36 @@ local function dropNonOverlay(cfg, st)
     end
 end
 
---- Touche « stage n » : choisit ce stage ; le stage actif appuyé de nouveau s'éteint.
---- Passé au stage 3 par la sirène : appuyer sur 3 le garde (il restera au stage 3 sirène coupée).
-function L.pressStage(cfg, state, n)
-    local st = copy(state)
-    if not cfg.stages[n] then return st, false end
-    if n == 3 and st.prev ~= nil and st.stage == 3 then st.prev = nil return st, true end
-    if st.stage == n then
-        st.stage, st.prev = 0, nil
-        if st.siren and L.sirenNeedsStage3(cfg) then st.siren = false end
-        return st, true
-    end
+--- Met le véhicule au stage n (0 = aucun) : hors stage 3, la sirène est coupée
+local function setStage(cfg, st, n)
     st.stage, st.prev = n, nil
     if n ~= 3 and st.siren and L.sirenNeedsStage3(cfg) then st.siren = false end -- sirène : stage 3 seulement
-    dropNonOverlay(cfg, st)
+    if n > 0 then dropNonOverlay(cfg, st) end
+end
+
+--- Stages principaux du véhicule, dans l'ordre (ex. { 1, 2, 3 } ou { 1, 3 })
+function L.stageList(cfg)
+    local list = {}
+    for n = 1, 3 do if cfg.stages[n] then list[#list + 1] = n end end
+    return list
+end
+
+--- TOUCHE UNIQUE des stages principaux : passe au stage suivant du véhicule (aucun -> 1 -> 2 -> 3 -> aucun ; seulement
+--- les stages configurés). `cycleOff` false : après le dernier stage, retour au premier (sans passer par « aucun »).
+--- Au stage 3 automatique (sirène), la touche passe au stage suivant comme d'habitude (et coupe donc la sirène).
+function L.cycleStage(cfg, state, cycleOff)
+    local st = copy(state)
+    local list = L.stageList(cfg)
+    if #list == 0 then return st, false end
+    local nextStage = list[1]
+    for i, n in ipairs(list) do
+        if n == st.stage then
+            nextStage = list[i + 1] or (cycleOff == false and list[1] or 0)
+            break
+        end
+    end
+    if nextStage == st.stage then return st, false end
+    setStage(cfg, st, nextStage)
     return st, true
 end
 

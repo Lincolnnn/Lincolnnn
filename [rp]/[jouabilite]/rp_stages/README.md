@@ -3,8 +3,11 @@
 Gère l'éclairage des véhicules de police **par leurs extras**, véhicule par véhicule (spawn code) :
 
 - **3 stages principaux** : stage 1, stage 2, stage 3 — le **stage 3 est le stage de réponse** : **seul** à permettre
-  la sirène ;
-- **stages secondaires** : **Traffic Advisor Left**, **Traffic Advisor Right**, **Steady Burn**.
+  la sirène — changés avec **une seule touche** (stage suivant à chaque appui) ;
+- **stages secondaires** : **Traffic Advisor Left**, **Traffic Advisor Right**, **Steady Burn**, chacun avec **sa propre
+  touche**.
+
+**Aucun élément visuel** (pas d'indicateur à l'écran) pour l'instant.
 
 Aucun framework. Synchronisé entre les joueurs. Rien n'est obligatoire : chaque véhicule n'a que les stages qu'on lui
 écrit dans `config.lua` (un véhicule sans stage 3, sans TA, avec seulement deux stages… tout est possible).
@@ -20,7 +23,7 @@ Aucun framework. Synchronisé entre les joueurs. Rien n'est obligatoire : chaque
 ```lua
 Vehicles = {
     ['police'] = {                                  -- spawn code du véhicule
-        label = 'Police Cruiser',                   -- facultatif (indicateur à l'écran)
+        label = 'Police Cruiser',                   -- facultatif (messages de la console)
         stages = {                                  -- seulement ceux qui existent sur ce véhicule
             [1] = { extras = { [1] = true, [2] = false, [3] = false } },
             [2] = { extras = { [1] = true, [2] = true,  [3] = false } },
@@ -49,11 +52,11 @@ Vehicles = {
 ## Sirène et stage 3
 
 - La sirène n'est **audible qu'au stage 3**.
-- Au **stage 1 ou 2** (ou sans stage), activer la sirène **passe automatiquement au stage 3** (« 3 AUTO » sur
-  l'indicateur) ; quand la sirène est **coupée**, le véhicule **revient au stage d'avant** (stage 2 → sirène → stage 3 →
+- Au **stage 1 ou 2** (ou sans stage), activer la sirène **passe automatiquement au stage 3** ;
+  quand la sirène est **coupée**, le véhicule **revient au stage d'avant** (stage 2 → sirène → stage 3 →
   sirène coupée → stage 2).
-- S'il était **déjà au stage 3**, il **y reste** quand la sirène est coupée. Appuyer sur « stage 3 » pendant un stage 3
-  automatique le garde aussi au stage 3 ensuite.
+- S'il était **déjà au stage 3**, il **y reste** quand la sirène est coupée. Appuyer sur la touche des stages pendant la
+  sirène fait passer au stage suivant (comme toujours) : hors stage 3, la sirène est coupée.
 - Choisir le stage 1 ou 2 pendant la sirène **coupe la sirène**.
 - Un véhicule **sans stage 3** a la sirène sans condition.
 - Au volant d'un véhicule configuré, la touche de sirène du jeu (E) ne change plus les gyrophares : ils suivent le
@@ -63,19 +66,19 @@ Vehicles = {
 
 | Action | Touche | Commande |
 |---|---|---|
-| Stage 1 / 2 / 3 (le stage actif appuyé de nouveau s'éteint) | `1` / `2` / `3` | `rps_stage1` / `rps_stage2` / `rps_stage3` |
-| Traffic Advisor gauche / droite | `4` / `5` | `rps_ta_left` / `rps_ta_right` |
+| **Stages principaux** : stage suivant à chaque appui (aucun → 1 → 2 → 3 → aucun ; seulement les stages du véhicule) | `Q` | `rps_stage` |
+| Traffic Advisor gauche | `4` | `rps_ta_left` |
+| Traffic Advisor droite | `5` | `rps_ta_right` |
 | Steady Burn | `6` | `rps_steady` |
 | Sirène (stage 3) | `R` | `rps_siren` |
 
-Seul le **conducteur** d'un véhicule configuré s'en sert (ailleurs les touches ne font rien). `Ace` dans `config.lua`
-pour les réserver à une permission.
-
-## Indicateur à l'écran
-
-Petit cadre en bas à droite (conducteur seulement) : les stages du véhicule (actif en couleur, stage 3 en rouge,
-« AUTO » s'il vient de la sirène), la sirène, puis TA ◀ / TA ▶ / SB si le véhicule en a. Position et affichage :
-`Hud` dans `config.lua`. Masqué par le mode photo (`rp_freecam`).
+- Un véhicule avec les stages 1 et 3 seulement fait : aucun → 1 → 3 → aucun. `CycleOff = false` dans `config.lua` :
+  après le dernier stage, retour au **premier** (sans passer par « aucun stage »).
+- Chaque stage secondaire s'allume / s'éteint avec sa touche (seulement s'il existe sur le véhicule).
+- `Q` est aussi la roue de la radio du jeu : elle est bloquée au volant d'un véhicule configuré
+  (`DisableRadioWheel = false` dans `config.lua` pour la garder).
+- Seul le **conducteur** d'un véhicule configuré s'en sert (ailleurs les touches ne font rien). `Ace` dans `config.lua`
+  pour les réserver à une permission.
 
 ## Fonctionnement
 

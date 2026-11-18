@@ -1,8 +1,8 @@
 --[[
     RP STAGES - client
     ------------------
-    Conducteur d'un véhicule configuré (config.lua) : touches des stages 1 / 2 / 3, des stages secondaires (TA gauche,
-    TA droite, Steady Burn) et de la sirène. L'état est calculé ici (shared/logic.lua), appliqué tout de suite au
+    Conducteur d'un véhicule configuré (config.lua) : UNE touche pour les stages principaux (stage suivant à chaque appui),
+    une touche par stage secondaire (TA gauche, TA droite, Steady Burn) et la touche de la sirène. Aucun élément visuel. L'état est calculé ici (shared/logic.lua), appliqué tout de suite au
     véhicule, puis envoyé au serveur qui le vérifie et le partage (state bag « rpStages » du véhicule) : chaque joueur
     proche applique les mêmes extras et entend (ou non) la même sirène.
     Performance : hors véhicule configuré, une vérification toutes les CheckInterval ms (et une toutes les
@@ -54,28 +54,6 @@ local function apply(veh, cfg, st, driver)
 end
 
 -- =========================================================================
--- INDICATEUR À L'ÉCRAN
--- =========================================================================
-local hudShown = false
-local function hud()
-    if not C.Hud.enabled then return end
-    local cfg, st = current.cfg, current.state
-    if not cfg then
-        if hudShown then hudShown = false SendNUIMessage({ action = 'hide' }) end
-        return
-    end
-    hudShown = true
-    local stages = {}
-    for n = 1, 3 do if cfg.stages[n] then stages[#stages + 1] = n end end
-    local secondary = {}
-    for _, k in ipairs(Logic.SECONDARY) do
-        if cfg.secondary[k] then secondary[#secondary + 1] = { key = k, label = cfg.secondary[k].label, on = st[k] == true } end
-    end
-    SendNUIMessage({ action = 'state', data = { label = cfg.label, stages = stages, stage = st.stage, auto = st.prev ~= nil,
-        secondary = secondary, siren = st.siren, sirenNeeds3 = Logic.sirenNeedsStage3(cfg) } })
-end
-
--- =========================================================================
 -- TOUCHES (conducteur d'un véhicule configuré seulement)
 -- =========================================================================
 local lastSend = 0
@@ -85,7 +63,6 @@ local function change(newState)
     current.state = newState
     applied[veh] = newState.v
     apply(veh, cfg, newState, true)
-    hud()
     lastSend = GetGameTimer()
     TriggerServerEvent('rp_stages:set', NetworkGetNetworkIdFromEntity(veh), newState)
 end
@@ -98,9 +75,7 @@ local function act(fn, ...)
 end
 
 local KEYS = {
-    { cmd = 'rps_stage1', key = C.Keys.stage1, label = 'Stages : stage 1', run = function() act(Logic.pressStage, 1) end },
-    { cmd = 'rps_stage2', key = C.Keys.stage2, label = 'Stages : stage 2', run = function() act(Logic.pressStage, 2) end },
-    { cmd = 'rps_stage3', key = C.Keys.stage3, label = 'Stages : stage 3 (réponse)', run = function() act(Logic.pressStage, 3) end },
+    { cmd = 'rps_stage', key = C.Keys.stages, label = 'Stages : stage suivant (1, 2, 3)', run = function() act(Logic.cycleStage, C.CycleOff ~= false) end },
     { cmd = 'rps_ta_left', key = C.Keys.taLeft, label = 'Stages : Traffic Advisor gauche', run = function() act(Logic.pressSecondary, 'taLeft') end },
     { cmd = 'rps_ta_right', key = C.Keys.taRight, label = 'Stages : Traffic Advisor droite', run = function() act(Logic.pressSecondary, 'taRight') end },
     { cmd = 'rps_steady', key = C.Keys.steadyBurn, label = 'Stages : Steady Burn', run = function() act(Logic.pressSecondary, 'steadyBurn') end },
@@ -120,7 +95,6 @@ local function enter(veh, cfg)
     current.state = st and Logic.sanitize(cfg, st) or Logic.newState()
     current.state.v = st and st.v or 0
     apply(veh, cfg, current.state, true)
-    hud()
     -- Au volant : les gyrophares du jeu restent ceux du stage (la touche du jeu ne les allume / coupe plus),
     -- la sirène reste muette hors stage 3
     CreateThread(function()
@@ -129,6 +103,7 @@ local function enter(veh, cfg)
             local lights = Logic.lights(cfg, cs)
             if IsVehicleSirenOn(veh) ~= lights then SetVehicleSiren(veh, lights) end
             if not cs.siren and IsVehicleSirenAudioOn(veh) then SetVehicleHasMutedSirens(veh, true) end
+            if C.DisableRadioWheel then DisableControlAction(0, 85, true) end -- roue de la radio (Q)
             Wait(0)
         end
     end)
@@ -136,7 +111,6 @@ end
 
 local function leave()
     current.veh, current.cfg, current.state = 0, nil, nil
-    hud()
 end
 
 CreateThread(function()
@@ -169,7 +143,6 @@ AddStateBagChangeHandler(BAG, nil, function(bagName, _, value)
             current.state = Logic.sanitize(cfg, value)
             current.state.v = value.v
             apply(veh, cfg, current.state, true)
-            hud()
         end
         return
     end
@@ -195,14 +168,6 @@ CreateThread(function()
             end
         end
     end
-end)
-
--- rp_freecam (mode photo) : indicateur masqué tant que « Masquer les interfaces » est coché
-AddEventHandler('rp_freecam:hideUi', function(hidden) SendNUIMessage({ action = 'rpHideUi', data = { hidden = hidden == true } }) end)
-
-CreateThread(function()
-    Wait(500)
-    SendNUIMessage({ action = 'config', data = { right = C.Hud.right, bottom = C.Hud.bottom } })
 end)
 
 RPStagesClient = { current = current, apply = apply, data = DATA } -- (tests)
