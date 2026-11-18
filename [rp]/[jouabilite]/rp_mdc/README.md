@@ -97,6 +97,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    ensure rp_notepad                # /notepad (F2) : bloc-notes ; retranscrit dans la note de l'unité du MDC
    ensure rp_policecards            # /miranda, /alphabet : cartes aide-mémoire (Menu Interaction > Police)
    ensure rp_spotlight              # projecteurs de portière par véhicule (remplace px_spotlight)
+   ensure rp_stages                 # stages des véhicules de police (extras) : stages 1 / 2 / 3, TA, Steady Burn, sirène
    ensure rp_vehicleprops
    ensure rp_taser10
    ensure rp_TrafficControl
