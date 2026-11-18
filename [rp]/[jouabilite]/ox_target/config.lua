@@ -14,7 +14,8 @@ BridgeConfig = {
     TrunkDepth = 1.3,
     -- Scripts dont les options ne sont proposées qu'aux policiers en service (dans une unité du MDC) : herses de
     -- riven_spikes (coffre des véhicules de police, ramasser / tirer le cordon d'une herse posée)
-    PoliceOnly = { riven_spikes = true },
+    -- et div_tape (version adaptée à l'œil) : « Placer une tape » au coffre, « Retirer la tape / le cône »
+    PoliceOnly = { riven_spikes = true, div_tape = true },
     -- Options cachées dans l'œil (nom de l'option qui commence par…) : elles restent utilisables par nos menus
     -- (export runOption). Aucune : la herse se prend et se range avec l'œil sur le coffre.
     HiddenPrefixes = {},

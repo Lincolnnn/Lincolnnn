@@ -82,6 +82,7 @@ Facultatif aussi : **riven_spikes** (herses, script payant de Riven, jamais dans
    # ensure ox_lib                  (facultatif : seulement pour riven_spikes)
    # ensure riven_spikes            (facultatif, script payant : après ox_lib et ox_target)
    # ensure Riven_Scene_Dynamics    (facultatif, script payant adapté à l'œil : banderoles de police ; après ox_target)
+   # ensure div_bridge / div_tape_assets / div_tape   (facultatif, script payant adapté à l'œil : tapes ; après ox_target)
    ensure rp_equipment
    ensure rp_camshake
    ensure rp_NPCcontrol

@@ -97,3 +97,18 @@ Le reste (pose : E / flèches / Retour arrière, interface F6, commandes `/riven
 `Config.Target.enabled = false` (chez Riven) : retour aux invites E d'origine.
 
 `server.cfg` : `ensure ox_target` **avant** `ensure Riven_Scene_Dynamics`.
+
+## div_tape (tapes de Diversity, script payant)
+
+Script de **Diversity** (escrow, exige `div_bridge` et `div_tape_assets`) : **jamais dans ce dépôt** (`.gitignore`).
+Utilisez la **version adaptée à l'œil** (fournie à part) : seuls ses fichiers ouverts sont modifiés
+(`client/editable.lua`, `config.lua` : langue `fr`, `fxmanifest.lua` : `ui_page`) et un dossier `html/` est ajouté.
+
+Policier en service (`PoliceOnly`) :
+- **coffre** d'un véhicule d'urgence (classe 18, ou `RPTarget.VehicleModels` dans `client/editable.lua`) : œil sur le
+  coffre → **« Placer une tape »** : le joueur marche jusqu'au coffre, le coffre s'ouvre et un **petit panneau** propose
+  Police, Scène de crime, Pompiers, Attention, Travaux ; le choix lance la pose de div_tape (`/tape <style>`) ;
+- **tape** posée : œil dessus → **« Retirer la tape »** ; **cône** de div_tape → **« Retirer le cône »**
+  (exports `GetClosestTape` / `DeleteTape` de div_tape, au point visé).
+
+`server.cfg` : `ensure ox_target`, puis `ensure div_bridge`, `ensure div_tape_assets`, `ensure div_tape`.
