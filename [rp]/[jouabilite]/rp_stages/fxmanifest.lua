@@ -12,7 +12,7 @@ lua54 'yes'
 name 'rp_stages'
 author 'Lincolnnn'
 description 'Stages des véhicules de police (extras) : stages 1 / 2 / 3, TA gauche / droite, Steady Burn, sirène au stage 3 - standalone'
-version '1.1.0'
+version '1.2.0'
 
 shared_scripts {
     'config.lua',

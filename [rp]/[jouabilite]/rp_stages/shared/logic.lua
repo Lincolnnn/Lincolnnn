@@ -1,7 +1,9 @@
 --[[
     RP STAGES - logique (client ET serveur, sans aucun native : testable seule)
     -----------------------------------------------------------------------------
-    État d'un véhicule : { stage = 0..3, taLeft, taRight, steadyBurn = booléens, siren = booléen,
+    État d'un véhicule : { stage = 0..3, taLeft, taRight, steadyBurn = booléens,
+                           siren = sirène du véhicule allumée (OBSERVÉE : la sirène est gérée par un autre script,
+                                   Bozlights ; rp_stages ne l'allume ni ne la coupe jamais),
                            prev = stage d'avant le passage automatique au stage 3 (sirène) ou nil, v = n° de version }
 ]]
 
@@ -36,7 +38,7 @@ function L.normalize(spawn, raw)
         local s = type(raw.stages) == 'table' and raw.stages[n]
         if s then
             if type(s) ~= 'table' then warn[#warn + 1] = ('stage %d ignoré (doit être une table)'):format(n)
-            else cfg.stages[n] = { extras = extrasOf(s.extras), lights = bool(s.lights, true), label = s.label or ('Stage ' .. n) } end
+            else cfg.stages[n] = { extras = extrasOf(s.extras), label = s.label or ('Stage ' .. n) } end
         end
     end
     if type(raw.stages) == 'table' then
@@ -49,7 +51,7 @@ function L.normalize(spawn, raw)
             if not L.SECONDARY_LABEL[k] then
                 warn[#warn + 1] = ('stage secondaire « %s » ignoré (taLeft, taRight ou steadyBurn)'):format(tostring(k))
             elseif type(s) == 'table' then
-                cfg.secondary[k] = { extras = extrasOf(s.extras), lights = bool(s.lights, true), overlay = bool(s.overlay, true),
+                cfg.secondary[k] = { extras = extrasOf(s.extras), overlay = bool(s.overlay, true),
                     label = s.label or L.SECONDARY_LABEL[k] }
             end
         end
@@ -75,21 +77,18 @@ end
 --- La sirène demande le stage 3 (seulement si le véhicule a un stage 3)
 function L.sirenNeedsStage3(cfg) return cfg.stages[3] ~= nil end
 
-local function sirenOff(st)
-    st.siren = false
-    if st.prev ~= nil then st.stage, st.prev = st.prev, nil end
-end
-
 local function dropNonOverlay(cfg, st)
     for _, k in ipairs(L.SECONDARY) do
         if st[k] and cfg.secondary[k] and not cfg.secondary[k].overlay then st[k] = false end
     end
 end
 
---- Met le véhicule au stage n (0 = aucun) : hors stage 3, la sirène est coupée
+--- Sirène allumée sur un véhicule qui a un stage 3 : le véhicule reste au stage 3 tant qu'elle sonne
+local function sirenLocks(cfg, st) return st.siren and L.sirenNeedsStage3(cfg) end
+
+--- Met le véhicule au stage n (0 = aucun)
 local function setStage(cfg, st, n)
     st.stage, st.prev = n, nil
-    if n ~= 3 and st.siren and L.sirenNeedsStage3(cfg) then st.siren = false end -- sirène : stage 3 seulement
     if n > 0 then dropNonOverlay(cfg, st) end
 end
 
@@ -102,11 +101,11 @@ end
 
 --- TOUCHE UNIQUE des stages principaux : passe au stage suivant du véhicule (aucun -> 1 -> 2 -> 3 -> aucun ; seulement
 --- les stages configurés). `cycleOff` false : après le dernier stage, retour au premier (sans passer par « aucun »).
---- Au stage 3 automatique (sirène), la touche passe au stage suivant comme d'habitude (et coupe donc la sirène).
+--- Sirène allumée (véhicule avec un stage 3) : le stage 3 est gardé, la touche ne fait rien.
 function L.cycleStage(cfg, state, cycleOff)
     local st = copy(state)
     local list = L.stageList(cfg)
-    if #list == 0 then return st, false end
+    if #list == 0 or sirenLocks(cfg, st) then return st, false end
     local nextStage = list[1]
     for i, n in ipairs(list) do
         if n == st.stage then
@@ -124,30 +123,35 @@ function L.pressSecondary(cfg, state, key)
     local st = copy(state)
     local s = cfg.secondary[key]
     if not s then return st, false end
+    if not st[key] and not s.overlay and sirenLocks(cfg, st) then return st, false end -- éteindrait le stage 3 (sirène)
     st[key] = not st[key]
     if st[key] then
         if cfg.taExclusive and (key == 'taLeft' or key == 'taRight') then
             st[key == 'taLeft' and 'taRight' or 'taLeft'] = false
         end
-        if not s.overlay then -- ne se superpose pas : le stage principal (et la sirène) s'éteignent
-            st.stage, st.prev = 0, nil
-            if L.sirenNeedsStage3(cfg) then st.siren = false end
-        end
+        if not s.overlay then st.stage, st.prev = 0, nil end -- ne se superpose pas : le stage principal s'éteint
     end
     return st, true
 end
 
---- Touche « sirène » : allume / coupe. Allumée hors stage 3 : passage automatique au stage 3 (stage d'avant gardé) ;
---- coupée : retour au stage d'avant le passage automatique.
-function L.pressSiren(cfg, state)
+--- La SIRÈNE du véhicule (gérée par Bozlights) vient de s'allumer (on = true) ou de se couper :
+---   allumée hors stage 3 -> passage automatique au stage 3 (stage d'avant gardé) ;
+---   coupée -> retour au stage d'avant le passage automatique (déjà au stage 3 avant la sirène : il y reste).
+--- Véhicule sans stage 3 : rien ne change (seul l'état « sirène » est noté).
+function L.sirenChanged(cfg, state, on)
     local st = copy(state)
-    if st.siren then sirenOff(st) return st, true end
-    if L.sirenNeedsStage3(cfg) and st.stage ~= 3 then
-        st.prev = st.stage
-        st.stage = 3
-        dropNonOverlay(cfg, st)
+    on = on == true
+    if st.siren == on then return st, false end
+    st.siren = on
+    if on then
+        if L.sirenNeedsStage3(cfg) and st.stage ~= 3 then
+            st.prev = st.stage
+            st.stage = 3
+            dropNonOverlay(cfg, st)
+        end
+    elseif st.prev ~= nil then
+        st.stage, st.prev = st.prev, nil
     end
-    st.siren = true
     return st, true
 end
 
@@ -157,6 +161,8 @@ function L.sanitize(cfg, data)
     if type(data) ~= 'table' then return st end
     local n = math.tointeger(tonumber(data.stage) or 0) or 0
     st.stage = cfg.stages[n] and n or 0
+    st.siren = data.siren == true
+    if st.siren and L.sirenNeedsStage3(cfg) then st.stage = 3 end
     for _, k in ipairs(L.SECONDARY) do st[k] = data[k] == true and cfg.secondary[k] ~= nil end
     if cfg.taExclusive and st.taLeft and st.taRight then st.taRight = false end
     if st.stage > 0 then
@@ -164,7 +170,6 @@ function L.sanitize(cfg, data)
             if st[k] and not cfg.secondary[k].overlay then st[k] = false end
         end
     end
-    st.siren = data.siren == true and (not L.sirenNeedsStage3(cfg) or st.stage == 3)
     local prev = math.tointeger(tonumber(data.prev))
     st.prev = (st.siren and st.stage == 3 and prev and prev >= 0 and prev <= 2 and (prev == 0 or cfg.stages[prev])) and prev or nil
     return st
@@ -181,17 +186,6 @@ function L.extras(cfg, st)
         if st[k] and cfg.secondary[k] then for id, on in pairs(cfg.secondary[k].extras) do out[id] = on end end
     end
     return out
-end
-
---- Gyrophares du jeu (SetVehicleSiren) : sirène, ou un stage / stage secondaire actif qui les demande
-function L.lights(cfg, st)
-    if st.siren then return true end
-    local stage = cfg.stages[st.stage or 0]
-    if stage and stage.lights then return true end
-    for _, k in ipairs(L.SECONDARY) do
-        if st[k] and cfg.secondary[k] and cfg.secondary[k].lights then return true end
-    end
-    return false
 end
 
 --- Hachage d'un spawn code (joaat), comme GetHashKey, en entier non signé : indépendant du client / serveur

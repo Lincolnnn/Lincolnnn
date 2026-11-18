@@ -2,7 +2,7 @@
     RP STAGES - serveur
     -------------------
     Reçoit l'état choisi par le CONDUCTEUR d'un véhicule configuré, le vérifie (bon conducteur, bon modèle, état cohérent
-    avec la configuration : sirène seulement au stage 3, stages secondaires superposés ou non…) puis le partage à tous
+    avec la configuration : sirène (Bozlights, observée) = stage 3, stages secondaires superposés ou non…) puis le partage à tous
     les joueurs par le state bag « rpStages » du véhicule. Aucune boucle.
 ]]
 

@@ -1,13 +1,16 @@
 --[[
     RP STAGES - client
     ------------------
-    Conducteur d'un véhicule configuré (config.lua) : UNE touche pour les stages principaux (stage suivant à chaque appui),
-    une touche par stage secondaire (TA gauche, TA droite, Steady Burn) et la touche de la sirène. Aucun élément visuel. L'état est calculé ici (shared/logic.lua), appliqué tout de suite au
-    véhicule, puis envoyé au serveur qui le vérifie et le partage (state bag « rpStages » du véhicule) : chaque joueur
-    proche applique les mêmes extras et entend (ou non) la même sirène.
+    Conducteur d'un véhicule configuré (config.lua) : UNE touche pour les stages principaux (stage suivant à chaque appui)
+    et une touche par stage secondaire (TA gauche, TA droite, Steady Burn). Aucun élément visuel.
+    SIRÈNE : gérée par Bozlights (main). rp_stages ne l'allume, ne la coupe et ne la met jamais en sourdine, et ne touche
+    pas aux gyrophares du jeu : il la SURVEILLE (SirenCheck, ou l'événement « rp_stages:siren ») pour passer au stage 3
+    quand elle s'allume hors stage 3, puis revenir au stage d'avant quand elle se coupe.
+    L'état est calculé ici (shared/logic.lua), appliqué tout de suite aux extras du véhicule, puis envoyé au serveur qui le
+    vérifie et le partage (state bag « rpStages ») : chaque joueur proche voit les mêmes extras.
     Performance : hors véhicule configuré, une vérification toutes les CheckInterval ms (et une toutes les
-    StreamInterval ms pour les véhicules réglés qui arrivent à portée) ; au volant d'un véhicule configuré, une boucle
-    légère qui garde les gyrophares du jeu dans l'état du stage (la touche du jeu ne les change plus).
+    StreamInterval ms pour les véhicules réglés qui arrivent à portée) ; au volant d'un véhicule configuré, la sirène est
+    regardée toutes les SirenInterval ms (et la roue radio bloquée à chaque image si DisableRadioWheel).
 ]]
 
 local C = RPStagesConfig
@@ -18,6 +21,7 @@ local BAG = 'rpStages'
 local current = { veh = 0, cfg = nil, state = nil } -- véhicule conduit (configuré) et son état
 local applied = {}  -- [véhicule] = version appliquée (véhicules des autres joueurs)
 local warned = {}   -- [modèle .. extra] = true (extra absent du modèle : averti une fois)
+local sirenEvent = nil -- sirène annoncée par Bozlights (TriggerEvent('rp_stages:siren', bool)) ; nil = SirenCheck
 
 for _, w in ipairs(DATA.warnings) do print(('^3[rp_stages]^0 config.lua : %s'):format(w)) end
 
@@ -31,11 +35,18 @@ local function bagState(veh)
     return ok and type(st) == 'table' and st or nil
 end
 
+--- Sirène du véhicule conduit allumée ? (Bozlights : événement, sinon SirenCheck de config.lua)
+local function sirenOn(veh)
+    if sirenEvent ~= nil then return sirenEvent end
+    if type(C.SirenCheck) ~= 'function' then return false end
+    local ok, on = pcall(C.SirenCheck, veh)
+    return ok and on == true
+end
+
 -- =========================================================================
--- APPLICATION AU VÉHICULE : extras, gyrophares, sirène
+-- APPLICATION AU VÉHICULE : extras seulement (jamais la sirène ni les gyrophares)
 -- =========================================================================
---- Extras + son de la sirène (tous les joueurs) ; gyrophares du jeu (conducteur seulement : état réseau du véhicule)
-local function apply(veh, cfg, st, driver)
+local function apply(veh, cfg, st)
     if veh == 0 or not DoesEntityExist(veh) then return end
     SetVehicleAutoRepairDisabled(veh, true) -- changer un extra ne répare plus le véhicule (dégâts de rp_vehiclecontrol)
     for id, on in pairs(Logic.extras(cfg, st)) do
@@ -46,15 +57,10 @@ local function apply(veh, cfg, st, driver)
             print(('^3[rp_stages]^0 %s : l\'extra %d n\'existe pas sur ce modèle (ignoré).'):format(cfg.spawn, id))
         end
     end
-    SetVehicleHasMutedSirens(veh, not st.siren) -- sirène audible seulement quand elle est activée (stage 3)
-    if driver then
-        local lights = Logic.lights(cfg, st)
-        if IsVehicleSirenOn(veh) ~= lights then SetVehicleSiren(veh, lights) end
-    end
 end
 
 -- =========================================================================
--- TOUCHES (conducteur d'un véhicule configuré seulement)
+-- CHANGEMENTS (touches, sirène) : conducteur d'un véhicule configuré seulement
 -- =========================================================================
 local lastSend = 0
 local function change(newState)
@@ -62,7 +68,7 @@ local function change(newState)
     newState.v = (current.state.v or 0) + 1
     current.state = newState
     applied[veh] = newState.v
-    apply(veh, cfg, newState, true)
+    apply(veh, cfg, newState)
     lastSend = GetGameTimer()
     TriggerServerEvent('rp_stages:set', NetworkGetNetworkIdFromEntity(veh), newState)
 end
@@ -79,12 +85,17 @@ local KEYS = {
     { cmd = 'rps_ta_left', key = C.Keys.taLeft, label = 'Stages : Traffic Advisor gauche', run = function() act(Logic.pressSecondary, 'taLeft') end },
     { cmd = 'rps_ta_right', key = C.Keys.taRight, label = 'Stages : Traffic Advisor droite', run = function() act(Logic.pressSecondary, 'taRight') end },
     { cmd = 'rps_steady', key = C.Keys.steadyBurn, label = 'Stages : Steady Burn', run = function() act(Logic.pressSecondary, 'steadyBurn') end },
-    { cmd = 'rps_siren', key = C.Keys.siren, label = 'Stages : sirène (stage 3)', run = function() act(Logic.pressSiren) end },
 }
 for _, k in ipairs(KEYS) do
     RegisterCommand(k.cmd, k.run, false)
     RegisterKeyMapping(k.cmd, k.label, 'keyboard', k.key or '')
 end
+
+--- Bozlights (client) peut annoncer la sirène lui-même : TriggerEvent('rp_stages:siren', true / false)
+AddEventHandler('rp_stages:siren', function(on)
+    sirenEvent = on == true
+    if current.cfg and sirenOn(current.veh) ~= (current.state.siren == true) then act(Logic.sirenChanged, sirenEvent) end
+end)
 
 -- =========================================================================
 -- VÉHICULE DU JOUEUR
@@ -94,17 +105,22 @@ local function enter(veh, cfg)
     current.veh, current.cfg = veh, cfg
     current.state = st and Logic.sanitize(cfg, st) or Logic.newState()
     current.state.v = st and st.v or 0
-    apply(veh, cfg, current.state, true)
-    -- Au volant : les gyrophares du jeu restent ceux du stage (la touche du jeu ne les allume / coupe plus),
-    -- la sirène reste muette hors stage 3
+    apply(veh, cfg, current.state)
+    -- Au volant : la sirène (Bozlights) est regardée ; allumée -> stage 3, coupée -> stage d'avant
     CreateThread(function()
+        local nextCheck = 0
         while current.veh == veh do
-            local cs = current.state
-            local lights = Logic.lights(cfg, cs)
-            if IsVehicleSirenOn(veh) ~= lights then SetVehicleSiren(veh, lights) end
-            if not cs.siren and IsVehicleSirenAudioOn(veh) then SetVehicleHasMutedSirens(veh, true) end
-            if C.DisableRadioWheel then DisableControlAction(0, 85, true) end -- roue de la radio (Q)
-            Wait(0)
+            if GetGameTimer() >= nextCheck then
+                nextCheck = GetGameTimer() + (C.SirenInterval or 150)
+                local on = sirenOn(veh)
+                if on ~= (current.state.siren == true) then act(Logic.sirenChanged, on) end
+            end
+            if C.DisableRadioWheel then
+                DisableControlAction(0, 85, true) -- roue de la radio (Q, touche des stages par défaut)
+                Wait(0)
+            else
+                Wait(C.SirenInterval or 150)
+            end
         end
     end)
 end
@@ -124,6 +140,7 @@ CreateThread(function()
         elseif not driver and current.cfg then
             leave()
         end
+        if veh == 0 then sirenEvent = nil end -- (à pied : l'annonce de Bozlights ne vaut plus)
         Wait(C.CheckInterval)
     end
 end)
@@ -142,12 +159,12 @@ AddStateBagChangeHandler(BAG, nil, function(bagName, _, value)
         if (value.v or 0) > (current.state.v or 0) and GetGameTimer() - lastSend > 1000 then
             current.state = Logic.sanitize(cfg, value)
             current.state.v = value.v
-            apply(veh, cfg, current.state, true)
+            apply(veh, cfg, current.state)
         end
         return
     end
     applied[veh] = value.v
-    apply(veh, cfg, Logic.sanitize(cfg, value), false)
+    apply(veh, cfg, Logic.sanitize(cfg, value))
 end)
 
 CreateThread(function()
@@ -162,7 +179,7 @@ CreateThread(function()
                     local cfg = cfgOf(veh)
                     if cfg then
                         applied[veh] = st.v
-                        apply(veh, cfg, Logic.sanitize(cfg, st), false)
+                        apply(veh, cfg, Logic.sanitize(cfg, st))
                     end
                 end
             end

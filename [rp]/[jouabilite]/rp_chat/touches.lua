@@ -54,7 +54,6 @@ RPChatKeyScripts = {
         { id = 'tagauche', label = 'Traffic Advisor gauche', cmd = 'rps_ta_left', key = '4' },
         { id = 'tadroite', label = 'Traffic Advisor droite', cmd = 'rps_ta_right', key = '5' },
         { id = 'steadyburn', label = 'Steady Burn', cmd = 'rps_steady', key = '6' },
-        { id = 'sirene', label = 'Sirène (stage 3)', cmd = 'rps_siren', key = 'R' },
     } },
     { name = 'FUSEE', label = 'Fusées de détresse', res = 'rp_flares', actions = {
         { id = 'poser', label = 'Poser la fusée au sol', cmd = 'rp_flare_place', key = 'G' },
