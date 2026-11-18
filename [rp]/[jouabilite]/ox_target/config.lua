@@ -14,7 +14,8 @@ BridgeConfig = {
     TrunkDepth = 1.3,
     -- Scripts dont les options ne sont proposées qu'aux policiers en service (dans une unité du MDC) : herses de
     -- riven_spikes (coffre des véhicules de police, ramasser / tirer le cordon d'une herse posée)
-    PoliceOnly = { riven_spikes = true },
+    -- et options de Riven Scene Dynamics ajoutées par rp_scene (kit du coffre, périmètre, preuves, véhicules de scène)
+    PoliceOnly = { riven_spikes = true, rp_scene = true },
     -- Options cachées dans l'œil (nom de l'option qui commence par…) : elles restent utilisables par nos menus
     -- (export runOption). Aucune : la herse se prend et se range avec l'œil sur le coffre.
     HiddenPrefixes = {},
@@ -47,7 +48,7 @@ BridgeConfig = {
         },
     },
     -- Titre de l'œil sur le sol (zones) selon le script qui a ajouté l'option ; sinon « Lieu »
-    Labels = { riven_spikes = 'Herse' },
+    Labels = { riven_spikes = 'Herse', rp_scene = 'Scène' },
     -- Icônes Font Awesome d'ox_target -> icônes de l'œil (eye, search, door, car, hand, trash, lock, unlock, cuffs,
     -- barrier, box, move, note, seat, wave, music, nose) ; inconnue : hand
     Icons = {

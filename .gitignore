@@ -1,6 +1,8 @@
 # Scripts payants de Riven Systems (licence) et leur clé de licence : jamais dans ce dépôt
 riven-impact-dynamics/
 riven_spikes/
+Riven_Scene_Dynamics/
+riven_scene_dynamics*/
 riven_auth.token
 # Texture de lampe Realistic_Flashlight (graphics.ytd, licence inconnue, 10 Mo) : posée à la main, jamais dans ce dépôt
 **/rp_weaponscontrol/stream/
