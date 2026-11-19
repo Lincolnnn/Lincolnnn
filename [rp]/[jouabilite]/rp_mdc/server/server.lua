@@ -128,8 +128,9 @@ local Config = {
     ClosedCallsKeepHours = 12,
     -- Suppression (intervention, fiche, BOLO, rapport, conversation) : DÉFINITIVE, sans corbeille. Une copie de la
     -- fiche supprimée reste dans le journal d'audit (MDC Web > Audit).
-    -- NOTE DE SERVICE : texte commun affiché en haut du MDC de police (jeu) et du MDC Web. Modifiable par le dispatch
-    -- (site) et, si ServiceNoteEditInGame = true, par les agents de police en jeu (KCSO, WSP).
+    -- NOTE DE SERVICE : texte commun affiché en haut du MDC de police (jeu) et du MDC Web (absente s'il n'y en a pas).
+    -- Créée / modifiée par le dispatch (site) et, si ServiceNoteEditInGame = true, en jeu par les SUPERVISEURS seulement
+    -- (membres d'une unité au tag SupervisorTag, « SUP. »).
     ServiceNoteLength = 1500,
     ServiceNoteEditInGame = true,
     -- N° de référence des interventions et incidents : RD + 4 chiffres ALÉATOIRES (ex. RD4817), jamais deux fois le
@@ -1758,11 +1759,7 @@ function Chat.dispatchOf(unit)
             callTitle = call and call.title or nil, last = conv and conv.messages[#conv.messages] or nil, unread = unread }
     end
     add('d:u:' .. unit.id, 'Dispatch')
-    for _, call in ipairs(Interventions) do
-        if not call.closed and call.units[tostring(unit.id)] then
-            add('d:c:' .. call.id, ('Dispatch — %s'):format(call.number), call)
-        end
-    end
+    -- (6.1 : plus de fil de discussion par intervention ; les notes de l'appel servent au déroulé)
     return list, total
 end
 
@@ -2355,11 +2352,42 @@ local function callSound(call, kind, extra)
     send(extra)
 end
 
+--- « Adam 12 (Sam Carter, Ana Ruiz) » : unité et agents qui la composent (journal des appels)
+function CallRules.unitWithMembers(unit)
+    local names = {}
+    for key in pairs(unit and unit.members or {}) do names[#names + 1] = agentName(tonumber(key)) end
+    table.sort(names)
+    return #names > 0 and ('%s (%s)'):format(unit.name, table.concat(names, ', ')) or (unit and unit.name or '?')
+end
+
+--- Intervention terminée / annulée : les unités en sont détachées (elle disparaît de leur appel en cours, de leur
+--- HUD, de leur messagerie) ; la liste des unités qui y étaient est gardée (call.pastUnits) et notée au journal.
+function CallRules.releaseUnits(call)
+    local names = {}
+    for key in pairs(call.units or {}) do
+        local u = findUnit(tonumber(key))
+        names[#names + 1] = u and CallRules.unitWithMembers(u) or ('Unité ' .. key)
+    end
+    if #names == 0 then return end
+    table.sort(names)
+    local seen, list = {}, {}
+    for item in tostring(call.pastUnits or ''):gmatch('[^;]+') do
+        local name = (item:gsub('^%s+', ''):gsub('%s+$', ''))
+        if name ~= '' and not seen[name] then seen[name] = true; list[#list + 1] = name end
+    end
+    for _, name in ipairs(names) do if not seen[name] then seen[name] = true; list[#list + 1] = name end end
+    call.pastUnits = table.concat(list, '; ')
+    MDCServer.journal(call, ('Unités présentes sur l\'appel : %s'):format(table.concat(names, '; ')), 'Système')
+    call.units = {}
+    pushHud()
+end
+
 -- Rattacher une unité à un appel (MDC "Rejoindre l'appel" ou Y sur la proposition) : "En route"
 local function joinCall(call, unit, by)
     local already = call.units[tostring(unit.id)]
     if not already then
-        MDCServer.journal(call, ('%s affectée à l\'appel%s'):format(unit.name, by and (' par ' .. by) or ''), by or unit.name)
+        MDCServer.journal(call, by and ('%s affectée à l\'appel par %s'):format(CallRules.unitWithMembers(unit), by)
+            or ('%s a rejoint l\'appel'):format(CallRules.unitWithMembers(unit)), by or unit.name)
     end
     call.units[tostring(unit.id)] = true
     call.unitsAt = call.unitsAt or {}
@@ -2676,7 +2704,7 @@ RegisterMDCCallback('interventionAction', function(src, payload)
         if call.units[key] then
             call.units[key] = nil
             callSound(call, 'deassign', unit) -- l'unité qui part l'entend aussi
-            MDCServer.journal(call, ('%s a quitté l\'appel'):format(unit.name), unit.name)
+            MDCServer.journal(call, ('%s a quitté l\'appel'):format(CallRules.unitWithMembers(unit)), unit.name)
         end
     elseif payload.action == 'addAgency' then
         -- Ajouter l'autre police à l'appel (sans demande de renfort) : l'appel devient commun, ses unités le voient
@@ -2705,7 +2733,9 @@ RegisterMDCCallback('interventionAction', function(src, payload)
         call.closed = true
         call.closedAt = os.time()
         call.closedByName = unit.name
-        MDCServer.journal(call, ('Clôturée par %s%s'):format(unit.name, call.clear and (' — Clear ' .. call.clear) or ''), unit.name)
+        MDCServer.journal(call, ('Clôturée par %s%s'):format(CallRules.unitWithMembers(unit), call.clear and (' — Clear ' .. call.clear) or ''), unit.name)
+        callSound(call, 'link') -- toutes les unités de l'appel : l'appel change
+        CallRules.releaseUnits(call)
         -- Propositions "unité la plus proche" encore en attente : retirées
         for unitId in pairs(Offers[call.id] and Offers[call.id].pending or {}) do
             local pendingUnit = findUnit(unitId)
@@ -2724,14 +2754,23 @@ RegisterMDCCallback('interventionAction', function(src, payload)
 end)
 
 -- Note de service (en haut du MDC de police) : lecture et modification
+--- Superviseur en jeu : membre d'une unité au tag « SUP. » (Config.SupervisorTag)
+function CallRules.canEditServiceNote(src)
+    if Config.ServiceNoteEditInGame == false or not isPoliceAgency(agencyOf(src)) then return false end
+    local unit = findUnit(PlayerUnit[src])
+    return unit ~= nil and isSupervisor(unit)
+end
+
 RegisterMDCCallback('getServiceNote', function(src)
     if not isPoliceAgency(agencyOf(src)) then return { ok = false, error = 'Réservé à la police.' } end
-    return { ok = true, note = MDCServer.serviceNote().note, canEdit = Config.ServiceNoteEditInGame ~= false }
+    return { ok = true, note = MDCServer.serviceNote().note, canEdit = CallRules.canEditServiceNote(src) }
 end)
 
 RegisterMDCCallback('setServiceNote', function(src, payload)
     if not isPoliceAgency(agencyOf(src)) then return { ok = false, error = 'Réservé à la police.' } end
-    if Config.ServiceNoteEditInGame == false then return { ok = false, error = 'La note de service n\'est modifiable que par le dispatch.' } end
+    if not CallRules.canEditServiceNote(src) then
+        return { ok = false, error = 'Seuls les superviseurs (unité « SUP. ») et le dispatch créent ou modifient la note de service.' }
+    end
     return MDCServer.setServiceNote(payload.text, { name = agentName(src), id = getIdentifier(src), source = 'game' })
 end)
 
@@ -2766,6 +2805,7 @@ RegisterMDCCallback('editIntervention', function(src, payload)
         table.sort(changed)
         MDCServer.journal(call, ('Modifiée%s par %s : %s'):format(call.closed and ' (après clôture)' or '', agentName(src),
             table.concat(changed, ', ')), agentName(src))
+        callSound(call, 'link') -- unités de l'appel : l'appel a changé
         if call.closed then MDCDB.saveCall(call) end
         MDCWeb.notify('call:edited', { id = call.id, number = call.number, rev = call.rev })
     end
@@ -4111,13 +4151,12 @@ do
     end
 
     -- Avis au joueur (notification du MDC, même fermé)
+    -- Avis au civil qui a appelé (appel validé / refusé / annulé) : notification du MDC générique
     function D.notice(src, data) TriggerClientEvent('mdc:client:dispatchNotice', src, data) end
-    function D.noticeUnit(unit, data)
-        for key in pairs(unit and unit.members or {}) do D.notice(tonumber(key), data) end
-    end
-    function D.noticeCall(call, data)
-        for key in pairs(call.units) do D.noticeUnit(findUnit(tonumber(key)), data) end
-    end
+    -- Unités : aucune notification « par le dispatch ». Une action du dispatch produit exactement ce qu'elle produirait
+    -- faite par un joueur (statut : notification de statut ; affectation / retrait / modification : son de l'appel).
+    function D.noticeUnit() end
+    function D.noticeCall(call) callSound(call, 'link') end
     function D.noticeCreator(call, data)
         if not call.createdBy then return end
         for _, p in ipairs(GetPlayers()) do
@@ -4219,8 +4258,6 @@ do
                 if not callServes(call, unit.agency) then call.agency = normalizeAgencies(call.agency .. '+' .. unit.agency) or call.agency end
                 joinCall(call, unit, 'Dispatch')
                 assigned[#assigned + 1] = unit.name
-                D.noticeUnit(unit, { kind = 'assigned', title = 'Affecté par le dispatch', number = call.number,
-                    text = ('%s — %s'):format(call.title, call.address) })
             end
         end
         pushInterventions()
@@ -4261,8 +4298,8 @@ do
         call.closed, call.closedAt, call.closedByName = true, os.time(), 'Dispatch'
         MDCServer.journal(call, ('Annulée par le dispatch%s'):format(reason ~= '' and (' : ' .. reason) or ''), 'Dispatch')
         D.closePendingOffers(call)
-        D.noticeCall(call, { kind = 'cancelled', title = 'Intervention annulée par le dispatch', number = call.number,
-            text = reason ~= '' and reason or call.title })
+        D.noticeCall(call)
+        CallRules.releaseUnits(call)
         D.noticeCreator(call, { kind = 'cancelled', title = 'Appel annulé par le dispatch', number = call.number,
             text = reason ~= '' and reason or call.title })
         pushInterventions()
@@ -4283,7 +4320,8 @@ do
         call.closed, call.closedAt, call.closedByName = true, os.time(), 'Dispatch'
         MDCServer.journal(call, ('Clôturée par le dispatch%s'):format(call.clear and (' — Clear ' .. call.clear) or ''), 'Dispatch')
         D.closePendingOffers(call)
-        D.noticeCall(call, { kind = 'closed', title = 'Intervention terminée par le dispatch', number = call.number, text = call.title })
+        D.noticeCall(call)
+        CallRules.releaseUnits(call)
         pushInterventions()
         D.logD(actor, 'call.close', call, nil, { number = call.number, clear = call.clear })
         MDCWeb.notify('call:closed', { id = call.id, number = call.number })
@@ -4303,8 +4341,6 @@ do
         joinCall(call, unit, 'Dispatch')
         local offers = Offers[call.id]
         if offers and offers.pending[unit.id] then closeOffer(call, unit, 'accepted') end
-        D.noticeUnit(unit, { kind = 'assigned', title = 'Affecté par le dispatch', number = call.number,
-            text = ('%s — %s'):format(call.title, call.address) })
         pushInterventions()
         D.logD(actor, 'call.assign', call, unit, { number = call.number, unit = unit.name })
         return { ok = true }
@@ -4318,9 +4354,8 @@ do
         if not unit or not call.units[key] then return { ok = false, error = 'Cette unité n\'est pas sur l\'intervention.' } end
         call.units[key] = nil
         if call.unitsAt then call.unitsAt[key] = nil end
-        MDCServer.journal(call, ('%s retirée de l\'appel par le dispatch'):format(unit.name), 'Dispatch')
+        MDCServer.journal(call, ('%s retirée de l\'appel par le dispatch'):format(CallRules.unitWithMembers(unit)), 'Dispatch')
         callSound(call, 'deassign', unit)
-        D.noticeUnit(unit, { kind = 'unassigned', title = 'Retiré de l\'intervention par le dispatch', number = call.number, text = call.title })
         pushInterventions()
         pushHud()
         D.logD(actor, 'call.unassign', call, unit, { number = call.number, unit = unit.name })
@@ -4355,7 +4390,6 @@ do
         MDCDB.statusLog(unit.id, status, D.actorName(actor), 'dispatch')
         pushUnits()
         notifyUnitStatus(unit)
-        D.noticeUnit(unit, { kind = 'status', title = 'Statut changé par le dispatch', text = ('%s -> %s'):format(Statuses[old] or old, Statuses[status]) })
         D.logD(actor, 'unit.status', nil, unit, { unit = unit.name, from = old, to = status })
         print(('^5[MDC]^0 %s : statut %s par le dispatch (%s).'):format(unitLabel(unit), Statuses[status], D.actorName(actor)))
         return { ok = true }
@@ -4414,8 +4448,6 @@ do
                 if not callServes(call, unit.agency) then call.agency = normalizeAgencies(call.agency .. '+' .. unit.agency) or call.agency end
                 joinCall(call, unit, 'Dispatch')
                 assigned[#assigned + 1] = unit.name
-                D.noticeUnit(unit, { kind = 'assigned', title = 'Affecté par le dispatch', number = call.number,
-                    text = ('%s — %s'):format(call.title, call.address) })
             end
         end
         pushInterventions()
@@ -4492,7 +4524,7 @@ do
         MDCServer.journal(call, ('Modifiée par le dispatch — %s'):format(table.concat(parts, ' ; ')), 'Dispatch')
         pushInterventions()
         -- unités de l'appel : avis sonore seulement (rp_mdc html : NOTIFY_EVENTS.callEdit)
-        D.noticeCall(call, { kind = 'edited', title = 'Intervention modifiée par le dispatch', number = call.number, text = call.title })
+        D.noticeCall(call)
         D.logD(actor, 'call.edit', call, nil, { number = call.number, changes = changes, forced = force == true or nil })
         MDCWeb.notify('call:edited', { id = call.id, number = call.number, rev = call.rev })
         return { ok = true, rev = call.rev, changes = #changes }
@@ -4649,7 +4681,7 @@ do
             if pendingUnit then closeOffer(call, pendingUnit, 'closed') end
         end
         Offers[call.id] = nil
-        D.noticeCall(call, { kind = 'deleted', title = 'Intervention supprimée', number = call.number, text = call.title })
+        D.noticeCall(call)
         call.deleted = true
         for i, c in ipairs(Interventions) do
             if c == call then table.remove(Interventions, i) break end
@@ -4690,7 +4722,7 @@ do
                 call.rev = (call.rev or 0) + 1
                 MDCServer.journal(call, 'Rouverte par le dispatch', 'Dispatch')
                 pushInterventions()
-                D.noticeCall(call, { kind = 'edited', title = 'Intervention rouverte par le dispatch', number = call.number, text = call.title })
+                D.noticeCall(call)
                 local who = D.actorOfWeb(actor)
                 MDCDB.audit('dispatch', who.id, who.name, 'reopen', 'call', call.id, ('%s — %s'):format(call.number, call.title), before, { closed = false })
                 D.logD(actor, 'call.reopen', call, nil, { number = call.number })
@@ -4792,6 +4824,20 @@ do
     -- NOTE DE SERVICE : texte commun en haut du MDC de police (jeu) et du MDC Web, avec son auteur et sa date.
     -- Gardée dans mdc_settings (service_note). Envoyée aux agents de police connectés à chaque modification.
     -- =====================================================================
+    --- Message du dispatch affiché dans le chat de TOUS les joueurs : « DISPATCH : texte » (rp_chat, en gras, orange)
+    function MDCServer.announce(text, actor)
+        text = clean(text, 300)
+        if text == '' then return { ok = false, error = 'Message vide.' } end
+        if GetResourceState('rp_chat') == 'started' then
+            TriggerClientEvent('rp_chat:client:message', -1, { type = 'dispatch', text = text })
+        else
+            TriggerClientEvent('chat:addMessage', -1, { args = { 'DISPATCH', text }, color = { 255, 140, 0 } })
+        end
+        D.logD(actor, 'game.announce', nil, nil, { text = text })
+        print(('^5[MDC]^0 Message du dispatch à tous les joueurs : %s'):format(text))
+        return { ok = true }
+    end
+
     D.serviceNote = { text = '', by = '', at = 0 }
     function D.loadServiceNote()
         local raw = MDCDB.getSetting('service_note')

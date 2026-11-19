@@ -286,6 +286,13 @@ router.post('/service-note', act, wrap(async (req, res) => {
     return game(res, 'serviceNote.set', { text: req.body.text.slice(0, 1500) }, req);
 }));
 
+// Message du dispatch dans le chat de tous les joueurs (commande JEUX) : « DISPATCH : texte »
+router.post('/game/announce', act, wrap(async (req, res) => {
+    const msg = text(req.body.text, 300);
+    if (!msg) return res.status(400).json({ ok: false, error: 'Message vide.' });
+    return game(res, 'game.announce', { text: msg }, req);
+}));
+
 // Journal d'audit (tous les dispatchers)
 router.get('/audit', read, wrap(async (req, res) => {
     const kind = ['identity', 'vehicle', 'report', 'bolo', 'call', 'conversation', 'note'].includes(req.query.kind) ? req.query.kind : '';

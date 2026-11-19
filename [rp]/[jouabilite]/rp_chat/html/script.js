@@ -169,6 +169,9 @@
             case 'tuto': // rappel à la connexion (« Faites /tuto… ») : visible uniquement par ce joueur
                 el.append(span('private-tag tuto-tag', 'TUTO'), ' ', span('label', m.title || ''), `\n${m.text}`);
                 break;
+            case 'dispatch': // message du dispatch (MDC Web, commande JEUX) : « DISPATCH : texte », en gras, orange
+                el.append(span('dispatch-tag', 'DISPATCH'), span('dispatch-sep', ' : '), span('dispatch-text', m.text));
+                break;
             case 'external': { // chat:addMessage d'autres ressources
                 if (m.name) el.append(span('name', `${m.name} : `));
                 el.append(m.text);

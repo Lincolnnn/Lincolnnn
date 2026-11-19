@@ -11,13 +11,15 @@ c'est une **console de dispatch de type CAD** (MDC Web 6.0), sombre, pensée pou
   clic sur une unité : statut, message, affectation, LiveView ; clic droit partout : actions ;
 - **Ligne de commande** en haut (Ctrl + K) avec suggestions : `Adam 12 ER` (statut), `AS Adam 12 4817` (affecter),
   `RT …` (retirer), `CL 4817 B` (clôturer), `RO` (rouvrir), `AN` (annuler), `VA` (valider), `MOD` (modifier),
-  `NOTE`, `MSG`, `NS` (note de service), `P nom prénom JJ/MM/AAAA`, `V plaque`, `LIVE`, `N` / `I`, `?` (aide) ;
+  `NOTE`, `MSG`, `NS` (note de service), **`JEUX <texte>`** (message à tous les joueurs dans le chat :
+  « DISPATCH : texte » en orange gras), `P nom prénom JJ/MM/AAAA`, `V plaque`, `LIVE`, `N` / `I`, `?` (aide) ;
 - **Panneau d'outil** à droite (barre d'icônes, touches 1 à 9, largeur réglable) : **Intervention** (fiche
-  complète, actions, **modification en cours ET terminée**, notes, messages, journal automatique, historique des
-  modifications), **Note de service**, **Messagerie**, **Recherche**, **Registres**, **LiveView**, **Terminées /
+  complète, actions, **modification en cours ET terminée**, notes, journal automatique avec les agents qui
+  rejoignent / quittent, unités présentes une fois l'appel terminé, historique des modifications), **Note de service**, **Messagerie**, **Recherche**, **Registres**, **LiveView**, **Terminées /
   historique**, **Journal des actions**, **Journal d'audit** ;
-- **Note de service** : bandeau toujours visible en haut, **commune au site et au MDC de police en jeu**,
-  modifiable des deux côtés (auteur et date affichés, mise à jour en direct) ;
+- **Note de service** : bandeau en haut, **absent quand il n'y en a pas**, **commune au site et au MDC de police en jeu** ;
+  créée / modifiée par le dispatch (outil « Note de service », ou `NS`) et en jeu par les **superviseurs** (« SUP. »)
+  seulement (auteur et date affichés, mise à jour en direct) ;
 - **Mode Dispatch** (interrupteur en haut) : les appels des civils attendent votre **validation** avant d'arriver aux
   unités, et **seul le dispatch affecte les unités** ; **valider**, **refuser** ou **annuler** avec un motif,
   **clôturer** (Clear A/B/C pour la WSP seulement) ;
@@ -29,14 +31,15 @@ c'est une **console de dispatch de type CAD** (MDC Web 6.0), sombre, pensée pou
   conversations entre unités ;
 - **LiveView** : écran du jeu des joueurs choisis en **vidéo WebRTC fluide (jusqu'à 30 images / s)**, écrite de
   zéro : rendu du jeu capturé dans le NUI, envoyé **directement** au navigateur du dispatcher (ou par un serveur
-  TURN), le site ne fait que la signalisation ; mosaïque, agrandi, **incrustation (PiP)**, plein écran, mesures en
+  TURN), le site ne fait que la signalisation ; mosaïque, agrandi, **incrustation (PiP)**, **plein écran réel**
+  (double-clic sur l'image, Échap pour sortir ; la vidéo n'est jamais rechargée), mesures en
   direct (i/s, résolution, débit, latence, direct / TURN) — voir **[docs/LIVEVIEW_WEBRTC.md](docs/LIVEVIEW_WEBRTC.md)** ;
 - Le dispatcher apparaît **toujours sous le nom « Dispatch »** (en jeu comme sur le site) : aucun pseudo Discord
   n'est affiché ; l'identifiant Discord reste dans le journal MySQL (`actor_id`) pour les administrateurs ;
 - **Temps réel** (Socket.IO) : rien à rafraîchir ; notifications **visuelles pour les nouvelles interventions
   seulement**, **son seul** pour les messages.
 
-Mise à jour : **[docs/MISE_A_JOUR_6.0.md](docs/MISE_A_JOUR_6.0.md)** (depuis la 5.x) ; historique :
+Mise à jour : **[docs/MISE_A_JOUR_6.0.md](docs/MISE_A_JOUR_6.0.md)** (depuis la 5.x), puis **[docs/MISE_A_JOUR_6.1.md](docs/MISE_A_JOUR_6.1.md)** ; historique :
 [5.0](docs/MISE_A_JOUR_5.0.md), [5.1](docs/MISE_A_JOUR_5.1.md).
 
 Tout est **synchronisé** avec le jeu : les deux MDC utilisent la **même base MySQL** ; le site agit **par l'API de la

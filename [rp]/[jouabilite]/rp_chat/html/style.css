@@ -336,3 +336,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 .msg-join .presence-tag, .msg-leave .presence-tag { display: inline-block; min-width: 1.1em; text-align: center; font-weight: 700; }
 .msg-join .presence-tag { color: #6fd08c; }
 .msg-leave .presence-tag { color: #e07a7a; }
+
+/* Message du dispatch (MDC Web, commande JEUX) : « DISPATCH » orange gras, texte orange plus clair, gras */
+.msg-dispatch { font-weight: 700; }
+.msg .dispatch-tag { color: #ff8c00; font-weight: 800; letter-spacing: .3px; }
+.msg .dispatch-sep { color: #ff8c00; font-weight: 800; }
+.msg .dispatch-text { color: #ffc27a; font-weight: 700; }

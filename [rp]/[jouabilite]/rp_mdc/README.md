@@ -395,8 +395,7 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
 |---|---|---|
 | `inter.wav` | une **intervention ou un incident apparaît** en jeu (et proposition « unité la plus proche ») | unités de la police de l'appel |
 | `2.mp3` | **nouveau BOLO** (avec une notification « NOUVEAU BOLO ») | **toutes les unités WSP et KCSO** (BOLOs communs) |
-| `assign.mp3` / `deassign.mp3` | une unité **rejoint** / **quitte** l'appel ; **affectation par le dispatch** : seul ce son de notification est joué (ni `inter.wav`, ni `status.mp3` arrivés avec elle) | unités sur l'appel (et celle qui part) |
-| `dsp.mp3` | **observation**, **rapport**, **identité** ou **véhicule** lié à l'appel | unités sur l'appel |
+| `dsp.wav` (sinon `dsp.mp3`) | **tout changement d'un appel** où l'on est affecté : unité qui rejoint / quitte (ou affectée / retirée par le dispatch), modification, note, fiche ou rapport lié, clôture, annulation, réouverture. Une affectation ne joue que ce son (ni `inter.wav`, ni `status.mp3` arrivés avec elle) | unités sur l'appel (et celle qui part) |
 | `status.mp3` | **changement de statut** de l'unité (disponible, en route, sur place, indisponible…) | membres de l'unité |
 | `result.mp3` / `nnul.mp3` | recherche **avec** / **sans** résultat | l'agent qui cherche |
 | `click.mp3` | clic de souris dans le MDC | soi |
@@ -701,9 +700,21 @@ Installation : **[mdc-web/README.md](../../../mdc-web/README.md)**.
   **journal d'audit** (`mdc_audit`). Chaque intervention a un **journal automatique** dans ses notes (auteur « JOURNAL » : création,
   validation, affectations, statuts des unités, modifications, messages du dispatch, clôture, réouverture). En jeu, une
   modification faite par le dispatch ne fait qu'un **son**. Migrations `003_v5.sql`, `005_v6.sql` (automatiques).
-- **Note de service** (6.0) : bandeau en haut de chaque page du MDC de **police** (KCSO, WSP), commun avec le MDC Web ;
-  modifiable par le dispatch (site) et en jeu par les agents de police (`Config.ServiceNoteEditInGame`, longueur
-  `Config.ServiceNoteLength`) ; chaque modification arrive tout de suite chez tout le monde (auteur, date, audit).
+- **Note de service** : bandeau en haut de chaque page du MDC de **police** (KCSO, WSP), commun avec le MDC Web,
+  **absent quand il n'y a pas de note**. Créée / modifiée par le **dispatch** (site) et, en jeu, par les **superviseurs
+  seulement** (membres d'une unité au tag « SUP. » : bouton « + Note de service » quand il n'y en a pas, « Modifier »
+  sinon ; `Config.ServiceNoteEditInGame = false` : dispatch seul). Chaque modification arrive tout de suite chez tout le
+  monde (auteur, date, audit).
+- **Actions du dispatch en jeu (6.1)** : plus aucune notification « … par le dispatch » chez les unités ; une action du
+  dispatch produit la même chose que si un joueur l'avait faite (statut : notification de statut ; affectation,
+  retrait, modification, note, clôture : son `dsp`). Le civil qui a appelé reste prévenu (appel transmis / refusé /
+  annulé).
+- **Journal des appels** : chaque unité qui rejoint / quitte (ou est affectée / retirée) est notée **avec ses agents**
+  (« Adam 12 (Sam Carter) a rejoint l'appel »).
+- **Clôture / annulation (6.1)** : l'intervention est **détachée de ses unités** (elle disparaît de leur appel en cours,
+  HUD, listes, site) ; la liste des unités et agents qui y étaient est gardée (« Unités présentes », dans la fiche en
+  jeu et sur le site ; colonne `past_units`, migration `006_v61.sql`).
+- **Messagerie** : plus de fil de discussion par intervention (section DISPATCH : le canal de l'unité seulement).
 - **LiveView** (6.0, écrit de zéro) : seulement quand un dispatcher regarde, le NUI capture le **rendu du jeu**
   (texture WebGL : l'image du jeu seule) et l'envoie en **vidéo WebRTC jusqu'à 30 i/s** directement au navigateur du
   dispatcher (ou par un serveur TURN) ; le site ne fait que la signalisation (`html/liveview.js`,

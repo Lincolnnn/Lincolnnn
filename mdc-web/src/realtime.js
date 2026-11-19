@@ -157,7 +157,8 @@ async function handleGameEvents(events) {
     const topics = new Set(events.map((e) => e.topic));
     try {
         if (topics.has('calls') || [...topics].some((t) => t.startsWith('call:'))) broadcast('calls', await queries.activeCalls());
-        if (topics.has('units')) broadcast('units', await queries.units());
+        // une intervention qui change (clôture, affectation…) change aussi l'appel en cours des unités
+        if (topics.has('units') || topics.has('calls') || [...topics].some((t) => t.startsWith('call:'))) broadcast('units', await queries.units());
         if (topics.has('players') || topics.has('units')) await refreshPlayers();
         for (const e of events) {
             if (e.topic === 'position' && e.data && e.data.unitId) {

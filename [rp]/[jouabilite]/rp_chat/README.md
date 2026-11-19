@@ -205,6 +205,12 @@ Les autres ressources peuvent continuer à utiliser `TriggerClientEvent('chat:ad
 `chat:clear` ou `exports.chat:addMessage(...)` : leurs messages s'affichent dans ce chat. Les suggestions de commandes
 du chat d'origine sont ignorées.
 
+### Messages du dispatch (MDC Web)
+
+La commande **`JEUX <texte>`** de la ligne de commande du MDC Web affiche chez **tous les joueurs** :
+**DISPATCH : texte** — « DISPATCH » en orange gras, le texte en orange plus clair, en gras (`rp_mdc` envoie
+`rp_chat:client:message` avec `type = 'dispatch'` ; sans rp_chat, repli sur `chat:addMessage`).
+
 ## Performance
 
 - Aucune boucle côté client quand rien n'est affiché au-dessus des têtes (0.00 ms dans le resmon).

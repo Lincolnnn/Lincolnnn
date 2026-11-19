@@ -44,7 +44,7 @@
         'call.assign': 'Unité affectée', 'call.unassign': 'Unité retirée', 'call.note': 'Note du dispatch', 'call.edit': 'Intervention modifiée',
         'call.dispatch': 'Intervention créée (dispatch)', 'incident.dispatch': 'Incident créé (dispatch)', 'call.reopen': 'Intervention rouverte',
         'call.delete': 'Intervention supprimée', 'call.create': 'Intervention créée (jeu)', 'incident.create': 'Incident déclaré (jeu)',
-        'unit.status': 'Statut d\'unité changé', 'unit.create': 'Unité créée (jeu)', 'unit.delete': 'Unité supprimée (jeu)', 'note.service': 'Note de service modifiée',
+        'unit.status': 'Statut d\'unité changé', 'unit.create': 'Unité créée (jeu)', 'unit.delete': 'Unité supprimée (jeu)', 'note.service': 'Note de service modifiée', 'game.announce': 'Message en jeu (JEUX)',
         'web.login': 'Connexion au panel', 'web.logout': 'Déconnexion', 'web.denied': 'Connexion refusée (rôle)', 'web.revoked': 'Accès retiré (rôle)', 'live.view': 'LiveView : écran consulté',
     };
     const CONDITION = { none: 'Aucune', wanted: 'Recherché', missing: 'Personne disparue', deceased: 'Personne décédée' };
@@ -231,6 +231,7 @@
     // =================================================================================================================
     function renderServiceNote(flash) {
         const n = state.serviceNote || {};
+        document.body.classList.toggle('svc-on', !!n.text);
         const t = $('#svcText');
         t.textContent = n.text ? n.text.replace(/\s*\n\s*/g, ' · ') : 'Aucune note de service. Cliquez sur « Modifier » pour en écrire une (visible par toutes les unités en jeu).';
         t.classList.toggle('empty', !n.text);
@@ -245,15 +246,15 @@
         const n = state.serviceNote || {};
         if (state.svcEditing) {
             return `<form class="svc-editor" id="svcForm"><textarea id="svcInput" maxlength="1500" placeholder="Consignes, effectifs, secteurs à surveiller, événements prévus…">${esc(n.text || '')}</textarea>
-                <p class="form-note">Affichée en haut de cette console et du MDC de police en jeu (toutes les unités KCSO et WSP). Les agents de police peuvent aussi la modifier en jeu.</p></form>`;
+                <p class="form-note">Affichée en haut de cette console et du MDC de police en jeu (toutes les unités KCSO et WSP) ; absente quand elle est vide. En jeu, seuls les superviseurs (unité « SUP. ») peuvent aussi la modifier.</p></form>`;
         }
-        return `<div class="svc-view">${n.text ? esc(n.text) : '<span class="muted">Aucune note de service.</span>'}</div>
+        return `<div class="svc-view">${n.text ? esc(n.text) : '<span class="muted">Aucune note de service : rien n\'est affiché en haut du site ni en jeu.</span>'}</div>
             <p class="form-note">${n.at ? `Dernière modification : ${esc(n.by || '—')}, le ${fmtDate(n.at)}.` : ''} Visible en jeu en haut du MDC de police.</p>`;
     }
     function noteToolFoot() {
         return state.svcEditing
             ? `<button type="button" class="btn primary" data-svc="save">${icon('check')}Enregistrer</button><button type="button" class="btn ghost" data-svc="cancel">Annuler</button><span class="grow"></span><span class="hint">Ctrl + Entrée</span>`
-            : `<button type="button" class="btn primary" data-svc="edit">${icon('edit')}Modifier</button>${state.serviceNote.text ? '<button type="button" class="btn ghost" data-svc="clear">Effacer</button>' : ''}`;
+            : `<button type="button" class="btn primary" data-svc="edit">${icon('edit')}${state.serviceNote.text ? 'Modifier' : 'Créer une note de service'}</button>${state.serviceNote.text ? '<button type="button" class="btn ghost" data-svc="clear">Effacer</button>' : ''}`;
     }
     async function saveServiceNote(text) {
         const res = await api('/service-note', { text });
@@ -567,7 +568,7 @@
         $('#sideTitle').textContent = c.kind === 'incident' ? 'Incident' : 'Intervention';
         $('#sideMeta').textContent = `${c.number} · ${CALL_STATUS[c.status] || c.status}`;
         if (state.editMode) { renderEditForm(); return; }
-        const keep = { note: $('#noteInput') && $('#noteInput').value, msg: $('#drawerMsg') && $('#drawerMsg').value, assign: $('#assignSelect') && $('#assignSelect').value,
+        const keep = { note: $('#noteInput') && $('#noteInput').value, assign: $('#assignSelect') && $('#assignSelect').value,
             focus: document.activeElement && document.activeElement.id, picks: $$('[data-pick]:checked').map((x) => x.value), scroll: $('#sideBody').scrollTop };
         const open = !c.closed;
         const candidates = state.units.filter((u) => u.connected && ['kcso', 'wsp'].includes(u.agency) && !c.units.some((x) => x.id === u.id));
@@ -582,6 +583,7 @@
             ['Créée', `${fmtDate(c.createdAt)} par ${esc(c.createdByName || '—')}`],
             ...(c.updatedAt ? [['Modifiée', `${fmtDate(c.updatedAt)} · version ${esc(c.rev)}`]] : []),
             ...(c.closed ? [['Clôture', `${fmtDate(c.closedAt)} par ${esc(c.closedByName || '—')}${c.clear ? ` — ${esc(CLEAR[c.clear])}` : ''}`]] : []),
+            ...(c.pastUnits ? [['Unités présentes', esc(String(c.pastUnits).split(';').map((x) => x.trim()).filter(Boolean).join(' · '))]] : []),
         ];
         const notes = c.notes.filter((n) => state.noteFilter === 'all' || (state.noteFilter === 'journal' ? n.unitName === 'JOURNAL' : n.unitName !== 'JOURNAL'));
         const edits = c.log.filter((l) => l.action === 'call.edit');
@@ -601,10 +603,7 @@
             <div class="d-sec"><h3>Déroulé et notes <span class="grow"></span>
                 <span class="seg small" role="group" aria-label="Filtre des notes">${[['all', 'Tout'], ['notes', 'Notes'], ['journal', 'Journal']].map(([k, l]) => `<button type="button" data-nf="${k}" aria-pressed="${state.noteFilter === k}">${l}</button>`).join('')}</span></h3>
                 <div class="timeline">${notes.map(noteHtml).join('') || '<span class="muted">Rien pour ce filtre.</span>'}</div>
-                <div class="inline-form"><input id="noteInput" maxlength="500" placeholder="Note du dispatch (visible en jeu)${c.closed ? ' — intervention terminée' : ''}" aria-label="Note"><button type="button" class="btn" data-act="note">Ajouter</button></div></div>
-            ${c.status !== 'awaiting' ? `<div class="d-sec"><h3>Messages avec les unités</h3>
-                <div class="chat-body call-chat" id="drawerChat">${c.messages.map(bubble).join('') || '<span class="muted">Aucun message.</span>'}</div>
-                ${open ? `<div class="inline-form"><input id="drawerMsg" maxlength="300" placeholder="Message aux unités de l'intervention" aria-label="Message"><button type="button" class="btn primary" data-act="msg">Envoyer</button></div>` : ''}</div>` : ''}
+                ${open ? '<div class="inline-form"><input id="noteInput" maxlength="500" placeholder="Note du dispatch (visible en jeu)" aria-label="Note"><button type="button" class="btn" data-act="note">Ajouter</button></div>' : ''}</div>
             <div class="d-sec"><h3>Historique des modifications · ${edits.length}</h3>
                 ${edits.length ? edits.slice().reverse().map((l) => `<div class="hist-item"><time>${fmtDate(l.at)}</time><div><b>${esc(l.actorName || 'Dispatch')}</b>${l.details && l.details.forced ? ' <span class="chip caution">écrasée après avertissement</span>' : ''}${changesHtml(l.details)}</div></div>`).join('') : '<span class="muted">Aucune modification depuis la création.</span>'}</div>`;
         let foot;
@@ -621,10 +620,7 @@
         }
         foot += `<button type="button" class="ibtn" data-act="delete" title="Supprimer définitivement">${icon('trash')}</button>`;
         setSide(body, foot);
-        const chat = $('#drawerChat');
-        if (chat) chat.scrollTop = chat.scrollHeight;
         if (keep.note && $('#noteInput')) $('#noteInput').value = keep.note;
-        if (keep.msg && $('#drawerMsg')) $('#drawerMsg').value = keep.msg;
         if (keep.assign && $('#assignSelect')) $('#assignSelect').value = keep.assign;
         keep.picks.forEach((v) => { const el = $(`[data-pick][value="${v}"]`); if (el) el.checked = true; });
         if (keep.focus && $(`#${keep.focus}`)) $(`#${keep.focus}`).focus();
@@ -750,9 +746,6 @@
             } else if (act === 'note') {
                 const text = $('#noteInput').value.trim();
                 if (text && await api(`/calls/${c.id}/note`, { text })) $('#noteInput').value = '';
-            } else if (act === 'msg') {
-                const text = $('#drawerMsg').value.trim();
-                if (text && await api('/messages', { channel: `d:c:${c.id}`, text })) $('#drawerMsg').value = '';
             } else if (act === 'edit') enterEdit();
             else if (act === 'save') await saveEdit(false);
             else if (act === 'force') await saveEdit(true);
@@ -782,7 +775,6 @@
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' || e.shiftKey) return;
         if (e.target.id === 'noteInput') { e.preventDefault(); callAction('note'); }
-        if (e.target.id === 'drawerMsg') { e.preventDefault(); callAction('msg'); }
         if (e.ctrlKey && $('#editForm') && e.target.closest('#editForm')) { e.preventDefault(); saveEdit(false); }
         if (e.ctrlKey && e.target.id === 'svcInput') { e.preventDefault(); saveServiceNote($('#svcInput').value); }
     });
@@ -1355,7 +1347,8 @@
     // agrandi (tuile ou incrustation plein écran) = pleine taille, 30 i/s.
     // =================================================================================================================
     const live = { tiles: store.get('mdc.live.tiles', []).map((t) => ({ serverId: t.serverId, pinned: !!t.pinned, masked: !!t.masked })), focus: null,
-        pips: store.get('mdc.live.pips', []), conns: new Map(), ice: [], relayOnly: false, filtered: [] };
+        pips: store.get('mdc.live.pips', []).map((p) => ({ serverId: p.serverId, corner: p.corner || 'br', w: p.w || 380 })), conns: new Map(), ice: [], relayOnly: false,
+        filtered: [], fullId: null, playersSig: '' };
     const saveTiles = () => { store.set('mdc.live.tiles', live.tiles); store.set('mdc.live.pips', live.pips); };
     const playerById = (id) => state.players.find((p) => p.serverId === id);
     const serviceOf = (p) => (p.agency === 'kcso' || p.agency === 'wsp' ? p.agency : p.agency === 'generic' ? 'generic' : 'none');
@@ -1364,7 +1357,9 @@
         const map = new Map();
         const liveOpen = state.tool === 'live' && !$('#board').classList.contains('side-collapsed');
         if (liveOpen) for (const t of live.tiles) if (!t.masked && playerById(t.serverId)) map.set(t.serverId, live.focus === t.serverId ? 'focus' : 'grid');
-        for (const p of live.pips) if (playerById(p.serverId)) map.set(p.serverId, p.full ? 'focus' : (map.get(p.serverId) || 'grid'));
+        for (const p of live.pips) if (playerById(p.serverId)) map.set(p.serverId, map.get(p.serverId) || 'grid');
+        // plein écran : pleine taille, pleine cadence
+        if (live.fullId !== null && map.has(live.fullId)) map.set(live.fullId, 'focus');
         return map;
     }
     let liveTimer = null;
@@ -1384,7 +1379,7 @@
                     const conn = live.conns.get(serverId);
                     if (conn && conn.peerId === peerId) continue;
                     if (conn) closeConn(serverId);
-                    live.conns.set(serverId, { peerId, pc: null, session: '', pending: [], stream: null, stats: {}, state: 'attente', lastFrame: 0, lastRestart: 0, prev: null });
+                    live.conns.set(serverId, { serverId, peerId, pc: null, session: '', pending: [], stream: null, stats: {}, state: 'attente', lastFrame: 0, lastRestart: 0, prev: null, videos: {} });
                     refreshScreens(serverId);
                 }
             });
@@ -1395,6 +1390,7 @@
         if (!c) return;
         live.conns.delete(serverId);
         if (c.pc) try { c.pc.close(); } catch (e) { /* déjà fermée */ }
+        for (const v of Object.values(c.videos || {})) { v.srcObject = null; v.remove(); }
     }
     function newPc(serverId, conn, session) {
         if (conn.pc) try { conn.pc.close(); } catch (e) { /* déjà fermée */ }
@@ -1441,25 +1437,51 @@
         }
     }
     function screens(serverId) { return $$(`[data-tile="${serverId}"] .tile-screen, [data-pip="${serverId}"] .tile-screen`); }
+    // Un élément <video> par emplacement (mosaïque, incrustation) et par liaison, GARDÉ d'un rendu à l'autre : la vidéo
+    // ne repart jamais de zéro (pas d'écran noir) quand la liste ou la tuile est redessinée ou passe en plein écran.
+    function videoFor(c, slot) {
+        let v = c.videos[slot];
+        if (!v) {
+            v = document.createElement('video');
+            v.muted = true; v.autoplay = true; v.playsInline = true; v.disablePictureInPicture = true;
+            c.videos[slot] = v;
+            watchFrames(c.serverId, v);
+        }
+        if (v.srcObject !== c.stream) v.srcObject = c.stream;
+        return v;
+    }
     function refreshScreens(serverId) {
         const c = live.conns.get(serverId);
         for (const screen of screens(serverId)) {
             if (screen.closest('.masked')) continue;
-            const v = screen.querySelector('video');
             if (c && c.stream) {
-                if (v && v.srcObject === c.stream) continue;
-                const video = document.createElement('video');
-                video.muted = true; video.autoplay = true; video.playsInline = true; video.disablePictureInPicture = true;
-                video.srcObject = c.stream;
-                screen.innerHTML = '<span class="lv-badge">EN DIRECT</span>';
-                screen.prepend(video);
-                video.play().catch(() => {});
-                watchFrames(serverId, video);
-            } else if (!v) {
+                const v = videoFor(c, screen.closest('.pip') ? 'pip' : 'tile');
+                if (v.parentNode !== screen) {
+                    screen.textContent = '';
+                    const badge = document.createElement('span');
+                    badge.className = 'lv-badge'; badge.textContent = 'EN DIRECT';
+                    screen.append(v, badge);
+                }
+                if (v.paused) v.play().catch(() => {});
+            } else if (!screen.querySelector('.placeholder')) {
                 screen.innerHTML = `<div class="placeholder"><span class="spin"></span>${playerById(serverId) ? 'Connexion à l\'écran du joueur…' : 'Joueur déconnecté'}</div>`;
             }
         }
     }
+    // Plein écran (API du navigateur) d'une tuile ou d'une incrustation : Échap pour sortir ; pleine qualité pendant ce temps
+    function toggleFullscreen(el) {
+        if (!el) return;
+        if (document.fullscreenElement === el) { document.exitFullscreen().catch(() => {}); return; }
+        (el.requestFullscreen ? el.requestFullscreen() : Promise.reject()).catch(() => toast('error', 'LiveView', 'Plein écran refusé par le navigateur.'));
+    }
+    document.addEventListener('fullscreenchange', () => {
+        const el = document.fullscreenElement;
+        const id = el && (el.dataset.tile || el.dataset.pip);
+        live.fullId = id ? Number(id) : null;
+        $$('[data-tact="full"], [data-pact="full"]').forEach((b) => { b.title = b.closest('.tile') === el ? 'Quitter le plein écran (Échap)' : 'Plein écran'; });
+        if (id) refreshScreens(Number(id));
+        liveSync();
+    });
     function watchFrames(serverId, video) { // dernière image affichée (détection d'image figée)
         if (!video.requestVideoFrameCallback) return;
         const tick = () => { const c = live.conns.get(serverId); if (c) c.lastFrame = Date.now(); if (video.isConnected) video.requestVideoFrameCallback(tick); };
@@ -1511,7 +1533,8 @@
         return `<div class="tile ${t.pinned ? 'pinned' : ''} ${t.masked ? 'masked' : ''} ${live.focus === t.serverId ? 'focus' : ''}" data-tile="${t.serverId}" draggable="true">
             <div class="tile-head"><span class="t-name">${esc(p ? p.name : `Joueur ${t.serverId}`)}<small>#${t.serverId}${p && p.unitName ? ` · ${esc(p.unitName)}` : ''}</small></span>
                 ${p ? `<span class="chip ${serviceOf(p)}">${esc(SERVICE_LABEL[serviceOf(p)])}</span>` : ''}
-                <button type="button" class="ibtn" data-tact="focus" title="${live.focus === t.serverId ? 'Réduire' : 'Agrandir (pleine qualité)'}">${icon('expand')}</button>
+                <button type="button" class="ibtn" data-tact="focus" title="${live.focus === t.serverId ? 'Réduire dans la mosaïque' : 'Agrandir dans la mosaïque (pleine qualité)'}">${icon('max')}</button>
+                <button type="button" class="ibtn" data-tact="full" title="Plein écran">${icon('expand')}</button>
                 <button type="button" class="ibtn" data-tact="pin" title="${t.pinned ? 'Désépingler' : 'Épingler en tête'}" aria-pressed="${t.pinned}">${icon('pin')}</button>
                 <button type="button" class="ibtn" data-tact="mask" title="${t.masked ? 'Réafficher' : 'Masquer (coupe le flux)'}">${icon(t.masked ? 'eye' : 'eyeoff')}</button>
                 <button type="button" class="ibtn" data-tact="pip" title="Incrustation (reste visible partout)">${icon('pip')}</button>
@@ -1564,9 +1587,11 @@
             if (act === 'mask') t.masked = !t.masked;
             if (act === 'remove') { live.tiles = live.tiles.filter((x) => x.serverId !== id); if (live.focus === id) live.focus = null; }
             if (act === 'pip') openPip(id);
+            if (act === 'full') { toggleFullscreen(b.closest('[data-tile]')); return; }
             saveTiles(); renderLivePlayers(); renderLiveGrid(); liveSync();
         });
-        grid.addEventListener('dblclick', (e) => { const tile = e.target.closest('[data-tile]'); if (!tile || e.target.closest('button')) return; const id = Number(tile.dataset.tile); live.focus = live.focus === id ? null : id; renderLiveGrid(); liveSync(); });
+        // double-clic sur l'image : plein écran
+        grid.addEventListener('dblclick', (e) => { const tile = e.target.closest('[data-tile]'); if (!tile || e.target.closest('button') || !e.target.closest('.tile-screen')) return; toggleFullscreen(tile); });
         renderLivePlayers();
         renderLiveGrid();
     }
@@ -1583,63 +1608,73 @@
     }
     function renderLiveGrid() {
         const grid = $('#liveGrid');
-        if (!grid) return;
+        if (!grid || (document.fullscreenElement && grid.contains(document.fullscreenElement))) return; // ne casse pas le plein écran
+        live.playersSig = playersSig();
         const tiles = [...live.tiles].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
         grid.classList.toggle('focus-on', live.focus !== null && tiles.some((t) => t.serverId === live.focus));
         grid.innerHTML = tiles.map(tileHtml).join('') || emptyState('Aucun écran affiché', 'Cochez des joueurs à gauche (vidéo en direct, 30 i/s en agrandi).');
         for (const t of tiles) refreshScreens(t.serverId);
     }
-    // ---- incrustation (PiP) : reste visible partout, déplaçable, aimantée aux coins ----
+    // ---- incrustation (PiP) : reste visible partout, déplaçable, aimantée aux coins ; plein écran réel ----
     function openPip(serverId) {
-        if (!live.pips.some((p) => p.serverId === serverId)) live.pips.push({ serverId, corner: 'br', w: 380, full: false });
+        if (!live.pips.some((p) => p.serverId === serverId)) live.pips.push({ serverId, corner: 'br', w: 380 });
         saveTiles(); renderPips(); liveSync();
     }
-    function closePip(serverId) { live.pips = live.pips.filter((p) => p.serverId !== serverId); saveTiles(); renderPips(); liveSync(); }
-    function pipFull() { const p = live.pips.find((x) => x.full); if (p) { p.full = false; saveTiles(); renderPips(); liveSync(); return true; } return false; }
+    function closePip(serverId) {
+        const el = $(`.pip[data-pip="${serverId}"]`);
+        if (el && document.fullscreenElement === el) document.exitFullscreen().catch(() => {});
+        live.pips = live.pips.filter((p) => p.serverId !== serverId);
+        const c = live.conns.get(serverId);
+        if (c && c.videos.pip) { c.videos.pip.remove(); delete c.videos.pip; }
+        saveTiles(); renderPips(); liveSync();
+    }
     function placePip(el, p, i) {
-        if (p.full) { ['left', 'top', 'right', 'bottom', 'width'].forEach((k) => { el.style[k] = ''; }); return; }
         el.style.width = `${p.w}px`;
         const off = 16 + i * 26;
         el.style.left = p.corner.includes('l') ? `${off}px` : 'auto'; el.style.right = p.corner.includes('r') ? `${off + 46}px` : 'auto';
         el.style.top = p.corner.includes('t') ? `calc(var(--top) + var(--svc) + ${off}px)` : 'auto'; el.style.bottom = p.corner.includes('b') ? `${off}px` : 'auto';
     }
+    const pipNameHtml = (p) => { const pl = playerById(p.serverId); return `${esc(pl ? pl.name : `Joueur ${p.serverId}`)}<small>#${p.serverId}${pl && pl.unitName ? ` · ${esc(pl.unitName)}` : ''}</small>`; };
     function renderPips() {
         $$('.pip').forEach((el) => { if (!live.pips.some((p) => String(p.serverId) === el.dataset.pip)) el.remove(); });
         live.pips.forEach((p, i) => {
             let el = $(`.pip[data-pip="${p.serverId}"]`);
-            const pl = playerById(p.serverId);
-            if (!el) {
+            if (!el) { // construit une seule fois : la vidéo n'est jamais recréée
                 el = document.createElement('aside');
                 el.className = 'pip tile';
                 el.dataset.pip = p.serverId;
                 el.setAttribute('aria-label', 'LiveView en incrustation');
+                el.innerHTML = `<div class="tile-head"><span class="t-name"></span>
+                    <button type="button" class="ibtn" data-pact="size" title="Taille">${icon('pip')}</button><button type="button" class="ibtn" data-pact="full" title="Plein écran">${icon('expand')}</button>
+                    <button type="button" class="ibtn" data-pact="close" title="Fermer">${icon('x')}</button></div>
+                    <div class="tile-screen"></div><div class="tile-foot" data-foot="${p.serverId}"></div>`;
                 document.body.appendChild(el);
                 el.addEventListener('click', (e) => {
                     const b = e.target.closest('[data-pact]');
                     const cur = live.pips.find((x) => x.serverId === p.serverId);
                     if (!b || !cur) return;
                     if (b.dataset.pact === 'close') closePip(cur.serverId);
-                    if (b.dataset.pact === 'full') { cur.full = !cur.full; saveTiles(); renderPips(); liveSync(); }
-                    if (b.dataset.pact === 'size') { cur.w = cur.w >= 640 ? 300 : cur.w + 170; saveTiles(); renderPips(); }
+                    if (b.dataset.pact === 'full') toggleFullscreen(el);
+                    if (b.dataset.pact === 'size') { cur.w = cur.w >= 640 ? 300 : cur.w + 170; saveTiles(); placePip(el, cur, live.pips.indexOf(cur)); }
                 });
+                el.addEventListener('dblclick', (e) => { if (e.target.closest('.tile-screen')) toggleFullscreen(el); });
                 el.addEventListener('pointerdown', (e) => {
                     const cur = live.pips.find((x) => x.serverId === p.serverId);
-                    if (e.target.closest('button') || !cur || cur.full || !e.target.closest('.tile-head')) return;
+                    if (e.target.closest('button') || !cur || document.fullscreenElement === el || !e.target.closest('.tile-head')) return;
                     const r = el.getBoundingClientRect(); const ox = e.clientX - r.left; const oy = e.clientY - r.top;
                     const move = (ev) => { el.style.left = `${ev.clientX - ox}px`; el.style.top = `${ev.clientY - oy}px`; el.style.right = 'auto'; el.style.bottom = 'auto'; };
                     const up = (ev) => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); cur.corner = `${ev.clientY < innerHeight / 2 ? 't' : 'b'}${ev.clientX < innerWidth / 2 ? 'l' : 'r'}`; saveTiles(); placePip(el, cur, live.pips.indexOf(cur)); };
                     addEventListener('pointermove', move); addEventListener('pointerup', up);
                 });
             }
-            el.classList.toggle('full', !!p.full);
-            el.innerHTML = `<div class="tile-head"><span class="t-name">${esc(pl ? pl.name : `Joueur ${p.serverId}`)}<small>#${p.serverId}${pl && pl.unitName ? ` · ${esc(pl.unitName)}` : ''}</small></span>
-                <button type="button" class="ibtn" data-pact="size" title="Taille">${icon('pip')}</button><button type="button" class="ibtn" data-pact="full" title="${p.full ? 'Réduire' : 'Plein écran (pleine qualité)'}">${icon('expand')}</button>
-                <button type="button" class="ibtn" data-pact="close" title="Fermer">${icon('x')}</button></div>
-                <div class="tile-screen">${pl ? '<div class="placeholder"><span class="spin"></span>Connexion…</div>' : '<div class="placeholder">Joueur déconnecté</div>'}</div><div class="tile-foot" data-foot="${p.serverId}">${footHtml(p.serverId)}</div>`;
-            placePip(el, p, i);
+            $('.t-name', el).innerHTML = pipNameHtml(p);
+            $('.tile-foot', el).innerHTML = footHtml(p.serverId);
+            if (document.fullscreenElement !== el) placePip(el, p, i);
             refreshScreens(p.serverId);
         });
     }
+    // noms et unités des joueurs : la mosaïque n'est redessinée que si quelque chose d'affiché a changé
+    const playersSig = () => live.tiles.map((t) => { const p = playerById(t.serverId); return `${t.serverId}:${p ? `${p.name}|${p.unitName || ''}|${p.agency || ''}` : '-'}`; }).join(',');
 
     // =================================================================================================================
     // LIGNE DE COMMANDE (Ctrl + K) : codes courts du dispatch, suggestions au fil de la frappe
@@ -1652,7 +1687,7 @@
         ['CL <n°> [A|B|C]', 'Clôturer (code Clear facultatif, WSP)'], ['RO <n°>', 'Rouvrir une intervention terminée'],
         ['AN <n°> [motif]', 'Annuler une intervention'], ['VA <n°>', 'Valider un appel en attente'],
         ['NOTE <n°> <texte>', 'Ajouter une note du dispatch'], ['MSG <unité> <texte>', 'Message à une unité'],
-        ['NS <texte>', 'Remplacer la note de service'], ['P <nom> <prénom> <JJ/MM/AAAA>', 'Rechercher une identité'],
+        ['NS <texte>', 'Remplacer la note de service'], ['JEUX <texte>', 'Message à tous les joueurs (chat : « DISPATCH : texte »)'], ['P <nom> <prénom> <JJ/MM/AAAA>', 'Rechercher une identité'],
         ['V <plaque>', 'Rechercher un véhicule'], ['LIVE <unité|joueur>', 'LiveView en incrustation'], ['?', 'Aide'],
     ];
     const findUnit = (token) => {
@@ -1753,6 +1788,11 @@
             return true;
         }
         if (head === 'NS') { await saveServiceNote(rest(1)); return true; }
+        if (head === 'JEUX' || head === 'JEU') {
+            if (!rest(1)) { toast('error', 'Commande', 'JEUX <texte> : le message à afficher en jeu.'); return false; }
+            if (await api('/game/announce', { text: rest(1) })) toast('ok', 'Message en jeu', `DISPATCH : ${rest(1)}`);
+            return true;
+        }
         if (head === 'P' && words.length >= 3) {
             const dob = words.find((w) => /^\d{2}\/\d{2}\/\d{4}$/.test(w)) || '';
             const names = words.slice(1).filter((w) => w !== dob);
@@ -1799,7 +1839,6 @@
             hideMenu();
             const modal = $$('.modal').find((m) => !m.classList.contains('hidden'));
             if (modal && modal.id !== 'confirmModal') { modal.classList.add('hidden'); return; }
-            if (pipFull()) return;
             if (state.editMode) { leaveEdit(); return; }
             if (state.svcEditing && state.tool === 'note') { state.svcEditing = false; renderTool(); return; }
             if (typing) e.target.blur();
@@ -1848,7 +1887,7 @@
         } else if (tileEl) {
             const id = Number(tileEl.dataset.tile);
             menu(e.clientX, e.clientY, [{ label: 'Incrustation (PiP)', icon: 'pip', action: () => openPip(id) },
-                { label: 'Plein écran', icon: 'expand', action: () => { openPip(id); const p = live.pips.find((x) => x.serverId === id); if (p) { p.full = true; saveTiles(); renderPips(); liveSync(); } } },
+                { label: 'Plein écran', icon: 'expand', action: () => toggleFullscreen(tileEl) },
                 { label: 'Retirer', icon: 'x', danger: true, action: () => { live.tiles = live.tiles.filter((x) => x.serverId !== id); saveTiles(); renderLiveGrid(); liveSync(); } }]);
         }
     });
@@ -1886,7 +1925,13 @@
         socket.on('conversations', (list) => { state.conversations = list; renderChatList(); });
         socket.on('positions', (map) => { state.positions = map || {}; renderUnits(); });
         socket.on('position', (p) => { state.positions[p.unitId] = p.location; });
-        socket.on('players', (d) => { state.players = d.players || []; renderLivePlayers(); renderLiveGrid(); renderPips(); liveSync(); });
+        socket.on('players', (d) => {
+            state.players = d.players || [];
+            renderLivePlayers();
+            if (playersSig() !== live.playersSig) renderLiveGrid();
+            renderPips();
+            liveSync();
+        });
         socket.on('editing', (map) => { state.editing = map || {}; renderPending(); renderActive(); updateEditBanners(); });
         socket.on('call:edited', (d) => { if (state.callId === d.id && state.editMode && state.editBase && d.rev !== state.editBase.rev) { state.editConflict = { rev: d.rev }; updateEditBanners(); } });
         socket.on('records', () => { if (state.tool === 'registries') { clearTimeout(state.regT); state.regT = setTimeout(loadRegistry, 400); } });

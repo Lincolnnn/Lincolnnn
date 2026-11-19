@@ -723,6 +723,7 @@
         checkUnitChange(); // espace partagé d'unité
         if (state.callPanel.mode === 'view') renderInterventionDetail(); // boutons "Rejoindre l'appel"
         renderInterventionList(); // nouvelle unité : boutons des appels à jour
+        if (state.open && isPolice()) loadServiceNote(); // superviseur (SUP.) ou non : droit de modifier la note de service
     }
 
     async function refreshUnits() {
@@ -1616,6 +1617,7 @@
                 ${dd(callAgencies(c).length > 1 ? 'Polices (appel commun)' : 'Police', `${agenciesTags(c)} ${esc(agenciesLabel(c))}`)}
                 ${callAreas(c).length ? row('Secteur KCSO', areasLabel(c)) : ''}
                 ${incident ? '' : row('Unités idéales', c.idealUnits ? `${c.idealUnits} (${toArray(c.units).length} sur l'appel)` : '-')}
+                ${c.closed && c.pastUnits ? row('Unités présentes', String(c.pastUnits).split(';').map((x) => x.trim()).join(', ')) : ''}
                 ${dd('Déroulé', callFlag(CALL_STATUS, c.status))}
                 ${row(incident ? 'Type d\'incident' : 'Type d\'intervention', c.title)}
                 ${incident
@@ -4600,7 +4602,7 @@
         bolo: ['2.mp3', 0.9, 0],            // nouveau BOLO (commun aux deux polices)
         assign: ['assign.mp3', 1.0, 0],     // une unité rejoint l'appel
         deassign: ['deassign.mp3', 0.6, 0], // une unité quitte l'appel
-        link: ['dsp.mp3', 0.9, 0],          // observation, rapport, identité ou véhicule lié à l'appel
+        link: ['dsp.wav', 0.9, 0, 'dsp.mp3'], // TOUT changement d'un appel où l'on est affecté (dsp.wav, sinon dsp.mp3)
         status: ['status.mp3', 0.9, 0],     // changement de statut de son unité (disponible, indisponible…)
         result: ['result.mp3', 1.0, 0],     // recherche avec résultat
         noresult: ['nnul.mp3', 1.0, 0],     // recherche sans résultat
@@ -4635,8 +4637,8 @@
 
     // Joue un fichier ; retourne { source, gain } (ou null) pour pouvoir l'arrêter (son du clavier)
     async function playFile(kind, volume, loop) {
-        const [file, gain, offset] = SOUND_FILES[kind];
-        const buffer = await loadBuffer(file);
+        const [file, gain, offset, fallback] = SOUND_FILES[kind];
+        const buffer = (await loadBuffer(file)) || (fallback ? await loadBuffer(fallback) : null);
         if (!buffer) return null;
         const ctx = getAudio();
         const source = ctx.createBufferSource();
@@ -4702,10 +4704,9 @@
         bolo:     { visual: true,  sound: 'bolo' },     // nouveau BOLO
         status:   { visual: true,  sound: 'status' },   // changement de statut de son unité
         message:  { visual: false, sound: 'message' },  // TOUT message reçu : unité, dispatch, groupe civil, privé
-        callEdit: { visual: false, sound: 'link' },     // modification d'un élément d'une intervention (dispatch)
-        assign:   { visual: false, sound: 'assign' },   // une unité rejoint l'appel
-        assigned: { visual: true,  sound: 'assign' },   // son unité affectée à un appel par le dispatch : son de notification seul
-        deassign: { visual: false, sound: 'deassign' }, // une unité quitte l'appel
+        callEdit: { visual: false, sound: 'link' },     // intervention modifiée, notée, terminée, annulée…
+        assign:   { visual: false, sound: 'link' },     // une unité rejoint l'appel (ou y est affectée par le dispatch)
+        deassign: { visual: false, sound: 'link' },     // une unité quitte l'appel (ou en est retirée)
         link:     { visual: false, sound: 'link' },     // fiche / rapport lié à l'appel
         other:    { visual: false, sound: 'message' },  // autres avis du dispatch (appel transmis, refusé, annulé…)
     };
@@ -4723,7 +4724,7 @@
         const cfg = NOTIFY_EVENTS[event] || NOTIFY_EVENTS.other;
         if (cfg.visual && el) pushNotification(el, duration || 8000);
         if (!cfg.sound || hud.settings.notify.sound === false) return;
-        if (event === 'assigned') {
+        if (event === 'assign') {
             heldSounds.forEach((t) => clearTimeout(t));
             heldSounds.clear();
             assignedAt = Date.now();
@@ -5061,7 +5062,9 @@
         const box = $('#serviceNote');
         if (!box) return;
         const n = serviceNote.note || { text: '', by: '', at: 0 };
-        box.classList.toggle('hidden', !isPolice());
+        // aucune note : pas d'encart (un superviseur voit seulement le bouton « Créer une note de service »)
+        box.classList.toggle('hidden', !isPolice() || (!n.text && !serviceNote.editing));
+        $('#serviceNoteCreate').classList.toggle('hidden', !isPolice() || !!n.text || serviceNote.editing || !serviceNote.canEdit);
         box.classList.toggle('collapsed', serviceNote.collapsed && !serviceNote.editing);
         $('#serviceNoteText').textContent = n.text || 'Aucune note de service.';
         $('#serviceNoteText').classList.toggle('empty', !n.text);
@@ -5094,6 +5097,12 @@
         $('#serviceNoteInput').focus();
     });
     $('#serviceNoteCancel').addEventListener('click', () => { serviceNote.editing = false; renderServiceNote(); });
+    $('#serviceNoteCreate').addEventListener('click', () => {
+        serviceNote.editing = true;
+        renderServiceNote();
+        $('#serviceNoteInput').value = '';
+        $('#serviceNoteInput').focus();
+    });
     $('#serviceNoteToggle').addEventListener('click', () => { serviceNote.collapsed = !serviceNote.collapsed; renderServiceNote(); });
     $('#serviceNoteForm').addEventListener('submit', async (e) => {
         e.preventDefault();

@@ -111,6 +111,7 @@ local ACTIONS = {
     ['live.stop']      = function(b) return MDCServer.liveStop(b.serverIds) end,
     -- gestion : suppression (définitive), modification, réouverture ; note de service
     ['serviceNote.get'] = function() return MDCServer.serviceNote() end,
+    ['game.announce']   = function(b, actor) return MDCServer.announce(b.text, actor) end,
     ['serviceNote.set'] = function(b, actor)
         return MDCServer.setServiceNote(b.text, { name = 'Dispatch', id = actor and actor.id and ('discord:' .. tostring(actor.id)) or '', source = 'dispatch' })
     end,

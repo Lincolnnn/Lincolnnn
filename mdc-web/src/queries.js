@@ -29,7 +29,7 @@ function callView(r, units = [], extra = {}) {
         dispatch: r.dispatch_state || null, dispatchReason: r.dispatch_reason || '', dispatchBy: r.dispatch_by || '',
         dispatchAt: r.dispatch_at ? Number(r.dispatch_at) : null, createdByName: r.created_by_name || '',
         createdAt: Number(r.created_at), closedAt: r.closed_at ? Number(r.closed_at) : null, closedByName: r.closed_by_name || '',
-        updatedAt: r.updated_at ? Number(r.updated_at) : null, rev: Number(r.rev || 0),
+        updatedAt: r.updated_at ? Number(r.updated_at) : null, rev: Number(r.rev || 0), pastUnits: r.past_units || '',
         status: callStatus(r, units.length), units, ...extra,
     };
 }
