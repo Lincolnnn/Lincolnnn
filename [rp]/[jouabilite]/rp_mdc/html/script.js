@@ -1632,7 +1632,7 @@
                 ${row(incident ? 'Description de l\'incident' : 'Description', c.description)}
                 ${row('Émise le', formatDate(c.createdAt))}
                 ${c.closed ? row('Terminée le', `${formatDate(c.closedAt)} par ${c.closedByName || '-'}`) : ''}
-                ${c.dispatch ? row('Dispatch', `${({ awaiting: 'En attente de validation', validated: 'Validée', refused: 'Refusée', cancelled: 'Annulée' })[c.dispatch] || c.dispatch}${c.dispatchBy ? ` par ${c.dispatchBy}` : ''}${c.dispatchReason ? ` — ${c.dispatchReason}` : ''}`) : ''}
+                ${c.dispatch === 'awaiting' ? row('État', 'En attente de validation') : ''}
                 ${c.closed && c.clear ? row('Clôture', CLEAR_CODES[c.clear] || `Clear ${c.clear}`) : ''}
             </dl>
             <div class="sheet-sub">Unités sur l'appel (${units.length})</div>

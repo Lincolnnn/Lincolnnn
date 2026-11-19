@@ -109,7 +109,7 @@ const page = (file) => path.join(__dirname, '..', 'public', file);
 app.get('/login', (req, res) => (req.session.user ? res.redirect('/') : res.sendFile(page('login.html'))));
 app.get('/denied', (req, res) => res.sendFile(page('denied.html')));
 app.get('/', auth.requireDispatcher(false), (req, res) => res.sendFile(page('app.html')));
-app.use('/assets', express.static(path.join(__dirname, '..', 'public', 'assets'), { maxAge: '1h', index: false }));
+app.use('/assets', express.static(path.join(__dirname, '..', 'public', 'assets'), { maxAge: 0, index: false })); // revalidé à chaque chargement (ETag) : une mise à jour du site s'applique tout de suite
 // Polices du site (Barlow, Barlow Condensed, JetBrains Mono — licence OFL) servies depuis node_modules : aucun CDN
 for (const font of ['barlow', 'barlow-condensed', 'jetbrains-mono']) {
     app.use('/assets/fonts', express.static(path.join(__dirname, '..', 'node_modules', '@fontsource', font, 'files'),

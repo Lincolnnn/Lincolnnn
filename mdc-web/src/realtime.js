@@ -12,7 +12,7 @@ const log = require('./logger');
 let io = null;
 const presence = new Map(); // id Discord -> { id, name, avatar, sockets }
 // Données du jeu gardées en mémoire (jamais écrites dans MySQL : envoyées par le serveur FiveM quand elles changent)
-const cache = { positions: new Map(), players: [], liveview: false };
+const cache = { positions: new Map(), coords: new Map(), players: [], liveview: false };
 // Postes en train de modifier une intervention (verrou doux) : id de l'appel -> Map(socket -> n° de poste)
 const editors = new Map();
 let stationSeq = 0;
@@ -38,9 +38,24 @@ async function refreshPositions() {
     const res = await fivem.call('positions', {});
     if (res && res.ok && Array.isArray(res.positions)) {
         cache.positions.clear();
-        for (const p of res.positions) cache.positions.set(Number(p.unitId), p.location);
+        cache.coords.clear();
+        for (const p of res.positions) {
+            if (p.location) cache.positions.set(Number(p.unitId), p.location);
+            const c = cleanCoords(p.coords);
+            if (c) cache.coords.set(c.unitId, c);
+        }
         broadcast('positions', Object.fromEntries(cache.positions));
+        broadcast('coords', [...cache.coords.values()]);
     }
+}
+
+/** LiveMAP : position exacte d'une unité (envoyée par le serveur FiveM), nombres vérifiés */
+function cleanCoords(c) {
+    if (!c || typeof c !== 'object') return null;
+    const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+    const unitId = n(c.unitId); const x = n(c.x); const y = n(c.y);
+    if (!unitId || x === null || y === null || Math.abs(x) > 20000 || Math.abs(y) > 20000) return null;
+    return { unitId, x, y, h: n(c.h) || 0, s: n(c.s) || 0, v: c.v === true, at: n(c.at) || Math.floor(Date.now() / 1000) };
 }
 
 function dispatchers() {
@@ -165,6 +180,11 @@ async function handleGameEvents(events) {
                 cache.positions.set(Number(e.data.unitId), e.data.location);
                 broadcast('position', { unitId: Number(e.data.unitId), location: e.data.location });
             }
+            if (e.topic === 'coords' && e.data && Array.isArray(e.data.list)) {
+                const list = e.data.list.map(cleanCoords).filter(Boolean);
+                for (const c of list) cache.coords.set(c.unitId, c);
+                if (list.length) broadcast('coords', list);
+            }
             if (e.topic === 'call:edited' && e.data) broadcast('call:edited', e.data);
             if (e.topic === 'records') broadcast('records', {});   // registres modifiés (jeu ou site)
             if (e.topic === 'serviceNote' && e.data) broadcast('serviceNote', e.data);
@@ -190,4 +210,4 @@ async function resync() {
 }
 
 module.exports = { init, broadcast, dispatchers, handleGameEvents, resync, editing,
-    positions: () => Object.fromEntries(cache.positions), players: () => cache.players, liveviewAvailable: () => cache.liveview };
+    positions: () => Object.fromEntries(cache.positions), coords: () => Object.fromEntries(cache.coords), players: () => cache.players, liveviewAvailable: () => cache.liveview };

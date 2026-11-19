@@ -56,7 +56,7 @@ router.get('/state', read, wrap(async (req, res) => {
     const status = fivem.publicStatus();
     res.json({ ok: true, calls, units, conversations, fivem: status, serviceNote,
         dispatch: status.dispatch || { enabled: mode, online: false, effective: false, count: 0 },
-        presence: realtime.dispatchers(), positions: realtime.positions(), players: realtime.players(), editing: realtime.editing() });
+        presence: realtime.dispatchers(), positions: realtime.positions(), coords: realtime.coords(), players: realtime.players(), editing: realtime.editing() });
 }));
 
 router.get('/calls/:id', read, wrap(async (req, res) => {

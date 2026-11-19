@@ -1,0 +1,4 @@
+{
+    "_comment": "LiveMAP : coordonnées du jeu couvertes par les 6 images de la minimap (2 colonnes x 3 lignes de 4500 unités). x0/y0 = coin haut-gauche, x1/y1 = coin bas-droit. À ajuster seulement si les unités apparaissent décalées.",
+    "world": { "x0": -4140, "y0": 8400, "x1": 4860, "y1": -5100 }
+}

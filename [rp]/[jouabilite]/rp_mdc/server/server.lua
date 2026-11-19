@@ -133,6 +133,8 @@ local Config = {
     -- (membres d'une unité au tag SupervisorTag, « SUP. »).
     ServiceNoteLength = 1500,
     ServiceNoteEditInGame = true,
+    -- Commande JEUX du site : ressource de chat (nil : rp_chat, ou GlobalState.rpChatResource). Sans elle : chat:addMessage
+    ChatResource = nil,
     -- N° de référence des interventions et incidents : RD + 4 chiffres ALÉATOIRES (ex. RD4817), jamais deux fois le
     -- même (vérifié sur tous les appels enregistrés dans MySQL)
     CallNumberPrefix = 'RD',
@@ -2338,18 +2340,49 @@ end
 
 -- Son d'un événement de l'appel (html/sounds) joué chez les membres des unités présentes sur l'appel
 -- (+ `extra` : unité qui vient de le quitter). kind : 'assign', 'deassign', 'link'.
+CallRules.soundAt = {} -- [joueur] = dernier son d'appel envoyé (ms) : un seul son pour une même action
 local function callSound(call, kind, extra)
-    local sent = {}
+    local sent, now = {}, GetGameTimer()
     local function send(unit)
         for key in pairs(unit and unit.members or {}) do
             if not sent[key] then
                 sent[key] = true
+                CallRules.soundAt[key] = now
                 TriggerClientEvent('mdc:client:sound', tonumber(key), kind)
             end
         end
     end
     for unitId in pairs(call.units) do send(findUnit(tonumber(unitId))) end
     send(extra)
+end
+
+--- Son dsp (« link ») chez TOUS les agents rattachés à l'appel, pour toute modification (journal, note, fiche…).
+--- Envoyé un court instant après : si l'action a déjà joué son propre son (assignation…), il n'est pas doublé.
+--- Les agents sont relevés tout de suite (une unité libérée à la clôture entend encore la clôture).
+function CallRules.ding(call)
+    if type(call) ~= 'table' or type(call.units) ~= 'table' then return end
+    local snapshot = { units = {} }
+    for unitId in pairs(call.units) do snapshot.units[unitId] = true end
+    if next(snapshot.units) == nil then return end
+    local members = {}
+    for unitId in pairs(snapshot.units) do
+        local unit = findUnit(tonumber(unitId))
+        if unit then members[#members + 1] = unit end
+    end
+    local queuedAt = GetGameTimer()
+    SetTimeout(150, function()
+        local sent = {}
+        for _, unit in ipairs(members) do
+            for key in pairs(unit.members or {}) do
+                -- déjà un son de cette action (assignation, note, fiche…) : pas de doublon
+                if not sent[key] and (CallRules.soundAt[key] or -100000) < queuedAt - 400 then
+                    sent[key] = true
+                    CallRules.soundAt[key] = GetGameTimer()
+                    TriggerClientEvent('mdc:client:sound', tonumber(key), 'link')
+                end
+            end
+        end
+    end)
 end
 
 --- « Adam 12 (Sam Carter, Ana Ruiz) » : unité et agents qui la composent (journal des appels)
@@ -2386,8 +2419,7 @@ end
 local function joinCall(call, unit, by)
     local already = call.units[tostring(unit.id)]
     if not already then
-        MDCServer.journal(call, by and ('%s affectée à l\'appel par %s'):format(CallRules.unitWithMembers(unit), by)
-            or ('%s a rejoint l\'appel'):format(CallRules.unitWithMembers(unit)), by or unit.name)
+        MDCServer.journal(call, ('%s a rejoint l\'appel'):format(CallRules.unitWithMembers(unit)), unit.name)
     end
     call.units[tostring(unit.id)] = true
     call.unitsAt = call.unitsAt or {}
@@ -2923,6 +2955,7 @@ RegisterMDCCallback('editNote', function(src, payload)
             note.text = text
             note.updatedAt = os.time()
             pushInterventions()
+            callSound(call, 'link') -- observation modifiée
             return { ok = true }
         end
     end
@@ -4250,7 +4283,7 @@ do
         if not call then return { ok = false, error = err } end
         if call.dispatch ~= 'awaiting' or call.closed then return { ok = false, error = 'Cette intervention n\'attend pas de validation.' } end
         call.dispatch, call.dispatchBy, call.dispatchAt = 'validated', D.actorName(actor), os.time()
-        MDCServer.journal(call, 'Validée et transmise aux unités par le dispatch', 'Dispatch')
+        MDCServer.journal(call, 'Transmise aux unités', 'Système')
         local assigned = {}
         for _, uid in ipairs(type(unitIds) == 'table' and unitIds or {}) do
             local unit = findUnit(tonumber(uid))
@@ -4276,7 +4309,7 @@ do
         reason = clean(reason, 200)
         call.dispatch, call.dispatchBy, call.dispatchAt, call.dispatchReason = 'refused', D.actorName(actor), os.time(), reason ~= '' and reason or nil
         call.closed, call.closedAt, call.closedByName = true, os.time(), 'Dispatch'
-        MDCServer.journal(call, ('Refusée par le dispatch%s'):format(reason ~= '' and (' : ' .. reason) or ''), 'Dispatch')
+        MDCServer.journal(call, ('Refusée%s'):format(reason ~= '' and (' : ' .. reason) or ''), 'Système')
         pushInterventions()
         D.noticeCreator(call, { kind = 'refused', title = 'Appel refusé par le dispatch', number = call.number,
             text = reason ~= '' and reason or call.title })
@@ -4294,9 +4327,9 @@ do
             call.dispatch = 'cancelled'
         end
         call.dispatchBy, call.dispatchAt = D.actorName(actor), os.time()
-        call.dispatchReason = ('Annulée par le dispatch%s'):format(reason ~= '' and (' : ' .. reason) or '')
+        call.dispatchReason = ('Annulée%s'):format(reason ~= '' and (' : ' .. reason) or '')
         call.closed, call.closedAt, call.closedByName = true, os.time(), 'Dispatch'
-        MDCServer.journal(call, ('Annulée par le dispatch%s'):format(reason ~= '' and (' : ' .. reason) or ''), 'Dispatch')
+        MDCServer.journal(call, ('Annulée%s'):format(reason ~= '' and (' : ' .. reason) or ''), 'Système')
         D.closePendingOffers(call)
         D.noticeCall(call)
         CallRules.releaseUnits(call)
@@ -4318,7 +4351,7 @@ do
         if clear ~= '' and not CallRules.needsClear(call) then return { ok = false, error = 'Pas de Clear pour une intervention du shérif (KCSO).' } end
         call.clear = clear ~= '' and clear or nil
         call.closed, call.closedAt, call.closedByName = true, os.time(), 'Dispatch'
-        MDCServer.journal(call, ('Clôturée par le dispatch%s'):format(call.clear and (' — Clear ' .. call.clear) or ''), 'Dispatch')
+        MDCServer.journal(call, ('Clôturée%s'):format(call.clear and (' — Clear ' .. call.clear) or ''), 'Système')
         D.closePendingOffers(call)
         D.noticeCall(call)
         CallRules.releaseUnits(call)
@@ -4354,7 +4387,7 @@ do
         if not unit or not call.units[key] then return { ok = false, error = 'Cette unité n\'est pas sur l\'intervention.' } end
         call.units[key] = nil
         if call.unitsAt then call.unitsAt[key] = nil end
-        MDCServer.journal(call, ('%s retirée de l\'appel par le dispatch'):format(CallRules.unitWithMembers(unit)), 'Dispatch')
+        MDCServer.journal(call, ('%s a quitté l\'appel'):format(CallRules.unitWithMembers(unit)), unit.name)
         callSound(call, 'deassign', unit)
         pushInterventions()
         pushHud()
@@ -4440,7 +4473,7 @@ do
         NextInterventionId = NextInterventionId + 1
         MDCDB.setSetting('call_seq', NextInterventionId)
         Interventions[#Interventions + 1] = call
-        MDCServer.journal(call, ('%s créé(e) par le dispatch'):format(kind == 'incident' and 'Incident' or 'Intervention'), 'Dispatch')
+        MDCServer.journal(call, ('%s créé(e)'):format(kind == 'incident' and 'Incident' or 'Intervention'), 'Système')
         local assigned = {}
         for _, uid in ipairs(type(p.units) == 'table' and p.units or {}) do
             local unit = findUnit(tonumber(uid))
@@ -4521,7 +4554,7 @@ do
         for _, c in ipairs(changes) do
             parts[#parts + 1] = c.field == 'description' and c.label or ('%s : %s'):format(c.label, c.to ~= '' and c.to or '—')
         end
-        MDCServer.journal(call, ('Modifiée par le dispatch — %s'):format(table.concat(parts, ' ; ')), 'Dispatch')
+        MDCServer.journal(call, ('Modifiée : %s'):format(table.concat(parts, ' ; ')), 'Système')
         pushInterventions()
         -- unités de l'appel : avis sonore seulement (rp_mdc html : NOTIFY_EVENTS.callEdit)
         D.noticeCall(call)
@@ -4566,12 +4599,50 @@ do
         D.locations[unit.id] = loc
         MDCWeb.notify('position', { unitId = unit.id, location = loc })
     end)
-    AddEventHandler('playerDropped', function() D.locationAt[source] = nil end)
+    AddEventHandler('playerDropped', function() D.locationAt[source] = nil; D.coordsAt[source] = nil end)
+
+    -- LIVEMAP : position exacte (x, y, cap, vitesse en mph, en véhicule) de chaque unité, envoyée par ses agents
+    -- (client/hud.lua) ; regroupée et transmise au site une fois par seconde au plus.
+    D.coords = {}        -- [id de l'unité] = { unitId, x, y, h, s, v, at }
+    D.coordsAt = {}      -- [joueur] = dernier envoi accepté (ms)
+    D.coordsDirty = {}
+    D.coordsFlush = false
+    function D.round(v, n) local m = 10 ^ (n or 0) return math.floor(v * m + 0.5) / m end
+    RegisterNetEvent('mdc:server:coords', function(data)
+        local src = source
+        local unit = findUnit(PlayerUnit[src])
+        if not unit or type(data) ~= 'table' or not MDCWeb.enabled() then return end
+        local x, y, h, s = tonumber(data.x), tonumber(data.y), tonumber(data.h) or 0, tonumber(data.s) or 0
+        if not x or not y or x ~= x or y ~= y or math.abs(x) > 20000 or math.abs(y) > 20000 then return end
+        local now = GetGameTimer()
+        if D.coordsAt[src] and now - D.coordsAt[src] < 700 then return end -- 1 envoi / 0,7 s au plus par joueur
+        D.coordsAt[src] = now
+        D.coords[unit.id] = { unitId = unit.id, x = D.round(x, 1), y = D.round(y, 1), h = D.round(h % 360),
+            s = math.max(0, math.min(400, D.round(s))), v = data.v == true, at = os.time() }
+        D.coordsDirty[unit.id] = true
+        if D.coordsFlush then return end
+        D.coordsFlush = true
+        SetTimeout(1000, function()
+            D.coordsFlush = false
+            local list = {}
+            for id in pairs(D.coordsDirty) do
+                if D.coords[id] and findUnit(id) then list[#list + 1] = D.coords[id] end
+            end
+            D.coordsDirty = {}
+            if #list > 0 then MDCWeb.notify('coords', { list = list }) end
+        end)
+    end)
 
     function MDCServer.positions()
-        local out = {}
+        local out, seen = {}, {}
         for unitId, loc in pairs(D.locations) do
-            if findUnit(unitId) then out[#out + 1] = { unitId = unitId, location = loc } end
+            if findUnit(unitId) then
+                seen[unitId] = true
+                out[#out + 1] = { unitId = unitId, location = loc, coords = D.coords[unitId] }
+            end
+        end
+        for unitId, c in pairs(D.coords) do
+            if not seen[unitId] and findUnit(unitId) then out[#out + 1] = { unitId = unitId, coords = c } end
         end
         return { ok = true, positions = out }
     end
@@ -4623,10 +4694,6 @@ do
         if text == '' then return { ok = false, error = 'Message vide.' } end
         local message = Chat.append(valid, { callId = call and call.id or nil, senderType = 'dispatch', author = D.actorName(actor),
             identifier = actor and actor.id ~= '' and ('discord:' .. actor.id) or nil, text = text })
-        if call then
-            MDCServer.journal(call, ('Message du dispatch aux unités : %s'):format(text), 'Dispatch')
-            pushInterventions()
-        end
         Chat.markRead(valid, 'dispatch')
         Chat.deliverDispatch(valid, message)
         return { ok = true, id = message.id }
@@ -4656,6 +4723,7 @@ do
         call.notes[#call.notes + 1] = { id = call.nextNoteId, unitName = 'JOURNAL', unitTag = '', unitColor = 'gray',
             authorName = clean(author or 'Système', 60), text = cleanMultiline(text, 500), createdAt = os.time(), journal = true }
         call.nextNoteId = call.nextNoteId + 1
+        CallRules.ding(call)
     end
 
     D.STORE_OF = { identity = 'identities', vehicle = 'vehicles', report = 'reports', bolo = 'bolos' }
@@ -4720,7 +4788,7 @@ do
                 call.closed, call.closedAt, call.closedByName, call.clear = false, nil, nil, nil
                 if call.dispatch == 'refused' or call.dispatch == 'cancelled' then call.dispatch = 'validated' end
                 call.rev = (call.rev or 0) + 1
-                MDCServer.journal(call, 'Rouverte par le dispatch', 'Dispatch')
+                MDCServer.journal(call, 'Rouverte', 'Système')
                 pushInterventions()
                 D.noticeCall(call)
                 local who = D.actorOfWeb(actor)
@@ -4828,14 +4896,17 @@ do
     function MDCServer.announce(text, actor)
         text = clean(text, 300)
         if text == '' then return { ok = false, error = 'Message vide.' } end
-        if GetResourceState('rp_chat') == 'started' then
-            TriggerClientEvent('rp_chat:client:message', -1, { type = 'dispatch', text = text })
+        local chat = Config.ChatResource or GlobalState.rpChatResource or 'rp_chat'
+        if GetResourceState(chat) == 'started' then
+            TriggerClientEvent(chat .. ':client:message', -1, { type = 'dispatch', text = text })
         else
-            TriggerClientEvent('chat:addMessage', -1, { args = { 'DISPATCH', text }, color = { 255, 140, 0 } })
+            -- chat FiveM standard (ou autre chat compatible chat:addMessage)
+            TriggerClientEvent('chat:addMessage', -1, { color = { 255, 140, 0 }, multiline = true, args = { '^*DISPATCH', '^*' .. text } })
         end
-        D.logD(actor, 'game.announce', nil, nil, { text = text })
-        print(('^5[MDC]^0 Message du dispatch à tous les joueurs : %s'):format(text))
-        return { ok = true }
+        local players = #GetPlayers()
+        pcall(D.logD, actor, 'game.announce', nil, nil, { text = text })
+        print(('^5[MDC]^0 Message du dispatch à tous les joueurs (%d) : %s'):format(players, text))
+        return { ok = true, players = players }
     end
 
     D.serviceNote = { text = '', by = '', at = 0 }

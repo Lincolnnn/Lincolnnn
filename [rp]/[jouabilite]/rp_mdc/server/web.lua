@@ -23,6 +23,9 @@ for ip in (GetConvar('mdc_web_allow_ip', '')):gmatch('[^,%s]+') do ALLOW[ip] = t
 
 function MDCWeb.enabled() return KEY ~= '' end
 
+-- LiveMAP : les agents en unité n'envoient leur position que si le site est relié (client/hud.lua)
+GlobalState.mdcLiveMap = KEY ~= '' and URL ~= ''
+
 -- =========================================================================
 -- ÉVÉNEMENTS VERS LE SITE (regroupés, envoyés une fois MySQL à jour)
 -- =========================================================================

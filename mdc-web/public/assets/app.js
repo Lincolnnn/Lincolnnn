@@ -61,7 +61,7 @@
 
     const state = {
         csrf: '', station: '', calls: [], units: [], conversations: [], observe: [], dispatch: null, fivem: { online: false },
-        presence: [], positions: {}, players: [], editing: {}, serviceNote: { text: '', by: '', at: 0 },
+        presence: [], positions: {}, coords: {}, players: [], editing: {}, serviceNote: { text: '', by: '', at: 0 },
         tool: store.get('mdc6.tool', 'call'), callId: null, call: null, editMode: false, editBase: null, editDraft: null, editConflict: null, noteFilter: 'all',
         unitAgency: store.get('mdc6.unitAgency', ''), closedGroups: store.get('mdc6.closedGroups', { off: true }),
         chat: null, chatMessages: [], chatCat: 'civil', observeOn: false, historyPage: 1, logPage: 1, auditPage: 1,
@@ -307,6 +307,7 @@
                 <button type="button" class="ugroup-head" data-ugroup="${k}">${icon('chev')}${esc(GROUP_LABEL[k])}<span class="count">${list.length}</span></button>
                 ${list.map(unitRow).join('') || (state.closedGroups[k] ? '' : '<div class="muted ugroup-empty">—</div>')}
             </div>`).join('') || emptyState('Aucune unité', 'Les unités créées en jeu apparaissent ici.');
+        lmUpdate();
     }
     $('#unitsAgency').addEventListener('click', (e) => { const b = e.target.closest('[data-agency]'); if (!b) return; state.unitAgency = b.dataset.agency; store.set('mdc6.unitAgency', state.unitAgency); renderUnits(); });
     $('#unitsQ').addEventListener('input', renderUnits);
@@ -1629,7 +1630,8 @@
         saveTiles(); renderPips(); liveSync();
     }
     function placePip(el, p, i) {
-        el.style.width = `${p.w}px`;
+        el.style.width = `${Math.min(p.w, innerWidth - 80)}px`;
+        el.dataset.corner = p.corner;
         const off = 16 + i * 26;
         el.style.left = p.corner.includes('l') ? `${off}px` : 'auto'; el.style.right = p.corner.includes('r') ? `${off + 46}px` : 'auto';
         el.style.top = p.corner.includes('t') ? `calc(var(--top) + var(--svc) + ${off}px)` : 'auto'; el.style.bottom = p.corner.includes('b') ? `${off}px` : 'auto';
@@ -1647,8 +1649,23 @@
                 el.innerHTML = `<div class="tile-head"><span class="t-name"></span>
                     <button type="button" class="ibtn" data-pact="size" title="Taille">${icon('pip')}</button><button type="button" class="ibtn" data-pact="full" title="Plein écran">${icon('expand')}</button>
                     <button type="button" class="ibtn" data-pact="close" title="Fermer">${icon('x')}</button></div>
-                    <div class="tile-screen"></div><div class="tile-foot" data-foot="${p.serverId}"></div>`;
+                    <div class="tile-screen"></div><div class="tile-foot" data-foot="${p.serverId}"></div><span class="pip-grip" title="Redimensionner" aria-hidden="true"></span>`;
                 document.body.appendChild(el);
+                // taille libre : glisser la poignée (coin tourné vers le centre de l'écran), proportions de l'image gardées
+                $('.pip-grip', el).addEventListener('pointerdown', (e) => {
+                    const cur = live.pips.find((x) => x.serverId === p.serverId);
+                    if (e.button !== 0 || !cur || document.fullscreenElement === el) return;
+                    e.preventDefault(); e.stopPropagation();
+                    const sx = e.clientX; const sy = e.clientY; const sw = el.offsetWidth;
+                    const dirX = cur.corner.includes('r') ? -1 : 1; const dirY = cur.corner.includes('b') ? -1 : 1;
+                    const move = (ev) => {
+                        const dx = (ev.clientX - sx) * dirX; const dy = (ev.clientY - sy) * dirY * 16 / 9;
+                        cur.w = Math.round(Math.max(220, Math.min(innerWidth - 80, sw + (Math.abs(dx) > Math.abs(dy) ? dx : dy))));
+                        el.style.width = `${cur.w}px`;
+                    };
+                    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); saveTiles(); };
+                    addEventListener('pointermove', move); addEventListener('pointerup', up);
+                });
                 el.addEventListener('click', (e) => {
                     const b = e.target.closest('[data-pact]');
                     const cur = live.pips.find((x) => x.serverId === p.serverId);
@@ -1673,6 +1690,300 @@
             refreshScreens(p.serverId);
         });
     }
+    // =================================================================================================================
+    // LIVEMAP : carte numérique du serveur (tuiles de sa minimap) avec la position EXACTE des unités, en temps réel.
+    // Positions envoyées par les agents en unité (rp_mdc client/hud.lua, ~1 s), regroupées par le serveur FiveM.
+    // Fenêtre flottante : déplacer par la barre de titre, redimensionner par le coin, molette = zoom, glisser = déplacer.
+    // =================================================================================================================
+    const MAP = { size: [8192, 12288], tile: 512, maxZ: 3, world: { x0: -4140, y0: 8400, x1: 4860, y1: -5100 } };
+    fetch('/assets/map/map.json', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+        if (j && j.world && ['x0', 'y0', 'x1', 'y1'].every((k) => Number.isFinite(Number(j.world[k])))) {
+            for (const k of ['x0', 'y0', 'x1', 'y1']) MAP.world[k] = Number(j.world[k]);
+            lmSchedule(true);
+        }
+    }).catch(() => {});
+    const lm = {
+        open: store.get('mdc6.lm.open', false), rect: store.get('mdc6.lm.rect', null), view: store.get('mdc6.lm.view', null),
+        agency: store.get('mdc6.lm.agency', 'all'), list: store.get('mdc6.lm.list', true), follow: null, sel: null,
+        el: null, imgs: new Map(), marks: new Map(), raf: 0, animT: 0,
+    };
+    const LM_STALE = 60; // s sans position : marqueur estompé (« signal perdu »)
+    const toMap = (x, y) => [(x - MAP.world.x0) / (MAP.world.x1 - MAP.world.x0) * MAP.size[0], (MAP.world.y0 - y) / (MAP.world.y0 - MAP.world.y1) * MAP.size[1]];
+    const toWorld = (fx, fy) => [MAP.world.x0 + fx / MAP.size[0] * (MAP.world.x1 - MAP.world.x0), MAP.world.y0 - fy / MAP.size[1] * (MAP.world.y0 - MAP.world.y1)];
+    const lmUnits = () => state.units.filter((u) => u.connected && (lm.agency === 'all' || u.agency === lm.agency));
+    function lmFitScale() { const v = $('#lmView'); return v ? Math.min(v.clientWidth / MAP.size[0], v.clientHeight / MAP.size[1]) : 0.05; }
+    function lmClampView() {
+        const fit = lmFitScale();
+        lm.view.s = Math.max(fit * 0.9, Math.min(2.5, lm.view.s));
+        lm.view.cx = Math.max(0, Math.min(MAP.size[0], lm.view.cx));
+        lm.view.cy = Math.max(0, Math.min(MAP.size[1], lm.view.cy));
+    }
+    function lmBuild() {
+        if (lm.el) return lm.el;
+        const el = document.createElement('aside');
+        el.id = 'livemap';
+        el.className = 'lm-win';
+        el.setAttribute('aria-label', 'LiveMAP');
+        el.innerHTML = `<header class="lm-head"><span class="lm-title">${icon('map')}LiveMAP</span><span class="lm-count" id="lmCount"></span>
+                <div class="seg" role="group" aria-label="Police">${[['all', 'Toutes'], ['kcso', 'KCSO'], ['wsp', 'WSP']].map(([k, l]) => `<button type="button" data-lmag="${k}" aria-pressed="false">${l}</button>`).join('')}</div>
+                <span class="grow"></span>
+                <button type="button" class="ibtn" data-lm="list" title="Liste des unités">${icon('units')}</button>
+                <button type="button" class="ibtn" data-lm="fit" title="Toute la carte">${icon('expand')}</button>
+                <button type="button" class="ibtn" data-lm="full" title="Plein écran">${icon('max')}</button>
+                <button type="button" class="ibtn" data-lm="close" title="Fermer (commande MAP)">${icon('x')}</button></header>
+            <div class="lm-body"><div class="lm-view" id="lmView" tabindex="0" aria-label="Carte : molette pour zoomer, glisser pour déplacer">
+                    <div class="lm-tiles"></div><div class="lm-marks"></div>
+                    <div class="lm-zoom"><button type="button" data-lm="in" title="Zoomer">+</button><button type="button" data-lm="out" title="Dézoomer">−</button></div>
+                    <div class="lm-follow hidden" id="lmFollow"></div><div class="lm-xy" id="lmXY"></div></div>
+                <div class="lm-list" id="lmList"></div></div>
+            <span class="lm-grip" title="Redimensionner" aria-hidden="true"></span>`;
+        document.body.appendChild(el);
+        lm.el = el;
+        const view = $('#lmView', el);
+        // ---- boutons
+        el.addEventListener('click', (e) => {
+            const ag = e.target.closest('[data-lmag]');
+            if (ag) { lm.agency = ag.dataset.lmag; store.set('mdc6.lm.agency', lm.agency); lmUpdate(); return; }
+            const b = e.target.closest('[data-lm]');
+            if (!b) return;
+            const a = b.dataset.lm;
+            if (a === 'close') lmToggle(false);
+            if (a === 'full') { if (document.fullscreenElement === el) document.exitFullscreen().catch(() => {}); else el.requestFullscreen().catch(() => toast('error', 'LiveMAP', 'Plein écran refusé par le navigateur.')); }
+            if (a === 'fit') { lm.follow = null; lmFit(); }
+            if (a === 'list') { lm.list = !lm.list; store.set('mdc6.lm.list', lm.list); el.classList.toggle('no-list', !lm.list); lmSchedule(); }
+            if (a === 'in' || a === 'out') lmZoomAt(view.clientWidth / 2, view.clientHeight / 2, a === 'in' ? 1.6 : 1 / 1.6);
+        });
+        // ---- liste : clic = centrer, double-clic = suivre
+        $('#lmList', el).addEventListener('click', (e) => { const r = e.target.closest('[data-lmu]'); if (r) lmFocus(Number(r.dataset.lmu), false); });
+        $('#lmList', el).addEventListener('dblclick', (e) => { const r = e.target.closest('[data-lmu]'); if (r) lmFocus(Number(r.dataset.lmu), true); });
+        $('#lmFollow', el).addEventListener('click', () => { lm.follow = null; lmUpdate(); });
+        // ---- marqueurs : clic = menu de l'unité (statut, message, affectation, LiveView)
+        $('.lm-marks', el).addEventListener('click', (e) => {
+            const m = e.target.closest('[data-lmu]');
+            if (!m) return;
+            e.stopPropagation();
+            lm.sel = Number(m.dataset.lmu); lmUpdate();
+            unitMenu(unitById(m.dataset.lmu), e.clientX + 6, e.clientY + 6);
+        });
+        // ---- carte : glisser pour déplacer, molette / double-clic pour zoomer
+        view.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0 || e.target.closest('button, [data-lmu]')) return;
+            e.preventDefault();
+            view.setPointerCapture(e.pointerId);
+            const sx = e.clientX; const sy = e.clientY; const cx = lm.view.cx; const cy = lm.view.cy;
+            view.classList.add('dragging');
+            const move = (ev) => { lm.view.cx = cx - (ev.clientX - sx) / lm.view.s; lm.view.cy = cy - (ev.clientY - sy) / lm.view.s; if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 4) lm.follow = null; lmSchedule(); };
+            const up = () => { view.removeEventListener('pointermove', move); view.removeEventListener('pointerup', up); view.removeEventListener('pointercancel', up); view.classList.remove('dragging'); lmSaveView(); lmUpdateFollow(); };
+            view.addEventListener('pointermove', move); view.addEventListener('pointerup', up); view.addEventListener('pointercancel', up);
+        });
+        view.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const r = view.getBoundingClientRect();
+            lmZoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-Math.max(-300, Math.min(300, e.deltaY)) * 0.0022));
+        }, { passive: false });
+        view.addEventListener('dblclick', (e) => { if (e.target.closest('button, [data-lmu]')) return; const r = view.getBoundingClientRect(); lmZoomAt(e.clientX - r.left, e.clientY - r.top, 2); });
+        view.addEventListener('mousemove', (e) => {
+            const r = view.getBoundingClientRect();
+            const [x, y] = toWorld(lm.view.cx + (e.clientX - r.left - r.width / 2) / lm.view.s, lm.view.cy + (e.clientY - r.top - r.height / 2) / lm.view.s);
+            $('#lmXY').textContent = `X ${x.toFixed(0)}  Y ${y.toFixed(0)}`;
+        });
+        view.addEventListener('keydown', (e) => {
+            const step = 80 / lm.view.s;
+            const k = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+            if (k) { e.preventDefault(); lm.view.cx += k[0]; lm.view.cy += k[1]; lm.follow = null; lmSchedule(); lmSaveView(); }
+            if (e.key === '+' || e.key === '-') { e.preventDefault(); lmZoomAt(view.clientWidth / 2, view.clientHeight / 2, e.key === '+' ? 1.6 : 1 / 1.6); }
+        });
+        // ---- fenêtre : déplacer (barre de titre), redimensionner (coin bas-droit)
+        $('.lm-head', el).addEventListener('pointerdown', (e) => {
+            if (e.button !== 0 || e.target.closest('button') || document.fullscreenElement === el) return;
+            e.preventDefault();
+            const r = el.getBoundingClientRect(); const ox = e.clientX - r.left; const oy = e.clientY - r.top;
+            const move = (ev) => { lm.rect.x = ev.clientX - ox; lm.rect.y = ev.clientY - oy; lmPlaceWin(); };
+            const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); store.set('mdc6.lm.rect', lm.rect); };
+            addEventListener('pointermove', move); addEventListener('pointerup', up);
+        });
+        $('.lm-grip', el).addEventListener('pointerdown', (e) => {
+            if (e.button !== 0 || document.fullscreenElement === el) return;
+            e.preventDefault(); e.stopPropagation();
+            const sx = e.clientX; const sy = e.clientY; const w = lm.rect.w; const h = lm.rect.h;
+            const move = (ev) => { lm.rect.w = w + ev.clientX - sx; lm.rect.h = h + ev.clientY - sy; lmPlaceWin(); };
+            const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); store.set('mdc6.lm.rect', lm.rect); };
+            addEventListener('pointermove', move); addEventListener('pointerup', up);
+        });
+        new ResizeObserver(() => lmSchedule(true)).observe(view);
+        document.addEventListener('fullscreenchange', () => { el.classList.toggle('is-full', document.fullscreenElement === el); if (document.fullscreenElement !== el) lmPlaceWin(); lmSchedule(true); });
+        el.classList.toggle('no-list', !lm.list);
+        return el;
+    }
+    function lmPlaceWin() {
+        const el = lm.el;
+        if (!el || document.fullscreenElement === el) return;
+        const r = lm.rect;
+        r.w = Math.round(Math.max(380, Math.min(innerWidth - 20, r.w)));
+        r.h = Math.round(Math.max(280, Math.min(innerHeight - 20, r.h)));
+        r.x = Math.round(Math.max(-r.w + 120, Math.min(innerWidth - 120, r.x)));
+        r.y = Math.round(Math.max(0, Math.min(innerHeight - 40, r.y)));
+        Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
+    }
+    function lmToggle(force) {
+        lm.open = force === undefined ? !lm.open : !!force;
+        store.set('mdc6.lm.open', lm.open);
+        $('#railMap').setAttribute('aria-current', lm.open ? 'true' : 'false');
+        if (!lm.open) {
+            if (lm.el && document.fullscreenElement === lm.el) document.exitFullscreen().catch(() => {});
+            if (lm.el) lm.el.classList.add('hidden');
+            return;
+        }
+        const el = lmBuild();
+        el.classList.remove('hidden');
+        if (!lm.rect) lm.rect = { w: Math.min(720, innerWidth - 120), h: Math.min(620, innerHeight - 140), x: Math.max(10, innerWidth - Math.min(720, innerWidth - 120) - 70), y: 110 };
+        lmPlaceWin();
+        if (!lm.view) { lm.view = { cx: MAP.size[0] / 2, cy: MAP.size[1] / 2, s: 0.05 }; requestAnimationFrame(lmFit); }
+        lmUpdate();
+    }
+    function lmFit() {
+        const v = $('#lmView');
+        if (!v) return;
+        lm.view = { cx: MAP.size[0] / 2, cy: MAP.size[1] / 2, s: lmFitScale() };
+        lmSaveView(); lmSchedule(true);
+    }
+    function lmZoomAt(mx, my, factor) {
+        const v = $('#lmView');
+        if (!v) return;
+        const W = v.clientWidth; const H = v.clientHeight; const s0 = lm.view.s;
+        const fx = lm.view.cx + (mx - W / 2) / s0; const fy = lm.view.cy + (my - H / 2) / s0;
+        lm.view.s = s0 * factor;
+        lmClampView();
+        if (!lm.follow) { lm.view.cx = fx - (mx - W / 2) / lm.view.s; lm.view.cy = fy - (my - H / 2) / lm.view.s; }
+        lmSchedule(); lmSaveView();
+    }
+    function lmFocus(unitId, follow) {
+        const c = state.coords[unitId];
+        lm.sel = unitId;
+        if (follow) lm.follow = lm.follow === unitId ? null : unitId;
+        if (!c) { toast('error', 'LiveMAP', 'Aucune position reçue pour cette unité (agent hors unité ou MDC Web non relié au jeu).'); lmUpdate(); return; }
+        const [fx, fy] = toMap(c.x, c.y);
+        lm.view.cx = fx; lm.view.cy = fy; lm.view.s = Math.max(lm.view.s, 0.5);
+        lmClampView(); lmSaveView(); lmUpdate();
+    }
+    let lmSaveT = 0;
+    function lmSaveView() { clearTimeout(lmSaveT); lmSaveT = setTimeout(() => store.set('mdc6.lm.view', lm.view), 400); }
+    // rendu groupé à l'image suivante ; `still` : déplacement de la vue (les marqueurs ne glissent pas)
+    function lmSchedule(still = true) {
+        if (!lm.open || !lm.el) return;
+        if (still) { lm.el.classList.add('lm-still'); clearTimeout(lm.animT); lm.animT = setTimeout(() => lm.el && lm.el.classList.remove('lm-still'), 120); }
+        if (!lm.raf) lm.raf = requestAnimationFrame(lmRender);
+    }
+    function lmRender() {
+        lm.raf = 0;
+        const v = $('#lmView');
+        if (!v || !lm.open) return;
+        const W = v.clientWidth; const H = v.clientHeight;
+        if (!W || !H) return;
+        lmClampView();
+        const { s } = lm.view;
+        const left = lm.view.cx - W / 2 / s; const top = lm.view.cy - H / 2 / s;
+        const dpr = window.devicePixelRatio || 1;
+        let z = 0;
+        while (z < MAP.maxZ && 2 ** (z - MAP.maxZ) < s * dpr * 0.85) z += 1;
+        const want = new Set();
+        const tiles = $('.lm-tiles', lm.el);
+        const layer = (zz) => {
+            const ts = MAP.tile / 2 ** (zz - MAP.maxZ); // pixels pleine résolution couverts par une tuile
+            const nx = Math.ceil(MAP.size[0] / ts); const ny = Math.ceil(MAP.size[1] / ts);
+            const x0 = Math.max(0, Math.floor(left / ts)); const x1 = Math.min(nx - 1, Math.floor((left + W / s) / ts));
+            const y0 = Math.max(0, Math.floor(top / ts)); const y1 = Math.min(ny - 1, Math.floor((top + H / s) / ts));
+            for (let ty = y0; ty <= y1; ty += 1) {
+                for (let tx = x0; tx <= x1; tx += 1) {
+                    const key = `${zz}/${tx}_${ty}`;
+                    want.add(key);
+                    let img = lm.imgs.get(key);
+                    if (!img) {
+                        img = new Image(); img.decoding = 'async'; img.draggable = false; img.alt = '';
+                        img.className = `lm-t z${zz}`; img.src = `/assets/map/tiles/${key}.webp`;
+                        tiles.appendChild(img); lm.imgs.set(key, img);
+                    }
+                    const size = ts * s;
+                    img.style.width = img.style.height = `${size + 0.6}px`;
+                    img.style.transform = `translate3d(${((tx * ts - left) * s).toFixed(1)}px, ${((ty * ts - top) * s).toFixed(1)}px, 0)`;
+                }
+            }
+        };
+        layer(0); // fond toujours présent (léger) : pas de trou pendant le chargement des tuiles fines
+        if (z > 0) layer(z);
+        for (const [key, img] of lm.imgs) if (!want.has(key)) { img.remove(); lm.imgs.delete(key); }
+        lmPlaceMarks(left, top, s);
+    }
+    function lmPlaceMarks(left, top, s) {
+        for (const [id, m] of lm.marks) {
+            const c = state.coords[id];
+            if (!c) continue;
+            const [fx, fy] = toMap(c.x, c.y);
+            m.style.transform = `translate3d(${((fx - left) * s).toFixed(1)}px, ${((fy - top) * s).toFixed(1)}px, 0)`;
+        }
+    }
+    function lmUpdateFollow() {
+        const f = $('#lmFollow');
+        if (!f) return;
+        const u = lm.follow ? unitById(lm.follow) : null;
+        f.classList.toggle('hidden', !u);
+        f.innerHTML = u ? `Suivi : <b>${esc(u.name)}</b> <span class="muted">(cliquer pour arrêter)</span>` : '';
+    }
+    // marqueurs + liste (positions, unités, filtre) ; les marqueurs glissent d'une position à la suivante
+    function lmUpdate() {
+        if (!lm.open || !lm.el) return;
+        const now = Date.now() / 1000;
+        const units = lmUnits();
+        const shown = new Set();
+        const layer = $('.lm-marks', lm.el);
+        for (const u of units) {
+            const c = state.coords[u.id];
+            if (!c) continue;
+            shown.add(u.id);
+            let m = lm.marks.get(u.id);
+            if (!m) {
+                m = document.createElement('div');
+                m.className = 'lm-mark';
+                m.dataset.lmu = u.id;
+                m.innerHTML = '<i class="lm-dir"></i><b class="lm-dot"></b><span class="lm-lbl"></span>';
+                layer.appendChild(m); lm.marks.set(u.id, m);
+            }
+            const stale = now - (c.at || 0) > LM_STALE;
+            const p = state.positions[u.id] || {};
+            const members = (u.members || []).map((x) => x.name).join(', ');
+            m.style.setProperty('--c', `var(--st-${u.status in UNIT_STATUS ? u.status : 'off'})`);
+            m.classList.toggle('stale', stale);
+            m.classList.toggle('sel', lm.sel === u.id || lm.follow === u.id);
+            m.classList.toggle('busy', (u.calls || []).length > 0);
+            $('.lm-dir', m).style.transform = `rotate(${(-Number(c.h) || 0).toFixed(0)}deg)`;
+            $('.lm-dir', m).classList.toggle('hidden', !c.v && !(c.s > 3));
+            $('.lm-lbl', m).textContent = `${u.name}${(u.calls || []).length ? ` · ${u.calls[0].number}` : ''}`;
+            m.title = [`${u.name} — ${UNIT_STATUS[u.status] || ''}`, members, p.street ? `${p.street}${p.crossing ? ` × ${p.crossing}` : ''}` : '',
+                c.v ? `En véhicule — ${Math.round(c.s || 0)} mph` : 'À pied', stale ? `Position d'il y a ${age(c.at)}` : ''].filter(Boolean).join('\n');
+        }
+        for (const [id, m] of lm.marks) if (!shown.has(id)) { m.remove(); lm.marks.delete(id); }
+        // suivi : l'unité suivie reste dans la zone centrale de la carte
+        const v = $('#lmView');
+        if (lm.follow && state.coords[lm.follow] && v) {
+            const [fx, fy] = toMap(state.coords[lm.follow].x, state.coords[lm.follow].y);
+            const dx = (fx - lm.view.cx) * lm.view.s; const dy = (fy - lm.view.cy) * lm.view.s;
+            if (Math.abs(dx) > v.clientWidth * 0.25 || Math.abs(dy) > v.clientHeight * 0.25) { lm.view.cx = fx; lm.view.cy = fy; lmSchedule(true); }
+        }
+        // liste
+        $$('[data-lmag]', lm.el).forEach((b) => b.setAttribute('aria-pressed', b.dataset.lmag === lm.agency ? 'true' : 'false'));
+        $('#lmCount').textContent = `${shown.size} / ${units.length} unité${units.length > 1 ? 's' : ''} localisée${shown.size > 1 ? 's' : ''}`;
+        const sorted = [...units].sort((a, b) => (state.coords[b.id] ? 1 : 0) - (state.coords[a.id] ? 1 : 0) || norm(a.name).localeCompare(norm(b.name), 'fr', { numeric: true }));
+        $('#lmList').innerHTML = sorted.map((u) => {
+            const c = state.coords[u.id]; const p = state.positions[u.id] || {};
+            return `<button type="button" class="lm-row${lm.sel === u.id ? ' sel' : ''}${lm.follow === u.id ? ' follow' : ''}${c ? '' : ' none'}" data-lmu="${u.id}" title="Clic : centrer — double-clic : suivre">
+                ${unitTag(u)}<span class="lm-row-txt"><b>${esc(UNIT_STATUS[u.status] || '')}</b>${(u.calls || []).length ? ` · ${esc(u.calls[0].number)}` : ''}<small>${c ? esc(p.street || `X ${Math.round(c.x)} · Y ${Math.round(c.y)}`) : 'aucune position'}${c && c.v ? ` · ${Math.round(c.s || 0)} mph` : ''}</small></span></button>`;
+        }).join('') || '<div class="muted lm-empty">Aucune unité en service.</div>';
+        lmUpdateFollow();
+        if (!lm.raf) lm.raf = requestAnimationFrame(lmRender);
+    }
+    $('#railMap').addEventListener('click', () => lmToggle());
+    setInterval(() => { if (lm.open) lmUpdate(); }, 5000); // « signal perdu » (positions trop anciennes)
+
     // noms et unités des joueurs : la mosaïque n'est redessinée que si quelque chose d'affiché a changé
     const playersSig = () => live.tiles.map((t) => { const p = playerById(t.serverId); return `${t.serverId}:${p ? `${p.name}|${p.unitName || ''}|${p.agency || ''}` : '-'}`; }).join(',');
 
@@ -1687,7 +1998,7 @@
         ['CL <n°> [A|B|C]', 'Clôturer (code Clear facultatif, WSP)'], ['RO <n°>', 'Rouvrir une intervention terminée'],
         ['AN <n°> [motif]', 'Annuler une intervention'], ['VA <n°>', 'Valider un appel en attente'],
         ['NOTE <n°> <texte>', 'Ajouter une note du dispatch'], ['MSG <unité> <texte>', 'Message à une unité'],
-        ['NS <texte>', 'Remplacer la note de service'], ['JEUX <texte>', 'Message à tous les joueurs (chat : « DISPATCH : texte »)'], ['P <nom> <prénom> <JJ/MM/AAAA>', 'Rechercher une identité'],
+        ['NS <texte>', 'Remplacer la note de service'], ['JEUX <texte>', 'Message à tous les joueurs (chat : « DISPATCH : texte »)'], ['MAP [unité]', 'LiveMAP : carte des unités en temps réel (centrée sur l\'unité)'], ['P <nom> <prénom> <JJ/MM/AAAA>', 'Rechercher une identité'],
         ['V <plaque>', 'Rechercher un véhicule'], ['LIVE <unité|joueur>', 'LiveView en incrustation'], ['?', 'Aide'],
     ];
     const findUnit = (token) => {
@@ -1761,7 +2072,8 @@
     });
     async function runCommand(text) {
         const words = text.split(/\s+/);
-        const head = words[0].toUpperCase();
+        // « /jeux », « jeux: », « Jeux » : même commande
+        const head = words[0].replace(/^\/+/, '').replace(/:+$/, '').toUpperCase();
         const rest = (i) => words.slice(i).join(' ');
         const needCall = async (tok) => { const c = await callByToken(tok); if (!c) toast('error', 'Commande', `Intervention « ${tok || '?'} » introuvable.`); return c; };
         const needUnit = (tok) => { const u = findUnit(tok); if (!u) toast('error', 'Commande', `Unité « ${tok || '?'} » introuvable.`); return u; };
@@ -1790,7 +2102,9 @@
         if (head === 'NS') { await saveServiceNote(rest(1)); return true; }
         if (head === 'JEUX' || head === 'JEU') {
             if (!rest(1)) { toast('error', 'Commande', 'JEUX <texte> : le message à afficher en jeu.'); return false; }
-            if (await api('/game/announce', { text: rest(1) })) toast('ok', 'Message en jeu', `DISPATCH : ${rest(1)}`);
+            const r = await api('/game/announce', { text: rest(1) });
+            if (r) toast('ok', 'Message en jeu', `DISPATCH : ${rest(1)}${typeof r.players === 'number' ? ` (${r.players} joueur${r.players > 1 ? 's' : ''})` : ''}`);
+            else return false;
             return true;
         }
         if (head === 'P' && words.length >= 3) {
@@ -1801,6 +2115,11 @@
             return true;
         }
         if (head === 'V' && words[1]) { openTool('search'); state.searchType = 'vehicle'; renderTool(); runSearch({ type: 'vehicle', query: words[1] }); return true; }
+        if (head === 'MAP' || head === 'CARTE' || head === 'LIVEMAP') {
+            if (!words[1]) { lmToggle(); return true; }
+            const u = needUnit(rest(1)); if (!u) return false;
+            lmToggle(true); lmFocus(u.id, false); return true;
+        }
         if (head === 'LIVE' && words[1]) {
             const u = findUnit(words[1]);
             const p = u ? state.players.find((x) => x.unitId === u.id) : state.players.find((x) => String(x.serverId) === words[1] || norm(x.name).includes(norm(rest(1))));
@@ -1925,6 +2244,8 @@
         socket.on('conversations', (list) => { state.conversations = list; renderChatList(); });
         socket.on('positions', (map) => { state.positions = map || {}; renderUnits(); });
         socket.on('position', (p) => { state.positions[p.unitId] = p.location; });
+        // LiveMAP : positions exactes (x, y, cap, vitesse) — une liste toutes les secondes au plus
+        socket.on('coords', (list) => { for (const c of list || []) if (c && c.unitId) state.coords[c.unitId] = c; lmUpdate(); });
         socket.on('players', (d) => {
             state.players = d.players || [];
             renderLivePlayers();
@@ -1963,7 +2284,7 @@
         const res = await api('/state');
         if (!res) return;
         Object.assign(state, { calls: res.calls, units: res.units, conversations: res.conversations, fivem: res.fivem, dispatch: res.dispatch, presence: res.presence,
-            positions: res.positions || {}, players: res.players || [], editing: res.editing || {}, serviceNote: res.serviceNote || state.serviceNote });
+            positions: res.positions || {}, coords: res.coords || {}, players: res.players || [], editing: res.editing || {}, serviceNote: res.serviceNote || state.serviceNote });
         renderHeader(); renderBoard(); renderServiceNote(false); renderChatList(); renderPips();
         if (state.tool !== 'call' || !state.callId) renderTool();
     }
@@ -1975,6 +2296,7 @@
         state.csrf = me.csrf;
         await refreshState();
         renderTool();
+        if (lm.open) lmToggle(true);
         connect();
     })();
 })();

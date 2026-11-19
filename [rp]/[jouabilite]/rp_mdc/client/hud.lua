@@ -200,11 +200,44 @@ AddStateBagChangeHandler('policeSector', myBag, function(_, _, value)
 end)
 
 -- Accès au MDC + unité du joueur (nom, tag, statut, appel) : envoyés par le serveur à chaque changement
+-- LIVEMAP (MDC Web) : position exacte de l'agent en service dans une unité, pour la carte du site.
+-- Boucle active seulement quand le joueur est dans une unité ET que le site est relié (GlobalState.mdcLiveMap) :
+-- 0,00 ms le reste du temps. Un envoi seulement si l'agent a bougé (3 m, 12°) ou toutes les 15 s.
+local LIVEMAP_INTERVAL = 1000
+local liveMapRunning = false
+local function liveMapLoop()
+    if liveMapRunning or not unitInfo or not GlobalState.mdcLiveMap then return end
+    liveMapRunning = true
+    CreateThread(function()
+        local lx, ly, lh, lastAt = nil, nil, 0.0, -100000
+        while unitInfo and GlobalState.mdcLiveMap do
+            local ped = PlayerPedId()
+            local veh = GetVehiclePedIsIn(ped, false)
+            local ent = veh ~= 0 and veh or ped
+            local c = GetEntityCoords(ent)
+            local h = GetEntityHeading(ent)
+            local now = GetGameTimer()
+            local turned = math.abs(((h - lh + 540.0) % 360.0) - 180.0)
+            if not lx or (c.x - lx) ^ 2 + (c.y - ly) ^ 2 > 9.0 or turned > 12.0 or now - lastAt > 15000 then
+                lx, ly, lh, lastAt = c.x, c.y, h, now
+                TriggerServerEvent('mdc:server:coords', { x = c.x, y = c.y, h = h,
+                    s = GetEntitySpeed(ent) * 2.236936, v = veh ~= 0 })
+            end
+            Wait(LIVEMAP_INTERVAL)
+        end
+        liveMapRunning = false
+    end)
+end
+AddStateBagChangeHandler('mdcLiveMap', 'global', function(_, _, value)
+    if value then SetTimeout(0, liveMapLoop) end
+end)
+
 RegisterNetEvent('mdc:client:hud', function(access, info)
     synced = true
     hasAccess = access == true
     unitInfo = type(info) == 'table' and info or nil
     refreshHud()
+    liveMapLoop()
 end)
 
 -- Nouvelle intervention / nouvel incident : notification en haut à droite de l'écran.

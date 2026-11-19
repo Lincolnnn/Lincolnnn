@@ -7,7 +7,7 @@
     <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
     <link rel="preload" href="/assets/fonts/barlow-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/assets/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/assets/app.css">
+    <link rel="stylesheet" href="/assets/app.css?v=6.2.0">
 </head>
 <body class="cad">
     <!-- Icônes (trait 1,6 px, grille de 16) -->
@@ -43,6 +43,7 @@
         <symbol id="i-cmd" viewBox="0 0 16 16"><path d="m3 5 3 3-3 3M8 11.5h5"/></symbol>
         <symbol id="i-filter" viewBox="0 0 16 16"><path d="M2 3h12l-4.5 5.5v4.5l-3-1.5v-3z"/></symbol>
         <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></symbol>
+        <symbol id="i-map" viewBox="0 0 16 16"><path d="M1.5 3.5 5.5 2l5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5zM5.5 2v10.5M10.5 3.5V14"/></symbol>
         <symbol id="i-dot" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor" stroke="none"/></symbol>
     </svg>
 
@@ -124,6 +125,7 @@
             <button type="button" data-tool="search" title="Recherche (4)"><svg class="i"><use href="#i-search"/></svg></button>
             <button type="button" data-tool="registries" title="Registres (5)"><svg class="i"><use href="#i-reg"/></svg></button>
             <button type="button" data-tool="live" title="LiveView (6)"><svg class="i"><use href="#i-live"/></svg><span class="badge hidden" data-badge="live"></span></button>
+            <button type="button" id="railMap" title="LiveMAP : carte des unités en temps réel (commande MAP)" aria-current="false"><svg class="i"><use href="#i-map"/></svg></button>
             <button type="button" data-tool="history" title="Terminées / historique (7)"><svg class="i"><use href="#i-history"/></svg></button>
             <button type="button" data-tool="log" title="Journal des actions (8)"><svg class="i"><use href="#i-log"/></svg></button>
             <button type="button" data-tool="audit" title="Journal d'audit (9)"><svg class="i"><use href="#i-audit"/></svg></button>
@@ -171,6 +173,6 @@
     <div class="toasts" id="toasts" aria-live="polite"></div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/assets/app.js"></script>
+    <script src="/assets/app.js?v=6.2.0"></script>
 </body>
 </html>

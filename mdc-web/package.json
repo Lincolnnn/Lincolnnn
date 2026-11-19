@@ -1,6 +1,6 @@
 {
   "name": "mdc-dispatch-web",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "description": "MDC Web du dispatch (Washington) : console de dispatch (style CAD) reliée au MDC en jeu (rp_mdc), Discord OAuth2, MySQL, temps réel, LiveView WebRTC",
   "private": true,
   "main": "src/server.js",
