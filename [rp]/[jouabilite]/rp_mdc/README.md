@@ -393,17 +393,16 @@ du logo (blanc, rouge), de nuit la couleur du mode nuit. **Tous leurs éléments
 
 | Son | Quand | Qui l'entend |
 |---|---|---|
-| `inter.wav` | intervention **créée par un civil** (et proposition « unité la plus proche ») | unités de la police de l'appel |
+| `inter.wav` | une **intervention ou un incident apparaît** en jeu (et proposition « unité la plus proche ») | unités de la police de l'appel |
 | `2.mp3` | **nouveau BOLO** (avec une notification « NOUVEAU BOLO ») | **toutes les unités WSP et KCSO** (BOLOs communs) |
-| `assign.mp3` / `deassign.mp3` | une unité **rejoint** / **quitte** l'appel | unités sur l'appel (et celle qui part) |
+| `assign.mp3` / `deassign.mp3` | une unité **rejoint** / **quitte** l'appel ; **affectation par le dispatch** : seul ce son de notification est joué (ni `inter.wav`, ni `status.mp3` arrivés avec elle) | unités sur l'appel (et celle qui part) |
 | `dsp.mp3` | **observation**, **rapport**, **identité** ou **véhicule** lié à l'appel | unités sur l'appel |
 | `status.mp3` | **changement de statut** de l'unité (disponible, en route, sur place, indisponible…) | membres de l'unité |
 | `result.mp3` / `nnul.mp3` | recherche **avec** / **sans** résultat | l'agent qui cherche |
 | `click.mp3` | clic de souris dans le MDC | soi |
 | `laptop.mp3` | clavier : en boucle **tant que l'on écrit**, s'arrête ~0,5 s après la dernière touche | soi |
 
-Les incidents déclarés par une unité gardent leur son à trois tons et les messages entre unités leur carillon (générés
-par l'interface). Réglages : « Sons des appels, BOLOs, unités, fiches liées et recherches » et « Sons de l'interface
+Les messages entre unités gardent leur carillon (généré par l'interface). Réglages : « Sons des appels, BOLOs, unités, fiches liées et recherches » et « Sons de l'interface
 (clic de souris, clavier) » (*Paramètres > MDC > Notifications et sons*). Les fichiers sont décodés une seule fois puis
 joués sans délai (Web Audio) ; remplacer un fichier par un autre du même nom suffit.
 
@@ -695,17 +694,21 @@ Installation : **[mdc-web/README.md](../../../mdc-web/README.md)**.
   VIN), **mêmes règles et mêmes fiches** que le MDC en jeu (le site interroge le serveur FiveM).
 - Liaison : convars `mdc_web_url`, `mdc_web_key` (+ `mdc_web_allow_ip`) dans `server.cfg` ; API de la ressource sur
   `http://IP:30120/rp_mdc/api/...` (clé obligatoire). Sans ces convars, le MDC en jeu fonctionne seul.
-- **MDC 5.0** (gestion par le dispatch) : interventions et incidents **modifiables même terminés**, **rouvrables**,
-  **supprimables** ; identités, véhicules, rapports, BOLO et conversations modifiables / supprimables depuis le site ;
-  tout ce qui est supprimé (site, ou BOLO / intervention supprimés en jeu) part à la **corbeille** (`mdc_trash`,
-  `Config.TrashDays` = 30 jours, restauration possible, purge automatique ensuite) ; **journal d'audit** séparé
-  (`mdc_audit`). Chaque intervention a un **journal automatique** dans ses notes (auteur « JOURNAL » : création,
+- **Gestion par le dispatch** : interventions et incidents **modifiables en cours ET terminés** (sur le site, et en
+  jeu par la police), **rouvrables**, **supprimables** ; identités, véhicules, rapports, BOLO et conversations
+  modifiables / supprimables depuis le site. **MDC 6.0 : plus de corbeille** : toute suppression (site, ou BOLO /
+  intervention supprimés en jeu) est **définitive**, après confirmation ; une copie de la fiche supprimée reste dans le
+  **journal d'audit** (`mdc_audit`). Chaque intervention a un **journal automatique** dans ses notes (auteur « JOURNAL » : création,
   validation, affectations, statuts des unités, modifications, messages du dispatch, clôture, réouverture). En jeu, une
-  modification faite par le dispatch ne fait qu'un **son**. Migration `sql/migrations/003_v5.sql` (automatique).
-- **LiveView** : diffusion de l'image du jeu (ressource `screenshot-basic`) seulement quand un dispatcher regarde ;
-  vidéo WebRTC vers un serveur relais LiveKit si le site en a un (bibliothèque `html/vendor/livekit-client.umd.js`,
-  Apache-2.0, chargée seulement pendant une diffusion), sinon images JPEG. Guide :
-  [mdc-web/docs/LIVEVIEW_WEBRTC.md](../../../mdc-web/docs/LIVEVIEW_WEBRTC.md).
+  modification faite par le dispatch ne fait qu'un **son**. Migrations `003_v5.sql`, `005_v6.sql` (automatiques).
+- **Note de service** (6.0) : bandeau en haut de chaque page du MDC de **police** (KCSO, WSP), commun avec le MDC Web ;
+  modifiable par le dispatch (site) et en jeu par les agents de police (`Config.ServiceNoteEditInGame`, longueur
+  `Config.ServiceNoteLength`) ; chaque modification arrive tout de suite chez tout le monde (auteur, date, audit).
+- **LiveView** (6.0, écrit de zéro) : seulement quand un dispatcher regarde, le NUI capture le **rendu du jeu**
+  (texture WebGL : l'image du jeu seule) et l'envoie en **vidéo WebRTC jusqu'à 30 i/s** directement au navigateur du
+  dispatcher (ou par un serveur TURN) ; le site ne fait que la signalisation (`html/liveview.js`,
+  `html/vendor/socket.io.min.js` — MIT — chargés seulement pendant une diffusion). Plus besoin de `screenshot-basic`.
+  Guide : [mdc-web/docs/LIVEVIEW_WEBRTC.md](../../../mdc-web/docs/LIVEVIEW_WEBRTC.md).
 
 ## Permissions (rôles Discord)
 

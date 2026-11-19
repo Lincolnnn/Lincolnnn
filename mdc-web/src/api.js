@@ -51,10 +51,10 @@ router.get('/me', read, (req, res) => {
 });
 
 router.get('/state', read, wrap(async (req, res) => {
-    const [calls, units, conversations, mode] = await Promise.all([queries.activeCalls(), queries.units(),
-        queries.conversations(realtime.players()), queries.dispatchMode()]);
+    const [calls, units, conversations, mode, serviceNote] = await Promise.all([queries.activeCalls(), queries.units(),
+        queries.conversations(realtime.players()), queries.dispatchMode(), queries.serviceNote()]);
     const status = fivem.publicStatus();
-    res.json({ ok: true, calls, units, conversations, fivem: status,
+    res.json({ ok: true, calls, units, conversations, fivem: status, serviceNote,
         dispatch: status.dispatch || { enabled: mode, online: false, effective: false, count: 0 },
         presence: realtime.dispatchers(), positions: realtime.positions(), players: realtime.players(), editing: realtime.editing() });
 }));
@@ -115,7 +115,7 @@ router.get('/observe', read, wrap(async (req, res) => {
 }));
 
 router.get('/players', read, wrap(async (req, res) => {
-    res.json({ ok: true, players: realtime.players(), liveview: realtime.liveviewAvailable(), rtc: config.live.rtc.enabled });
+    res.json({ ok: true, players: realtime.players(), liveview: realtime.liveviewAvailable() });
 }));
 
 router.get('/messages', read, wrap(async (req, res) => {
@@ -152,7 +152,7 @@ callAction('close', 'call.close', (b) => {
 callAction('assign', 'call.assign', (b) => (id(b.unitId) ? { unitId: id(b.unitId) } : null));
 callAction('unassign', 'call.unassign', (b) => (id(b.unitId) ? { unitId: id(b.unitId) } : null));
 callAction('note', 'call.note', (b) => (text(b.text, 500) ? { text: text(b.text, 500) } : null));
-callAction('delete', 'call.delete');   // corbeille (restaurable)
+callAction('delete', 'call.delete');   // suppression définitive (copie dans l'audit)
 callAction('reopen', 'call.reopen');   // intervention / incident terminé(e) rouvert(e)
 
 // ---- Création d'une intervention / d'un incident par le dispatch (formulaire rapide ou détaillé) ----
@@ -257,7 +257,7 @@ router.get('/registry/report-types', read, wrap(async (req, res) => {
     return res.json(result);
 }));
 
-// Modification / suppression de TOUTE fiche par le dispatch (mêmes contrôles qu'en jeu ; suppression = corbeille)
+// Modification / suppression de TOUTE fiche par le dispatch (mêmes contrôles qu'en jeu ; suppression définitive)
 router.post('/records/:kind/:id', act, wrap(async (req, res) => {
     const kind = String(req.params.kind);
     const rid = id(req.params.id);
@@ -271,7 +271,7 @@ router.post('/records/:kind/:id/delete', act, wrap(async (req, res) => {
     return game(res, 'record.delete', { kind, id: rid }, req);
 }));
 
-// Conversations : supprimer (ou vider) — messages à la corbeille, la conversation peut être recréée
+// Conversations : supprimer (ou vider) — messages effacés, la conversation peut être recréée
 router.post('/conversations/delete', act, wrap(async (req, res) => {
     const channel = String(req.body.channel || '');
     const mode = req.body.mode === 'empty' ? 'empty' : 'delete';
@@ -279,32 +279,19 @@ router.post('/conversations/delete', act, wrap(async (req, res) => {
     return game(res, 'conversation.delete', { channel, mode }, req);
 }));
 
-// Corbeille et journal d'audit (tous les dispatchers)
-router.get('/trash', read, wrap(async (req, res) => res.json({ ok: true, items: await queries.trash() })));
-router.post('/trash/:id/restore', act, wrap(async (req, res) => {
-    const tid = id(req.params.id);
-    if (!tid) return res.status(400).json({ ok: false, error: 'Élément invalide.' });
-    return game(res, 'trash.restore', { id: tid }, req);
-}));
-router.post('/trash/:id/purge', act, wrap(async (req, res) => {
-    const tid = id(req.params.id);
-    if (!tid) return res.status(400).json({ ok: false, error: 'Élément invalide.' });
-    return game(res, 'trash.purge', { id: tid }, req);
-}));
-router.get('/audit', read, wrap(async (req, res) => {
-    const kind = ['identity', 'vehicle', 'report', 'bolo', 'call', 'conversation'].includes(req.query.kind) ? req.query.kind : '';
-    const action = ['delete', 'restore', 'purge', 'update', 'reopen', 'empty'].includes(req.query.action) ? req.query.action : '';
-    const page = Math.min(10000, Math.max(1, Number(req.query.page) || 1));
-    res.json({ ok: true, ...(await queries.audit({ kind, action, q: text(req.query.q, 60), page })) });
+// Note de service : texte commun au site et au MDC de police en jeu (modifiée par le serveur FiveM, qui prévient tout le monde)
+router.get('/service-note', read, wrap(async (req, res) => res.json({ ok: true, note: await queries.serviceNote() })));
+router.post('/service-note', act, wrap(async (req, res) => {
+    if (typeof req.body.text !== 'string') return res.status(400).json({ ok: false, error: 'Texte invalide.' });
+    return game(res, 'serviceNote.set', { text: req.body.text.slice(0, 1500) }, req);
 }));
 
-// Fenêtres et espaces de travail du dispatcher (gardés d'une session à l'autre)
-router.get('/layout', read, wrap(async (req, res) => res.json({ ok: true, layout: await queries.layout(req.session.user.id) })));
-router.post('/layout', act, wrap(async (req, res) => {
-    const data = req.body && req.body.layout;
-    if (!data || typeof data !== 'object' || JSON.stringify(data).length > 30000) return res.status(400).json({ ok: false, error: 'Disposition invalide.' });
-    await queries.saveLayout(req.session.user.id, data);
-    res.json({ ok: true });
+// Journal d'audit (tous les dispatchers)
+router.get('/audit', read, wrap(async (req, res) => {
+    const kind = ['identity', 'vehicle', 'report', 'bolo', 'call', 'conversation', 'note'].includes(req.query.kind) ? req.query.kind : '';
+    const action = ['delete', 'update', 'reopen', 'empty'].includes(req.query.action) ? req.query.action : '';
+    const page = Math.min(10000, Math.max(1, Number(req.query.page) || 1));
+    res.json({ ok: true, ...(await queries.audit({ kind, action, q: text(req.query.q, 60), page })) });
 }));
 
 module.exports = router;

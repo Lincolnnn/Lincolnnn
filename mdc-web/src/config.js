@@ -48,27 +48,39 @@ const config = {
         bridgeIps: list('BRIDGE_ALLOWED_IPS', '127.0.0.1'),
         heartbeatSeconds: int('HEARTBEAT_SECONDS', 15),
     },
-    // LiveView : adresse à laquelle le JEU envoie les images (doit être en HTTPS en production : le NUI du jeu est
-    // une page https://cfx-nui-rp_mdc), nombre de joueurs regardés à la fois, origines autorisées (NUI du MDC)
+    // LiveView (vidéo WebRTC écrite de zéro) : le site ne fait que la signalisation ; la vidéo va du jeu au navigateur,
+    // en direct ou par un serveur TURN (coturn conseillé, voir docs/LIVEVIEW_WEBRTC.md)
     live: {
-        uploadUrl: String(env('LIVE_UPLOAD_URL', `${publicUrl}/live/frame`)),
-        maxStreams: Math.max(1, Math.min(64, int('LIVE_MAX_STREAMS', 16))),
+        publicUrl: String(env('LIVE_PUBLIC_URL', publicUrl)).replace(/\/+$/, ''),   // adresse du site vue depuis le jeu (https://)
+        maxStreams: Math.max(1, Math.min(64, int('LIVE_MAX_STREAMS', 16))),          // joueurs diffusés à la fois
+        maxViewers: Math.max(1, Math.min(8, int('LIVE_MAX_VIEWERS', 4))),            // dispatchers par joueur (1 encodage chacun)
         origins: list('LIVE_ALLOWED_ORIGINS', 'https://cfx-nui-rp_mdc,nui://rp_mdc'),
-        // Vidéo WebRTC par serveur relais (SFU LiveKit + TURN intégré). Vide : repli sur les images JPEG.
-        rtc: {
-            url: String(env('LIVEKIT_URL', '')).replace(/\/+$/, ''),             // wss://live.exemple.fr (navigateur + jeu)
-            apiUrl: String(env('LIVEKIT_API_URL', '')).replace(/\/+$/, ''),      // https://… (API serveur ; déduit de LIVEKIT_URL)
-            apiKey: env('LIVEKIT_API_KEY', ''),
-            apiSecret: env('LIVEKIT_API_SECRET', ''),
-            roomPrefix: env('LIVEKIT_ROOM_PREFIX', 'mdc-live-'),
-            maxKbps: Math.max(150, Math.min(4000, int('LIVE_MAX_KBPS', 900))),   // débit max par joueur (agrandi)
+        stun: list('LIVE_STUN_URLS', 'stun:stun.l.google.com:19302,stun:stun.cloudflare.com:3478'),
+        turn: {
+            urls: list('LIVE_TURN_URLS', ''),           // ex. turn:turn.exemple.fr:3478?transport=udp,turns:turn.exemple.fr:5349
+            secret: env('LIVE_TURN_SECRET', ''),        // coturn : static-auth-secret (identifiants temporaires)
+            username: env('LIVE_TURN_USERNAME', ''),    // sinon : identifiants fixes
+            password: env('LIVE_TURN_PASSWORD', ''),
+            ttl: Math.max(300, Math.min(86400, int('LIVE_TURN_TTL', 3600))),
+        },
+        relayOnly: env('LIVE_RELAY_ONLY', '0') === '1',  // 1 : toujours par TURN (cache l'IP des joueurs et des dispatchers)
+        maxWidth: Math.max(640, Math.min(1920, int('LIVE_MAX_WIDTH', 1280))),
+        maxHeight: Math.max(360, Math.min(1080, int('LIVE_MAX_HEIGHT', 720))),
+        fps: Math.max(10, Math.min(60, int('LIVE_FPS', 30))),
+        codec: ['h264', 'vp8', 'vp9'].includes(env('LIVE_CODEC', 'h264')) ? env('LIVE_CODEC', 'h264') : 'h264',
+        renewMs: 20000,
+        // mosaïque : image réduite de moitié ; agrandi : pleine taille, pleine cadence
+        modes: {
+            grid: { scale: Math.max(1, Math.min(4, Number(env('LIVE_GRID_SCALE', '2')) || 2)), fps: Math.max(5, Math.min(60, int('LIVE_GRID_FPS', 20))),
+                kbps: Math.max(150, Math.min(6000, int('LIVE_GRID_KBPS', 700))) },
+            focus: { scale: 1, fps: Math.max(5, Math.min(60, int('LIVE_FPS', 30))), kbps: Math.max(300, Math.min(12000, int('LIVE_FOCUS_KBPS', 3000))) },
         },
     },
 };
-const rtc = config.live.rtc;
-if (!rtc.apiUrl && rtc.url) rtc.apiUrl = rtc.url.replace(/^ws(s?):\/\//, 'http$1://');
-rtc.enabled = /^wss?:\/\//.test(rtc.url) && rtc.apiKey.length >= 3 && rtc.apiSecret.length >= 32;
-if (rtc.url && !rtc.enabled) console.warn('[mdc] LiveView WebRTC désactivé : LIVEKIT_URL (wss://), LIVEKIT_API_KEY et LIVEKIT_API_SECRET (32 caractères au moins) requis.');
+if (config.live.turn.urls.length && !config.live.turn.secret && !config.live.turn.username) {
+    console.warn('[mdc] LiveView : LIVE_TURN_URLS sans LIVE_TURN_SECRET ni LIVE_TURN_USERNAME : serveur TURN ignoré.');
+}
+if (config.live.relayOnly && !config.live.turn.urls.length) console.warn('[mdc] LiveView : LIVE_RELAY_ONLY=1 sans serveur TURN : aucune vidéo possible.');
 
 // Vérification : sans ces valeurs, le site ne démarre pas (message clair plutôt qu'un site ouvert à tous)
 const missing = [];

@@ -27,7 +27,7 @@ function MDCWeb.enabled() return KEY ~= '' end
 -- ÉVÉNEMENTS VERS LE SITE (regroupés, envoyés une fois MySQL à jour)
 -- =========================================================================
 local pending, scheduled, lastError = {}, false, 0
-local COALESCE = { calls = true, units = true, reads = true, players = true, records = true, trash = true } -- un seul « liste à jour » par envoi
+local COALESCE = { calls = true, units = true, reads = true, players = true, records = true } -- un seul « liste à jour » par envoi
 
 local function flush()
     if MDCDB.busy() then return end -- MDCDB.onIdle relancera l'envoi
@@ -109,14 +109,16 @@ local ACTIONS = {
     ['positions']      = function() return MDCServer.positions() end,
     ['live.start']     = function(b) return MDCServer.liveStart(b.targets, b.url) end,
     ['live.stop']      = function(b) return MDCServer.liveStop(b.serverIds) end,
-    -- gestion : suppression (corbeille), modification, réouverture, restauration
+    -- gestion : suppression (définitive), modification, réouverture ; note de service
+    ['serviceNote.get'] = function() return MDCServer.serviceNote() end,
+    ['serviceNote.set'] = function(b, actor)
+        return MDCServer.setServiceNote(b.text, { name = 'Dispatch', id = actor and actor.id and ('discord:' .. tostring(actor.id)) or '', source = 'dispatch' })
+    end,
     ['call.delete']    = function(b, actor) return MDCServer.deleteCall(b.id, actor) end,
     ['call.reopen']    = function(b, actor) return MDCServer.reopenCall(b.id, actor) end,
     ['record.update']  = function(b, actor) return MDCServer.updateRecord(b.kind, b.id, b.data, actor) end,
     ['record.delete']  = function(b, actor) return MDCServer.deleteRecord(b.kind, b.id, actor) end,
     ['conversation.delete'] = function(b, actor) return MDCServer.deleteConversation(b.channel, b.mode, actor) end,
-    ['trash.restore']  = function(b, actor) return MDCServer.restoreTrash(b.id, actor) end,
-    ['trash.purge']    = function(b, actor) return MDCServer.purgeTrash(b.id, actor) end,
     -- registres (lecture)
     ['registry.offenders'] = function(b) return MDCServer.offenders(b.type) end,
     ['registry.bolos'] = function() return MDCServer.bolos() end,

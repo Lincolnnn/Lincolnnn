@@ -363,6 +363,8 @@ relay('leaveUnit',          'leaveUnit')
 relay('deleteUnit',         'deleteUnit')
 relay('setStatus',          'setStatus')
 relay('setUnitMemo',        'setUnitMemo')        -- Note de l'unité (barre du bas), gardée dans l'unité
+relay('getServiceNote',     'getServiceNote')     -- Note de service (commune : dispatch + toutes les unités de police)
+relay('setServiceNote',     'setServiceNote')
 relay('getMessages',        'getMessages')        -- Messagerie : unités + section DISPATCH (boîte de réception / conversation)
 relay('sendMessage',        'sendMessage')
 relay('getCivilChat',       'getCivilChat')       -- MDC générique : groupe civil avec le dispatch

@@ -20,7 +20,6 @@ const auth = require('./auth');
 const api = require('./api');
 const fivem = require('./fivem');
 const realtime = require('./realtime');
-const liveview = require('./liveview');
 
 const app = express();
 app.disable('x-powered-by');
@@ -34,7 +33,7 @@ app.use(helmet({
             'script-src': ["'self'"],
             'style-src': ["'self'"],
             'img-src': ["'self'", 'data:', 'blob:', 'https://cdn.discordapp.com'],
-            'connect-src': ["'self'", ...(config.live.rtc.enabled ? [config.live.rtc.url, config.live.rtc.url.replace(/^ws/, 'http')] : [])],
+            'connect-src': ["'self'"],
             'media-src': ["'self'", 'blob:'],
             'font-src': ["'self'"],
             'object-src': ["'none'"],
@@ -85,14 +84,6 @@ app.post('/bridge/events', express.json({ limit: '256kb' }), (req, res) => {
     res.json({ ok: true });
     realtime.handleGameEvents(events.filter((e) => e && typeof e.topic === 'string'));
 });
-
-// ---- LiveView : images envoyées par le jeu (jeton temporaire, avant les sessions : pas de cookie) ----
-app.options('/live/frame', liveview.cors);
-app.post('/live/frame', liveview.cors, express.raw({ type: 'image/jpeg', limit: '700kb' }), liveview.receiveFrame);
-
-// Bibliothèque WebRTC du navigateur (livekit-client, Apache-2.0), servie depuis node_modules
-const livekitUmd = path.join(__dirname, '..', 'node_modules', 'livekit-client', 'dist', 'livekit-client.umd.js');
-app.get('/vendor/livekit-client.umd.js', (req, res) => res.sendFile(livekitUmd, { maxAge: '7d' }));
 
 app.use(sessionMiddleware);
 app.use(express.json({ limit: '32kb' }));

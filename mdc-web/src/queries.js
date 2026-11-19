@@ -54,7 +54,12 @@ async function activeCalls() {
     const units = await unitsOfCalls(ids);
     const notes = ids.length ? await queryRaw('SELECT call_id, COUNT(*) n FROM mdc_call_notes WHERE call_id IN (?) GROUP BY call_id', [ids]) : [];
     const noteCount = Object.fromEntries(notes.map((n) => [n.call_id, Number(n.n)]));
-    return rows.map((r) => callView(r, units[r.id] || [], { notesCount: noteCount[r.id] || 0 }));
+    // dernière note écrite (unité ou dispatch, pas le journal automatique) : affichée sur la carte de l'appel
+    const last = ids.length ? await queryRaw(`SELECT n.call_id, n.text, n.unit_name, n.dispatch FROM mdc_call_notes n
+        JOIN (SELECT call_id, MAX(note_id) note_id FROM mdc_call_notes WHERE call_id IN (?) AND unit_name <> 'JOURNAL' GROUP BY call_id) t
+        ON t.call_id = n.call_id AND t.note_id = n.note_id`, [ids]) : [];
+    const lastNote = Object.fromEntries(last.map((n) => [n.call_id, { text: n.text, by: Number(n.dispatch) === 1 ? 'Dispatch' : n.unit_name }]));
+    return rows.map((r) => callView(r, units[r.id] || [], { notesCount: noteCount[r.id] || 0, lastNote: lastNote[r.id] || null }));
 }
 
 /** Fiche complète d'un appel : unités, notes, fiches liées, messages du canal de l'appel, actions du dispatch */
@@ -218,14 +223,7 @@ async function actionLog({ source = 'all', page = 1, size = 50 }) {
     return { total: Number(total), page, size, entries: rows.map(logView) };
 }
 
-/** Corbeille (restaurable jusqu'à expiresAt) */
-async function trash() {
-    const rows = await query('SELECT id, kind, record_id, label, deleted_by, deleted_at, expires_at FROM mdc_trash ORDER BY deleted_at DESC, id DESC LIMIT 500');
-    return rows.map((r) => ({ id: Number(r.id), kind: r.kind, recordId: r.record_id, label: r.label, deletedBy: r.deleted_by,
-        deletedAt: Number(r.deleted_at), expiresAt: Number(r.expires_at) }));
-}
-
-/** Journal d'audit : suppressions, restaurations, modifications, réouvertures (avant / après) */
+/** Journal d'audit : suppressions (définitives, copie de la fiche), modifications, réouvertures (avant / après) */
 async function audit({ kind = '', action = '', q = '', page = 1, size = 40 }) {
     const where = [];
     const params = [];
@@ -241,14 +239,15 @@ async function audit({ kind = '', action = '', q = '', page = 1, size = 40 }) {
         at: Number(r.created_at) })) };
 }
 
-/** Fenêtres et espaces de travail d'un dispatcher */
-async function layout(userId) {
-    const rows = await query('SELECT data FROM mdc_web_layouts WHERE user_id = ?', [String(userId)]);
-    try { return rows.length ? JSON.parse(rows[0].data) : null; } catch (e) { return null; }
-}
-async function saveLayout(userId, data) {
-    await query('INSERT INTO mdc_web_layouts (user_id, data, updated_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = VALUES(updated_at)',
-        [String(userId), JSON.stringify(data), Math.floor(Date.now() / 1000)]);
+/** Note de service (commune au MDC Web et au MDC de police en jeu) : { text, by, at } */
+async function serviceNote() {
+    const rows = await query("SELECT value FROM mdc_settings WHERE name = 'service_note'");
+    try {
+        const v = rows.length ? JSON.parse(rows[0].value || '{}') : {};
+        return { text: String(v.text || ''), by: String(v.by || ''), at: Number(v.at) || 0 };
+    } catch (e) {
+        return { text: '', by: '', at: 0 };
+    }
 }
 
 async function dispatchMode() {
@@ -257,4 +256,4 @@ async function dispatchMode() {
 }
 
 module.exports = { activeCalls, callDetail, units, channelMessages, messageById, conversations, observeConversations, history, actionLog,
-    dispatchMode, callStatus, trash, audit, layout, saveLayout };
+    dispatchMode, callStatus, audit, serviceNote };

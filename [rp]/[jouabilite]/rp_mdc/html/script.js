@@ -317,6 +317,7 @@
         if (isPolice()) {
             refreshUnits(); // statut de l'unité du joueur (volet de gauche)
             refreshBolos(); // BOLOs actifs (volet de gauche)
+            loadServiceNote(); // note de service (en haut de chaque page)
         }
         const startTab = hud.settings.mdc.startTab;
         if (opening && startTab && startTab !== 'last' && pageAllowed(startTab)) showPage(startTab);
@@ -1593,7 +1594,13 @@
             }
         }
 
-        // Admins : supprimer l'appel de la liste (en cours ou terminé)
+        // Intervention terminée : encore modifiable par la police (adresse corrigée, description complétée…)
+        if (c.closed && police && allowed) {
+            actions = `<div class="toolbar call-actions call-actions-bottom"><span class="hint-text">Intervention terminée : ses informations restent modifiables.</span>
+                <span class="grow"></span><button type="button" class="btn" data-call-action="edit">Modifier</button></div>`;
+        }
+
+        // Admins : supprimer l'appel de la liste (en cours ou terminé) — suppression définitive
         if (state.perms && state.perms.deleteCalls) {
             actions += `<div class="toolbar call-actions"><span class="grow"></span>
                 <button type="button" class="btn btn-danger" data-call-action="delete">Supprimer de la liste</button></div>`;
@@ -4691,22 +4698,45 @@
     const NOTIFY_EVENTS = {
         call:     { visual: true,  sound: 'call' },     // nouvelle intervention (et affectation par le dispatch)
         backup:   { visual: true,  sound: 'call' },     // demande de renfort / 10-33 sur une intervention
-        incident: { visual: true,  sound: 'incident' }, // nouvel incident
+        incident: { visual: true,  sound: 'call' },     // nouvel incident : même son (inter.wav) qu'une intervention
         bolo:     { visual: true,  sound: 'bolo' },     // nouveau BOLO
         status:   { visual: true,  sound: 'status' },   // changement de statut de son unité
         message:  { visual: false, sound: 'message' },  // TOUT message reçu : unité, dispatch, groupe civil, privé
         callEdit: { visual: false, sound: 'link' },     // modification d'un élément d'une intervention (dispatch)
         assign:   { visual: false, sound: 'assign' },   // une unité rejoint l'appel
+        assigned: { visual: true,  sound: 'assign' },   // son unité affectée à un appel par le dispatch : son de notification seul
         deassign: { visual: false, sound: 'deassign' }, // une unité quitte l'appel
         link:     { visual: false, sound: 'link' },     // fiche / rapport lié à l'appel
         other:    { visual: false, sound: 'message' },  // autres avis du dispatch (appel transmis, refusé, annulé…)
     };
 
     // Seule fonction qui affiche une notification et / ou joue son son. el (facultatif) : la notification construite.
+    // Affectation par le dispatch : l'unité affectée n'entend QUE le son de l'affectation. Les sons qui arrivent avec
+    // elle (nouvelle intervention, statut « En route » mis par l'affectation) sont retenus un court instant, puis
+    // annulés si l'affectation arrive ; arrivés juste après l'affectation, ils ne sont pas joués.
+    const HELD_SOUNDS = { call: true, status: true };
+    const SOUND_HOLD_MS = 450;
+    const AFTER_ASSIGN_MS = 3000;
+    const heldSounds = new Set(); // minuteries des sons retenus
+    let assignedAt = 0;
     function notify(event, el, duration) {
         const cfg = NOTIFY_EVENTS[event] || NOTIFY_EVENTS.other;
         if (cfg.visual && el) pushNotification(el, duration || 8000);
-        if (cfg.sound && hud.settings.notify.sound !== false) playSound(cfg.sound);
+        if (!cfg.sound || hud.settings.notify.sound === false) return;
+        if (event === 'assigned') {
+            heldSounds.forEach((t) => clearTimeout(t));
+            heldSounds.clear();
+            assignedAt = Date.now();
+            playSound(cfg.sound);
+            return;
+        }
+        if (HELD_SOUNDS[cfg.sound] && event !== 'backup') {
+            if (Date.now() - assignedAt < AFTER_ASSIGN_MS) return;
+            const t = setTimeout(() => { heldSounds.delete(t); if (Date.now() - assignedAt >= AFTER_ASSIGN_MS) playSound(cfg.sound); }, SOUND_HOLD_MS);
+            heldSounds.add(t);
+            return;
+        }
+        playSound(cfg.sound);
     }
 
     // Sons d'événements envoyés par le serveur (client/hud.lua) : unité qui rejoint / quitte l'appel, fiche liée,
@@ -5022,94 +5052,57 @@
     }
 
     // =====================================================================
-    // LIVEVIEW (MDC Web) : capture du jeu (screenshot-basic).
-    // Vidéo WebRTC : chaque capture est décodée hors écran puis dessinée d'un coup dans un canevas (double tampon :
-    // jamais d'image à moitié dessinée) publié en vidéo vers le relais LiveKit (jeton émetteur de la salle de CE
-    // joueur, publication seule). Bibliothèque chargée seulement au premier usage (rien hors LiveView).
-    // Repli : image réduite (480 x 270 / 960 x 540), JPEG, envoyée au site avec le jeton reçu du serveur.
+    // NOTE DE SERVICE (police) : texte commun au MDC Web et à toutes les unités, en haut de chaque page.
+    // Modifiable (Config.ServiceNoteEditInGame) ; chaque modification arrive tout de suite chez les autres.
     // =====================================================================
-    const live = { busy: false, canvas: null, lastMs: 0 };
-    const rtcPub = { lib: null, loading: null, room: null, url: '', connecting: null, canvas: null, track: null, failedAt: 0, kbps: 0 };
-    function rtcLib() {
-        if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
-        if (!rtcPub.loading) {
-            rtcPub.loading = new Promise((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = 'vendor/livekit-client.umd.js';
-                s.onload = () => (window.LivekitClient ? resolve(window.LivekitClient) : reject(new Error('lib')));
-                s.onerror = () => { rtcPub.loading = null; reject(new Error('lib')); };
-                document.head.appendChild(s);
-            });
+    const serviceNote = { note: null, canEdit: true, editing: false, collapsed: false };
+    const fmtNoteDate = (t) => { const d = new Date(t * 1000); return `${dateString(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+    function renderServiceNote() {
+        const box = $('#serviceNote');
+        if (!box) return;
+        const n = serviceNote.note || { text: '', by: '', at: 0 };
+        box.classList.toggle('hidden', !isPolice());
+        box.classList.toggle('collapsed', serviceNote.collapsed && !serviceNote.editing);
+        $('#serviceNoteText').textContent = n.text || 'Aucune note de service.';
+        $('#serviceNoteText').classList.toggle('empty', !n.text);
+        $('#serviceNoteMeta').textContent = n.at ? `modifiée par ${n.by || '—'} le ${fmtNoteDate(n.at)}` : '';
+        $('#serviceNoteEdit').classList.toggle('hidden', !serviceNote.canEdit || serviceNote.editing);
+        $('#serviceNoteToggle').textContent = serviceNote.collapsed ? 'Afficher' : 'Réduire';
+        $('#serviceNoteText').classList.toggle('hidden', serviceNote.editing);
+        $('#serviceNoteForm').classList.toggle('hidden', !serviceNote.editing);
+    }
+    function setServiceNote(note, changed) {
+        if (!note || typeof note !== 'object') return;
+        const before = serviceNote.note && serviceNote.note.text;
+        serviceNote.note = { text: String(note.text || ''), by: String(note.by || ''), at: Number(note.at) || 0 };
+        renderServiceNote();
+        if (changed && before !== undefined && before !== serviceNote.note.text && state.open) {
+            const box = $('#serviceNote');
+            box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
         }
-        return rtcPub.loading;
     }
-    async function rtcConnect(r) {
-        const LK = await rtcLib();
-        const room = new LK.Room({ adaptiveStream: false, dynacast: false, disconnectOnPageLeave: true });
-        room.on(LK.RoomEvent.Disconnected, () => { if (rtcPub.room === room) { rtcPub.room = null; rtcPub.track = null; } });
-        await room.connect(r.url, r.token, { autoSubscribe: false });
-        const canvas = rtcPub.canvas || (rtcPub.canvas = document.createElement('canvas'));
-        canvas.width = r.w; canvas.height = r.h;
-        const stream = canvas.captureStream(0); // une image vidéo par capture (requestFrame)
-        const mst = stream.getVideoTracks()[0];
-        await room.localParticipant.publishTrack(mst, { name: 'ecran', source: LK.Track.Source.ScreenShare, simulcast: false,
-            videoEncoding: { maxBitrate: r.kbps * 1000, maxFramerate: r.fps }, degradationPreference: 'maintain-resolution' });
-        rtcPub.room = room; rtcPub.url = r.url; rtcPub.track = mst; rtcPub.kbps = r.kbps;
+    async function loadServiceNote() {
+        const res = await post('getServiceNote');
+        if (!res || !res.ok) return;
+        serviceNote.canEdit = res.canEdit !== false;
+        setServiceNote(res.note, false);
     }
-    function rtcStop() {
-        if (rtcPub.room) rtcPub.room.disconnect();
-        rtcPub.room = null; rtcPub.track = null; rtcPub.connecting = null;
-    }
-    // vrai si la capture part en vidéo ; faux : repli JPEG
-    function rtcFrame(f, img) {
-        const r = f.rtc;
-        if (!r || !r.url || !r.token || Date.now() - rtcPub.failedAt < 30000) return false;
-        if (rtcPub.room && rtcPub.url !== r.url) rtcStop();
-        if (!rtcPub.room) {
-            if (!rtcPub.connecting) rtcPub.connecting = rtcConnect(r).catch(() => { rtcPub.failedAt = Date.now(); rtcStop(); }).finally(() => { rtcPub.connecting = null; });
-            return false;
-        }
-        const canvas = rtcPub.canvas;
-        if (canvas.width !== r.w || canvas.height !== r.h) { canvas.width = r.w; canvas.height = r.h; } // mosaïque <-> agrandi
-        canvas.getContext('2d').drawImage(img, 0, 0, r.w, r.h);
-        if (rtcPub.track && rtcPub.track.requestFrame) rtcPub.track.requestFrame();
-        if (r.kbps !== rtcPub.kbps && rtcPub.room) {
-            rtcPub.kbps = r.kbps;
-            for (const pub of rtcPub.room.localParticipant.trackPublications.values()) {
-                const sender = pub.track && pub.track.sender;
-                if (!sender) continue;
-                const params = sender.getParameters();
-                (params.encodings || []).forEach((e) => { e.maxBitrate = r.kbps * 1000; e.maxFramerate = r.fps; });
-                sender.setParameters(params).catch(() => {});
-            }
-        }
-        return true;
-    }
-    function liveFrame(f) {
-        if (live.busy || !f.img || ((!f.url || !f.token) && !f.rtc)) return;
-        live.busy = true;
-        const img = new Image();
-        img.onload = () => {
-            if (rtcFrame(f, img)) { live.busy = false; return; }
-            if (!f.url || !f.token) { live.busy = false; return; }
-            const canvas = live.canvas || (live.canvas = document.createElement('canvas'));
-            const w = Math.max(160, Math.min(1280, Number(f.w) || 480));
-            const h = Math.max(90, Math.min(720, Number(f.h) || 270));
-            canvas.width = w;
-            canvas.height = h;
-            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            canvas.toBlob((blob) => {
-                if (!blob) { live.busy = false; return; }
-                const started = performance.now();
-                fetch(f.url, { method: 'POST', mode: 'cors', body: blob,
-                    headers: { 'Content-Type': 'image/jpeg', 'X-Live-Token': f.token, 'X-Live-Ms': String(Math.round(live.lastMs)), 'X-Live-Size': `${w}x${h}` } })
-                    .catch(() => null)
-                    .finally(() => { live.lastMs = performance.now() - started; live.busy = false; });
-            }, 'image/jpeg', Math.min(0.9, Math.max(0.2, Number(f.q) || 0.5)));
-        };
-        img.onerror = () => { live.busy = false; };
-        img.src = f.img; // décodée entièrement avant onload : le canevas publié ne voit que des images complètes
-    }
+    $('#serviceNoteEdit').addEventListener('click', () => {
+        serviceNote.editing = true;
+        renderServiceNote();
+        $('#serviceNoteInput').value = (serviceNote.note && serviceNote.note.text) || '';
+        $('#serviceNoteInput').focus();
+    });
+    $('#serviceNoteCancel').addEventListener('click', () => { serviceNote.editing = false; renderServiceNote(); });
+    $('#serviceNoteToggle').addEventListener('click', () => { serviceNote.collapsed = !serviceNote.collapsed; renderServiceNote(); });
+    $('#serviceNoteForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const res = await post('setServiceNote', { text: $('#serviceNoteInput').value });
+        if (!res || !res.ok) { toast((res && res.error) || 'Note de service non enregistrée.', 'error'); return; }
+        serviceNote.editing = false;
+        setServiceNote(res.note, false);
+        toast('Note de service enregistrée : visible par toutes les unités et le dispatch.', 'success');
+    });
 
     function messageNotification(d) {
         const el = document.createElement('div');
@@ -5161,7 +5154,7 @@
     }
 
     // Avis du dispatch : appel transmis / refusé / annulé, unité affectée / retirée, statut changé, intervention modifiée
-    const NOTICE_EVENTS = { assigned: 'call', status: 'status', edited: 'callEdit' };
+    const NOTICE_EVENTS = { assigned: 'assigned', status: 'status', edited: 'callEdit' };
     function dispatchNotice(n) {
         const el = document.createElement('div');
         el.className = `call-toast notice-toast ${esc(n.kind || '')}`;
@@ -6729,12 +6722,14 @@
             case 'dispatchMessage': // message du dispatch / sur un canal du dispatch (prioritaire)
                 if (data.data) onDispatchMessage(data.data);
                 break;
-            case 'liveFrame': // LiveView du MDC Web (client/liveview.lua) : image du jeu à réduire et envoyer
-                if (data.data) liveFrame(data.data);
+            case 'liveStart': // LiveView du MDC Web (client/liveview.lua) : diffuser l'écran du jeu en vidéo (html/liveview.js)
+                if (data.data && window.MDCLive) window.MDCLive.start(data.data);
                 break;
             case 'liveStop':
-                live.busy = false;
-                rtcStop();
+                if (window.MDCLive) window.MDCLive.stop('ordre du serveur');
+                break;
+            case 'serviceNote': // note de service modifiée (dispatch ou autre unité)
+                setServiceNote(data.data, true);
                 break;
             case 'civilMessage': // groupe civil <-> dispatch (MDC générique)
                 if (data.data) onCivilMessage(data.data);

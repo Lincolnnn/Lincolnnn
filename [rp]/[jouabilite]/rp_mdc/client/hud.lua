@@ -289,6 +289,11 @@ RegisterNetEvent('mdc:client:dispatchNotice', function(data)
     if type(data) == 'table' then SendNUIMessage({ action = 'dispatchNotice', data = data }) end
 end)
 
+-- Note de service modifiée (dispatch ou autre unité) : mise à jour en haut du MDC de police
+RegisterNetEvent('mdc:client:serviceNote', function(note)
+    if type(note) == 'table' then SendNUIMessage({ action = 'serviceNote', data = note }) end
+end)
+
 -- Changement de statut de l'unité du joueur : notification en haut à droite
 RegisterNetEvent('mdc:client:statusNotify', function(unit)
     if type(unit) ~= 'table' then return end

@@ -10,7 +10,7 @@ lua54 'yes'
 name 'rp_mdc'
 author 'Lincolnnn'
 description 'Mobile Data Computer (MDC) de police sans framework - MySQL (oxmysql), MDC Web du dispatch, NUI Vanilla JS'
-version '5.1.0'
+version '6.0.0'
 
 dependency 'oxmysql' -- base de données MySQL / MariaDB (voir README)
 
@@ -20,7 +20,8 @@ files {
     'html/index.html',
     'html/style.css',
     'html/script.js',
-    'html/vendor/livekit-client.umd.js', -- LiveView WebRTC (Apache-2.0, voir html/vendor/LICENSE-livekit-client), chargé à la demande
+    'html/liveview.js', -- LiveView du MDC Web : capture du rendu du jeu + vidéo WebRTC (seulement pendant une diffusion)
+    'html/vendor/socket.io.min.js', -- signalisation du LiveView (Socket.IO 4.8.1, licence MIT), chargé à la demande
     'html/img/*.png', -- logos des polices (WSP, KCSO)
     'html/sounds/*.mp3', -- sons du MDC (appels, BOLO, unités, fiches liées, recherches, clic, clavier)
     'html/sounds/*.wav',
@@ -33,7 +34,7 @@ client_scripts {
     'client/streetnames.lua',     -- noms du PLD : config/washington.json (rues, quartiers, villes, polices)
     'client/hud.lua',
     'client/carhud.lua',    -- car HUD : relais des données de Vehicle Control (rp_vehiclecontrol)
-    'client/liveview.lua'   -- LiveView du MDC Web (captures du jeu via screenshot-basic, seulement sur demande)
+    'client/liveview.lua'   -- LiveView du MDC Web (vidéo WebRTC du rendu du jeu, seulement sur demande du dispatch)
 }
 
 server_scripts {

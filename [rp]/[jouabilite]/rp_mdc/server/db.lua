@@ -26,7 +26,7 @@ MDCDB = {
 }
 
 local RESOURCE = GetCurrentResourceName()
-local MIGRATIONS = { '001_init', '002_v4', '003_v5', '004_kcso_areas' } -- fichiers de sql/migrations, dans l'ordre
+local MIGRATIONS = { '001_init', '002_v4', '003_v5', '004_kcso_areas', '005_v6' } -- fichiers de sql/migrations, dans l'ordre
 
 -- =========================================================================
 -- FILE D'ÉCRITURE
@@ -616,84 +616,23 @@ function MDCDB.loadMessages(perChannel)
 end
 
 -- =========================================================================
--- CORBEILLE (suppression logique, restaurable pendant Config.TrashDays jours) ET JOURNAL D'AUDIT
--- La liste de la corbeille est gardée en mémoire (petite) : aucune lecture MySQL pendant une action.
+-- SUPPRESSIONS DÉFINITIVES (plus de corbeille) ET JOURNAL D'AUDIT
 -- =========================================================================
-MDCDB.trash = {}   -- [id] = { id, kind, recordId, label, data, deletedBy, deletedById, deletedAt, expiresAt }
-local nextTrashId = 1
-
-function MDCDB.loadTrash()
-    MDCDB.trash = {}
-    for _, r in ipairs(query('SELECT * FROM mdc_trash') or {}) do
-        local id = tonumber(r.id)
-        MDCDB.trash[id] = { id = id, kind = r.kind, recordId = r.record_id, label = r.label, data = r.data,
-            deletedBy = r.deleted_by, deletedById = r.deleted_by_id, deletedAt = nz(r.deleted_at), expiresAt = nz(r.expires_at) }
-        if id >= nextTrashId then nextTrashId = id + 1 end
-    end
-end
-
---- Met un élément à la corbeille. `data` : texte (JSON) qui permet de le restaurer. Retourne l'entrée.
-function MDCDB.trashAdd(kind, recordId, label, data, actorName, actorId, days)
-    local now = os.time()
-    local e = { id = nextTrashId, kind = kind, recordId = tostring(recordId), label = s(label, 160), data = data,
-        deletedBy = s(actorName, 60), deletedById = s(actorId, 80), deletedAt = now, expiresAt = now + math.floor((days or 30) * 86400) }
-    nextTrashId = nextTrashId + 1
-    MDCDB.trash[e.id] = e
+--- Intervention / incident effacé(e) : unités, notes et liens partent avec (clés étrangères ON DELETE CASCADE)
+function MDCDB.deleteCall(id)
+    id = tonumber(id)
+    MDCDB.knownCalls[id] = nil
     MDCDB.enqueue(function()
-        exec([[INSERT INTO mdc_trash (id, kind, record_id, label, data, deleted_by, deleted_by_id, deleted_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]], { e.id, e.kind, e.recordId, e.label, e.data, e.deletedBy, e.deletedById, e.deletedAt, e.expiresAt })
-    end, nil, 'trash')
-    return e
+        exec('DELETE FROM mdc_calls WHERE id = ?', { id })
+    end, nil, 'call-delete')
 end
 
-function MDCDB.trashRemove(id)
-    local e = MDCDB.trash[id]
-    MDCDB.trash[id] = nil
-    MDCDB.enqueue(function() exec('DELETE FROM mdc_trash WHERE id = ?', { id }) end, nil, 'trash')
-    return e
-end
-
---- Conversation mise à la corbeille : ses messages sont masqués (même date d'effacement), pas supprimés
-function MDCDB.hideChannel(channel, at)
+--- Conversation vidée / supprimée : ses messages et ses lectures sont effacés
+function MDCDB.deleteChannel(channel)
     MDCDB.enqueue(function()
-        exec('UPDATE mdc_messages SET deleted_at = ? WHERE channel = ? AND deleted_at IS NULL', { at, channel })
+        exec('DELETE FROM mdc_messages WHERE channel = ?', { channel })
         exec('DELETE FROM mdc_message_reads WHERE channel = ?', { channel })
     end, nil, 'messages')
-end
-
---- Restauration : messages de nouveau visibles, puis rechargés en mémoire (`done(conv)` dans le fil de la file)
-function MDCDB.unhideChannel(channel, at, perChannel, done)
-    MDCDB.enqueue(function()
-        exec('UPDATE mdc_messages SET deleted_at = NULL WHERE channel = ? AND deleted_at = ?', { channel, at })
-        local rows = query([[SELECT * FROM (SELECT * FROM mdc_messages WHERE channel = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ?) t
-            ORDER BY id]], { channel, perChannel }) or {}
-        local conv = { messages = {}, read = {} }
-        for _, r in ipairs(rows) do
-            conv.messages[#conv.messages + 1] = {
-                id = tonumber(r.id), channel = r.channel, callId = tonumber(r.call_id), senderType = r.sender_type,
-                from = tonumber(r.sender_unit_id), author = r.sender_name, identifier = r.sender_identifier ~= '' and r.sender_identifier or nil,
-                text = r.text, at = nz(r.created_at),
-            }
-        end
-        done(conv)
-    end, nil, 'messages')
-end
-
---- Purge définitive (corbeille expirée, ou demandée) : ce qui restait en base est effacé pour de bon
-function MDCDB.trashPurge(e)
-    MDCDB.trash[e.id] = nil
-    MDCDB.enqueue(function()
-        if e.kind == 'call' then
-            exec('DELETE FROM mdc_calls WHERE id = ? AND deleted_at IS NOT NULL', { tonumber(e.recordId) })
-            MDCDB.knownCalls[tonumber(e.recordId)] = nil
-        elseif e.kind == 'conversation' then
-            local ok, d = pcall(json.decode, e.data or '')
-            if ok and type(d) == 'table' then
-                exec('DELETE FROM mdc_messages WHERE channel = ? AND deleted_at = ?', { tostring(d.channel), nz(d.at) })
-            end
-        end
-        exec('DELETE FROM mdc_trash WHERE id = ?', { e.id })
-    end, nil, 'trash')
 end
 
 function MDCDB.audit(source, actorId, actorName, action, kind, recordId, label, before, after)

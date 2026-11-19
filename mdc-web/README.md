@@ -1,35 +1,43 @@
 # MDC Web du dispatch — Washington Dispatch
 
 Centre de dispatch **en ligne** relié au MDC en jeu (ressource FiveM `rp_mdc`). Ce n'est pas une copie du MDC en jeu :
-c'est une console de dispatch, avec ses propres outils, présentés en **fenêtres flottantes** (MDC Web 3.0 / MDC 5.0) :
+c'est une **console de dispatch de type CAD** (MDC Web 6.0), sombre, pensée pour un poste de dispatch :
 
-- **Fenêtres** déplaçables, redimensionnables, réductibles, agrandissables, épinglables ; **dock** ; trois **espaces de
-  travail** (*Dispatch*, *Enquête*, *Supervision*) ; disposition **gardée par dispatcher sur le serveur** ;
-  **palette de commandes** (Ctrl + K) ; **menus clic droit** ; confirmation avant toute action destructive ;
-  design « verre » avec repli sans flou (transparence réduite) ; thème jour ; tablette ;
-- **Indicateurs**, **file de validation**, **interventions** (filtres, recherche, clavier J / K / Entrée) et **fiche
-  d'intervention** dans sa propre fenêtre : actions, modification (verrou doux entre postes, conflits), **journal
-  automatique** (création, validation, affectations, statuts, modifications, messages, clôture, réouverture ;
-  filtre *Tout / Notes / Journal*), **réouverture**, **suppression** (corbeille) ;
+- **Tableau en colonnes** : **Unités** (*Disponibles*, *Affectées et occupées*, *Indisponibles*, *Hors service* ;
+  étiquette colorée par statut, code `DI / ER / SP / IN`, temps écoulé depuis le dernier statut) · **En attente**
+  (*À valider* par le dispatch, *Sans unité*) · **Actives** (cartes : n°, type, priorité, adresse, unités affectées,
+  dernière note) ;
+- **Glisser une unité sur une carte = l'affecter** (une carte *À valider* est alors validée avec cette unité) ;
+  clic sur une unité : statut, message, affectation, LiveView ; clic droit partout : actions ;
+- **Ligne de commande** en haut (Ctrl + K) avec suggestions : `Adam 12 ER` (statut), `AS Adam 12 4817` (affecter),
+  `RT …` (retirer), `CL 4817 B` (clôturer), `RO` (rouvrir), `AN` (annuler), `VA` (valider), `MOD` (modifier),
+  `NOTE`, `MSG`, `NS` (note de service), `P nom prénom JJ/MM/AAAA`, `V plaque`, `LIVE`, `N` / `I`, `?` (aide) ;
+- **Panneau d'outil** à droite (barre d'icônes, touches 1 à 9, largeur réglable) : **Intervention** (fiche
+  complète, actions, **modification en cours ET terminée**, notes, messages, journal automatique, historique des
+  modifications), **Note de service**, **Messagerie**, **Recherche**, **Registres**, **LiveView**, **Terminées /
+  historique**, **Journal des actions**, **Journal d'audit** ;
+- **Note de service** : bandeau toujours visible en haut, **commune au site et au MDC de police en jeu**,
+  modifiable des deux côtés (auteur et date affichés, mise à jour en direct) ;
 - **Mode Dispatch** (interrupteur en haut) : les appels des civils attendent votre **validation** avant d'arriver aux
   unités, et **seul le dispatch affecte les unités** ; **valider**, **refuser** ou **annuler** avec un motif,
   **clôturer** (Clear A/B/C pour la WSP seulement) ;
+- **Suppression définitive** (plus de corbeille) avec confirmation ; une copie des fiches supprimées reste dans le
+  **journal d'audit** ;
 - **Recherches** (individus, véhicules) et **Registres** du jeu (*Sex Offenders*, *Kidnapping Offenders*, **BOLO**,
   **Rapports**) avec **les mêmes champs, libellés et filtres** qu'en jeu ; **modifier / supprimer** toute fiche ;
-- **Unités** : rue et croisement **en temps réel**, statut modifiable, affectation, message direct ;
 - **Messagerie** : groupe civil, civils (privé), unités, interventions ; **observation** (lecture seule) des
-  conversations entre unités ; **vider / supprimer** une conversation (corbeille) ;
-- **Corbeille** (30 jours, restauration, purge définitive) et **journal d'audit** séparé (avant / après) ;
-- **LiveView** : écran du jeu des joueurs choisis, en **vidéo WebRTC** par un **serveur relais (LiveKit + TURN)**,
-  ou en images si aucun relais n'est configuré ; mosaïque, **incrustation (PiP)**, plein écran — voir
-  **[docs/LIVEVIEW_WEBRTC.md](docs/LIVEVIEW_WEBRTC.md)** ;
-- **Historique** et **Journal** des actions ;
+  conversations entre unités ;
+- **LiveView** : écran du jeu des joueurs choisis en **vidéo WebRTC fluide (jusqu'à 30 images / s)**, écrite de
+  zéro : rendu du jeu capturé dans le NUI, envoyé **directement** au navigateur du dispatcher (ou par un serveur
+  TURN), le site ne fait que la signalisation ; mosaïque, agrandi, **incrustation (PiP)**, plein écran, mesures en
+  direct (i/s, résolution, débit, latence, direct / TURN) — voir **[docs/LIVEVIEW_WEBRTC.md](docs/LIVEVIEW_WEBRTC.md)** ;
 - Le dispatcher apparaît **toujours sous le nom « Dispatch »** (en jeu comme sur le site) : aucun pseudo Discord
   n'est affiché ; l'identifiant Discord reste dans le journal MySQL (`actor_id`) pour les administrateurs ;
 - **Temps réel** (Socket.IO) : rien à rafraîchir ; notifications **visuelles pour les nouvelles interventions
   seulement**, **son seul** pour les messages.
 
-Mise à jour depuis la 4.x, retour arrière et tests manuels : **[docs/MISE_A_JOUR_5.0.md](docs/MISE_A_JOUR_5.0.md)**, puis **[docs/MISE_A_JOUR_5.1.md](docs/MISE_A_JOUR_5.1.md)** (blocs retirés, secteurs KCSO, démonstration).
+Mise à jour : **[docs/MISE_A_JOUR_6.0.md](docs/MISE_A_JOUR_6.0.md)** (depuis la 5.x) ; historique :
+[5.0](docs/MISE_A_JOUR_5.0.md), [5.1](docs/MISE_A_JOUR_5.1.md).
 
 Tout est **synchronisé** avec le jeu : les deux MDC utilisent la **même base MySQL** ; le site agit **par l'API de la
 ressource** (le serveur FiveM reste le seul à écrire les données du MDC, prévient tout de suite les joueurs et renvoie
@@ -82,9 +90,7 @@ l'événement au site).
    GRANT SELECT ON fivem.mdc_identities TO 'mdc_web'@'localhost';
    GRANT SELECT ON fivem.mdc_vehicles TO 'mdc_web'@'localhost';
    GRANT SELECT, INSERT ON fivem.mdc_action_log TO 'mdc_web'@'localhost';
-   GRANT SELECT ON fivem.mdc_trash TO 'mdc_web'@'localhost';               -- corbeille (5.0)
    GRANT SELECT ON fivem.mdc_audit TO 'mdc_web'@'localhost';               -- journal d'audit (5.0)
-   GRANT SELECT, INSERT, UPDATE ON fivem.mdc_web_layouts TO 'mdc_web'@'localhost';  -- fenêtres des dispatchers (5.0)
    GRANT CREATE ON fivem.* TO 'mdc_web'@'localhost';            -- création de la table des sessions (une fois)
    CREATE TABLE IF NOT EXISTS fivem.mdc_web_sessions (session_id VARCHAR(128) NOT NULL PRIMARY KEY,
        expires INT UNSIGNED NOT NULL, data MEDIUMTEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -210,12 +216,13 @@ consultables, les actions sont refusées avec un message clair.
 ## 9. Mise à jour
 
 Remplacez les fichiers (gardez `.env`), `npm install --omit=dev`, redémarrez. Côté FiveM, les nouvelles migrations SQL
-s'appliquent seules au démarrage de `rp_mdc`. Passage à la 5.0 (droits MySQL, variables LiveKit, retour arrière,
-tests) : **[docs/MISE_A_JOUR_5.0.md](docs/MISE_A_JOUR_5.0.md)**.
+s'appliquent seules au démarrage de `rp_mdc`. Passage à la 6.0 (corbeille retirée, LiveView, variables `.env`) :
+**[docs/MISE_A_JOUR_6.0.md](docs/MISE_A_JOUR_6.0.md)**.
 
-## 10. LiveView WebRTC (serveur relais + TURN)
+## 10. LiveView WebRTC (vidéo du jeu)
 
-Facultatif. Sans configuration, le LiveView fonctionne en images. Pour la vidéo (~2 images/s) : installez le relais
-LiveKit (exemple [`deploy/livekit.yaml`](deploy/livekit.yaml)), ouvrez les ports (443, 7881/TCP, 50000–60000/UDP,
-3478/UDP, 5349/TCP), puis remplissez `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` dans `.env`.
-Architecture, jetons, sécurité, plafonds et STUN / TURN : **[docs/LIVEVIEW_WEBRTC.md](docs/LIVEVIEW_WEBRTC.md)**.
+Fonctionne **sans rien installer** de plus quand le dispatcher et le joueur peuvent se joindre directement (la
+plupart des connexions). Pour que **toutes** les connexions passent (réseaux d'entreprise, 4G, NAT stricts), installez
+un serveur **TURN** (coturn, gratuit) et remplissez `LIVE_TURN_URLS` + `LIVE_TURN_SECRET` dans `.env`. Le site doit être
+en **HTTPS** (le NUI du jeu est une page `https://cfx-nui-rp_mdc`). Réglages de qualité (`LIVE_FPS`, résolution,
+débits), confidentialité (`LIVE_RELAY_ONLY`), ports et dépannage : **[docs/LIVEVIEW_WEBRTC.md](docs/LIVEVIEW_WEBRTC.md)**.

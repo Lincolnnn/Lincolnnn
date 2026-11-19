@@ -1584,3 +1584,20 @@ tr.row-ended td { opacity: .55; }
 /* Secteurs du KCSO (création / modification d'un appel) */
 [data-kcso-areas]:empty { display: none; }
 .kcso-areas .dept-checks { margin-top: 4px; }
+
+/* ---------- Note de service (police) : commune au MDC Web et à toutes les unités ---------- */
+.service-note {
+    flex-shrink: 0; margin: -4px 0 12px; padding: 8px 12px 10px;
+    background: rgba(var(--accent-rgb), .08); border: 1px solid rgba(var(--accent-rgb), .35);
+    border-left: 4px solid var(--accent); border-radius: 6px;
+}
+.service-note .sn-head { display: flex; align-items: center; gap: 10px; }
+.service-note .sn-title { font: 700 12px/1 var(--font-display); letter-spacing: .6px; text-transform: uppercase; color: var(--accent); }
+.service-note .sn-meta { font-size: 11px; color: var(--muted); }
+.service-note .sn-text { margin-top: 6px; white-space: pre-wrap; font-size: 13px; line-height: 1.45; max-height: 9.5em; overflow-y: auto; }
+.service-note .sn-text.empty { color: var(--muted); font-style: italic; }
+.service-note.collapsed .sn-text { max-height: 1.45em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.service-note .sn-form textarea { width: 100%; margin-top: 8px; resize: vertical; min-height: 70px; }
+.service-note .sn-form .toolbar { margin-top: 6px; display: flex; align-items: center; gap: 8px; }
+.service-note.flash { animation: sn-flash 1.2s ease-out 2; }
+@keyframes sn-flash { 50% { background: rgba(var(--accent-rgb), .22); } }

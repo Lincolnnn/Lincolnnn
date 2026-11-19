@@ -48,9 +48,11 @@ function dispatchers() {
 }
 
 function init(httpServer, sessionMiddleware, onPresenceChange) {
-    io = new Server(httpServer, { serveClient: true, cors: { origin: config.publicUrl, credentials: true }, maxHttpBufferSize: 64 * 1024 });
+    // origines : la console (même site) et le NUI du MDC en jeu (espace « /live » du LiveView, jeton de diffusion)
+    io = new Server(httpServer, { serveClient: true, cors: { origin: [config.publicUrl, ...config.live.origins], credentials: true },
+        maxHttpBufferSize: 64 * 1024 });
     io.engine.use(sessionMiddleware);
-    liveview.setIo(io);
+    liveview.attach(io);
 
     io.use(async (socket, next) => {
         const session = socket.request.session;
@@ -89,7 +91,14 @@ function init(httpServer, sessionMiddleware, onPresenceChange) {
             broadcast('editing', editing());
         });
 
-        // LiveView : joueurs regardés par ce poste
+        // LiveView : joueurs regardés par ce poste, puis signalisation WebRTC (réponse, candidats ICE) vers le joueur
+        let liveBudget = { at: Date.now(), n: 0 };
+        socket.on('live:signal', (msg) => {
+            const now = Date.now();
+            if (now - liveBudget.at > 1000) liveBudget = { at: now, n: 0 };
+            if ((liveBudget.n += 1) > 200) return;
+            liveview.fromViewer(socket, msg);
+        });
         socket.on('live:watch', (list, ack) => {
             liveview.setWatch(socket, list, cache.players)
                 .then((r) => { if (typeof ack === 'function') ack(r); })
@@ -157,7 +166,7 @@ async function handleGameEvents(events) {
             }
             if (e.topic === 'call:edited' && e.data) broadcast('call:edited', e.data);
             if (e.topic === 'records') broadcast('records', {});   // registres modifiés (jeu ou site)
-            if (e.topic === 'trash') broadcast('trash', {});
+            if (e.topic === 'serviceNote' && e.data) broadcast('serviceNote', e.data);
             if (e.topic === 'dispatch' && e.data) broadcast('dispatch', e.data);
             if (ALERTS[e.topic] && e.data) broadcast('alert', { type: ALERTS[e.topic], ...e.data });
             if (e.topic === 'message' && e.data && e.data.id) {

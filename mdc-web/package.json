@@ -1,12 +1,12 @@
 {
   "name": "mdc-dispatch-web",
-  "version": "3.1.0",
-  "description": "MDC Web du dispatch (Washington) : centre de dispatch en ligne relié au MDC en jeu (rp_mdc), Discord OAuth2, MySQL, temps réel",
+  "version": "6.0.0",
+  "description": "MDC Web du dispatch (Washington) : console de dispatch (style CAD) reliée au MDC en jeu (rp_mdc), Discord OAuth2, MySQL, temps réel, LiveView WebRTC",
   "private": true,
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "check": "node --check src/server.js && node --check src/config.js && node --check src/db.js && node --check src/queries.js && node --check src/discord.js && node --check src/auth.js && node --check src/fivem.js && node --check src/realtime.js && node --check src/api.js && node --check src/logger.js && node --check src/liveview.js && node --check public/assets/wm.js && node --check public/assets/app.js && node --check public/assets/login.js"
+    "check": "node --check src/server.js && node --check src/config.js && node --check src/db.js && node --check src/queries.js && node --check src/discord.js && node --check src/auth.js && node --check src/fivem.js && node --check src/realtime.js && node --check src/api.js && node --check src/logger.js && node --check src/liveview.js && node --check public/assets/app.js && node --check public/assets/login.js"
   },
   "engines": {
     "node": ">=18.17"
@@ -20,8 +20,6 @@
     "express-mysql-session": "3.0.3",
     "express-session": "1.19.0",
     "helmet": "8.0.0",
-    "livekit-client": "2.23.0",
-    "livekit-server-sdk": "2.19.2",
     "mysql2": "3.24.6",
     "socket.io": "4.8.1"
   },

@@ -126,9 +126,12 @@ local Config = {
     --   ClosedCallsKeepHours : interventions terminées gardées dans la liste du MDC en jeu ; toutes restent dans MySQL
     --   (historique du MDC Web).
     ClosedCallsKeepHours = 12,
-    -- Corbeille : tout élément supprimé (intervention, fiche, BOLO, rapport, conversation) reste restaurable pendant
-    -- TrashDays jours (MDC Web > Corbeille), puis il est purgé définitivement
-    TrashDays = 30,
+    -- Suppression (intervention, fiche, BOLO, rapport, conversation) : DÉFINITIVE, sans corbeille. Une copie de la
+    -- fiche supprimée reste dans le journal d'audit (MDC Web > Audit).
+    -- NOTE DE SERVICE : texte commun affiché en haut du MDC de police (jeu) et du MDC Web. Modifiable par le dispatch
+    -- (site) et, si ServiceNoteEditInGame = true, par les agents de police en jeu (KCSO, WSP).
+    ServiceNoteLength = 1500,
+    ServiceNoteEditInGame = true,
     -- N° de référence des interventions et incidents : RD + 4 chiffres ALÉATOIRES (ex. RD4817), jamais deux fois le
     -- même (vérifié sur tous les appels enregistrés dans MySQL)
     CallNumberPrefix = 'RD',
@@ -2642,7 +2645,7 @@ RegisterMDCCallback('interventionAction', function(src, payload)
             if pendingUnit then closeOffer(call, pendingUnit, 'closed') end
         end
         Offers[call.id] = nil
-        MDCServer.trashCall(call, { name = agentName(src), id = getIdentifier(src), source = 'game' })
+        MDCServer.removeCall(call, { name = agentName(src), id = getIdentifier(src), source = 'game' })
         MDCDB.log('game', getIdentifier(src), agentName(src), 'call.delete', nil, nil, { number = call.number })
         print(('^5[MDC]^0 %s supprimé(e) de la liste par %s [%s]'):format(call.number or ('#' .. call.id), agentName(src),
             GetPlayerName(src) or '?'))
@@ -2720,11 +2723,26 @@ RegisterMDCCallback('interventionAction', function(src, payload)
     return { ok = true }
 end)
 
+-- Note de service (en haut du MDC de police) : lecture et modification
+RegisterMDCCallback('getServiceNote', function(src)
+    if not isPoliceAgency(agencyOf(src)) then return { ok = false, error = 'Réservé à la police.' } end
+    return { ok = true, note = MDCServer.serviceNote().note, canEdit = Config.ServiceNoteEditInGame ~= false }
+end)
+
+RegisterMDCCallback('setServiceNote', function(src, payload)
+    if not isPoliceAgency(agencyOf(src)) then return { ok = false, error = 'Réservé à la police.' } end
+    if Config.ServiceNoteEditInGame == false then return { ok = false, error = 'La note de service n\'est modifiable que par le dispatch.' } end
+    return MDCServer.setServiceNote(payload.text, { name = agentName(src), id = getIdentifier(src), source = 'game' })
+end)
+
 -- Modification des informations d'une intervention / d'un incident
 RegisterMDCCallback('editIntervention', function(src, payload)
     local call = findIntervention(payload.id)
     if not call or not seesCall(src, call) then return { ok = false, error = 'Intervention introuvable.' } end
-    if call.closed then return { ok = false, error = 'Une intervention terminée ne peut plus être modifiée.' } end
+    -- Intervention terminée : modifiable aussi (rapport complété après coup, adresse corrigée…), seulement par la police
+    if call.closed and not isPoliceAgency(agencyOf(src)) then
+        return { ok = false, error = 'Une intervention terminée n\'est modifiable que par la police.' }
+    end
     -- MDC générique : seulement les appels des civils (pas les incidents déclarés par la police)
     if agencyOf(src) == 'generic' and call.kind ~= 'intervention' then
         return { ok = false, error = 'Les incidents déclarés par la police ne sont modifiables que par la police.' }
@@ -2746,7 +2764,9 @@ RegisterMDCCallback('editIntervention', function(src, payload)
     if #changed > 0 then
         call.rev = (call.rev or 0) + 1 -- MDC Web : modification simultanée détectée
         table.sort(changed)
-        MDCServer.journal(call, ('Modifiée par %s : %s'):format(agentName(src), table.concat(changed, ', ')), agentName(src))
+        MDCServer.journal(call, ('Modifiée%s par %s : %s'):format(call.closed and ' (après clôture)' or '', agentName(src),
+            table.concat(changed, ', ')), agentName(src))
+        if call.closed then MDCDB.saveCall(call) end
         MDCWeb.notify('call:edited', { id = call.id, number = call.number, rev = call.rev })
     end
     pushInterventions()
@@ -3720,7 +3740,7 @@ RegisterMDCCallback('deleteBolo', function(src, payload)
         table.insert(Store.bolos, index, bolo)
         return { ok = false, error = 'Erreur d\'écriture sur le serveur : suppression annulée (voir console).' }
     end
-    MDCServer.toTrash('bolo', bolo, { name = agentName(src), id = getIdentifier(src), source = 'game' })
+    MDCServer.recordDeleted('bolo', bolo, { name = agentName(src), id = getIdentifier(src), source = 'game' })
 
     pushBolos()
     print(('^5[MDC]^0 BOLO n°%s supprimé par %s [%s]'):format(bolo.number, agentName(src), GetPlayerName(src) or '?'))
@@ -4497,7 +4517,7 @@ do
             end
         end
         table.sort(list, function(a, b) return a.serverId < b.serverId end)
-        return { ok = true, players = list, liveview = GetResourceState('screenshot-basic') == 'started' }
+        return { ok = true, players = list, liveview = true }
     end
 
     D.locations = {}     -- [id de l'unité] = { street, crossing, zone, at }
@@ -4525,38 +4545,20 @@ do
     end
 
     -- =====================================================================
-    -- LIVEVIEW (MDC Web) : captures d'écran du jeu envoyées par le joueur au site, seulement pendant qu'un
-    -- dispatcher le regarde (ressource screenshot-basic). Le serveur FiveM ne fait que relayer l'ordre.
+    -- LIVEVIEW (MDC Web) : vidéo WebRTC de l'écran du jeu, seulement pendant qu'un dispatcher regarde le joueur.
+    -- Le site donne un jeton de diffusion (à usage limité) ; le serveur FiveM ne fait que relayer l'ordre au joueur,
+    -- dont le NUI se connecte au site (signalisation) puis envoie la vidéo directement aux dispatchers (pair à pair,
+    -- ou par un serveur TURN). Aucune image ne passe par le serveur FiveM.
     -- =====================================================================
-    D.LIVE_MODES = {
-        grid = { w = 480, h = 270, q = 0.45, interval = 2000 },  -- mosaïque : 0,5 image / s
-        focus = { w = 960, h = 540, q = 0.6, interval = 500 },   -- agrandi : 2 images / s
-    }
-    --- Vidéo WebRTC (relais LiveKit) : adresse wss:// et jeton émetteur signé par le site, taille / débit plafonnés
-    function D.liveRtc(r)
-        if type(r) ~= 'table' then return nil end
-        local wsUrl, token = tostring(r.url or ''), tostring(r.token or '')
-        if not wsUrl:match('^wss?://[%w%.%-:]+[%w/%-%.]*$') or #wsUrl > 200 then return nil end
-        if not token:match('^[%w%-_]+%.[%w%-_]+%.[%w%-_]+$') or #token > 2048 then return nil end
-        local clamp = function(v, lo, hi, def) v = tonumber(v) or def; return math.floor(math.max(lo, math.min(hi, v))) end
-        return { url = wsUrl, token = token, w = clamp(r.w, 320, 1280, 640), h = clamp(r.h, 180, 720, 360),
-            fps = clamp(r.fps, 1, 4, 2), kbps = clamp(r.kbps, 100, 4000, 600) }
-    end
     function MDCServer.liveStart(targets, url)
-        if GetResourceState('screenshot-basic') ~= 'started' then
-            return { ok = false, error = 'LiveView indisponible : la ressource screenshot-basic n\'est pas démarrée sur le serveur.' }
-        end
         url = tostring(url or '')
-        if not url:match('^https?://') then return { ok = false, error = 'Adresse d\'envoi invalide.' } end
+        if not url:match('^https?://[%w%.%-:]+[%w/%-%._]*$') or #url > 200 then return { ok = false, error = 'Adresse du site invalide.' } end
         local started = 0
         for _, t in ipairs(type(targets) == 'table' and targets or {}) do
             local src = tonumber(t.serverId)
             local token = tostring(t.token or ''):gsub('[^%w]', ''):sub(1, 64)
-            local mode = D.LIVE_MODES[t.mode] and t.mode or 'grid'
             if src and GetPlayerName(src) and #token >= 24 then
-                local m = D.LIVE_MODES[mode]
-                TriggerClientEvent('mdc:client:liveview', src, { on = true, token = token, url = url, mode = mode,
-                    w = m.w, h = m.h, q = m.q, interval = m.interval, ttl = 25, rtc = D.liveRtc(t.rtc) })
+                TriggerClientEvent('mdc:client:liveview', src, { on = true, token = token, url = url, ttl = 45 })
                 started = started + 1
             end
         end
@@ -4612,7 +4614,7 @@ do
     end
 
     -- =====================================================================
-    -- JOURNAL AUTOMATIQUE DES APPELS, CORBEILLE, RÉOUVERTURE, MODIFICATION DES FICHES PAR LE DISPATCH
+    -- JOURNAL AUTOMATIQUE DES APPELS, SUPPRESSION, RÉOUVERTURE, MODIFICATION DES FICHES PAR LE DISPATCH
     -- =====================================================================
     --- Entrée du journal d'un appel (dans ses notes : unité « JOURNAL », horodatée, avec son auteur)
     function MDCServer.journal(call, text, author)
@@ -4635,51 +4637,43 @@ do
     function D.actorOfWeb(actor)
         return { name = 'Dispatch', id = actor and actor.id and actor.id ~= '' and ('discord:' .. actor.id) or '', source = 'dispatch' }
     end
-    function D.trashDays() return tonumber(Config.TrashDays) or 30 end
-
-    --- Fiche (identité, véhicule, rapport, BOLO) déjà retirée de son registre : copie à la corbeille + audit
-    function MDCServer.toTrash(kind, record, who)
-        local ok, data = pcall(json.encode, record)
-        local e = MDCDB.trashAdd(kind, record.id, D.recordLabel(kind, record), ok and data or nil, who.name, who.id, D.trashDays())
+    --- Fiche (identité, véhicule, rapport, BOLO) supprimée pour de bon : une copie reste dans le journal d'audit
+    function MDCServer.recordDeleted(kind, record, who)
         MDCDB.audit(who.source, who.id, who.name, 'delete', kind, record.id, D.recordLabel(kind, record), record, nil)
-        MDCWeb.notify('trash')
-        return e
     end
 
-    --- Intervention / incident à la corbeille : masqué(e) partout (jeu et site), restaurable
-    function MDCServer.trashCall(call, who)
+    --- Intervention / incident supprimé(e) pour de bon (jeu et site) : notes, unités et liens effacés avec lui (elle)
+    function MDCServer.removeCall(call, who)
         for unitId in pairs(Offers[call.id] and Offers[call.id].pending or {}) do
             local pendingUnit = findUnit(unitId)
             if pendingUnit then closeOffer(call, pendingUnit, 'closed') end
         end
         Offers[call.id] = nil
-        MDCServer.journal(call, ('Supprimée (corbeille) par %s'):format(who.name), who.name)
-        call.deletedAt = os.time()
-        MDCDB.saveCall(call)
+        D.noticeCall(call, { kind = 'deleted', title = 'Intervention supprimée', number = call.number, text = call.title })
+        call.deleted = true
         for i, c in ipairs(Interventions) do
             if c == call then table.remove(Interventions, i) break end
         end
-        D.noticeCall(call, { kind = 'deleted', title = 'Intervention supprimée', number = call.number, text = call.title })
+        MDCDB.deleteCall(call.id)
         local label = ('%s — %s'):format(call.number or '?', call.title or '')
-        MDCDB.trashAdd('call', call.id, label, nil, who.name, who.id, D.trashDays())
-        MDCDB.audit(who.source, who.id, who.name, 'delete', 'call', call.id, label, { number = call.number, title = call.title, closed = call.closed }, nil)
+        MDCDB.audit(who.source, who.id, who.name, 'delete', 'call', call.id, label,
+            { number = call.number, title = call.title, address = call.address, closed = call.closed }, nil)
         pushInterventions()
         pushHud()
-        MDCWeb.notify('trash')
     end
 
-    --- Appel trouvé en mémoire, ou relu dans MySQL (ancien appel, ou à la corbeille) : `cb(call)` dans le fil de la file
-    function D.withCall(id, includeTrashed, cb)
+    --- Appel trouvé en mémoire, ou relu dans MySQL (ancien appel terminé) : `cb(call)` dans le fil de la file
+    function D.withCall(id, cb)
         local call = findIntervention(tonumber(id))
         if call and not call.deleted then return cb(call) end
         MDCDB.enqueue(function()
             local list = MDCDB.loadCalls(0, tonumber(id))
             local c = list and list[1]
-            if c and (includeTrashed or not c.deletedAt) then
+            if c and not c.deletedAt then
                 Interventions[#Interventions + 1] = c
                 MDCDB.knownCalls[c.id] = true
             end
-            cb(c and (includeTrashed or not c.deletedAt) and c or nil)
+            cb(c and not c.deletedAt and c or nil)
         end, nil, 'call-load')
     end
 
@@ -4687,7 +4681,7 @@ do
     --- (en cours s'il reste des unités, sinon en attente d'unité) ; unités prévenues par un son.
     function MDCServer.reopenCall(id, actor)
         return { async = function(reply)
-            D.withCall(id, false, function(call)
+            D.withCall(id, function(call)
                 if not call then return reply({ ok = false, error = 'Intervention introuvable.' }) end
                 if not call.closed then return reply({ ok = false, error = 'Cette intervention n\'est pas terminée.' }) end
                 local before = { closed = true, clear = call.clear, dispatch = call.dispatch, closedAt = call.closedAt }
@@ -4708,16 +4702,16 @@ do
 
     function MDCServer.deleteCall(id, actor)
         return { async = function(reply)
-            D.withCall(id, false, function(call)
+            D.withCall(id, function(call)
                 if not call then return reply({ ok = false, error = 'Intervention introuvable.' }) end
-                MDCServer.trashCall(call, D.actorOfWeb(actor))
+                MDCServer.removeCall(call, D.actorOfWeb(actor))
                 D.logD(actor, 'call.delete', nil, nil, { number = call.number })
                 reply({ ok = true })
             end)
         end }
     end
 
-    --- Fiches : suppression (corbeille) et modification par le dispatch (toutes les fiches, mêmes contrôles qu'en jeu)
+    --- Fiches : suppression (définitive) et modification par le dispatch (toutes les fiches, mêmes contrôles qu'en jeu)
     function MDCServer.deleteRecord(kind, id, actor)
         local storeName = D.STORE_OF[kind]
         if not storeName then return { ok = false, error = 'Type de fiche invalide.' } end
@@ -4733,7 +4727,7 @@ do
             if call then call.reports[tostring(record.id)] = nil; pushInterventions() end
         end
         if kind == 'bolo' then pushBolos() end
-        MDCServer.toTrash(kind, record, D.actorOfWeb(actor))
+        MDCServer.recordDeleted(kind, record, D.actorOfWeb(actor))
         MDCWeb.notify('records', { kind = kind })
         return { ok = true }
     end
@@ -4776,96 +4770,56 @@ do
         return { ok = true }
     end
 
-    --- Conversation (groupe civil, civil, unité, appel, unité ↔ unité) : messages à la corbeille. La conversation
+    --- Conversation (groupe civil, civil, unité, appel, unité ↔ unité) : messages effacés pour de bon. La conversation
     --- peut être recréée aussitôt (un nouveau message la rouvre). mode : 'delete' (supprimer) ou 'empty' (vider).
     function MDCServer.deleteConversation(channel, mode, actor)
         channel = tostring(channel or '')
         local ok = channel == 'd:civ' or channel:match('^d:p:%w+$') or channel:match('^d:u:%d+$') or channel:match('^d:c:%d+$')
             or channel:match('^u:%d+:%d+$')
         if not ok or #channel > 32 then return { ok = false, error = 'Conversation invalide.' } end
-        local at = os.time()
-        MDCDB.hideChannel(channel, at)
+        MDCDB.deleteChannel(channel)
         Conversations[channel] = nil
         local who = D.actorOfWeb(actor)
         local label = ('%s (%s)'):format(channel, mode == 'empty' and 'messages vidés' or 'conversation supprimée')
-        MDCDB.trashAdd('conversation', channel, label, json.encode({ channel = channel, at = at, mode = mode }), who.name, who.id, D.trashDays())
         MDCDB.audit('dispatch', who.id, who.name, mode == 'empty' and 'empty' or 'delete', 'conversation', channel, label, nil, nil)
         -- joueurs concernés : compteurs à jour
         for _, unit in ipairs(Units) do pushUnread(unit) end
         MDCWeb.notify('reads')
-        MDCWeb.notify('trash')
         return { ok = true }
     end
 
-    --- Restauration depuis la corbeille (même numéro de fiche) ; purge définitive sur demande
-    function MDCServer.restoreTrash(trashId, actor)
-        local e = MDCDB.trash[tonumber(trashId)]
-        if not e then return { ok = false, error = 'Élément introuvable dans la corbeille.' } end
-        local who = D.actorOfWeb(actor)
-        local storeName = D.STORE_OF[e.kind]
-        if storeName then
-            local okDecode, record = pcall(json.decode, e.data or '')
-            if not okDecode or type(record) ~= 'table' then return { ok = false, error = 'Données illisibles : restauration impossible.' } end
-            if findBy(storeName, 'id', record.id) then return { ok = false, error = 'Une fiche porte déjà ce numéro.' } end
-            Migrations[storeName](record)
-            Store[storeName][#Store[storeName] + 1] = record
-            table.sort(Store[storeName], function(a, b) return a.id < b.id end)
-            if not saveStore(storeName) then return { ok = false, error = 'Erreur d\'écriture sur le serveur.' } end
-            if e.kind == 'bolo' then pushBolos() end
-            if e.kind == 'report' then
-                local call = liveCall(record.call)
-                if call then call.reports[tostring(record.id)] = true; pushInterventions() end
-            end
-            MDCDB.trashRemove(e.id)
-            MDCDB.audit('dispatch', who.id, who.name, 'restore', e.kind, e.recordId, e.label, nil, record)
-            MDCWeb.notify('records', { kind = e.kind })
-            MDCWeb.notify('trash')
-            return { ok = true }
+    -- =====================================================================
+    -- NOTE DE SERVICE : texte commun en haut du MDC de police (jeu) et du MDC Web, avec son auteur et sa date.
+    -- Gardée dans mdc_settings (service_note). Envoyée aux agents de police connectés à chaque modification.
+    -- =====================================================================
+    D.serviceNote = { text = '', by = '', at = 0 }
+    function D.loadServiceNote()
+        local raw = MDCDB.getSetting('service_note')
+        local ok, v = pcall(json.decode, raw or '')
+        if ok and type(v) == 'table' then
+            D.serviceNote = { text = tostring(v.text or ''), by = tostring(v.by or ''), at = tonumber(v.at) or 0 }
         end
-        if e.kind == 'call' then
-            return { async = function(reply)
-                D.withCall(e.recordId, true, function(call)
-                    if not call then return reply({ ok = false, error = 'Intervention introuvable (déjà purgée ?).' }) end
-                    call.deletedAt = nil
-                    call.rev = (call.rev or 0) + 1
-                    MDCServer.journal(call, 'Restaurée depuis la corbeille par le dispatch', 'Dispatch')
-                    MDCDB.trashRemove(e.id)
-                    pushInterventions()
-                    MDCDB.audit('dispatch', who.id, who.name, 'restore', 'call', e.recordId, e.label, nil, { number = call.number })
-                    MDCWeb.notify('trash')
-                    reply({ ok = true })
-                end)
-            end }
-        end
-        if e.kind == 'conversation' then
-            local okDecode, d = pcall(json.decode, e.data or '')
-            if not okDecode or type(d) ~= 'table' then return { ok = false, error = 'Données illisibles.' } end
-            return { async = function(reply)
-                MDCDB.unhideChannel(d.channel, d.at, Config.MaxUnitMessages or 60, function(conv)
-                    -- (la relecture contient aussi les messages écrits depuis l'effacement)
-                    local current = Conversations[d.channel]
-                    if current then conv.read = current.read end
-                    Conversations[d.channel] = conv
-                    MDCDB.trashRemove(e.id)
-                    MDCDB.audit('dispatch', who.id, who.name, 'restore', 'conversation', e.recordId, e.label, nil, nil)
-                    for _, unit in ipairs(Units) do pushUnread(unit) end
-                    MDCWeb.notify('reads')
-                    MDCWeb.notify('trash')
-                    reply({ ok = true })
-                end)
-            end }
-        end
-        return { ok = false, error = 'Élément non restaurable.' }
     end
-
-    function MDCServer.purgeTrash(trashId, actor)
-        local e = MDCDB.trash[tonumber(trashId)]
-        if not e then return { ok = false, error = 'Élément introuvable dans la corbeille.' } end
-        MDCDB.trashPurge(e)
-        local who = D.actorOfWeb(actor)
-        MDCDB.audit('dispatch', who.id, who.name, 'purge', e.kind, e.recordId, e.label, nil, nil)
-        MDCWeb.notify('trash')
-        return { ok = true }
+    function MDCServer.serviceNote() return { ok = true, note = D.serviceNote } end
+    function D.pushServiceNote(src)
+        local targets = src and { src } or GetPlayers()
+        for _, p in ipairs(targets) do
+            local id = tonumber(p)
+            if id and isPoliceAgency(agencyOf(id)) then TriggerClientEvent('mdc:client:serviceNote', id, D.serviceNote) end
+        end
+    end
+    --- who : { name, id, source ('game' | 'dispatch') }
+    function MDCServer.setServiceNote(text, who)
+        text = cleanMultiline(text, Config.ServiceNoteLength or 1500)
+        local before = D.serviceNote.text
+        if text == before then return { ok = true, note = D.serviceNote, unchanged = true } end
+        D.serviceNote = { text = text, by = clean(who.name or 'Dispatch', 60), at = os.time() }
+        MDCDB.setSetting('service_note', json.encode(D.serviceNote))
+        MDCDB.audit(who.source or 'game', who.id or '', who.name or '', 'update', 'note', 'service', 'Note de service', { text = before }, { text = text })
+        MDCDB.log(who.source or 'game', who.id or '', who.name or '', 'note.service', nil, nil, { length = #text })
+        D.pushServiceNote()
+        MDCWeb.notify('serviceNote', D.serviceNote)
+        return { ok = true, note = D.serviceNote }
     end
 
     -- =====================================================================
@@ -4942,23 +4896,6 @@ do
         return { ok = true, types = MDC_REPORT_TYPES or {}, offenses = MDC_OFFENSES or {}, classes = MDC_OFFENSE_CLASSES or {} }
     end
 
-    -- Purge automatique de la corbeille expirée (toutes les heures)
-    CreateThread(function()
-        while true do
-            Wait(3600 * 1000)
-            if MDCDB.ready then
-                local now = os.time()
-                for _, e in pairs(MDCDB.trash) do
-                    if e.expiresAt <= now then
-                        MDCDB.trashPurge(e)
-                        MDCDB.audit('game', '', 'Serveur', 'purge', e.kind, e.recordId, e.label, nil, nil)
-                    end
-                end
-                MDCWeb.notify('trash')
-            end
-        end
-    end)
-
     -- =====================================================================
     -- DÉMARRAGE : MySQL prêt -> migrations, import, chargement de toutes les données
     -- =====================================================================
@@ -4995,7 +4932,7 @@ do
 
             -- Messagerie
             for channel, conv in pairs(MDCDB.loadMessages(Config.MaxUnitMessages or 60)) do Conversations[channel] = conv end
-            MDCDB.loadTrash() -- corbeille
+            D.loadServiceNote() -- note de service
 
             -- Mode Dispatch (le site a HeartbeatTimeout secondes pour se reconnecter)
             D.enabled = MDCDB.getSetting('dispatch_mode') == '1'

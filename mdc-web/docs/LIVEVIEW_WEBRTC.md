@@ -1,192 +1,119 @@
-# LiveView WebRTC — serveur relais (LiveKit) et TURN
+# LiveView — vidéo WebRTC de l'écran des joueurs (MDC 6.0)
 
-Le LiveView montre aux dispatchers, en direct, l'écran **du jeu** des joueurs qu'ils choisissent (image du jeu
-uniquement, capturée par la ressource `screenshot-basic` : ni bureau, ni autre fenêtre, ni son).
-
-Deux voies, choisies automatiquement :
-
-| Voie | Quand | Qualité | Charge |
-|---|---|---|---|
-| **Vidéo WebRTC** par un **serveur relais** (SFU LiveKit + TURN intégré) | `LIVEKIT_*` rempli dans `.env` | ~2 images/s, 640 × 360 (mosaïque) ou 1280 × 720 (agrandi), débit plafonné | le relais transporte la vidéo ; le site ne fait que signer des jetons |
-| **Images JPEG** relayées par le site (repli) | relais non configuré, injoignable, ou publication impossible dans le NUI | 0,5 image/s en mosaïque, 2 images/s agrandi | le site relaie chaque image |
-
-Le repli est automatique **joueur par joueur** : si le NUI d'un joueur ne peut pas joindre le relais, ses images
-arrivent par le site, sans rien faire.
-
----
-
-## 1. Architecture
+Le LiveView montre au dispatcher, **en vidéo fluide** (jusqu'à 30 images / s), l'écran de jeu des joueurs qu'il choisit.
+Il est **écrit de zéro** (aucun relais vidéo externe, plus de LiveKit ni de `screenshot-basic`) et suit les techniques
+utilisées par les ressources de capture FiveM : lecture du **rendu du jeu** comme une texture WebGL dans le NUI, piste
+vidéo `canvas.captureStream()`, envoi en **WebRTC** pair à pair.
 
 ```
-                              (1) live:watch [joueurs]           (2) live.start + jeton ÉMETTEUR
- Navigateur du dispatcher ──── Socket.IO (session Discord) ────▶ Site Node.js ─── API (clé partagée) ───▶ Serveur FiveM (rp_mdc)
-        ▲      │                  ◀── jetons LECTEUR ──         │  signe les jetons (LIVEKIT_API_SECRET)        │ TriggerClientEvent
-        │      │                                                │  ferme les salles / retire les lecteurs       ▼
-        │      │                                                │  (API serveur du relais)               Joueur regardé
-        │      │                                                ▼                                          client/liveview.lua
-        │      │                                        Serveur relais LiveKit                             screenshot-basic (image du jeu)
-        │      └──── (3) WebRTC : abonnement (lecture seule) ──▶  SFU + TURN  ◀──── (3) WebRTC : publication ──── NUI du MDC
-        │                                                         salle « mdc-live-<id joueur> »                 canevas → vidéo ~2 i/s
-        └────────────────────── vidéo du joueur ─────────────────────┘
+ Navigateur du dispatcher  ◄──────── vidéo WebRTC (DTLS-SRTP, direct ou par TURN) ────────  NUI du MDC (jeu du joueur)
+          │ Socket.IO « / » (session + rôle)                                   Socket.IO « /live » (jeton) │
+          └──────────────────────────────►  site Node.js : signalisation seule  ◄────────────────────────┘
+                                                     │ API « live.start / live.stop »
+                                                     ▼
+                                       serveur FiveM (rp_mdc) : relaie l'ordre au joueur
 ```
 
-1. Le dispatcher coche des joueurs (mosaïque) ou détache un écran (incrustation, plein écran). Le site vérifie sa
-   **session** (rôle Discord « Dispatch », revérifié régulièrement), **enregistre la consultation** dans le journal
-   (`mdc_action_log`, action `live.view`, voie `webrtc` ou `images`) et lui renvoie **un jeton lecteur par joueur**.
-2. Le site demande au serveur FiveM de faire diffuser ces joueurs, avec un **jeton émetteur** limité à la salle du
-   joueur. Ordre renouvelé toutes les 8 s ; sans renouvellement, le jeu s'arrête seul (25 s).
-3. Le NUI du MDC du joueur charge la bibliothèque WebRTC **seulement à ce moment-là** (`html/vendor/`), dessine chaque
-   capture dans un canevas (image décodée entière avant d'être dessinée : jamais d'image à moitié tracée) et publie ce
-   canevas en vidéo vers le relais. Le navigateur du dispatcher s'abonne à la salle du joueur.
+## Déroulé
 
-**Une salle par joueur** (`mdc-live-<id serveur>`) : un jeton ne donne accès qu'à l'écran pour lequel il a été émis.
+1. Le dispatcher coche un joueur (outil **LiveView**, ou **LIVE &lt;unité&gt;** dans la ligne de commande, ou le menu
+   d'une unité). Le site vérifie sa session et son rôle Discord, **journalise la consultation** (`live.view`) et crée
+   une **liaison** (identifiant aléatoire) entre ce dispatcher et ce joueur.
+2. Le site demande au serveur FiveM de faire diffuser le joueur, avec un **jeton de diffusion** aléatoire (24 octets,
+   valable tant que quelqu'un regarde, renouvelé toutes les 20 s). `client/liveview.lua` le transmet au NUI ; sans
+   renouvellement pendant 45 s (site coupé), la diffusion s'arrête seule.
+3. Le NUI (`html/liveview.js`) se connecte à l'espace Socket.IO **`/live`** du site avec ce jeton (rien d'autre ne
+   l'ouvre), reçoit la configuration (serveurs ICE, qualité) et les liaisons à servir.
+4. **Capture** : un canevas WebGL hors écran dessine à chaque image la texture du jeu (image du jeu seule : ni le MDC,
+   ni le chat, ni les autres interfaces), à la taille maximale réglée (1280 × 720 par défaut, proportions de l'écran
+   gardées), puis `captureStream(30)` en fait une piste vidéo (indice `motion`).
+5. **WebRTC** : une `RTCPeerConnection` par liaison, en émission seule. Le jeu fait l'**offre**, le navigateur répond ;
+   offre, réponse et candidats ICE passent par le site, **jamais la vidéo**. Codec préféré : H.264 (sinon VP8 / VP9).
+6. **Qualité en direct** : mosaïque = image réduite de moitié, 20 i/s, 700 kb/s ; **agrandi** (bouton ⤢ ou double-clic
+   sur la tuile, incrustation en plein écran) = pleine taille, 30 i/s, 3 Mb/s. Le changement se fait sur la liaison
+   existante (`RTCRtpSender.setParameters`), **sans renégociation** ni coupure. Préférence **maintain-framerate** :
+   sur un réseau faible, la netteté baisse avant la fluidité. Côté dispatcher, tampon de gigue réduit (40 ms).
+7. **Plus personne ne regarde** : liaisons fermées des deux côtés, ordre `live.stop`, la capture s'arrête (GPU libéré).
 
-### Jetons
+Le pied de chaque tuile affiche en direct : images / s reçues, résolution, débit, aller-retour (ms), codec, **direct**
+ou **TURN**, et la cadence réellement capturée par le jeu. Image figée plus de 5 s : redémarrage ICE automatique.
 
-| Jeton | Qui | Droits | Validité |
-|---|---|---|---|
-| Lecteur | navigateur d'un dispatcher, après vérification de session et journalisation | salle d'**un** joueur, **abonnement seul**, pas de publication, participant **caché** | 2 min pour entrer (le relais renouvelle ensuite la connexion) |
-| Émetteur | NUI du joueur regardé, via le serveur FiveM | salle de **ce** joueur, **publication seule**, aucun abonnement | 15 min, renvoyé toutes les 8 s tant que quelqu'un regarde |
+## Configuration (`.env` du site)
 
-Le secret `LIVEKIT_API_SECRET` ne quitte jamais le site (il n'est ni dans le jeu, ni dans le navigateur).
-
-### Arrêts et retraits
-
-- Le dispatcher arrête de regarder un joueur (décoche, masque, ferme l'incrustation ou la fenêtre) : le site le
-  **retire de la salle côté relais** (pas seulement dans son navigateur) ;
-- plus personne ne regarde un joueur : ordre d'arrêt au jeu, et la **salle est fermée** sur le relais ;
-- rôle Discord retiré, déconnexion, onglet fermé : la session temps réel se ferme, le site retire ce dispatcher de
-  toutes les salles ;
-- joueur déconnecté : ses flux s'arrêtent, les tuiles l'indiquent.
-
-### Plafonds
-
-| Réglage | Par défaut | Effet |
+| Variable | Défaut | Rôle |
 |---|---|---|
-| `LIVE_MAX_STREAMS` | 16 | joueurs diffusés en même temps (tous dispatchers confondus) ; au-delà : refus affiché |
-| `LIVE_MAX_KBPS` | 900 | débit max d'un joueur affiché en grand (mosaïque : la moitié) |
-| Taille / cadence | 640 × 360 à 2 i/s (mosaïque), 1280 × 720 à 2 i/s (agrandi) | fixées par le site ; le jeu les borne (320–1280 px, 1–4 i/s, 100–4000 kb/s) |
+| `LIVE_PUBLIC_URL` | `PUBLIC_URL` | adresse du site vue depuis le jeu (**HTTPS** en production) |
+| `LIVE_MAX_STREAMS` | 16 | joueurs diffusés en même temps |
+| `LIVE_MAX_VIEWERS` | 4 | dispatchers par joueur (chaque dispatcher = un encodage vidéo chez le joueur) |
+| `LIVE_STUN_URLS` | Google + Cloudflare | serveurs STUN |
+| `LIVE_TURN_URLS` | — | serveur(s) TURN, ex. `turn:turn.exemple.fr:3478,turns:turn.exemple.fr:5349` |
+| `LIVE_TURN_SECRET` | — | secret partagé coturn (`static-auth-secret`) : identifiants temporaires |
+| `LIVE_TURN_USERNAME` / `LIVE_TURN_PASSWORD` | — | sinon : identifiants fixes |
+| `LIVE_TURN_TTL` | 3600 | validité des identifiants temporaires (s) |
+| `LIVE_RELAY_ONLY` | 0 | 1 : toujours par TURN (aucune IP échangée entre joueur et dispatcher) |
+| `LIVE_MAX_WIDTH` / `LIVE_MAX_HEIGHT` | 1280 / 720 | taille maximale de la capture (jusqu'à 1920 × 1080) |
+| `LIVE_FPS` | 30 | cadence de capture et de l'agrandi (10 à 60) |
+| `LIVE_CODEC` | h264 | codec préféré (`h264`, `vp8`, `vp9`) |
+| `LIVE_GRID_SCALE` / `LIVE_GRID_FPS` / `LIVE_GRID_KBPS` | 2 / 20 / 700 | mosaïque |
+| `LIVE_FOCUS_KBPS` | 3000 | débit maximal de l'agrandi (kb/s) |
+| `LIVE_ALLOWED_ORIGINS` | `https://cfx-nui-rp_mdc,nui://rp_mdc` | origines autorisées pour la connexion du jeu |
 
-Côté joueur : aucune capture sans ordre, 0,00 ms hors LiveView (la boucle n'existe que pendant une diffusion).
+Côté FiveM : **rien à installer** (plus besoin de `screenshot-basic`). La ressource `rp_mdc` contient
+`html/liveview.js` et `html/vendor/socket.io.min.js` (Socket.IO 4.8.1, licence MIT), chargés seulement au premier usage.
 
-### Indicateurs (tuiles et incrustations)
+## Serveur TURN (conseillé)
 
-Pastille de fraîcheur (vert < 3,5 s, orange < 8 s, rouge au-delà), **images/s mesurées** à l'affichage,
-**délai** (WebRTC : délai de réception mesuré par le navigateur ; images : temps d'envoi de la dernière image),
-**résolution reçue**, qualité de liaison (WebRTC) et voie utilisée (`WebRTC` / `images`).
-
----
-
-## 2. Installer le serveur relais (LiveKit)
-
-LiveKit est un serveur WebRTC libre (Apache-2.0). Il tourne sur une machine **joignable depuis Internet** (les joueurs
-et les dispatchers s'y connectent directement), idéalement **la même que le site** ou une petite VM à part
-(1 vCPU / 1 Go suffisent pour 16 flux à 2 i/s).
-
-### 2.1 Clés
-
-Générez une clé et un secret (32 caractères au moins pour le secret) :
-
-```bash
-docker run --rm livekit/livekit-server generate-keys
-# ou : node -e "console.log('APIk' + require('crypto').randomBytes(6).toString('hex'), require('crypto').randomBytes(32).toString('base64url'))"
-```
-
-Gardez-les **hors du dépôt** : dans `livekit.yaml` (sur le serveur relais) et dans le `.env` du site.
-
-### 2.2 Configuration
-
-Copiez [`deploy/livekit.yaml`](../deploy/livekit.yaml) sur le serveur relais, remplacez le domaine et les clés.
-Points importants :
-
-- `rtc.use_external_ip: true` : le relais annonce son IP publique ;
-- `turn.enabled: true` avec `domain` et TLS sur **5349** (ou 443) : indispensable pour les dispatchers derrière un
-  pare-feu d'entreprise / un réseau qui bloque l'UDP ;
-- `room.empty_timeout` court : une salle sans personne disparaît vite.
-
-### 2.3 Démarrage (Docker)
-
-```bash
-docker run -d --name livekit --restart unless-stopped --network host \
-  -v /etc/livekit/livekit.yaml:/livekit.yaml livekit/livekit-server:v1.13.11 --config /livekit.yaml
-```
-
-(Fixez une version précise de l'image, testée chez vous.) Ou le binaire `livekit-server --config livekit.yaml`
-(service systemd).
-
-### 2.4 HTTPS / WSS
-
-Les navigateurs et le NUI du jeu (page `https://cfx-nui-rp_mdc`) exigent **`wss://`**. Deux façons :
-
-- **Reverse proxy** (Nginx, Caddy) : `https://live.exemple.fr` → `http://127.0.0.1:7880` avec WebSocket
-  (`Upgrade`/`Connection`) ; le média, lui, passe directement par les ports ci-dessous ;
-- ou le TLS intégré de LiveKit (voir sa documentation).
-
-Exemple Caddy :
+Sans TURN, la liaison passe en direct pour la plupart des joueurs ; derrière certains réseaux (NAT symétrique, 4G,
+entreprise), elle échoue. **coturn** (gratuit) règle ce cas :
 
 ```
-live.exemple.fr {
-    reverse_proxy 127.0.0.1:7880
-}
+# /etc/turnserver.conf
+listening-port=3478
+tls-listening-port=5349
+fingerprint
+use-auth-secret
+static-auth-secret=<même valeur que LIVE_TURN_SECRET, 32 caractères aléatoires>
+realm=turn.exemple.fr
+cert=/etc/letsencrypt/live/turn.exemple.fr/fullchain.pem
+pkey=/etc/letsencrypt/live/turn.exemple.fr/privkey.pem
+min-port=49160
+max-port=49200
+no-multicast-peers
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
 ```
 
-### 2.5 Pare-feu
+Ports à ouvrir sur le serveur TURN : **3478** (UDP + TCP), **5349** (TCP, TLS), **49160–49200** (UDP). Puis dans `.env` :
+`LIVE_TURN_URLS=turn:turn.exemple.fr:3478,turns:turn.exemple.fr:5349` et `LIVE_TURN_SECRET=<le secret>`.
+Le site signe des identifiants temporaires (`expiration:identité` + HMAC-SHA1 du secret) : le secret ne quitte jamais
+le serveur.
 
-| Port | Proto | Usage |
+## Sécurité et vie privée
+
+- Seuls les dispatchers connectés **avec le rôle Discord** peuvent regarder ; chaque consultation est journalisée.
+- Le jeu ne diffuse que sur **ordre du site** relayé par le serveur FiveM, avec un jeton aléatoire ; un jeton inconnu
+  est refusé ; un joueur ne peut parler qu'aux liaisons **de son propre flux**, un dispatcher qu'à ses liaisons.
+- Messages de signalisation vérifiés (type, taille : SDP ≤ 32 Ko, candidat ≤ 1 Ko) et limités en cadence.
+- La vidéo est chiffrée de bout en bout du transport (DTLS-SRTP) ; elle ne passe ni par le site ni par le serveur
+  FiveM. En pair à pair, joueur et dispatcher voient l'adresse IP l'un de l'autre : `LIVE_RELAY_ONLY=1` (avec TURN)
+  l'évite.
+- Seul le **rendu du jeu** est capturé (pas le bureau du joueur, pas les autres fenêtres).
+
+## Performance
+
+- Hors LiveView : **rien** ne tourne (ni capture, ni connexion) ; côté Lua, un minuteur n'existe que pendant une
+  diffusion (0,00 ms sinon).
+- Pendant une diffusion : un dessin WebGL par image (plafonné à `LIVE_FPS`) et un encodage vidéo **par dispatcher**
+  qui regarde (d'où `LIVE_MAX_VIEWERS`). Pour un joueur regardé par plusieurs dispatchers en même temps sur un PC
+  modeste, baissez `LIVE_MAX_WIDTH` / `LIVE_FPS`.
+
+## Dépannage
+
+| Symptôme | Cause probable | Solution |
 |---|---|---|
-| 443 | TCP | `wss://` (signalisation, via le reverse proxy) |
-| 7881 | TCP | média WebRTC en TCP (repli quand l'UDP est filtré) |
-| 50000–60000 | UDP | média WebRTC (plage `rtc.port_range_*`) |
-| 3478 | UDP | TURN/UDP (STUN compris) |
-| 5349 | TCP | TURN/TLS (réseaux très filtrés : fonctionne comme du HTTPS) |
-
-7880 (API HTTP du relais) reste **local** derrière le proxy.
-
-### 2.6 STUN / TURN : pourquoi et comment
-
-- **STUN** : chaque client découvre son adresse publique ; fourni par le relais (port 3478), rien à ajouter.
-- **TURN** : quand une connexion directe UDP est impossible (NAT strict, réseau d'entreprise, 4G), le client passe
-  **par le relais** en UDP 3478, ou en **TLS 5349** (ressemble à du HTTPS, passe presque partout). Le TURN intégré à
-  LiveKit suffit : **aucun serveur coturn séparé** n'est nécessaire.
-- Les jetons LiveKit donnent aussi l'accès TURN : pas d'identifiants TURN statiques à distribuer.
-- TURN/TLS demande un certificat pour `turn.domain` (ex. `turn.exemple.fr`) : `cert_file` / `key_file` dans
-  `livekit.yaml`, ou un équilibreur TLS devant le port 5349.
-
-Vérification : <https://livekit.io/connection-test> (avec un jeton de test), ou dans le site : tuile en `WebRTC`
-avec un délai affiché.
-
----
-
-## 3. Relier le site
-
-Dans le `.env` du site :
-
-```
-LIVEKIT_URL=wss://live.exemple.fr
-LIVEKIT_API_KEY=APIxxxxxxxx
-LIVEKIT_API_SECRET=(secret de 32 caractères ou plus)
-# facultatif : API serveur du relais si elle n'est pas https://<même hôte> (ex. http://127.0.0.1:7880 si local)
-LIVEKIT_API_URL=
-LIVE_MAX_KBPS=900
-LIVE_MAX_STREAMS=16
-```
-
-Redémarrez le site. Il ajoute lui-même l'adresse du relais à sa politique de sécurité (CSP `connect-src`).
-Rien à changer côté FiveM : le jeton émetteur passe par l'API existante (`mdc_web_key`). Le serveur FiveM n'a **pas**
-besoin de joindre le relais ; ce sont les **clients** (jeu et navigateurs) qui s'y connectent.
-
-Sans `LIVEKIT_*`, le LiveView marche comme en 4.0 (images JPEG) : la voie WebRTC est un ajout, pas un prérequis.
-
----
-
-## 4. Ce qui a été vérifié, et ce qui ne l'a pas été
-
-Vérifié par des tests automatiques (site réel, vraie base, vrai code Lua du serveur, vrai NUI dans Chromium) :
-signature et contenu des jetons (salle, droits, durée), journalisation des consultations, ordres envoyés au jeu
-(taille, cadence, débit, passage mosaïque ↔ agrandi), arrêts, publication du canevas par le NUI (bibliothèque
-simulée : une piste vidéo, sans simulcast, débit et cadence plafonnés, une image vidéo par capture, pas de
-reconnexion au changement de mode, déconnexion à l'arrêt), repli JPEG quand le relais est injoignable.
-
-**Non vérifié ici** : le transport réel de la vidéo par un serveur LiveKit et le TURN (aucun relais n'a pu être lancé
-dans l'environnement de développement). À tester sur votre serveur avec la liste « LiveView » de
-[MISE_A_JOUR_5.0.md](MISE_A_JOUR_5.0.md).
+| « Connexion à l'écran du joueur… » sans fin | site injoignable depuis le jeu ou origine refusée | `LIVE_PUBLIC_URL` en HTTPS accessible depuis Internet ; `LIVE_ALLOWED_ORIGINS` |
+| liaison « échec » | NAT strict | serveur TURN (`LIVE_TURN_URLS`, `LIVE_TURN_SECRET`) |
+| image noire | texture du jeu non reconnue (client FiveM très ancien) | mettre à jour FiveM ; tester `MDCLive.status()` dans la console NUI (F8 → `nui_devtools`) |
+| saccades | débit ou PC du joueur limité | baisser `LIVE_FOCUS_KBPS`, `LIVE_MAX_WIDTH`, `LIVE_FPS` ; vérifier le pied de tuile (TURN / direct, i/s du jeu) |
+| « Limite atteinte » | `LIVE_MAX_STREAMS` ou `LIVE_MAX_VIEWERS` | augmenter avec prudence |
